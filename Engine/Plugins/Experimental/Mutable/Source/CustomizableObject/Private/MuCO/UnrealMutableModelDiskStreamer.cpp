@@ -44,56 +44,13 @@ void UnrealMutableInputStream::Read(void* pData, uint64 size)
 
 
 //-------------------------------------------------------------------------------------------------
-FUnrealMutableModelBulkStreamer::FUnrealMutableModelBulkStreamer(FArchive* InMainDataArchive, FArchive* InStreamedDataArchive)
-{
-#if WITH_EDITOR
-	MainDataArchive = InMainDataArchive;
-	StreamedDataArchive = InStreamedDataArchive;
-	CurrentWriteFile = nullptr;
-#endif
-}
-
-FUnrealMutableModelBulkStreamer::~FUnrealMutableModelBulkStreamer()
+FUnrealMutableModelBulkReader::~FUnrealMutableModelBulkReader()
 {
 	EndStreaming();
 }
 
 
-void FUnrealMutableModelBulkStreamer::OpenWriteFile(const char* strModelName, uint64 key0)
-{
-#if WITH_EDITOR
-	if (key0 == 0) // Model
-	{
-		check(MainDataArchive);
-		CurrentWriteFile = MainDataArchive;
-	}
-	else
-	{
-		check(StreamedDataArchive);
-		CurrentWriteFile = StreamedDataArchive;
-	}
-#endif
-}
-
-
-void FUnrealMutableModelBulkStreamer::Write(const void* pBuffer, uint64 size)
-{
-#if WITH_EDITOR
-	check(CurrentWriteFile);
-	CurrentWriteFile->Serialize(const_cast<void*>(pBuffer), size);
-#endif
-}
-
-
-void FUnrealMutableModelBulkStreamer::CloseWriteFile()
-{
-#if WITH_EDITOR
-	CurrentWriteFile = nullptr;
-#endif
-}
-
-
-bool FUnrealMutableModelBulkStreamer::PrepareStreamingForObject(UCustomizableObject* CustomizableObject)
+bool FUnrealMutableModelBulkReader::PrepareStreamingForObject(UCustomizableObject* CustomizableObject)
 {
 	// This happens in the game thread
 	check(IsInGameThread());
@@ -131,9 +88,9 @@ bool FUnrealMutableModelBulkStreamer::PrepareStreamingForObject(UCustomizableObj
 
 	// Is the object already prepared for streaming?
 	bool bAlreadyStreaming = Objects.FindByPredicate(
-		[CustomizableObject](const FObjectData& d) 
+		[CustomizableObject](const FObjectData& d)
 		{ return d.Model.Pin().Get() == CustomizableObject->GetModel().Get(); })
-		!= 
+		!=
 		nullptr;
 
 	if (!bAlreadyStreaming)
@@ -192,7 +149,7 @@ bool FUnrealMutableModelBulkStreamer::PrepareStreamingForObject(UCustomizableObj
 
 
 #if WITH_EDITOR
-void FUnrealMutableModelBulkStreamer::CancelStreamingForObject(const UCustomizableObject* CustomizableObject)
+void FUnrealMutableModelBulkReader::CancelStreamingForObject(const UCustomizableObject* CustomizableObject)
 {
 	// This happens in the game thread
 	check(IsInGameThread());
@@ -205,7 +162,7 @@ void FUnrealMutableModelBulkStreamer::CancelStreamingForObject(const UCustomizab
 	// See if we can free previuously allocated resources
 	for (int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ++ObjectIndex)
 	{
-		if (Objects[ObjectIndex].Model.Pin()==CustomizableObject->GetModel())
+		if (Objects[ObjectIndex].Model.Pin() == CustomizableObject->GetModel())
 		{
 			for (TPair<OPERATION_ID, IAsyncReadRequest*>& it : Objects[ObjectIndex].CurrentReadRequests)
 			{
@@ -225,7 +182,7 @@ void FUnrealMutableModelBulkStreamer::CancelStreamingForObject(const UCustomizab
 }
 
 
-bool FUnrealMutableModelBulkStreamer::AreTherePendingStreamingOperationsForObject(const UCustomizableObject* CustomizableObject) const
+bool FUnrealMutableModelBulkReader::AreTherePendingStreamingOperationsForObject(const UCustomizableObject* CustomizableObject) const
 {
 	// This happens in the game thread
 	check(IsInGameThread());
@@ -240,7 +197,7 @@ bool FUnrealMutableModelBulkStreamer::AreTherePendingStreamingOperationsForObjec
 	{
 		if (Objects[ObjectIndex].Model.Pin() == CustomizableObject->GetModel())
 		{
-			if(!Objects[ObjectIndex].CurrentReadRequests.IsEmpty())
+			if (!Objects[ObjectIndex].CurrentReadRequests.IsEmpty())
 			{
 				return true;
 			}
@@ -253,7 +210,7 @@ bool FUnrealMutableModelBulkStreamer::AreTherePendingStreamingOperationsForObjec
 #endif // WITH_EDITOR
 
 
-void FUnrealMutableModelBulkStreamer::EndStreaming()
+void FUnrealMutableModelBulkReader::EndStreaming()
 {
 	for (FObjectData& o : Objects)
 	{
@@ -279,7 +236,7 @@ FAutoConsoleVariableRef CVarStreamPriority(
 	TEXT(""));
 
 
-mu::ModelStreamer::OPERATION_ID FUnrealMutableModelBulkStreamer::BeginReadBlock(const mu::Model* Model, uint64 Key, void* pBuffer, uint64 size)
+mu::ModelReader::OPERATION_ID FUnrealMutableModelBulkReader::BeginReadBlock(const mu::Model* Model, uint64 Key, void* pBuffer, uint64 size)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableModelBulkStreamer::OpenReadFile);
 
@@ -297,7 +254,7 @@ mu::ModelStreamer::OPERATION_ID FUnrealMutableModelBulkStreamer::BeginReadBlock(
 		return -1;
 	}
 
-	mu::ModelStreamer::OPERATION_ID Result = 0;
+	mu::ModelReader::OPERATION_ID Result = 0;
 
 	check(!ObjectData->ReadFileHandles.IsEmpty());
 
@@ -329,7 +286,7 @@ mu::ModelStreamer::OPERATION_ID FUnrealMutableModelBulkStreamer::BeginReadBlock(
 }
 
 
-bool FUnrealMutableModelBulkStreamer::IsReadCompleted(mu::ModelStreamer::OPERATION_ID OperationId)
+bool FUnrealMutableModelBulkReader::IsReadCompleted(mu::ModelReader::OPERATION_ID OperationId)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableModelBulkStreamer::IsReadCompleted);
 
@@ -347,7 +304,7 @@ bool FUnrealMutableModelBulkStreamer::IsReadCompleted(mu::ModelStreamer::OPERATI
 }
 
 
-void FUnrealMutableModelBulkStreamer::EndRead(mu::ModelStreamer::OPERATION_ID OperationId)
+void FUnrealMutableModelBulkReader::EndRead(mu::ModelReader::OPERATION_ID OperationId)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableModelBulkStreamer::EndRead);
 
@@ -373,10 +330,52 @@ void FUnrealMutableModelBulkStreamer::EndRead(mu::ModelStreamer::OPERATION_ID Op
 			break;
 		}
 	}
-	
+
 	if (!bFound)
 	{
 		UE_LOG(LogMutable, Error, TEXT("Operation not found in EndRead."));
 		check(false);
 	}
 }
+
+
+#if WITH_EDITOR
+
+//-------------------------------------------------------------------------------------------------
+FUnrealMutableModelBulkWriter::FUnrealMutableModelBulkWriter(FArchive* InMainDataArchive, FArchive* InStreamedDataArchive)
+{
+	MainDataArchive = InMainDataArchive;
+	StreamedDataArchive = InStreamedDataArchive;
+	CurrentWriteFile = nullptr;
+}
+
+
+void FUnrealMutableModelBulkWriter::OpenWriteFile(uint64 key0)
+{
+	if (key0 == 0) // Model
+	{
+		check(MainDataArchive);
+		CurrentWriteFile = MainDataArchive;
+	}
+	else
+	{
+		check(StreamedDataArchive);
+		CurrentWriteFile = StreamedDataArchive;
+	}
+}
+
+
+void FUnrealMutableModelBulkWriter::Write(const void* pBuffer, uint64 size)
+{
+	check(CurrentWriteFile);
+	CurrentWriteFile->Serialize(const_cast<void*>(pBuffer), size);
+}
+
+
+void FUnrealMutableModelBulkWriter::CloseWriteFile()
+{
+	CurrentWriteFile = nullptr;
+}
+
+#endif
+

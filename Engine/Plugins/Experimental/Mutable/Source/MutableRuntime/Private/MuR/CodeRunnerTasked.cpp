@@ -2040,6 +2040,11 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	bool CodeRunner::FLoadMeshRomTask::Prepare(CodeRunner* Runner, bool& bOutFailed )
 	{
+		if (!Runner || !Runner->m_pSystem)
+		{
+			return false;
+		}
+
 		// This runs in the mutable Runner thread
 		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Prepare);
 		bOutFailed = false;
@@ -2049,8 +2054,8 @@ namespace mu
 		check(RomIndex < program.m_roms.Num());
 		bool bRomIsLoaded = program.IsRomLoaded(RomIndex);
 
-		FWorkingMemoryManager::FModelCacheEntry& ModelCache = Runner->m_pSystem->WorkingMemoryManager.GetModelCache(Runner->m_pModel);
-		bool bRomHasPendingOps = ModelCache.PendingOpsPerRom[RomIndex]!=0;
+		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
+		bool bRomHasPendingOps = ModelCache->PendingOpsPerRom[RomIndex]!=0;
 		if (!bRomIsLoaded && !bRomHasPendingOps)
 		{
 			check(Runner->m_pSystem->StreamInterface);
@@ -2098,7 +2103,7 @@ namespace mu
 				return false;
 			}
 		}
-		++ModelCache.PendingOpsPerRom[RomIndex];
+		++ModelCache->PendingOpsPerRom[RomIndex];
 
 		//UE_LOG(LogMutableCore, Log, TEXT("FLoadMeshRomTask::Prepare romindex %d pending %d."), RomAt.m_rom, Runner->m_romPendingOps[RomAt.m_rom]);
 
@@ -2110,6 +2115,11 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void CodeRunner::FLoadMeshRomTask::Complete(CodeRunner* Runner)
 	{
+		if (!Runner || !Runner->m_pSystem)
+		{
+			return;
+		}
+
 		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Complete);
 
 		// This runs in the Runner thread
@@ -2117,10 +2127,10 @@ namespace mu
 		// Process the constant op normally, now that the rom is loaded.
 		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
 
-		FWorkingMemoryManager::FModelCacheEntry& ModelCache = Runner->m_pSystem->WorkingMemoryManager.GetModelCache(Runner->m_pModel);
+		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
 
 		Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
-		--ModelCache.PendingOpsPerRom[RomIndex];
+		--ModelCache->PendingOpsPerRom[RomIndex];
 	}
 
 
@@ -2219,13 +2229,18 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	bool CodeRunner::FLoadImageRomsTask::Prepare(CodeRunner* Runner, bool& bOutFailed )
 	{
+		if (!Runner || !Runner->m_pSystem)
+		{
+			return false;
+		}
+
 		// This runs in the mutable Runner thread
 		MUTABLE_CPUPROFILER_SCOPE(FLoadImageRomsTask_Prepare);
 		bOutFailed = false;
 
 		FProgram& program = Runner->m_pModel->GetPrivate()->m_program;
 
-		FWorkingMemoryManager::FModelCacheEntry& ModelCache = Runner->m_pSystem->WorkingMemoryManager.GetModelCache(Runner->m_pModel);
+		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
 
 		for (int32 i = 0; i<LODIndexCount; ++i )
 		{
@@ -2242,11 +2257,11 @@ namespace mu
 			check(RomIndex < program.m_roms.Num());
 
 			bool bRomIsLoaded = program.IsRomLoaded(RomIndex);
-			bool bRomHasAlreadyBeenRequested = ModelCache.PendingOpsPerRom[RomIndex] != 0;
-			++ModelCache.PendingOpsPerRom[RomIndex];
+			bool bRomHasAlreadyBeenRequested = ModelCache->PendingOpsPerRom[RomIndex] != 0;
+			++ModelCache->PendingOpsPerRom[RomIndex];
 
 			if (DebugRom && (DebugRomAll || RomIndex == DebugRomIndex))
-				UE_LOG(LogMutableCore, Log, TEXT("Preparing rom %d, now peding ops is %d."), RomIndex, ModelCache.PendingOpsPerRom[RomIndex]);
+				UE_LOG(LogMutableCore, Log, TEXT("Preparing rom %d, now peding ops is %d."), RomIndex, ModelCache->PendingOpsPerRom[RomIndex]);
 
 			if (bRomIsLoaded || bRomHasAlreadyBeenRequested)
 			{
@@ -2307,11 +2322,16 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void CodeRunner::FLoadImageRomsTask::Complete(CodeRunner* Runner)
 	{
+		if (!Runner || !Runner->m_pSystem)
+		{
+			return;
+		}
+
 		MUTABLE_CPUPROFILER_SCOPE(FLoadImageRomsTask_Complete);
 
 		// This runs in the Runner thread
 
-		FWorkingMemoryManager::FModelCacheEntry& ModelCache = Runner->m_pSystem->WorkingMemoryManager.GetModelCache(Runner->m_pModel);
+		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
 
 		// Process the constant op normally, now that the rom is loaded.
 		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
@@ -2332,11 +2352,11 @@ namespace mu
 			check(RomIndex < program.m_roms.Num());
 
 			Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
-			--ModelCache.PendingOpsPerRom[RomIndex];
+			--ModelCache->PendingOpsPerRom[RomIndex];
 
 			if (DebugRom && (DebugRomAll || RomIndex == DebugRomIndex))
 			{
-				UE_LOG(LogMutableCore, Log, TEXT("FLoadImageRomsTask::Complete rom %d, now peding ops is %d."), RomIndex, ModelCache.PendingOpsPerRom[RomIndex]);
+				UE_LOG(LogMutableCore, Log, TEXT("FLoadImageRomsTask::Complete rom %d, now peding ops is %d."), RomIndex, ModelCache->PendingOpsPerRom[RomIndex]);
 			}
 		}
 	}
@@ -2375,7 +2395,7 @@ namespace mu
 	class FImageExternalLoadTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageExternalLoadTask(const FScheduledOp& InItem, uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId);
+		FImageExternalLoadTask(const FScheduledOp& InItem, uint8 InMipmapsToSkip, FExternalImageID InId);
 
 		// FIssuedTask interface
 		virtual bool Prepare(CodeRunner*, bool& bOutFailed) override;
@@ -2383,7 +2403,7 @@ namespace mu
 		
 	private:
 		uint8 MipmapsToSkip;
-		EXTERNAL_IMAGE_ID Id;
+		FExternalImageID Id;
 
 		Ptr<Image> Result;
 		
@@ -2392,7 +2412,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageExternalLoadTask::FImageExternalLoadTask(const FScheduledOp& InOp,  uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId)
+	FImageExternalLoadTask::FImageExternalLoadTask(const FScheduledOp& InOp,  uint8 InMipmapsToSkip, FExternalImageID InId)
 		: FIssuedTask(InOp)
 	{
 		MipmapsToSkip = InMipmapsToSkip;
@@ -2528,7 +2548,7 @@ namespace mu
 			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, m_pParams, m_pModel.Get(), args.variable);
 
-			const EXTERNAL_IMAGE_ID Id = m_pParams->GetImageValue(args.variable, Index);
+			const FExternalImageID Id = m_pParams->GetImageValue(args.variable, Index);
 
 			check(ImageLOD < TNumericLimits<uint8>::Max() && ImageLOD >= 0);
 			check(ImageLOD + static_cast<int32>(item.ExecutionOptions) < TNumericLimits<uint8>::Max());

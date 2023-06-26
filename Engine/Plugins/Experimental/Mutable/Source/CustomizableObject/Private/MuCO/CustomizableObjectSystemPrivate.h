@@ -269,10 +269,10 @@ public:
 
 struct FMutableImageCacheKey
 {
-	mu::RESOURCE_ID Resource = 0;
+	mu::FResourceID Resource = 0;
 	int32 SkippedMips = 0;
 
-	FMutableImageCacheKey(mu::RESOURCE_ID InResource, int32 InSkippedMips)
+	FMutableImageCacheKey(mu::FResourceID InResource, int32 InSkippedMips)
 		: Resource(InResource), SkippedMips(InSkippedMips) {}
 
 	inline bool operator==(const FMutableImageCacheKey& Other) const
@@ -292,7 +292,7 @@ inline uint32 GetTypeHash(const FMutableImageCacheKey& Key)
 struct FMutableResourceCache
 {
 	TWeakObjectPtr<const UCustomizableObject> Object;
-	TMap<mu::RESOURCE_ID, TWeakObjectPtr<USkeletalMesh> > Meshes;
+	TMap<mu::FResourceID, TWeakObjectPtr<USkeletalMesh> > Meshes;
 	TMap<FMutableImageCacheKey, TWeakObjectPtr<UTexture2D> > Images;
 
 	void Clear()
@@ -368,7 +368,7 @@ struct FInstanceGeneratedData
 		/** True if it can be reused */
 		bool bGenerated = false;
 
-		mu::RESOURCE_ID MeshID;
+		mu::FResourceID MeshID;
 
 		/** Range in the Surfaces array */
 		uint16 FirstSurface = 0;
@@ -403,7 +403,7 @@ struct FInstanceUpdateData
 	struct FImage
 	{
 		FString Name;
-		mu::RESOURCE_ID ImageID;
+		mu::FResourceID ImageID;
 		
 		// LOD of the ImageId. If the texture is shared between LOD, first LOD where this image can be found. 
 		int32 BaseLOD;
@@ -455,7 +455,7 @@ struct FInstanceUpdateData
 		// Reuse component from a previously generated SkeletalMesh
 		bool bReuseMesh = false;
 
-		mu::RESOURCE_ID MeshID;
+		mu::FResourceID MeshID;
 		mu::MeshPtrConst Mesh;
 
 		/** Range in the Surfaces array */
@@ -612,9 +612,10 @@ public:
 
 	/** Store the last streaming memory size in bytes, to change it when it is safe. */
 	uint64 LastWorkingMemoryBytes = 0;
+	uint32 LastGeneratedResourceCacheSize = 0;
 
 	// This object is responsible for streaming data to the MutableSystem.
-	TSharedPtr<class FUnrealMutableModelBulkStreamer> Streamer;
+	TSharedPtr<class FUnrealMutableModelBulkReader> Streamer;
 
 	// 
 	TSharedPtr<class FUnrealExtensionDataStreamer> ExtensionDataStreamer;
@@ -630,7 +631,7 @@ public:
 	// List of textures currently cached and valid for the current object that we are operating on.
 	// This array gets generated when the object cached resources are protected in SetResourceCacheProtected
 	// from the game thread, and it is read from the Mutable thread only while updating the instance.
-	TArray<mu::RESOURCE_ID> ProtectedObjectCachedImages;
+	TArray<mu::FResourceID> ProtectedObjectCachedImages;
 
 	// The pending instance updates, discards or releases
 	FMutablePendingInstanceWork MutablePendingInstanceWork;

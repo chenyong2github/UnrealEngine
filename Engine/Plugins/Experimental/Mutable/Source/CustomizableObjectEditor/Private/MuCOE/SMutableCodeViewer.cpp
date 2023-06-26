@@ -2316,9 +2316,9 @@ namespace
 		
 	public:
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
-		TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override
+		TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(mu::FExternalImageID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override
 #else
-		TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override
+		TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::FExternalImageID id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override
 #endif
 		{
 			MUTABLE_CPUPROFILER_SCOPE(TestImageProvider_GetImage);
@@ -2369,7 +2369,7 @@ namespace
 			return MakeTuple(CompletionEvent, []() -> void {});
 		}
 
-		mu::FImageDesc GetImageDesc(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) override
+		mu::FImageDesc GetImageDesc(mu::FExternalImageID Id, uint8 MipmapsToSkip) override
 		{
 			return IMAGE_DESC;
 		}

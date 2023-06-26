@@ -151,7 +151,7 @@ namespace impl
 
 				// This ID may be different than the ID obtained the first time the image was generated, because the mutable
 				// runtime cannot remember all the resources it has built, and only remembers a fixed amount.
-				mu::RESOURCE_ID MipImageID = Instance->GetImageId(ImageRef.LOD, ImageRef.Component, SurfaceIndex, ImageRef.Image);
+				mu::FResourceID MipImageID = Instance->GetImageId(ImageRef.LOD, ImageRef.Component, SurfaceIndex, ImageRef.Image);
 
 				UCustomizableObjectSystem* COSystem = UCustomizableObjectSystem::GetInstance();
 				FCustomizableObjectSystemPrivate* SystemPrivate = COSystem ? COSystem->GetPrivate() : nullptr;

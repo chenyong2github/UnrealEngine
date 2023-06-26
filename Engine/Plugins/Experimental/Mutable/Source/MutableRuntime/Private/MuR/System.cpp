@@ -122,7 +122,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void System::SetStreamingInterface(const TSharedPtr<ModelStreamer>& InInterface )
+    void System::SetStreamingInterface(const TSharedPtr<ModelReader>& InInterface )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
        
@@ -130,14 +130,24 @@ namespace mu
     }
 
 
-    //---------------------------------------------------------------------------------------------
-    void System::SetWorkingMemoryBytes( uint64 InBytes )
-    {
+	//---------------------------------------------------------------------------------------------
+	void System::SetWorkingMemoryBytes(uint64 InBytes)
+	{
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(SetWorkingMemoryBytes);
 
 		m_pD->WorkingMemoryManager.BudgetBytes = InBytes;
 		m_pD->WorkingMemoryManager.EnsureBudgetBelow(0);
+	}
+
+
+    //---------------------------------------------------------------------------------------------
+    void System::SetGeneratedCacheSize( uint32 InCount )
+    {
+		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
+		MUTABLE_CPUPROFILER_SCOPE(SetGeneratedCacheSize);
+
+		m_pD->WorkingMemoryManager.MaxGeneratedResourceCacheSize = InCount;
 	}
 
 	
@@ -262,8 +272,12 @@ namespace mu
 
 		OP::ADDRESS rootAt = pLiveInstance->Model->GetPrivate()->m_program.m_states[InStateIndex].m_root;
 
+		// Prepare instance cache
 		m_pD->PrepareCache(pLiveInstance->Model.Get(), InStateIndex);
 		pLiveInstance->OldParameters = InParams->Clone();
+
+		// Ensure the model cache has been created
+		m_pD->WorkingMemoryManager.FindOrAddModelCache(pLiveInstance->Model);
 
 		m_pD->RunCode(pLiveInstance->Model, InParams.get(), rootAt, InLodMask);
 
@@ -287,7 +301,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<const Image> System::GetImage(Instance::ID instanceID, RESOURCE_ID imageId, int32 MipsToSkip, int32 InImageLOD)
+	Ptr<const Image> System::GetImage(Instance::ID instanceID, FResourceID ImageId, int32 MipsToSkip, int32 InImageLOD)
 	{
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(SystemGetImage);
@@ -299,23 +313,13 @@ namespace mu
 		check(pLiveInstance);
 		m_pD->WorkingMemoryManager.CurrentInstanceCache = pLiveInstance->Cache;
 
-		// Find the resource id in the model's resource cache
-		for (const Model::Private::RESOURCE_KEY& res : pLiveInstance->Model->GetPrivate()->m_generatedResources)
+		OP::ADDRESS RootAddress = GetResourceIDRoot(ImageId);
+		pResult = m_pD->BuildImage(pLiveInstance->Model, pLiveInstance->OldParameters.get(), RootAddress, MipsToSkip, InImageLOD);
+
+		// We always need to return something valid.
+		if (!pResult)
 		{
-			if (res.m_id == imageId)
-			{
-				pResult = m_pD->BuildImage(pLiveInstance->Model,
-					pLiveInstance->OldParameters.get(),
-					res.m_rootAddress, MipsToSkip, InImageLOD);
-
-				// We always need to return something valid.
-				if (!pResult)
-				{
-					pResult = new mu::Image(16, 16, 1, EImageFormat::IF_RGBA_UBYTE, EInitializationType::Black);
-				}
-
-				break;
-			}
+			pResult = new mu::Image(16, 16, 1, EImageFormat::IF_RGBA_UBYTE, EInitializationType::Black);
 		}
 
 		m_pD->WorkingMemoryManager.CurrentInstanceCache = nullptr;
@@ -334,7 +338,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void System::GetImageDesc(Instance::ID instanceID, RESOURCE_ID imageId, FImageDesc& OutDesc)
+	void System::GetImageDesc(Instance::ID instanceID, FResourceID ImageId, FImageDesc& OutDesc)
 	{
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(SystemGetImageDesc);
@@ -346,38 +350,30 @@ namespace mu
 		check(pLiveInstance);
 		m_pD->WorkingMemoryManager.CurrentInstanceCache = pLiveInstance->Cache;
 
-		// Find the resource id in the model's resource cache
-		for (const Model::Private::RESOURCE_KEY& res : pLiveInstance->Model->GetPrivate()->m_generatedResources)
+		OP::ADDRESS RootAddress = GetResourceIDRoot(ImageId);
+
+		const mu::Model* Model = pLiveInstance->Model.Get();
+		const mu::FProgram& program = Model->GetPrivate()->m_program;
+
+		// TODO: It should be possible to reuse this data if cleared in the correct places only, together with m_heapImageDesc.
+		int32 VarValue = CVarClearImageDescCache.GetValueOnAnyThread();
+		if (VarValue != 0)
 		{
-			if (res.m_id == imageId)
-			{
-				const mu::Model* Model = pLiveInstance->Model.Get();
-				const mu::FProgram& program = Model->GetPrivate()->m_program;
+			m_pD->WorkingMemoryManager.CurrentInstanceCache->ClearDescCache();
+		}
 
-				// TODO: It should be possible to reuse this data if cleared in the correct places only, together with m_heapImageDesc.
-				int32 VarValue = CVarClearImageDescCache.GetValueOnAnyThread();
-				if (VarValue != 0)
-				{
-					m_pD->WorkingMemoryManager.CurrentInstanceCache->ClearDescCache();
-				}
-
-				OP::ADDRESS at = res.m_rootAddress;
-				mu::OP_TYPE opType = program.GetOpType(at);
-				if (GetOpDataType(opType) == DT_IMAGE)
-				{
-					// GetImageDesc may call normal execution paths where meshes are computed.
-					m_pD->WorkingMemoryManager.BeginRunnerThread();
+		mu::OP_TYPE opType = program.GetOpType(RootAddress);
+		if (GetOpDataType(opType) == DT_IMAGE)
+		{
+			// GetImageDesc may call normal execution paths where meshes are computed.
+			m_pD->WorkingMemoryManager.BeginRunnerThread();
 					
-					int8 executionOptions = 0;
-					CodeRunner Runner(m_pD->Settings, m_pD, EExecutionStrategy::MinimizeMemory, pLiveInstance->Model, pLiveInstance->OldParameters.get(), at, System::AllLODs, executionOptions, 0, FScheduledOp::EType::ImageDesc);
-					Runner.Run();
-					Runner.GetImageDescResult(OutDesc);
+			int8 executionOptions = 0;
+			CodeRunner Runner(m_pD->Settings, m_pD, EExecutionStrategy::MinimizeMemory, pLiveInstance->Model, pLiveInstance->OldParameters.get(), RootAddress, System::AllLODs, executionOptions, 0, FScheduledOp::EType::ImageDesc);
+			Runner.Run();
+			Runner.GetImageDescResult(OutDesc);
 
-					m_pD->WorkingMemoryManager.EndRunnerThread();
-				}
-
-				break;
-			}
+			m_pD->WorkingMemoryManager.EndRunnerThread();
 		}
 
 		m_pD->WorkingMemoryManager.CurrentInstanceCache = nullptr;
@@ -385,8 +381,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    MeshPtrConst System::GetMesh( Instance::ID instanceID,
-                                   RESOURCE_ID meshId )
+    MeshPtrConst System::GetMesh( Instance::ID instanceID, FResourceID MeshId )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(SystemGetMesh);
@@ -398,23 +393,13 @@ namespace mu
 		check(pLiveInstance);
 		m_pD->WorkingMemoryManager.CurrentInstanceCache = pLiveInstance->Cache;
 
-		// Find the resource id in the model's resource cache
-		for (const Model::Private::RESOURCE_KEY& res : pLiveInstance->Model->GetPrivate()->m_generatedResources)
+		OP::ADDRESS RootAddress = GetResourceIDRoot(MeshId);
+		pResult = m_pD->BuildMesh(pLiveInstance->Model, pLiveInstance->OldParameters.get(), RootAddress);
+
+		// If the mesh is null it means empty, but we still need to return a valid one
+		if (!pResult)
 		{
-			if (res.m_id == meshId)
-			{
-				pResult = m_pD->BuildMesh(pLiveInstance->Model,
-					pLiveInstance->OldParameters.get(),
-					res.m_rootAddress);
-
-				// If the mesh is null it means empty, but we still need to return a valid one
-				if (!pResult)
-				{
-					pResult = new Mesh();
-				}
-
-				break;
-			}
+			pResult = new Mesh();
 		}
 
 		m_pD->WorkingMemoryManager.CurrentInstanceCache = nullptr;
@@ -552,8 +537,8 @@ namespace mu
             case OP_TYPE::IM_PARAMETER:
             {
 				OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(at);
-				OP::ADDRESS param = args.variable;
-                Flags[param] = true;
+				OP::ADDRESS ParamIndex = args.variable;
+                Flags[ParamIndex] = true;
                 break;
             }
 
@@ -681,11 +666,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	bool System::Private::BuildBool(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	bool System::Private::BuildBool(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
-		RunCode(pModel, pParams, at);
+		RunCode(pModel, Params, at);
 
 		bool bResult = false;
 		if (!bUnrecoverableError)
@@ -700,11 +685,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	float System::Private::BuildScalar(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	float System::Private::BuildScalar(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
-		RunCode(pModel, pParams, at);
+		RunCode(pModel, Params, at);
 
 		float Result = 0.0f;		
 		if (!bUnrecoverableError)
@@ -719,11 +704,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	int32 System::Private::BuildInt(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	int32 System::Private::BuildInt(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
-		RunCode(pModel, pParams, at);
+		RunCode(pModel, Params, at);
 
 		int32 Result = 0;
 		if (!bUnrecoverableError)
@@ -738,7 +723,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FVector4f System::Private::BuildColour(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	FVector4f System::Private::BuildColour(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
@@ -747,7 +732,7 @@ namespace mu
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_COLOUR)
 		{
-			RunCode(pModel, pParams, at);
+			RunCode(pModel, Params, at);
 			if (!bUnrecoverableError)
 			{
 				Result = WorkingMemoryManager.CurrentInstanceCache->GetColour(FCacheAddress(at, 0, 0));
@@ -761,11 +746,11 @@ namespace mu
 
 	
 	//---------------------------------------------------------------------------------------------
-	FProjector System::Private::BuildProjector(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	FProjector System::Private::BuildProjector(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
-    	RunCode(pModel, pParams, at);
+    	RunCode(pModel, Params, at);
 
 		FProjector Result;
 		if (!bUnrecoverableError)
@@ -781,7 +766,7 @@ namespace mu
 	
 	//---------------------------------------------------------------------------------------------
 	Ptr<const Image> System::Private::BuildImage(const TSharedPtr<const Model>& pModel,
-		const Parameters* pParams, OP::ADDRESS at, int32 MipsToSkip, int32 InImageLOD)
+		const Parameters* Params, OP::ADDRESS at, int32 MipsToSkip, int32 InImageLOD)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
@@ -790,7 +775,7 @@ namespace mu
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_IMAGE)
 		{
-			RunCode(pModel, pParams, at, System::AllLODs, uint8(MipsToSkip), InImageLOD);
+			RunCode(pModel, Params, at, System::AllLODs, uint8(MipsToSkip), InImageLOD);
 			if (!bUnrecoverableError)
 			{
 				Result = WorkingMemoryManager.LoadImage(FCacheAddress(at, 0, MipsToSkip), true);
@@ -804,7 +789,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	MeshPtrConst System::Private::BuildMesh(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	MeshPtrConst System::Private::BuildMesh(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
@@ -813,7 +798,7 @@ namespace mu
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_MESH)
 		{
-			RunCode(pModel, pParams, at);
+			RunCode(pModel, Params, at);
 			if (!bUnrecoverableError)
 			{
 				Result = WorkingMemoryManager.LoadMesh(FCacheAddress(at, 0, 0), true);
@@ -827,7 +812,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<const Layout> System::Private::BuildLayout(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	Ptr<const Layout> System::Private::BuildLayout(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
@@ -838,7 +823,7 @@ namespace mu
 			mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 			if (GetOpDataType(opType) == DT_LAYOUT)
 			{
-				RunCode(pModel, pParams, at);
+				RunCode(pModel, Params, at);
 				if (!bUnrecoverableError)
 				{
 					Result = WorkingMemoryManager.CurrentInstanceCache->GetLayout(FCacheAddress(at, 0, 0));
@@ -853,7 +838,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<const String> System::Private::BuildString(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	Ptr<const String> System::Private::BuildString(const TSharedPtr<const Model>& pModel, const Parameters* Params, OP::ADDRESS at)
 	{
 		WorkingMemoryManager.BeginRunnerThread();
 
@@ -864,7 +849,7 @@ namespace mu
 			mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 			if (GetOpDataType(opType) == DT_STRING)
 			{
-				RunCode(pModel, pParams, at);
+				RunCode(pModel, Params, at);
 				if (!bUnrecoverableError)
 				{
 					Result = WorkingMemoryManager.CurrentInstanceCache->GetString(FCacheAddress(at, 0, 0));
@@ -960,12 +945,12 @@ namespace mu
 		}
 
 		// Data stored per-model, but related to instance construction
-		for (const Model* Model : Models)
+		for (const FModelCacheEntry& CacheEntry:CachePerModel)
 		{
 			// Keys for resources generated so far
-			for (const Model::Private::RESOURCE_KEY& Key : Model->GetPrivate()->m_generatedResources)
+			for (const FModelCacheEntry::FGeneratedResourceData& Data : CacheEntry.GeneratedResources)
 			{
-				InternalBytes += Key.m_parameterValuesBlob.GetAllocatedSize();
+				InternalBytes += Data.ParameterValuesBlob.GetAllocatedSize();
 			}
 		}
 
@@ -999,27 +984,51 @@ namespace mu
 	}
 
 
+
+	//---------------------------------------------------------------------------------------------
+	FWorkingMemoryManager::FModelCacheEntry* FWorkingMemoryManager::FindModelCache(const Model* InModel)
+	{
+		check(InModel);
+
+		for (FModelCacheEntry& c : CachePerModel)
+		{
+			TSharedPtr<const Model> pCandidate = c.Model.Pin();
+			if (pCandidate)
+			{
+				if (pCandidate.Get() == InModel)
+				{
+					return &c;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
     //---------------------------------------------------------------------------------------------
-	FWorkingMemoryManager::FModelCacheEntry& FWorkingMemoryManager::GetModelCache(const TSharedPtr<const Model>& InModel )
+	FWorkingMemoryManager::FModelCacheEntry& FWorkingMemoryManager::FindOrAddModelCache(const TSharedPtr<const Model>& InModel)
     {
         check(InModel);
 
-        for(FModelCacheEntry& c:CachePerModel)
-        {
-			TSharedPtr<const Model> pCandidate = c.Model.Pin();
-            if (pCandidate)
-            {
-                if (pCandidate==InModel)
-                {
-                    return c;
-                }
-            }
-            else
-            {
-                // Free stray data. TODO: remove vector entry.
-                c.RomWeights.Empty();
-            }
-        }
+		// First clean stray data for models that may have been unloaded.
+		for (int32 CacheIndex=0; CacheIndex<CachePerModel.Num(); )
+		{
+			if (!CachePerModel[CacheIndex].Model.Pin())
+			{
+				CachePerModel.RemoveAtSwap(CacheIndex);
+			}
+			else
+			{
+				++CacheIndex;
+			}
+		}
+
+
+		FModelCacheEntry* ExistingCache = FindModelCache(InModel.Get());
+		if (ExistingCache)
+		{
+			return *ExistingCache;
+		}        
 
         // Not found. Add new
 		FModelCacheEntry n;
@@ -1456,7 +1465,7 @@ namespace mu
     {
         check(pModel);
 
-        FProgram& program = pModel->GetPrivate()->m_program;
+        FProgram& Program = pModel->GetPrivate()->m_program;
 
         // If budget is zero, we don't unload anything here, and we assume it is managed somewhere else.
         if (!BudgetBytes)
@@ -1468,16 +1477,260 @@ namespace mu
 
         // Update current cache
         {
-			FModelCacheEntry& ModelCache = GetModelCache(pModel);
+			FModelCacheEntry* ModelCache = FindModelCache(pModel.Get());
 
-            while (ModelCache.RomWeights.Num()<program.m_roms.Num())
+            if (ModelCache->RomWeights.Num()<Program.m_roms.Num())
             {
-				ModelCache.RomWeights.Add({ 0,0 });
+				ModelCache->RomWeights.SetNumZeroed(Program.m_roms.Num());
             }
 
-            ModelCache.RomWeights[romIndex].Key++;
-            ModelCache.RomWeights[romIndex].Value = RomTick;
+            ModelCache->RomWeights[romIndex].Key++;
+            ModelCache->RomWeights[romIndex].Value = RomTick;
         }
     }
+
+
+	//---------------------------------------------------------------------------------------------
+	static int32 AddMultiValueKeys(TArray<uint8_t>& Blob, int32 pos, const TMap< TArray<int>, PARAMETER_VALUE >& multi)
+	{
+		Blob.SetNum(pos + 4);
+		uint32 s = uint32(multi.Num());
+		FMemory::Memcpy(&Blob[pos], &s, sizeof(uint32));
+		pos += 4;
+
+		for (const auto& v : multi)
+		{
+			uint32 ds = uint32(v.Key.Num());
+
+			Blob.SetNum(pos + 4 + ds * 4);
+
+			FMemory::Memcpy(&Blob[pos], &s, sizeof(uint32));
+			pos += 4;
+
+			FMemory::Memcpy(&Blob[pos], v.Key.GetData(), ds * sizeof(int32));
+			pos += ds * sizeof(int32);
+		}
+
+		return pos;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	FResourceID FWorkingMemoryManager::FModelCacheEntry::GetResourceKey(uint32 paramListIndex, OP::ADDRESS RootAt, const Parameters* Params, int32 InMaxResourceKeys)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(GetResourceKey);
+
+		constexpr uint32 ErrorId = 0xffff;
+
+		const mu::Model* ThisModel = Model.Pin().Get();
+		check(ThisModel);
+		if (!ThisModel)
+		{
+			return ErrorId;
+		}
+
+		const FProgram& Program = ThisModel->GetPrivate()->m_program;
+
+		// Find the list of relevant parameters
+		const TArray<uint16>* RelevantParams = nullptr;
+		if (paramListIndex < (uint32)Program.m_parameterLists.Num())
+		{
+			RelevantParams = &Program.m_parameterLists[paramListIndex];
+		}
+		check(RelevantParams);
+		if (!RelevantParams)
+		{
+			return ErrorId;
+		}
+
+		// Generate the relevant parameters blob
+		TArray<uint8> Blob;
+		Blob.Reserve(2048);
+		for (int32 ParamIndex : *RelevantParams)
+		{
+			int32 pos = Blob.Num();
+			int32 dataSize = 0;
+
+			switch (Program.m_parameters[ParamIndex].m_type)
+			{
+			case PARAMETER_TYPE::T_BOOL:
+				dataSize = 1;
+				Blob.Add(Params->GetPrivate()->m_values[ParamIndex].Get<ParamBoolType>() ? 1 : 0);
+				pos += dataSize;
+
+				// Multi-values
+				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				{
+					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					pos = AddMultiValueKeys(Blob, pos, multi);
+					for (const auto& v : multi)
+					{
+						Blob.Add(v.Value.Get<ParamBoolType>() ? 1 : 0);
+						pos += dataSize;
+					}
+				}
+				break;
+
+			case PARAMETER_TYPE::T_INT:
+				dataSize = sizeof(ParamIntType);
+				Blob.SetNum(pos + dataSize);
+				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamIntType>(), dataSize);
+				pos += dataSize;
+
+				// Multi-values
+				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				{
+					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					pos = AddMultiValueKeys(Blob, pos, multi);
+					Blob.SetNum(pos + multi.Num() * dataSize);
+					for (const auto& v : multi)
+					{
+						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamIntType>(), dataSize);
+						pos += dataSize;
+					}
+				}
+				break;
+
+				//! Floating point value in the range of 0.0 to 1.0
+			case PARAMETER_TYPE::T_FLOAT:
+				dataSize = sizeof(ParamFloatType);
+				Blob.SetNum(pos + dataSize);
+				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamFloatType>(), dataSize);
+				pos += dataSize;
+
+				// Multi-values
+				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				{
+					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					pos = AddMultiValueKeys(Blob, pos, multi);
+					Blob.SetNum(pos + multi.Num() * dataSize);
+					for (const auto& v : multi)
+					{
+						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamFloatType>(), dataSize);
+						pos += dataSize;
+					}
+				}
+				break;
+
+				//! Floating point RGBA colour, with each channel ranging from 0.0 to 1.0
+			case PARAMETER_TYPE::T_COLOUR:
+				dataSize = sizeof(ParamColorType);
+				Blob.SetNum(pos + dataSize);
+				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamColorType>(), dataSize);
+				pos += dataSize;
+
+				// Multi-values
+				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				{
+					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					pos = AddMultiValueKeys(Blob, pos, multi);
+					Blob.SetNum(pos + multi.Num() * dataSize);
+					for (const auto& v : multi)
+					{
+						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamColorType>(), dataSize);
+						pos += dataSize;
+					}
+				}
+				break;
+
+				//! 3D Projector type, defining a position, scale and orientation. Basically used for
+				//! projected decals.
+			case PARAMETER_TYPE::T_PROJECTOR:
+				dataSize = sizeof(ParamProjectorType);
+
+				// \todo: padding will be random?
+				Blob.SetNum(pos + dataSize);
+				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamProjectorType>(), dataSize);
+				pos += dataSize;
+
+				// Multi-values
+				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				{
+					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					pos = AddMultiValueKeys(Blob, pos, multi);
+					Blob.SetNum(pos + multi.Num() * dataSize);
+					for (const auto& v : multi)
+					{
+						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamProjectorType>(), dataSize);
+						pos += dataSize;
+					}
+				}
+				break;
+
+			case PARAMETER_TYPE::T_IMAGE:
+				dataSize = sizeof(ParamImageType);
+				Blob.SetNum(pos + dataSize);
+				FMemory::Memcpy(&Blob[pos],
+					&Params->GetPrivate()->m_values[ParamIndex].Get<ParamImageType>(),
+					dataSize);
+				pos += dataSize;
+
+				// Multi-values
+				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				{
+					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					pos = AddMultiValueKeys(Blob, pos, multi);
+					Blob.SetNum(pos + multi.Num() * dataSize);
+					for (const auto& v : multi)
+					{
+						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamImageType>(), dataSize);
+						pos += dataSize;
+					}
+				}
+				break;
+
+			default:
+				// unsupported parameter type
+				check(false);
+			}
+		}
+
+		// Increase the request id
+		++LastResourceResquestId;
+
+		// See if we already have this id
+		int32 OldestCachePosition = 0;
+		for (int32 CacheIndex = 0; CacheIndex < GeneratedResources.Num(); ++CacheIndex)
+		{
+			FGeneratedResourceData& Data = GeneratedResources[CacheIndex];
+			if (GetResourceIDRoot(Data.Id) == RootAt
+				&&
+				Data.ParameterValuesBlob == Blob)
+			{
+				Data.LastRequestId = LastResourceResquestId;
+				return Data.Id;
+			}
+			else
+			{
+				if (GeneratedResources[OldestCachePosition].LastRequestId > Data.LastRequestId)
+				{
+					OldestCachePosition = CacheIndex;
+				}
+			}
+		}
+
+		// Generate a new id
+		uint32 NewBlobId = ++LastResourceKeyId;
+		FGeneratedResourceData NewKey;
+		NewKey.Id = MakeResourceID( RootAt, NewBlobId);
+		NewKey.LastRequestId = LastResourceResquestId;
+
+		// Don't MoveTemp so that we get a tight array on the destination.
+		//newKey.m_parameterValuesBlob = MoveTemp(Blob);
+		NewKey.ParameterValuesBlob = Blob;
+
+		// TODO: Move the constant to settings?
+		const size_t maxGeneratedResourcesIDCacheSize = InMaxResourceKeys;
+		if (GeneratedResources.Num() >= maxGeneratedResourcesIDCacheSize)
+		{
+			GeneratedResources[OldestCachePosition] = MoveTemp(NewKey);
+		}
+		else
+		{
+			GeneratedResources.Add(MoveTemp(NewKey));
+		}
+
+		return NewKey.Id;
+	}
 
 }

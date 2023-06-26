@@ -72,13 +72,8 @@ namespace mu
 	};
 
 
-    //! \brief Interface of any class responsible of providing model data.
-    //!
-    //! When building a Model that was generated with split data, an object implementing this
-    //! interface must be provided to the System. The System will call this interface to fetch the
-    //! data it needs from the model.
-    //! \ingroup runtime
-    class MUTABLERUNTIME_API ModelStreamer : public Base
+	/** */
+	class MUTABLERUNTIME_API ModelReader : public Base
     {
     public:
 
@@ -87,7 +82,7 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 
         //! Ensure virtual destruction.
-        virtual ~ModelStreamer() {}
+        virtual ~ModelReader() {}
 
         //-----------------------------------------------------------------------------------------
         // Reading interface
@@ -121,35 +116,50 @@ namespace mu
         //! any more to identify the same operation and becomes free.
         virtual void EndRead( OPERATION_ID ) = 0;
 
-        //-----------------------------------------------------------------------------------------
-        // Writing interface
-        //-----------------------------------------------------------------------------------------
-
-        //! \brief Open a file for writing data.
-        //!
-        //! Only one file can be open a time for writing. This method is only required when
-        //! writing model data from tools.
-        //! \param strModelName Name of the model where the file to open belongs to. This string's
-        //!         meaning depends on the implementation of the ModelStreamer subclasses. It could
-        //!         be a file path, or a resource identifier, etc. It will be the same for all
-        //!         files in a model.
-        //! \param key key identifying the model data fragment that is requested.
-        //!         This key interpretation depends on the implementation of the ModelStreamer,
-        virtual void OpenWriteFile( const char* strModelName, uint64 key0 ) = 0;
-
-        //! \brief Write a piece of data to the currently open file.
-        //!
-        //! There must be a file open with OpenWriteFile before calling this.
-        //! \param pBuffer pointer to the data that will be written to the file.
-        //! \param size size of the data to write on the file, in bytes.
-        virtual void Write( const void* pBuffer, uint64 size ) = 0;
-
-        //! \brief Close the file open for writing in a previous call to OpenWriteFile in this
-        //! object.
-        virtual void CloseWriteFile() = 0;
-
-
     };
+
+
+	/** */
+	class MUTABLERUNTIME_API ModelWriter : public Base
+	{
+	public:
+
+		//-----------------------------------------------------------------------------------------
+		// Life cycle
+		//-----------------------------------------------------------------------------------------
+
+		//! Ensure virtual destruction.
+		virtual ~ModelWriter() {}
+
+		//-----------------------------------------------------------------------------------------
+		// Writing interface
+		//-----------------------------------------------------------------------------------------
+
+		//! \brief Open a file for writing data.
+		//!
+		//! Only one file can be open a time for writing. This method is only required when
+		//! writing model data from tools.
+		//! \param strModelName Name of the model where the file to open belongs to. This string's
+		//!         meaning depends on the implementation of the ModelStreamer subclasses. It could
+		//!         be a file path, or a resource identifier, etc. It will be the same for all
+		//!         files in a model.
+		//! \param key key identifying the model data fragment that is requested.
+		//!         This key interpretation depends on the implementation of the ModelStreamer,
+		virtual void OpenWriteFile(uint64 key0) = 0;
+
+		//! \brief Write a piece of data to the currently open file.
+		//!
+		//! There must be a file open with OpenWriteFile before calling this.
+		//! \param pBuffer pointer to the data that will be written to the file.
+		//! \param size size of the data to write on the file, in bytes.
+		virtual void Write(const void* pBuffer, uint64 size) = 0;
+
+		//! \brief Close the file open for writing in a previous call to OpenWriteFile in this
+		//! object.
+		virtual void CloseWriteFile() = 0;
+
+
+	};
 
 
 

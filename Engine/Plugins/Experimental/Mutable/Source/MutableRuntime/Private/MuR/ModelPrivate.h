@@ -773,9 +773,6 @@ namespace mu
         //!
         FProgram m_program;
 
-        //! Non-persistent, streamer-specific location information
-        string m_location;
-
         //!
         void Serialise( OutputArchive& arch ) const
         {
@@ -794,41 +791,6 @@ namespace mu
 
             arch >> m_program;
         }
-
-        //! Management of generated resources
-        //! @{
-
-        //! This is used to uniquely identify a generated resource like meshes or images.
-        struct RESOURCE_KEY
-        {
-            //! The id assigned to the generated resource.
-            uint32 m_id;
-
-            //! The last request operation for this resource
-            uint32 m_lastRequestId;
-
-            //! The address that generated this resource
-            OP::ADDRESS m_rootAddress;
-
-            //! An opaque blob with the values of the relevant parameters
-			TArray<uint8> m_parameterValuesBlob;
-        };
-
-        //! The last id generated for a resource
-        uint32 m_lastResourceKeyId = 0;
-
-        //! The last id generated for a resource request. This is used to check the
-        //! relevancy of the resources when flushing the cache
-        uint32 m_lastResourceResquestId = 0;
-
-        //! Cached ids for returned assets
-        //! This is non-persistent runtime data
-		TArray<RESOURCE_KEY> m_generatedResources;
-
-        //! Get a resource key for a given resource with given parameter values.
-        uint32 GetResourceKey( uint32 ParamListIndex, OP::ADDRESS RootAt, const Parameters* );
-
-        //! @}
 
     };
 

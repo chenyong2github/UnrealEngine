@@ -190,7 +190,7 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 		ModelMemoryWriter << bModelSerialized;
 		if (bModelSerialized)
 		{
-			FUnrealMutableModelBulkStreamer Streamer(&ModelMemoryWriter, &StreamableMemoryWriter);
+			FUnrealMutableModelBulkWriter Streamer(&ModelMemoryWriter, &StreamableMemoryWriter);
 			mu::Model::Serialise(Model.Get(), Streamer);
 		}
 	}
@@ -236,7 +236,7 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 			// Serialize mu::Model and streamable resources
 			*ModelMemoryWriter << bModelSerialized;
 
-			FUnrealMutableModelBulkStreamer Streamer(ModelMemoryWriter.Get(), StreamableMemoryWriter.Get());
+			FUnrealMutableModelBulkWriter Streamer(ModelMemoryWriter.Get(), StreamableMemoryWriter.Get());
 			mu::Model::Serialise(Model.Get(), Streamer);
 
 			// Save to disk

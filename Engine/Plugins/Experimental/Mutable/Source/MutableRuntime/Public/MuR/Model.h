@@ -20,7 +20,7 @@
 namespace mu
 {
 	class InputArchive;
-	class ModelStreamer;
+	class ModelWriter;
 	class OutputArchive;
 
 	typedef Ptr<Parameters> ParametersPtr;
@@ -60,17 +60,11 @@ namespace mu
 		//! Special serialise operation that serialises the data in separate "files". An object
         //! with the ModelStreamer interface is responsible of storing this data and providing
 		//! the "file" concept.
-        static void Serialise( Model* p, ModelStreamer& arch );
+        static void Serialise( Model* p, ModelWriter& arch );
 
 		//! Return true if the model has external data in other files. This kind of models will
 		//! require data streaming when used.
 		bool HasExternalData() const;
-
-        //! Get the streamer-specific location data.
-        //! This is a non-persistent string with meaning specific to every ModelStreamer
-        //! implementation.
-        const char* GetLocation( ) const;
-        void SetLocation( const char* strLocation );
 
 		//-----------------------------------------------------------------------------------------
 		// Own interface
@@ -102,11 +96,6 @@ namespace mu
 
         //! Free memory used by streaming data that may be loaded again when needed.
         void UnloadExternalData();
-
-        //! Free memory used in internal runtime caches. This is useful for long-running processes
-        //! that keep models loaded. This could be called when a game finishes, or a change of
-        //! level.
-        void ClearCaches();
     	
 		//! Return the default value of a boolean parameter.
 		//! \pre The parameter specified by index is a T_BOOL.
@@ -146,7 +135,7 @@ namespace mu
         //! \pre The parameter specified by index is a T_IMAGE.
         //! \param Index Index of the parameter from 0 to GetCount()-1
 		//! \return The externalId specified when setting the image value (\see SetImageValue)
-        EXTERNAL_IMAGE_ID GetImageDefaultValue(int32 Index) const;
+        FExternalImageID GetImageDefaultValue(int32 Index) const;
 
     	int32 GetRomCount() const;
 

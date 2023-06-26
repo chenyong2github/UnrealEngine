@@ -193,183 +193,73 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-    class FileModelStreamer::Private : public Base
+    FileModelWriter::FileModelWriter(const FString& InModelLocation)
     {
-    public:
-        OPERATION_ID m_lastOperationID = 0;
+		ModelLocation = InModelLocation;
+    }
 
-        IFileHandle* m_writeFile = nullptr;
 
-        // For debug
-        size_t m_totalWritten = 0;
+    //---------------------------------------------------------------------------------------------
+    void FileModelWriter::GetFileName( uint64 key0, FString& outFileName )
+    {
+		outFileName = MakeDataFileName( ModelLocation, key0 );
+    }
 
-        static inline FString MakeDataFileName(
-                const FString& strModelName,
-                uint64_t key0
-                )
+
+    //---------------------------------------------------------------------------------------------
+    void FileModelWriter::OpenWriteFile(uint64 key0)
+    {
+        check( !WriteFile );
+
+        IFileHandle* pFile = nullptr;
+        TotalWritten = 0;
+
+        if ( !key0 )
         {
-			FString name = strModelName;
-			int extensionPos = 0;
-			if (name.FindLastChar('.', extensionPos))
+            // It is the main model file
+            pFile = FPlatformFileManager::Get().GetPlatformFile().OpenWrite( *ModelLocation );
+			check(pFile);
+			if (!pFile)
 			{
-				name = name.Left(extensionPos);
+				return;
 			}
 
-            FString temp = FString::Printf(TEXT(".%08x-%08x.mutable_data"),
-                               uint32_t((key0>>32) & 0xffffffff), uint32(key0 & 0xffffffff) );
-            name += temp;
-
-            return name;
-        }
-
-
-    };
-
-
-    //---------------------------------------------------------------------------------------------
-    FileModelStreamer::FileModelStreamer()
-    {
-        m_pD = new Private();
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    FileModelStreamer::~FileModelStreamer()
-    {
-        delete m_pD;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void FileModelStreamer::GetFileName( const FString& strModelName, uint64 key0, FString& outFileName )
-    {
-		outFileName = Private::MakeDataFileName( strModelName, key0 );
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    ModelStreamer::OPERATION_ID FileModelStreamer::BeginReadBlock(const mu::Model* Model, uint64 key0, void* pBuffer, uint64 size)
-    {
-        //UE_LOG(LogMutableCore,Log,"Streamer OpenRead");
-
-		check(Model);
-
-		OPERATION_ID id = ++m_pD->m_lastOperationID;
-
-        IFileHandle* pFile = nullptr;
-
-        if ( !key0 )
-        {
-            // It is the main model file
-            pFile = FPlatformFileManager::Get().GetPlatformFile().OpenRead( *FString(Model->GetLocation()) );
-
-            // Read the file identifying tag.
-            char tag[4];
-            size_t read = pFile->Read((uint8*)&tag[0], 4);
-            check( read==4 );
-            check( !memcmp(tag,MUTABLE_COMPILED_MODEL_FILETAG,4) );
-
-            uint32_t codeVersion = 0;
-            read = pFile->Read( (uint8*)&codeVersion, sizeof(uint32_t) );
-            check( read==4 );
-            check( codeVersion == MUTABLE_COMPILED_MODEL_CODE_VERSION  );
-
-        }
-        else
-        {
-            // It is a data file from a split model
-            FString name = m_pD->MakeDataFileName( Model->GetLocation(), key0);
-            pFile = FPlatformFileManager::Get().GetPlatformFile().OpenRead( *name );
-        }
-
-        if( !pFile )
-		{
-			return -1;
-		}
-
-        size_t read = 1;
-        size_t totalRead = 0;
-        while (read && totalRead<size)
-        {
-            read = pFile->Read( ((uint8*)pBuffer)+totalRead, (size_t)size-totalRead  );
-            totalRead += read;
-        }
-
-		delete pFile;
-
-        check( totalRead==size );
-
-        return id;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    bool FileModelStreamer::IsReadCompleted( OPERATION_ID )
-    {
-        return true;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void FileModelStreamer::EndRead( OPERATION_ID )
-    {
-	}
-
-
-    //---------------------------------------------------------------------------------------------
-    void FileModelStreamer::OpenWriteFile( const char* strModelName, uint64 key0 )
-    {
-        check( !m_pD->m_writeFile );
-
-        IFileHandle* pFile = nullptr;
-        m_pD->m_totalWritten = 0;
-
-        if ( !key0 )
-        {
-            // It is the main model file
-            pFile = FPlatformFileManager::Get().GetPlatformFile().OpenWrite( *FString(strModelName) );
-			check(pFile);
-            if (!pFile)
-                return;
-
             // Write the file identifying tag.
-            bool success = pFile->Write( (const uint8*)MUTABLE_COMPILED_MODEL_FILETAG, 4 );
-            check(success);
+            bool bSuccess = pFile->Write( (const uint8*)MUTABLE_COMPILED_MODEL_FILETAG, 4 );
+            check(bSuccess);
 
-            uint32_t codeVersion = MUTABLE_COMPILED_MODEL_CODE_VERSION;
-			success = pFile->Write( (const uint8*)&codeVersion, sizeof(uint32_t) );
-            check(success);
+            uint32 codeVersion = MUTABLE_COMPILED_MODEL_CODE_VERSION;
+			bSuccess = pFile->Write( (const uint8*)&codeVersion, sizeof(uint32) );
+            check(bSuccess);
         }
         else
         {
             // It is a data file from a split model
-            FString name = m_pD->MakeDataFileName( strModelName, key0 );
+            FString name = MakeDataFileName(ModelLocation, key0 );
             pFile = FPlatformFileManager::Get().GetPlatformFile().OpenWrite( *name );
         }
 
         check( pFile );
 
-        m_pD->m_writeFile = pFile;
+        WriteFile = pFile;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    void FileModelStreamer::Write( const void* pBuffer, uint64 size )
+    void FileModelWriter::Write( const void* pBuffer, uint64 size )
     {
-        check( m_pD->m_writeFile );
-
-        m_pD->m_writeFile->Write( ((const uint8*)pBuffer), size );
-        m_pD->m_totalWritten += size;
+        check( WriteFile );
+        WriteFile->Write( ((const uint8*)pBuffer), size );
+        TotalWritten += size;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    void FileModelStreamer::CloseWriteFile()
+    void FileModelWriter::CloseWriteFile()
     {
-        check( m_pD->m_writeFile );
-
-        delete m_pD->m_writeFile;
-        m_pD->m_writeFile = 0;
+        check( WriteFile );
+        delete WriteFile;
+        WriteFile = nullptr;
     }
 
 
@@ -389,7 +279,6 @@ namespace mu
     class ProxyFactoryMutableSourceFile::Private : public Base
     {
     public:
-        // \todo: pimpl this out
         InputFileStream* m_pStream = nullptr;
         std::string m_filename;
     };

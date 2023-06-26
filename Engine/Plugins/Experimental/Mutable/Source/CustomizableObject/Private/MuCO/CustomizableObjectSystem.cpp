@@ -101,6 +101,12 @@ TAutoConsoleVariable<bool> CVarEnableImageCache(
 	TEXT("Enables or disables the Instance Image Cache. Avoids regenerating images when no parameters or mips have changed."),
 	ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarGeneratedResourcesCacheSize(
+	TEXT("mutable.GeneratedResourcesCacheSize"),
+	512,
+	TEXT("Limit the number of resources (images and meshes) that will be tracked for reusal. Each tracked resource uses a small amout of memory for its key."),
+	ECVF_Scalability);
+
 
 bool FMutablePendingInstanceWork::ArePendingUpdatesEmpty() const
 {
@@ -345,6 +351,7 @@ void UCustomizableObjectSystem::InitSystem()
 #endif
 
 	Private->LastWorkingMemoryBytes = CVarWorkingMemory.GetValueOnGameThread() * 1024;
+	Private->LastGeneratedResourceCacheSize = CVarGeneratedResourcesCacheSize.GetValueOnGameThread();
 
 	mu::Ptr<mu::Settings> pSettings = new mu::Settings;
 	check(pSettings);
@@ -354,7 +361,7 @@ void UCustomizableObjectSystem::InitSystem()
 	Private->MutableSystem = new mu::System(pSettings, Private->ExtensionDataStreamer);
 	check(Private->MutableSystem);
 
-	Private->Streamer = MakeShared<FUnrealMutableModelBulkStreamer>();
+	Private->Streamer = MakeShared<FUnrealMutableModelBulkReader>();
 	check(Private->Streamer != nullptr);
 	Private->MutableSystem->SetStreamingInterface(Private->Streamer);
 
@@ -1084,7 +1091,7 @@ bool UCustomizableObjectSystem::CheckIfDiskOrMipUpdateOperationsPending(const UC
 
 	// Ensure that we don't try to handle any further streaming operations for this object
 	check(GetPrivate());
-	if (const FUnrealMutableModelBulkStreamer* Streamer = GetPrivate()->Streamer.Get())
+	if (const FUnrealMutableModelBulkReader* Streamer = GetPrivate()->Streamer.Get())
 	{
 		if (Streamer->AreTherePendingStreamingOperationsForObject(&Object))
 		{
@@ -1185,6 +1192,14 @@ void FCustomizableObjectSystemPrivate::UpdateMemoryLimit()
 		LastWorkingMemoryBytes = MemoryBytes;
 		check(MutableSystem);
 		MutableSystem->SetWorkingMemoryBytes(MemoryBytes);
+	}
+
+	const uint32 GeneratedResourceCacheSize = CVarGeneratedResourcesCacheSize.GetValueOnGameThread();
+	if (GeneratedResourceCacheSize != LastGeneratedResourceCacheSize)
+	{
+		LastGeneratedResourceCacheSize = GeneratedResourceCacheSize;
+		check(MutableSystem);
+		MutableSystem->SetGeneratedCacheSize(GeneratedResourceCacheSize);
 	}
 }
 
@@ -1456,7 +1471,7 @@ namespace impl
 							OperationData->InstanceUpdateData.Vectors.Push({});
 							FInstanceUpdateData::FVector& Vector = OperationData->InstanceUpdateData.Vectors.Last();
 							Vector.Name = Instance->GetVectorName(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex, VectorIndex);
-							Instance->GetVector(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex, VectorIndex, &Vector.Vector.R, &Vector.Vector.G, &Vector.Vector.B, &Vector.Vector.A);
+							Vector.Vector = Instance->GetVector(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex, VectorIndex);
 						}
 
 						// Scalars
@@ -1508,7 +1523,7 @@ namespace impl
 		check(System != nullptr);
 
 		// Generate all the required resources, that are not cached
-		TArray<mu::RESOURCE_ID> ImagesInThisInstance;
+		TArray<mu::FResourceID> ImagesInThisInstance;
 		for (FInstanceUpdateData::FImage& Image : OperationData->InstanceUpdateData.Images)
 		{
 			MUTABLE_CPUPROFILER_SCOPE(GetImage);

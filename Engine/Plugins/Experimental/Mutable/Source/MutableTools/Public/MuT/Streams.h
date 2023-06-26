@@ -111,24 +111,19 @@ namespace mu
     //! Implementation of the streaming interface that actually loads the file synchronously when
     //! needed.
     //! \ingroup tools
-    class MUTABLETOOLS_API FileModelStreamer : public ModelStreamer
+    class MUTABLETOOLS_API FileModelWriter : public ModelWriter
     {
     public:
 
         //-----------------------------------------------------------------------------------------
         // Life cycle
         //-----------------------------------------------------------------------------------------
-        FileModelStreamer();
-        ~FileModelStreamer() override;
+		FileModelWriter( const FString& ModelLocation );
 
         //-----------------------------------------------------------------------------------------
         // ModelStreamer interface
         //-----------------------------------------------------------------------------------------
-		OPERATION_ID BeginReadBlock(const mu::Model*, uint64 key0, void* pBuffer, uint64 size ) override;
-        bool IsReadCompleted( OPERATION_ID ) override;
-        void EndRead( OPERATION_ID ) override;
-
-        void OpenWriteFile( const char* strModelName, uint64 key0 ) override;
+        void OpenWriteFile( uint64 key0 ) override;
         void Write( const void* pBuffer, uint64 size ) override;
         void CloseWriteFile() override;
 
@@ -137,13 +132,33 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 
         //! Get the file name that this streamer would use for a specific model and data ID.
-        static void GetFileName(const FString& strModelName, uint64 key0, FString& outFileName );
+        void GetFileName(uint64 key0, FString& outFileName );
+
+		/** */
+		static inline FString MakeDataFileName(const FString& ModelName, uint64 key0)
+		{
+			FString Name = ModelName;
+			int32 ExtensionPos = 0;
+			if (Name.FindLastChar('.', ExtensionPos))
+			{
+				Name = Name.Left(ExtensionPos);
+			}
+
+			Name += FString::Printf(TEXT(".%08x-%08x.mutable_data"), uint32_t((key0 >> 32) & 0xffffffff), uint32(key0 & 0xffffffff));
+
+			return Name;
+		}
 
     private:
 
-        class Private;
-        Private* m_pD;
-    };
+		IFileHandle* WriteFile = nullptr;
+
+		FString ModelLocation;
+
+		// For debug
+		uint64 TotalWritten = 0;
+
+	};
 
 
     //! ProxyFactory that provides proxies for data stored in temporary files.

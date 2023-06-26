@@ -23,23 +23,23 @@ public:
 	// mu::ImageParameterGenerator interface
 	// Thread: worker
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
-	virtual TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override;
+	virtual TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(mu::FExternalImageID Id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override;
 #else
-	virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override;
+	virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::FExternalImageID Id, uint8 MipmapsToSkip, TFunction<void(mu::Ptr<mu::Image>)>& ResultCallback) override;
 #endif
 
-	virtual mu::FImageDesc GetImageDesc(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) override;
+	virtual mu::FImageDesc GetImageDesc(mu::FExternalImageID Id, uint8 MipmapsToSkip) override;
 
 	
 	// Own interface	
 	// Thread: Game
 	/** Add a reference to the image. If it was not cached it caches it.
 	 * @param bUser if true, adds a reference to the user reference counter. If false, adds a reference to the system reference counter. */
-	void CacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bool bUser);
+	void CacheImage(const mu::FExternalImageID& Id, bool bUser);
 
 	/** Removes a reference to the image. If all references are removed, it uncaches the image.
 	 * @param bUser if true, removes a reference from the user reference counter. If false, removes a reference from the system reference counter. */
-	void UnCacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bool bUser);
+	void UnCacheImage(const mu::FExternalImageID& Id, bool bUser);
 
 	/** Removes a reference to all images. All images which no longer have references will be uncached.
 	 * @param bUser if true, removes a references from the user reference counter. If false, removes a reference from the system reference counter. */

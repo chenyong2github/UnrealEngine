@@ -20,9 +20,7 @@ namespace mu
     MUTABLE_DEFINE_ENUM_SERIALISABLE(PROJECTOR_TYPE)
 
 
-    //---------------------------------------------------------------------------------------------
-    //! Information to project an image on a mesh.
-    //---------------------------------------------------------------------------------------------
+    /** Description of a projector to project an image on a mesh. */
     struct FProjector
     {
         PROJECTOR_TYPE type = PROJECTOR_TYPE::PLANAR;
@@ -33,12 +31,12 @@ namespace mu
         float projectionAngle = 0.0f;
 
         //!
-        inline void GetDirectionSideUp(FVector3f& d, FVector3f& s, FVector3f& u ) const
+        inline void GetDirectionSideUp(FVector3f& OutDirection, FVector3f& OutSide, FVector3f& OutUp) const
         {
-            d = direction;
-            u = up;
-            s = FVector3f::CrossProduct( up, direction );
-            s.Normalize();
+			OutDirection = direction;
+            OutUp = up;
+            OutSide = FVector3f::CrossProduct( up, direction );
+			OutSide.Normalize();
         }
 
 
@@ -46,18 +44,10 @@ namespace mu
         void Serialise( OutputArchive& arch ) const
         {
             arch << type;
-            arch << position[0];
-            arch << position[1];
-            arch << position[2];
-            arch << direction[0];
-            arch << direction[1];
-            arch << direction[2];
-            arch << up[0];
-            arch << up[1];
-            arch << up[2];
-            arch << scale[0];
-            arch << scale[1];
-            arch << scale[2];
+            arch << position;
+            arch << direction;
+            arch << up;
+            arch << scale;
             arch << projectionAngle;
         }
 
@@ -65,18 +55,10 @@ namespace mu
         void Unserialise( InputArchive& arch )
         {
             arch >> type;
-            arch >> position[0];
-            arch >> position[1];
-            arch >> position[2];
-            arch >> direction[0];
-            arch >> direction[1];
-            arch >> direction[2];
-            arch >> up[0];
-            arch >> up[1];
-            arch >> up[2];
-            arch >> scale[0];
-            arch >> scale[1];
-            arch >> scale[2];
+            arch >> position;
+            arch >> direction;
+            arch >> up;
+            arch >> scale;
             arch >> projectionAngle;
         }
 
@@ -273,7 +255,7 @@ namespace mu
 	using ParamFloatType = float;
 	using ParamColorType = FVector3f;
 	using ParamProjectorType = FProjector;
-	using ParamImageType = EXTERNAL_IMAGE_ID;
+	using ParamImageType = FExternalImageID;
 	using ParamStringType = string;
 
 	

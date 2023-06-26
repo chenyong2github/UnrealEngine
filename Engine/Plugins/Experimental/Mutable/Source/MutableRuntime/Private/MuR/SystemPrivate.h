@@ -1104,6 +1104,38 @@ namespace mu
 
 			/** Count of pending operations for every rom index. */
 			TArray<uint16> PendingOpsPerRom;
+
+			//! Management of generated resources
+			//! @{
+
+			//! This is used to uniquely identify a generated resource like meshes or images.
+			struct FGeneratedResourceData
+			{
+				//! The id assigned to the generated resource.
+				FResourceID Id;
+
+				//! The last request operation for this resource
+				uint32 LastRequestId;
+
+				//! An opaque blob with the values of the relevant parameters
+				TArray<uint8> ParameterValuesBlob;
+			};
+
+			//! The last id generated for a resource
+			uint32 LastResourceKeyId = 0;
+
+			//! The last id generated for a resource request. This is used to check the
+			//! relevancy of the resources when flushing the cache
+			uint32 LastResourceResquestId = 0;
+
+			//! Cached ids for returned assets
+			//! This is non-persistent runtime data
+			TArray<FGeneratedResourceData> GeneratedResources;
+
+			//! Get a resource key for a given resource with given parameter values.
+			FResourceID GetResourceKey(uint32 ParamListIndex, OP::ADDRESS RootAt, const Parameters*, int32 InMaxResourceKeys);
+
+			//! @}
         };
 
 		/** Maximum working memory that mutable should be using. */
@@ -1111,6 +1143,9 @@ namespace mu
 
 		/** Maximum excess memory reached suring the current operation. */
 		int64 BudgetExcessBytes = 0;
+
+		/** Maximum number of resource keys that will be stored for resource reusal. */
+		int32 MaxGeneratedResourceCacheSize = 1024;
 
 		/** Signed ints to account for imprecisions especially with temp.*/
 		int32 TrackedBudgetBytes_Rom = 0;
@@ -1142,7 +1177,8 @@ namespace mu
 		TMap<Ptr<const Resource>, int32> CacheResources;
 
 		/** Given a mutable model, find or create its rom cache. */
-		FModelCacheEntry& GetModelCache(const TSharedPtr<const Model>&);
+		FModelCacheEntry* FindModelCache(const Model*);
+		FModelCacheEntry& FindOrAddModelCache(const TSharedPtr<const Model>&);
 
         /** Make sure the working memory is below the internal budget, even counting with the passed additional memory. 
 		* An optional function can be passed to "block" the unload of certain roms of data.
@@ -1874,7 +1910,7 @@ namespace mu
         Ptr<const Settings> Settings;
 
         //! Data streaming interface, if any.
-		TSharedPtr<ModelStreamer> StreamInterface;
+		TSharedPtr<ModelReader> StreamInterface;
 
 		TSharedPtr<ImageParameterGenerator> ImageParameterGenerator;
 

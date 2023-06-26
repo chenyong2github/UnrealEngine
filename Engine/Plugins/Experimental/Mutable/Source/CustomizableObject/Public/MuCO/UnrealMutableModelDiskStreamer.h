@@ -13,22 +13,6 @@ namespace mu { class Model; }
 struct FMutableStreamableBlock;
 
 
-// Implementation fo the basic mutable streams.
-#if WITH_EDITOR
-class UnrealMutableOutputStream : public mu::OutputStream
-{
-public:
-
-	UnrealMutableOutputStream(FArchive& ar);
-
-	// mu::OutputStream interface
-	void Write(const void* pData, uint64 size) override;
-
-private:
-	FArchive& m_ar;
-};
-#endif
-
 
 class UnrealMutableInputStream : public mu::InputStream
 {
@@ -45,13 +29,12 @@ private:
 
 
 // Implementation of a mutable streamer using bulk storage.
-class CUSTOMIZABLEOBJECT_API FUnrealMutableModelBulkStreamer : public mu::ModelStreamer
+class CUSTOMIZABLEOBJECT_API FUnrealMutableModelBulkReader : public mu::ModelReader
 {
 public:
 	// 
-	FUnrealMutableModelBulkStreamer(FArchive* InMainDataArchive = nullptr, FArchive* InStreamedDataArchive = nullptr);
-	~FUnrealMutableModelBulkStreamer();
-	
+	~FUnrealMutableModelBulkReader();
+
 	// Own interface
 
 	/** Make sure that the provided object can stream data. */
@@ -72,28 +55,13 @@ public:
 
 	/** Release all the pending resources. This disables treamings for all objects. */
 	void EndStreaming();
-	
-	// mu::ModelStreamer interface
-	void OpenWriteFile(const char* strModelName, uint64 key0) override;
-	void Write(const void* pBuffer, uint64 size) override;
-	void CloseWriteFile() override;
-	
+
+	// mu::ModelReader interface
 	OPERATION_ID BeginReadBlock(const mu::Model*, uint64 key0, void* pBuffer, uint64 size) override;
 	bool IsReadCompleted(OPERATION_ID) override;
 	void EndRead(OPERATION_ID) override;
 
 protected:
-
-#if WITH_EDITOR
-	// Write
-	// Non-owned pointer to an archive where we'll store the main model data (non-streamable)
-	FArchive* MainDataArchive = nullptr;
-
-	// Non-owned pointer to an archive where we'll store the resouces (streamable)
-	FArchive* StreamedDataArchive = nullptr;
-
-	FArchive* CurrentWriteFile = nullptr;
-#endif
 
 	/** Streaming data for one object. */
 	struct FObjectData
@@ -109,3 +77,46 @@ protected:
 	/** This is used to generate unique ids for read requests. */
 	OPERATION_ID LastOperationID = 0;
 };
+
+
+#if WITH_EDITOR
+
+class UnrealMutableOutputStream : public mu::OutputStream
+{
+public:
+
+	UnrealMutableOutputStream(FArchive& ar);
+
+	// mu::OutputStream interface
+	void Write(const void* pData, uint64 size) override;
+
+private:
+	FArchive& m_ar;
+};
+
+
+// Implementation of a mutable streamer using bulk storage.
+class CUSTOMIZABLEOBJECT_API FUnrealMutableModelBulkWriter : public mu::ModelWriter
+{
+public:
+	// 
+	FUnrealMutableModelBulkWriter(FArchive* InMainDataArchive = nullptr, FArchive* InStreamedDataArchive = nullptr);
+
+	// mu::ModelWriter interface
+	void OpenWriteFile(uint64 key0) override;
+	void Write(const void* pBuffer, uint64 size) override;
+	void CloseWriteFile() override;
+
+protected:
+
+	// Non-owned pointer to an archive where we'll store the main model data (non-streamable)
+	FArchive* MainDataArchive = nullptr;
+
+	// Non-owned pointer to an archive where we'll store the resouces (streamable)
+	FArchive* StreamedDataArchive = nullptr;
+
+	FArchive* CurrentWriteFile = nullptr;
+
+};
+
+#endif
