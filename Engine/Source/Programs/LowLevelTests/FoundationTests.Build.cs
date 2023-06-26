@@ -19,7 +19,8 @@ public class FoundationTests : TestModuleRules
 			new string[] {
 				"Core",
 				"Cbor",
-				"CoreUObject"
+				"CoreUObject",
+				"TelemetryUtils"
 			});
 
 		if (Target.bBuildWithEditorOnlyData)
