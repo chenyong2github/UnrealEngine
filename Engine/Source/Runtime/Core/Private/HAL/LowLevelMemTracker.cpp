@@ -2455,6 +2455,9 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindTagData(FName TagName, 
 void FLLMScope::Init(ELLMTag TagEnum, bool bInIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride)
 {
 	LLMCheck(!bInIsStatTag && InTagSet == ELLMTagSet::None);
+	// ELLMTag::FMalloc is a special tag expected to only be used by the Platform Tracker (see header where defined).
+	LLMCheck((TagEnum != ELLMTag::FMalloc) || (ELLMTracker::Platform == InTracker));
+
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
 	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set 
 	// bIsDisabled=false if the platform doesn't support it.
