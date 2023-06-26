@@ -240,8 +240,8 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 	, bActionsAttached(false)
 	, bDirectionalBindingSupported(false)
 	, bPalmPoseSupported(false)
-	, MessageHandler(new FGenericApplicationMessageHandler())
 	, bActionSetPrioritySupported(false)
+	, MessageHandler(new FGenericApplicationMessageHandler())
 {
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 	
