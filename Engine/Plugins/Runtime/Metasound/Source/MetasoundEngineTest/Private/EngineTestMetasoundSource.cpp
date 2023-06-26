@@ -72,7 +72,11 @@ namespace EngineTestMetaSoundSourcePrivate
 		return Node;
 	}
 
-	UMetaSoundSourceBuilder& CreateMetaSoundSourceBuilder(EMetaSoundOutputAudioFormat OutputFormat, bool bIsOneShot, EngineTestMetaSoundSourcePrivate::FInitTestBuilderSourceOutput& Output)
+	UMetaSoundSourceBuilder& CreateSourceBuilder(
+		FAutomationTestBase& Test,
+		EMetaSoundOutputAudioFormat OutputFormat,
+		bool bIsOneShot,
+		EngineTestMetaSoundSourcePrivate::FInitTestBuilderSourceOutput& Output)
 	{
 		using namespace Audio;
 		using namespace Metasound;
@@ -88,12 +92,13 @@ namespace EngineTestMetaSoundSourcePrivate
 			Result,
 			OutputFormat,
 			bIsOneShot);
-		checkf(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to create MetaSoundSourceBuilder"));
+		checkf(Builder, TEXT("Failed to create MetaSoundSourceBuilder"));
+		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Builder created but CreateSourceBuilder did not result in 'Succeeded' state"));
 
 		return *Builder;
 	}
 
-	UMetaSoundSourceBuilder& CreateMetaSoundMonoSourceSinGenBuilder(
+	UMetaSoundSourceBuilder& CreateMonoSourceSinGenBuilder(
 		FAutomationTestBase& Test,
 		FMetaSoundBuilderNodeInputHandle* GenInputNodeFreq = nullptr,
 		FMetaSoundBuilderNodeInputHandle* MonoOutNodeInput = nullptr,
@@ -108,7 +113,7 @@ namespace EngineTestMetaSoundSourcePrivate
 		constexpr EMetaSoundOutputAudioFormat OutputFormat = EMetaSoundOutputAudioFormat::Mono;
 		constexpr bool bIsOneShot = false;
 		FInitTestBuilderSourceOutput Output;
-		UMetaSoundSourceBuilder& Builder = CreateMetaSoundSourceBuilder(EMetaSoundOutputAudioFormat::Mono, bIsOneShot, Output);
+		UMetaSoundSourceBuilder& Builder = CreateSourceBuilder(Test, EMetaSoundOutputAudioFormat::Mono, bIsOneShot, Output);
 
 		EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
 		if (MonoOutNodeInput)
@@ -315,7 +320,7 @@ bool FAudioMetasoundSourceBuilderTest::RunTest(const FString& Parameters)
 	using namespace EngineTestMetaSoundSourcePrivate;
 
 	FMetaSoundBuilderNodeInputHandle MonoOutNodeInput;
-	UMetaSoundSourceBuilder& Builder = CreateMetaSoundMonoSourceSinGenBuilder(*this, nullptr, &MonoOutNodeInput);
+	UMetaSoundSourceBuilder& Builder = CreateMonoSourceSinGenBuilder(*this, nullptr, &MonoOutNodeInput);
 	Builder.AddToRoot();
 
 	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())
@@ -359,7 +364,7 @@ bool FAudioMetasoundSourceBuilderLiveUpdateNode::RunTest(const FString& Paramete
 	using namespace Metasound::Frontend;
 
 	FMetaSoundBuilderNodeInputHandle MonoOutNodeInput;
-	UMetaSoundSourceBuilder& Builder = CreateMetaSoundMonoSourceSinGenBuilder(*this, nullptr, &MonoOutNodeInput);
+	UMetaSoundSourceBuilder& Builder = CreateMonoSourceSinGenBuilder(*this, nullptr, &MonoOutNodeInput);
 	Builder.AddToRoot();
 
 	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())
@@ -412,7 +417,7 @@ bool FAudioMetasoundSourceBuilderLiveUpdateLiteral::RunTest(const FString& Param
 
 	FMetaSoundBuilderNodeInputHandle MonoOutNodeInput;
 	FMetaSoundBuilderNodeInputHandle GenNodeFreqInput;
-	UMetaSoundSourceBuilder& Builder = CreateMetaSoundMonoSourceSinGenBuilder(*this, &GenNodeFreqInput , &MonoOutNodeInput, 220.f);
+	UMetaSoundSourceBuilder& Builder = CreateMonoSourceSinGenBuilder(*this, &GenNodeFreqInput , &MonoOutNodeInput, 220.f);
 	Builder.AddToRoot();
 
 	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())

@@ -585,19 +585,22 @@ bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Fron
 		}
 	}
 
+	const TArray<FMetasoundFrontendEdge>& Edges = GetDocument().RootGraph.Graph.Edges;
+	const int32 LastIndex = Edges.Num() - 1;
 	for (FMetasoundFrontendEdge& EdgeToAdd : EdgesToAdd)
 	{
 		const FMetasoundFrontendEdge* NewEdge = AddEdge(MoveTemp(EdgeToAdd));
-		if (ensureAlwaysMsgf(NewEdge, TEXT("Failed to add MetaSound graph edge via DocumentBuilder when prior step validated edge add was valid")))
-		{
-			if (OutNewEdges)
-			{
-				OutNewEdges->Add(NewEdge);
-			}
-		}
-		else
+		if (!ensureAlwaysMsgf(NewEdge, TEXT("Failed to add MetaSound graph edge via DocumentBuilder when prior step validated edge add was valid")))
 		{
 			bSuccess = false;
+		}
+	}
+
+	if (OutNewEdges)
+	{
+		for (int32 Index = LastIndex + 1; Index < Edges.Num(); ++Index)
+		{
+			OutNewEdges->Add(&Edges[Index]);
 		}
 	}
 
@@ -694,7 +697,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsT
 			Algo::Transform(RegistryEntry->GetInterface().Inputs, EdgesToMake, [this, &NodeCache, &InterfaceCache, InNodeID](const FMetasoundFrontendClassInput& Input)
 			{
 				const FMetasoundFrontendGraph& Graph = GetDocument().RootGraph.Graph;
-				const FMetasoundFrontendVertex* NodeVertex = NodeCache.FindOutputVertex(InNodeID, Input.Name);
+				const FMetasoundFrontendVertex* NodeVertex = NodeCache.FindInputVertex(InNodeID, Input.Name);
 				check(NodeVertex);
 				const FMetasoundFrontendClassInput* InputClass = InterfaceCache.FindInput(Input.Name);
 				check(InputClass);
@@ -702,7 +705,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsT
 				check(InputNode);
 				const TArray<FMetasoundFrontendVertex>& Outputs = InputNode->Interface.Outputs;
 				check(!Outputs.IsEmpty());
-				return FNamedEdge { InNodeID, NodeVertex->Name, InputNode->GetID(), Outputs.Last().Name };
+				return FNamedEdge { InputNode->GetID(), Outputs.Last().Name, InNodeID, NodeVertex->Name };
 			});
 		}
 	}
@@ -1781,7 +1784,7 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveNamedEdges(const TSet<Metasound::F
 		}
 	}
 
-	for (FMetasoundFrontendEdge& EdgeToRemove : EdgesToRemove)
+	for (const FMetasoundFrontendEdge& EdgeToRemove : EdgesToRemove)
 	{
 		const bool bRemovedEdge = RemoveEdgeToNodeInput(EdgeToRemove.ToNodeID, EdgeToRemove.ToVertexID);
 		if (ensureAlwaysMsgf(bRemovedEdge, TEXT("Failed to remove MetaSound graph edge via DocumentBuilder when prior step validated edge remove was valid")))
