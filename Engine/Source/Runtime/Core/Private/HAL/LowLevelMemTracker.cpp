@@ -1164,7 +1164,7 @@ void FLowLevelMemTracker::PublishDataPerFrame(const TCHAR* LogName)
 
 void FLowLevelMemTracker::InitialiseProgramSize()
 {
-	if (ProgramSize)
+	if (!ProgramSize)
 	{
 		FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 		ProgramSize = Stats.TotalPhysical - Stats.AvailablePhysical;
