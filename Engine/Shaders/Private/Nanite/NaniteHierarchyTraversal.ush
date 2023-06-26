@@ -347,11 +347,11 @@ void NodeCull(uint GroupID, uint GroupIndex, uint QueueStateIndex)
 	}
 
 	FNaniteTraversalCallback TraversalCallback;
+	TraversalCallback.OnPreProcessNodeBatch(GroupIndex);
 
 	bool bClear = false;
 	if (GroupIndex < BatchSize)
 	{
-		TraversalCallback.OnPreProcessNodeBatch(GroupIndex);
 		TraversalCallback.LoadCandidateNodeDataToGroup(NodeIndex, GroupIndex, false);
 
 		bClear = true;
