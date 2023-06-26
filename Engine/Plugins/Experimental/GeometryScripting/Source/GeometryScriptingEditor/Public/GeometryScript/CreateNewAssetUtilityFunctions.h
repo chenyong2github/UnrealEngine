@@ -85,6 +85,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	TMap<FName, TObjectPtr<UMaterialInterface>> Materials;
+
+	/** If true, will use the skeleton proportions (if availabale) stored in the dynamic mesh. */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bUseMeshBoneProportions = false;
 };
 
 

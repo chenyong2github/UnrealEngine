@@ -102,7 +102,8 @@ UE::AssetUtils::ECreateSkeletalMeshResult UE::AssetUtils::CreateSkeletalMeshAsse
 	}
 	
 	if (!FStaticToSkeletalMeshConverter::InitializeSkeletalMeshFromMeshDescriptions(
-		NewSkeletalMesh, MeshDescriptions, MaterialView, Options.Skeleton->GetReferenceSkeleton(),
+		NewSkeletalMesh, MeshDescriptions, MaterialView, 
+		Options.RefSkeleton ? *Options.RefSkeleton : Options.Skeleton->GetReferenceSkeleton(),
 		Options.bEnableRecomputeNormals, Options.bEnableRecomputeTangents))
 	{
 		return ECreateSkeletalMeshResult::UnknownError;

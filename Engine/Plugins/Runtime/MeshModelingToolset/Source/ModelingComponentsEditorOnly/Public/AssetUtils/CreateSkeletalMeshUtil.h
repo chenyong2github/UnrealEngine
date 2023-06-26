@@ -10,7 +10,7 @@ class USkeletalMesh;
 class USkeleton;
 struct FMeshDescription;
 struct FSkeletalMaterial;
-
+struct FReferenceSkeleton;
 
 namespace UE::AssetUtils
 {
@@ -51,6 +51,9 @@ namespace UE::AssetUtils
 		
 		// The associated USkeleton object
 		USkeleton* Skeleton = nullptr;
+
+		// The associated FReferenceSkeleton object. If null, the reference skeleton of the Skeleton object is used instead.
+		FReferenceSkeleton* RefSkeleton = nullptr;
 
 		// Number of SourceModels (ie LODs)
 		int32 NumSourceModels = 1;

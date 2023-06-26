@@ -265,6 +265,20 @@ public:
 
 	const TMap<FName, int32>& GetRawNameToIndexMap() const { return RawNameToIndexMap; }
 	
+	/** Returns an array of raw bone names. */
+	TArray<FName> GetRawRefBoneNames() const
+	{
+		TArray<FName> BoneNames;
+		BoneNames.Reserve(RawRefBoneInfo.Num());
+
+		for (const FMeshBoneInfo& BoneInfo : RawRefBoneInfo)
+		{
+			BoneNames.Add(BoneInfo.Name);
+		}
+
+		return BoneNames;
+	}
+	
 	void Empty(int32 Size=0)
 	{
 		RawRefBoneInfo.Empty(Size);

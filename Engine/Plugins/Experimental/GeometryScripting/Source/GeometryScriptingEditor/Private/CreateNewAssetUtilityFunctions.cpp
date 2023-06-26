@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "DynamicMesh/DynamicBoneAttribute.h"
+#include "DynamicMesh/MeshBones.h"
 #include "UDynamicMesh.h"
 
 #include "Engine/StaticMesh.h"
@@ -40,9 +41,26 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_CreateNewAssetUtilityFunctions"
 
+static bool CreateReferenceSkeletonFromMeshLods(const TArray<FDynamicMesh3>& MeshLods, FReferenceSkeleton& RefSkeleton, bool& bOrderChanged)
+{
+	TArray<FName> BoneNames;
+	TArray<int32> BoneParentIdx;
+	TArray<FTransform> BonePose;
+		
+	if (!FMeshBones::CombineLodBonesToReferenceSkeleton(MeshLods, BoneNames, BoneParentIdx, BonePose, bOrderChanged))
+	{
+		return false;
+	}
 
+	FReferenceSkeletonModifier Modifier(RefSkeleton, nullptr);
 
+	for (int32 BoneIdx = 0; BoneIdx < BoneNames.Num(); ++BoneIdx)
+	{
+		Modifier.Add(FMeshBoneInfo(BoneNames[BoneIdx], BoneNames[BoneIdx].ToString(), BoneParentIdx[BoneIdx]), BonePose[BoneIdx]);
+	}
 
+	return true;
+}
 
 
 void UGeometryScriptLibrary_CreateNewAssetFunctions::CreateUniqueNewAssetPathName(
@@ -269,7 +287,7 @@ USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletal
 		return nullptr;
 	}
 
-	for (int LodIdx = 0; LodIdx < FromDynamicMeshLODs.Num(); ++LodIdx)
+	for (int32 LodIdx = 0; LodIdx < FromDynamicMeshLODs.Num(); ++LodIdx)
 	{	
 		const UDynamicMesh* FromDynamicMesh = FromDynamicMeshLODs[LodIdx];
 		if (FromDynamicMesh == nullptr)
@@ -331,7 +349,7 @@ USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletal
 	TArray<FDynamicMesh3> CopyFromDynamicMeshLODs;
 	CopyFromDynamicMeshLODs.SetNum(FromDynamicMeshLODs.Num());
 
-	for (int LodIdx = 0; LodIdx < FromDynamicMeshLODs.Num(); ++LodIdx) 
+	for (int32 LodIdx = 0; LodIdx < FromDynamicMeshLODs.Num(); ++LodIdx) 
 	{
 		const UDynamicMesh* LODMesh = FromDynamicMeshLODs[LodIdx];
 		FDynamicMesh3* CopyLODMesh = &CopyFromDynamicMeshLODs[LodIdx];
@@ -343,47 +361,81 @@ USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletal
 	}
 
 	// Check if all LODs have bone attributes.
-	bool bMeshHasBoneAttribs = true;
-	for (const FDynamicMesh3& FromDynamicMesh : CopyFromDynamicMeshLODs)
+	int32 LODWithoutBoneAttrib = -1;
+	for (int32 Idx = 0; Idx < CopyFromDynamicMeshLODs.Num(); ++Idx)
 	{
-		bMeshHasBoneAttribs = bMeshHasBoneAttribs && FromDynamicMesh.Attributes()->HasBones();
+		if (!CopyFromDynamicMeshLODs[Idx].Attributes()->HasBones())
+		{
+			LODWithoutBoneAttrib = Idx;
+			break;
+		}
 	}
 
-	if (!bMeshHasBoneAttribs) // If at least one LOD doesn't contain the bone attributes then add LOD mesh as is
+	TUniquePtr<FReferenceSkeleton> RefSkeleton = nullptr;
+	if (LODWithoutBoneAttrib >= 0) // If at least one LOD doesn't contain the bone attributes then add LOD meshes as is
 	{
 		for (const FDynamicMesh3& FromDynamicMesh : CopyFromDynamicMeshLODs)
 		{
 			AssetOptions.SourceMeshes.DynamicMeshes.Add(&FromDynamicMesh);
 		}
-	}
-	else // If bone attributes are available then attempt to reindex the weights
-	{	
-		TArray<FName> ToSkeleton;
-		ToSkeleton.Reserve(InSkeleton->GetReferenceSkeleton().GetRawRefBoneInfo().Num());
-		for (const FMeshBoneInfo& BoneInfo : InSkeleton->GetReferenceSkeleton().GetRawRefBoneInfo())
+		
+		if (Options.bUseMeshBoneProportions)
 		{
-			ToSkeleton.Add(BoneInfo.Name);
+			AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, FText::Format(LOCTEXT("CreateNewSkeletalMeshAssetFromMeshLODs_MissingBoneAttributes", "CreateNewSkeletalMeshAssetFromMeshLODs: Mesh bone proportions were requested, but the LOD {0} has no bone attributes. Proportions will be ignored."), FText::AsNumber(LODWithoutBoneAttrib)));
 		}
+	}
+	else // If bone attributes are available then attempt to reindex the weights and if requested create a ReferenceSkeleton
+	{	
+		TArray<FName> ToSkeleton; // array of bone names in the final reference skeleton
+		bool bNeedToReindex = true; // do we need to re-index the bone weights with respect to the reference skeleton
+		if (Options.bUseMeshBoneProportions)
+		{
+			// If mesh LODs have bone attributes and the user requested to use mesh bone proportions then we create a 
+			// new reference skeleton by finding the mesh with the largest number of bones and creating reference  
+			// skeleton out of its bone attributes
+			RefSkeleton = MakeUnique<FReferenceSkeleton>();
+			if (CreateReferenceSkeletonFromMeshLods(CopyFromDynamicMeshLODs, *RefSkeleton, bNeedToReindex))
+			{
+				ToSkeleton = RefSkeleton->GetRawRefBoneNames();
 
-		for (int LodIdx = 0; LodIdx < CopyFromDynamicMeshLODs.Num(); ++LodIdx)
+				// Asset will now use the custom reference skeleton instead of the InSkeleton reference skeleton
+				AssetOptions.RefSkeleton = RefSkeleton.Get(); 
+			}
+			else 
+			{
+				// if we failed to get reference skeleton from Lods, fall back to the skeleton asset
+				ToSkeleton = InSkeleton->GetReferenceSkeleton().GetRawRefBoneNames();
+				AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateNewSkeletalMeshAssetFromMeshLODs_FailedToCombineBoneAttributesForLods", "CreateNewSkeletalMeshAssetFromMeshLODs: Failed to combine the bone attributes for the Lods. Skeleton asset will be used instead."));
+			}
+		}
+		else
+		{
+			ToSkeleton = InSkeleton->GetReferenceSkeleton().GetRawRefBoneNames();
+		}
+	
+		for (int32 LodIdx = 0; LodIdx < CopyFromDynamicMeshLODs.Num(); ++LodIdx)
 		{
 			FDynamicMesh3& FromDynamicMesh = CopyFromDynamicMeshLODs[LodIdx];
-			FDynamicMeshAttributeSet* AttribSet = FromDynamicMesh.Attributes();
 
-			// Check if the skeleton we are trying to bind the mesh to is the same as the current mesh skeleton.
-			const TArray<FName>& FromSkeleton = AttribSet->GetBoneNames()->GetAttribValues();
-
-			if (FromSkeleton != ToSkeleton)
+			if (bNeedToReindex) // potentially need to re-index the weights
 			{
-				for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& Entry : AttribSet->GetSkinWeightsAttributes())
+				FDynamicMeshAttributeSet* AttribSet = FromDynamicMesh.Attributes();
+
+				// Check if the skeleton we are trying to bind the mesh to is the same as the current mesh skeleton.
+				const TArray<FName>& FromSkeleton = AttribSet->GetBoneNames()->GetAttribValues();
+
+				if (FromSkeleton != ToSkeleton)
 				{
-					FDynamicMeshVertexSkinWeightsAttribute* SkinWeightAttrib = Entry.Value.Get();
-					
-					// Reindex the bone indices
-					if (SkinWeightAttrib->ReindexBoneIndicesToSkeleton(FromSkeleton, ToSkeleton) == false)
+					for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& Entry : AttribSet->GetSkinWeightsAttributes())
 					{
-						AppendError(Debug, EGeometryScriptErrorType::OperationFailed, FText::Format(LOCTEXT("CreateNewSkeletalMeshAssetFromMeshLODs_FailedReindexing", "CreateNewSkeletalMeshAssetFromMeshLODs: LOD {0} has invalid skinning data or the bone data is not compatible with the specified skeleton."), FText::AsNumber(LodIdx)));
-						return nullptr;
+						FDynamicMeshVertexSkinWeightsAttribute* SkinWeightAttrib = Entry.Value.Get();
+						
+						// Reindex the bone indices
+						if (SkinWeightAttrib->ReindexBoneIndicesToSkeleton(FromSkeleton, ToSkeleton) == false)
+						{
+							AppendError(Debug, EGeometryScriptErrorType::OperationFailed, FText::Format(LOCTEXT("CreateNewSkeletalMeshAssetFromMeshLODs_FailedReindexing", "CreateNewSkeletalMeshAssetFromMeshLODs: LOD {0} has invalid skinning data or the bone data is not compatible with the specified skeleton."), FText::AsNumber(LodIdx)));
+							return nullptr;
+						}
 					}
 				}
 			}

@@ -13,6 +13,7 @@
 #include "Operations/TransferBoneWeights.h"
 #include "MathUtil.h"
 #include "Containers/Queue.h"
+#include "DynamicMesh/MeshBones.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBoneWeightFunctions)
 
@@ -382,20 +383,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::TransferBoneWeight
 		FTransferBoneWeights TransferBoneWeights(&ReadMesh, Options.SourceProfile.GetProfileName());
 		TransferBoneWeights.TransferMethod = static_cast<FTransferBoneWeights::ETransferBoneWeightsMethod>(Options.TransferMethod);
 		TransferBoneWeights.bUseParallel = true;
-		if (Options.TransferMethod == ETransferBoneWeightsMethod::InpaintWeights)
-		{
-			TransferBoneWeights.NormalThreshold = FMathd::DegToRad * Options.NormalThreshold;
-			TransferBoneWeights.SearchRadius = Options.RadiusPercentage * ReadMesh.GetBounds().DiagonalLength();
-			TransferBoneWeights.NumSmoothingIterations = Options.NumSmoothingIterations;
-			TransferBoneWeights.SmoothingStrength = Options.SmoothingStrength;
-			TransferBoneWeights.LayeredMeshSupport = Options.LayeredMeshSupport;
-		}
 
-		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
-		{
-			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_ValidationFailed", "TransferBoneWeightsFromMesh: Invalid parameters were set for the transfer weight operator"));
-			return;
-		}
 
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
@@ -426,6 +414,20 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::TransferBoneWeight
 				}
 			}
 			
+			if (Options.TransferMethod == ETransferBoneWeightsMethod::InpaintWeights)
+			{
+				TransferBoneWeights.NormalThreshold = FMathd::DegToRad * Options.NormalThreshold;
+				TransferBoneWeights.SearchRadius = Options.RadiusPercentage * EditMesh.GetBounds().DiagonalLength();
+				TransferBoneWeights.NumSmoothingIterations = Options.NumSmoothingIterations;
+				TransferBoneWeights.SmoothingStrength = Options.SmoothingStrength;
+				TransferBoneWeights.LayeredMeshSupport = Options.LayeredMeshSupport;
+			}
+
+			if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_ValidationFailed", "TransferBoneWeightsFromMesh: Invalid parameters were set for the transfer weight operator"));
+				return;
+			}
 			if (!TransferBoneWeights.TransferWeightsToMesh(EditMesh, Options.TargetProfile.GetProfileName()))
 			{
 				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_TransferFailed", "TransferBoneWeightsFromMesh: Failed to transfer the weights"));
@@ -615,56 +617,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetBoneChildren(
 
 			TArray<int32> ChildrenIndices;
 
-			// add direct children only
-			for (int32 Idx = 0; Idx < NumBones; ++Idx)
-			{
-				if (ParentsAttrib[Idx] == BoneIndex)
-				{
-					ChildrenIndices.Add(Idx);
-				}
-			}
-			
-			// add all grandchildren as well
-			if (bRecursive) 
-			{
-				// Map each bone index to its direct children bone indices
-				TMap<int32, TArray<int32>> ChildrenMap;
-				for (int32 Idx = 0; Idx < NumBones; ++Idx)
-				{
-					const int32 ParentIdx = ParentsAttrib[Idx];
-					if (ChildrenMap.Contains(ParentsAttrib[Idx]))
-					{
-						ChildrenMap[ParentIdx].Add(Idx);
-					}
-					else 
-					{
-						ChildrenMap.Add(ParentIdx, {Idx});
-					}
-				}
-
-				// Do breadth first search
-				TQueue<int32> BFS;
-				for (const int32 ChildIdx : ChildrenIndices)
-				{
-					BFS.Enqueue(ChildIdx);
-				}
-
-				while (!BFS.IsEmpty())
-				{
-					int32 ChildIdx; 
-					BFS.Dequeue(ChildIdx);
-
-					if (ChildrenMap.Contains(ChildIdx))
-					{
-						for (const int32 GrandChildIdx : ChildrenMap[ChildIdx])
-						{
-							BFS.Enqueue(GrandChildIdx);
-							checkSlow(ChildrenIndices.Find(GrandChildIdx) == INDEX_NONE);
-							ChildrenIndices.Add(GrandChildIdx);
-						}
-					}
-				}
-			}
+			FMeshBones::GetBoneChildren(EditMesh, BoneIndex, ChildrenIndices, bRecursive);
 			
 			// Get all information about the children
 			ChildrenInfo.SetNum(ChildrenIndices.Num());
