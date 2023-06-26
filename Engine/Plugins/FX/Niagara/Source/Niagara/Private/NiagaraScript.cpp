@@ -3804,6 +3804,12 @@ bool UNiagaraScript::SynchronizeExecutablesWithCompilation(const UNiagaraScript*
 		return false;
 	}
 
+	if (!AllowShaderCompiling())
+	{
+		// if we're not allowed to compile shaders than don't even bother evaluating the id
+		return false;
+	}
+
 	FNiagaraVMExecutableDataId Id;
 	ComputeVMCompilationId(Id, FGuid());
 
