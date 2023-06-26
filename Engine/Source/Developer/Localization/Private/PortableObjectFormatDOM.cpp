@@ -851,9 +851,38 @@ void FPortableObjectFormatDOM::SortEntries()
 		EntryPair.Value->ReferenceComments.Sort();
 	}
 
-	// Sort by namespace, then keys, then source text.
+	// Sort by reference (source location) then namespace, then keys, then source text.
 	auto SortingPredicate = [](const TSharedPtr<FPortableObjectEntry>& A, const TSharedPtr<FPortableObjectEntry>& B) -> bool
 	{
+		// compare reference comment
+		const int32 ReferenceCommentCount = FMath::Max(A->ReferenceComments.Num(), B->ReferenceComments.Num());
+		for (int32 index = 0; index < ReferenceCommentCount; ++index)
+		{
+			// If A has no more comments, it is before B.
+			if (!A->ReferenceComments.IsValidIndex(index) && B->ReferenceComments.IsValidIndex(index))
+			{
+				return true;
+			}
+			// If B has no more comments, it is before A.
+			if (A->ReferenceComments.IsValidIndex(index) && !B->ReferenceComments.IsValidIndex(index))
+			{
+				return false;
+			}
+
+			check(A->ReferenceComments.IsValidIndex(index) && B->ReferenceComments.IsValidIndex(index));
+
+			// If A's reference is lexicographically less, it is before B.
+			if (A->ReferenceComments[index] < B->ReferenceComments[index])
+			{
+				return true;
+			}
+			// If B's comment is lexicographically less, it is before A.
+			if (A->ReferenceComments[index] > B->ReferenceComments[index])
+			{
+				return false;
+			}
+		}
+
 		// Compare namespace
 		if (A->MsgCtxt < B->MsgCtxt)
 		{
