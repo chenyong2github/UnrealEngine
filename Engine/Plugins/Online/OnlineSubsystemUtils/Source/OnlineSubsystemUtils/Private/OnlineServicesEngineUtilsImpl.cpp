@@ -10,6 +10,11 @@
 #include "Online/OnlineServicesDelegates.h"
 #include "Online/OnlineServicesRegistry.h"
 
+#if WITH_EDITOR
+#include "Misc/Parse.h"
+#endif
+
+
 namespace UE::Online
 {
 
@@ -85,11 +90,28 @@ void FOnlineServicesEngineUtils::SetEngineExternalUIBinding(const FOnExternalUIC
 }
 
 #if WITH_EDITOR
+
+namespace FOnlineServicesEngineUtilsHelper
+{
+	bool HasAuthCommandLine(UE::Online::FAuthLogin::Params& LoginParameters)
+    {
+    	check(LoginParameters.CredentialsToken.IsType<FString>());
+    	return FParse::Value(FCommandLine::Get(), TEXT("AUTH_LOGIN="), LoginParameters.CredentialsId ) &&
+    		   FParse::Value(FCommandLine::Get(), TEXT("AUTH_PASSWORD="), LoginParameters.CredentialsToken.Get<FString>()) &&
+    		   FParse::Value(FCommandLine::Get(), TEXT("AUTH_TYPE="), LoginParameters.CredentialsType);
+    }
+	bool HasAuthCommandLine()
+	{
+		UE::Online::FAuthLogin::Params LoginParameters;
+		return HasAuthCommandLine(LoginParameters);
+	}
+}
+
 bool FOnlineServicesEngineUtils::SupportsOnlinePIE() const
 {
 	check(UObjectInitialized());
 	const UOnlinePIESettings* OnlinePIESettings = GetDefault<UOnlinePIESettings>();
-	if (OnlinePIESettings->bOnlinePIEEnabled && GetNumPIELogins() > 0)
+	if ((OnlinePIESettings->bOnlinePIEEnabled && GetNumPIELogins() > 0) || FOnlineServicesEngineUtilsHelper::HasAuthCommandLine())
 	{
 		// If we can't get the auth then things are either not configured right or disabled
 		EOnlineServices OnlineServicesType = EOnlineServices::Epic; // TODO:  Need Default support UE::Online::EOnlineServices::Default
@@ -116,8 +138,12 @@ void FOnlineServicesEngineUtils::SetShouldTryOnlinePIE(bool bShouldTry)
 bool FOnlineServicesEngineUtils::IsOnlinePIEEnabled() const
 {
 	check(UObjectInitialized());
+	if (!bShouldTryOnlinePIE)
+	{
+		return false;
+	}
 	const UOnlinePIESettings* OnlinePIESettings = GetDefault<UOnlinePIESettings>();
-	return bShouldTryOnlinePIE && OnlinePIESettings->bOnlinePIEEnabled;
+	return OnlinePIESettings->bOnlinePIEEnabled || FOnlineServicesEngineUtilsHelper::HasAuthCommandLine();
 }
 
 int32 FOnlineServicesEngineUtils::GetNumPIELogins() const
@@ -132,6 +158,10 @@ int32 FOnlineServicesEngineUtils::GetNumPIELogins() const
 		{
 			NumValidLogins++;
 		}
+	}
+	if (NumValidLogins == 0 && FOnlineServicesEngineUtilsHelper::HasAuthCommandLine())
+	{
+		NumValidLogins++;
 	}
 	
 	return NumValidLogins;
@@ -148,6 +178,14 @@ void FOnlineServicesEngineUtils::GetPIELogins(TArray<FAuthLogin::Params>& Logins
 		LoginParameters.CredentialsToken.Set<FString>(PIELoginCredentials.Token);
 		LoginParameters.CredentialsType = *PIELoginCredentials.Type;
 		Logins.Emplace(MoveTemp(LoginParameters));
+	}
+	if (Logins.IsEmpty())
+	{
+		UE::Online::FAuthLogin::Params LoginParameters;
+		if (FOnlineServicesEngineUtilsHelper::HasAuthCommandLine(LoginParameters))
+		{
+			Logins.Emplace(MoveTemp(LoginParameters));
+		}
 	}
 }
 
