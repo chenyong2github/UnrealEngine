@@ -56,6 +56,10 @@ void UNiagaraStackItemFooter::SetOnToggleShowAdvanced(FOnToggleShowAdvanced OnEx
 
 bool UNiagaraStackItemFooter::GetShowAdvanced() const
 {
+	if (IsFinalized())
+	{
+		return false;
+	}
 	return GetStackEditorData().GetStackItemShowAdvanced(OwnerStackItemEditorDataKey, false);
 }
 
