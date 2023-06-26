@@ -344,6 +344,12 @@ bool FTransferBoneWeights::TransferWeightsToMesh(FDynamicMesh3& InOutTargetMesh,
 			return true;
 		}
 
+		// If no vertices matched, we have nothing to inpaint.
+		if (NumMatched == 0)
+		{
+			return false;
+		}
+
 		// Setup the sparse matrix FixedValues of known (matched) weight values and the array (FixedIndices) of the matched vertex IDs
 		const int32 TargetNumBones = InOutTargetMesh.Attributes()->GetBoneNames()->GetAttribValues().Num();
 		FSparseMatrixD FixedValues;

@@ -642,6 +642,7 @@ void FClothPatternToDynamicMesh::Convert(const TSharedRef<const FManagedArrayCol
 	}
 	if (!bVertexIndicesMatch)
 	{
+		MeshOut.EnableAttributes();
 		UE::Geometry::FNonManifoldMappingSupport::AttachNonManifoldVertexMappingData(PatternToDynamicMesh.ToSrcVertIDMap, MeshOut);
 	}
 
