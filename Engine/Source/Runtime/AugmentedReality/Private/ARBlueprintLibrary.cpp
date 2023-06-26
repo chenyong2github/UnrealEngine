@@ -451,92 +451,6 @@ EARLineTraceChannels UARTraceResultLibrary::GetTraceChannel( const FARTraceResul
 	return TraceResult.GetTraceChannel();
 }
 
-UARTextureCameraImage* UARBlueprintLibrary::GetCameraImage()
-{
-	return Cast<UARTextureCameraImage>(GetARTexture(EARTextureType::CameraImage));
-}
-
-UARTextureCameraDepth* UARBlueprintLibrary::GetCameraDepth()
-{
-	return Cast<UARTextureCameraDepth>(GetARTexture(EARTextureType::CameraDepth));
-}
-
-TArray<UARPlaneGeometry*> UARBlueprintLibrary::GetAllTrackedPlanes()
-{
-	TArray<UARPlaneGeometry*> ResultList;
-	
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		auto PinnedARSystem = ARSystem.Pin();
-		for (UARTrackedGeometry* Geo : PinnedARSystem->GetAllTrackedGeometries())
-		{
-			if (UARPlaneGeometry* Item = Cast<UARPlaneGeometry>(Geo))
-			{
-				ResultList.Add(Item);
-			}
-		}
-	}
-	return ResultList;
-}
-
-TArray<UARTrackedPoint*> UARBlueprintLibrary::GetAllTrackedPoints()
-{
-	TArray<UARTrackedPoint*> ResultList;
-	
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		auto PinnedARSystem = ARSystem.Pin();
-		for (UARTrackedGeometry* Geo : PinnedARSystem->GetAllTrackedGeometries())
-		{
-			if (UARTrackedPoint* Item = Cast<UARTrackedPoint>(Geo))
-			{
-				ResultList.Add(Item);
-			}
-		}
-	}
-	return ResultList;
-}
-
-TArray<UARTrackedImage*> UARBlueprintLibrary::GetAllTrackedImages()
-{
-	TArray<UARTrackedImage*> ResultList;
-	
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		auto PinnedARSystem = ARSystem.Pin();
-		for (UARTrackedGeometry* Geo : PinnedARSystem->GetAllTrackedGeometries())
-		{
-			if (UARTrackedImage* Item = Cast<UARTrackedImage>(Geo))
-			{
-				ResultList.Add(Item);
-			}
-		}
-	}
-	return ResultList;
-}
-
-TArray<UAREnvironmentCaptureProbe*> UARBlueprintLibrary::GetAllTrackedEnvironmentCaptureProbes()
-{
-	TArray<UAREnvironmentCaptureProbe*> ResultList;
-	
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		auto PinnedARSystem = ARSystem.Pin();
-		for (UARTrackedGeometry* Geo : PinnedARSystem->GetAllTrackedGeometries())
-		{
-			if (UAREnvironmentCaptureProbe* Item = Cast<UAREnvironmentCaptureProbe>(Geo))
-			{
-				ResultList.Add(Item);
-			}
-		}
-	}
-	return ResultList;
-}
-
 bool UARBlueprintLibrary::AddManualEnvironmentCaptureProbe(FVector Location, FVector Extent)
 {
 	auto ARSystem = GetARSystem();
@@ -636,35 +550,6 @@ TArray<FARPose2D> UARBlueprintLibrary::GetAllTracked2DPoses()
 	{
 		return {};
 	}
-}
-
-TArray<UARTrackedPose*> UARBlueprintLibrary::GetAllTrackedPoses()
-{
-	TArray<UARTrackedPose*> TrackedPoses;
-	
-	auto ARSystem = GetARSystem();
-	if (ARSystem.IsValid())
-	{
-		auto PinnedARSystem = ARSystem.Pin();
-		for (UARTrackedGeometry* Geo : PinnedARSystem->GetAllTrackedGeometries())
-		{
-			if (UARTrackedPose* Item = Cast<UARTrackedPose>(Geo))
-			{
-				TrackedPoses.Add(Item);
-			}
-		}
-	}
-	return TrackedPoses;
-}
-
-UARTexture* UARBlueprintLibrary::GetPersonSegmentationImage()
-{
-	return GetARTexture(EARTextureType::PersonSegmentationImage);
-}
-
-UARTexture* UARBlueprintLibrary::GetPersonSegmentationDepthImage()
-{
-	return GetARTexture(EARTextureType::PersonSegmentationDepth);
 }
 
 bool UARBlueprintLibrary::IsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod)

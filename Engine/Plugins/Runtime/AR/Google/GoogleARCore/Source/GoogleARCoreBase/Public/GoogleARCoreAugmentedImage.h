@@ -19,47 +19,6 @@ class GOOGLEARCOREBASE_API UGoogleARCoreAugmentedImage : public UARTrackedImage
 public:
 
 	/**
-	 * Get the center in local space of the augmented image.
-	 *
-	 * @return The center in the augmented image's local coordinate
-	 *         space.
-	 */
-	UE_DEPRECATED(4.22, "There is no need to use this function since it always returns (0,0,0).")
-	UFUNCTION(BlueprintPure, Category = "GoogleARCore|AugmentedImage", meta = (Keywords = "googlear arcore augmentedimage"))
-	FVector GetCenter() const;
-
-	/**
-	 * Get the size in local space of the augmented image.
-	 *
-	 * @return The size in the augmented image's local coordinate
-	 *         space.
-	 */
-	UE_DEPRECATED(4.22, "Please use UARTrackedImage::GetEstimatedSize() instead.")
-	UFUNCTION(BlueprintPure, Category = "GoogleARCore|AugmentedImage", meta = (Keywords = "googlear arcore augmentedimage"))
-	FVector GetExtent() const;
-
-	/**
-	 * Get the index of an augmented image in the augmented image
-	 * database.
-	 *
-	 * @return An integer indicating the index into the Entries array
-	 *         in the UGoogleARCoreAugmentedImageDatabase.
-	 */
-	UE_DEPRECATED(4.22, "Instead of getting the index, you can use UARTrackedImage::GetDetectedImage() to get the UARCandidateImage object.")
-	UFUNCTION(BlueprintPure, Category = "GoogleARCore|AugmentedImage", meta = (Keywords = "googlear arcore augmentedimage"))
-	int32 GetImageIndex() const;
-
-	/**
-	 * Get the name of an augmented image in the augmented image
-	 * database.
-	 *
-	 * @return The name of the image in the image database.
-	 */
-	UE_DEPRECATED(4.22, "Please use UARCandidateImage::GetFriendlyName() instead.")
-	UFUNCTION(BlueprintPure, Category = "GoogleARCore|AugmentedImage", meta = (Keywords = "googlear arcore augmentedimage"))
-	FString GetImageName() const;
-
-	/**
 	 * Draw a box around the image, for debugging purposes.
 	 *
 	 * @param World				World context object.

@@ -79,31 +79,3 @@ void UGoogleARCoreAugmentedImage::UpdateTrackedGeometry(
 	ImageIndex = InImageIndex;
 	ImageName = InImageName;
 }
-
-FVector UGoogleARCoreAugmentedImage::GetCenter() const
-{
-	return FVector::ZeroVector;
-}
-
-FVector UGoogleARCoreAugmentedImage::GetExtent() const
-{
-	return FVector(EstimatedSize.Y, 0.0f, EstimatedSize.X);
-}
-
-int32 UGoogleARCoreAugmentedImage::GetImageIndex() const
-{
-	return ImageIndex;
-}
-
-FString UGoogleARCoreAugmentedImage::GetImageName() const
-{
-	if (DetectedImage != nullptr)
-	{
-		return GetDetectedImage()->GetFriendlyName();
-
-	}
-	else
-	{
-		return ImageName;
-	}
-}
