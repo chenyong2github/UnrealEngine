@@ -90,7 +90,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheSupersampleTileBRDFThreshold(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenRadianceCacheSupersampleDistanceFromCamera = 0;
+float GLumenRadianceCacheSupersampleDistanceFromCamera = 2000.0f;
 FAutoConsoleVariableRef CVarLumenRadianceCacheSupersampleDistanceFromCamera(
 	TEXT("r.Lumen.RadianceCache.SupersampleDistanceFromCamera"),
 	GLumenRadianceCacheSupersampleDistanceFromCamera,
@@ -1106,7 +1106,7 @@ bool ShouldImportanceSampleBRDF(const FUpdateInputs& Inputs)
 
 float GetSupersampleDistanceFromCamera(const FUpdateInputs& Inputs)
 {
-	return ShouldImportanceSampleBRDF(Inputs) ? GLumenRadianceCacheSupersampleDistanceFromCamera : 0;
+	return GLumenRadianceCacheSupersampleDistanceFromCamera;
 }
 
 class FRadianceCacheSetup
