@@ -2274,6 +2274,7 @@ void UBlueprintGeneratedClass::Serialize(FArchive& Ar)
 		FImportExportCollector Collector(this->GetPackage());
 		Collector.SetCookData(Ar.GetCookData());
 		Collector.AddExportToIgnore(this);
+		Collector.SetFilterEditorOnly(Ar.IsFilterEditorOnly());
 		Collector.SerializeObjectAndReferencedExports(ClassGeneratedBy);
 		for (const TPair<FName, ESoftObjectPathCollectType>& Pair : Collector.GetImportedPackages())
 		{
