@@ -250,6 +250,224 @@ FText GetPropertyTypeText(const FProperty* Property)
 
 FOnStateTreePropertyBindingChanged STATETREEEDITORMODULE_API OnStateTreePropertyBindingChanged;
 
+struct FCachedBindingData : public TSharedFromThis<FCachedBindingData>
+{
+	FCachedBindingData(UObject* InOwnerObject, const FStateTreePropertyPath& InTargetPath, const TSharedPtr<const IPropertyHandle>& InPropertyHandle)
+		: WeakOwnerObject(InOwnerObject)
+		, TargetPath(InTargetPath)
+		, PropertyHandle(InPropertyHandle)
+	{
+	}
+	
+	void UpdateData()
+	{
+		static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
+
+		Text = FText::GetEmpty();
+		TooltipText = FText::GetEmpty();
+		Color = FLinearColor::White;
+		Image = nullptr;
+
+		if (!PropertyHandle.IsValid())
+		{
+			return;
+		}
+
+		const FProperty* Property = PropertyHandle->GetProperty();
+		if (!Property)
+		{
+			return;
+		}
+
+		UObject* OwnerObject = WeakOwnerObject.Get();
+		if (!OwnerObject)
+		{
+			return;
+		}
+		
+		IStateTreeEditorPropertyBindingsOwner* BindingOwner = Cast<IStateTreeEditorPropertyBindingsOwner>(OwnerObject);
+		if (!BindingOwner)
+		{
+			return;
+		}
+
+		FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
+		if (!EditorBindings)
+		{
+			return;
+		}
+
+		TArray<FStateTreeBindableStructDesc> AccessibleStructs;
+		BindingOwner->GetAccessibleStructs(TargetPath.GetStructID(), AccessibleStructs);
+		
+		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+		check(Schema);
+
+		FEdGraphPinType PinType;
+		Schema->ConvertPropertyToPinType(Property, PinType);
+
+		if (const FStateTreePropertyPath* SourcePath = EditorBindings->GetPropertyBindingSource(TargetPath))
+		{
+			const FStateTreeBindableStructDesc* SourceDesc = UE::StateTree::PropertyBinding::FindStruct(AccessibleStructs, SourcePath->GetStructID());
+			if (SourceDesc)
+			{
+				bool bIsValidBinding = false;
+
+				// Check that the binding is valid.
+				FStateTreeDataView SourceDataView;
+				FStateTreeDataView TargetDataView;
+				const FProperty* SourceLeafProperty = nullptr;
+				const UStruct* SourceStruct = nullptr;
+				if (BindingOwner->GetDataViewByID(SourcePath->GetStructID(), SourceDataView)
+					&& BindingOwner->GetDataViewByID(TargetPath.GetStructID(), TargetDataView))
+				{
+					TArray<FStateTreePropertyPathIndirection> SourceIndirections;
+					TArray<FStateTreePropertyPathIndirection> TargetIndirections;
+					
+					if (SourcePath->ResolveIndirectionsWithValue(SourceDataView, SourceIndirections)
+						&& TargetPath.ResolveIndirectionsWithValue(TargetDataView, TargetIndirections))
+					{
+						FStateTreePropertyCopy DummyCopy;
+						FStateTreePropertyPathIndirection LastSourceIndirection = !SourceIndirections.IsEmpty() ? SourceIndirections.Last() : FStateTreePropertyPathIndirection(SourceDataView.GetStruct());
+						FStateTreePropertyPathIndirection LastTargetIndirection = !TargetIndirections.IsEmpty() ? TargetIndirections.Last() : FStateTreePropertyPathIndirection(TargetDataView.GetStruct());
+						if (FStateTreePropertyBindings::ResolveCopyType(LastSourceIndirection, LastTargetIndirection, DummyCopy))
+						{
+							bIsValidBinding = true;
+						}
+					}
+
+					if (!SourcePath->IsPathEmpty())
+					{
+						if (SourceIndirections.Num() > 0)
+						{
+							SourceLeafProperty = SourceIndirections.Last().GetProperty();
+						}
+					}
+					else
+					{
+						SourceStruct = SourceDataView.GetStruct();
+					}
+				}
+
+				FString SourcePropertyName;
+				SourcePropertyName += SourceDesc->Name.ToString();
+				if (!SourcePath->IsPathEmpty())
+				{
+					SourcePropertyName += TEXT(" ") + SourcePath->ToString();
+				}
+
+				if (bIsValidBinding)
+				{
+					Text = FText::FromString(SourcePropertyName);
+
+					if (SourcePath->IsPathEmpty())
+					{
+						TooltipText = FText::Format(LOCTEXT("ExistingBindingTooltip", "Property is bound to {0}."), FText::FromString(SourceDesc->ToString()));
+					}
+					else
+					{
+						TooltipText = FText::Format(LOCTEXT("ExistingBindingWithPropertyTooltip", "Property is bound to {0} property {1}."), FText::FromString(SourceDesc->ToString()), FText::FromString(SourcePath->ToString()));
+					}
+					
+					Image = FAppStyle::GetBrush(PropertyIcon);
+					Color = Schema->GetPinTypeColor(PinType);
+				}
+				else
+				{
+					FText SourceType;
+					if (SourceLeafProperty)
+					{
+						SourceType = UE::StateTree::PropertyBinding::GetPropertyTypeText(SourceLeafProperty);
+					}
+					else if (SourceStruct)
+					{
+						SourceType = SourceStruct->GetDisplayNameText();
+					}
+					FText TargetType = UE::StateTree::PropertyBinding::GetPropertyTypeText(Property);
+					
+					Text = FText::FromString(SourcePropertyName);
+
+					if (SourcePath->IsPathEmpty())
+					{
+						TooltipText = FText::Format(LOCTEXT("MismatchingBindingTooltip", "Property is bound to {0}, but binding source type '{1}' does not match property type '{2}'."),
+							FText::FromString(SourceDesc->ToString()), SourceType, TargetType);
+					}
+					else
+					{
+						TooltipText = FText::Format(LOCTEXT("MismatchingBindingTooltipWithProperty", "Property is bound to {0} property {1}, but binding source type '{2}' does not match property type '{3}'."),
+							FText::FromString(SourceDesc->ToString()), FText::FromString(SourcePath->ToString()), SourceType, TargetType);
+					}
+
+					Image = FCoreStyle::Get().GetBrush("Icons.ErrorWithColor");
+					Color = FLinearColor::White;
+				}
+			}
+			else
+			{
+				// Missing source
+				Text = FText::Format(LOCTEXT("MissingSource", "???.{0}"), FText::FromString(SourcePath->ToString()));
+				TooltipText = FText::Format(LOCTEXT("MissingBindingTooltip", "Missing binding source for property path '{0}'."), FText::FromString(SourcePath->ToString()));
+				Image = FCoreStyle::Get().GetBrush("Icons.ErrorWithColor");
+				Color = FLinearColor::White;
+			}
+		}
+		else
+		{
+			// No bindings
+			Text = FText::GetEmpty();
+			TooltipText = FText::Format(LOCTEXT("BindTooltip", "Bind {0} to value from another property."), UE::StateTree::PropertyBinding::GetPropertyTypeText(Property));
+			Image = FAppStyle::GetBrush(PropertyIcon);
+			Color = Schema->GetPinTypeColor(PinType);
+		}
+
+		bIsDataCached = true;
+	}
+
+	FText GetText()
+	{
+		ConditionallyUpdateData();
+		return Text;
+	}
+	
+	FText GetTooltipText()
+	{
+		ConditionallyUpdateData();
+		return TooltipText;
+	}
+	
+	FLinearColor GetColor()
+	{
+		ConditionallyUpdateData();
+		return Color;
+	}
+	
+	const FSlateBrush* GetImage()
+	{
+		ConditionallyUpdateData();
+		return Image;
+	}
+	
+private:
+
+	void ConditionallyUpdateData()
+	{
+		if (!bIsDataCached)
+		{
+			UpdateData();
+		}
+	}
+	
+	TWeakObjectPtr<UObject> WeakOwnerObject = nullptr;
+	FStateTreePropertyPath TargetPath;
+	TSharedPtr<const IPropertyHandle> PropertyHandle;
+
+	FText Text;
+	FText TooltipText;
+	FLinearColor Color = FLinearColor::White;
+	const FSlateBrush* Image = nullptr;
+	bool bIsDataCached = false;
+};
+
 } // UE::StateTree::PropertyBinding
 
 bool FStateTreeBindingExtension::IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const
@@ -362,6 +580,8 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 		FString BaseStructName;
 		StructRefBaseStruct = UE::StateTree::Compiler::GetBaseStructFromMetaData(Property, BaseStructName);
 	}
+
+	TSharedPtr<UE::StateTree::PropertyBinding::FCachedBindingData> CachedBindingData = MakeShared<UE::StateTree::PropertyBinding::FCachedBindingData>(OwnerObject, TargetPath, InPropertyHandle);
 	
 	FPropertyBindingWidgetArgs Args;
 	Args.Property = InPropertyHandle->GetProperty();
@@ -471,7 +691,7 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			return true;
 		});
 
-	Args.OnAddBinding = FOnAddBinding::CreateLambda([EditorBindings, OwnerObject, BindingOwner, TargetPath, AccessibleStructs](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+	Args.OnAddBinding = FOnAddBinding::CreateLambda([EditorBindings, OwnerObject, BindingOwner, TargetPath, AccessibleStructs, CachedBindingData](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
 		{
 			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 			if (EditorBindings && OwnerObject)
@@ -502,9 +722,11 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 					UE::StateTree::PropertyBinding::OnStateTreePropertyBindingChanged.Broadcast(SourcePath, TargetPath);
 				}
 			}
+
+			CachedBindingData->UpdateData();
 		});
 
-	Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda([EditorBindings, OwnerObject, TargetPath](FName InPropertyName)
+	Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda([EditorBindings, OwnerObject, TargetPath, CachedBindingData](FName InPropertyName)
 		{
 			if (EditorBindings && OwnerObject)
 			{
@@ -514,6 +736,8 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 				const FStateTreePropertyPath SourcePath; // Null path
 				UE::StateTree::PropertyBinding::OnStateTreePropertyBindingChanged.Broadcast(SourcePath, TargetPath);
 			}
+
+			CachedBindingData->UpdateData();
 		});
 
 	Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda([EditorBindings, TargetPath](FName InPropertyName)
@@ -521,114 +745,24 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			return EditorBindings && EditorBindings->HasPropertyBinding(TargetPath);
 		});
 
-	Args.CurrentBindingText = MakeAttributeLambda([EditorBindings, TargetPath, AccessibleStructs]()
+	Args.CurrentBindingText = MakeAttributeLambda([CachedBindingData]()
 		{
-			FText CurrentValue = FText::GetEmpty();
-
-			if (EditorBindings)
-			{
-				if (const FStateTreePropertyPath* SourcePath = EditorBindings->GetPropertyBindingSource(TargetPath))
-				{
-					const FStateTreeBindableStructDesc* SourceDesc = UE::StateTree::PropertyBinding::FindStruct(AccessibleStructs, SourcePath->GetStructID());
-					if (SourceDesc)
-					{
-						FString PropertyName = SourceDesc->Name.ToString();
-						if (!SourcePath->IsPathEmpty())
-						{
-							PropertyName += TEXT(".") + SourcePath->ToString();
-						}
-						CurrentValue = FText::FromString(PropertyName);
-					}
-					else
-					{
-						CurrentValue = FText::Format(LOCTEXT("MissingSource", "???.{0}"), FText::FromString(SourcePath->ToString()));
-					}
-				}
-			}
-
-			return CurrentValue;
+			return CachedBindingData->GetText();
 		});
 
-	Args.CurrentBindingToolTipText = MakeAttributeLambda([EditorBindings, TargetPath, AccessibleStructs, Property]()
+	Args.CurrentBindingToolTipText = MakeAttributeLambda([CachedBindingData]()
 		{
-			FText CurrentValue = FText::GetEmpty();
-
-			if (EditorBindings)
-			{
-				if (const FStateTreePropertyPath* SourcePath = EditorBindings->GetPropertyBindingSource(TargetPath))
-				{
-					const FStateTreeBindableStructDesc* SourceDesc = UE::StateTree::PropertyBinding::FindStruct(AccessibleStructs, SourcePath->GetStructID());
-					if (SourceDesc)
-					{
-						FString PropertyName = SourceDesc->Name.ToString();
-						if (!SourcePath->IsPathEmpty())
-						{
-							PropertyName += TEXT(".") + SourcePath->ToString();
-						}
-						CurrentValue = FText::Format(LOCTEXT("ExistingBindingTooltip", "Property is bound to {0}."), FText::FromString(PropertyName));
-					}
-					else
-					{
-						CurrentValue = FText::Format(LOCTEXT("MissingBindingTooltip", "Missing binding source for property path '{0}'."), FText::FromString(SourcePath->ToString()));
-					}
-				}
-				else if (Property != nullptr)
-				{
-					CurrentValue = FText::Format(LOCTEXT("BindTooltip", "Bind value to {0} property."), UE::StateTree::PropertyBinding::GetPropertyTypeText(Property));
-				}
-			}
-
-			return CurrentValue;
+			return CachedBindingData->GetTooltipText();
 		});
 
-	Args.CurrentBindingImage = MakeAttributeLambda([EditorBindings, TargetPath, AccessibleStructs]() -> const FSlateBrush*
+	Args.CurrentBindingImage = MakeAttributeLambda([CachedBindingData]() -> const FSlateBrush*
 		{
-			static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
-
-			const FSlateBrush* Result = FAppStyle::GetBrush(PropertyIcon);
-		
-			if (EditorBindings)
-			{
-				if (const FStateTreePropertyPath* SourcePath = EditorBindings->GetPropertyBindingSource(TargetPath))
-				{
-					const FStateTreeBindableStructDesc* SourceDesc = UE::StateTree::PropertyBinding::FindStruct(AccessibleStructs, SourcePath->GetStructID());
-					if (!SourceDesc)
-					{
-						// Invalid binding
-						Result = FCoreStyle::Get().GetBrush("Icons.ErrorWithColor");
-					}
-				}
-			}
-
-			return Result;
+			return CachedBindingData->GetImage();
 		});
 
-	Args.CurrentBindingColor = MakeAttributeLambda([InPropertyHandle, EditorBindings, TargetPath, AccessibleStructs]() -> FLinearColor
+	Args.CurrentBindingColor = MakeAttributeLambda([CachedBindingData]() -> FLinearColor
 		{
-			const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
-			FEdGraphPinType PinType;
-			Schema->ConvertPropertyToPinType(InPropertyHandle->GetProperty(), PinType);
-		
-			FLinearColor BindingColor = Schema->GetPinTypeColor(PinType);
-
-			// TODO: Handle coloring of type promotion
-
-			if (EditorBindings)
-			{
-				if (const FStateTreePropertyPath* SourcePath = EditorBindings->GetPropertyBindingSource(TargetPath))
-				{
-					const FStateTreeBindableStructDesc* SourceDesc = UE::StateTree::PropertyBinding::FindStruct(AccessibleStructs, SourcePath->GetStructID());
-					if (!SourceDesc)
-					{
-						// Invalid binding
-						BindingColor = FLinearColor::White;
-					}
-				}
-			}
-
-
-			return BindingColor;
+			return CachedBindingData->GetColor();
 		});
 
 	if (BindingOwner)

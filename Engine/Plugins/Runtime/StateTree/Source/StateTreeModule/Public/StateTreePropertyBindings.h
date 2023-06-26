@@ -136,6 +136,8 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 #endif
 
 	bool IsValid() const { return Struct != nullptr; }
+
+	FString ToString() const;
 	
 	/** The type of the struct or class. */
 	UPROPERTY()
@@ -782,9 +784,17 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 	/** @return how properties are compatible for copying. */
 	static EStateTreePropertyAccessCompatibility GetPropertyCompatibility(const FProperty* FromProperty, const FProperty* ToProperty);
 
+	/**
+	 * Resolves what kind of copy type to use between specified property indirections.
+	 * @param SourceIndirection Property path indirections of the copy source,
+	 * @param TargetIndirection Property path indirections of the copy target.
+	 * @param OutCopy Resulting copy type.
+	 * @return true if copy was resolved, or false if no copy could be resolved between paths.
+	 */
+	[[nodiscard]] static bool ResolveCopyType(const FStateTreePropertyPathIndirection& SourceIndirection, const FStateTreePropertyPathIndirection& TargetIndirection, FStateTreePropertyCopy& OutCopy);
+
 private:
 	[[nodiscard]] bool ResolvePath(const UStruct* Struct, const FStateTreePropertyPath& Path, FStateTreePropertyIndirection& OutFirstIndirection, FStateTreePropertyPathIndirection& OutLeafIndirection);
-	[[nodiscard]] bool ResolveCopyType(FStateTreePropertyCopy& Copy, const FStateTreePropertyPathIndirection& SourceIndirection,const FStateTreePropertyPathIndirection& TargetIndirection);
 
 	void PerformCopy(const FStateTreePropertyCopy& Copy, uint8* SourceAddress, uint8* TargetAddress) const;
 	void PerformResetObjects(const FStateTreePropertyCopy& Copy, uint8* TargetAddress) const;
@@ -859,6 +869,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 
+namespace UE::StateTree
+{
+	/** @return desc and path as a display string. */
+	extern STATETREEMODULE_API FString GetDescAndPathAsString(const FStateTreeBindableStructDesc& Desc, const FStateTreePropertyPath& Path);
+} // UE::StateTree
+
 namespace UE::StateTree::Private
 {
 #if WITH_EDITORONLY_DATA
@@ -870,7 +886,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	extern STATETREEMODULE_API FStateTreeEditorPropertyPath ConvertEditorPath(const FStateTreePropertyPath& InPath);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
-}; // UE::StateTree::Private 
+} // UE::StateTree::Private 
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"

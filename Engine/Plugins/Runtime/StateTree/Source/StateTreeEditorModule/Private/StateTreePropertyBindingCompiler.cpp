@@ -59,25 +59,25 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 		
 		if (!Binding.GetSourcePath().ResolveIndirections(SourceStruct.Struct, SourceIndirections, &Error))
 		{
-			Log->Reportf(EMessageSeverity::Error, TargetStruct, TEXT("Resolving path in %s: %s"), *SourceStruct.Name.ToString(), *Error);
+			Log->Reportf(EMessageSeverity::Error, TargetStruct, TEXT("Resolving path in %s: %s"), *SourceStruct.ToString(), *Error);
 			return false;
 		}
 
 		if (!Binding.GetTargetPath().ResolveIndirections(TargetStruct.Struct, TargetIndirections, &Error))
 		{
-			Log->Reportf(EMessageSeverity::Error, TargetStruct, TEXT("Resolving path in %s: %s"), *TargetStruct.Name.ToString(), *Error);
+			Log->Reportf(EMessageSeverity::Error, TargetStruct, TEXT("Resolving path in %s: %s"), *TargetStruct.ToString(), *Error);
 			return false;
 		}
 
 		FStateTreePropertyCopy DummyCopy;
 		FStateTreePropertyPathIndirection LastSourceIndirection = !SourceIndirections.IsEmpty() ? SourceIndirections.Last() : FStateTreePropertyPathIndirection(SourceStruct.Struct);
 		FStateTreePropertyPathIndirection LastTargetIndirection = !TargetIndirections.IsEmpty() ? TargetIndirections.Last() : FStateTreePropertyPathIndirection(TargetStruct.Struct);
-		if (!PropertyBindings->ResolveCopyType(DummyCopy, LastSourceIndirection, LastTargetIndirection))
+		if (!PropertyBindings->ResolveCopyType(LastSourceIndirection, LastTargetIndirection, DummyCopy))
 		{
 			Log->Reportf(EMessageSeverity::Error, TargetStruct,
-			TEXT("Failed to resolve property copy type between %s:%s and %s:%s."),
-				*SourceStruct.Name.ToString(), *Binding.GetSourcePath().ToString(),
-				*TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
+			TEXT("Cannot copy properties between %s and %s, properties are incompatible."),
+				*UE::StateTree::GetDescAndPathAsString(SourceStruct, Binding.GetSourcePath()),
+				*UE::StateTree::GetDescAndPathAsString(TargetStruct, Binding.GetTargetPath()));
 			return false;
 		}
 
@@ -143,12 +143,11 @@ void FStateTreePropertyBindingCompiler::Finalize()
 
 int32 FStateTreePropertyBindingCompiler::AddSourceStruct(const FStateTreeBindableStructDesc& SourceStruct)
 {
-	const int32 ExistingIndex = SourceStructs.IndexOfByPredicate([&SourceStruct](const FStateTreeBindableStructDesc& Struct) { return (Struct.ID == SourceStruct.ID); });
-	if (ExistingIndex != INDEX_NONE)
+	const FStateTreeBindableStructDesc* ExistingStruct = SourceStructs.FindByPredicate([&SourceStruct](const FStateTreeBindableStructDesc& Struct) { return (Struct.ID == SourceStruct.ID); });
+	if (ExistingStruct)
 	{
-		const FStateTreeBindableStructDesc& ExistingStruct = SourceStructs[ExistingIndex];
-		UE_LOG(LogStateTree, Error, TEXT("Struct '%s' already exists as '%s'"),
-			*SourceStruct.Name.ToString(), *SourceStruct.ID.ToString(), *ExistingStruct.Name.ToString());
+		UE_LOG(LogStateTree, Error, TEXT("%s already exists as %s"),
+			*SourceStruct.ToString(), *ExistingStruct->ToString());
 	}
 	
 	SourceStructs.Add(SourceStruct);

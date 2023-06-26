@@ -355,17 +355,19 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 
 bool UStateTreeEditorData::GetDataViewByID(const FGuid StructID, FStateTreeDataView& OutDataView) const
 {
-	VisitAllNodes([&OutDataView, StructID](const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)
+	bool bFound = false;
+	VisitAllNodes([&OutDataView, &bFound, StructID](const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)
 	{
 		if (Desc.ID == StructID)
 		{
+			bFound = true;
 			OutDataView = Value;
 			return EStateTreeVisitor::Break;
 		}
 		return EStateTreeVisitor::Continue;
 	});
 
-	return OutDataView.IsValid();
+	return bFound;
 }
 
 const UStateTreeState* UStateTreeEditorData::GetStateByStructID(const FGuid TargetStructID) const

@@ -14,6 +14,25 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindings)
 
+namespace UE::StateTree
+{
+	FString GetDescAndPathAsString(const FStateTreeBindableStructDesc& Desc, const FStateTreePropertyPath& Path)
+	{
+		FStringBuilderBase Result;
+
+		Result += Desc.ToString();
+
+		if (!Path.IsPathEmpty())
+		{
+			Result += TEXT(" ");
+			Result += Path.ToString();
+		}
+
+		return Result.ToString();
+	}
+
+} // UE::StateTree
+
 namespace UE::StateTree::Private
 {
 
@@ -56,8 +75,24 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
-}; // UE::StateTree::Private 
+} // UE::StateTree::Private 
 
+
+//----------------------------------------------------------------//
+//  FStateTreeBindableStructDesc
+//----------------------------------------------------------------//
+
+FString FStateTreeBindableStructDesc::ToString() const
+{
+	FStringBuilderBase Result;
+
+	Result += UEnum::GetDisplayValueAsText(DataSource).ToString();
+	Result += TEXT(" '");
+	Result += Name.ToString();
+	Result += TEXT("'");
+
+	return Result.ToString();
+}
 
 //----------------------------------------------------------------//
 //  FStateTreePropertyPathBinding
@@ -141,7 +176,7 @@ bool FStateTreePropertyBindings::ResolvePaths()
 			FStateTreePropertyPathIndirection TargetLeafIndirection;
 			bSuccess = bSuccess && ResolvePath(SourceStruct, Binding.GetSourcePath(), Copy.SourceIndirection, SourceLeafIndirection);
 			bSuccess = bSuccess && ResolvePath(TargetStruct, Binding.GetTargetPath(), Copy.TargetIndirection, TargetLeafIndirection);
-			bSuccess = bSuccess && ResolveCopyType(Copy, SourceLeafIndirection, TargetLeafIndirection);
+			bSuccess = bSuccess && ResolveCopyType(SourceLeafIndirection, TargetLeafIndirection, Copy);
 			if (!bSuccess) 
 			{
 				// Resolving or validating failed, make the copy a nop.
@@ -297,7 +332,7 @@ bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FState
 	return true;
 }
 
-bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, const FStateTreePropertyPathIndirection& SourceIndirection,const FStateTreePropertyPathIndirection& TargetIndirection)
+bool FStateTreePropertyBindings::ResolveCopyType(const FStateTreePropertyPathIndirection& SourceIndirection,const FStateTreePropertyPathIndirection& TargetIndirection, FStateTreePropertyCopy& OutCopy)
 {
 	// @todo: see if GetPropertyCompatibility() can be implemented as call to ResolveCopyType() instead so that we write this logic just once.
 	
@@ -312,10 +347,10 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		return false;
 	}
 
-	Copy.SourceLeafProperty = SourceProperty;
-	Copy.TargetLeafProperty = TargetProperty;
-	Copy.CopySize = 0;
-	Copy.Type = EStateTreePropertyCopyType::None;
+	OutCopy.SourceLeafProperty = SourceProperty;
+	OutCopy.TargetLeafProperty = TargetProperty;
+	OutCopy.CopySize = 0;
+	OutCopy.Type = EStateTreePropertyCopyType::None;
 	
 	if (SourceProperty == nullptr)
 	{
@@ -324,7 +359,7 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetStructProperty->Struct == SourceStruct)
 			{
-				Copy.Type = EStateTreePropertyCopyType::CopyStruct;
+				OutCopy.Type = EStateTreePropertyCopyType::CopyStruct;
 				return true;
 			}
 		}
@@ -332,7 +367,7 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (SourceStruct->IsChildOf(TargetObjectProperty->PropertyClass))
 			{
-				Copy.Type = EStateTreePropertyCopyType::CopyObject;
+				OutCopy.Type = EStateTreePropertyCopyType::CopyObject;
 				return true;
 			}
 		}
@@ -350,7 +385,7 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 				// FStateTreeStructRef to FStateTreeStructRef is copied as usual.
 				if (SourceStructProperty->Struct != TBaseStructure<FStateTreeStructRef>::Get())
 				{
-					Copy.Type = EStateTreePropertyCopyType::StructReference;
+					OutCopy.Type = EStateTreePropertyCopyType::StructReference;
 					return true;
 				}
 			}
@@ -374,39 +409,39 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 	{
 		if (CastField<FNameProperty>(TargetProperty))
 		{
-			Copy.Type = EStateTreePropertyCopyType::CopyName;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyName;
 			return true;
 		}
 		else if (CastField<FBoolProperty>(TargetProperty))
 		{
-			Copy.Type = EStateTreePropertyCopyType::CopyBool;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyBool;
 			return true;
 		}
 		else if (CastField<FStructProperty>(TargetProperty))
 		{
-			Copy.Type = EStateTreePropertyCopyType::CopyStruct;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyStruct;
 			return true;
 		}
 		else if (CastField<FObjectPropertyBase>(TargetProperty))
 		{
-			Copy.Type = EStateTreePropertyCopyType::CopyObject;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyObject;
 			return true;
 		}
 		else if (CastField<FArrayProperty>(TargetProperty) && TargetProperty->HasAnyPropertyFlags(CPF_EditFixedSize))
 		{
 			// only apply array copying rules if the destination array is fixed size, otherwise it will be 'complex'
-			Copy.Type = EStateTreePropertyCopyType::CopyFixedArray;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyFixedArray;
 			return true;
 		}
 		else if (TargetProperty->PropertyFlags & CPF_IsPlainOldData)
 		{
-			Copy.Type = EStateTreePropertyCopyType::CopyPlain;
-			Copy.CopySize = SourceProperty->ElementSize * SourceProperty->ArrayDim;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyPlain;
+			OutCopy.CopySize = SourceProperty->ElementSize * SourceProperty->ArrayDim;
 			return true;
 		}
 		else
 		{
-			Copy.Type = EStateTreePropertyCopyType::CopyComplex;
+			OutCopy.Type = EStateTreePropertyCopyType::CopyComplex;
 			return true;
 		}
 	}
@@ -416,32 +451,32 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetProperty->IsA<FByteProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteBoolToByte;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteBoolToByte;
 				return true;
 			}
 			else if (TargetProperty->IsA<FIntProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteBoolToInt32;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteBoolToInt32;
 				return true;
 			}
 			else if (TargetProperty->IsA<FUInt32Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteBoolToUInt32;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteBoolToUInt32;
 				return true;
 			}
 			else if (TargetProperty->IsA<FInt64Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteBoolToInt64;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteBoolToInt64;
 				return true;
 			}
 			else if (TargetProperty->IsA<FFloatProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteBoolToFloat;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteBoolToFloat;
 				return true;
 			}
 			else if (TargetProperty->IsA<FDoubleProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteBoolToDouble;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteBoolToDouble;
 				return true;
 			}
 		}
@@ -449,27 +484,27 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetProperty->IsA<FIntProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteByteToInt32;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteByteToInt32;
 				return true;
 			}
 			else if (TargetProperty->IsA<FUInt32Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteByteToUInt32;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteByteToUInt32;
 				return true;
 			}
 			else if (TargetProperty->IsA<FInt64Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteByteToInt64;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteByteToInt64;
 				return true;
 			}
 			else if (TargetProperty->IsA<FFloatProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteByteToFloat;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteByteToFloat;
 				return true;
 			}
 			else if (TargetProperty->IsA<FDoubleProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteByteToDouble;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteByteToDouble;
 				return true;
 			}
 		}
@@ -477,17 +512,17 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetProperty->IsA<FInt64Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteInt32ToInt64;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteInt32ToInt64;
 				return true;
 			}
 			else if (TargetProperty->IsA<FFloatProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteInt32ToFloat;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteInt32ToFloat;
 				return true;
 			}
 			else if (TargetProperty->IsA<FDoubleProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteInt32ToDouble;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteInt32ToDouble;
 				return true;
 			}
 		}
@@ -495,17 +530,17 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetProperty->IsA<FInt64Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteUInt32ToInt64;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteUInt32ToInt64;
 				return true;
 			}
 			else if (TargetProperty->IsA<FFloatProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteUInt32ToFloat;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteUInt32ToFloat;
 				return true;
 			}
 			else if (TargetProperty->IsA<FDoubleProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteUInt32ToDouble;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteUInt32ToDouble;
 				return true;
 			}
 		}
@@ -513,17 +548,17 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetProperty->IsA<FIntProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteFloatToInt32;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteFloatToInt32;
 				return true;
 			}
 			else if (TargetProperty->IsA<FInt64Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteFloatToInt64;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteFloatToInt64;
 				return true;
 			}
 			else if (TargetProperty->IsA<FDoubleProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::PromoteFloatToDouble;
+				OutCopy.Type = EStateTreePropertyCopyType::PromoteFloatToDouble;
 				return true;
 			}
 		}
@@ -531,17 +566,17 @@ bool FStateTreePropertyBindings::ResolveCopyType(FStateTreePropertyCopy& Copy, c
 		{
 			if (TargetProperty->IsA<FIntProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::DemoteDoubleToInt32;
+				OutCopy.Type = EStateTreePropertyCopyType::DemoteDoubleToInt32;
 				return true;
 			}
 			else if (TargetProperty->IsA<FInt64Property>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::DemoteDoubleToInt64;
+				OutCopy.Type = EStateTreePropertyCopyType::DemoteDoubleToInt64;
 				return true;
 			}
 			else if (TargetProperty->IsA<FFloatProperty>())
 			{
-				Copy.Type = EStateTreePropertyCopyType::DemoteDoubleToFloat;
+				OutCopy.Type = EStateTreePropertyCopyType::DemoteDoubleToFloat;
 				return true;
 			}
 		}

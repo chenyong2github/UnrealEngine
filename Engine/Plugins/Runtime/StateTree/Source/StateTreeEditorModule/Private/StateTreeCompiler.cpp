@@ -1427,7 +1427,7 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 	if (!TargetPath.ResolveIndirections(TargetStruct.Struct, TargetIndirection, &ResolveError))
 	{
 		// This will later be reported by the bindings compiler.
-		Log.Reportf(EMessageSeverity::Error, TargetStruct, TEXT("Failed to resolve binding path in %s: %s"), *TargetStruct.Name.ToString(), *ResolveError);
+		Log.Reportf(EMessageSeverity::Error, TargetStruct, TEXT("Failed to resolve binding path in %s: %s"), *TargetStruct.ToString(), *ResolveError);
 		return false;
 	}
 	const FProperty* TargetLeafProperty = TargetIndirection.Num() > 0 ? TargetIndirection.Last().GetProperty() : nullptr;
@@ -1444,8 +1444,8 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 	if (TargetBaseStruct == nullptr)
 	{
 		Log.Reportf(EMessageSeverity::Error, TargetStruct,
-				TEXT("Could not find base struct '%s' for target '%s:%s'."),
-				*TargetBaseStructName, *TargetStruct.Name.ToString(), *TargetPath.ToString());
+				TEXT("Could not find base struct type '%s' for target %s'."),
+				*TargetBaseStructName, *UE::StateTree::GetDescAndPathAsString(TargetStruct, TargetPath));
 		return false;
 	}
 
@@ -1453,7 +1453,7 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 	if (!SourcePath.ResolveIndirections(SourceStruct.Struct, SourceIndirection, &ResolveError))
 	{
 		// This will later be reported by the bindings compiler.
-		Log.Reportf(EMessageSeverity::Error, SourceStruct, TEXT("Failed to resolve binding path in %s: %s"), *SourceStruct.Name.ToString(), *ResolveError);
+		Log.Reportf(EMessageSeverity::Error, SourceStruct, TEXT("Failed to resolve binding path in %s: %s"), *SourceStruct.ToString(), *ResolveError);
 		return false;
 	}
 	const FProperty* SourceLeafProperty = SourceIndirection.Num() > 0 ? SourceIndirection.Last().GetProperty() : nullptr;
@@ -1473,17 +1473,17 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 		if (SourceBaseStruct == nullptr)
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-					TEXT("Could not find base struct '%s' for bidning source '%s:%s'."),
-					*SourceBaseStructName, *SourceStruct.Name.ToString(), *SourcePath.ToString());
+					TEXT("Could not find base struct '%s' for binding source %s."),
+					*SourceBaseStructName, *UE::StateTree::GetDescAndPathAsString(SourceStruct, SourcePath));
 			return false;
 		}
 
 		if (SourceBaseStruct->IsChildOf(TargetBaseStruct) == false)
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Type mismatch between source '%s:%s' and target '%s:%s' types, '%s' is not child of '%s'."),
-						*SourceStruct.Name.ToString(), *SourcePath.ToString(),
-						*TargetStruct.Name.ToString(), *TargetPath.ToString(),
+						TEXT("Type mismatch between source %s and target %s types, '%s' is not child of '%s'."),
+						*UE::StateTree::GetDescAndPathAsString(SourceStruct, SourcePath),
+						*UE::StateTree::GetDescAndPathAsString(TargetStruct, TargetPath),
 						*GetNameSafe(SourceBaseStruct), *GetNameSafe(TargetBaseStruct));
 			return false;
 		}
@@ -1493,9 +1493,9 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 		if (!SourceStructProperty->Struct || SourceStructProperty->Struct->IsChildOf(TargetBaseStruct) == false)
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Type mismatch between source '%s:%s' and target '%s:%s' types, '%s' is not child of '%s'."),
-						*SourceStruct.Name.ToString(), *SourcePath.ToString(),
-						*TargetStruct.Name.ToString(), *TargetPath.ToString(),
+						TEXT("Type mismatch between source %s and target %s types, '%s' is not child of '%s'."),
+						*UE::StateTree::GetDescAndPathAsString(SourceStruct, SourcePath),
+						*UE::StateTree::GetDescAndPathAsString(TargetStruct, TargetPath),
 						*GetNameSafe(SourceStructProperty->Struct), *GetNameSafe(TargetBaseStruct));
 			return false;
 		}
@@ -1534,8 +1534,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 	if (TargetStruct.Struct == nullptr)
 	{
 		Log.Reportf(EMessageSeverity::Error, TargetStruct,
-				TEXT("The type of binding target '%s' is invalid."),
-				*TargetStruct.Name.ToString());
+				TEXT("The type of binding target %s is invalid."),
+				*TargetStruct.ToString());
 		return false;
 	}
 	
@@ -1554,8 +1554,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		if (SourceStructIdx == INDEX_NONE)
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Failed to find binding source property '%s' for target '%s:%s'."),
-						*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
+						TEXT("Failed to find binding source property '%s' for target %s."),
+						*Binding.GetSourcePath().ToString(), *UE::StateTree::GetDescAndPathAsString(TargetStruct, Binding.GetTargetPath()));
 			return false;
 		}
 		const FStateTreeBindableStructDesc& SourceStruct = BindingsCompiler.GetSourceStructDesc(SourceStructIdx);
@@ -1566,8 +1566,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		if (!Binding.GetMutableTargetPath().UpdateSegmentsFromValue(TargetValue))
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Malformed target property path for binding source property '%s' for target '%s:%s'."),
-						*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
+						TEXT("Malformed target property path for binding source property '%s' for target %s."),
+						*Binding.GetSourcePath().ToString(), *UE::StateTree::GetDescAndPathAsString(TargetStruct, Binding.GetTargetPath()));
 			return false;
 		}
 		
@@ -1583,18 +1583,18 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		if (!bSourceAccessible)
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Property '%s:%s' cannot be bound to '%s:%s', because the binding source '%s' is not updated before '%s' in the tree."),
-						*SourceStruct.Name.ToString(), *Binding.GetSourcePath().ToString(),
-						*TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString(),
-						*SourceStruct.Name.ToString(), *TargetStruct.Name.ToString());
+						TEXT("Property at %s cannot be bound to %s, because the binding source %s is not updated before %s in the tree."),
+						*UE::StateTree::GetDescAndPathAsString(SourceStruct, Binding.GetSourcePath()),
+						*UE::StateTree::GetDescAndPathAsString(TargetStruct, Binding.GetTargetPath()),
+						*SourceStruct.ToString(), *TargetStruct.ToString());
 			return false;
 		}
 
 		if (!IDToStructValue.Contains(SourceStructID))
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-				TEXT("Failed to find value for binding source property '%s' for target '%s:%s'."),
-				*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
+				TEXT("Failed to find value for binding source property '%s' for target %s."),
+				*Binding.GetSourcePath().ToString(), *UE::StateTree::GetDescAndPathAsString(TargetStruct, Binding.GetTargetPath()));
 			return false;
 		}
 
@@ -1605,8 +1605,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 			if (!Binding.GetMutableSourcePath().UpdateSegmentsFromValue(SourceValue))
 			{
 				Log.Reportf(EMessageSeverity::Error, TargetStruct,
-					TEXT("Malformed target property path for binding source property '%s' for source '%s:%s'."),
-					*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
+					TEXT("Malformed target property path for binding source property '%s' for source %s."),
+					*Binding.GetSourcePath().ToString(), *UE::StateTree::GetDescAndPathAsString(TargetStruct, Binding.GetTargetPath()));
 				return false;
 			}
 		}
@@ -1669,8 +1669,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 			if (bIsOptional == false && !IsPropertyBound(PropertyName))
 			{
 				Log.Reportf(EMessageSeverity::Error, TargetStruct,
-					TEXT("Input property '%s:%s' is expected to have a binding."),
-					*TargetStruct.Name.ToString(), *PropertyName.ToString());
+					TEXT("Input property '%s' on %s is expected to have a binding."),
+					*PropertyName.ToString(), *TargetStruct.ToString());
 				bResult = false;
 			}
 		}
@@ -1690,8 +1690,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 			if (ContextObjectType == nullptr)
 			{
 				Log.Reportf(EMessageSeverity::Error, TargetStruct,
-					TEXT("Context property '%s:%s' type is expected to be Object Reference or Struct."),
-					*TargetStruct.Name.ToString(), *PropertyName.ToString());
+					TEXT("The type of Context property '%s' on %s is expected to be Object Reference or Struct."),
+					*PropertyName.ToString(), *TargetStruct.ToString());
 				bResult = false;
 				continue;
 			}
@@ -1710,8 +1710,8 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 				else
 				{
 					Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Cound not find matching Context object for Context property '%s:%s'. Property must have manual binding."),
-						*TargetStruct.Name.ToString(), *PropertyName.ToString());
+						TEXT("Cound not find matching Context object for Context property '%s' on %s. Property must have manual binding."),
+						*PropertyName.ToString(), *TargetStruct.ToString());
 					bResult = false;
 				}
 			}
