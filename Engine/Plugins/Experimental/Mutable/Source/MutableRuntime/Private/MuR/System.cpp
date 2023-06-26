@@ -1559,11 +1559,11 @@ namespace mu
 				pos += dataSize;
 
 				// Multi-values
-				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
 				{
-					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
 					pos = AddMultiValueKeys(Blob, pos, multi);
-					for (const auto& v : multi)
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
 					{
 						Blob.Add(v.Value.Get<ParamBoolType>() ? 1 : 0);
 						pos += dataSize;
@@ -1578,12 +1578,12 @@ namespace mu
 				pos += dataSize;
 
 				// Multi-values
-				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
 				{
-					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
 					pos = AddMultiValueKeys(Blob, pos, multi);
 					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const auto& v : multi)
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
 					{
 						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamIntType>(), dataSize);
 						pos += dataSize;
@@ -1601,10 +1601,10 @@ namespace mu
 				// Multi-values
 				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
 				{
-					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
 					pos = AddMultiValueKeys(Blob, pos, multi);
 					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const auto& v : multi)
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
 					{
 						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamFloatType>(), dataSize);
 						pos += dataSize;
@@ -1620,12 +1620,12 @@ namespace mu
 				pos += dataSize;
 
 				// Multi-values
-				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
 				{
-					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
 					pos = AddMultiValueKeys(Blob, pos, multi);
 					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const auto& v : multi)
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
 					{
 						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamColorType>(), dataSize);
 						pos += dataSize;
@@ -1644,12 +1644,12 @@ namespace mu
 				pos += dataSize;
 
 				// Multi-values
-				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
 				{
-					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
 					pos = AddMultiValueKeys(Blob, pos, multi);
 					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const auto& v : multi)
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
 					{
 						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamProjectorType>(), dataSize);
 						pos += dataSize;
@@ -1658,26 +1658,27 @@ namespace mu
 				break;
 
 			case PARAMETER_TYPE::T_IMAGE:
-				dataSize = sizeof(ParamImageType);
+			{
+				dataSize = sizeof(ParamImageType::HashType);
 				Blob.SetNum(pos + dataSize);
-				FMemory::Memcpy(&Blob[pos],
-					&Params->GetPrivate()->m_values[ParamIndex].Get<ParamImageType>(),
-					dataSize);
+				uint64 Hash = Params->GetPrivate()->m_values[ParamIndex].Get<ParamImageType>().GetHash();
+				FMemory::Memcpy(&Blob[pos], &Hash, dataSize);
 				pos += dataSize;
 
 				// Multi-values
-				if (ParamIndex < int(Params->GetPrivate()->m_multiValues.Num()))
+				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
 				{
-					const auto& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
 					pos = AddMultiValueKeys(Blob, pos, multi);
 					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const auto& v : multi)
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
 					{
 						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamImageType>(), dataSize);
 						pos += dataSize;
 					}
 				}
 				break;
+			}
 
 			default:
 				// unsupported parameter type
@@ -1716,12 +1717,10 @@ namespace mu
 		NewKey.LastRequestId = LastResourceResquestId;
 
 		// Don't MoveTemp so that we get a tight array on the destination.
-		//newKey.m_parameterValuesBlob = MoveTemp(Blob);
+		//NewKey.ParameterValuesBlob = MoveTemp(Blob);
 		NewKey.ParameterValuesBlob = Blob;
 
-		// TODO: Move the constant to settings?
-		const size_t maxGeneratedResourcesIDCacheSize = InMaxResourceKeys;
-		if (GeneratedResources.Num() >= maxGeneratedResourcesIDCacheSize)
+		if (GeneratedResources.Num() >= InMaxResourceKeys)
 		{
 			GeneratedResources[OldestCachePosition] = MoveTemp(NewKey);
 		}

@@ -91,12 +91,12 @@ namespace mu
 
         //! Returns the completion event and a cleanup function that must be called once event is completed.
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
-		virtual TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(FExternalImageID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback) = 0;
+		virtual TTuple<UE::Tasks::FTask, TFunction<void()>> GetImageAsync(const FExternalImageID& Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback) = 0;
 #else
-		virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(FExternalImageID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback) = 0;
+		virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(const FExternalImageID& Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback) = 0;
 #endif
 
-        virtual mu::FImageDesc GetImageDesc(FExternalImageID Id, uint8 MipmapsToSkip) = 0;
+        virtual mu::FImageDesc GetImageDesc(const FExternalImageID& Id, uint8 MipmapsToSkip) = 0;
     };
 
 

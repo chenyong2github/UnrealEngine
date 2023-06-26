@@ -166,17 +166,17 @@ public:
 
 	// Query that Mutable will run to find out if a texture will be provided as an Unreal UTexture2D,
 	// or as a raw data blob.
-	virtual ValueType HasTextureParameterValue(FString ID) { return ValueType::None; }
+	virtual ValueType HasTextureParameterValue(const FString& ID) { return ValueType::None; }
 
 	// In case IsTextureParameterValueUnreal returns false, this will be used to query the texture size data.
-	virtual FIntVector GetTextureParameterValueSize(FString ID) { return FIntVector(0, 0, 0); }
+	virtual FIntVector GetTextureParameterValueSize(const FString& ID) { return FIntVector(0, 0, 0); }
 
 	// In case IsTextureParameterValueUnreal returns false, this will be used to query the texture data that must
 	// be copied in the preallocated buffer. The pixel format is assumed to be 4-channel RGBA, uint8_t per channel.
-	virtual void GetTextureParameterValueData(FString ID, uint8* OutData) {}
+	virtual void GetTextureParameterValueData(const FString& ID, uint8* OutData) {}
 
 	// In case IsTextureParameterValueUnreal returns true, this will be used to query the texture.
-	virtual UTexture2D* GetTextureParameterValue(FString ID) { return nullptr; }
+	virtual UTexture2D* GetTextureParameterValue(const FString& ID) { return nullptr; }
 
 	// Used in the editor to show the list of available options.
 	// Only necessary if the images are required in editor previews.

@@ -34,7 +34,7 @@ namespace UDefaultImageProviderCVars
 }
 
 
-UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTextureParameterValue(FString ID)
+UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTextureParameterValue(const FString& ID)
 {
 	const TObjectPtr<UTexture2D>* Texture = Textures.Find(ID);
 	
@@ -44,7 +44,7 @@ UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTexturePar
 }
 
 
-UTexture2D* UDefaultImageProvider::GetTextureParameterValue(FString ID)
+UTexture2D* UDefaultImageProvider::GetTextureParameterValue(const FString& ID)
 {
 	return Textures[ID];
 }

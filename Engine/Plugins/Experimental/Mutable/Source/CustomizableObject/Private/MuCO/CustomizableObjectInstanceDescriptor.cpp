@@ -973,12 +973,12 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 							}
 						}
 
-						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetImageValue(ParamIndex, RangeValueIdxPtr);
+						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetImageValue(ParamIndex, RangeValueIdxPtr).GetName();
 					}
 				}
 				else
 				{
-					Param.ParameterValue = MutableParameters->GetImageValue(ParamIndex);
+					Param.ParameterValue = MutableParameters->GetImageValue(ParamIndex).GetName();
 				}
 			}
 

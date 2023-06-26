@@ -24,8 +24,8 @@ class CUSTOMIZABLEOBJECT_API UDefaultImageProvider : public UCustomizableSystemI
 
 public:
 	// UCustomizableSystemImageProvider interface
-	virtual ValueType HasTextureParameterValue(FString ID) override;
-	virtual UTexture2D* GetTextureParameterValue(FString ID) override;
+	virtual ValueType HasTextureParameterValue(const FString& ID) override;
+	virtual UTexture2D* GetTextureParameterValue(const FString& ID) override;
 	virtual void GetTextureParameterValues(TArray<FCustomizableObjectExternalTexture>& OutValues) override;
 	
 	/** Add a Texture to the provider. */

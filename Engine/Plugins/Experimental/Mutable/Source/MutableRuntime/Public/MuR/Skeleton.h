@@ -56,7 +56,7 @@ namespace mu
         //! Return the name of one of the bones used by this skeleton
 		//! \param boneIndex goes from 0 to GetBoneCount()-1
 		const char* GetBoneName(int32 boneIndex) const;
-        void SetBoneName( int b, const char* strName );
+        void SetBoneName( int32 b, const char* strName );
 
         //! Get and set the parent bone of each bone. The parent can be -1 if the bone is a root.
         int32 GetBoneParent(int32 boneIndex) const;

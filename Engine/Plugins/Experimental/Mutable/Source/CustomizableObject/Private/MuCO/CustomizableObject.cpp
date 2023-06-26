@@ -1659,7 +1659,7 @@ FString UCustomizableObject::GetTextureParameterDefaultValue(const FString& InPa
 		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
 	}
 	
-	return Model->GetImageDefaultValue(ParameterIndex);
+	return Model->GetImageDefaultValue(ParameterIndex).GetName();
 }
 
 
