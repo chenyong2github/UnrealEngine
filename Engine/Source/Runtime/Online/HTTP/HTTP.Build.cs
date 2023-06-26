@@ -21,13 +21,7 @@ public class HTTP : ModuleRules
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android);
 		}
 	}
-	protected virtual bool bPlatformSupportsXCurl
-	{ 
-		get 
-		{ 
-			return (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.bUseXCurl); 
-		} 
-	}
+	protected virtual bool bPlatformSupportsXCurl { get { return false; } }
 
 	protected virtual bool bPlatformSupportsCurlMultiPoll { get { return true; } }
 
