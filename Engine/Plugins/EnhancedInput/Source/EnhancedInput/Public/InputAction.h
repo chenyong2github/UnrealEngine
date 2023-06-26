@@ -124,6 +124,8 @@ public:
 	* Modifiers are applied to the final action value.
 	* These are applied sequentially in array order.
 	* They are applied on top of any FEnhancedActionKeyMapping modifiers that drove the initial input
+	* 
+	* Note: Modifiers defined in the Input Action asset will be applied AFTER any modifiers defined in individual key mappings in the Input Mapping Context asset.
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action, meta=(DisplayAfter="Triggers"))
 	TArray<TObjectPtr<UInputModifier>> Modifiers;

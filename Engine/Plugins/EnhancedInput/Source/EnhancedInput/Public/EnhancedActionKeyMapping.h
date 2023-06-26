@@ -136,6 +136,9 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	/**
 	* Modifiers applied to the raw key value.
 	* These are applied sequentially in array order.
+	* 
+	* Note: Modifiers defined in individual key mappings will be applied before those defined in the Input Action asset.
+	* Modifiers will not override any that are defined on the Input Action asset, they will be combined together during evaluation.
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Input")
 	TArray<TObjectPtr<UInputModifier>> Modifiers;
