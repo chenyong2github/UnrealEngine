@@ -106,11 +106,7 @@ public:
 
 	void Remove(const FString& InNetId, ListClass InListEntry)
 	{
-		const ListClass* Found = NetIdStringToListEntryMap.Find(InNetId);
-		if (Found != nullptr)
-		{
-			NetIdStringToListEntryMap.Remove(InNetId);
-		}
+		NetIdStringToListEntryMap.Remove(InNetId);
 		ListEntries.Remove(InListEntry);
 	}
 
