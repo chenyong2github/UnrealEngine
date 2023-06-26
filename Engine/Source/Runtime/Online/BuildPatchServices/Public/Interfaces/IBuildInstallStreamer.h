@@ -64,4 +64,16 @@ public:
 	 * @returns a const reference to the statistics.
 	 */
 	virtual const BuildPatchServices::FBuildInstallStreamerStats& GetInstallStreamerStatistics() const = 0;
+	
+	/**
+	 * Get the per-session stats for this install streamer.
+	 * 
+	 * @returns a const reference to the statistics.
+	 */
+	virtual const BuildPatchServices::FBuildInstallStreamerStats& GetInstallStreamerSessionStatistics() const = 0;
+	
+	/**
+	 * Resets tracking on the per-session stats for this install streamer.
+	 */
+	virtual void ResetSessionStatistics() = 0;
 };

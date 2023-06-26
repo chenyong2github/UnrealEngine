@@ -50,6 +50,8 @@ namespace BuildPatchServices
 		virtual void UnregisterMessageHandler(FMessageHandler* MessageHandler) override;
 		virtual const FBuildInstallStreamerConfiguration& GetConfiguration() const override;
 		virtual const FBuildInstallStreamerStats& GetInstallStreamerStatistics() const override;
+		virtual const FBuildInstallStreamerStats& GetInstallStreamerSessionStatistics() const override;
+		virtual void ResetSessionStatistics() override;
 		// IBuildInstallStreamer interface end.
 
 		bool Tick();
@@ -96,7 +98,8 @@ namespace BuildPatchServices
 		TQueue<TFunction<void()>, EQueueMode::Spsc> TickQueue;
 		FEvent* RequestTrigger;
 		FEvent* CloudTrigger;
-		FBuildInstallStreamerStats BuildStats;
+		FBuildInstallStreamerStats StreamerStats;
+		FBuildInstallStreamerStats PerSessionStreamerStats;
 	};
 
 	/**
