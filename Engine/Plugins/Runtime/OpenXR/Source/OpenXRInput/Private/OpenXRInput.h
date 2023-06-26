@@ -160,6 +160,7 @@ public:
 		bool bActionsAttached;
 		bool bDirectionalBindingSupported;
 		bool bPalmPoseSupported;
+		bool bActionSetPrioritySupported;
 
 		/**
 		* Buffer for current delta time to get an accurate approximation of how long to play haptics for
