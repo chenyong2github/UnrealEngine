@@ -224,6 +224,7 @@
 #define NANITE_VISUALIZE_VSM_STATIC_CACHING					30u
 #define NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET		31u
 #define NANITE_VISUALIZE_PICKING							32u
+#define NANITE_VISUALIZE_SHADING_WRITE_MASK					33u
 
 #define NANITE_PICKING_DOMAIN_TRIANGLE		0
 #define NANITE_PICKING_DOMAIN_CLUSTER		1
@@ -391,7 +392,7 @@ struct FNaniteShadingBinMeta
 	// Quad/pixel coord range start
 	UINT_TYPE RangeStart;
 
-	// Material bit flags
+	// 0:23 Material bit flags, 24:31 Bound Target Mask
 	UINT_TYPE MaterialFlags;
 };
 

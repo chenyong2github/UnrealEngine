@@ -296,6 +296,12 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			}
 		#endif
 		}
+		else if (VisualizeMode == NANITE_VISUALIZE_SHADING_WRITE_MASK)
+		{
+			const uint PackedFlags = ShadingBinMeta[UnpackedMask.ShadingBin].MaterialFlags;
+			const uint WriteMask = BitFieldExtractU32(PackedFlags, 8u, 24u);
+			Result = IntToColor(WriteMask);
+		}
 		else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA)// || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK)
 		{
 			const uint4 ZLayout = SceneZLayout[PixelPos];

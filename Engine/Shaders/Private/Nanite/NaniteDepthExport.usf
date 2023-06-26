@@ -7,37 +7,6 @@
 #include "../HTileEncoding.ush"
 #include "../VelocityCommon.ush"
 
-#ifdef OVERRIDE_RTWRITEMASKPROCESSING_USH
-#include "/Platform/Private/RTWriteMaskLookup.ush"
-#endif
-
-struct FTileClearPacket
-{
-	uint2 TopLeft;
-	uint Mask;
-};
-
-uint PackTileClearPacket(uint2 TopLeft, uint Mask)
-{
-	//  4 bits Mask
-	// 14 bits X
-	// 14 bits Y
-	uint Packed = 0;
-	Packed |= (BitFieldMaskU32( 4,  0) & Mask);
-	Packed |= (BitFieldMaskU32(14,  4) & (TopLeft.x << 4u));
-	Packed |= (BitFieldMaskU32(14, 18) & (TopLeft.y << 18u));
-	return Packed;
-}
-
-FTileClearPacket UnpackTileClearPacket(uint Packed)
-{
-	FTileClearPacket Element;
-	Element.Mask		= BitFieldExtractU32(Packed,  4, 0);
-	Element.TopLeft.x	= BitFieldExtractU32(Packed, 14, 4);
-	Element.TopLeft.y	= BitFieldExtractU32(Packed, 14, 18);
-	return Element;
-}
-
 #if PLATFORM_SUPPORTS_HTILE_LOOKUP
 
 #include "NaniteDataDecode.ush"
@@ -79,9 +48,6 @@ ByteAddressBuffer			MaterialSlotTable;
 ByteAddressBuffer			MaterialDepthTable;
 #endif
 
-RWStructuredBuffer<uint>	OutClearTileBuffer;
-RWBuffer<uint>				OutClearTileArgs;
-
 uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
 {
 	BRANCH
@@ -93,7 +59,8 @@ uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
 			HTILE_DEFAULT_XX,
 			HTILE_DEFAULT_SMEM,
 			HTILE_DEFAULT_SR0,
-			HTILE_DEFAULT_SR1
+			HTILE_DEFAULT_SR1,
+			IsZCompareGE(PlatformConfig)
 		);
 	}
 	else
@@ -272,121 +239,6 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 			SceneHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinSceneDepth, TileMaxSceneDepth, PlatformConfig);
 		}
 	}
-
-#if CLEAR_TILE_EXPORT
-	// We are using inverted Z, so a minZ of 0.0 represents the far plane / sky pixels
-	if (WaveActiveAllTrue(TileMinSceneDepth > 0.0f))
-	{
-		// All lanes have a shaded pixel (Nanite or non-Nanite)
-		// We can make a fairly safe assumption that this tile does not need to be cleared
-		// prior to base pass shading.
-		if (WaveIsFirstLane())
-		{
-			uint PacketOffset = 0;
-			InterlockedAdd(OutClearTileArgs[3], 1u, PacketOffset);
-
-			const uint2 TopLeft = PixelPos.xy / 8u;
-			const uint Mask = 0;
-			const uint Packet = PackTileClearPacket(TopLeft, Mask);
-			OutClearTileBuffer[PacketOffset] = Packet;
-		}
-	}
-#endif
-}
-
-[numthreads(1, 1, 1)]
-void ClearTileInitArgs(uint3 DTID : SV_DispatchThreadID)
-{
-	if (DTID.x == 0)
-	{
-		const uint TileCount = OutClearTileArgs[3];
-		OutClearTileArgs[0] = DivideAndRoundUp(TileCount, 64u);	// ThreadGroupCountX
-		OutClearTileArgs[1] = 1;								// ThreadGroupCountY
-		OutClearTileArgs[2] = 1;								// ThreadGroupCountZ
-	}
-}
-
-StructuredBuffer<uint>	ClearTileBuffer;
-
-#ifndef NUM_EXPORTS
-#define NUM_EXPORTS 1
-#endif
-
-RWStructuredBuffer<uint> OutCMaskBuffer_0;
-
-#if NUM_EXPORTS > 1
-RWStructuredBuffer<uint> OutCMaskBuffer_1;
-#endif
-
-#if NUM_EXPORTS > 2
-RWStructuredBuffer<uint> OutCMaskBuffer_2;
-#endif
-
-#if NUM_EXPORTS > 3
-RWStructuredBuffer<uint> OutCMaskBuffer_3;
-#endif
-
-#if NUM_EXPORTS > 4
-RWStructuredBuffer<uint> OutCMaskBuffer_4;
-#endif
-
-#if NUM_EXPORTS > 5
-RWStructuredBuffer<uint> OutCMaskBuffer_5;
-#endif
-
-#if NUM_EXPORTS > 6
-RWStructuredBuffer<uint> OutCMaskBuffer_6;
-#endif
-
-#if NUM_EXPORTS > 7
-RWStructuredBuffer<uint> OutCMaskBuffer_7;
-#endif
-
-[numthreads(64, 1, 1)]
-void ClearTiles(uint3 DTID : SV_DispatchThreadID)
-{
-#ifdef OVERRIDE_RTWRITEMASKPROCESSING_USH
-	FTileClearPacket Packet = UnpackTileClearPacket(ClearTileBuffer[DTID.x]);
-
-	uint Index, Shift;
-	ComputeCMaskIndexAndShift(Packet.TopLeft, Index, Shift);
-
-	// Convert dword-aligned byte offset to dword index
-	Index /= 4u;
-
-	RWStructuredBuffer<uint> CMaskExports[] = 
-	{
-		OutCMaskBuffer_0,
-	#if NUM_EXPORTS > 1
-		OutCMaskBuffer_1,
-	#endif
-	#if NUM_EXPORTS > 2
-		OutCMaskBuffer_2,
-	#endif
-	#if NUM_EXPORTS > 3
-		OutCMaskBuffer_3,
-	#endif
-	#if NUM_EXPORTS > 4
-		OutCMaskBuffer_4,
-	#endif
-	#if NUM_EXPORTS > 5
-		OutCMaskBuffer_5,
-	#endif
-	#if NUM_EXPORTS > 6
-		OutCMaskBuffer_6,
-	#endif
-	#if NUM_EXPORTS > 7
-		OutCMaskBuffer_7
-	#endif
-	};
-
-	// We will ignore the shift, since we always snap to the top left of the entire 8x8 tile (of 4x4 subtiles)
-	UNROLL
-	for (uint Export = 0; Export < NUM_EXPORTS; ++Export)
-	{
-		CMaskExports[Export][Index] = 0xFFFFFFFFu; // Mark all (sub)tiles as "not clear"
-	}
-#endif
 }
 
 // NOTE: A possible further optimization could be to avoid doing a clear depth target clear for materials
@@ -400,16 +252,6 @@ void ClearTiles(uint3 DTID : SV_DispatchThreadID)
 
 [numthreads(8, 8, 1)]
 void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
-{
-}
-
-[numthreads(1, 1, 1)]
-void ClearTileInitArgs(uint3 DTID : SV_DispatchThreadID)
-{
-}
-
-[numthreads(64, 1, 1)]
-void ClearTiles(uint3 DTID : SV_DispatchThreadID)
 {
 }
 

@@ -34,7 +34,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 // TODO: Heavily work in progress / experimental - do not use!
-static int32 GNaniteFastTileClear = 2;
+static int32 GNaniteFastTileClear = 1;
 static FAutoConsoleVariableRef CVarNaniteFastTileClear(
 	TEXT("r.Nanite.FastTileClear"),
 	GNaniteFastTileClear,
@@ -425,9 +425,8 @@ class FDepthExportCS : public FNaniteGlobalShader
 	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
 	class FMaterialDepthExportDim : SHADER_PERMUTATION_BOOL("MATERIAL_DEPTH_EXPORT");
 	class FShadingMaskExportDim : SHADER_PERMUTATION_BOOL("SHADING_MASK_EXPORT");
-	class FClearTileExportDim : SHADER_PERMUTATION_BOOL("CLEAR_TILE_EXPORT");
 	class FLegacyCullingDim : SHADER_PERMUTATION_BOOL("LEGACY_CULLING");
-	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim, FMaterialDepthExportDim, FShadingMaskExportDim, FClearTileExportDim, FLegacyCullingDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim, FMaterialDepthExportDim, FShadingMaskExportDim, FLegacyCullingDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -444,8 +443,6 @@ class FDepthExportCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
 		SHADER_PARAMETER(FUint32Vector4, ViewRect)
 		SHADER_PARAMETER(uint32, bWriteCustomStencil)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutClearTileBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutClearTileArgs)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Velocity)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, ShadingMask)
@@ -460,23 +457,6 @@ class FDepthExportCS : public FNaniteGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/NaniteDepthExport.usf", "DepthExport", SF_Compute);
 
-class FClearTileInitArgsCS : public FNaniteGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FClearTileInitArgsCS);
-	SHADER_USE_PARAMETER_STRUCT(FClearTileInitArgsCS, FNaniteGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutClearTileArgs)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsRenderTargetWriteMask(Parameters.Platform) && DoesPlatformSupportNanite(Parameters.Platform);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FClearTileInitArgsCS, "/Engine/Private/Nanite/NaniteDepthExport.usf", "ClearTileInitArgs", SF_Compute);
-
 class FClearTilesCS : public FNaniteGlobalShader
 {
 public:
@@ -486,9 +466,11 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FNumExports>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FUint32Vector4, ViewRect)
+		SHADER_PARAMETER(uint32, ValidWriteMask)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTextureMetadata, OutCMaskBuffer, [MaxSimultaneousRenderTargets])
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ClearTileBuffer)
-		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint>, ShadingMask)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteShadingBinMeta>, ShadingBinMeta)
 	END_SHADER_PARAMETER_STRUCT()
 
 	FClearTilesCS() = default;
@@ -513,7 +495,7 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, PlatformDataParam);
 };
-IMPLEMENT_GLOBAL_SHADER(FClearTilesCS, "/Engine/Private/Nanite/NaniteDepthExport.usf", "ClearTiles", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClearTilesCS, "/Engine/Private/Nanite/NaniteFastClear.usf", "ClearTiles", SF_Compute);
 
 class FInitializeMaterialsCS : public FNaniteGlobalShader
 {
@@ -1260,8 +1242,11 @@ void DispatchBasePass(
 	BasePassBindings.DepthStencil = BasePassRenderTargets.DepthStencil;
 
 	// Fast tile clear prior to fast clear eliminate
-	if (RasterResults.ClearTileArgs != nullptr && RasterResults.ClearTileBuffer)
+	const bool bFastTileClear = UseComputeMaterials() && GNaniteFastTileClear != 0 && RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform);
+	if (bFastTileClear)
 	{
+		uint32 ValidWriteMask = 0x0u;
+
 		TArray<FRDGTextureRef, TInlineAllocator<MaxSimultaneousRenderTargets>> TargetList;
 		for (uint32 TargetIndex = 0; TargetIndex < MaxSimultaneousRenderTargets; ++TargetIndex)
 		{
@@ -1280,6 +1265,9 @@ void DispatchBasePass(
 				}
 
 				TargetList.Add(TargetTexture);
+
+				// Compute a mask containing only set bits for MRT targets that are suitable for meta data optimization.
+				ValidWriteMask |= (1u << TargetIndex);
 			}
 		}
 
@@ -1296,19 +1284,23 @@ void DispatchBasePass(
 			auto ClearTilesComputeShader = View.ShaderMap->GetShader<FClearTilesCS>(PermutationVector);
 
 			FClearTilesCS::FParameters* ClearTilesPassParameters = GraphBuilder.AllocParameters<FClearTilesCS::FParameters>();
-			ClearTilesPassParameters->IndirectArgs = RasterResults.ClearTileArgs;
-			ClearTilesPassParameters->ClearTileBuffer = GraphBuilder.CreateSRV(RasterResults.ClearTileBuffer);
+			ClearTilesPassParameters->ValidWriteMask = ValidWriteMask;
+			ClearTilesPassParameters->ViewRect = ViewRect;
+			ClearTilesPassParameters->ShadingMask = GraphBuilder.CreateSRV(RasterResults.ShadingMask);
+			ClearTilesPassParameters->ShadingBinMeta = GraphBuilder.CreateSRV(Binning.ShadingBinMeta);
 
 			for (int32 TargetIndex = 0; TargetIndex < TargetList.Num(); ++TargetIndex)
 			{
 				ClearTilesPassParameters->OutCMaskBuffer[TargetIndex] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(TargetList[TargetIndex], ERDGTextureMetaDataAccess::CMask));
 			}
 
+			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(InViewRect.Size(), 8u);
+
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("NaniteTileClear"),
 				ClearTilesPassParameters,
 				ERDGPassFlags::Compute,
-				[ClearTilesComputeShader, ClearTilesPassParameters](FRHIComputeCommandList& RHICmdList)
+				[DispatchDim, ClearTilesComputeShader, ClearTilesPassParameters](FRHIComputeCommandList& RHICmdList)
 				{
 					// Note: Assumes all targets match in resolution (which they should)
 					FRHITexture* TargetTextureRHI = ClearTilesPassParameters->OutCMaskBuffer[0]->GetParentRHI();
@@ -1329,7 +1321,7 @@ void DispatchBasePass(
 					SetComputePipelineState(RHICmdList, ClearTilesComputeShader.GetComputeShader());
 					SetShaderParametersMixedCS(RHICmdList, ClearTilesComputeShader, *ClearTilesPassParameters, PlatformDataPtr, PlatformDataSize);
 
-					RHICmdList.DispatchIndirectComputeShader(ClearTilesPassParameters->IndirectArgs->GetIndirectRHICallBuffer(), 0);
+					RHICmdList.DispatchComputeShader(DispatchDim.X, DispatchDim.Y, DispatchDim.Z);
 				}
 			);
 		}
@@ -1856,8 +1848,6 @@ void EmitDepthTargets(
 	RasterResults.ClearTileArgs = nullptr;
 	RasterResults.ClearTileBuffer = nullptr;
 
-	const bool bFastTileClear = UseComputeDepthExport() && UseComputeMaterials() && GNaniteFastTileClear != 0 && RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform);
-
 	if (UseComputeDepthExport())
 	{
 		// Emit depth, stencil, mask and velocity
@@ -1883,12 +1873,6 @@ void EmitDepthTargets(
 		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(ViewRect.Size(), kHTileSize);
 		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTexturesExtent.X, SceneTexturesExtent.Y);
 
-		if (bFastTileClear)
-		{
-			RasterResults.ClearTileArgs   = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4u /* XYZ and Padding */), TEXT("Nanite.ClearTileArgs"));
-			RasterResults.ClearTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), DispatchDim.X * DispatchDim.Y), TEXT("Nanite.ClearTileBuffer"));
-		}
-
 		FRDGTextureUAVRef SceneDepthUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
 		FRDGTextureUAVRef SceneStencilUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
 		FRDGTextureUAVRef SceneHTileUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
@@ -1896,13 +1880,6 @@ void EmitDepthTargets(
 		FRDGTextureUAVRef MaterialHTileUAV		= UseLegacyCulling() ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(RasterResults.MaterialDepth, ERDGTextureMetaDataAccess::HTile)) : nullptr;
 		FRDGTextureUAVRef VelocityUAV			= bEmitVelocity ? GraphBuilder.CreateUAV(VelocityBuffer) : nullptr;
 		FRDGTextureUAVRef ShadingMaskUAV		= GraphBuilder.CreateUAV(RasterResults.ShadingMask);
-		FRDGBufferUAVRef  ClearTileArgsUAV		= RasterResults.ClearTileArgs ? GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RasterResults.ClearTileArgs, PF_R32_UINT)) : nullptr;
-		FRDGBufferUAVRef  ClearTileBufferUAV	= RasterResults.ClearTileBuffer ? GraphBuilder.CreateUAV(RasterResults.ClearTileBuffer) : nullptr;
-
-		if (ClearTileArgsUAV != nullptr)
-		{
-			AddClearUAVPass(GraphBuilder, ClearTileArgsUAV, 0);
-		}
 
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
@@ -1915,8 +1892,6 @@ void EmitDepthTargets(
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, Nanite::FGlobalResources::GetMaxVisibleClusters());
 		PassParameters->ViewRect				= FUint32Vector4((uint32)ViewRect.Min.X, (uint32)ViewRect.Min.Y, (uint32)ViewRect.Max.X, (uint32)ViewRect.Max.Y);
 		PassParameters->bWriteCustomStencil		= false;
-		PassParameters->OutClearTileBuffer		= ClearTileBufferUAV;
-		PassParameters->OutClearTileArgs		= ClearTileArgsUAV;
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->Velocity				= VelocityUAV;
 		PassParameters->ShadingMask				= ShadingMaskUAV;
@@ -1933,7 +1908,6 @@ void EmitDepthTargets(
 		PermutationVectorCS.Set<FDepthExportCS::FVelocityExportDim>(bEmitVelocity);
 		PermutationVectorCS.Set<FDepthExportCS::FMaterialDepthExportDim>(UseLegacyCulling());
 		PermutationVectorCS.Set<FDepthExportCS::FShadingMaskExportDim>(true);
-		PermutationVectorCS.Set<FDepthExportCS::FClearTileExportDim>(bFastTileClear);
 		auto ComputeShader = View.ShaderMap->GetShader<FDepthExportCS>(PermutationVectorCS);
 
 		FComputeShaderUtils::AddPass(
@@ -1943,22 +1917,6 @@ void EmitDepthTargets(
 			PassParameters,
 			DispatchDim
 		);
-
-		if (ClearTileArgsUAV)
-		{
-			auto InitArgsComputeShader = View.ShaderMap->GetShader<FClearTileInitArgsCS>();
-
-			FClearTileInitArgsCS::FParameters* InitPassParameters = GraphBuilder.AllocParameters<FClearTileInitArgsCS::FParameters>();
-			InitPassParameters->OutClearTileArgs = ClearTileArgsUAV;
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ClearTileInitArgs"),
-				InitArgsComputeShader,
-				InitPassParameters,
-				FIntVector(1, 1, 1)
-			);
-		}
 	}
 	else
 	{
@@ -2213,7 +2171,6 @@ void EmitCustomDepthStencilTargets(
 			PermutationVectorCS.Set<FDepthExportCS::FVelocityExportDim>(false);
 			PermutationVectorCS.Set<FDepthExportCS::FMaterialDepthExportDim>(false);
 			PermutationVectorCS.Set<FDepthExportCS::FShadingMaskExportDim>(false);
-			PermutationVectorCS.Set<FDepthExportCS::FClearTileExportDim>(false);
 			auto ComputeShader = View.ShaderMap->GetShader<FDepthExportCS>(PermutationVectorCS);
 
 			FComputeShaderUtils::AddPass(
@@ -3245,14 +3202,15 @@ static bool TessellationEnabled()
 	return bTessellation != 0 && NaniteTessellationSupported();
 }
 
-inline uint32 PackMaterialBitFlags(const FMaterial& Material)
+inline uint32 PackMaterialBitFlags(const FMaterial& Material, uint32 BoundTargetMask)
 {
 	FNaniteMaterialFlags Flags = {0};
 	Flags.bPixelDiscard = Material.IsMasked();
 	Flags.bPixelDepthOffset = Material.MaterialUsesPixelDepthOffset_RenderThread();
 	Flags.bWorldPositionOffset = Material.MaterialUsesWorldPositionOffset_RenderThread();
 	Flags.bDisplacement = TessellationEnabled() && Material.MaterialUsesDisplacement_RenderThread();
-	return PackNaniteMaterialBitFlags(Flags);
+	const uint32 PackedFlags = PackNaniteMaterialBitFlags(Flags);
+	return ((BoundTargetMask & 0xFFu) << 24u) | (PackedFlags & 0x00FFFFFFu);
 }
 
 FShadeBinning ShadeBinning(
@@ -3316,7 +3274,7 @@ FShadeBinning ShadeBinning(
 		if (const FMaterial* Material = ShadingCommand->Material)
 		{
 			FUintVector4& MetaEntry = MetaBufferData[ShadingCommand->ShadingBin];
-			MetaEntry.W = PackMaterialBitFlags(*Material);
+			MetaEntry.W = PackMaterialBitFlags(*Material, ShadingCommand->BoundTargetMask);
 		}
 	}
 
