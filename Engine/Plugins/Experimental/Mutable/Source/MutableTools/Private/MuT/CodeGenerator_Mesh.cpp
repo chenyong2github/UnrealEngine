@@ -848,6 +848,12 @@ class Node;
 
         // \todo Texcoords are broken?
         op->bIgnoreTextureCoords = true;
+	
+		// UE only has position and normal morph data, optimize for this case if indicated. 
+		if (node.bOnlyPositionAndNormal)
+		{
+			op->Channels = { {static_cast<uint8>(MBS_POSITION), 0}, {static_cast<uint8>(MBS_NORMAL), 0} };
+		}
 
         // Base
         FMeshGenerationResult BaseResult;

@@ -2108,27 +2108,50 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 
 			if (MorphTarget && MorphTarget->GetMorphLODModels().IsValidIndex(LODIndex))
 			{
-				int posBuf, posChannel;
-				MorphedSourceMesh->GetVertexBuffers().FindChannel(mu::MBS_POSITION, 0, &posBuf, &posChannel);
-				int posElemSize = MorphedSourceMesh->GetVertexBuffers().GetElementSize(posBuf);
-				int posOffset = MorphedSourceMesh->GetVertexBuffers().GetChannelOffset(posBuf, posChannel);
-				uint8* posBuffer = MorphedSourceMesh->GetVertexBuffers().GetBufferData(posBuf) + posOffset;
+				int32 PosBuf = -1;
+				int32 PosChannel = -1;
+				MorphedSourceMesh->GetVertexBuffers().FindChannel(mu::MBS_POSITION, 0, &PosBuf, &PosChannel);
+				check(PosBuf >= 0 && PosChannel >= 0);
 
-				uint32 MaterialVertexStart = (uint32)SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].GetVertexBufferIndex();
-				uint32 MeshVertexCount = (uint32)MorphedSourceMesh->GetVertexBuffers().GetElementCount();
+				int32 PosElemSize = MorphedSourceMesh->GetVertexBuffers().GetElementSize(PosBuf);
+				int32 PosOffset = MorphedSourceMesh->GetVertexBuffers().GetChannelOffset(PosBuf, PosChannel);
+				uint8* PosBuffer = MorphedSourceMesh->GetVertexBuffers().GetBufferData(PosBuf) + PosOffset;
 
-				const TArray<FMorphTargetLODModel>& MorphLODModels = MorphTarget->GetMorphLODModels();
+				int32 NorBuf = -1;
+				int32 NorChannel = -1;
+				MorphedSourceMesh->GetVertexBuffers().FindChannel(mu::MBS_NORMAL, 0, &NorBuf, &NorChannel);
 
-				for (int v = 0; v < MorphLODModels[LODIndex].Vertices.Num(); ++v)
+				const bool bHasNormals = NorBuf >= 0 && NorChannel >= 0;
+
+				int32 NorElemSize = bHasNormals ? MorphedSourceMesh->GetVertexBuffers().GetElementSize(NorBuf) : 0;
+				int32 NorOffset	  = bHasNormals ? MorphedSourceMesh->GetVertexBuffers().GetChannelOffset(NorBuf, NorChannel) : 0;
+				uint8* NorBuffer  = bHasNormals ? MorphedSourceMesh->GetVertexBuffers().GetBufferData(NorBuf) + NorOffset : nullptr;
+
+				int32 MaterialVertexStart = SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].GetVertexBufferIndex();
+				int32 MeshVertexCount = MorphedSourceMesh->GetVertexBuffers().GetElementCount();
+
+				const FMorphTargetLODModel& MorphLODModel = MorphTarget->GetMorphLODModels()[LODIndex];
+				for (const FMorphTargetDelta& MorphDelta : MorphLODModel.Vertices)
 				{
-					const FMorphTargetDelta& data = MorphLODModels[LODIndex].Vertices[v];
-					if ((data.SourceIdx >= MaterialVertexStart) &&
-						((data.SourceIdx - MaterialVertexStart) < MeshVertexCount))
+					const int32 VertexIndex = MorphDelta.SourceIdx - MaterialVertexStart;
+					if (VertexIndex >= 0 && VertexIndex < MeshVertexCount)
 					{
-						float* pPos = (float*)(posBuffer + posElemSize * (data.SourceIdx - MaterialVertexStart));
-						pPos[0] += data.PositionDelta[0];
-						pPos[1] += data.PositionDelta[1];
-						pPos[2] += data.PositionDelta[2];
+						{
+							float* const PosData = reinterpret_cast<float*>(PosBuffer + PosElemSize * VertexIndex);
+							const FVector3f MorphedPosition = FVector3f(PosData[0], PosData[1], PosData[2]) + MorphDelta.PositionDelta;
+							PosData[0] = MorphedPosition.X;
+							PosData[1] = MorphedPosition.Y;
+							PosData[2] = MorphedPosition.Z;
+						}
+
+						if (bHasNormals)
+						{
+							float* const NorData = reinterpret_cast<float*>(NorBuffer + NorElemSize * VertexIndex);
+							const FVector3f MorphedNormal = FVector3f(NorData[0], NorData[1], NorData[2]) + MorphDelta.TangentZDelta;
+							NorData[0] = MorphedNormal.X;
+							NorData[1] = MorphedNormal.Y;
+							NorData[2] = MorphedNormal.Z;
+						}
 					}
 				}
 			}
@@ -2705,6 +2728,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 			mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
 			Morph->SetBase(BaseSourceMesh.get());
 			Morph->SetTarget(MorphedSourceMeshNodeTable.get());
+			Morph->SetOnlyPositionAndNormal(true);
 			Morph->SetMessageContext(MorphNode);
 
 			Result->SetMorph(Morph);
@@ -2725,6 +2749,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 			mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
 			Morph->SetBase(BaseSourceMesh.get());
 			Morph->SetTarget(MorphedSourceMeshNode.get());
+			Morph->SetOnlyPositionAndNormal(true);
 			Morph->SetMessageContext(MorphNode);
 
 			Result->SetMorph(Morph);
@@ -2786,7 +2811,6 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 	return Result;
 }
-
 
 /** Create a default layout. Used when no layout is found. */
 mu::NodeLayoutBlocksPtr CreateDefaultLayout()

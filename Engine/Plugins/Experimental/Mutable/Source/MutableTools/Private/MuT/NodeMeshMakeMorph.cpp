@@ -88,6 +88,18 @@ namespace mu
 		m_pD->m_pTarget = p;
 	}
 
+	//---------------------------------------------------------------------------------------------
+	void NodeMeshMakeMorph::SetOnlyPositionAndNormal(bool bInOnlyPositionAndNormals)
+	{
+		m_pD->bOnlyPositionAndNormal = bInOnlyPositionAndNormals;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	bool NodeMeshMakeMorph::GetOnlyPositionAndNormal() const
+	{
+		return m_pD->bOnlyPositionAndNormal;
+	}
 
 	//---------------------------------------------------------------------------------------------
     NodeLayoutPtr NodeMeshMakeMorph::Private::GetLayout( int index ) const

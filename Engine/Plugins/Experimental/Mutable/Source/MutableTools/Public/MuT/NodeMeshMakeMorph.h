@@ -58,6 +58,9 @@ namespace mu
 		NodeMeshPtr GetTarget() const;
 		void SetTarget( NodeMesh* p );
 
+		bool GetOnlyPositionAndNormal() const;
+		void SetOnlyPositionAndNormal(bool bOnlyPositionAndNormal);
+
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------

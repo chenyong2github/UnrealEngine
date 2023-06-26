@@ -23,15 +23,18 @@ namespace mu
 
 		NodeMeshPtr m_pBase;
 		NodeMeshPtr m_pTarget;
+		
+		bool bOnlyPositionAndNormal = false;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 0;
+            uint32_t ver = 1;
 			arch << ver;
 
 			arch << m_pBase;
 			arch << m_pTarget;
+			arch << bOnlyPositionAndNormal;
 		}
 
 		//!
@@ -39,10 +42,15 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver==0);
+			check(ver <= 1);
 
 			arch >> m_pBase;
 			arch >> m_pTarget;
+
+			if (ver == 1)
+			{
+				arch >> bOnlyPositionAndNormal;
+			}
 		}
 
 		// NodeMesh::Private interface

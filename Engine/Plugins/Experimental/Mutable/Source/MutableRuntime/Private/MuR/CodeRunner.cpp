@@ -1307,6 +1307,8 @@ namespace mu
                 }
                 else
                 {
+					Release(pA);
+					Release(pB);
 					StoreMesh(item, CreateMesh());
                 }
 
