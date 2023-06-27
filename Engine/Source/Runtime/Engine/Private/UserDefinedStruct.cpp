@@ -285,25 +285,27 @@ void UUserDefinedStruct::InitializeStructIgnoreDefaults(void* Dest, int32 ArrayD
 
 void UUserDefinedStruct::InitializeStruct(void* Dest, int32 ArrayDim) const
 {
-	InitializeStructIgnoreDefaults(Dest, ArrayDim);
+	check(Dest);
 
-	if (Dest)
+	const uint8* DefaultInstance = GetDefaultInstance();
+	if ((StructFlags & STRUCT_IsPlainOldData) == 0 || !DefaultInstance)
 	{
-		const uint8* DefaultInstance = GetDefaultInstance();
-		if (DefaultInstance)
+		InitializeStructIgnoreDefaults(Dest, ArrayDim);
+	}
+
+	if (DefaultInstance)
+	{
+		int32 Stride = GetStructureSize();
+
+		for (int32 ArrayIndex = 0; ArrayIndex < ArrayDim; ArrayIndex++)
 		{
-			int32 Stride = GetStructureSize();
+			void* DestStruct = (uint8*)Dest + (Stride * ArrayIndex);
+			CopyScriptStruct(DestStruct, DefaultInstance);
 
-			for (int32 ArrayIndex = 0; ArrayIndex < ArrayDim; ArrayIndex++)
-			{
-				void* DestStruct = (uint8*)Dest + (Stride * ArrayIndex);
-				CopyScriptStruct(DestStruct, DefaultInstance);
-
-				// When copying into another struct we need to register this raw struct pointer so any deferred dependencies will get fixed later
-				FScopedPlaceholderRawContainerTracker TrackStruct(DestStruct);
-				FBlueprintSupport::RegisterDeferredDependenciesInStruct(this, DestStruct);
-			}	
-		}
+			// When copying into another struct we need to register this raw struct pointer so any deferred dependencies will get fixed later
+			FScopedPlaceholderRawContainerTracker TrackStruct(DestStruct);
+			FBlueprintSupport::RegisterDeferredDependenciesInStruct(this, DestStruct);
+		}	
 	}
 }
 
