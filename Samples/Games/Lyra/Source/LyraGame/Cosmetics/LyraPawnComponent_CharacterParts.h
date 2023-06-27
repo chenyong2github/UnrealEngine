@@ -68,11 +68,6 @@ struct FLyraCharacterPartList : public FFastArraySerializer
 	{
 	}
 
-	FLyraCharacterPartList(ULyraPawnComponent_CharacterParts* InOwnerComponent)
-		: OwnerComponent(InOwnerComponent)
-	{
-	}
-
 public:
 	//~FFastArraySerializer contract
 	void PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize);
@@ -90,6 +85,12 @@ public:
 	void ClearAllEntries(bool bBroadcastChangeDelegate);
 
 	FGameplayTagContainer CollectCombinedTags() const;
+
+	void SetOwnerComponent(ULyraPawnComponent_CharacterParts* InOwnerComponent)
+	{
+		OwnerComponent = InOwnerComponent;
+	}
+	
 private:
 	friend ULyraPawnComponent_CharacterParts;
 
@@ -129,6 +130,7 @@ public:
 	//~UActorComponent interface
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void OnRegister() override;
 	//~End of UActorComponent interface
 
 	// Adds a character part to the actor that owns this customization component, should be called on the authority only
@@ -167,7 +169,7 @@ public:
 
 private:
 	// List of character parts
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated, Transient)
 	FLyraCharacterPartList CharacterPartList;
 
 	// Rules for how to pick a body style mesh for animation to play on, based on character part cosmetics tags

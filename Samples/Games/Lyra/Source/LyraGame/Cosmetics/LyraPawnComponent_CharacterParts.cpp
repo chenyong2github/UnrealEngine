@@ -33,7 +33,7 @@ void FLyraCharacterPartList::PreReplicatedRemove(const TArrayView<int32> Removed
 		bDestroyedAnyActors |= DestroyActorForEntry(Entry);
 	}
 
-	if (bDestroyedAnyActors)
+	if (bDestroyedAnyActors && ensure(OwnerComponent))
 	{
 		OwnerComponent->BroadcastChanged();
 	}
@@ -48,7 +48,7 @@ void FLyraCharacterPartList::PostReplicatedAdd(const TArrayView<int32> AddedIndi
 		bCreatedAnyActors |= SpawnActorForEntry(Entry);
 	}
 
-	if (bCreatedAnyActors)
+	if (bCreatedAnyActors && ensure(OwnerComponent))
 	{
 		OwnerComponent->BroadcastChanged();
 	}
@@ -67,7 +67,7 @@ void FLyraCharacterPartList::PostReplicatedChange(const TArrayView<int32> Change
 		bChangedAnyActors |= SpawnActorForEntry(Entry);
 	}
 
-	if (bChangedAnyActors)
+	if (bChangedAnyActors && ensure(OwnerComponent))
 	{
 		OwnerComponent->BroadcastChanged();
 	}
@@ -106,7 +106,7 @@ void FLyraCharacterPartList::RemoveEntry(FLyraCharacterPartHandle Handle)
 			EntryIt.RemoveCurrent();
 			MarkArrayDirty();
 
-			if (bDestroyedActor)
+			if (bDestroyedActor && ensure(OwnerComponent))
 			{
 				OwnerComponent->BroadcastChanged();
 			}
@@ -126,7 +126,7 @@ void FLyraCharacterPartList::ClearAllEntries(bool bBroadcastChangeDelegate)
 	Entries.Reset();
 	MarkArrayDirty();
 
-	if (bDestroyedAnyActors && bBroadcastChangeDelegate)
+	if (bDestroyedAnyActors && bBroadcastChangeDelegate && ensure(OwnerComponent))
 	{
 		OwnerComponent->BroadcastChanged();
 	}
@@ -154,7 +154,7 @@ bool FLyraCharacterPartList::SpawnActorForEntry(FLyraAppliedCharacterPartEntry& 
 {
 	bool bCreatedAnyActors = false;
 
-	if (!OwnerComponent->IsNetMode(NM_DedicatedServer))
+	if (ensure(OwnerComponent) && !OwnerComponent->IsNetMode(NM_DedicatedServer))
 	{
 		if (Entry.Part.PartClass != nullptr)
 		{
@@ -217,7 +217,6 @@ bool FLyraCharacterPartList::DestroyActorForEntry(FLyraAppliedCharacterPartEntry
 
 ULyraPawnComponent_CharacterParts::ULyraPawnComponent_CharacterParts(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, CharacterPartList(this)
 {
 	SetIsReplicatedByDefault(true);
 }
@@ -254,6 +253,16 @@ void ULyraPawnComponent_CharacterParts::EndPlay(const EEndPlayReason::Type EndPl
 	CharacterPartList.ClearAllEntries(/*bBroadcastChangeDelegate=*/ false);
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void ULyraPawnComponent_CharacterParts::OnRegister()
+{
+	Super::OnRegister();
+	
+	if (!IsTemplate())
+	{
+		CharacterPartList.SetOwnerComponent(this);
+	}
 }
 
 TArray<AActor*> ULyraPawnComponent_CharacterParts::GetCharacterPartActors() const
