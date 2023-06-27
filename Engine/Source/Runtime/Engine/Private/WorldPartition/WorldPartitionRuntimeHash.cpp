@@ -139,7 +139,7 @@ bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(con
 {
 	if (bIsMainWorldPartition && bIsMainContainer && bIsCellAlwaysLoaded && !IsRunningCookCommandlet())
 	{
-		for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
+		ActorSetInstance->ForEachActor([this, ActorSetInstance](const FGuid& ActorGuid)
 		{
 			IStreamingGenerationContext::FActorInstance ActorInstance(ActorGuid, ActorSetInstance);
 			const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
@@ -151,7 +151,7 @@ bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(con
 			{
 				AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
 			}
-		}
+		});
 
 		return true;
 	}
@@ -168,7 +168,7 @@ bool UWorldPartitionRuntimeHash::PopulateCellActorInstances(const TArray<const I
 		// In PIE, always loaded actors of an instanced world partition will go in the always loaded cell.
 		if (!ConditionalRegisterAlwaysLoadedActorsForPIE(ActorSetInstance, bIsMainWorldPartition, ActorSetInstance->ContainerID.IsMainContainer(), bIsCellAlwaysLoaded))
 		{
-			for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
+			ActorSetInstance->ForEachActor([this, ActorSetInstance, &OutCellActorInstances](const FGuid& ActorGuid)
 			{
 				// Actors that return true to ShouldLevelKeepRefIfExternal will always be part of the partitioned persistent level of a
 				// world partition. In PIE, for an instanced world partition, we don't want this actor to be both in the persistent level
@@ -182,7 +182,7 @@ bool UWorldPartitionRuntimeHash::PopulateCellActorInstances(const TArray<const I
 				{
 					OutCellActorInstances.Emplace(ActorInstance);
 				}
-			}
+			});
 		}
 	}
 

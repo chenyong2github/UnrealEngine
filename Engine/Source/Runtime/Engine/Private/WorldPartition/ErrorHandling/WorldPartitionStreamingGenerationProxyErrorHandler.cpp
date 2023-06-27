@@ -63,8 +63,8 @@ void FStreamingGenerationProxyErrorHandler::OnLevelInstanceInvalidWorldAsset(con
 	InnerErrorHandler->OnLevelInstanceInvalidWorldAsset(ActorDescView, WorldAsset, Reason);
 }
 
-void FStreamingGenerationProxyErrorHandler::OnActorFilterFailed(const FWorldPartitionActorDescView& ActorDescView)
+void FStreamingGenerationProxyErrorHandler::OnInvalidActorFilterReference(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
-	InnerErrorHandler->OnActorFilterFailed(ActorDescView);
+	InnerErrorHandler->OnInvalidActorFilterReference(ActorDescView, ReferenceActorDescView);
 }
 #endif

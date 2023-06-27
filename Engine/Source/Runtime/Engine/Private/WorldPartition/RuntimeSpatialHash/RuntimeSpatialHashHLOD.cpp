@@ -193,14 +193,14 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 				TArray<IStreamingGenerationContext::FActorInstance> ActorInstances;
 				for (const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance : GridCellDataChunk.GetActorSetInstances())
 				{
-					for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
+					ActorSetInstance->ForEachActor([&ActorInstances, ActorSetInstance, &CellBounds](const FGuid& ActorGuid)
 					{
 						const IStreamingGenerationContext::FActorInstance& ActorInstance = ActorInstances.Emplace_GetRef(ActorGuid, ActorSetInstance);
 						const FBox RuntimeBounds = ActorInstance.GetActorDescView().GetRuntimeBounds();
 						check(RuntimeBounds.IsValid);
 						CellBounds.Min.Z = FMath::Min(CellBounds.Min.Z, RuntimeBounds.Min.Z);
 						CellBounds.Max.Z = FMath::Max(CellBounds.Max.Z, RuntimeBounds.Max.Z);
-					}
+					});
 				}
 
 				// Ensure the Z bounds are valid

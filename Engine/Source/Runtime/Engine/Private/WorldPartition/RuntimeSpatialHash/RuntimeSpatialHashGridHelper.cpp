@@ -178,16 +178,18 @@ FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatial
 		if (GRuntimeSpatialHashPlacePartitionActorsUsingLocationEffective)
 		{
 			bool bUseLocation = true;
-			for (const FGuid& ActorGuid : InActorSetInstance->ActorSet->Actors)
+			InActorSetInstance->ForEachActor([InActorSetInstance, &bUseLocation](const FGuid& ActorGuid)
 			{
 				const FWorldPartitionActorDescView& ActorDescView = InActorSetInstance->ContainerInstance->ActorDescViewMap->FindByGuidChecked(ActorGuid);
 
 				if (!ActorDescView.GetActorNativeClass()->IsChildOf<APartitionActor>())
 				{
 					bUseLocation = false;
-					break;
+					return false;
 				}
-			}
+
+				return true;
+			});
 			if (bUseLocation)
 			{
 				// Find grid level that best matches actor set bounds
@@ -203,6 +205,8 @@ FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatial
 	for (const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance : ActorSetInstances)
 	{
 		check(ActorSetInstance->ActorSet->Actors.Num() > 0);
+		check(!ActorSetInstance->FilteredActors || (ActorSetInstance->ActorSet->Actors.Num() != ActorSetInstance->FilteredActors->Num()));
+
 		FSquare2DGridHelper::FGridLevel::FGridCell* GridCell = nullptr;
 
 		if (ActorSetInstance->bIsSpatiallyLoaded)

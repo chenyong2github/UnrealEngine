@@ -91,9 +91,9 @@ void FStreamingGenerationLogErrorHandler::OnLevelInstanceInvalidWorldAsset(const
 	};
 }
 
-void FStreamingGenerationLogErrorHandler::OnActorFilterFailed(const FWorldPartitionActorDescView& ActorDescView)
+void FStreamingGenerationLogErrorHandler::OnInvalidActorFilterReference(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
-	UE_ASSET_LOG_ACTORDESCVIEW(LogWorldPartition, Log, ActorDescView, TEXT("Actor %s will not be filtered out because it is referenced/referencing other Actor(s) not part of the filter"), *GetActorName(ActorDescView));
+	UE_ASSET_LOG_ACTORDESCVIEW(LogWorldPartition, Log, ReferenceActorDescView, TEXT("Actor %s will not be filtered out because it is referenced by Actor %s not part of the filter"), *GetActorName(ReferenceActorDescView), *GetActorName(ActorDescView));
 }
 
 #endif

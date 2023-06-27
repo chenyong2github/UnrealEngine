@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OverrideVoidReturnInvoker.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
 
 class FActorDescViewMap;
@@ -46,6 +47,24 @@ public:
 		FActorContainerID ContainerID;
 		FTransform Transform;
 		const FActorSet* ActorSet;
+		const TSet<FGuid>* FilteredActors;
+
+		template <typename Func>
+		void ForEachActor(Func InFunc) const
+		{
+			TOverrideVoidReturnInvoker Invoker(true, InFunc);
+
+			for (const FGuid& ActorGuid : ActorSet->Actors)
+			{
+				if (!FilteredActors || !FilteredActors->Contains(ActorGuid))
+				{
+					if (!Invoker(ActorGuid))
+					{
+						break;
+					}
+				}
+			}
+		}
 	};
 
 	struct FActorInstance

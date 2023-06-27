@@ -116,12 +116,6 @@ class FWorldPartitionStreamingGenerator
 				}
 			}
 
-			TMap<FActorContainerID, TSet<FGuid>> FilteredOutActorsPerContainer;
-			for (const auto& [ContainerID, ContainerCollectionInstanceDescriptor] : StreamingGenerator->ContainerCollectionInstanceDescriptorsMap)
-			{
-				FilteredOutActorsPerContainer.Append(ContainerCollectionInstanceDescriptor.FilteredActors);
-			}
-
 			ActorSetInstances.Empty();
 			for (const auto& [ContainerID, ContainerCollectionInstanceDescriptor] : StreamingGenerator->ContainerCollectionInstanceDescriptorsMap)
 			{
@@ -133,9 +127,6 @@ class FWorldPartitionStreamingGenerator
 					const FActorSet& ActorSet = *ActorSetPtr;
 					const FWorldPartitionActorDescView& ReferenceActorDescView = ActorSetContainer.ActorDescViewMap->FindByGuidChecked(ActorSet.Actors[0]);
 
-					TSet<FGuid> FilteredActors;
-					TSet<FGuid>* FilteredOutActors = FilteredOutActorsPerContainer.Find(ContainerID);
-
 					// Validate assumptions
 					for (const FGuid& ActorGuid : ActorSet.Actors)
 					{
@@ -143,48 +134,35 @@ class FWorldPartitionStreamingGenerator
 						check(ActorDescView.GetRuntimeGrid() == ReferenceActorDescView.GetRuntimeGrid());
 						check(ActorDescView.GetIsSpatiallyLoaded() == ReferenceActorDescView.GetIsSpatiallyLoaded());
 						check(ActorDescView.GetContentBundleGuid() == ReferenceActorDescView.GetContentBundleGuid());
-
-						if (FilteredOutActors && FilteredOutActors->Contains(ActorGuid))
-						{
-							FilteredActors.Add(ActorGuid);
-						}
 					}
 
-					// We can only filter the complete set because of dependencies between actors of the same set
-					if (FilteredActors.Num() == ActorSet.Actors.Num())
+					// Skip if all actors are filtered out for this container
+					if (!ContainerCollectionInstanceDescriptor.FilteredActors || (ContainerCollectionInstanceDescriptor.FilteredActors->Num() != ActorSet.Actors.Num()))
 					{
-						continue;
-					}
-					else if (FilteredActors.Num() > 0)
-					{
-						// Report failed filtering
-						for (const FGuid& FilteredActorGuid : FilteredActors)
-						{
-							StreamingGenerator->ErrorHandler->OnActorFilterFailed(ActorSetContainer.ActorDescViewMap->FindByGuidChecked(FilteredActorGuid));
-						}
-					}
-
-					FActorSetInstance& ActorSetInstance = ActorSetInstances.Emplace_GetRef();
-					const FContainerCollectionInstanceDescriptor::FPerInstanceData& PerInstanceData = ContainerCollectionInstanceDescriptor.GetInstanceData(ReferenceActorDescView.GetGuid());
+						FActorSetInstance& ActorSetInstance = ActorSetInstances.Emplace_GetRef();
+						const FContainerCollectionInstanceDescriptor::FPerInstanceData& PerInstanceData = ContainerCollectionInstanceDescriptor.GetInstanceData(ReferenceActorDescView.GetGuid());
 				
-					ActorSetInstance.ContainerInstance = &ActorSetContainer;
-					ActorSetInstance.ActorSet = &ActorSet;
-					ActorSetInstance.ContainerID = ContainerCollectionInstanceDescriptor.ID;
-					ActorSetInstance.Transform = ContainerCollectionInstanceDescriptor.Transform;
-					ActorSetInstance.bIsSpatiallyLoaded = PerInstanceData.bIsSpatiallyLoaded;
-					ActorSetInstance.ContentBundleID = ContainerCollectionInstanceDescriptor.ContentBundleID;
-					ActorSetInstance.RuntimeGrid = PerInstanceData.RuntimeGrid;
-					ActorSetInstance.DataLayers = StreamingGenerator->GetRuntimeDataLayerInstances(PerInstanceData.DataLayers);
+						ActorSetInstance.ContainerInstance = &ActorSetContainer;
+						ActorSetInstance.ActorSet = &ActorSet;
+						ActorSetInstance.FilteredActors = ContainerCollectionInstanceDescriptor.FilteredActors;
+						ActorSetInstance.ContainerID = ContainerCollectionInstanceDescriptor.ID;
+						ActorSetInstance.Transform = ContainerCollectionInstanceDescriptor.Transform;
+						ActorSetInstance.bIsSpatiallyLoaded = PerInstanceData.bIsSpatiallyLoaded;
+						ActorSetInstance.ContentBundleID = ContainerCollectionInstanceDescriptor.ContentBundleID;
+						ActorSetInstance.RuntimeGrid = PerInstanceData.RuntimeGrid;
+						ActorSetInstance.DataLayers = StreamingGenerator->GetRuntimeDataLayerInstances(PerInstanceData.DataLayers);
 
-					ActorSetInstance.Bounds.Init();
-					for (const FGuid& ActorGuid : ActorSetInstance.ActorSet->Actors)
-					{
-						const FWorldPartitionActorDescView& ActorDescView = ActorSetContainer.ActorDescViewMap->FindByGuidChecked(ActorGuid);
-						const FBox RuntimeBounds = ActorDescView.GetRuntimeBounds();
-						if (RuntimeBounds.IsValid)
+						ActorSetInstance.Bounds.Init();
+						const FTransform& ContainerCollectionInstanceDescriptorTransform = ContainerCollectionInstanceDescriptor.Transform;
+						ActorSetInstance.ForEachActor([this, &ActorSetContainer, &ActorSetInstance, &ContainerCollectionInstanceDescriptorTransform](const FGuid& ActorGuid)
 						{
-							ActorSetInstance.Bounds += RuntimeBounds.TransformBy(ContainerCollectionInstanceDescriptor.Transform);
-						}
+							const FWorldPartitionActorDescView& ActorDescView = ActorSetContainer.ActorDescViewMap->FindByGuidChecked(ActorGuid);
+							const FBox RuntimeBounds = ActorDescView.GetRuntimeBounds();
+							if (RuntimeBounds.IsValid)
+							{
+								ActorSetInstance.Bounds += RuntimeBounds.TransformBy(ContainerCollectionInstanceDescriptorTransform);
+							}
+						});
 					}
 				}
 			}
@@ -258,6 +236,7 @@ class FWorldPartitionStreamingGenerator
 	{
 		FContainerCollectionInstanceDescriptor()
 			: Bounds(ForceInit)
+			, FilteredActors(nullptr)
 		{}
 
 		FBox Bounds;
@@ -268,7 +247,7 @@ class FWorldPartitionStreamingGenerator
 		FActorContainerID ID;
 		FActorContainerID ParentID;
 		FGuid ContentBundleID;
-		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
+		TSet<FGuid>* FilteredActors;
 
 		struct FPerInstanceData
 		{
@@ -580,8 +559,10 @@ class FWorldPartitionStreamingGenerator
 				{
 					if (const FWorldPartitionActorFilter* ContainerFilter = ContainerCollectionInstanceView.GetContainerFilter())
 					{						
-						SubContainerInstanceDescriptor.FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(SubContainerInstanceDescriptor.ID, ContainerCollectionInstanceView.GetContainerPackage().ToString(), *ContainerFilter);
+						ContainerFilteredActors.Append(WorldPartitionSubsystem->GetFilteredActorsPerContainer(SubContainerInstanceDescriptor.ID, ContainerCollectionInstanceView.GetContainerPackage().ToString(), *ContainerFilter));
 					}
+
+					SubContainerInstanceDescriptor.FilteredActors = ContainerFilteredActors.Find(SubContainerInstanceDescriptor.ID);
 				}
 
 				CreateActorDescriptorViewsRecursive(SubContainerInstanceDescriptor);
@@ -979,7 +960,7 @@ class FWorldPartitionStreamingGenerator
 
 			NbErrorsDetected = 0;
 
-			ContainerCollectionDescriptor.ActorDescViewMap.ForEachActorDescView([this, &ContainerCollectionInstanceDescriptor, &NbErrorsDetected, PassType](FWorldPartitionActorDescView& ActorDescView)
+			ContainerCollectionDescriptor.ActorDescViewMap.ForEachActorDescView([this, &ContainerCollectionDescriptor, &ContainerCollectionInstanceDescriptor, &NbErrorsDetected, PassType](FWorldPartitionActorDescView& ActorDescView)
 			{
 				FContainerCollectionInstanceDescriptor::FPerInstanceData& PerInstanceData = ContainerCollectionInstanceDescriptor.GetInstanceData(ActorDescView.GetGuid());
 
@@ -999,6 +980,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						}
 
 						NbErrorsDetected++;
+					}
+				}
+
+				if (TSet<FGuid>* FilteredActors = ContainerCollectionInstanceDescriptor.FilteredActors)
+				{
+					const bool IsReferencerFiltered = FilteredActors->Contains(ActorDescView.GetGuid());
+					for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
+					{
+						const bool IsReferenceeFiltered = FilteredActors->Contains(ReferenceGuid);
+						if (IsReferenceeFiltered && !IsReferencerFiltered)
+						{
+							if (PassType == EPassType::ErrorReporting)
+							{
+								const FWorldPartitionActorDescView& ReferenceActorDesc = ContainerCollectionDescriptor.ActorDescViewMap.FindByGuidChecked(ReferenceGuid);
+								ErrorHandler->OnInvalidActorFilterReference(ActorDescView, ReferenceActorDesc);
+							}
+							else
+							{
+								FilteredActors->Remove(ReferenceGuid);
+							}
+
+							NbErrorsDetected++;
+						}
 					}
 				}
 			});
@@ -1062,9 +1066,6 @@ public:
 	void PreparationPhase(const FStreamingGenerationActorDescCollection& ActorDescCollection)
 	{
 		CreateActorContainers(ActorDescCollection);
-
-		// Construct the streaming generation context
-		StreamingGenerationContext = MakeUnique<FStreamingGenerationContext>(this, ActorDescCollection);
 	}
 
 	static TUniquePtr<FArchive> CreateDumpStateLogArchive(const TCHAR* Suffix, bool bTimeStamped = true)
@@ -1174,8 +1175,14 @@ public:
 		DumpContainerInstances(FActorContainerID());
 	}
 
-	const FStreamingGenerationContext* GetStreamingGenerationContext()
+	const FStreamingGenerationContext* GetStreamingGenerationContext(const FStreamingGenerationActorDescCollection& ActorDescCollection)
 	{
+		if (!StreamingGenerationContext)
+		{
+			// Construct the streaming generation context
+			StreamingGenerationContext = MakeUnique<FStreamingGenerationContext>(this, ActorDescCollection);
+		}
+
 		return StreamingGenerationContext.Get();
 	}
 
@@ -1208,6 +1215,9 @@ private:
 
 	/** List of current container instances on the stack to detect circular references */
 	TSet<FName> ContainerInstancesStack;
+
+	/** Maps containers IDs to their filtered actors use while creating FContainerCollectionInstanceDescriptor */
+	TMap<FActorContainerID, TSet<FGuid>> ContainerFilteredActors;
 };
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
@@ -1304,7 +1314,7 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 	StreamingPolicy = NewObject<UWorldPartitionStreamingPolicy>(const_cast<UWorldPartition*>(this), WorldPartitionStreamingPolicyClass.Get(), NAME_None, bIsPIE ? RF_Transient : RF_NoFlags);
 
 	check(RuntimeHash);
-	if (RuntimeHash->GenerateStreaming(StreamingPolicy, StreamingGenerator.GetStreamingGenerationContext(), InContext.PackagesToGenerate))
+	if (RuntimeHash->GenerateStreaming(StreamingPolicy, StreamingGenerator.GetStreamingGenerationContext(InParams.ActorDescCollection), InContext.PackagesToGenerate))
 	{
 		if (HierarchicalLogAr.IsValid())
 		{
@@ -1356,7 +1366,7 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 		FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 		StreamingGenerator.DumpStateLog(HierarchicalLogAr);
 
-		RuntimeHash->GenerateHLOD(SourceControlHelper, StreamingGenerator.GetStreamingGenerationContext(), bCreateActorsOnly);
+		RuntimeHash->GenerateHLOD(SourceControlHelper, StreamingGenerator.GetStreamingGenerationContext(ActorDescCollection), bCreateActorsOnly);
 	});	
 }
 

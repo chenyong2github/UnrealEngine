@@ -85,7 +85,7 @@ public:
 
 	virtual void OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason) = 0;
 
-	virtual void OnActorFilterFailed(const FWorldPartitionActorDescView& ActorDescView) = 0;
+	virtual void OnInvalidActorFilterReference(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView) = 0;
 
 	// Helpers
 	static ENGINE_API FString GetActorName(const FWorldPartitionActorDescView& ActorDescView);

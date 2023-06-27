@@ -441,7 +441,7 @@ void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const 
 	}
 }
 
-void UWorldPartitionChangelistValidator::OnActorFilterFailed(const FWorldPartitionActorDescView& ActorDescView)
+void UWorldPartitionChangelistValidator::OnInvalidActorFilterReference(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
 	// Not a validation error
 }
