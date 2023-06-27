@@ -145,7 +145,11 @@ void FWorldPartitionDestructibleHLODState::PostReplicatedChange(const TArrayView
 		}
 	}
 
-	OwnerComponent->OnDestructionStateUpdated();
+	// Should never occur, added ensure to track FORT-627036
+	if (ensure(OwnerComponent))
+	{
+		OwnerComponent->OnDestructionStateUpdated();
+	}
 }
 
 UWorldPartitionDestructibleHLODMeshComponent::UWorldPartitionDestructibleHLODMeshComponent(const FObjectInitializer& ObjectInitializer)
