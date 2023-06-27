@@ -462,5 +462,19 @@ bool FNiagaraDataInterfaceSetShaderParametersContext::IsIterationStage() const
 	return ComputeInstanceData.IsIterationStage(DataInterfaceProxy, SimStageData.StageIndex);
 }
 
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
+FString FNiagaraDataInterfaceSetShaderParametersContext::GetDebugString() const
+{
+	TStringBuilder<128> Builder;
+	Builder.Append(ComputeInstanceData.Context ? ComputeInstanceData.Context->GetDebugSimName() : TEXT("Unknown"));
+	if (SimStageData.StageMetaData)
+	{
+		Builder.AppendChar(TEXT(','));
+		SimStageData.StageMetaData->SimulationStageName.AppendString(Builder);
+	}
+	return Builder.ToString();
+}
+#endif
+
 #undef LOCTEXT_NAMESPACE
 

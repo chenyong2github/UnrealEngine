@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceRenderTargetVolume.h"
+#include "Engine/Engine.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "TextureResource.h"
 #include "NiagaraCompileHashVisitor.h"
@@ -481,7 +482,6 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetShaderParameters(const FNiagara
 
 	if (bRTRead)
 	{
-		ensureMsgf(bRTWrite == false, TEXT("RenderTarget DataInterface is both wrote and read from in the same stage, this is not allowed, read will be invalid"));
 		if (bRTWrite == false && InstanceData_RT->RenderTarget.IsValid())
 		{
 			InstanceData_RT->bReadThisFrame = true;
@@ -489,6 +489,9 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetShaderParameters(const FNiagara
 		}
 		else
 		{
+		#if WITH_NIAGARA_DEBUG_EMITTER_NAME
+			GEngine->AddOnScreenDebugMessage(uint64(this), 1.f, FColor::White, *FString::Printf(TEXT("RenderTarget is read and wrote in the same stage, this is not allowed, read will be invalid. (%s)"), *Context.GetDebugString()));
+		#endif
 			Parameters->Texture = Context.GetComputeDispatchInterface().GetBlackTextureSRV(GraphBuilder, ETextureDimension::Texture3D);
 		}
 

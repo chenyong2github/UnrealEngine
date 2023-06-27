@@ -472,6 +472,11 @@ struct FNiagaraDataInterfaceSetShaderParametersContext
 		ShaderStorage = InShaderStorage;
 	}
 
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
+	/** Formats a string with the simulation & stage name */
+	NIAGARA_API FString GetDebugString() const;
+#endif
+
 private:
 	NIAGARA_API bool IsStructBoundInternal(const void* StructAddress, uint32 StructSize) const;
 	NIAGARA_API uint16 GetParameterIncludedStructInternal(const FShaderParametersMetadata* StructMetadata) const;

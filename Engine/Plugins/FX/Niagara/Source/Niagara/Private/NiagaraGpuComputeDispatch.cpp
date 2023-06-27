@@ -791,13 +791,7 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 					if (bRaisedWarningThisFrame == false)
 					{
 						bRaisedWarningThisFrame = true;
-						AsyncTask(
-							ENamedThreads::GameThread,
-							[MessageId=uint64(this), DebugSimName=ComputeContext->GetDebugSimFName()]()
-							{
-								GEngine->AddOnScreenDebugMessage(MessageId, 1.f, FColor::White, *FString::Printf(TEXT("GPU Simulation(%s) will not show in preview mode, as we may sample from wrong SceneTextures buffer."), *DebugSimName.ToString()));
-							}
-						);
+						GEngine->AddOnScreenDebugMessage(uint64(this), 1.f, FColor::White, *FString::Printf(TEXT("GPU Simulation(%s) will not show in preview mode, as we may sample from wrong SceneTextures buffer."), *ComputeContext->GetDebugSimFName().ToString()));
 					}
 					continue;
 				}
