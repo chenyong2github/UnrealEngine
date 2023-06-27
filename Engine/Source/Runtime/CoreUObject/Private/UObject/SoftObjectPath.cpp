@@ -1008,6 +1008,8 @@ bool FSoftObjectPathTrySetPathTests::RunTest(const FString& Parameters)
 	return true;
 }
 
+#if WITH_EDITOR
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSoftObjectPathFixupForPIETests, "System.CoreUObject.SoftObjectPath.FixupForPIE", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 bool FSoftObjectPathFixupForPIETests::RunTest(const FString& Parameters)
 {
@@ -1020,5 +1022,7 @@ bool FSoftObjectPathFixupForPIETests::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Fixed up path should be PIE package with correct id"), SoftPath.ToString(), ExpectedFinalPath);
 	return true;
 }
+
+#endif 
 
 #endif

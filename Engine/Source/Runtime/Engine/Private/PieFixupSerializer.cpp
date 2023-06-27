@@ -83,7 +83,7 @@ FArchive& FPIEFixupSerializer::operator<<(FSoftObjectPtr& Value)
 }
 
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
 
 #include "Tests/PieFixupTestObjects.h"
 
@@ -123,4 +123,4 @@ bool FPIEFixupSerializerTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-#endif
+#endif // WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
