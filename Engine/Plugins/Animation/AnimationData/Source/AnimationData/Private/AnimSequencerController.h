@@ -111,7 +111,7 @@ private:
 	bool RenameCurveControl(const FName& CurveName, const FName& NewCurveName) const;
 	bool RemoveCurveControl(const FName& CurveName) const;
 	bool SetCurveControlKeys(const FName& CurveName, const TArray<FRichCurveKey>& CurveKeys) const;
-	bool SetCurveControlKey(const FName& CurveName, const FRichCurveKey& Key) const;
+	bool SetCurveControlKey(const FName& CurveName, const FRichCurveKey& Key, bool bUpdateKey) const;
 	bool RemoveCurveControlKey(const FName& CurveName, float Time) const;
 	bool DuplicateCurveControl(const FName& CurveName, const FName& DuplicateCurveName) const;
 
