@@ -2057,7 +2057,20 @@ int32 FGenericPlatformMisc::GetPakchunkIndexFromPakFile(const FString& InFilenam
 
 bool FGenericPlatformMisc::IsPGOEnabled()
 {
-	return PLATFORM_COMPILER_OPTIMIZATION_PG;
+	return PLATFORM_COMPILER_OPTIMIZATION_PG != 0;
+}
+
+bool FGenericPlatformMisc::IsPGICapableBinary()
+{
+	return PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING != 0;
+}
+
+
+bool FGenericPlatformMisc::IsPGIActive()
+{
+	// by default, assume it enabled from the start in PGI binaries (as is the usual behavior). If a platform provides a way
+	// to enable/disable PG data collection runtime, it can override this.
+	return FPlatformMisc::IsPGICapableBinary();
 }
 
 int FGenericPlatformMisc::GetMobilePropagateAlphaSetting()

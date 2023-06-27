@@ -1877,6 +1877,35 @@ public:
 	 */
 	static CORE_API bool IsPGOEnabled();
 
+	/**
+	 * Returns true if this binary has been instrumented for collection of data needed for profile-guided optimization (PGO)
+	 * This value is not expected to change during the run-time
+	 */
+	static CORE_API bool IsPGICapableBinary();
+
+	/**
+	 * On platforms that support run-time PGI on/off, starts a new collection with a given file name.
+	 *
+	 * @param AbsoluteFileName File to put the collection into
+	 * @return true if everything was successful
+	 */
+	static CORE_API bool StartNewPGOCollection(const FString& AbsoluteFileName) { return false; }
+
+	/**
+	 * Returns true if PGI (profile-guided instrumentation, needed for PGO) is currently ongoing.
+	 * Note that on some platforms can start and stop profile data collection.
+	 */
+	static CORE_API bool IsPGIActive();
+
+	/**
+	 * On platforms that support run-time PGI on/off, stops the current collection and writes out the file (or completes its write).
+	 * The filename must have been given to the StartNewPGICollection() at the start of collection (it is needed in advance since the
+	 * collection process may stream to it).
+	 *
+	 * @return true if everything was successful
+	 */
+	static CORE_API bool StopPGOCollectionAndCloseFile() { return false; }
+
 	static CORE_API void ShowConsoleWindow();
 
 	/*

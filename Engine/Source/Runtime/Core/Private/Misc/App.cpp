@@ -428,7 +428,7 @@ void FApp::PrintStartupLogMessages()
 	UE_LOG(LogInit, Log, TEXT("This binary is optimized with LTO: %s, PGO: %s, instrumented for PGO data collection: %s"),
 		PLATFORM_COMPILER_OPTIMIZATION_LTCG ? TEXT("yes") : TEXT("no"),
 		FPlatformMisc::IsPGOEnabled() ? TEXT("yes") : TEXT("no"),
-		PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING ? TEXT("yes") : TEXT("no")
+		FPlatformMisc::IsPGICapableBinary() ? TEXT("yes") : TEXT("no")
 	);
 
 	FDevVersionRegistration::DumpVersionsToLog();

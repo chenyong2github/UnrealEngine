@@ -111,6 +111,12 @@ struct FUnixPlatformMisc : public FGenericPlatformMisc
 	 */
 	static CORE_API bool HasBeenStartedRemotely();
 
+#if ENABLE_PGO_PROFILE
+	static bool StartNewPGOCollection(const FString& AbsoluteFileName);
+	static bool IsPGIActive();
+	static bool StopPGOCollectionAndCloseFile();
+#endif
+
 	/**
 	 * Determines if return code has been overriden and returns it.
 	 *

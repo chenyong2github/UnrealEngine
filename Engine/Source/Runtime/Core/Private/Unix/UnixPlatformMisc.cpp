@@ -2017,3 +2017,61 @@ bool FUnixPlatformMisc::SetupSyscallFilters()
 
 	return true;
 }
+
+#if ENABLE_PGO_PROFILE
+// presence of this symbol prevents automatic PGI initialization
+int CORE_API __llvm_profile_runtime = 0;
+
+namespace UnixPlatformMisc
+{
+	bool GPGICollectionUnderway = false;
+}
+
+extern "C"
+{
+	void __llvm_profile_initialize_file(void);
+	int __llvm_profile_write_file(void);
+	void __llvm_profile_reset_counters(void);
+};
+
+bool FUnixPlatformMisc::StartNewPGODataCollection(const FString& AbsoluteFileName)
+{ 
+	const TCHAR* ProfFileEnvVar = TEXT("LLVM_PROFILE_FILE");
+	if (FPlatformMisc::IsPGIActive())
+	{
+		UE_LOG(LogHAL, Error, TEXT("Profiling data collection is already under way! (file being written is '%s'"), *FPlatformMisc::GetEnvironmentVariable(ProfFileEnvVar));
+		return false;
+	}
+
+	UnixPlatformMisc::GPGICollectionUnderway = true;
+	FPlatformMisc::SetEnvironmentVar(ProfFileEnvVar, *AbsoluteFileName);
+	UE_LOG(LogHAL, Log, TEXT("Starting PGI data collection to file '%s'"), *AbsoluteFileName);
+	__llvm_profile_reset_counters();
+	__llvm_profile_initialize_file();
+	return true;
+};
+
+bool FUnixPlatformMisc::IsPGIActive()
+{
+	return UnixPlatformMisc::GPGICollectionUnderway;
+}
+
+
+bool FUnixPlatformMisc::StopPGOCollectionAndCloseFile()
+{
+	if (!FPlatformMisc::IsPGIActive())
+	{
+		UE_LOG(LogHAL, Warning, TEXT("Cannot stop PGO data collection, it was not started."));
+		return false;
+	}
+
+	UE_LOG(LogHAL, Log, TEXT("Stopping PGO data collection."));
+
+	if (__llvm_profile_write_file() != 0)
+	{
+		UE_LOG(LogHAL, Error, TEXT("Error writing out PGO file."));
+	}
+	UnixPlatformMisc::GPGICollectionUnderway = false;
+	return true;
+}
+#endif
