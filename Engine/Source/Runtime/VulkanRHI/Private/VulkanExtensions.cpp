@@ -35,6 +35,15 @@ TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar(
 	ECVF_ReadOnly
 );
 
+TAutoConsoleVariable<int32> GRHIAllow16bitOps(
+	TEXT("r.Vulkan.Allow16bitOps"),
+	0,
+	TEXT("Whether to enable 16bit ops to speeds up TSR\n")
+	TEXT("0 to disable (default)\n")
+	TEXT("1 to enable"),
+	ECVF_ReadOnly
+);
+
 TAutoConsoleVariable<int32> GVulkanRayTracingCVar(
 	TEXT("r.Vulkan.RayTracing"),
 	1,
@@ -1178,6 +1187,81 @@ private:
 	VkPhysicalDeviceDescriptorBufferFeaturesEXT DescriptorBufferFeatures;
 };
 
+// ***** VK_KHR_16bit_storage
+class FVulkanKHR16BitStorageExtension : public FVulkanDeviceExtension
+{
+public:
+
+	FVulkanKHR16BitStorageExtension(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_KHR_16BIT_STORAGE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
+	{
+		bEnabledInCode = bEnabledInCode && (GRHIAllow16bitOps.GetValueOnAnyThread() != 0);
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(Device16BitStorageFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR);
+		AddToPNext(PhysicalDeviceFeatures2, Device16BitStorageFeatures);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		bRequirementsPassed = (
+			Device16BitStorageFeatures.storageBuffer16BitAccess == VK_TRUE &&
+			Device16BitStorageFeatures.uniformAndStorageBuffer16BitAccess == VK_TRUE &&
+			Device16BitStorageFeatures.storagePushConstant16 == VK_TRUE);
+		ExtensionFlags.HasKHR16bitStorage = bRequirementsPassed;
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		if (bRequirementsPassed)
+		{
+			AddToPNext(DeviceCreateInfo, Device16BitStorageFeatures);
+		}
+	}
+
+	VkPhysicalDevice16BitStorageFeaturesKHR Device16BitStorageFeatures;
+};
+
+// ***** VK_KHR_shader_float16_int8
+class FVulkanKHRShaderFloat16Int8Extension : public FVulkanDeviceExtension
+{
+public:
+
+	FVulkanKHRShaderFloat16Int8Extension(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
+	{
+		bEnabledInCode = bEnabledInCode && (GRHIAllow16bitOps.GetValueOnAnyThread() != 0);
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(ShaderFloat16Int8Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR);
+		AddToPNext(PhysicalDeviceFeatures2, ShaderFloat16Int8Features);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		bRequirementsPassed = (ShaderFloat16Int8Features.shaderFloat16 == VK_TRUE);
+		ExtensionFlags.HasKHRShaderFloat16 = bRequirementsPassed;
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		// The PreCreateDevice() call is after all extension have gone through PostPhysicalDeviceFeatures(), so ExtensionFlags will be filled for both.
+		const FOptionalVulkanDeviceExtensions& ExtensionFlags = Device->GetOptionalExtensions();
+		GRHIGlobals.SupportsNative16BitOps = ExtensionFlags.HasKHR16bitStorage && ExtensionFlags.HasKHRShaderFloat16;
+
+		if (bRequirementsPassed)
+		{
+			AddToPNext(DeviceCreateInfo, ShaderFloat16Int8Features);
+		}
+	}
+
+	VkPhysicalDeviceShaderFloat16Int8Features  ShaderFloat16Int8Features;
+};
+
 
 
 
@@ -1258,6 +1342,8 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanEXTDescriptorBuffer);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTDeviceFaultExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTShaderDemoteToHelperInvocationExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanKHR16BitStorageExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanKHRShaderFloat16Int8Extension);
 
 	// Needed for Raytracing
 	ADD_CUSTOM_EXTENSION(FVulkanKHRBufferDeviceAddressExtension);

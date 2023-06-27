@@ -2374,6 +2374,11 @@ static bool CompileWithShaderConductor(
 	Options.bDisableScalarBlockLayout = !(bIsRayTracingShader || 
 		MinTargetEnvironment >= CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_3);
 
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_AllowRealTypes))
+	{
+		Options.bEnable16bitTypes = true;
+	}
+
 	// Enable HLSL 2021 if specified
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021))
 	{
@@ -2621,6 +2626,11 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
 	{
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_INLINE_RAY_TRACING"), 1);
+	}
+
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_AllowRealTypes))
+	{
+		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_REAL_TYPES"), 1);
 	}
 
 	if (MinTargetEnvironment >= CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1)

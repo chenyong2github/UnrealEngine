@@ -62,6 +62,7 @@ struct FOptionalVulkanDeviceExtensions
 
 			// Promoted to 1.1
 			uint64 HasKHRMultiview : 1;
+			uint64 HasKHR16bitStorage : 1;
 
 			// Promoted to 1.2
 			uint64 HasKHRRenderPass2 : 1;
@@ -71,6 +72,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasBufferDeviceAddress : 1;
 			uint64 HasSPIRV_14 : 1;
 			uint64 HasShaderFloatControls : 1;
+			uint64 HasKHRShaderFloat16 : 1;
 			uint64 HasEXTDescriptorIndexing : 1;
 			uint64 HasEXTShaderViewportIndexLayer : 1;
 			uint64 HasSeparateDepthStencilLayouts : 1;

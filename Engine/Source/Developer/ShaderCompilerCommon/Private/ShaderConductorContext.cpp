@@ -384,22 +384,29 @@ namespace CrossCompiler
 		}
 
 		using ETargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment;
-		switch (InOptions.TargetEnvironment)
+		if (OutOptions.enable16bitTypes)
 		{
-		default:
-			checkf(false, TEXT("Unexpected SPIR-V target environment: %d"), (uint32)InOptions.TargetEnvironment);
-		case ETargetEnvironment::Vulkan_1_0:
-			DxcArgRefs.Add("-fspv-target-env=vulkan1.0");
-			break;
-		case ETargetEnvironment::Vulkan_1_1:
-			DxcArgRefs.Add("-fspv-target-env=vulkan1.1");
-			break;
-		case ETargetEnvironment::Vulkan_1_2:
-			DxcArgRefs.Add("-fspv-target-env=vulkan1.2");
-			break;
-		case ETargetEnvironment::Vulkan_1_3:
-			DxcArgRefs.Add("-fspv-target-env=vulkan1.3");
-			break;
+			DxcArgRefs.Add("-fspv-target-env=universal1.5");
+		}
+		else
+		{
+			switch (InOptions.TargetEnvironment)
+			{
+			default:
+				checkf(false, TEXT("Unexpected SPIR-V target environment: %d"), (uint32)InOptions.TargetEnvironment);
+			case ETargetEnvironment::Vulkan_1_0:
+				DxcArgRefs.Add("-fspv-target-env=vulkan1.0");
+				break;
+			case ETargetEnvironment::Vulkan_1_1:
+				DxcArgRefs.Add("-fspv-target-env=vulkan1.1");
+				break;
+			case ETargetEnvironment::Vulkan_1_2:
+				DxcArgRefs.Add("-fspv-target-env=vulkan1.2");
+				break;
+			case ETargetEnvironment::Vulkan_1_3:
+				DxcArgRefs.Add("-fspv-target-env=vulkan1.3");
+				break;
+			}
 		}
 
 		if (DxcArgRefs.Num() > 0)
@@ -541,6 +548,17 @@ namespace CrossCompiler
 
 		ShaderConductor::Compiler::Options ScOptions;
 		ConvertScOptions(Options, ScOptions, {}, Intermediates->DxcArgRefs);
+
+		// ShaderConductor.cpp forgot to pipedown enable16bitTypes, so work arround by adding the parameter manually in here.
+		TArray<ANSICHAR const*> PatchedDxcArgRefs;
+		if (ScOptions.enable16bitTypes)
+		{
+			PatchedDxcArgRefs = Intermediates->DxcArgRefs;
+			PatchedDxcArgRefs.Add("-enable-16bit-types");
+
+			ScOptions.numDXCArgs = PatchedDxcArgRefs.Num();
+			ScOptions.DXCArgs = (const char**)PatchedDxcArgRefs.GetData();
+		}
 
 		// Rewrite HLSL with wrapper function to catch exceptions from ShaderConductor
 		bool bSucceeded = false;
