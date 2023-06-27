@@ -67,8 +67,21 @@ bool UNiagaraStackSummaryViewCollection::GetIsEnabled() const
 	return true;
 }
 
-void UNiagaraStackSummaryViewCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+void UNiagaraStackSummaryViewCollection::RefreshForAdvancedToggle()
 {
+	if (!IsFinalized())
+	{
+		CacheLastActiveSection();
+		// category visibility will be determined by filtered children, so we need to refresh them before updating cached section data
+		RefreshFilteredChildren();
+		UpdateCachedSectionData();
+		// as section data might have changed, we now have to refresh filtered children again
+		RefreshFilteredChildren();
+	}
+}
+
+void UNiagaraStackSummaryViewCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{	
 	TSharedPtr<FNiagaraEmitterViewModel> ViewModel = GetEmitterViewModel();
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ViewModel->GetSharedScriptViewModel();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not refresh children when the script view model has been deleted."));
@@ -557,6 +570,7 @@ void UNiagaraStackSummaryViewCollection::OnViewStateChanged()
 {
 	if (!IsFinalized())
 	{
+		CacheLastActiveSection();
 		UpdateCachedSectionData();
 		RefreshChildren();
 	}

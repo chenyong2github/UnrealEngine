@@ -72,7 +72,7 @@ void SNiagaraStackFunctionInputCollection::InputCollectionStructureChanged(ENiag
 
 ECheckBoxState SNiagaraStackFunctionInputCollection::GetSectionCheckState(FText Section) const
 {
-	return Section.IdenticalTo(PropertyCollection->GetActiveSection()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return Section.EqualTo(PropertyCollection->GetActiveSection()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void SNiagaraStackFunctionInputCollection::OnSectionChecked(ECheckBoxState CheckState, FText Section)

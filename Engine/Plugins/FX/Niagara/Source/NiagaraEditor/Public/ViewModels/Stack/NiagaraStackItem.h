@@ -62,6 +62,8 @@ private:
 
 	NIAGARAEDITOR_API void ToggleShowAdvanced();
 
+	virtual void ToggleShowAdvancedInternal();
+
 protected:
 	FOnModifiedGroupItems ModifiedGroupItemsDelegate;
 	FOnRequestCanPaste RequestCanPasteDelegete;

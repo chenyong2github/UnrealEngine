@@ -90,6 +90,14 @@ FText UNiagaraStackValueCollection::GetTooltipForSection(FString Section) const
 	return FText::GetEmpty();
 }
 
+void UNiagaraStackValueCollection::CacheLastActiveSection()
+{
+	if(ActiveSectionCache.IsSet())
+	{
+		LastActiveSection = ActiveSectionCache.GetValue();
+	}
+}
+
 bool UNiagaraStackValueCollection::GetCanExpand() const
 {
 	return bShouldDisplayLabel;

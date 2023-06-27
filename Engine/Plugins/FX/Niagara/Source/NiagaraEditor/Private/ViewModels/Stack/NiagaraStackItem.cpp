@@ -130,6 +130,11 @@ void UNiagaraStackItem::ToggleShowAdvanced()
 {
 	bool bCurrentShowAdvanced = GetStackEditorData().GetStackItemShowAdvanced(GetStackEditorDataKey(), false);
 	GetStackEditorData().SetStackItemShowAdvanced(GetStackEditorDataKey(), !bCurrentShowAdvanced);
+	ToggleShowAdvancedInternal();
+}
+
+void UNiagaraStackItem::ToggleShowAdvancedInternal()
+{
 	RefreshFilteredChildren();
 }
 

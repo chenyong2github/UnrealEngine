@@ -78,15 +78,14 @@ public:
 protected:
 
 	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-
+	virtual void ToggleShowAdvancedInternal() override;
 private:
 	NIAGARAEDITOR_API void SelectSummaryNodesFromEmitterEditorDataRootNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected);
-
 private:
 	FVersionedNiagaraEmitterWeakPtr Emitter;
 
 	UPROPERTY()
-	TObjectPtr<UNiagaraStackSummaryViewCollection> FilteredObject;
+	TObjectPtr<UNiagaraStackSummaryViewCollection> SummaryViewCollection;
 };
 
 UCLASS(MinimalAPI)

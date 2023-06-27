@@ -23,7 +23,8 @@ public:
 
 	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
 	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
-	
+
+	void RefreshForAdvancedToggle();
 protected:
 	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 

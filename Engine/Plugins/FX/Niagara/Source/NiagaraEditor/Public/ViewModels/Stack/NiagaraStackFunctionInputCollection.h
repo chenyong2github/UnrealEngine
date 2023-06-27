@@ -32,6 +32,8 @@ public:
 	NIAGARAEDITOR_API void SetActiveSection(FText InActiveSection);
 
 	NIAGARAEDITOR_API FText GetTooltipForSection(FString Section) const;
+
+	void CacheLastActiveSection();
 public:
 	static NIAGARAEDITOR_API FText UncategorizedName;
 

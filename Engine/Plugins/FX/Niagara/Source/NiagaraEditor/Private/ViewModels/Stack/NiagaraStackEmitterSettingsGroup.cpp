@@ -311,15 +311,21 @@ FText UNiagaraStackEmitterSummaryItem::GetIconText() const
 
 void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	if (FilteredObject == nullptr)
+	if (SummaryViewCollection == nullptr)
 	{
-		FilteredObject = NewObject<UNiagaraStackSummaryViewCollection>(this);
+		SummaryViewCollection = NewObject<UNiagaraStackSummaryViewCollection>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
-		FilteredObject->Initialize(RequiredEntryData, Emitter, GetStackEditorDataKey());
+		SummaryViewCollection->Initialize(RequiredEntryData, Emitter, GetStackEditorDataKey());
 	}
 
-	NewChildren.Add(FilteredObject);
+	NewChildren.Add(SummaryViewCollection);
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+void UNiagaraStackEmitterSummaryItem::ToggleShowAdvancedInternal()
+{
+	// this will cause section data & filtered children to be refreshed while caching the last active section
+	SummaryViewCollection->RefreshForAdvancedToggle();
 }
 
 TSharedPtr<IDetailTreeNode> GetSummarySectionsPropertyNode(const TArray<TSharedRef<IDetailTreeNode>>& Nodes)
