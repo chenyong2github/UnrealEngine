@@ -130,7 +130,7 @@ public:
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action, meta=(DisplayAfter="Triggers"))
 	TArray<TObjectPtr<UInputModifier>> Modifiers;
 
-private:
+protected:
 
 	/**
 	* Holds setting information about this Action Input for setting screen and save purposes.
