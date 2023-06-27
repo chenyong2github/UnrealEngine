@@ -149,7 +149,7 @@ TOptional<FTask> FDatasmithDispatcher::GetNextTask()
 	}
 
 	TaskPool[NextTaskIndex].State = ETaskState::Running;
-	UE_LOG(LogDatasmithDispatcher, Display, TEXT(" Launch %s (%d / %d)"), *TaskPool[NextTaskIndex].FileDescription.GetSourcePath(), NextTaskIndex, TaskPool.Num());
+	UE_LOG(LogDatasmithDispatcher, Display, TEXT("Launch %s (%d / %d)"), *TaskPool[NextTaskIndex].FileDescription.GetSourcePath(), NextTaskIndex, TaskPool.Num());
 
 	return TaskPool[NextTaskIndex++];
 }
@@ -182,9 +182,10 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 		{
 			if (Task.Mesher == CADLibrary::EMesher::CADKernel)
 			{
-				UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Task failed with CADKernel: %s"), *Task.FileDescription.GetFileName());
-				UE_LOG(LogDatasmithDispatcher, Log, TEXT("      => Add task to process with Techsoft"));
+				UE_LOG(LogDatasmithDispatcher, Warning, TEXT("   - Task failed with CADKernel: %s"), *Task.FileDescription.GetFileName());
+				UE_LOG(LogDatasmithDispatcher, Warning, TEXT("      => Add task to process with Techsoft"));
 				AddTask(Task.FileDescription, CADLibrary::EMesher::TechSoft);
+				TaskState = ETaskState::UnTreated;
 			}
 
 			CompletedTaskCount++;

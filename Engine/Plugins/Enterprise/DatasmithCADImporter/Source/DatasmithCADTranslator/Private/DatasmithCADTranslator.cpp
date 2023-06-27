@@ -169,7 +169,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	{
 		if (Value < MinValue)
 		{
-			UE_LOG(LogCADTranslator, Warning, TEXT("%s value (%f) of tessellation parameters is smaller than the minimal value %f. It's value is modified to respect the limit"), ParameterName, Value, MinValue);
+			UE_LOG(LogCADTranslator, Warning, TEXT("%s value (%lf) of tessellation parameters is smaller than the minimal value %lf. It's value is modified to respect the limit"), ParameterName, Value, MinValue);
 			return MinValue;
 		}
 		return Value;
@@ -182,9 +182,9 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
 
 	UE_LOG(LogCADTranslator, Display, TEXT(" - Import parameters:"));
-	UE_LOG(LogCADTranslator, Display, TEXT("     - ChordTolerance:     %f"), ImportParameters.GetChordTolerance());
-	UE_LOG(LogCADTranslator, Display, TEXT("     - MaxEdgeLength:      %f"), ImportParameters.GetMaxEdgeLength());
-	UE_LOG(LogCADTranslator, Display, TEXT("     - MaxNormalAngle:     %f"), ImportParameters.GetMaxNormalAngle());
+	UE_LOG(LogCADTranslator, Display, TEXT("     - ChordTolerance:     %lf"), ImportParameters.GetChordTolerance());
+	UE_LOG(LogCADTranslator, Display, TEXT("     - MaxEdgeLength:      %lf"), ImportParameters.GetMaxEdgeLength());
+	UE_LOG(LogCADTranslator, Display, TEXT("     - MaxNormalAngle:     %lf"), ImportParameters.GetMaxNormalAngle());
 	FString StitchingTechnique;
 	switch(ImportParameters.GetStitchingTechnique())
 	{
