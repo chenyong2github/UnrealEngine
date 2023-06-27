@@ -91,6 +91,25 @@ bool FObjectMixerEditorListRowData::HasAtLeastOneChildThatIsNotSolo(const TShare
 	return false;
 }
 
+FText FObjectMixerEditorListRowData::GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem) const
+{
+	const FText Override = GetDisplayNameOverride();
+	if (!Override.IsEmpty())
+	{
+		return Override;
+	}
+
+	if (const UObjectMixerObjectFilter* Filter = GetMainObjectFilterInstance())
+	{
+		if (const TObjectPtr<UObject> Object = FObjectMixerUtils::GetRowObject(InTreeItem))
+		{
+			return Filter->GetRowDisplayName(Object, GetIsHybridRow());
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
 TWeakPtr<SObjectMixerEditorList> FObjectMixerEditorListRowData::GetListView() const
 {
 	if (SceneOutlinerPtr.IsValid())
