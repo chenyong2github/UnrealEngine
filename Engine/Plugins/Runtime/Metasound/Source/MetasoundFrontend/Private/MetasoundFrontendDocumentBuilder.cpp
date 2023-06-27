@@ -1938,8 +1938,19 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveGraphInput(FName InInputName)
 			if (Index != INDEX_NONE)
 			{
 				DocumentDelegates->InterfaceDelegates.OnRemovingInput.Broadcast(Index);
+
+				const int32 LastIndex = Inputs.Num() - 1;
+				if (Index != LastIndex)
+				{
+					DocumentDelegates->InterfaceDelegates.OnRemovingInput.Broadcast(LastIndex);
+				}
 				constexpr bool bAllowShrinking = false;
 				Inputs.RemoveAtSwap(Index, 1, bAllowShrinking);
+				if (Index != LastIndex)
+				{
+					DocumentDelegates->InterfaceDelegates.OnInputAdded.Broadcast(Index);
+				}
+
 				if (IsDependencyReferenced(ClassID))
 				{
 					return true;
@@ -1971,8 +1982,19 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveGraphOutput(FName InOutputName)
 			if (Index != INDEX_NONE)
 			{
 				DocumentDelegates->InterfaceDelegates.OnRemovingOutput.Broadcast(Index);
+
+				const int32 LastIndex = Outputs.Num() - 1;
+				if (Index != LastIndex)
+				{
+					DocumentDelegates->InterfaceDelegates.OnRemovingOutput.Broadcast(LastIndex);
+				}
 				constexpr bool bAllowShrinking = false;
 				Outputs.RemoveAtSwap(Index, 1, bAllowShrinking);
+				if (Index != LastIndex)
+				{
+					DocumentDelegates->InterfaceDelegates.OnOutputAdded.Broadcast(Index);
+				}
+
 				if (IsDependencyReferenced(ClassID))
 				{
 					return true;
