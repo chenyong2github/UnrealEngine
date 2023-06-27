@@ -63,7 +63,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Streaming Ops"), STAT_MutableStreami
 
 extern TAutoConsoleVariable<bool> CVarClearWorkingMemoryOnUpdateEnd;
 
-extern TAutoConsoleVariable<bool> CVarEnableImageCache;
+extern TAutoConsoleVariable<bool> CVarReuseImagesBetweenInstances;
 
 
 #if WITH_EDITOR
@@ -427,7 +427,6 @@ private:
 	TMap<FString, int64> PlatformMaxChunkSize;
 	
 #endif
-	void OnEnableImageCacheChanged(IConsoleVariable* CVar);
 	
 	// Friends
 	friend class FCustomizableObjectSystemPrivate;

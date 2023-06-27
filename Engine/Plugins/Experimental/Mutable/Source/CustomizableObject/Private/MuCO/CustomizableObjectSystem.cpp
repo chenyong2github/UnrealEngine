@@ -95,10 +95,10 @@ TAutoConsoleVariable<bool> CVarClearWorkingMemoryOnUpdateEnd(
 	ECVF_Scalability);
 
 
-TAutoConsoleVariable<bool> CVarEnableImageCache(
-	TEXT("mutable.EnableImageCache"),
+TAutoConsoleVariable<bool> CVarReuseImagesBetweenInstances(
+	TEXT("mutable.ReuseImagesBetweenInstances"),
 	true,
-	TEXT("Enables or disables the Instance Image Cache. Avoids regenerating images when no parameters or mips have changed."),
+	TEXT("Enables or disables the reuse of images between instances."),
 	ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarGeneratedResourcesCacheSize(
@@ -381,8 +381,6 @@ void UCustomizableObjectSystem::InitSystem()
 	DefaultInstanceLODManagement = NewObject<UCustomizableInstanceLODManagement>();
 	check(DefaultInstanceLODManagement != nullptr);
 	CurrentInstanceLODManagement = DefaultInstanceLODManagement;
-
-	CVarEnableImageCache->SetOnChangedCallback(FConsoleVariableDelegate::CreateUObject(this, &UCustomizableObjectSystem::OnEnableImageCacheChanged));
 }
 
 
@@ -1547,16 +1545,8 @@ namespace impl
 				Image.FullImageSizeY = ImageDesc.m_size[1] / Reduction;
 			}
 
-			bool bCached = false;
-
-			// See if it is cached from this same instance (can happen with LODs)
-			bCached = ImagesInThisInstance.Contains(Image.ImageID);
-
-			// See if it is cached from another instance
-			if (!bCached)
-			{
-				bCached = CustomizableObjectSystemPrivateData->ProtectedObjectCachedImages.Contains(Image.ImageID);
-			}
+			const bool bCached = ImagesInThisInstance.Contains(Image.ImageID) || // See if it is cached from this same instance (can happen with LODs)
+				(CVarReuseImagesBetweenInstances.GetValueOnAnyThread() && CustomizableObjectSystemPrivateData->ProtectedObjectCachedImages.Contains(Image.ImageID)); // See if it is cached from another instance
 
 			if (bCached)
 			{
@@ -1633,7 +1623,6 @@ namespace impl
 				ImagesInThisInstance.Add(Image.ImageID);
 			}
 		}
-
 	}
 	
 
@@ -3286,18 +3275,6 @@ uint64 UCustomizableObjectSystem::GetMaxChunkSizeForPlatform(const ITargetPlatfo
 }
 
 #endif // WITH_EDITOR
-
-
-void UCustomizableObjectSystem::OnEnableImageCacheChanged(IConsoleVariable* CVar)
-{
-	if (!CVar->GetBool())
-	{		
-		for (FMutableResourceCache& Cache : GetPrivate()->ModelResourcesCache)
-		{
-			Cache.Images.Empty();
-		}
-	}	
-}
 
 
 void UCustomizableObjectSystem::CacheImage(FString ImageId)

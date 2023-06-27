@@ -5962,7 +5962,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 											ReuseTexture(Texture);
 										}
 										else if (Texture)
-										{
+										{	
 											//if (!bNeverStream) // No need to check bNeverStream. In that case, the texture won't use 
 											// the MutableMipDataProviderFactory anyway and it's needed for detecting Mutable textures elsewhere
 											{
@@ -5990,11 +5990,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 										}
 									}
 
-									// update the model resources cache
-									if (CVarEnableImageCache.GetValueOnGameThread())
-									{
-										Cache.Images.Add(ImageCacheKey, Texture);						
-									}
+									Cache.Images.Add(ImageCacheKey, Texture);						
 								}
 								else
 								{
