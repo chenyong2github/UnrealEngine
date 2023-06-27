@@ -12,6 +12,7 @@ class UChaosClothComponent;
 class FAssetEditorModeManager;
 class UAnimationAsset;
 class UAnimSingleNodeInstance;
+class FTransformGizmoDataBinder;
 
 namespace UE::Chaos::ClothAsset
 {
@@ -39,14 +40,26 @@ public:
 	TObjectPtr<USkeletalMesh> SkeletalMeshAsset;
 
 	UPROPERTY(EditAnywhere, Transient, Category = "SkeletalMesh")
-	FTransform SkeletalMeshTransform;
-
-	UPROPERTY(EditAnywhere, Transient, Category = "SkeletalMesh")
 	TObjectPtr<UAnimationAsset> AnimationAsset;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Transform")
+	FVector3d Translation = FVector3d::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Transform")
+	FVector3d Rotation = FVector3d::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Transform", Meta = (AllowPreserveRatio))
+	FVector3d Scale = FVector3d::OneVector;
+
+	// TODO: We should be able to hook this boolean property up to the EditCondition meta tag for the properties above and toggle it
+	// on and off when the selection changes in the scene. However the EditCondition does not seem to propagate for some reason, 
+	// even if we manually call PostEditChangeProperty() after toggling it. It will take some more digging to figure out exactly
+	// what's going on. (UE-189504)
+	//UPROPERTY(Transient)
+	//bool bValidSelectionForTransform = true;
 
 private:
 
-	// Listen for changes to the scene description members and notify the PreviewScene
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
@@ -88,6 +101,8 @@ public:
 	void SetModeManager(TSharedPtr<FAssetEditorModeManager> InClothPreviewEditorModeManager);
 	const TSharedPtr<const FAssetEditorModeManager> GetClothPreviewEditorModeManager() const;
 
+	void SetGizmoDataBinder(TSharedPtr<FTransformGizmoDataBinder> InDataBinder);
+
 private:
 
 	// Create the PreviewAnimationInstance if the AnimationAsset and SkeletalMesh both exist, and set the animation to run on the SkeletalMeshComponent
@@ -95,9 +110,6 @@ private:
 
 	// Attach the cloth component to the skeletal mesh component, if it exists
 	void UpdateClothComponentAttachment();
-
-
-	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 
 	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
 
@@ -113,6 +125,7 @@ private:
 
 	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 
+	TSharedPtr<FTransformGizmoDataBinder> DataBinder = nullptr;
 };
 } // namespace UE::Chaos::ClothAsset
 

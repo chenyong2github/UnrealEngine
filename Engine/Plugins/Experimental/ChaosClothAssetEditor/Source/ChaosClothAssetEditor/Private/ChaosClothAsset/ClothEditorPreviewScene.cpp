@@ -11,6 +11,7 @@
 #include "ChaosClothAsset/ClothAsset.h"
 #include "SkinnedAssetCompiler.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "Transforms/TransformGizmoDataBinder.h"
 
 
 #define LOCTEXT_NAMESPACE "UChaosClothEditorPreviewScene"
@@ -26,7 +27,7 @@ void UChaosClothPreviewSceneDescription::PostEditChangeProperty(FPropertyChanged
 
 	if (PreviewScene)
 	{
-		PreviewScene->SceneDescriptionPropertyChanged(PropertyChangedEvent.GetPropertyName());
+		PreviewScene->SceneDescriptionPropertyChanged(PropertyChangedEvent.GetMemberPropertyName());
 	}
 }
 
@@ -57,7 +58,6 @@ FChaosClothPreviewScene::FChaosClothPreviewScene(FPreviewScene::ConstructionValu
 	SceneActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass());
 
 	SkeletalMeshComponent = NewObject<USkeletalMeshComponent>(SceneActor);
-	SkeletalMeshComponent->TransformUpdated.AddRaw(this, &FChaosClothPreviewScene::SkeletalMeshTransformChanged);
 	SkeletalMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
 	SkeletalMeshComponent->SetDisablePostProcessBlueprint(true);
 
@@ -151,11 +151,14 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(const FName& Prope
 		UpdateClothComponentAttachment();
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, SkeletalMeshTransform))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, Translation) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, Rotation) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, Scale))
 	{
-		check(SkeletalMeshComponent);
-
-		SkeletalMeshComponent->SetComponentToWorld(PreviewSceneDescription->SkeletalMeshTransform);
+		if (DataBinder)
+		{
+			DataBinder->UpdateAfterDataEdit();
+		}
 	}
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, AnimationAsset))
@@ -194,11 +197,6 @@ const TSharedPtr<const FAssetEditorModeManager> FChaosClothPreviewScene::GetClot
 	return ClothPreviewEditorModeManager;
 }
 
-void FChaosClothPreviewScene::SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
-{
-	ensure(UpdatedComponent == SkeletalMeshComponent);
-	PreviewSceneDescription->SkeletalMeshTransform = UpdatedComponent->GetComponentToWorld();
-}
 
 bool FChaosClothPreviewScene::IsComponentSelected(const UPrimitiveComponent* InComponent)
 {
@@ -238,6 +236,12 @@ const UAnimSingleNodeInstance* const FChaosClothPreviewScene::GetPreviewAnimInst
 {
 	return PreviewAnimInstance;
 }
+
+void FChaosClothPreviewScene::SetGizmoDataBinder(TSharedPtr<FTransformGizmoDataBinder> InDataBinder)
+{
+	DataBinder = InDataBinder;
+}
+
 } // namespace UE::Chaos::ClothAsset
 
 #undef LOCTEXT_NAMESPACE

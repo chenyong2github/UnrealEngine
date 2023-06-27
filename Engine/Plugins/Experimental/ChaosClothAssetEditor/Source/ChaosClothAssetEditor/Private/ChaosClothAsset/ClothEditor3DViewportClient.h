@@ -10,6 +10,7 @@ class UChaosClothComponent;
 class UChaosClothAssetEditorMode;
 class UTransformProxy;
 class UCombinedTransformGizmo;
+class FTransformGizmoDataBinder;
 
 namespace UE::Chaos::ClothAsset
 {
@@ -104,6 +105,7 @@ private:
 	// Gizmo support
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 	TObjectPtr<UCombinedTransformGizmo> Gizmo = nullptr;
+	TSharedPtr<FTransformGizmoDataBinder> DataBinder = nullptr;
 
 };
 } // namespace UE::Chaos::ClothAsset

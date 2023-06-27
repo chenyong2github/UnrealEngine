@@ -19,6 +19,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "AssetViewerSettings.h"
 #include "Editor/EditorPerProjectUserSettings.h"
+#include "Transforms/TransformGizmoDataBinder.h"
 
 namespace UE::Chaos::ClothAsset
 {
@@ -53,6 +54,12 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 	Gizmo->bUseContextCoordinateSystem = false;
 	Gizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
 
+	UChaosClothPreviewSceneDescription* const SceneDescription = InPreviewScene->GetPreviewSceneDescription();
+	DataBinder = MakeShared<FTransformGizmoDataBinder>();
+	DataBinder->InitializeBoundVectors(&SceneDescription->Translation, &SceneDescription->Rotation, &SceneDescription->Scale);
+
+	InPreviewScene->SetGizmoDataBinder(DataBinder);
+
 	// Set correct flags according to current profile settings
 	SetAdvancedShowFlagsForScene(UAssetViewerSettings::Get()->Profiles[GetMutableDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex].bPostProcessingEnabled);
 }
@@ -81,12 +88,18 @@ FChaosClothAssetEditor3DViewportClient::~FChaosClothAssetEditor3DViewportClient(
 
 void FChaosClothAssetEditor3DViewportClient::DeleteViewportGizmo()
 {
+	if (DataBinder && Gizmo && Gizmo->ActiveTarget)
+	{
+		DataBinder->UnbindFromGizmo(Gizmo, TransformProxy);
+	}
+
 	if (Gizmo && ModeTools && ModeTools->GetInteractiveToolsContext() && ModeTools->GetInteractiveToolsContext()->GizmoManager)
 	{
 		ModeTools->GetInteractiveToolsContext()->GizmoManager->DestroyGizmo(Gizmo);
 	}
 	Gizmo = nullptr;
 	TransformProxy = nullptr;
+	DataBinder = nullptr;
 }
 
 void FChaosClothAssetEditor3DViewportClient::AddReferencedObjects(FReferenceCollector& Collector)
@@ -350,6 +363,12 @@ void FChaosClothAssetEditor3DViewportClient::ComponentSelectionChanged(UObject* 
 
 	// Update TransformProxy
 
+	if (Gizmo && Gizmo->ActiveTarget)
+	{
+		DataBinder->UnbindFromGizmo(Gizmo, TransformProxy);
+		Gizmo->ClearActiveTarget();
+	}
+
 	TransformProxy = NewObject<UTransformProxy>();
 	TArray<USceneComponent*> Components;
 	SelectedComponents->GetSelectedObjects(Components);
@@ -365,12 +384,16 @@ void FChaosClothAssetEditor3DViewportClient::ComponentSelectionChanged(UObject* 
 		{
 			Gizmo->SetActiveTarget(TransformProxy);
 			Gizmo->SetVisibility(true);
+			DataBinder->BindToInitializedGizmo(Gizmo, TransformProxy);
 		}
 		else
 		{
-			Gizmo->ClearActiveTarget();
 			Gizmo->SetVisibility(false);
 		}
+
+		// TODO: Set UChaosClothPreviewSceneDescription::bValidSelectionForTransform here once we figure out why it's not
+		// properly affecting the EditCondition on the other properties (UE-189504)
+
 	}
 }
 
