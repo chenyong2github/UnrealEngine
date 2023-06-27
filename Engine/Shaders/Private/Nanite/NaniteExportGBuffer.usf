@@ -60,6 +60,7 @@ void MarkStencilPS(
 	}
 	else
 	{
+		OutDepth = 0.0f;
 		discard;
 	}
 }
@@ -106,6 +107,7 @@ void EmitMaterialDepthPS(
 	}
 	else
 	{
+		OutDepth = 0.0f;
 		discard;
 	}
 }
@@ -193,6 +195,13 @@ void EmitSceneDepthPS(
 	}
 	else
 	{
+#if SHADING_MASK_EXPORT
+		OutShadingMask = 0;
+#endif
+#if VELOCITY_EXPORT
+		OutVelocity = 0;
+#endif
+		OutDepth = 0.0f;
 		discard;
 	}
 }
@@ -320,8 +329,6 @@ void EmitHitProxyIdPS(
 	out float OutDepth			: SV_Depth
 )
 {
-	bool bValidExport = false;
-
 #if USE_EDITOR_SHADERS
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
@@ -331,7 +338,7 @@ void EmitHitProxyIdPS(
 	uint DepthInt = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	bValidExport = VisibleClusterIndex != 0xFFFFFFFFu;
+	bool bValidExport = VisibleClusterIndex != 0xFFFFFFFFu;
 	if (bValidExport)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
@@ -351,14 +358,17 @@ void EmitHitProxyIdPS(
 
 		OutDepth = asfloat(DepthInt);
 	}
-#endif // USE_EDITOR_SHADERS
-
-	if (!bValidExport)
+	else
 	{
 		OutHitProxyId = 0;
 		OutDepth = 0.0f;
 		discard;
 	}
+#else
+	OutHitProxyId = 0;
+	OutDepth = 0.0f;
+	discard;
+#endif // USE_EDITOR_SHADERS
 }
 
 float2 OutputToInputScale;

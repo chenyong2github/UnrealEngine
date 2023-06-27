@@ -129,6 +129,7 @@ bool AllocateVertexAndIndexRanges(uint VertexSize, uint IndexSize, out uint OutV
 	// allocate vertex range
 	if (!Allocate(VertexSize, VertexBufferSize, 0, OutVertexOffset))
 	{
+		OutIndexOffset = 0;
 		return false;
 	}
 
