@@ -5,17 +5,18 @@
 #include "ActorGroupRestoration.h"
 #include "ActorLabelRestoration.h"
 #include "AttachParentShowsTransformProperties.h"
+#include "CollisionRestoration.h"
+#include "GridPlacementRestoration.h"
 #include "LevelInstanceRestoration.h"
+#include "PCGRestoration.h"
 #include "SpecialActorPropertySupport.h"
-#include "SpecialSupport/CollisionRestoration.h"
-#include "SpecialSupport/GridPlacementRestoration.h"
 
 #include "Algo/Transform.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "EngineUtils.h"
 #include "MaterialInstanceSupport.h"
 #include "Engine/Brush.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/WorldSettings.h"
 #include "Materials/MaterialInstance.h"
 
 namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
@@ -130,5 +131,6 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		LevelInstanceRestoration::Register(Module);
 		MaterialInstanceSupport::Register(Module);
 		ActorLabelRestoration::Register(Module);
+		PCGRestoration::Register(Module);
 	}
 }

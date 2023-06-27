@@ -331,23 +331,40 @@ namespace UE::LevelSnapshots::Private::Internal
 	
 		// Not sure whether needed. "DELETE" command does in UUnrealEdEngine::Exec_Actor ...
 		FEditorDelegates::OnDeleteActorsBegin.Broadcast();
-	
+		
 		FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
 		TArray<AActor*> ActorsToDelete;
+		// Actors returning false from CanDeleteSelectedActor is skipped by DeleteActors: just call EditorDelete on them.
+		TArray<AActor*> UserManagedActors;
 		ActorsToDelete.Reserve(ActorsToDespawn.Num());
 		for (const TWeakObjectPtr<AActor>& ActorToDespawn : ActorsToDespawn)
 		{
-			if (ActorToDespawn.IsValid())
+			if (!ActorToDespawn.IsValid())
 			{
-				Module.OnPreRemoveActor({ PropertiesToSerialize, ActorToDespawn.Get() });
+				continue;
+			}
+
+			Module.OnPreRemoveActor({ PropertiesToSerialize, ActorToDespawn.Get() });
+			if (FText Dummy; ActorToDespawn->CanDeleteSelectedActor(Dummy))
+			{
 				ActorsToDelete.Add(ActorToDespawn.Get());
+			}
+			else
+			{
+				UserManagedActors.Add(ActorToDespawn.Get());
 			}
 		}
 
+		// DeleteActors handles advanced clean-up cases, such as proper transaction, group actors, level script, etc.
 		constexpr bool bVerifyDeletionCanHappen = true;
 		constexpr bool bWarnAboutReferences = false;
 		GUnrealEd->DeleteActors(ActorsToDelete, WorldToApplyTo, GUnrealEd->GetSelectedActors()->GetElementSelectionSet(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
-
+		// EditorDestroyActor for any actors returning false from CanDeleteSelectedActor (these are usually advanced tool specific actors, like level instances, PCG actors, etc.)
+		for (AActor* UserManagedActor : UserManagedActors)
+		{
+			UserManagedActor->GetWorld()->EditorDestroyActor(UserManagedActor, true);
+		}
+		
 		// ... and call the end event like in UUnrealEdEngine
 		FEditorDelegates::OnDeleteActorsEnd.Broadcast();
 #else

@@ -93,6 +93,28 @@ public:
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
 	//~ End UObject Interface
+
+#if WITH_EDITOR
+	enum class ECanDeleteMode
+	{
+		CallSuper,
+		Yes,
+		No
+	} DeleteSelectedActorMode = ECanDeleteMode::CallSuper;
+	bool bIsUserManaged = true;
+	
+	virtual bool CanDeleteSelectedActor(FText& OutReason) const override
+	{
+		switch (DeleteSelectedActorMode)
+		{
+		case ECanDeleteMode::Yes: return true;
+		case ECanDeleteMode::No: return false;
+		default:
+			return Super::CanDeleteSelectedActor(OutReason);
+		}
+	}
+	virtual bool IsUserManaged() const override  { return bIsUserManaged; }
+#endif
 	
 	
 	/******************** Skipped properties  ********************/

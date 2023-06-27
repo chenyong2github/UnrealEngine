@@ -7,6 +7,7 @@
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Algo/Count.h"
 #include "Misc/AutomationTest.h"
 
 // Bug fixes should generally be tested. Put tests for bug fixes here.
@@ -250,4 +251,32 @@ namespace UE::LevelSnapshots::Private::Tests
 
 		return true;
 	}
+
+#if WITH_EDITOR
+	/** Tests that actors implementing AActor::CanDeleteSelectedActor and AActor::IsUserManaged are properly removed. */
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUserManagedActors, "VirtualProduction.LevelSnapshots.Snapshot.Regression.UserManagedActors", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+	bool FUserManagedActors::RunTest(const FString& Parameters)
+	{
+		int32 NumActorsBeforeModify;
+		FSnapshotTestRunner()
+			.TakeSnapshot()
+			.ModifyWorld([&](UWorld* World)
+			{
+				NumActorsBeforeModify = Algo::CountIf(World->PersistentLevel->Actors, [](AActor* Actor){ return Actor != nullptr; });
+				
+				ASnapshotTestActor* NotDeletableActor = ASnapshotTestActor::Spawn(World);
+				ASnapshotTestActor* NotUserManagedActor = ASnapshotTestActor::Spawn(World);
+				NotDeletableActor->DeleteSelectedActorMode = ASnapshotTestActor::ECanDeleteMode::No;
+				NotUserManagedActor->bIsUserManaged = false;
+			})
+			.ApplySnapshot()
+			.ModifyWorld([&](UWorld* World)
+			{
+				const int32 NumActorsAfterRestore = Algo::CountIf(World->PersistentLevel->Actors, [](AActor* Actor){ return Actor != nullptr; });
+				TestEqual(TEXT("CanDeleteSelectedActor & IsUserManaged"), NumActorsAfterRestore, NumActorsBeforeModify);
+			});
+
+		return true;
+	}
+#endif
 }

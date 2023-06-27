@@ -49,7 +49,8 @@ public class LevelSnapshots : ModuleRules
 			PrivateDependencyModuleNames.AddRange( new string[]
 			{
 				"UnrealEd", // This is needed for undo / redo system in editor
-				"Settings"	// For registering settings
+				"Settings",	// For registering settings
+				"Projects"	// For determining enabled plugins
 			});
 		}
 	}

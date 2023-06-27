@@ -10,8 +10,8 @@
 
 #include "Algo/AllOf.h"
 #include "Components/ActorComponent.h"
-#include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
 #include "ISettingsModule.h"
@@ -66,8 +66,12 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::StartupModule()
 	);
 	RegisterRestorabilityOverrider(ClassSkipper);
 	
-	// Add support for engine features that require specialized case handling
-	EngineTypesRestorationFence::RegisterSpecialEngineTypeSupport(*this);
+	// Add support for engine features that require specialized case handling.
+	// Since we may depend on dynamic class look-ups (e.g. FPCGRestoration), this is done in OnPostEngineInit.
+	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
+	{
+		EngineTypesRestorationFence::RegisterSpecialEngineTypeSupport(*this);
+	});
 
 #if WITH_EDITOR
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
