@@ -40,9 +40,10 @@ public:
 	// Get the default author for a MetaSound asset
 	const FString GetDefaultAuthor();
 
-	// Copy over sound wave settings such as attenuation, modulation, and sound class from the template sound wave to the MetaSound 
-	void SetSoundWaveSettingsFromTemplate(UObject* NewMetasound, const USoundWave* TemplateSoundWave);
-
 	static UMetaSoundEditorSubsystem& GetChecked();
 	static const UMetaSoundEditorSubsystem& GetConstChecked(); 
+
+private:
+	// Copy over sound wave settings such as attenuation, modulation, and sound class from the template sound wave to the MetaSound 
+	void SetSoundWaveSettingsFromTemplate(USoundWave& NewMetasound, const USoundWave& TemplateSoundWave) const;
 };
