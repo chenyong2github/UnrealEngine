@@ -25,6 +25,7 @@
 #include "NiagaraWorldManager.generated.h"
 
 class FNiagaraDataChannelManager;
+class FNiagaraSimpleObjectPool;
 class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
@@ -223,6 +224,39 @@ public:
 
 	class FNiagaraDeferredMethodQueue& GetDeferredMethodQueue() { return DeferredMethods; }
 
+	/**
+	* Will create a new object or return one from the pool.
+	* Existing objects will not be unregistered / reset / sanitized, they come out exactly as they were put into the pool.
+	* You must hold a valid reference to the object or it will be GCed.
+	* New objects are outered to the world managers world.
+	* EXPERIMENTAL: This API is intended for internal use currently, it is subject to change
+	*/
+	NIAGARA_API UObject* ObjectPoolGetOrCreate(UClass* Class, bool& bIsExistingObject);
+	NIAGARA_API UObject* ObjectPoolGetOrCreate(UClass* Class);
+	
+	/**
+	* Returns an object to the pool
+	* You are expected to do any unregistering of the component and ensuring no references are held.
+	* EXPERIMENTAL: This API is intended for internal use currently, it is subject to change
+	*/
+	NIAGARA_API void ObjectPoolReturn(UObject* Obj);
+
+	template<class T>
+	T* ObjectPoolGetOrCreate() { return CastChecked<T>(ObjectPoolGetOrCreate(T::StaticClass())); }
+	template<class T>
+	T* ObjectPoolGetOrCreate(bool& bIsExistingObject) { return CastChecked<T>(ObjectPoolGetOrCreate(T::StaticClass(), bIsExistingObject)); }
+
+	/**
+	* Objects added here will have a strong reference held.
+	* EXPERIMENTAL: This API is intended for internal use currently, it is subject to change
+	*/
+	void AddReferencedObject(UObject* InObject) { check(!ReferencedObjects.Contains(InObject)); ReferencedObjects.Add(InObject); }
+	/**
+	* Removes an object from the WM references.
+	* EXPERIMENTAL: This API is intended for internal use currently, it is subject to change
+	*/
+	void RemoveReferencedObject(UObject* InObject) { check(ReferencedObjects.Contains(InObject)); ReferencedObjects.RemoveSwap(InObject); }
+
 	/** Is this component in anyway linked to the local player. */
 	static bool IsComponentLocalPlayerLinked(const USceneComponent* Component);
 
@@ -352,11 +386,14 @@ private:
 #endif
 
 	TMap<TObjectPtr<UNiagaraSystem>, TObjectPtr<UNiagaraCullProxyComponent>> CullProxyMap;
+	TArray<TObjectPtr<UObject>> ReferencedObjects;
 
 	/** A global flag for all scalability culling */
 	static ENiagaraScalabilityCullingMode ScalabilityCullingMode;
 
 	TUniquePtr<FNiagaraDataChannelManager> DataChannelManager;
+
+	TUniquePtr<FNiagaraSimpleObjectPool> ObjectPool;
 };
 
 

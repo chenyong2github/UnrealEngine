@@ -15,33 +15,20 @@ class UTextureRenderTarget2DArray;
 
 struct FRenderTarget2DArrayRWInstanceData_GameThread
 {
-	FRenderTarget2DArrayRWInstanceData_GameThread()
-	{
-#if WITH_EDITORONLY_DATA
-		bPreviewTexture = false;
-#endif
-	}
-
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	EPixelFormat Format = EPixelFormat::PF_A16B16G16R16;
 	TextureFilter Filter = TextureFilter::TF_Default;
 
+	bool bManagedTexture = false;
 	UTextureRenderTarget2DArray* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
-	uint32 bPreviewTexture : 1;
+	bool bPreviewTexture = false;
 #endif
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FRenderTarget2DArrayRWInstanceData_RenderThread
 {
-	FRenderTarget2DArrayRWInstanceData_RenderThread()
-	{
-#if WITH_EDITORONLY_DATA
-		bPreviewTexture = false;
-#endif
-	}
-
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	int MipLevels = 0;
 	bool bWroteThisFrame = false;
@@ -55,7 +42,7 @@ struct FRenderTarget2DArrayRWInstanceData_RenderThread
 	FRDGTextureUAVRef	TransientRDGUAV = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	uint32 bPreviewTexture : 1;
+	bool bPreviewTexture = false;
 #endif
 #if STATS
 	void UpdateMemoryStats();
@@ -88,7 +75,6 @@ class UNiagaraDataInterfaceRenderTarget2DArray : public UNiagaraDataInterfaceRWB
 
 public:
 	NIAGARA_API virtual void PostInitProperties() override;
-	virtual bool CanBeInCluster() const override { return false; }
 
 	//~ UNiagaraDataInterface interface
 	// VM functionality
@@ -162,7 +148,4 @@ public:
 
 protected:
 	static NIAGARA_API FNiagaraVariableBase ExposedRTVar;
-	
-	UPROPERTY(Transient, DuplicateTransient)
-	TMap<uint64, TObjectPtr<UTextureRenderTarget2DArray>> ManagedRenderTargets;
 };

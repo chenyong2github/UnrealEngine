@@ -439,8 +439,10 @@ bool UNiagaraDataInterfaceRenderTargetCube::InitPerInstanceData(void* PerInstanc
 
 void UNiagaraDataInterfaceRenderTargetCube::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
-	FRenderTargetCubeRWInstanceData_GameThread* InstanceData = static_cast<FRenderTargetCubeRWInstanceData_GameThread*>(PerInstanceData);
+	using namespace NDIRenderTargetCubeLocal;
 
+	FRenderTargetCubeRWInstanceData_GameThread* InstanceData = static_cast<FRenderTargetCubeRWInstanceData_GameThread*>(PerInstanceData);
+	NiagaraDataInterfaceRenderTargetCommon::ReleaseRenderTarget(SystemInstance, InstanceData);
 	InstanceData->~FRenderTargetCubeRWInstanceData_GameThread();
 
 	FNiagaraDataInterfaceProxyRenderTargetCubeProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTargetCubeProxy>();
@@ -458,13 +460,6 @@ void UNiagaraDataInterfaceRenderTargetCube::DestroyPerInstanceData(void* PerInst
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}
 	);
-
-	// Make sure to clear out the reference to the render target if we created one.
-	decltype(ManagedRenderTargets)::ValueType ExistingRenderTarget = nullptr;
-	if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && NiagaraDataInterfaceRenderTargetCommon::GReleaseResourceOnRemove)
-	{
-		ExistingRenderTarget->ReleaseResource();
-	}
 }
 
 
@@ -563,19 +558,16 @@ void UNiagaraDataInterfaceRenderTargetCube::VMSetFormat(FVectorVMExternalFunctio
 
 bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+	using namespace NDIRenderTargetCubeLocal;
+
 	FRenderTargetCubeRWInstanceData_GameThread* InstanceData = static_cast<FRenderTargetCubeRWInstanceData_GameThread*>(PerInstanceData);
 
 	// Pull from user parameter
 	UTextureRenderTargetCube* UserTargetTexture = InstanceData->RTUserParamBinding.GetValue<UTextureRenderTargetCube>();
 	if (UserTargetTexture && (InstanceData->TargetTexture != UserTargetTexture))
 	{
+		NiagaraDataInterfaceRenderTargetCommon::ReleaseRenderTarget(SystemInstance, InstanceData);
 		InstanceData->TargetTexture = UserTargetTexture;
-
-		decltype(ManagedRenderTargets)::ValueType ExistingRenderTarget = nullptr;
-		if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && NiagaraDataInterfaceRenderTargetCommon::GReleaseResourceOnRemove)
-		{
-			ExistingRenderTarget->ReleaseResource();
-		}
 	}
 
 	// Do we inherit the texture parameters from the user supplied texture?
@@ -607,6 +599,8 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTick(void* PerInstanceDat
 
 bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+	using namespace NDIRenderTargetCubeLocal;
+
 	// Update InstanceData as the texture may have changed
 	FRenderTargetCubeRWInstanceData_GameThread* InstanceData = static_cast<FRenderTargetCubeRWInstanceData_GameThread*>(PerInstanceData);
 #if WITH_EDITORONLY_DATA
@@ -624,15 +618,16 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 	// Do we need to create a new texture?
 	if (bValidGpuDataInterface && !bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
 	{
-		InstanceData->TargetTexture = NewObject<UTextureRenderTargetCube>(this);
+		if (NiagaraDataInterfaceRenderTargetCommon::CreateRenderTarget<UTextureRenderTargetCube>(SystemInstance, InstanceData) == false)
+		{
+			return false;
+		}
 		InstanceData->TargetTexture->bCanCreateUAV = true;
 		//InstanceData->TargetTexture->bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
 		InstanceData->TargetTexture->Filter = InstanceData->Filter;
 		InstanceData->TargetTexture->Init(InstanceData->Size, InstanceData->Format);
 		InstanceData->TargetTexture->UpdateResourceImmediate(true);
-
-		ManagedRenderTargets.Add(SystemInstance->GetId()) = InstanceData->TargetTexture;
 	}
 
 	// Do we need to update the existing texture?

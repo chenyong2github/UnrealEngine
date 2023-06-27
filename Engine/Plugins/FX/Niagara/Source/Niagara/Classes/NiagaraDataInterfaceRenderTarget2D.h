@@ -16,35 +16,22 @@ class UTextureRenderTarget2D;
 
 struct FRenderTarget2DRWInstanceData_GameThread
 {
-	FRenderTarget2DRWInstanceData_GameThread()
-	{
-#if WITH_EDITORONLY_DATA
-		bPreviewTexture = false;
-#endif
-	}
-
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	ETextureRenderTargetFormat Format = RTF_RGBA16f;
 	TextureFilter Filter = TextureFilter::TF_Default;
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
 	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
-	
+
+	bool bManagedTexture = false;
 	UTextureRenderTarget2D* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
-	uint32 bPreviewTexture : 1;
+	bool bPreviewTexture = false;
 #endif
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FRenderTarget2DRWInstanceData_RenderThread
 {
-	FRenderTarget2DRWInstanceData_RenderThread()
-	{
-#if WITH_EDITORONLY_DATA
-		bPreviewTexture = false;
-#endif
-	}
-
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	int MipLevels = 0;
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
@@ -61,7 +48,7 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 	FRDGTextureUAVRef	TransientRDGUAV = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	uint32 bPreviewTexture : 1;
+	bool bPreviewTexture = false;
 #endif
 #if STATS
 	void UpdateMemoryStats();
@@ -92,7 +79,6 @@ class UNiagaraDataInterfaceRenderTarget2D : public UNiagaraDataInterfaceRWBase
 
 public:
 	NIAGARA_API virtual void PostInitProperties() override;
-	virtual bool CanBeInCluster() const override { return false; }
 
 	//~ UNiagaraDataInterface interface
 	// VM functionality
@@ -179,7 +165,4 @@ protected:
 	static NIAGARA_API FNiagaraVariableBase ExposedRTVar;
 
 	TMap<FNiagaraSystemInstanceID, FRenderTarget2DRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
-	
-	UPROPERTY(Transient, DuplicateTransient)
-	TMap<uint64, TObjectPtr<UTextureRenderTarget2D>> ManagedRenderTargets;
 };

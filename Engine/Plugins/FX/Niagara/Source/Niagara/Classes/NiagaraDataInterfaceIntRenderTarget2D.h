@@ -76,7 +76,4 @@ public:
 
 protected:
 	static NIAGARA_API FNiagaraVariableBase ExposedRTVar;
-
-	UPROPERTY(Transient, DuplicateTransient)
-	TMap<uint64, TObjectPtr<UTextureRenderTarget2D>> ManagedRenderTargets;
 };

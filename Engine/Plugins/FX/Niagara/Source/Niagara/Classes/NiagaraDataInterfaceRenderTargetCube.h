@@ -14,33 +14,20 @@ class UTextureRenderTargetCube;
 
 struct FRenderTargetCubeRWInstanceData_GameThread
 {
-	FRenderTargetCubeRWInstanceData_GameThread()
-	{
-#if WITH_EDITORONLY_DATA
-		bPreviewTexture = false;
-#endif
-	}
-
 	int Size = 0;
 	EPixelFormat Format = EPixelFormat::PF_A16B16G16R16;
 	TextureFilter Filter = TextureFilter::TF_Default;
 
+	bool bManagedTexture = false;
 	UTextureRenderTargetCube* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
-	uint32 bPreviewTexture : 1;
+	bool bPreviewTexture = false;
 #endif
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FRenderTargetCubeRWInstanceData_RenderThread
 {
-	FRenderTargetCubeRWInstanceData_RenderThread()
-	{
-#if WITH_EDITORONLY_DATA
-		bPreviewTexture = false;
-#endif
-	}
-
 	int Size = 0;
 	int MipLevels = 0;
 	bool bWroteThisFrame = false;
@@ -54,7 +41,7 @@ struct FRenderTargetCubeRWInstanceData_RenderThread
 	FRDGTextureSRVRef	TransientRDGSRV = nullptr;
 	FRDGTextureUAVRef	TransientRDGUAV = nullptr;
 #if WITH_EDITORONLY_DATA
-	uint32 bPreviewTexture : 1;
+	bool bPreviewTexture = false;
 #endif
 #if STATS
 	void UpdateMemoryStats();
@@ -81,7 +68,6 @@ class UNiagaraDataInterfaceRenderTargetCube : public UNiagaraDataInterfaceRWBase
 
 public:
 	NIAGARA_API virtual void PostInitProperties() override;
-	virtual bool CanBeInCluster() const override { return false; }
 
 	//~ UNiagaraDataInterface interface
 	// VM functionality
@@ -157,7 +143,4 @@ protected:
 	//~ UNiagaraDataInterface interface END
 
 	static NIAGARA_API FNiagaraVariableBase ExposedRTVar;
-	
-	UPROPERTY(Transient, DuplicateTransient)
-	TMap<uint64, TObjectPtr<UTextureRenderTargetCube>> ManagedRenderTargets;
 };

@@ -18,6 +18,7 @@
 #include "NiagaraEffectType.h"
 #include "NiagaraDebugHud.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraSimpleObjectPool.h"
 #include "Particles/FXBudget.h"
 #include "NiagaraCullProxyComponent.h"
 #include "GameDelegates.h"
@@ -44,6 +45,14 @@ static FAutoConsoleVariableRef CVarNiagaraWorldManagerKillUniqueSims(
 	TEXT("fx.Niagara.WorldManager.KillUniqueSims"),
 	GNiagaraWorldManagerKillUniqueSims,
 	TEXT("System simulations will be removed when unique rather that waiting for GC."),
+	ECVF_Default
+);
+
+static bool GNiagaraWorldManagerObjectPoolEnabled = 1;
+static FAutoConsoleVariableRef CVarNiagaraWorldManagerObjectPoolEnabled(
+	TEXT("fx.Niagara.WorldManager.ObjectPoolEnabled"),
+	GNiagaraWorldManagerObjectPoolEnabled,
+	TEXT("Should we pool objects, yay or nay."),
 	ECVF_Default
 );
 
@@ -461,6 +470,8 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 
 	Collector.AddReferencedObjects(CullProxyMap);
 
+	Collector.AddReferencedObjects(ReferencedObjects);
+
 	DataChannelManager->AddReferencedObjects(Collector);
 }
 
@@ -715,6 +726,12 @@ void FNiagaraWorldManager::PreGarbageCollect()
 		{
 			It.RemoveCurrent();
 		}
+	}
+
+	// Clear out the pooled objects
+	if ( ObjectPool )
+	{
+		ObjectPool->PreGarbageCollect();
 	}
 }
 
@@ -1983,6 +2000,43 @@ void FNiagaraWorldManager::PrimePool(UNiagaraSystem* System)
 	if (GNigaraAllowPrimedPools && World && World->IsGameWorld() && !World->bIsTearingDown)
 	{
 		ComponentPool->PrimePool(System, World);
+	}
+}
+
+UObject* FNiagaraWorldManager::ObjectPoolGetOrCreate(UClass* Class, bool& bIsExistingObject)
+{
+	check(IsInGameThread());
+	check(Class != nullptr);
+
+	bIsExistingObject = false;
+	if (GNiagaraWorldManagerObjectPoolEnabled == false)
+	{
+		return NewObject<UObject>(World, Class);
+	}
+
+	if (ObjectPool == nullptr)
+	{
+		ObjectPool.Reset(new FNiagaraSimpleObjectPool());
+	}
+
+	return ObjectPool->GetOrCreateObject(Class, World, bIsExistingObject);
+}
+
+UObject* FNiagaraWorldManager::ObjectPoolGetOrCreate(UClass* Class)
+{
+	bool bIsExistingObject;
+	return ObjectPoolGetOrCreate(Class, bIsExistingObject);
+}
+
+void FNiagaraWorldManager::ObjectPoolReturn(UObject* Obj)
+{
+	check(IsInGameThread());
+	if (::IsValid(Obj) && GNiagaraWorldManagerObjectPoolEnabled)
+	{
+		if (ensure(ObjectPool) && ensure(Obj->GetOuter() == World))
+		{
+			ObjectPool->ReturnObject(Obj);
+		}
 	}
 }
 

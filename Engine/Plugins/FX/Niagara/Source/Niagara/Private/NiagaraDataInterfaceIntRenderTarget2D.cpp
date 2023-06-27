@@ -73,6 +73,7 @@ struct FNDIIntRenderTarget2DInstanceData_GameThread
 	FVector2D PreviewDisplayRange = FVector2D(0.0f, 255.0f);
 #endif
 
+	bool bManagedTexture = false;
 	UTextureRenderTarget2D* TargetTexture = nullptr;
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
@@ -656,6 +657,7 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::InitPerInstanceData(void* PerInstan
 void UNiagaraDataInterfaceIntRenderTarget2D::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
 	FNDIIntRenderTarget2DInstanceData_GameThread* InstanceData = static_cast<FNDIIntRenderTarget2DInstanceData_GameThread*>(PerInstanceData);
+	NiagaraDataInterfaceRenderTargetCommon::ReleaseRenderTarget(SystemInstance, InstanceData);
 	InstanceData->~FNDIIntRenderTarget2DInstanceData_GameThread();
 
 	FNDIIntRenderTarget2DProxy* RT_Proxy = GetProxyAs<FNDIIntRenderTarget2DProxy>();
@@ -665,13 +667,6 @@ void UNiagaraDataInterfaceIntRenderTarget2D::DestroyPerInstanceData(void* PerIns
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}
 	);
-
-	// Make sure to clear out the reference to the render target if we created one.
-	decltype(ManagedRenderTargets)::ValueType ExistingRenderTarget = nullptr;
-	if ( ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && NiagaraDataInterfaceRenderTargetCommon::GReleaseResourceOnRemove )
-	{
-		ExistingRenderTarget->ReleaseResource();
-	}
 }
 
 void UNiagaraDataInterfaceIntRenderTarget2D::GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const
@@ -754,13 +749,8 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::UpdateInstanceTexture(FNiagaraSyste
 			// If the texture has changed remove the old one and release if it's one we created
 			if (InstanceData->TargetTexture != UserTargetTexture)
 			{
+				NiagaraDataInterfaceRenderTargetCommon::ReleaseRenderTarget(SystemInstance, InstanceData);
 				InstanceData->TargetTexture = UserTargetTexture;
-
-				decltype(ManagedRenderTargets)::ValueType ExistingRenderTarget = nullptr;
-				if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && NiagaraDataInterfaceRenderTargetCommon::GReleaseResourceOnRemove)
-				{
-					ExistingRenderTarget->ReleaseResource();
-				}
 			}
 		}
 		else
@@ -773,15 +763,16 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::UpdateInstanceTexture(FNiagaraSyste
 	bool bHasChanged = false;
 	if (InstanceData->TargetTexture == nullptr)
 	{
-		InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
+		if (NiagaraDataInterfaceRenderTargetCommon::CreateRenderTarget<UTextureRenderTarget2D>(SystemInstance, InstanceData) == false)
+		{
+			return false;
+		}
 		InstanceData->TargetTexture->bCanCreateUAV = true;
 		InstanceData->TargetTexture->bAutoGenerateMips = false;
 		InstanceData->TargetTexture->OverrideFormat = InstanceData->Format;
 		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
 		InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 		InstanceData->TargetTexture->UpdateResourceImmediate(true);
-
-		ManagedRenderTargets.Add(SystemInstance->GetId()) = InstanceData->TargetTexture;
 
 		bHasChanged = true;
 	}
