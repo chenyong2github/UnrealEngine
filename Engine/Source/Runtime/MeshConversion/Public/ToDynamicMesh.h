@@ -156,7 +156,7 @@ public:
 						// grow the map to make room
 						ToSrcVertIDMap.SetNumUninitialized(NewDstVertID + 1);
 
-						ToSrcVertIDMap[NewDstVertID] = DstTriVerts[i]; 
+						ToSrcVertIDMap[NewDstVertID] = SrcTriVerts[i];
 					}
 				}
 
