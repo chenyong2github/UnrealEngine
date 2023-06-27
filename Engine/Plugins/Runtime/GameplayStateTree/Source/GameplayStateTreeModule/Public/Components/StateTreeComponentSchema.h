@@ -4,7 +4,7 @@
 
 #include "StateTreeSchema.h"
 #include "GameFramework/Actor.h"
-#include "StateTreeTypes.h"
+#include "StateTreeExecutionTypes.h"
 #include "StateTreeComponentSchema.generated.h"
 
 /**
@@ -25,7 +25,7 @@ protected:
 	virtual bool IsClassAllowed(const UClass* InScriptStruct) const override;
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const override;
 	
-	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const;
+	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const override;
 
 	virtual void PostLoad() override;
 

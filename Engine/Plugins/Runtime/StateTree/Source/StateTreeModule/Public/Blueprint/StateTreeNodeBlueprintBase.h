@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "StateTreeTypes.h"
+#include "StateTreeExecutionTypes.h"
 #include "StateTreeNodeBlueprintBase.generated.h"
 
 struct FStateTreeEvent;

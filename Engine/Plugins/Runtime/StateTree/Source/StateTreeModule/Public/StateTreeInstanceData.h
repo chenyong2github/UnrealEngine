@@ -5,6 +5,7 @@
 #include "InstancedStructContainer.h"
 #include "StateTreeEvents.h"
 #include "StateTreeTypes.h"
+#include "StateTreeExecutionTypes.h"
 #include "StateTreeInstanceData.generated.h"
 
 struct FStateTreeTransitionRequest;

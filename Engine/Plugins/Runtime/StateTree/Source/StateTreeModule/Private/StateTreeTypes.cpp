@@ -1,29 +1,62 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeTypes.h"
-#include "StateTree.h"
+#include "StateTree.h" // FStateTreeCustomVersion
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTypes)
 
 DEFINE_LOG_CATEGORY(LogStateTree);
 
 const FStateTreeStateHandle FStateTreeStateHandle::Invalid = FStateTreeStateHandle();
-const FStateTreeStateHandle FStateTreeStateHandle::Succeeded = FStateTreeStateHandle(FStateTreeStateHandle::SucceededIndex);
-const FStateTreeStateHandle FStateTreeStateHandle::Failed = FStateTreeStateHandle(FStateTreeStateHandle::FailedIndex);
-const FStateTreeStateHandle FStateTreeStateHandle::Stopped = FStateTreeStateHandle(FStateTreeStateHandle::StoppedIndex);
+const FStateTreeStateHandle FStateTreeStateHandle::Succeeded = FStateTreeStateHandle(SucceededIndex);
+const FStateTreeStateHandle FStateTreeStateHandle::Failed = FStateTreeStateHandle(FailedIndex);
+const FStateTreeStateHandle FStateTreeStateHandle::Stopped = FStateTreeStateHandle(StoppedIndex);
 const FStateTreeStateHandle FStateTreeStateHandle::Root = FStateTreeStateHandle(0);
 
 const FStateTreeIndex16 FStateTreeIndex16::Invalid = FStateTreeIndex16();
 const FStateTreeIndex8 FStateTreeIndex8::Invalid = FStateTreeIndex8();
 
-const FStateTreeExternalDataHandle FStateTreeExternalDataHandle::Invalid = FStateTreeExternalDataHandle();
-
-#if WITH_STATETREE_DEBUGGER
-const FStateTreeInstanceDebugId FStateTreeInstanceDebugId::Invalid = FStateTreeInstanceDebugId();
-#endif // WITH_STATETREE_DEBUGGER
 
 //////////////////////////////////////////////////////////////////////////
 // FStateTreeStateLink
+
+EStateTreeRunStatus FStateTreeStateHandle::ToCompletionStatus() const
+{
+	if (Index == SucceededIndex)
+	{
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	if (Index == FailedIndex)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (Index == StoppedIndex)
+	{
+		return EStateTreeRunStatus::Stopped;
+	}
+	return EStateTreeRunStatus::Unset;
+}
+
+FStateTreeStateHandle FStateTreeStateHandle::FromCompletionStatus(const EStateTreeRunStatus Status)
+{
+	if (Status == EStateTreeRunStatus::Succeeded)
+	{
+		return Succeeded;
+	}
+
+	if (Status == EStateTreeRunStatus::Failed)
+	{
+		return Failed;
+	}
+
+	if (Status == EStateTreeRunStatus::Stopped)
+	{
+		return Stopped;
+	}
+	return {};
+}
 
 bool FStateTreeStateLink::Serialize(FStructuredArchive::FSlot Slot)
 {

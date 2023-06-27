@@ -3,7 +3,7 @@
 #pragma once
 
 #include "StateTreeSchema.h"
-#include "StateTreeTypes.h"
+#include "StateTreeExecutionTypes.h"
 #include "StateTreeLinker.generated.h"
 
 UENUM()

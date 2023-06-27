@@ -3,6 +3,7 @@
 #pragma once
 
 #include "StateTreeNodeBase.h"
+#include "StateTreeExecutionTypes.h"
 #include "StateTreeConditionBase.generated.h"
 
 struct FStateTreeExecutionContext;
