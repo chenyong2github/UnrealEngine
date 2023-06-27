@@ -21,8 +21,6 @@ class FLinkerLoad;
 class FProperty;
 class FUObjectThreadContext;
 class UObject;
-struct FObjectExport;
-struct FObjectImport;
 struct FUObjectSerializeContext;
 
 /** Structure that holds stats from comparing two packages */
@@ -65,7 +63,26 @@ public:
 	COREUOBJECT_API ~FArchiveStackTraceDisabledScope();
 };
 
-struct FArchiveDiffInfo
+namespace UE::ArchiveStackTrace
+{
+
+struct FPackageData
+{
+	uint8* Data = nullptr;
+	int64 Size = 0;
+	int64 HeaderSize = 0;
+	int64 StartOffset = 0;
+};
+/** Helper function to load package contents into memory. Supports EDL packages. */
+COREUOBJECT_API bool LoadPackageIntoMemory(const TCHAR* InFilename,
+	FPackageData& OutPackageData, TUniquePtr<uint8>& OutLoadedBytes);
+COREUOBJECT_API void ForceKillPackageAndLinker(FLinkerLoad* Linker);
+
+} // namespace UE::ArchiveStackTrace
+
+struct
+// Deprecated: 5.3, "FArchiveStackTrace was only used by DiffPackageWriter, and has been moved into a private helper class. Contact Epic if you need this class for another reason.")
+FArchiveDiffInfo
 {
 	int64 Offset;
 	int64 Size;
@@ -95,25 +112,17 @@ struct FArchiveDiffInfo
 	}
 };
 
-class FArchiveDiffMap : public TArray<FArchiveDiffInfo>
+class 
+UE_DEPRECATED(5.3, "FArchiveStackTrace was only used by DiffPackageWriter, and has been moved into a private helper class. Contact Epic if you need this class for another reason.")
+FArchiveDiffMap : public TArray<FArchiveDiffInfo>
 {
 public:
-	bool ContainsOffset(int64 Offset) const
-	{
-		for (const FArchiveDiffInfo& Diff : *this)
-		{
-			if (Diff.Offset <= Offset && Offset < (Diff.Offset + Diff.Size))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
+	bool ContainsOffset(int64 Offset) const;
 };
 
-/** Holds offsets to captured callstacks. */
-class FArchiveCallstacks
+class
+UE_DEPRECATED(5.3, "FArchiveStackTrace was only used by DiffPackageWriter, and has been moved into a private helper class. Contact Epic if you need this class for another reason.")
+FArchiveCallstacks
 {
 public:
 	/** Offset and callstack pair */
@@ -234,11 +243,14 @@ private:
 	int64 TotalSize;
 };
 
-/** Archive proxy that captures callstacks for each serialize call. */
-class FArchiveStackTraceWriter
+class
+UE_DEPRECATED(5.3, "FArchiveStackTrace was only used by DiffPackageWriter, and has been moved into a private helper class. Contact Epic if you need this class for another reason.")
+FArchiveStackTraceWriter
 	: public FArchiveProxy
 {
 public:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+
 	COREUOBJECT_API FArchiveStackTraceWriter(
 		FArchive& InInner,
 		FArchiveCallstacks& InCallstacks,
@@ -333,15 +345,20 @@ private:
 	int64 DiffMapOffset;
 	int32 StackIgnoreCount = 2;
 	bool bInnerArchiveDisabled;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
 };
 
-/**
- * Memory backed stack trace writer.
- */
-class FArchiveStackTraceMemoryWriter final
+class
+UE_DEPRECATED(5.3, "FArchiveStackTrace was only used by DiffPackageWriter, and has been moved into a private helper class. Contact Epic if you need this class for another reason.")
+FArchiveStackTraceMemoryWriter final
 	: public FLargeMemoryWriter
 {
 public:
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+
 	COREUOBJECT_API FArchiveStackTraceMemoryWriter(
 		FArchiveCallstacks& Callstacks,
 		const FArchiveDiffMap* DiffMap = nullptr,
@@ -356,16 +373,22 @@ public:
 
 private:
 	FArchiveStackTraceWriter StackTraceWriter;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 };
 
 /**
  * Archive that stores a callstack for each of the Serialize calls and has the ability to compare itself to an existing
  * package on disk and dump all the differences to log.
  */
-class FArchiveStackTrace
+class
+UE_DEPRECATED(5.3, "FArchiveStackTrace was only used by DiffPackageWriter, and has been moved into a private helper class. Contact Epic if you need this class for another reason.")
+FArchiveStackTrace
 	: public FLargeMemoryWriter
 {
 public:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+
 	using FPackageData = FArchiveStackTraceWriter::FPackageData;
 
 	COREUOBJECT_API FArchiveStackTrace(UObject* InAsset, const TCHAR* InFilename, bool bInCollectCallstacks = true, const FArchiveDiffMap* InDiffMap = nullptr);
@@ -408,6 +431,8 @@ public:
 private:
 	FArchiveCallstacks Callstacks;
 	FArchiveStackTraceWriter StackTraceWriter;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 };
 
 class FArchiveStackTraceReader : public FLargeMemoryReader

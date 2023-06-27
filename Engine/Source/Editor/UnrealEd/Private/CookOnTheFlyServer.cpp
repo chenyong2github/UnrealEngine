@@ -113,7 +113,6 @@
 #include "ProjectDescriptor.h"
 #include "SceneUtils.h"
 #include "Serialization/ArchiveCountMem.h"
-#include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"

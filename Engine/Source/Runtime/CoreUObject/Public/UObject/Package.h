@@ -921,14 +921,6 @@ public:
 	*/
 	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename, const FSavePackageArgs& SaveArgs);
 
-	UE_DEPRECATED(5.0, "Pack the arguments into FSavePackageArgs and call the function overload that takes FSavePackageArgs. Note that Conform and InOutDiffMap are no longer implemented.")
-	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags,
-		const TCHAR* Filename, FOutputDevice* Error = GError, FLinkerNull* Conform = nullptr,
-		bool bForceByteSwapping = false, bool bWarnOfLongFilename = true, uint32 SaveFlags = SAVE_None,
-		const ITargetPlatform* TargetPlatform = nullptr, const FDateTime& FinalTimeStamp = FDateTime::MinValue(),
-		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
-		FSavePackageContext* SavePackageContext = nullptr);
-
 	/**
 	 * Save a list of packages concurrently using Save2 mechanism
 	 * SaveConcurrent is currently experimental and shouldn't be used until it can safely replace Save.

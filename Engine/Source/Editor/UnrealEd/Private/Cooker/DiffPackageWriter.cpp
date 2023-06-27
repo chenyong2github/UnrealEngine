@@ -14,7 +14,6 @@
 #include "Misc/Parse.h"
 #include "Misc/OutputDevice.h"
 #include "ProfilingDebugging/CookStats.h"
-#include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
@@ -147,7 +146,7 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 	FPackageInfo LocalInfo(Info);
 	Inner->CompleteExportsArchiveForDiff(LocalInfo, ExportsArchive);
 
-	FArchiveStackTrace& Writer = static_cast<FArchiveStackTrace&>(ExportsArchive);
+	FDiffWriterArchive& Writer = static_cast<FDiffWriterArchive&>(ExportsArchive);
 	ICookedPackageWriter::FPreviousCookedBytesData PreviousInnerData;
 	if (!Inner->GetPreviousCookedBytes(LocalInfo, PreviousInnerData))
 	{
@@ -157,7 +156,7 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 	}
 	check(PreviousInnerData.Data.Get() != nullptr || (PreviousInnerData.Size == 0 && PreviousInnerData.HeaderSize == 0));
 
-	FArchiveStackTrace::FPackageData PreviousPackageData;
+	FDiffWriterArchive::FPackageData PreviousPackageData;
 	PreviousPackageData.Data = PreviousInnerData.Data.Get();
 	PreviousPackageData.Size = PreviousInnerData.Size;
 	PreviousPackageData.HeaderSize = PreviousInnerData.HeaderSize;
@@ -196,12 +195,12 @@ TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerArchive(FName Pac
 	{
 		check(MultiOutputIndex < 2);
 		// Each difference will be logged with its Serialize call stack trace
-		return TUniquePtr<FLargeMemoryWriter>(new FArchiveStackTrace(Asset, *PackageName.ToString(),
+		return TUniquePtr<FLargeMemoryWriter>(new FDiffWriterArchive(Asset, *PackageName.ToString(),
 			true /* bInCollectCallstacks */, &DiffMap[MultiOutputIndex]));
 	}
 	else
 	{
-		return TUniquePtr<FLargeMemoryWriter>(new FArchiveStackTrace(Asset, *PackageName.ToString(),
+		return TUniquePtr<FLargeMemoryWriter>(new FDiffWriterArchive(Asset, *PackageName.ToString(),
 			false /* bInCollectCallstacks */));
 	}
 }
@@ -211,20 +210,20 @@ TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerExportsArchive(FN
 	// When cooking, exports are serialized into a separate archive. The serialization callstack offsets
 	// and stack traces are collected into a separate callstack collection and appended to the overall
 	// callstacks for the entire package. DiffOnly cooks saves a package twice. The first pass collects
-	// the serialization offsets without the stack traces and then creates a FArchiveDiffMap. In the second
+	// the serialization offsets without the stack traces and then creates a FDiffWriterDiffMap. In the second
 	// pass, the diff map is used to collect offsets AND the entire stack trace for mismatching package data.
 	// In the first pass, callstack offsets will be relative to the export archive and adjusted when appending
 	// the callstacks to the overall package callstacks. In the second pass, the offset (ExportsDiffMapOffset) is
 	// known and the callstack will be relative to the beginning of the package.
 	
-	ExportsCallstacks = MakeUnique<FArchiveCallstacks>(Asset);
+	ExportsCallstacks = MakeUnique<FDiffWriterCallstacks>(Asset);
 	const int64 PreAllocateBytes = 0;
 	const bool bIsPersistent = true;
 
 	check(MultiOutputIndex < 2);
 	if (bDiffCallstack)
 	{
-		return MakeUnique<FArchiveStackTraceMemoryWriter>(
+		return MakeUnique<FDiffWriterArchiveMemoryWriter>(
 			*ExportsCallstacks,
 			&DiffMap[MultiOutputIndex],
 			ExportsDiffMapOffset[MultiOutputIndex],
@@ -234,7 +233,7 @@ TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerExportsArchive(FN
 	}
 	else
 	{
-		return MakeUnique<FArchiveStackTraceMemoryWriter>(
+		return MakeUnique<FDiffWriterArchiveMemoryWriter>(
 			*ExportsCallstacks,
 			nullptr,
 			0,

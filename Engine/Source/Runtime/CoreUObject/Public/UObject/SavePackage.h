@@ -31,7 +31,6 @@ class UObject;
 #endif
 
 class FArchive;
-class FArchiveDiffMap;
 class FCbFieldView;
 class FCbWriter;
 class FIoBuffer;
@@ -89,8 +88,6 @@ struct FSavePackageArgs
 	FOutputDevice* Error = GError;
 	/** Structure to hold longer-lifetime parameters that apply to multiple saves */
 	FSavePackageContext* SavePackageContext = nullptr;
-	UE_DEPRECATED(5.0, "FArchiveDiffMap is no longer used; it is now implemented by DiffPackageWriter.")
-	FArchiveDiffMap* DiffMap = nullptr;
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and it will be removed.")
 	TOptional<FGuid> OutputPackageGuid;
 

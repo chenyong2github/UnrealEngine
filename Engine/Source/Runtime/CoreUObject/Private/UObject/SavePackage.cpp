@@ -12,25 +12,6 @@ COREUOBJECT_API extern bool GOutputCookingWarnings;
 
 #endif
 
-FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags,
-	const TCHAR* Filename, FOutputDevice* Error, FLinkerNull* ConformNO, bool bForceByteSwapping,
-	bool bWarnOfLongFilename, uint32 SaveFlags, const ITargetPlatform* TargetPlatform,
-	const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
-	FSavePackageContext* SavePackageContext)
-{
-	// CookData should only be nonzero if we are cooking.
-	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
-	if (TargetPlatform != nullptr)
-	{		
-		CookData.Emplace(*TargetPlatform, CookContext);
-	}
-	
-	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
-		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, SavePackageContext };
-	return UPackage::Save(InOuter, Base, Filename, SaveArgs);
-}
-
 FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
 	const FSavePackageArgs& SaveArgs)
 {

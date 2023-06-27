@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AssetRegistry/AssetRegistryState.h"
-#include "Serialization/ArchiveStackTrace.h"
+#include "Cooker/DiffWriterArchive.h"
 #include "Serialization/PackageWriter.h"
 
 /** A CookedPackageWriter that diffs output from the current cook with the file that was saved in the previous cook. */
@@ -122,8 +122,8 @@ private:
 	void ConditionallyDumpObjList();
 	void ConditionallyDumpObjects();
 
-	FArchiveDiffMap DiffMap[2];
-	TUniquePtr<FArchiveCallstacks> ExportsCallstacks;
+	FDiffWriterDiffMap DiffMap[2];
+	TUniquePtr<FDiffWriterCallstacks> ExportsCallstacks;
 	FBeginPackageInfo BeginInfo;
 	TUniquePtr<ICookedPackageWriter> Inner;
 	FString DumpObjListParams;
