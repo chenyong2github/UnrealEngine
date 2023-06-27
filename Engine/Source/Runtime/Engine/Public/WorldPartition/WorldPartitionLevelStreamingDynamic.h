@@ -59,6 +59,8 @@ class UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDynamic
 
 	bool GetLoadSucceeded() const { return bLoadSucceeded; }
 
+	void SetShouldPerformStandardLevelLoading(bool bInShouldPerformStandardLevelLoading) { bShouldPerformStandardLevelLoading = bInShouldPerformStandardLevelLoading; }
+
 private:
 	ENGINE_API void CreateRuntimeLevel();
 	ENGINE_API bool IssueLoadRequests();
@@ -92,6 +94,9 @@ private:
 	bool bHasSetLevelTransform;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bShouldPerformStandardLevelLoading;
+
 	UPROPERTY()
 	TObjectPtr<UActorContainer> UnsavedActorsContainer;
 #endif

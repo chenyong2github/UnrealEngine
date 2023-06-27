@@ -31,6 +31,9 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 #endif
 	, bShouldBeAlwaysLoaded(false)
 	, bHasSetLevelTransform(false)
+#if WITH_EDITORONLY_DATA
+	, bShouldPerformStandardLevelLoading(false)
+#endif
 {
 #if WITH_EDITOR
 	SetShouldBeVisibleInEditor(false);
@@ -81,8 +84,11 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionLevelStreamingDynamic::Load
 	check(World->WorldType == EWorldType::Editor);
 	UWorldPartitionLevelStreamingDynamic* LevelStreaming = NewObject<UWorldPartitionLevelStreamingDynamic>(World, LevelStreamingName, RF_Transient);
 	
-	FString PackageName = FString::Printf(TEXT("/Temp/%s"), *LevelStreamingName.ToString());
-	TSoftObjectPtr<UWorld> WorldAsset(FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *PackageName, *World->GetName())));
+	const FString WorldPackageName = World->GetPackage()->GetPathName();
+	const FStringView WorldMountPointName = FPathViews::GetMountPointNameFromPath(WorldPackageName);
+
+	FString PackageName = FString::Printf(TEXT("Temp/%s"), *LevelStreamingName.ToString());
+	TSoftObjectPtr<UWorld> WorldAsset(FSoftObjectPath(FString::Printf(TEXT("/%.*s/%s.%s"), WorldMountPointName.Len(), WorldMountPointName.GetData(), *PackageName, *World->GetName())));
 	LevelStreaming->SetWorldAsset(WorldAsset);
 	
 	LevelStreaming->LevelTransform = FTransform::Identity;
@@ -187,8 +193,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 	const FName WorldAssetPackageFName = GetWorldAssetPackageFName();
 	const FString WorldAssetPackageName = GetWorldAssetPackageName();
 
-	// Use parent streaming implementation if world asset package is not a memory package
-	if (!FPackageName::IsMemoryPackage(WorldAssetPackageName) && !FPackageName::IsTempPackage(WorldAssetPackageName))
+	if (bShouldPerformStandardLevelLoading)
 	{
 		return Super::RequestLevel(InPersistentWorld, bInAllowLevelLoadRequests, InBlockPolicy);
 	}

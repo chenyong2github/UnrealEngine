@@ -126,6 +126,10 @@ bool UWorldPartitionRuntimeLevelStreamingCell::CreateAndSetLevelStreaming(const 
 	LevelStreaming->Initialize(*this);
 	LevelStreaming->PackageNameToLoad = FName(LongPackageName);
 
+#if WITH_EDITOR
+	LevelStreaming->SetShouldPerformStandardLevelLoading(true);
+#endif
+
 	if (OwningWorld->IsPlayInEditor() && OwningWorld->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor) && OwningWorld->GetPackage()->GetPIEInstanceID() != INDEX_NONE)
 	{
 		// When renaming for PIE, make sure to keep World's name so that linker can properly remap with Package's instancing context
