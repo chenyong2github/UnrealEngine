@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GameFramework/Actor.h"
 #include "UObject/Class.h"
 
 #include "ObjectMixerEditorObjectFilter.generated.h"
