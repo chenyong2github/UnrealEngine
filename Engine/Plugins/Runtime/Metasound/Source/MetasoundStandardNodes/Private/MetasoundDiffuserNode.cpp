@@ -117,17 +117,18 @@ namespace Metasound
 			}
 		}
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace DiffuserNode;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputDiffusionDepth), Depth);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputFeedbackGain), Feedback);
+		}
 
-			FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputDiffusionDepth), Depth);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputFeedbackGain), Feedback);
-
-			FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOutput);
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace DiffuserNode;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOutput);
 		}
 
 		virtual FDataReferenceCollection GetInputs() const override

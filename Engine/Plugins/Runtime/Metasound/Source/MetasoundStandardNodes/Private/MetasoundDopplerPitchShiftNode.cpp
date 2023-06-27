@@ -32,7 +32,8 @@ namespace Metasound
 
 		FDopplerPitchShiftOperator(const FCreateOperatorParams& InParams, const FAudioBufferReadRef& InAudioInput, const FFloatReadRef& InPitchShift, const FFloatReadRef& InDelayLength);
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override;
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -60,17 +61,18 @@ namespace Metasound
 		Reset(InParams);
 	}
 
-	void FDopplerPitchShiftOperator::Bind(FVertexInterfaceData& InVertexData) const
+	void FDopplerPitchShiftOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace DopplerPitchShift;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamAudioInput), AudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamPitchShift), PitchShift);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDelayLength), DelayLength);
+	}
 
-		FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamAudioInput), FAudioBufferReadRef(AudioInput));
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamPitchShift), FFloatReadRef(PitchShift));
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDelayLength), FFloatReadRef(DelayLength));
-
-		FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-		Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutParamAudio), FAudioBufferReadRef(AudioOutput));
+	void FDopplerPitchShiftOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace DopplerPitchShift;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutParamAudio), AudioOutput);
 	}
 
 	FDataReferenceCollection FDopplerPitchShiftOperator::GetInputs() const
