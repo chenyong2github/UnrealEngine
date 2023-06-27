@@ -103,20 +103,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"), DisplayName = "Maximum Extrapolation Half Life")
 	float ExtrapolationHalfLifeMax = 1.0f;
 
-	/**
-	 * When enabled, curves will blend in from zero when they are in the animation being transitioned to but not in the 
-	 * animation being transitioned from.
-	 */
-	UPROPERTY(EditAnywhere, Category = Curves)
-	bool bBlendInMissingCurves = true;
-
-	/**
-	 * When enabled, curves will blend out to zero when they are in the animation being transitioned from but not in the 
-	 * animation being transitioned to.
-	 */
-	UPROPERTY(EditAnywhere, Category = Curves)
-	bool bBlendOutMissingCurves = true;
-
 #if WITH_EDITORONLY_DATA
 	
 	// This setting can be used to show what the extrapolation of the animation looks like.
@@ -208,7 +194,6 @@ private:
 
 	struct FDeadBlendingCurveElement : public UE::Anim::FCurveElement
 	{
-		bool Valid = false;
 		float Velocity = 0.0f;
 		float HalfLife = 0.0f;
 
