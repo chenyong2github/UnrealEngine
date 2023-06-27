@@ -220,8 +220,10 @@ private:
 	UFUNCTION()
 	void OnRep_ChildActor();
 
+	void RegisterChildActorDestroyedDelegate();
+
 	UFUNCTION()
-	ENGINE_API void OnChildActorEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
+	ENGINE_API void OnChildActorDestroyed(AActor* Actor);
 };
 
 struct FActorParentComponentSetter
