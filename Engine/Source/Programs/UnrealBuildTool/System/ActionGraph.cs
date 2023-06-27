@@ -370,13 +370,13 @@ namespace UnrealBuildTool
 				{
 					return new XGE(Logger);
 				}
-				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable(Logger))
-				{
-					return new FASTBuild(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
-				}
 				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable(Logger))
 				{
 					return new SNDBS(TargetDescriptors, Logger);
+				}
+				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable(Logger))
+				{
+					return new FASTBuild(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 				}
 			}
 
