@@ -28,11 +28,10 @@ public:
 	 *
 	 * @param ConversionSettings Color transformation settings.
 	 * @param InOutTexture Texture object to transform.
-	 * @param bSynchronous Whether the texture transform is a nlocking operation.
 	 * @return true upon success.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
-	static OPENCOLORIOEDITOR_API bool ApplyColorSpaceTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture, bool bSynchronous = false);
+	static OPENCOLORIOEDITOR_API bool ApplyColorSpaceTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture);
 
 	/**
 	 * Apply a color space transform with a target compression setting to a texture asset.
@@ -40,9 +39,8 @@ public:
 	 * @param ConversionSettings Color transformation settings.
 	 * @param TargetCompression Target texture compression setting.
 	 * @param InOutTexture Texture object to transform.
-	 * @param bSynchronous Whether the texture transform is a nlocking operation.
 	 * @return true upon success.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
-	static OPENCOLORIOEDITOR_API bool ApplyColorSpaceCompressionTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, TextureCompressionSettings TargetCompression, UTexture* InOutTexture, bool bSynchronous = false);
+	static OPENCOLORIOEDITOR_API bool ApplyColorSpaceTransformToTextureCompressed(const FOpenColorIOColorConversionSettings& ConversionSettings, TextureCompressionSettings TargetCompression, UTexture* InOutTexture);
 };

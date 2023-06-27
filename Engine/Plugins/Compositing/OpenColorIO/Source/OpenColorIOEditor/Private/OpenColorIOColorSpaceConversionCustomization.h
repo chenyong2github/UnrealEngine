@@ -36,6 +36,9 @@ private:
 	/** Callback to reset the configuration in the transform source/destination pickers. */
 	void OnConfigurationReset();
 
+	/** Get the struct value of the color space settings member property.*/
+	struct FOpenColorIOColorConversionSettings* GetConversionSettings() const;
+
 	/** Pointer to the struct SourceColorSpace property handle. */
 	TSharedPtr<IPropertyHandle> SourceColorSpaceProperty;
 	
@@ -53,6 +56,6 @@ private:
 	/** Intermediate selection objects. This is done to allow inverted display-view selections (when enabled in settings). */
 	TStaticArray<FOpenColorIOPickerSelection, 2> TransformSelection;
 
-	/** Raw pointer to the conversion settings struct. */
-	struct FOpenColorIOColorConversionSettings* ColorSpaceConversion = nullptr;
+	/** Property handle to the conversion settings struct. */
+	TSharedPtr<IPropertyHandle> ColorSpaceSettingsProperty;
 };

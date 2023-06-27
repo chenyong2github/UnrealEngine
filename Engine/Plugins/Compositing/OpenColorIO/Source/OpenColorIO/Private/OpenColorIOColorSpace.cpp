@@ -114,7 +114,7 @@ FOpenColorIOColorConversionSettings::FOpenColorIOColorConversionSettings()
 
 FString FOpenColorIOColorConversionSettings::ToString() const
 {
-	if (ConfigurationSource)
+	if (::IsValid(ConfigurationSource))
 	{
 		if (IsDisplayView())
 		{
@@ -139,7 +139,7 @@ FString FOpenColorIOColorConversionSettings::ToString() const
 
 bool FOpenColorIOColorConversionSettings::IsValid() const
 {
-	if (ConfigurationSource)
+	if (::IsValid(ConfigurationSource))
 	{
 		if (IsDisplayView())
 		{
@@ -171,7 +171,7 @@ bool FOpenColorIOColorConversionSettings::IsValid() const
 
 void FOpenColorIOColorConversionSettings::ValidateColorSpaces()
 {
-	if (ConfigurationSource)
+	if (::IsValid(ConfigurationSource))
 	{
 		if (!ConfigurationSource->HasDesiredColorSpace(SourceColorSpace))
 		{

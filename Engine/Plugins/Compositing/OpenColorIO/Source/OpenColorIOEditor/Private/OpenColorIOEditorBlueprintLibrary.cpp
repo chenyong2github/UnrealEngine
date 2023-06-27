@@ -20,17 +20,17 @@ void UOpenColorIOEditorBlueprintLibrary::SetActiveViewportConfiguration(const FO
 	OpenColorIOEditorModule.SetActiveViewportConfiguration(InConfiguration);
 }
 
-bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture, bool bSynchronous)
+bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture)
 {
 	if (IsValid(InOutTexture))
 	{
-		return ApplyColorSpaceCompressionTransformToTexture(ConversionSettings, InOutTexture->CompressionSettings, InOutTexture, bSynchronous);
+		return ApplyColorSpaceTransformToTextureCompressed(ConversionSettings, InOutTexture->CompressionSettings, InOutTexture);
 	}
 
 	return false;
 }
 
-bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceCompressionTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, TextureCompressionSettings TargetCompression, UTexture* InOutTexture, bool bSynchronous)
+bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceTransformToTextureCompressed(const FOpenColorIOColorConversionSettings& ConversionSettings, TextureCompressionSettings TargetCompression, UTexture* InOutTexture)
 {
 	if (IsValid(InOutTexture) && IsValid(ConversionSettings.ConfigurationSource))
 	{
@@ -47,10 +47,7 @@ bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceCompressionTransformToTe
 				InOutTexture->CompressionSettings = TargetCompression;
 				InOutTexture->PostEditChange();
 
-				if (bSynchronous)
-				{
-					FTextureCompilingManager::Get().FinishCompilation({ InOutTexture });
-				}
+				FTextureCompilingManager::Get().FinishCompilation({ InOutTexture });
 
 				return true;
 			}
