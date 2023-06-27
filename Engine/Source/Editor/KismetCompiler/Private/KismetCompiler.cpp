@@ -2875,6 +2875,8 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 	Function->ParmsSize = 0;
 	Function->NumParms = 0;
 	Function->ReturnValueOffset = MAX_uint16;
+	Function->FirstPropertyToInit = nullptr;
+	FProperty** ConstructLink = &Function->FirstPropertyToInit;
 
 	for (TFieldIterator<FProperty> PropIt(Function, EFieldIteratorFlags::ExcludeSuper); PropIt; ++PropIt)
 	{
@@ -2898,9 +2900,11 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 		{
 			if (!Property->HasAnyPropertyFlags(CPF_ZeroConstructor))
 			{
-				Function->FirstPropertyToInit = Property;
+				(*ConstructLink) = Property;
+				Property->PostConstructLinkNext = nullptr;
+				ConstructLink = &Property->PostConstructLinkNext;
+
 				Function->FunctionFlags |= FUNC_HasDefaults;
-				break;
 			}
 		}
 	}

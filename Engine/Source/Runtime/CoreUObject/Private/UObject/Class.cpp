@@ -6617,6 +6617,7 @@ void UFunction::InitializeDerivedMembers()
 	NumParms = 0;
 	ParmsSize = 0;
 	ReturnValueOffset = MAX_uint16;
+	FProperty** ConstructLink = &FirstPropertyToInit;
 
 	for (FProperty* Property = CastField<FProperty>(ChildProperties); Property; Property = CastField<FProperty>(Property->Next))
 	{
@@ -6629,17 +6630,17 @@ void UFunction::InitializeDerivedMembers()
 				ReturnValueOffset = Property->GetOffset_ForUFunction();
 			}
 		}
-		else if ((FunctionFlags & FUNC_HasDefaults) != 0)
+		else if ((FunctionFlags & FUNC_HasDefaults) == 0)
 		{
-			if (!Property->HasAnyPropertyFlags(CPF_ZeroConstructor))
-			{
-				FirstPropertyToInit = Property;
-				break;
-			}
-		}
-		else
-		{
+			// we're done with parms and we've not been tagged as FUNC_HasDefaults, so we can abort
+			// this potentially costly loop:
 			break;
+		}
+		else if (!Property->HasAnyPropertyFlags(CPF_ZeroConstructor))
+		{
+			*ConstructLink = Property;
+			Property->PostConstructLinkNext = nullptr;
+			ConstructLink = &Property->PostConstructLinkNext;
 		}
 	}
 }

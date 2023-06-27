@@ -1023,8 +1023,8 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 
 	if (!bUsePersistentFrame)
 	{
-		// Initialize any local struct properties with defaults
-		for (FProperty* LocalProp = Function->FirstPropertyToInit; LocalProp != NULL; LocalProp = (FProperty*)(LocalProp->Next))
+		// Initialize any local properties that aren't CPF_ZeroConstruct:
+		for (FProperty* LocalProp = Function->FirstPropertyToInit; LocalProp != nullptr; LocalProp = (FProperty*)(LocalProp->PostConstructLinkNext))
 		{
 			LocalProp->InitializeValue_InContainer(NewStack.Locals);
 		}
@@ -2131,7 +2131,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 
 		if (!bUsePersistentFrame)
 		{
-			for (FProperty* LocalProp = Function->FirstPropertyToInit; LocalProp != NULL; LocalProp = (FProperty*)LocalProp->Next)
+			for (FProperty* LocalProp = Function->FirstPropertyToInit; LocalProp != nullptr; LocalProp = (FProperty*)LocalProp->PostConstructLinkNext)
 			{
 				LocalProp->InitializeValue_InContainer(NewStack.Locals);
 			}
