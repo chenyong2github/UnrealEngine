@@ -129,7 +129,7 @@ bool FSourceControlWindows::CanChoosePackagesToCheckIn()
 
 bool FSourceControlWindows::ShouldChoosePackagesToCheckBeVisible()
 {
-	return GetDefault<USourceControlSettings>()->bEnableSubmitContentMenuAction;
+	return GetDefault<USourceControlSettings>()->bEnableSubmitContentMenuAction && !ISourceControlModule::Get().GetProvider().UsesSnapshots();
 }
 
 
