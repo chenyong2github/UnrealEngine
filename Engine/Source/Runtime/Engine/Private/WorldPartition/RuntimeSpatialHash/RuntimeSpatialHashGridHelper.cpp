@@ -205,7 +205,6 @@ FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatial
 	for (const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance : ActorSetInstances)
 	{
 		check(ActorSetInstance->ActorSet->Actors.Num() > 0);
-		check(!ActorSetInstance->FilteredActors || (ActorSetInstance->ActorSet->Actors.Num() != ActorSetInstance->FilteredActors->Num()));
 
 		FSquare2DGridHelper::FGridLevel::FGridCell* GridCell = nullptr;
 
