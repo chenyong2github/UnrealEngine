@@ -135,7 +135,7 @@ protected:
 
 	void SetWaterWavesInternal(UWaterWavesBase* InWaterWaves);
 
-	const TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& GetWaterBodyStaticMeshComponents() const { return WaterBodyStaticMeshComponents; }
+	TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& GetWaterBodyStaticMeshComponents() { return WaterBodyStaticMeshComponents; }
 
 	/** Sets up a new list of water body static mesh components. */
 	void SetWaterBodyStaticMeshComponents(TArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> NewComponentList, TConstArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> ComponentsToUnregister = {});

@@ -163,7 +163,7 @@ TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> FWaterBodyMeshBuilder::BuildWa
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(BuildWaterBodyStaticMesh::BuildMeshSection);
 			const int32 SectionIndexX = SectionIndex % NumberOfMeshSectionsX;
-			const int32 SectionIndexY = SectionIndex / NumberOfMeshSectionsY;
+			const int32 SectionIndexY = SectionIndex / NumberOfMeshSectionsX;
 
 			const FVector2d SectionPos = MeshBounds2d.Min + FVector2d(SectionIndexX, SectionIndexY) * WaterMeshSectionSize;
 

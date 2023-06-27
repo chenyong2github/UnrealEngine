@@ -43,6 +43,7 @@
 #include "MeshMergeModule.h"
 #include "WaterBodyMeshBuilder.h"
 #include "MeshDescription.h"
+#include "Algo/RemoveIf.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"
@@ -1961,12 +1962,18 @@ void UWaterBodyComponent::UpdateWaterBodyStaticMeshComponents()
 		return;
 	}
 
-	const TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& WaterBodyStaticMeshComponents = WaterBodyActor->GetWaterBodyStaticMeshComponents();
+	TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& WaterBodyStaticMeshComponents = WaterBodyActor->GetWaterBodyStaticMeshComponents();
 
 	const bool bShouldUseStaticMesh = StaticMeshSettings.bEnableWaterBodyStaticMesh && (GetWaterMeshOverride() == nullptr) && (GetWaterBodyType() != EWaterBodyType::Transition);
 
 	if (bShouldUseStaticMesh)
 	{
+		// Can't reuse components marked PendingKill or null. This can occur when undoing after disabling static meshes.
+		WaterBodyStaticMeshComponents.SetNum(Algo::RemoveIf(WaterBodyStaticMeshComponents, [](const TObjectPtr<UWaterBodyStaticMeshComponent>& StaticMeshComponent)
+		{
+			return !IsValid(StaticMeshComponent);
+		}));
+
 		FWaterBodyMeshBuilder LODMeshBuilder;
 		TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> NewStaticMeshComponents = LODMeshBuilder.BuildWaterBodyStaticMesh(this, StaticMeshSettings, WaterBodyStaticMeshComponents);
 		
