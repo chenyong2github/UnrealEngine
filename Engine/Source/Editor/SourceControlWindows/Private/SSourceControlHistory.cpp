@@ -1179,10 +1179,13 @@ private:
 				TSharedPtr<FHistoryTreeItem> Parent = Item->Parent.Pin();
 
 				USourceControlHistoryWidgetContext::SelectedItem ItemInfo;
-				ItemInfo.FileName = Parent->FileListItem->FileName;
-				ItemInfo.Revision = Item->RevisionListItem->Revision;
+				if (Parent->FileListItem)
+				{
+					ItemInfo.FileName = Parent->FileListItem->FileName;
+					ItemInfo.Revision = Item->RevisionListItem->Revision;
 
-				SourceControlHistoryWidgetContext->GetSelectedItems().Add(ItemInfo);
+					SourceControlHistoryWidgetContext->GetSelectedItems().Add(ItemInfo);
+				}
 			}
 		}
 	
