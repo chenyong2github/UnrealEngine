@@ -24,6 +24,7 @@ void SChaosClothAssetEditor3DViewport::Construct(const FArguments& InArgs, const
 	}
 	ToolkitCommandList = InArgs._ToolkitCommandList;
 	SAssetEditorViewport::Construct(ParentArgs, InViewportConstructionArgs);
+	Client->VisibilityDelegate.BindSP(this, &SChaosClothAssetEditor3DViewport::IsVisible);
 
 	ViewportOverlay->AddSlot()
 	[
@@ -123,6 +124,12 @@ TSharedPtr<SWidget> SChaosClothAssetEditor3DViewport::MakeViewportToolbar()
 {
 	return SNew(SChaosClothAssetEditor3DViewportToolBar, SharedThis(this))
 		.CommandList(ToolkitCommandList);
+}
+
+bool SChaosClothAssetEditor3DViewport::IsVisible() const
+{
+	// Intentionally not calling SEditorViewport::IsVisible because it will return false if our simulation is more than 250ms.
+	return ViewportWidget.IsValid();
 }
 
 void SChaosClothAssetEditor3DViewport::OnFocusViewportToSelection()

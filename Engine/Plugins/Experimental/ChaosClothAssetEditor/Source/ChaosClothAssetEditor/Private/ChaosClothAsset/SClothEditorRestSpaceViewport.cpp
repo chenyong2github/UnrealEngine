@@ -9,6 +9,18 @@
 
 #define LOCTEXT_NAMESPACE "SChaosClothAssetEditorRestSpaceViewport"
 
+void SChaosClothAssetEditorRestSpaceViewport::Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs)
+{
+	SAssetEditorViewport::FArguments ParentArgs;
+	ParentArgs._EditorViewportClient = InArgs._EditorViewportClient;
+	if (InArgs._ViewportSize.IsSet())
+	{
+		ParentArgs._ViewportSize = InArgs._ViewportSize;
+	}
+	SAssetEditorViewport::Construct(ParentArgs, InViewportConstructionArgs);
+	Client->VisibilityDelegate.BindSP(this, &SChaosClothAssetEditorRestSpaceViewport::IsVisible);
+}
+
 UChaosClothAssetEditorMode* SChaosClothAssetEditorRestSpaceViewport::GetEdMode() const
 {
 	if (const FEditorModeTools* const EditorModeTools = Client->GetModeTools())
@@ -157,6 +169,12 @@ void SChaosClothAssetEditorRestSpaceViewport::OnFocusViewportToSelection()
 		Client->OverrideNearClipPlane(UE_KINDA_SMALL_NUMBER);
 		Client->OverrideFarClipPlane(0);
 	}
+}
+
+bool SChaosClothAssetEditorRestSpaceViewport::IsVisible() const
+{
+	// Intentionally not calling SEditorViewport::IsVisible because it will return false if our simulation is more than 250ms.
+	return ViewportWidget.IsValid();
 }
 
 TSharedRef<class SEditorViewport> SChaosClothAssetEditorRestSpaceViewport::GetViewportWidget()

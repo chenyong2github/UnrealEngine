@@ -12,10 +12,18 @@ class CHAOSCLOTHASSETEDITOR_API SChaosClothAssetEditorRestSpaceViewport : public
 {
 public:
 
+	SLATE_BEGIN_ARGS(SChaosClothAssetEditorRestSpaceViewport) {}
+		SLATE_ATTRIBUTE(FVector2D, ViewportSize);
+		SLATE_ARGUMENT(TSharedPtr<FEditorViewportClient>, EditorViewportClient)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
+
 	// SEditorViewport
 	virtual void BindCommands() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
 	virtual void OnFocusViewportToSelection() override;
+	virtual bool IsVisible() const override;
 
 	// ICommonEditorViewportToolbarInfoProvider
 	virtual TSharedRef<class SEditorViewport> GetViewportWidget() override;

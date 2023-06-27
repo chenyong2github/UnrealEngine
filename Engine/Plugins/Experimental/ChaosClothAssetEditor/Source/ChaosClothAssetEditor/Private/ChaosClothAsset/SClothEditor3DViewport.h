@@ -32,6 +32,7 @@ public:
 	// SAssetEditorViewport
 	virtual void BindCommands() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
+	virtual bool IsVisible() const override;
 
 	virtual void OnFocusViewportToSelection() override;
 
