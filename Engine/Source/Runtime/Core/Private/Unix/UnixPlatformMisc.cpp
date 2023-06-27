@@ -2034,7 +2034,7 @@ extern "C"
 	void __llvm_profile_reset_counters(void);
 };
 
-bool FUnixPlatformMisc::StartNewPGODataCollection(const FString& AbsoluteFileName)
+bool FUnixPlatformMisc::StartNewPGOCollection(const FString& AbsoluteFileName)
 { 
 	const TCHAR* ProfFileEnvVar = TEXT("LLVM_PROFILE_FILE");
 	if (FPlatformMisc::IsPGIActive())
