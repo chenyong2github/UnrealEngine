@@ -456,6 +456,11 @@ void USkeletonEditingTool::MirrorBones()
 	const bool bBonesMirrored = Modifier->MirrorBones(GetSelectedBones(), MirroringProperties->Options);
 	if (bBonesMirrored)
 	{
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify({}, ESkeletalMeshNotifyType::HierarchyChanged);
+		}
+	
 		EndChange();
 		return;		
 	}
