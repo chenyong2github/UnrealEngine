@@ -922,7 +922,7 @@ void AddAmbientOcclusionPass(
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-		PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::SSAO, nullptr);
+		PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::SSAO);
 		if (bDepthBoundsTestEnabled)
 		{
 			PassParameters->RenderTargets.DepthStencil = DepthStencilBinding;

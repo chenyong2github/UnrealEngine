@@ -1443,7 +1443,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, bLumenGIEnabled);
 				PassParameters->RenderTargets = BasePassRenderTargets;
-				PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::BasePass, nullptr);
+				PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::BasePass);
 
 				const bool bShouldRenderView = View.ShouldRenderView();
 				if (bShouldRenderView)
@@ -1513,7 +1513,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, bLumenGIEnabled);
 				PassParameters->RenderTargets = BasePassRenderTargets;
-				PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::BasePass, nullptr);
+				PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::BasePass);
 
 				const bool bShouldRenderView = View.ShouldRenderView();
 				if (bShouldRenderView)

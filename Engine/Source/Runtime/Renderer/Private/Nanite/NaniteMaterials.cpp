@@ -240,7 +240,7 @@ static FRDGTextureRef GetShadingRateImage(FRDGBuilder& GraphBuilder, const FView
 	
 	if (GetShadingRateTileSize() != 0)
 	{
-		ShadingRateImage = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, ViewInfo, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass, nullptr);
+		ShadingRateImage = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, ViewInfo, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass);
 	}
 
 	if (ShadingRateImage == nullptr)
@@ -1714,7 +1714,7 @@ void DrawBasePass(
 				ERenderTargetLoadAction::ELoad,
 				MaterialDepthStencil
 			);
-			PassParams.RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass, nullptr);
+			PassParams.RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass);
 		}
 
 		GraphBuilder.AddSetupTask([ParamsAndInfo, &MaterialCommands, &MaterialPassCommands, VisibilityResults = RasterResults.VisibilityResults /* Intentional copy */]

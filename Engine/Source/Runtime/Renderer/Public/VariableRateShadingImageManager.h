@@ -85,7 +85,7 @@ public:
 	 * May be run multiple times from different passes.
 	 */
 	FRDGTextureRef GetVariableRateShadingImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, EVRSPassType PassType,
-		const TArray<TRefCountPtr<IPooledRenderTarget>>* ExternalVRSSources, FVariableRateShadingImageManager::EVRSSourceType VRSTypesToExclude = FVariableRateShadingImageManager::EVRSSourceType::None);
+		FVariableRateShadingImageManager::EVRSSourceType VRSTypesToExclude = FVariableRateShadingImageManager::EVRSSourceType::None);
 
 	/**
 	 * Prepare VRS images and store them for later access.

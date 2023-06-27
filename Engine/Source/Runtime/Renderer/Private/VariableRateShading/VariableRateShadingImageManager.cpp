@@ -358,7 +358,7 @@ FRDGTextureDesc FVariableRateShadingImageManager::GetSRIDesc()
 }
 
 FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType,
-	const TArray<TRefCountPtr<IPooledRenderTarget>>* ExternalVRSSources, FVariableRateShadingImageManager::EVRSSourceType VRSTypesToExclude)
+	FVariableRateShadingImageManager::EVRSSourceType VRSTypesToExclude)
 {
 	EVRSImageType ImageType = GetImageTypeFromPassType(PassType);
 
@@ -399,13 +399,6 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 	if (InternalVRSSources.Num())
 	{
 		return CombineShadingRateImages(GraphBuilder, ViewInfo, InternalVRSSources);
-	}
-
-	// Fall back on external sources only if we have no internal ones
-	// TODO: Combine external sources as well
-	else if (ExternalVRSSources && ExternalVRSSources->Num() > 0)
-	{
-		return GraphBuilder.RegisterExternalTexture((*ExternalVRSSources)[0]);
 	}
 
 	// Default to nullptr if no sources are available
