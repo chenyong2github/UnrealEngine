@@ -295,6 +295,8 @@ struct FStateTreeDebuggerBreakpoint
 	explicit FStateTreeDebuggerBreakpoint(const FStateTreeTaskIndex Index, const EStateTreeBreakpointType BreakpointType);
 	explicit FStateTreeDebuggerBreakpoint(const FStateTreeTransitionIndex Index, const EStateTreeBreakpointType BreakpointType);
 
+	STATETREEMODULE_API bool IsMatchingEvent(const FStateTreeTraceEventVariantType& Event) const;
+
 	FIdentifierVariantType ElementIdentifier;
 	EStateTreeBreakpointType BreakpointType;
 	EStateTreeTraceEventType EventType;

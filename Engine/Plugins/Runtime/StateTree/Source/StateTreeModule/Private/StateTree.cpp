@@ -37,6 +37,14 @@ FStateTreeIndex16 UStateTree::GetNodeIndexFromId(const FGuid Id) const
 	return Entry != nullptr ? Entry->Index : FStateTreeIndex16::Invalid;
 }
 
+FGuid UStateTree::GetNodeIdFromIndex(const FStateTreeIndex16 NodeIndex) const
+{
+	const FStateTreeNodeIdToIndex* Entry = NodeIndex.IsValid()
+		? IDToNodeMappings.FindByPredicate([NodeIndex](const FStateTreeNodeIdToIndex& Entry){ return Entry.Index == NodeIndex; })
+		: nullptr;
+	return Entry != nullptr ? Entry->Id : FGuid();
+}
+
 const FCompactStateTreeState* UStateTree::GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
 {
 	return States.IsValidIndex(StateHandle.Index) ? &States[StateHandle.Index] : nullptr;
@@ -54,15 +62,21 @@ FGuid UStateTree::GetStateIdFromHandle(const FStateTreeStateHandle Handle) const
 	return Entry != nullptr ? Entry->Id : FGuid();
 }
 
-const FCompactStateTransition* UStateTree::GetTransitionFromIndex(const int16 TransitionIndex) const
+const FCompactStateTransition* UStateTree::GetTransitionFromIndex(const FStateTreeIndex16 TransitionIndex) const
 {
-	return Transitions.IsValidIndex(TransitionIndex) ? &Transitions[TransitionIndex] : nullptr;
+	return TransitionIndex.IsValid() && Transitions.IsValidIndex(TransitionIndex.Get()) ? &Transitions[TransitionIndex.Get()] : nullptr;
 }
 
 FStateTreeIndex16 UStateTree::GetTransitionIndexFromId(const FGuid Id) const
 {
 	const FStateTreeTransitionIdToIndex* Entry = IDToTransitionMappings.FindByPredicate([Id](const FStateTreeTransitionIdToIndex& Entry){ return Entry.Id == Id; });
 	return Entry != nullptr ? Entry->Index : FStateTreeIndex16::Invalid;
+}
+
+FGuid UStateTree::GetTransitionIdFromIndex(const FStateTreeIndex16 Index) const
+{
+	const FStateTreeTransitionIdToIndex* Entry = IDToTransitionMappings.FindByPredicate([Index](const FStateTreeTransitionIdToIndex& Entry){ return Entry.Index == Index; });
+	return Entry != nullptr ? Entry->Id : FGuid();
 }
 
 TSharedPtr<FStateTreeInstanceData> UStateTree::GetSharedInstanceData() const

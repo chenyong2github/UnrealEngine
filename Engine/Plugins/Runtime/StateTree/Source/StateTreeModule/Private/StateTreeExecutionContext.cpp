@@ -968,6 +968,7 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 						CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_ExitState);
 						Task.ExitState(*this, CurrentTransition);
 					}
+					STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnExit, Transition.CurrentRunStatus);
 				}
 			}
 		}
@@ -1252,6 +1253,7 @@ void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const EStateTreeRu
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_TreeStop);
 				Task.ExitState(*this, Transition);
 			}
+			STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnExit, Transition.CurrentRunStatus);
 		}
 	}
 

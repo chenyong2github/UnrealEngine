@@ -33,7 +33,7 @@ FString FStateTreeTraceLogEvent::ToString(const UStateTree& StateTree) const
 //----------------------------------------------------------------------//
 FString FStateTreeTraceTransitionEvent::ToString(const UStateTree& StateTree) const
 {
-	if (const FCompactStateTransition* Transition = StateTree.GetTransitionFromIndex(TransitionIndex.Get()))
+	if (const FCompactStateTransition* Transition = StateTree.GetTransitionFromIndex(TransitionIndex))
 	{
 		const FCompactStateTreeState* CompactState = StateTree.GetStateFromHandle(Transition->State);
 		FStringBuilderBase StrBuilder;

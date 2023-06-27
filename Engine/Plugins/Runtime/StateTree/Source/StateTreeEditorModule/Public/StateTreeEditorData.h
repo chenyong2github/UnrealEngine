@@ -73,6 +73,9 @@ public:
 	/** @returns state based on its ID, or nullptr if not found. */
 	const UStateTreeState* GetStateByID(const FGuid StateID) const;
 
+	/** @returns mutable state based on its ID, or nullptr if not found. */
+	UStateTreeState* GetMutableStateByID(const FGuid StateID);
+
 	/** @returns the IDs and instance values of all bindable structs in the StateTree. */
 	void GetAllStructValues(TMap<FGuid, const FStateTreeDataView>& AllValues) const;
 

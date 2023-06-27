@@ -47,7 +47,30 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 
 		TraceServices::FSessionInfo SessionInfo;
 	};
-	
+
+	struct FHitBreakpoint
+	{
+		bool IsSet() const { return Index != INDEX_NONE; }
+		void Reset()
+		{
+			InstanceId = FStateTreeInstanceDebugId::Invalid;
+			Time = 0;
+			Index = INDEX_NONE;
+		}
+
+		/** Indicates the instance for which the breakpoint has been hit */
+		FStateTreeInstanceDebugId InstanceId = FStateTreeInstanceDebugId::Invalid;
+
+		/**
+		 * Store the time at which the breakpoint was hit since we might have process more events before
+		 * sending the notifications.
+		 */
+		double Time = 0;
+
+		/** Indicates the index of the breakpoint that has been hit */
+		int32 Index = INDEX_NONE;
+	};
+
 	FStateTreeDebugger();
 	virtual ~FStateTreeDebugger() override;
 
@@ -236,11 +259,8 @@ private:
 	/** Combined information regarding current scrub time (e.g. frame index, event collection index, etc.) */ 
 	UE::StateTreeDebugger::FScrubState ScrubState;
 
-	/** Indicates the instance for which a breakpoint has been hit */
-	FStateTreeInstanceDebugId HitBreakpointInstanceId = FStateTreeInstanceDebugId::Invalid;
-	
-	/** Indicates the index of the breakpoint that has been hit */
-	int32 HitBreakpointIndex = INDEX_NONE;
+	/** Information stored when a breakpoint is hit while processing events and used to send notifications. */
+	FHitBreakpoint HitBreakpoint;
 
 	/** List of new instances discovered by processing event in the analysis session. */
 	TArray<FStateTreeInstanceDebugId> NewInstances;

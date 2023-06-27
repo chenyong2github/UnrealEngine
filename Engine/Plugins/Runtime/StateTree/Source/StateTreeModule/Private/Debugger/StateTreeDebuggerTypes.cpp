@@ -257,6 +257,33 @@ FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeTrans
 	EventType = GetMatchingEventType(BreakpointType);
 }
 
+bool FStateTreeDebuggerBreakpoint::IsMatchingEvent(const FStateTreeTraceEventVariantType& Event) const
+{
+	EStateTreeTraceEventType ReceivedEventType = EStateTreeTraceEventType::Unset;
+	Visit([&ReceivedEventType](auto& TypedEvent) { ReceivedEventType = TypedEvent.EventType; }, Event);
+
+	bool bIsMatching = false;
+	if (EventType == ReceivedEventType)
+	{
+		if (const FStateTreeStateHandle* StateHandle = ElementIdentifier.TryGet<FStateTreeStateHandle>())
+		{
+			const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>();
+			bIsMatching = StateEvent != nullptr && StateEvent->GetStateHandle() == *StateHandle;
+		}
+		else if (const FStateTreeTaskIndex* TaskIndex = ElementIdentifier.TryGet<FStateTreeTaskIndex>())
+		{
+			const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>();
+			bIsMatching = TaskEvent != nullptr && TaskEvent->Index == TaskIndex->Index;
+		}
+		else if (const FStateTreeTransitionIndex* TransitionIndex = ElementIdentifier.TryGet<FStateTreeTransitionIndex>())
+		{
+			const FStateTreeTraceTransitionEvent* TransitionEvent = Event.TryGet<FStateTreeTraceTransitionEvent>();
+			bIsMatching = TransitionEvent != nullptr && TransitionEvent->TransitionIndex == TransitionIndex->Index;
+		}
+	}
+	return bIsMatching;
+}
+
 EStateTreeTraceEventType FStateTreeDebuggerBreakpoint::GetMatchingEventType(const EStateTreeBreakpointType BreakpointType)
 {
 	switch (BreakpointType)

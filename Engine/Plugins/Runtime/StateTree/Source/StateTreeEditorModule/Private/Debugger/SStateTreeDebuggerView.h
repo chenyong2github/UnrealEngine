@@ -94,7 +94,18 @@ private:
 	bool CanRemoveStateBreakpoint(EStateTreeBreakpointType Type) const;
 	ECheckBoxState GetStateBreakpointCheckState(EStateTreeBreakpointType Type) const;
 	void HandleEnableStateBreakpoint(EStateTreeBreakpointType Type);
-	
+
+	UStateTreeState* FindStateAssociatedToBreakpoint(FStateTreeDebuggerBreakpoint Breakpoint) const;
+
+	/** Callback from timeline widgets to update the debugger scrub state. */
+	void OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing);
+
+	/** Callback used to reflect debugger scrub state in the UI. */
+	void OnDebuggerScrubStateChanged(const UE::StateTreeDebugger::FScrubState& ScrubState);
+
+	/** Recursively sets tree items as expanded. */
+	void ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Items);
+
 	TSharedPtr<FStateTreeDebugger> Debugger;
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 	TWeakObjectPtr<const UStateTree> StateTree;
@@ -134,15 +145,6 @@ private:
 
 	/** Attribute provided by the debugger scrub position to control cursor and timelines positions. */
 	TAttribute<double> ScrubTimeAttribute;
-
-	/** Callback from timeline widgets to update the debugger scrub state. */
-	void OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing);
-
-	/** Callback used to reflect debugger scrub state in the UI. */
-	void OnDebuggerScrubStateChanged(const UE::StateTreeDebugger::FScrubState& ScrubState);
-
-	/** Recursively sets tree items as expanded. */
-	void ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Items);
 
 	/** Range controlled by the timeline widgets and used to adjust cursor position and track content. */
 	TRange<double> ViewRange = TRange<double>(0, 10);

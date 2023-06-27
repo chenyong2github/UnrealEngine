@@ -379,7 +379,12 @@ void SStateTreeView::HandleModelSelectionChanged(const TArray<TWeakObjectPtr<USt
 
 	if (SelectedStates.Num() > 0)
 	{
-		TreeView->SetItemSelection(SelectedStates, true);
+		TreeView->SetItemSelection(SelectedStates, /*bSelected*/true);
+
+		if (SelectedStates.Num() == 1)
+		{
+			TreeView->RequestScrollIntoView(SelectedStates[0]);	
+		}
 	}
 }
 

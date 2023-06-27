@@ -390,9 +390,14 @@ const UStateTreeState* UStateTreeEditorData::GetStateByStructID(const FGuid Targ
 
 const UStateTreeState* UStateTreeEditorData::GetStateByID(const FGuid StateID) const
 {
-	const UStateTreeState* Result = nullptr;
+	return const_cast<UStateTreeEditorData*>(this)->GetMutableStateByID(StateID);
+}
+
+UStateTreeState* UStateTreeEditorData::GetMutableStateByID(const FGuid StateID)
+{
+	UStateTreeState* Result = nullptr;
 	
-	VisitHierarchy([&Result, &StateID](const UStateTreeState& State, UStateTreeState* /*ParentState*/)
+	VisitHierarchy([&Result, &StateID](UStateTreeState& State, UStateTreeState* /*ParentState*/)
 	{
 		if (State.ID == StateID)
 		{

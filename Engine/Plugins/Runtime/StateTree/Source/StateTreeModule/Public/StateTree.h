@@ -126,14 +126,20 @@ public:
 	/** @return Node index matching a given Id; invalid index if node not found. */
 	FStateTreeIndex16 GetNodeIndexFromId(const FGuid Id) const;
 
+	/** @return Id of the node matching a given node index; invalid Id if node not found. */
+	FGuid GetNodeIdFromIndex(const FStateTreeIndex16 NodeIndex) const;
+
 	/** @return View of all states. */
 	TConstArrayView<FCompactStateTreeState> GetStates() const { return States; }
 
 	/** @return Pointer to the transition at a given index; null if not found. */ 
-	const FCompactStateTransition* GetTransitionFromIndex(const int16 TransitionIndex) const;
+	const FCompactStateTransition* GetTransitionFromIndex(const FStateTreeIndex16 TransitionIndex) const;
 	
 	/** @return Runtime transition index matching a given Id; invalid index if node not found. */
 	FStateTreeIndex16 GetTransitionIndexFromId(const FGuid Id) const;
+
+	/** @return Id of the transition matching a given runtime transition index; invalid Id if transition not found. */
+	FGuid GetTransitionIdFromIndex(const FStateTreeIndex16 Index) const;	
 
 #if WITH_EDITOR
 	/** Resets the compiled data to empty. */

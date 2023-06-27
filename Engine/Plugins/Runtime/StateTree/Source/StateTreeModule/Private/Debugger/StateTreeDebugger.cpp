@@ -693,25 +693,24 @@ void FStateTreeDebugger::SendNotifications()
 		NewInstances.Reset();
 	}
 
-	if (HitBreakpointIndex != INDEX_NONE)
+	if (HitBreakpoint.IsSet())
 	{
-		check(HitBreakpointInstanceId.IsValid());
-		check(Breakpoints.IsValidIndex(HitBreakpointIndex));
+		check(HitBreakpoint.InstanceId.IsValid());
+		check(Breakpoints.IsValidIndex(HitBreakpoint.Index));
 
 		// Force scrub time to latest simulation time to reflect most recent events.
 		// This will notify scrub position changed and active states
-		SetScrubTime(RecordingDuration);
+		SetScrubTime(HitBreakpoint.Time);
 
 		// Make sure the instance is selected in case the breakpoint was set for any instances 
-		if (SelectedInstanceId != HitBreakpointInstanceId)
+		if (SelectedInstanceId != HitBreakpoint.InstanceId)
 		{
-			SelectInstance(HitBreakpointInstanceId);
+			SelectInstance(HitBreakpoint.InstanceId);
 		}
 
-		OnBreakpointHit.ExecuteIfBound(HitBreakpointInstanceId, Breakpoints[HitBreakpointIndex]);
+		OnBreakpointHit.ExecuteIfBound(HitBreakpoint.InstanceId, Breakpoints[HitBreakpoint.Index]);
 
-		HitBreakpointIndex = INDEX_NONE;
-		HitBreakpointInstanceId.Reset();
+		HitBreakpoint.Reset();
 
 		PauseSessionAnalysis();
 	}
@@ -738,65 +737,29 @@ void FStateTreeDebugger::ReadTrace(
 bool FStateTreeDebugger::EvaluateBreakpoints(const FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event)
 {
 	if (StateTreeAsset == nullptr // asset is required to properly match state handles
-		|| HitBreakpointIndex != INDEX_NONE // Only consider first hit breakpoint in the frame
+		|| HitBreakpoint.IsSet() // Only consider first hit breakpoint in the frame
 		|| Breakpoints.IsEmpty()
 		|| (SelectedInstanceId.IsValid() && InstanceId != SelectedInstanceId)) // ignore events not for the selected instances		
 	{
 		return false;
 	}
-	
-	EStateTreeTraceEventType EventType = EStateTreeTraceEventType::Unset;
-	
-	Visit([&EventType](auto& TypedEvent) { EventType = TypedEvent.EventType; }, Event); 
 
 	for (int BreakpointIndex = 0; BreakpointIndex < Breakpoints.Num(); ++BreakpointIndex)
 	{
 		const FStateTreeDebuggerBreakpoint Breakpoint = Breakpoints[BreakpointIndex];
-		if (Breakpoint.EventType == EventType)
+		if (Breakpoint.IsMatchingEvent(Event))
 		{
-			if (const FStateTreeStateHandle* StateHandle = Breakpoint.ElementIdentifier.TryGet<FStateTreeStateHandle>())
-			{
-				if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
-				{
-					if (StateEvent->GetStateHandle() == *StateHandle)
-					{
-						HitBreakpointIndex = BreakpointIndex;
-						HitBreakpointInstanceId = InstanceId;
-					}
-				}
-			}
-			else if (const FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex* TaskIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex>())
-			{
-				if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
-				{
-					if (TaskEvent->Index == TaskIndex->Index)
-					{
-						HitBreakpointIndex = BreakpointIndex;
-						HitBreakpointInstanceId = InstanceId;
-					}
-				}
-			}
-			else if (const FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex* TransitionIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex>())
-			{
-				if (const FStateTreeTraceTransitionEvent* TransitionEvent = Event.TryGet<FStateTreeTraceTransitionEvent>())
-				{
-					if (TransitionEvent->TransitionIndex == TransitionIndex->Index)
-					{
-						HitBreakpointIndex = BreakpointIndex;
-						HitBreakpointInstanceId = InstanceId;
-					}
-				}
-			}
+			HitBreakpoint.Index = BreakpointIndex;
+            HitBreakpoint.InstanceId = InstanceId;
+            HitBreakpoint.Time = RecordingDuration;
 		}
 	}
 
-	return HitBreakpointInstanceId.IsValid();
+	return HitBreakpoint.IsSet();
 }
 
 bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event)
 {
-	EvaluateBreakpoints(InstanceId, Event);
-
 	UE::StateTreeDebugger::FInstanceEventCollection* ExistingCollection = EventCollections.FindByPredicate(
 		[InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
 		{
@@ -858,6 +821,9 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 
 	// Store event in the collection
 	Events.Emplace(Event);
+
+	// Process at the end so RecordingDuration is up to date and we can associate it to a hit breakpoint if necessary.
+	EvaluateBreakpoints(InstanceId, Event);
 
 	return /*bKeepProcessing*/true;
 }

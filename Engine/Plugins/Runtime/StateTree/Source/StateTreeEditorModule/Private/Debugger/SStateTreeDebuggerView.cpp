@@ -11,7 +11,6 @@
 #include "IStructureDetailsView.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Modules/ModuleManager.h"
-#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "SStateTreeDebuggerInstanceTree.h"
@@ -72,6 +71,55 @@ struct FEventTreeElement : TSharedFromThis<FEventTreeElement>
 	FStateTreeTraceEventVariantType Event;
 	TArray<TSharedPtr<FEventTreeElement>> Children;
 };
+
+
+/**
+ * Iterates over all tree elements for the frame events
+ * @param Elements Container of hierarchical tree element to visit
+ * @param InFunc function called at each element, should return true if visiting is continued or false to stop.
+ */
+void VisitEventTreeElements(const TConstArrayView<TSharedPtr<FEventTreeElement>> Elements, TFunctionRef<bool(TSharedPtr<FEventTreeElement>& VisitedElement)> InFunc)
+{
+	TArray<TSharedPtr<FEventTreeElement>> Stack;
+	bool bContinue = true;
+
+	for (const TSharedPtr<FEventTreeElement>& RootElement : Elements)
+	{
+		if (RootElement == nullptr)
+		{
+			continue;
+		}
+
+		Stack.Add(RootElement);
+
+		while (!Stack.IsEmpty() && bContinue)
+		{
+			TSharedPtr<FEventTreeElement> StackedElement = Stack[0];
+			check(StackedElement);
+
+			Stack.RemoveAt(0);
+
+			bContinue = InFunc(StackedElement);
+
+			if (bContinue)
+			{
+				for (const TSharedPtr<FEventTreeElement>& Child : StackedElement->Children)
+				{
+					if (Child.IsValid())
+					{
+						Stack.Add(Child);
+					}
+				}
+			}
+		}
+
+		if (!bContinue)
+		{
+			break;
+		}
+	}
+}
+
 } // UE::StateTreeDebugger
 
 
@@ -898,6 +946,60 @@ void SStateTreeDebuggerView::HandleEnableStateBreakpoint(EStateTreeBreakpointTyp
 	}
 }
 
+UStateTreeState* SStateTreeDebuggerView::FindStateAssociatedToBreakpoint(FStateTreeDebuggerBreakpoint Breakpoint) const
+{
+	const UStateTree* Tree = StateTree.Get();
+	UStateTreeEditorData* TreeEditorData = StateTreeEditorData.Get();
+	if (Tree == nullptr || TreeEditorData == nullptr)
+	{
+		return nullptr;
+	}
+
+	UStateTreeState* StateTreeState = nullptr;
+
+	if (const FStateTreeStateHandle* StateHandle = Breakpoint.ElementIdentifier.TryGet<FStateTreeStateHandle>())
+	{
+		const FGuid StateId = StateTree->GetStateIdFromHandle(*StateHandle);
+		StateTreeState = TreeEditorData->GetMutableStateByID(StateId);
+	}
+	else if (const FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex* TaskIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex>())
+	{
+		const FGuid TaskId = StateTree->GetNodeIdFromIndex(TaskIndex->Index);
+
+		TreeEditorData->VisitHierarchy([&TaskId, &StateTreeState](UStateTreeState& State, UStateTreeState* /*ParentState*/)
+			{
+				for (const FStateTreeEditorNode& EditorNode : State.Tasks)
+				{
+					if (EditorNode.ID == TaskId)
+					{
+						StateTreeState = &State;
+						return EStateTreeVisitor::Break;
+					}
+				}
+				return EStateTreeVisitor::Continue;
+			});
+	}
+	else if (const FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex* TransitionIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex>())
+	{
+		const FGuid TransitionId = StateTree->GetTransitionIdFromIndex(TransitionIndex->Index);
+
+		TreeEditorData->VisitHierarchy([&TransitionId, &StateTreeState](UStateTreeState& State, UStateTreeState* /*ParentState*/)
+			{
+				for (const FStateTreeTransition& StateTransition : State.Transitions)
+				{
+					if (StateTransition.ID == TransitionId)
+					{
+						StateTreeState = &State;
+						return EStateTreeVisitor::Break;
+					}
+				}
+				return EStateTreeVisitor::Continue;
+			});
+	}
+
+	return StateTreeState;
+}
+
 void SStateTreeDebuggerView::OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing)
 {
 	bAutoScroll = false;
@@ -1007,11 +1109,41 @@ void SStateTreeDebuggerView::ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebu
 
 void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeDebuggerBreakpoint Breakpoint, const TSharedRef<FUICommandList> ActionList) const
 {
+	// Pause PIE session if possible
 	if (FPlayWorldCommands::Get().PausePlaySession.IsValid())
 	{
 		if (ActionList->CanExecuteAction(FPlayWorldCommands::Get().PausePlaySession.ToSharedRef()))
 		{
 			ActionList->ExecuteAction(FPlayWorldCommands::Get().PausePlaySession.ToSharedRef());
+		}
+	}
+
+	// Extract associated UStateTreeState to focus on it.
+	if (UStateTreeState* AssociatedState = FindStateAssociatedToBreakpoint(Breakpoint))
+	{
+		FStateTreeViewModel* ViewModel = StateTreeViewModel.Get();
+		check(ViewModel);
+		ViewModel->SetSelection(AssociatedState);
+	}
+
+	// Find matching event in the tree view and select it
+	if (EventsTreeView.IsValid())
+	{
+		TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> MatchingElement = nullptr;
+		VisitEventTreeElements(EventsTreeElements, [&MatchingElement, Breakpoint](const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>& VisitedElement)
+			{
+				if (Breakpoint.IsMatchingEvent(VisitedElement->Event))
+				{
+					MatchingElement = VisitedElement;
+				}
+
+				// Continue visit until we find a matching event
+				return MatchingElement.IsValid() == false;
+			});
+
+		if (MatchingElement.IsValid())
+		{
+			EventsTreeView->SetSelection(MatchingElement);
 		}
 	}
 }
@@ -1021,7 +1153,7 @@ void SStateTreeDebuggerView::OnNewSession()
 	// Clear tracks
 	InstanceOwnerTracks.Reset();
 
-	// Refresh tree viewa
+	// Refresh tree view
 	if (InstancesTreeView)
 	{
 		InstancesTreeView->Refresh();
