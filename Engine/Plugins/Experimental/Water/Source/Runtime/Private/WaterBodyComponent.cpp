@@ -1039,6 +1039,11 @@ void UWaterBodyComponent::PreEditUndo()
 
 void UWaterBodyComponent::PostEditUndo()
 {
+	if (AWaterBody* WaterBodyActor = GetWaterBodyActor())
+	{
+		WaterBodyActor->CleanupInvalidStaticMeshComponents();
+	}
+
 	Super::PostEditUndo();
 
 	// Since this component may become unregistered/deleted if we are undoing the creation of a water body.
@@ -1962,18 +1967,12 @@ void UWaterBodyComponent::UpdateWaterBodyStaticMeshComponents()
 		return;
 	}
 
-	TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& WaterBodyStaticMeshComponents = WaterBodyActor->GetWaterBodyStaticMeshComponents();
+	const TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& WaterBodyStaticMeshComponents = WaterBodyActor->GetWaterBodyStaticMeshComponents();
 
 	const bool bShouldUseStaticMesh = StaticMeshSettings.bEnableWaterBodyStaticMesh && (GetWaterMeshOverride() == nullptr) && (GetWaterBodyType() != EWaterBodyType::Transition);
 
 	if (bShouldUseStaticMesh)
 	{
-		// Can't reuse components marked PendingKill or null. This can occur when undoing after disabling static meshes.
-		WaterBodyStaticMeshComponents.SetNum(Algo::RemoveIf(WaterBodyStaticMeshComponents, [](const TObjectPtr<UWaterBodyStaticMeshComponent>& StaticMeshComponent)
-		{
-			return !IsValid(StaticMeshComponent);
-		}));
-
 		FWaterBodyMeshBuilder LODMeshBuilder;
 		TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> NewStaticMeshComponents = LODMeshBuilder.BuildWaterBodyStaticMesh(this, StaticMeshSettings, WaterBodyStaticMeshComponents);
 		

@@ -18,6 +18,7 @@
 #include "WaterBodyInfoMeshComponent.h"
 #include "WaterBodyStaticMeshComponent.h"
 #include "WaterVersion.h"
+#include "Algo/RemoveIf.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyActor)
 
@@ -216,6 +217,14 @@ void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves)
 		Params.bShapeOrPositionChanged = true;
 		WaterBodyComponent->OnWaterBodyChanged(Params);
 	}
+}
+
+void AWaterBody::CleanupInvalidStaticMeshComponents()
+{
+	WaterBodyStaticMeshComponents.SetNum(Algo::RemoveIf(WaterBodyStaticMeshComponents, [](const TObjectPtr<UWaterBodyStaticMeshComponent>& StaticMeshComponent)
+	{
+		return !IsValid(StaticMeshComponent);
+	}));
 }
 
 void AWaterBody::SetWaterBodyStaticMeshComponents(TArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> NewComponentList, TConstArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> ComponentsToUnregister)
