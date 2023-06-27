@@ -608,10 +608,6 @@ FNiagaraSystemSimulationTickContext::FNiagaraSystemSimulationTickContext(class F
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraSystemSimulation::AddReferencedObjects(FReferenceCollector& Collector)
-{
-}
-
 FNiagaraSystemSimulation::FNiagaraSystemSimulation()
 	: EffectType(nullptr)
 	, SystemTickGroup(TG_MAX)
