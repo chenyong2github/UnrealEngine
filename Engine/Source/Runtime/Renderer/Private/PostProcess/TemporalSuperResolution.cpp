@@ -432,12 +432,6 @@ public:
 
 	static ERHIFeatureSupport SupportsWaveOps(EShaderPlatform Platform)
 	{
-		// UE-161125: SPIRV ends up with 5min+ compilation times, and D3D11 needs SPIRV backend for HLSL2021 features on FXC.
-		if (FDataDrivenShaderPlatformInfo::GetIsSPIRV(Platform) || GetEditorShaderPlatform(Platform) == SP_PCD3D_SM5)
-		{
-			return ERHIFeatureSupport::Unsupported;
-		}
-
 		return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform);
 	}
 

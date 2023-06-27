@@ -17,9 +17,6 @@
 
 #define DEBUG_ARRAY_SIZE 8
 
-/** Size of the entire group loaded into memory including overscan. */
-#define GROUP_TILE_SIZE 16
-
 /** Whether should remove firefliers from input and history before comparison to improve stability. */
 #define CONFIG_FIREFLY_REMOVAL 1
 
@@ -29,45 +26,61 @@
 /** Whether to detect flickering. */
 #define CONFIG_MOIRE_DETECTION (DIM_FLICKERING_DETECTION)
 
-#if DIM_WAVE_SIZE == 0
-	#define CONFIG_OPTIMIZED_LDS_ACCESS 1
-#else
-	#define CONFIG_OPTIMIZED_LDS_ACCESS 0
-#endif
-
 #define CONFIG_MANUAL_LDS_SPILL 0
 
 
 //------------------------------------------------------- DERIVED
 
 /** Pixel coordinate stride between each lane in the GROUP_TILE_SIZE. */
-#if DIM_WAVE_SIZE == 64
-	#define LANE_COUNT 64
+#if DIM_WAVE_SIZE == 32 && PLATFORM_GPU_ARCH == PLATFORM_GPU_ARCH_AMD_RDNA_2
+	/** Load an entire 16x16 tile in a single wave32 with 4x2 worth of data per lane and just 100% waveops all communications. */
+	#define GROUP_TILE_SIZE 16
+
+	#define WAVE_COUNT_X 1
+	#define WAVE_COUNT_Y 1
+
+	#define LANE_COUNT_X 4
+	#define LANE_COUNT_Y 8
+
+	#define LANE_STRIDE_X 4
+	#define LANE_STRIDE_Y 2
+	
+#elif DIM_WAVE_SIZE == 64 || DIM_WAVE_SIZE == 32
+	/** Layouts wave in row major so an entire row of pixels fits within a single wave, and waveops horizontally, but LDS vertically.
+	 * Each lane worth of a 2x2 of data per lane to minimise to trade VGPR pressure for both number of wave ops and LDS.
+	 */
+	#define GROUP_TILE_SIZE 16
+
+	#define WAVE_COUNT_X 1
+	#define WAVE_COUNT_Y 8
+
+	#define LANE_COUNT_X 8
+	#define LANE_COUNT_Y 1
+
 	#define LANE_STRIDE_X 2
 	#define LANE_STRIDE_Y 2
 
-#elif DIM_WAVE_SIZE == 32
-	#define LANE_COUNT 32
-	#define LANE_STRIDE_X 4
-	#define LANE_STRIDE_Y 2
+	// Each wave needs to output top and bottom rows of pixels into LDS;
+	#define LDS_SIZE (2 * (LANE_STRIDE_X * LANE_COUNT_X) * (WAVE_COUNT_X * WAVE_COUNT_Y))
 
-#elif DIM_WAVE_SIZE == 0 && 0
-	#define LANE_COUNT 32
-	#define LANE_STRIDE_X 4
-	#define LANE_STRIDE_Y 2
+#elif DIM_WAVE_SIZE == 0
+	/** Load an entire 16x16 with 1x1 worth of data by lane, only using LDS. */
+	#define GROUP_TILE_SIZE 16
 
-#elif DIM_WAVE_SIZE == 0 && 1
-	#define LANE_COUNT (GROUP_TILE_SIZE * GROUP_TILE_SIZE)
+	#define WAVE_COUNT_X 16
+	#define WAVE_COUNT_Y 16
+
+	#define LANE_COUNT_X 1
+	#define LANE_COUNT_Y 1
+
 	#define LANE_STRIDE_X 1
 	#define LANE_STRIDE_Y 1
+
+	#define LDS_SIZE (WAVE_COUNT_X * WAVE_COUNT_Y)
 
 #else
 	#error Unknown wave size
 #endif
-
-/** Number of lane the GROUP_TILE_SIZE. */
-#define LANE_COUNT_X (GROUP_TILE_SIZE / LANE_STRIDE_X)
-#define LANE_COUNT_Y (GROUP_TILE_SIZE / LANE_STRIDE_Y)
 
 /** Size of the SIMD per lane that also number of input pixel loaded into each individual lanes. */
 #define SIMD_SIZE (LANE_STRIDE_X * LANE_STRIDE_Y)
@@ -137,9 +150,9 @@ tsr_simd_halfC ClampFireFliersWithGuide(tsr_simd_halfC ToClamp, tsr_simd_halfC G
 //------------------------------------------------------- ENTRY POINT
 
 #if COMPILER_SUPPORTS_WAVE_SIZE && DIM_WAVE_SIZE > 0
-	WAVESIZE(LANE_COUNT)
+WAVESIZE(DIM_WAVE_SIZE)
 #endif
-[numthreads(LANE_COUNT, 1, 1)]
+[numthreads(LANE_COUNT * WAVE_COUNT, 1, 1)]
 void MainCS(
 	uint2 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
@@ -590,7 +603,7 @@ void MainCS(
 			#endif
 
 			#if CONFIG_SCENE_COLOR_ALPHA
-			HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
+				HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
 			#else
 				HistoryGuideOutput[OutputPixelPos] = tsr_half4(FinalGuideColor.xyz, tsr_half(1.0));
 			#endif

@@ -6,8 +6,9 @@
 //------------------------------------------------------- CONFIG
 
 #if DIM_NYQUIST
-	#define LANE_COUNT 32
-	#define DIM_WAVE_SIZE (LANE_COUNT)
+	#define WAVE_COUNT_X 1
+	#define WAVE_COUNT_Y 1
+
 	#define DOWNSAMPLE_FACTOR 2u
 	
 	/** Size of the entire group loaded into memory including overscan. */
@@ -135,7 +136,7 @@ RWTexture2D<tsr_halfC> SceneColorOutputMip1;
 #if DIM_NYQUIST
 
 #if COMPILER_SUPPORTS_WAVE_SIZE
-	WAVESIZE(LANE_COUNT)
+	WAVESIZE(32)
 #endif
 [numthreads(LANE_COUNT, 1, 1)]
 void MainCS(
@@ -169,11 +170,11 @@ void MainCS(
 			tsr_output_halfC Min = DownsampleMin2x2(Colors);
 			tsr_output_halfC Max = DownsampleMax2x2(Colors);
 
-			Min = min(Min, AccessNeighborTexel(Min, tsr_short2(1, 0)));
-			Min = min(Min, AccessNeighborTexel(Min, tsr_short2(0, 1)));
+			Min = min(Min, WaveAccessNeighborTexel(Min, tsr_short2(1, 0)));
+			Min = min(Min, WaveAccessNeighborTexel(Min, tsr_short2(0, 1)));
 
-			Max = max(Max, AccessNeighborTexel(Max, tsr_short2(1, 0)));
-			Max = max(Max, AccessNeighborTexel(Max, tsr_short2(0, 1)));
+			Max = max(Max, WaveAccessNeighborTexel(Max, tsr_short2(1, 0)));
+			Max = max(Max, WaveAccessNeighborTexel(Max, tsr_short2(0, 1)));
 		#endif
 		
 		tsr_input_halfC LDRColors = Colors;
@@ -218,7 +219,7 @@ void MainCS(
 		tsr_output_halfC Out2 = DownsampleDot2x2(LDRColors, Weights2);
 		tsr_output_halfC Out3 = DownsampleDot2x2(LDRColors, Weights3);
 
-		Output = Out0 + AccessNeighborTexel(Out1, tsr_short2(1, 0)) + AccessNeighborTexel(Out2, tsr_short2(0, 1)) + AccessNeighborTexel(Out3, tsr_short2(1, 1));
+		Output = Out0 + WaveAccessNeighborTexel(Out1, tsr_short2(1, 0)) + WaveAccessNeighborTexel(Out2, tsr_short2(0, 1)) + WaveAccessNeighborTexel(Out3, tsr_short2(1, 1));
 		#if CONFIG_HDR_WEIGHT
 		{
 			UNROLL_N(OUTPUT_SIMD_SIZE)
@@ -252,8 +253,8 @@ void MainCS(
 		
 		{
 			tsr_output_halfC HalfResOutput = Output * tsr_half(0.25);
-			HalfResOutput = HalfResOutput + AccessNeighborTexel(HalfResOutput, tsr_short2(1, 0));
-			HalfResOutput = HalfResOutput + AccessNeighborTexel(HalfResOutput, tsr_short2(0, 1));
+			HalfResOutput = HalfResOutput + WaveAccessNeighborTexel(HalfResOutput, tsr_short2(1, 0));
+			HalfResOutput = HalfResOutput + WaveAccessNeighborTexel(HalfResOutput, tsr_short2(0, 1));
 		
 			tsr_short2 OutputPixelOffset = GetLaneSimdPixelOffset<LANE_OUTPUT_STRIDE_X, LANE_OUTPUT_STRIDE_Y>(LaneIndex, /* SimdIndex = */ 0);
 			tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(GroupPixelOffset + OutputPixelOffset, OutputViewRectMax);
