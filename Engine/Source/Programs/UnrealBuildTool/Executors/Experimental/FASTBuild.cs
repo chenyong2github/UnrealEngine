@@ -620,6 +620,16 @@ namespace UnrealBuildTool
 					}
 				}
 
+				// Handle nested response files
+				if (Token.StartsWith('@'))
+				{
+					foreach (KeyValuePair<string, string> Pair in ParseCommandLineOptions(LocalToolName, Token, SpecialOptions, Logger))
+					{
+						ParsedCompilerOptions.Add(Pair.Key, Pair.Value);
+					}
+					continue;
+				}
+
 				// Defines can have escaped quotes and other strings inside them
 				// so we consume tokens until we've closed any open unescaped parentheses.
 				if ((Token.StartsWith("/D") || Token.StartsWith("-D")) && !QuotesOpened)
@@ -760,6 +770,11 @@ namespace UnrealBuildTool
 					ProcessedTokens.RemoveAt(i);
 					i--;
 				}
+			}
+
+			if (ParsedCompilerOptions.ContainsKey("OtherOptions"))
+			{
+				ProcessedTokens.Insert(0, ParsedCompilerOptions["OtherOptions"]);
 			}
 
 			ParsedCompilerOptions["OtherOptions"] = String.Join(" ", ProcessedTokens) + " ";
