@@ -468,34 +468,6 @@ bool FVariableRateShadingImageManager::IsTypeEnabledForView(const FSceneView& Vi
 	return false;
 }
 
-TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::GetMobileVariableRateShadingImage(const FSceneViewFamily& ViewFamily)
-{
-	if (!(IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0]) && GEngine->XRSystem.IsValid()))
-	{
-		return TRefCountPtr<IPooledRenderTarget>();
-	}
-
-	FIntPoint Size(ViewFamily.RenderTarget->GetSizeXY());
-
-	const bool bStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
-	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
-
-	FTexture2DRHIRef Texture;
-	FIntPoint TextureSize(0, 0);
-
-	// Allocate variable resolution texture for VR foveation if supported
-	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateShadingRateTexture(MobileHMDFixedFoveationOverrideImage))
-	{
-		bool bAllocatedShadingRateTexture = StereoRenderTargetManager->AllocateShadingRateTexture(0, Size.X, Size.Y, GRHIVariableRateShadingImageFormat, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
-		if (bAllocatedShadingRateTexture)
-		{
-			MobileHMDFixedFoveationOverrideImage = CreateRenderTarget(Texture, TEXT("ShadingRate"));
-		}
-	}
-
-	return MobileHMDFixedFoveationOverrideImage;
-}
-
 void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FRDGTextureRef OutputSceneColor)
 {
 	uint32 ImageTypeAsInt = CVarVRSPreview.GetValueOnRenderThread();

@@ -98,13 +98,6 @@ public:
 	 */
 	bool IsTypeEnabledForView(const FSceneView& View, EVRSSourceType Type) const;
 
-
-	/** 
-	 *  Special case (currently) for mobile devices; right now this will return either no image, or a static fixed-foveation shading rate image
-	 *  provided by the stereo device runtime.
-	 */
-	TRefCountPtr<IPooledRenderTarget> GetMobileVariableRateShadingImage(const FSceneViewFamily& ViewFamily);
-
 	static bool IsVRSSupportedByRHI();
 	static bool IsVRSEnabled();
 	static bool IsVRSCompatibleWithView(const FViewInfo& View);
