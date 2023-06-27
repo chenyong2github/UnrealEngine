@@ -439,7 +439,7 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 	uint32 PackedHash = CastChecked<APackedLevelActor>(BP->GeneratedClass->GetDefaultObject())->GetPackedHash();
 	if (PackedHash != 0 && PackedHash == InActor->GetPackedHash())
 	{
-		Log.Info(FText::Format(LOCTEXT("PackedBlueprintUpdated", "Packed Blueprint '{0}' already up to date"), FText::FromString(InBlueprintAsset.ToString())));
+		Log.Info(FText::Format(LOCTEXT("PackedBlueprintUpToDate", "Packed Blueprint '{0}' already up to date"), FText::FromString(InBlueprintAsset.ToString())));
 		return true;
 	}
 
