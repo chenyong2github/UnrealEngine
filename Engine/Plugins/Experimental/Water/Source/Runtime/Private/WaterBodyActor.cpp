@@ -516,38 +516,6 @@ void AWaterBody::DeprecateData()
 		// Some deprecated data on the actor were also later deprecated on the component (e.g. bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED), make sure it runs its own deprecation operations on it : 
 		WaterBodyComponent->DeprecateData();
 	}
-
-	// With this version bump, we introduced a fix that allows water static meshes to be outered to the actor and still avoid the cost of duplicating them for PIE. It is now safe to rename them back to have a proper outer chain with the actor as the outer.
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshRename)
-	{
-		TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
-		MeshComponents.Append(WaterBodyStaticMeshComponents);
-
-		for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
-		{
-			if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
-			{
-				UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-				StaticMesh->Rename(nullptr, this, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-			}
-		}
-	}
-
-	// Static meshes should be duplicate transient so we don't run into issues with async builders running tasks. Instead we can just rely on them being recreated after the water body is duplicated.
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshRename)
-	{
-		TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
-		MeshComponents.Append(WaterBodyStaticMeshComponents);
-
-		for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
-		{
-			if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
-			{
-				UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-				StaticMesh->SetFlags(StaticMesh->GetFlags() | RF_NonPIEDuplicateTransient | RF_TextExportTransient);
-			}
-		}
-	}
 #endif // WITH_EDITORONLY_DATA
 }
 

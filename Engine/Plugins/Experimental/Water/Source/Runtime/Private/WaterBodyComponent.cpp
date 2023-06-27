@@ -1451,6 +1451,11 @@ void UWaterBodyComponent::OnPostRegisterAllComponents()
 		}
 	}
 
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshFixup)
+	{
+		UpdateWaterBodyRenderData();
+	}
+
 	// Ensure that the sprite component is updated once the water body is fully setup after PostRegister.
 	UpdateWaterSpriteComponent();
 #endif // WITH_EDITOR

@@ -345,6 +345,9 @@ struct FFortniteMainBranchObjectVersion
 		// Update paths to use the SkeletalClass
 		MVVMConvertPropertyPathToSkeletalClass,
 
+		// Fixup all flags/outering on static meshes on water bodies by rebuilding them completely
+		WaterBodyStaticMeshFixup,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
