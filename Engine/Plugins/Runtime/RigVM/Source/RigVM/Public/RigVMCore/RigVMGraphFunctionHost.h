@@ -80,6 +80,15 @@ public:
 		{
 			Ar << Host.PrivateFunctions;
 		}
+
+		if(Ar.IsLoading())
+		{
+			for(FRigVMGraphFunctionData& Function : Host.PublicFunctions)
+			{
+				Function.PatchSharedArgumentOperandsIfRequired();
+			}
+		}
+		
 		return Ar;
 	}
 

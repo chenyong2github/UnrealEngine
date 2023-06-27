@@ -255,7 +255,10 @@ struct RIGVM_API FRigVMGraphFunctionArgument
 	FRigVMExternalVariable GetExternalVariable() const;
 
 	// validates and potentially loads the CPP Type Object
-	bool IsCPPTypeObjectValid() const; 
+	bool IsCPPTypeObjectValid() const;
+
+	// returns true if this argument is an execute context
+	bool IsExecuteContext() const;
 
 	friend uint32 GetTypeHash(const FRigVMGraphFunctionArgument& Argument)
 	{
@@ -456,4 +459,12 @@ struct RIGVM_API FRigVMGraphFunctionData
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
 
 	static FRigVMGraphFunctionData* FindFunctionData(const FRigVMGraphFunctionIdentifier& InIdentifier, bool* bOutIsPublic = nullptr);	
+
+	static FString GetArgumentNameFromPinHash(const FString& InPinHash);
+	
+	FRigVMOperand GetOperandForArgument(const FName& InArgumentName) const;
+
+	bool IsAnyOperandSharedAcrossArguments() const;
+
+	bool PatchSharedArgumentOperandsIfRequired();
 };

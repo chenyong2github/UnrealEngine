@@ -401,6 +401,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 							}
 							if (bSuccessfullCompilation || CompilationData->IsValid())
 							{
+								FunctionData->PatchSharedArgumentOperandsIfRequired();
 								CurrentCompiledFunctions.Add(FunctionHash, CompilationData);
 							}
 							else
@@ -3373,7 +3374,6 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 
 	const FString CPPType = InProxy.GetSubjectChecked<URigVMPin>()->GetCPPType();
 
-	bool bContainsInterfacePin = false;
 	for(int32 ProxyIndex = 0; ProxyIndex < PinProxiesToProcess.Num(); ProxyIndex++)
 	{
 		if (PinProxiesToProcess[ProxyIndex].IsValid())
@@ -3398,22 +3398,6 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 				if (Pin->GetDirection() == ERigVMPinDirection::Input && !Pin->IsLazy() && Pin->GetNode()->HasLazyPin())
 				{
 					continue;
-				}
-
-				// when compiling a function, avoid folding pins from entry and return nodes
-				if (CurrentCompilationFunction)
-				{
-					if (URigVMNode* Node = Pin->GetNode())
-					{
-						if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
-						{
-							if (bContainsInterfacePin)
-							{
-								continue;
-							}
-							bContainsInterfacePin = true;
-						}
-					}
 				}
 			}
 			PinProxies.Add(PinProxiesToProcess[ProxyIndex]);
