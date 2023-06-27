@@ -278,9 +278,9 @@ public:
 				break;
 			}
 
-			if (TimeToLive == 0 || AnyJobUsedHLSLccCompiler(SingleJobs, PipelineJobs))
+			if (TimeToLive == 0)
 			{
-				UE_LOG(LogShaders, Log, TEXT("TimeToLive set to 0, or used HLSLcc compiler, exiting after single job"));
+				UE_LOG(LogShaders, Log, TEXT("TimeToLive set to 0, exiting after single job"));
 				break;
 			}
 
@@ -837,32 +837,6 @@ private:
 			}
 		}
 #endif
-	}
-	
-	static bool AnyJobUsedHLSLccCompiler(TArray<FShaderCompileJob>& SingleJobs, TArray<FShaderPipelineCompileJob>& PipelineJobs)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(AnyJobUsedHLSLccCompiler);
-
-		for (int32 JobIndex = 0; JobIndex < SingleJobs.Num(); JobIndex++)
-		{
-			if (SingleJobs[JobIndex].Output.bUsedHLSLccCompiler)
-			{
-				return true;
-			}
-		}
-
-		for (int32 JobIndex = 0; JobIndex < PipelineJobs.Num(); JobIndex++)
-		{
-			FShaderPipelineCompileJob& PipelineJob = PipelineJobs[JobIndex];
-			for (int32 Index = 0; Index < PipelineJob.StageJobs.Num(); ++Index)
-			{
-				if (PipelineJob.StageJobs[Index]->Output.bUsedHLSLccCompiler)
-				{
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 };
 

@@ -3400,39 +3400,6 @@ static FString PrintJobsCompletedPercentageToString(int64 JobsAssigned, int64 Jo
 	return FString::Printf(TEXT("%.2f%%"), FMath::Min(JobsCompletedPercentage, 99.99));
 }
 
-static FString WriteShaderCompilerInvocationStats(const FShaderCompilerStats::FCompilerInvocations& Invocations)
-{
-	FString Stats;
-
-	auto AppendStat = [&Stats](const TCHAR* Text)
-	{
-		Stats += FString::Printf(TEXT("%s%s"), (Stats.IsEmpty() ? TEXT("") : TEXT(", ")), Text);
-	};
-	auto AppendInvocationStat = [&AppendStat](const TCHAR* CompilerName, int32 Invocations)
-	{
-		if (Invocations > 0)
-		{
-			AppendStat(*FString::Printf(TEXT("%s (%d)"), CompilerName, Invocations));
-		}
-	};
-	if (Invocations.Dxc > 0)
-	{
-		if (Invocations.DxcPrecompileSteps > 0)
-		{
-			AppendStat(*FString::Printf(TEXT("DXC (%d pre-compile steps / %d)"), Invocations.DxcPrecompileSteps, Invocations.Dxc));
-		}
-		else
-		{
-			AppendInvocationStat(TEXT("DXC"), Invocations.Dxc);
-		}
-	}
-	AppendInvocationStat(TEXT("Legacy FXC"), Invocations.Fxc);
-	AppendInvocationStat(TEXT("HLSLcc"), Invocations.Hlslcc);
-	AppendStat(*FString::Printf(TEXT("Platform compiler (%s)"), Invocations.bWasPlatformCompilerUsed ? TEXT("YES") : TEXT("NO")));
-
-	return Stats;
-}
-
 void FShaderCompilerStats::WriteStatSummary()
 {
 	const uint32 TotalCompiled = GetTotalShadersCompiled();
@@ -3446,8 +3413,6 @@ void FShaderCompilerStats::WriteStatSummary()
 		*FormatNumber(JobsAssigned),
 		*FormatNumber(JobsCompleted),
 		*PrintJobsCompletedPercentageToString(JobsAssigned, JobsCompleted));
-
-	UE_LOG(LogShaderCompilers, Display, TEXT("Compiler invocations: %s"), *WriteShaderCompilerInvocationStats(CompilerInvocations));
 
 	if (TimesLocalWorkersWereIdle > 0.0)
 	{
@@ -3713,49 +3678,6 @@ void FShaderCompilerStats::RegisterFinishedJob(FShaderCommonCompileJob& Job)
 			MaxShaderCodeSize = (MaxShaderCodeSize > 0 ? FMath::Max(MaxShaderCodeSize, ShaderCodeSize) : ShaderCodeSize);
 			AccumulatedShaderCodeSize += (uint64)ShaderCodeSize;
 			++NumAccumulatedShaderCodes;
-		}
-
-		// Register shader compiler invocations
-		{
-			// Record FXC invocation if target is D3D11 (no other paltform uses FXC)
-			const EShaderPlatform InputShaderPlatform = SingleJob.Input.Target.GetPlatform();
-			const bool bIsD3DPlatform = FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(InputShaderPlatform);
-			const bool bUsedFxc = bIsD3DPlatform && SingleJob.Input.CanCompileWithLegacyFxc();
-			if (bUsedFxc)
-			{
-				CompilerInvocations.Fxc++;
-			}
-
-			const bool bSupportsDxc = FDataDrivenShaderPlatformInfo::GetSupportsDxc(InputShaderPlatform);
-			const bool bSupportsDxcPrecompileStep = FDataDrivenShaderPlatformInfo::GetIsPC(InputShaderPlatform);
-			if (bSupportsDxc || bSupportsDxcPrecompileStep)
-			{
-				// Record DXC pre-compile step if FXC was used and HLSL 2021 or an explicit pre-compile step was requested
-				const bool bHlslVersion2021 = SingleJob.Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
-				const bool bPrecompileWithDXC = SingleJob.Input.Environment.CompilerFlags.Contains(CFLAG_PrecompileWithDXC);
-				const bool bWasPrecompiledWithDXC = bUsedFxc && (bHlslVersion2021 || bPrecompileWithDXC);
-				if (bWasPrecompiledWithDXC)
-				{
-					CompilerInvocations.DxcPrecompileSteps++;
-				}
-
-				// Record DXC invocation if it was explicitly requested or if there was a pre-compile step
-				const bool bForceDxc = SingleJob.Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
-				if (bForceDxc || bWasPrecompiledWithDXC)
-				{
-					CompilerInvocations.Dxc++;
-				}
-			}
-
-			// Record HLSLcc invocation if output is marked as such
-			if (SingleJob.Output.bUsedHLSLccCompiler)
-			{
-				CompilerInvocations.Hlslcc++;
-			}
-
-			// Assume any console target requires a platform compiler
-			const bool bIsConsole = FDataDrivenShaderPlatformInfo::GetIsConsole(InputShaderPlatform);
-			CompilerInvocations.bWasPlatformCompilerUsed = bIsConsole;
 		}
 
 		const FString ShaderName(SingleJob.Key.ShaderType->GetName());

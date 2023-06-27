@@ -540,7 +540,6 @@ struct FShaderCompilerOutput
 	,	PreprocessTime(0.0)
 	,	bSucceeded(false)
 	,	bSupportsQueryingUsedAttributes(false)
-	,	bUsedHLSLccCompiler(false)
 	,	bSerializeModifiedSource(false)
 	{
 	}
@@ -559,14 +558,15 @@ struct FShaderCompilerOutput
 	UE_DEPRECATED(5.3, "bFailedRemovingUnused field is no longer used")
 	bool bFailedRemovingUnused;
 	bool bSupportsQueryingUsedAttributes;
+	UE_DEPRECATED(5.3, "bUsedHLSLccCompiler field is no longer used")
 	bool bUsedHLSLccCompiler;
 	bool bSerializeModifiedSource;
 	TArray<FString> UsedAttributes;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Explicitly-defaulted copy/move ctors & assignment operators are needed temporarily due to 
-	// deprecation of bFailedRemovingUnused field. These can be removed once the deprecation
-	// window for said field ends.
+	// deprecation of bFailedRemovingUnused/bUsedHLSLccCompiler fields. These can be removed once the deprecation
+	// window for said fields ends.
 	FShaderCompilerOutput(FShaderCompilerOutput&&) = default;
 	FShaderCompilerOutput(const FShaderCompilerOutput&) = default;
 	FShaderCompilerOutput& operator=(FShaderCompilerOutput&&) = default;

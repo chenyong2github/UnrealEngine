@@ -1163,11 +1163,6 @@ public:
 		}
 		Job.Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
 
-		if (Compiler->UsesHLSLcc(Job.Input))
-		{
-			Job.Output.bUsedHLSLccCompiler = true;
-		}
-
 		if (CompileCount)
 		{
 			++(*CompileCount);

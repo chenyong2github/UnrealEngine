@@ -67,11 +67,6 @@ public:
 	{
 		return TEXT("");
 	}
-
-	virtual bool UsesHLSLcc(const struct FShaderCompilerInput& Input) const override
-	{
-		return true;
-	}
 };
 
 /**

@@ -85,11 +85,6 @@ public:
 	{
 		return TEXT("GL");
 	}
-
-	virtual bool UsesHLSLcc(const struct FShaderCompilerInput& Input) const override
-	{
-		return !Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
-	}
 };
 
 /**
