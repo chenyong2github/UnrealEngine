@@ -6,7 +6,7 @@
 
 #include "RewindDebuggerTrack.h"
 #include "SStateTreeDebuggerEventTimelineView.h"
-#include "StateTreeTypes.h"
+#include "StateTreeExecutionTypes.h"
 
 struct FStateTreeDebugger;
 
