@@ -80,8 +80,6 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowData
 	[[nodiscard]] bool HasAtLeastOneChildThatIsNotSolo(
 		const TSharedRef<ISceneOutlinerTreeItem> InRow, const bool bRecursive = true) const;
 
-	[[nodiscard]] FText GetDisplayName(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem) const;
-
 	[[nodiscard]] const FText& GetDisplayNameOverride() const
 	{
 		return DisplayNameOverride;

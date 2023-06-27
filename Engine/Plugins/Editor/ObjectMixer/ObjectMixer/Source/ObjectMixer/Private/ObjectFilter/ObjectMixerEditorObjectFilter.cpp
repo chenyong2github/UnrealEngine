@@ -4,8 +4,6 @@
 
 #include "ObjectMixerEditorModule.h"
 
-#include "Kismet2/ComponentEditorUtils.h"
-
 void UObjectMixerObjectFilter::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 {
 	UObject::PostCDOCompiled(Context);
@@ -17,114 +15,9 @@ void UObjectMixerObjectFilter::PostCDOCompiled(const FPostCDOCompiledContext& Co
 	}
 }
 
-FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, const bool bIsHybridRow) const
-{
-	if (IsValid(InObject))
-	{
-		if (const AActor* AsActor = Cast<AActor>(InObject))
-		{
-			return FText::FromString(AsActor->GetActorLabel());
-		}
-
-		if (bIsHybridRow)
-		{
-			if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
-			{
-				return FText::FromString(Outer->GetActorLabel());
-			}
-		}
-		
-		if (const UActorComponent* AsActorComponent = Cast<UActorComponent>(InObject))
-		{
-			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(AsActorComponent);
-			if (ComponentName != NAME_None)
-			{
-				return FText::FromName(ComponentName);
-			}
-		}
-		
-		return FText::FromString(InObject->GetName());
-	}
-
-	return FText::GetEmpty();
-}
-
-FText UObjectMixerObjectFilter::GetRowTooltipText(UObject* InObject, const bool bIsHybridRow) const
-{
-	if (IsValid(InObject))
-	{
-		if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
-		{
-			return FText::Format(INVTEXT("{0} ({1})"), FText::FromString(Outer->GetActorLabel()), FText::FromString(InObject->GetName()));
-		}
-		
-		if (const AActor* AsActor = Cast<AActor>(InObject))
-		{
-			return FText::FromString(AsActor->GetActorLabel());
-		}
-		
-		if (const UActorComponent* AsActorComponent = Cast<UActorComponent>(InObject))
-		{
-			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(AsActorComponent);
-			if (ComponentName != NAME_None)
-			{
-				if (!ComponentName.IsEqual(AsActorComponent->GetFName()))
-				{
-					return
-					   FText::Format(INVTEXT("{0} ({1})"),
-						   FText::FromName(ComponentName),
-						   FText::FromName(AsActorComponent->GetFName())
-					   );
-				}
-
-				return FText::FromName(ComponentName);
-			}
-		}
-		
-		return FText::FromString(InObject->GetName());
-	}
-
-	return FText::GetEmpty();
-}
-
 bool UObjectMixerObjectFilter::GetShowTransientObjects() const
 {
 	return false;
-}
-
-bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject) const
-{
-	if (IsValid(InObject))
-	{
-		TObjectPtr<AActor> Actor = Cast<AActor>(InObject);
-	
-		if (!Actor)
-		{
-			Actor = InObject->GetTypedOuter<AActor>();
-		}
-
-		return Actor ? !Actor->IsTemporarilyHiddenInEditor() : false;
-	}
-
-	return false;
-}
-
-void UObjectMixerObjectFilter::OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const
-{
-	if (IsValid(InObject))
-	{
-		TObjectPtr<AActor> Actor = Cast<AActor>(InObject);
-	
-		if (!Actor)
-		{
-			Actor = InObject->GetTypedOuter<AActor>();
-		}
-
-		if (Actor)
-		{
-			Actor->SetIsTemporarilyHiddenInEditor(!bNewIsVisible);
-		}
-	}
 }
 
 TSet<FName> UObjectMixerObjectFilter::GetColumnsToShowByDefault() const
@@ -238,32 +131,4 @@ TSet<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedCla
 	}
 
 	return GetParentAndChildClassesFromSpecifiedClasses(AsUClasses, Options);
-}
-
-EFieldIterationFlags UObjectMixerObjectFilter::GetDesiredFieldIterationFlags(const bool bIncludeInheritedProperties)
-{
-	return bIncludeInheritedProperties ? EFieldIterationFlags::IncludeSuper : EFieldIterationFlags::Default;
-}
-
-TSet<FName> UObjectMixerObjectFilter::GenerateIncludeListFromExcludeList(const TSet<FName>& ExcludeList) const
-{
-	TSet<FName> IncludeList;
-
-	const EObjectMixerInheritanceInclusionOptions Options =
-		GetObjectMixerPropertyInheritanceInclusionOptions();
-	TSet<UClass*> SpecifiedClasses =
-		GetParentAndChildClassesFromSpecifiedClasses(GetObjectClassesToFilter(), Options);
-	
-	for (const UClass* Class : SpecifiedClasses)
-	{
-		for (TFieldIterator<FProperty> FieldIterator(Class); FieldIterator; ++FieldIterator)
-		{
-			if (const FProperty* Property = *FieldIterator)
-			{
-				IncludeList.Add(Property->GetFName());
-			}
-		}
-	}
-
-	return IncludeList.Difference(ExcludeList);
 }

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Components/LightComponent.h"
 #include "UObject/Class.h"
 
 #include "ObjectMixerEditorObjectFilter.generated.h"
@@ -72,37 +71,9 @@ public:
 	virtual TSet<TSubclassOf<AActor>> GetObjectClassesToPlace() const { return {}; }
 
 	/**
-	 * Get the text to display for the object name/label.
-	 * This is useful if one of your classes is a component type and you want the label of the component's owning actor, for example.
-	 * If not overridden, this returns the actor's label if it's an actor and the object's name for all other objects.
-	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent.
-	 */
-	virtual FText GetRowDisplayName(UObject* InObject, const bool bIsHybridRow = false) const;
-
-	/**
-	 * Get the text to display for the row's tooltip when hovering over it.
-	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent. (unused)
-	 */
-	virtual FText GetRowTooltipText(UObject* InObject, const bool bIsHybridRow = false) const;
-
-	/**
 	 * Determines if transient objects (such as Sequencer Spawnables) should be shown in the list. False by default.
 	 */
 	virtual bool GetShowTransientObjects() const;
-
-	/**
-	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
-	 * Generally this should work like the Scene Outliner does.
-	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 */
-	virtual bool GetRowEditorVisibility(UObject* InObject) const;
-
-	/**
-	 * Controls what happens when the row's visibility icon is clicked.
-	 * Generally this should work like the Scene Outliner does.
-	 * If not overridden, we set the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 */
-	virtual void OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const;
 
 	/**
 	 * Specify a list of property names corresponding to columns you want to show by default.
@@ -160,16 +131,6 @@ public:
 
 	static TSet<UClass*> GetParentAndChildClassesFromSpecifiedClasses(
 		const TSet<TSubclassOf<AActor>>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options);
-
-	static EFieldIterationFlags GetDesiredFieldIterationFlags(const bool bIncludeInheritedProperties);
-
-protected:
-
-	/**
-	 * Given a set of property names you wish to include, returns a list of all other properties on InObject not found in ExcludeList.
-	 * Useful when defining default visible columns in a list view.
-	 */
-	TSet<FName> GenerateIncludeListFromExcludeList(const TSet<FName>& ExcludeList) const;
 };
 
 /**
@@ -210,32 +171,6 @@ public:
 	}
 
 	/**
-	 * Get the text to display for the object name/label.
-	 * This is useful if one of your classes is a component type and you want the label of the component's owning actor, for example.
-	 * If not overridden, this returns the actor's label if it's an actor and the object's name for all other objects.
-	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent.
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	FText GetRowDisplayName(UObject* InObject, const bool bIsHybridRow) const override;
-	
-	FText GetRowDisplayName_Implementation(UObject* InObject, const bool bIsHybridRow) const
-	{
-		return Super::GetRowDisplayName(InObject, bIsHybridRow);
-	}
-
-	/**
-	 * Get the text to display for the row's tooltip when hovering over it.
-	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent. (unused)
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	FText GetRowTooltipText(UObject* InObject, const bool bIsHybridRow) const override;
-	
-	FText GetRowTooltipText_Implementation(UObject* InObject, const bool bIsHybridRow) const
-	{
-		return Super::GetRowTooltipText(InObject, bIsHybridRow);
-	}
-
-	/**
 	 * Determines if transient objects (such as Sequencer Spawnables) should be shown in the list. False by default.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
@@ -244,32 +179,6 @@ public:
 	bool GetShowTransientObjects_Implementation() const
 	{
 		return Super::GetShowTransientObjects();
-	}
-	
-	/**
-	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
-	 * Generally this should work like the Scene Outliner does.
-	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	bool GetRowEditorVisibility(UObject* InObject) const override;
-
-	bool GetRowEditorVisibility_Implementation(UObject* InObject) const
-	{
-		return Super::GetRowEditorVisibility(InObject);
-	}
-	
-	/**
-	 * Controls what happens when the row's visibility icon is clicked.
-	 * Generally this should work like the Scene Outliner does.
-	 * If not overridden, we set the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	void OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const override;
-
-	void OnSetRowEditorVisibility_Implementation(UObject* InObject, bool bNewIsVisible) const
-	{
-		return Super::OnSetRowEditorVisibility(InObject, bNewIsVisible);
 	}
 	
 	/**
