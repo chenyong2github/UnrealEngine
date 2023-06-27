@@ -151,6 +151,20 @@ namespace PCG
 				PCGMetadataBroadcastable(Quaternion, Rotator);
 				PCGMetadataBroadcastable(Rotator, Quaternion);
 
+				PCGMetadataBroadcastable(Float, String);
+				PCGMetadataBroadcastable(Double, String);
+				PCGMetadataBroadcastable(Integer32, String);
+				PCGMetadataBroadcastable(Integer64, String);
+				PCGMetadataBroadcastable(Vector2, String);
+				PCGMetadataBroadcastable(Vector, String);
+				PCGMetadataBroadcastable(Vector4, String);
+				PCGMetadataBroadcastable(Quaternion, String);
+				PCGMetadataBroadcastable(Transform, String);
+				PCGMetadataBroadcastable(Boolean, String);
+				PCGMetadataBroadcastable(Rotator, String);
+				PCGMetadataBroadcastable(Name, String);
+				PCGMetadataBroadcastable(String, Name);
+
 #undef PCGMetadataBroadcastable
 			}
 
@@ -197,70 +211,23 @@ namespace PCG
 			return IsMoreComplexType(MetadataTypes<FirstType>::Id, MetadataTypes<SecondType>::Id);
 		}
 
-		/**
-		* Generic function to broadcast an InType to an OutType.
-		* Supports only PCG types
-		* @param InValue - The Value to convert
-		* @param OutValue - The converted value
-		* @returns true if the conversion worked, false otherwise.
-		*/
-		template <typename InType, typename OutType>
-		inline bool GetValueWithBroadcast(const InType& InValue, OutType& OutValue)
+		template<typename T>
+		struct DefaultStringTraits
 		{
-			if constexpr (std::is_same_v<OutType, InType>)
+			static FString ToString(const T& A)
 			{
-				OutValue = InValue;
-				return true;
+				return A.ToString();
 			}
-			else
-			{
-				if constexpr (!IsBroadcastable<InType, OutType>())
-				{
-					return false;
-				}
-				else
-				{
-					if constexpr (std::is_same_v<OutType, FVector4>)
-					{
-						// TODO: Should W be 0? 1? Something else? Depending on operation?
-						// For now, we set Z to 0 (for vec 2) and we set W to 1.
-						if constexpr (std::is_same_v<InType, FVector>)
-						{
-							OutValue = FVector4(InValue, 1.0);
-						}
-						else if constexpr (std::is_same_v<InType, FVector2D>)
-						{
-							OutValue = FVector4(InValue.X, InValue.Y, 0.0, 1.0);
-						}
-						else
-						{
-							OutValue = FVector4(InValue, InValue, InValue, InValue);
-						}
-					}
-					else
-					{
-						// Seems like the && condition is not evaluated correctly on Linux, so we cut the condition in two `if constexpr`.
-						if constexpr (std::is_same_v<OutType, FVector>)
-						{
-							if constexpr (std::is_same_v<InType, FVector2D>)
-							{
-								OutValue = FVector(InValue, 0.0);
-							}
-							else
-							{
-								OutValue = OutType(InValue);
-							}
-						}
-						else
-						{
-							OutValue = OutType(InValue);
-						}
-					}
+		};
 
-					return true;
-				}
+		template<typename T>
+		struct LexToStringTraits
+		{
+			static FString ToString(const T& A)
+			{
+				return LexToString(A);
 			}
-		}
+		};
 
 		template<typename T>
 		struct DefaultOperationTraits
@@ -354,14 +321,14 @@ namespace PCG
 
 		// Common traits for int32, int64, float, double
 		template<typename T>
-		struct MetadataTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>, DefaultMinMaxTraits<T>, DefaultCompareTraits<T>
+		struct MetadataTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>, DefaultMinMaxTraits<T>, DefaultCompareTraits<T>, LexToStringTraits<T>
 		{
 			enum { CompressData = false };
 			enum { CanSearchString = false };
 		};
 
 		template<>
-		struct MetadataTraits<float> : DefaultOperationTraits<float>, DefaultWeightedSumTraits<float>, DefaultMinMaxTraits<float>, DefaultCompareTraits<float>
+		struct MetadataTraits<float> : DefaultOperationTraits<float>, DefaultWeightedSumTraits<float>, DefaultMinMaxTraits<float>, DefaultCompareTraits<float>, LexToStringTraits<float>
 		{
 			enum { CompressData = false };
 			enum { CanSearchString = false };
@@ -373,7 +340,7 @@ namespace PCG
 		};
 
 		template<>
-		struct MetadataTraits<double> : DefaultOperationTraits<double>, DefaultWeightedSumTraits<double>, DefaultMinMaxTraits<double>, DefaultCompareTraits<double>
+		struct MetadataTraits<double> : DefaultOperationTraits<double>, DefaultWeightedSumTraits<double>, DefaultMinMaxTraits<double>, DefaultCompareTraits<double>, LexToStringTraits<double>
 		{
 			enum { CompressData = false };
 			enum { CanSearchString = false };
@@ -385,7 +352,7 @@ namespace PCG
 		};
 
 		template<>
-		struct MetadataTraits<bool>
+		struct MetadataTraits<bool> : LexToStringTraits<bool>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = true };
@@ -448,7 +415,7 @@ namespace PCG
 
 		// Vector types
 		template<typename T>
-		struct VectorTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>
+		struct VectorTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>, DefaultStringTraits<T>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = true };
@@ -581,7 +548,7 @@ namespace PCG
 
 		// Quaternion
 		template<>
-		struct MetadataTraits<FQuat>
+		struct MetadataTraits<FQuat> : DefaultStringTraits<FQuat>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = false };
@@ -635,7 +602,7 @@ namespace PCG
 
 		// Rotator
 		template<>
-		struct MetadataTraits<FRotator>
+		struct MetadataTraits<FRotator> : DefaultStringTraits<FRotator>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = false };
@@ -684,7 +651,7 @@ namespace PCG
 
 		// Transform
 		template<>
-		struct MetadataTraits<FTransform>
+		struct MetadataTraits<FTransform> : DefaultStringTraits<FTransform>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = false };
@@ -736,7 +703,7 @@ namespace PCG
 
 		// Strings
 		template<>
-		struct MetadataTraits<FString> : DefaultCompareTraits<FString>
+		struct MetadataTraits<FString> : DefaultCompareTraits<FString>, DefaultStringTraits<FString>
 		{
 			enum { CompressData = true };
 			enum { CanMinMax = false };
@@ -767,7 +734,7 @@ namespace PCG
 		};
 
 		template<>
-		struct MetadataTraits<FName>
+		struct MetadataTraits<FName> : DefaultStringTraits<FName>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = false };
@@ -817,5 +784,77 @@ namespace PCG
 				return A.ToString().MatchesWildcard(B.ToString());
 			}
 		};
+
+		/**
+		* Generic function to broadcast an InType to an OutType.
+		* Supports only PCG types
+		* @param InValue - The Value to convert
+		* @param OutValue - The converted value
+		* @returns true if the conversion worked, false otherwise.
+		*/
+		template <typename InType, typename OutType>
+		inline bool GetValueWithBroadcast(const InType& InValue, OutType& OutValue)
+		{
+			if constexpr (std::is_same_v<OutType, InType>)
+			{
+				OutValue = InValue;
+				return true;
+			}
+			else
+			{
+				if constexpr (!IsBroadcastable<InType, OutType>())
+				{
+					return false;
+				}
+				else
+				{
+					if constexpr (std::is_same_v<OutType, FVector4>)
+					{
+						// TODO: Should W be 0? 1? Something else? Depending on operation?
+						// For now, we set Z to 0 (for vec 2) and we set W to 1.
+						if constexpr (std::is_same_v<InType, FVector>)
+						{
+							OutValue = FVector4(InValue, 1.0);
+						}
+						else if constexpr (std::is_same_v<InType, FVector2D>)
+						{
+							OutValue = FVector4(InValue.X, InValue.Y, 0.0, 1.0);
+						}
+						else
+						{
+							OutValue = FVector4(InValue, InValue, InValue, InValue);
+						}
+					}
+					else
+					{
+						// Seems like the && condition is not evaluated correctly on Linux, so we cut the condition in two `if constexpr`.
+						if constexpr (std::is_same_v<OutType, FVector>)
+						{
+							if constexpr (std::is_same_v<InType, FVector2D>)
+							{
+								OutValue = FVector(InValue, 0.0);
+							}
+							else
+							{
+								OutValue = OutType(InValue);
+							}
+						}
+						else
+						{
+							if constexpr (std::is_same_v<OutType, FString>)
+							{
+								OutValue = MetadataTraits<InType>::ToString(InValue);
+							}
+							else
+							{
+								OutValue = OutType(InValue);
+							}
+						}
+					}
+
+					return true;
+				}
+			}
+		}
 	}
 }

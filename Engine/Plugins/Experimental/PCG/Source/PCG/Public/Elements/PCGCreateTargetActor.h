@@ -59,6 +59,12 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
 	TSoftObjectPtr<AActor> RootActor;
+
+	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	FString ActorLabel;
+
+	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	FTransform ActorPivot;
 };
 
 class FPCGCreateTargetActorElement : public FSimplePCGElement

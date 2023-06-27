@@ -224,6 +224,11 @@ bool FPCGCreateTargetActorElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	FTransform Transform = TargetActor->GetTransform();
+	if(Context->IsValueOverriden(GET_MEMBER_NAME_CHECKED(UPCGCreateTargetActor, ActorPivot)))
+	{
+		Transform = Settings->ActorPivot;
+	}
+
 	AActor* GeneratedActor = UPCGActorHelpers::SpawnDefaultActor(TargetActor->GetWorld(), Settings->TemplateActorClass, Transform, SpawnParams, TargetActor);
 
 	if (!GeneratedActor)
@@ -231,6 +236,13 @@ bool FPCGCreateTargetActorElement::ExecuteInternal(FPCGContext* Context) const
 		PCGE_LOG(Error, GraphAndLog, LOCTEXT("ActorSpawnFailed", "Failed to spawn actor"));
 		return true;
 	}
+
+#if WITH_EDITOR
+	if (Settings->ActorLabel != FString())
+	{
+		GeneratedActor->SetActorLabel(Settings->ActorLabel);
+	}
+#endif
 
 	GeneratedActor->Tags.Add(PCGHelpers::DefaultPCGActorTag);
 

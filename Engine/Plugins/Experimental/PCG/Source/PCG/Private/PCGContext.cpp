@@ -218,7 +218,7 @@ void FPCGContext::OverrideSettings()
 		TUniquePtr<IPCGAttributeAccessor> PropertyAccessor = PCGAttributeAccessorHelpers::CreatePropertyAccessor(Param.Properties.Last());
 		check(PropertyAccessor.IsValid());
 
-		PCGMetadataAttribute::CallbackWithRightType(PropertyAccessor->GetUnderlyingType(), [this, &AttributeAccessor, &PropertyAccessor, &Param, &AttributeName, Container](auto Dummy) -> bool
+		const bool bParamOverridden = PCGMetadataAttribute::CallbackWithRightType(PropertyAccessor->GetUnderlyingType(), [this, &AttributeAccessor, &PropertyAccessor, &Param, &AttributeName, Container](auto Dummy) -> bool
 		{
 			using PropertyType = decltype(Dummy);
 
@@ -244,7 +244,22 @@ void FPCGContext::OverrideSettings()
 
 			return true;
 		});
+
+		if (bParamOverridden)
+		{
+			OverriddenParams.Add(&Param);
+		}
 	}
+}
+
+bool FPCGContext::IsValueOverriden(const FName PropertyName)
+{
+	const FPCGSettingsOverridableParam** OverriddenParam = OverriddenParams.FindByPredicate([PropertyName](const FPCGSettingsOverridableParam* ParamToCheck)
+	{
+		return ParamToCheck && !ParamToCheck->PropertiesNames.IsEmpty() && ParamToCheck->PropertiesNames[0] == PropertyName;
+	});
+
+	return OverriddenParam != nullptr;
 }
 
 #if WITH_EDITOR

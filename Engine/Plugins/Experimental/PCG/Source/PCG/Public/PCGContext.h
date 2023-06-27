@@ -84,6 +84,9 @@ struct PCG_API FPCGContext
 	// in the settings copy.
 	void OverrideSettings();
 
+	// Returns true if the given property has been overriden
+	bool IsValueOverriden(const FName PropertyName);
+
 	// Return the seed, possibly overriden by params, and combined with the source component (if any).
 	int GetSeed() const;
 
@@ -122,4 +125,7 @@ private:
 
 	// Copy of the settings that will be used to apply overrides.
 	TObjectPtr<UPCGSettings> SettingsWithOverride = nullptr;
+
+	// List of params that were in effect overriden
+	TArray<const FPCGSettingsOverridableParam*> OverriddenParams;
 };
