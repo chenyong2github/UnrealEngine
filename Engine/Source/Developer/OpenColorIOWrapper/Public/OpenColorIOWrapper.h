@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_OCIO
+
 #include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/StaticArray.h"
@@ -34,6 +36,9 @@ namespace OpenColorIOWrapper
 
 	/** Get the OpenColorIO version string. */
 	OPENCOLORIOWRAPPER_API const TCHAR* GetVersion();
+
+	/** Get the OpenColorIO version hex value. */
+	OPENCOLORIOWRAPPER_API uint32 GetVersionHex();
 
 	/** Calls the native function of the same name. */
 	OPENCOLORIOWRAPPER_API void ClearAllCaches();
@@ -316,3 +321,5 @@ private:
 
 	TPimplPtr<struct FOpenColorIOGPUProcessorPimpl, EPimplPtrMode::DeepCopy> GPUPimpl;
 };
+
+#endif // WITH_OCIO

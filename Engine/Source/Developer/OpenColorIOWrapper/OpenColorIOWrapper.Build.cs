@@ -29,6 +29,18 @@ namespace UnrealBuildTool.Rules
 			{
 				"Core",
 			});
+
+			bool bIsPlatformSupported = false;
+
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
+				Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				// Mirror WITH_OCIO_LIB coverage, which suffices for editor use cases.
+				bIsPlatformSupported = true;
+			}
+
+			PublicDefinitions.Add("WITH_OCIO=" + (bIsPlatformSupported ? "1" : "0"));
 		}
 	}
 }

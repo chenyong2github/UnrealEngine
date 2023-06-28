@@ -50,7 +50,8 @@ public class OpenColorIOLib : ModuleRules
 
 			bIsPlatformAdded = true;
 		}
-		
-		PublicDefinitions.Add("WITH_OCIO=" + (bIsPlatformAdded ? "1" : "0"));
+
+		// @note: Any update to this definition should be mirrored in the wrapper module's WITH_OCIO.
+		PublicDefinitions.Add("WITH_OCIO_LIB=" + (bIsPlatformAdded ? "1" : "0"));
 	}
 }
