@@ -45,7 +45,7 @@ void LogInformationUtil::PrintGeneratedTextures(const TArray<struct FGeneratedTe
 		Log += FString::Printf(TEXT("Texture name=%s, "), *GeneratedTextures[i].Name);
 		Log += FString::Printf(TEXT("id=%d, "), GeneratedTextures[i].Id);
 		Log += "\n\t\t\t";
-		PrintTextureData(GeneratedTextures[i].Texture, Log, false);
+		PrintTextureData(Cast<UTexture2D>(GeneratedTextures[i].Texture), Log, false);
 		if (i < (Max - 1))
 		{
 			Log += "\n\t\t";
@@ -335,6 +335,11 @@ void LogInformationUtil::PrintProjectorParameters(const TArray<struct FCustomiza
 
 void LogInformationUtil::PrintTextureData(const UTexture2D* Texture, FString& Log, bool UseTabulation)
 {
+	if (!Texture)
+	{
+		return;
+	}
+
 	FString MessageChunk;
 	MessageChunk += FString::Printf(TEXT("        Name=%s\n"), *Texture->GetName());
 	if (UseTabulation)

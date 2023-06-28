@@ -61,7 +61,7 @@ struct FGeneratedTexture
 	FString Name;
 
 	UPROPERTY(Category = CustomizableObjectInstance, EditAnywhere) 
-	TObjectPtr<UTexture2D> Texture = nullptr;
+	TObjectPtr<UTexture> Texture = nullptr;
 };
 
 

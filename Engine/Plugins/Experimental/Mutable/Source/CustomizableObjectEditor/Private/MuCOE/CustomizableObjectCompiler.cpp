@@ -1211,9 +1211,9 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 		Object->SetBoneNamesArray(GenerationContext.BoneNames);
 
 		// Pass-through textures
-		TArray<TSoftObjectPtr<UTexture2D>> NewReferencedPassThroughTextures;
+		TArray<TSoftObjectPtr<UTexture>> NewReferencedPassThroughTextures;
 
-		for (const TPair<TSoftObjectPtr<UTexture2D>, uint32>& Pair : GenerationContext.PassThroughTextureToIndexMap)
+		for (const TPair<TSoftObjectPtr<UTexture>, uint32>& Pair : GenerationContext.PassThroughTextureToIndexMap)
 		{
 			check(Pair.Value == NewReferencedPassThroughTextures.Num());
 			NewReferencedPassThroughTextures.Add(Pair.Key);

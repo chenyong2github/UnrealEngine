@@ -3,6 +3,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2DArray.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
@@ -171,7 +172,7 @@ void UCustomizableObjectNodeTable::PinConnectionListChanged(UEdGraphPin* Pin)
 	{
 		if (UCustomizableObjectNodeTableImagePinData* ImagePinData = Cast<UCustomizableObjectNodeTableImagePinData>(GetPinData(*(Pin))))
 		{
-			if (ImagePinData->IsDefaultImageMode() && ImagePinData->ImageMode != DefaultImageMode)
+			if (!ImagePinData->IsArrayTexture() && ImagePinData->IsDefaultImageMode() && ImagePinData->ImageMode != DefaultImageMode)
 			{
 				ImagePinData->ImageMode = DefaultImageMode;
 				ReconstructNode();
@@ -201,7 +202,7 @@ void UCustomizableObjectNodeTable::PostEditChangeProperty(FPropertyChangedEvent&
 			{
 				if (UCustomizableObjectNodeTableImagePinData* TexturePinData = Cast<UCustomizableObjectNodeTableImagePinData>(GetPinData(*(Pin))))
 				{
-					if (!Pin->LinkedTo.Num() && TexturePinData->IsDefaultImageMode())
+					if (!Pin->LinkedTo.Num() && !TexturePinData->IsArrayTexture() && TexturePinData->IsDefaultImageMode())
 					{
 						ETableTextureType Mode = TexturePinData->ImageMode == ETableTextureType::PASSTHROUGH_TEXTURE ? ETableTextureType::MUTABLE_TEXTURE : ETableTextureType::PASSTHROUGH_TEXTURE;
 						TexturePinData->ImageMode = Mode;
@@ -288,6 +289,8 @@ void UCustomizableObjectNodeTable::AllocateDefaultPins(UCustomizableObjectNodeRe
 				{
 					UCustomizableObjectNodeTableImagePinData* PinData = NewObject<UCustomizableObjectNodeTableImagePinData>(this);
 					PinData->ColumnName = ColumnName;
+					PinData->SetIsArrayTexture(false);
+
 					FName PinCategory = DefaultImageMode == ETableTextureType::PASSTHROUGH_TEXTURE ? Schema->PC_PassThroughImage : Schema->PC_Image;
 
 					for (UEdGraphPin* Pin : OldPins)
@@ -304,6 +307,16 @@ void UCustomizableObjectNodeTable::AllocateDefaultPins(UCustomizableObjectNodeRe
 					}
 
 					OutPin = CustomCreatePin(EGPD_Output, PinCategory, FName(*PinName), PinData);
+				}
+
+				else if (Object->IsA(UTexture2DArray::StaticClass()))
+				{
+					UCustomizableObjectNodeTableImagePinData* PinData = NewObject<UCustomizableObjectNodeTableImagePinData>(this);
+					PinData->ColumnName = ColumnName;
+					PinData->ImageMode = ETableTextureType::PASSTHROUGH_TEXTURE;
+					PinData->SetIsArrayTexture(true);
+
+					OutPin = CustomCreatePin(EGPD_Output, Schema->PC_PassThroughImage, FName(*PinName), PinData);
 				}
 
 				else if (Object->IsA(UMaterialInstance::StaticClass()))
@@ -566,6 +579,17 @@ bool UCustomizableObjectNodeTable::IsNodeOutDatedAndNeedsRefresh()
 
 					NumPins++;
 				}
+				else if (Object->IsA(UTexture2DArray::StaticClass()))
+				{
+					FString PinName = DataTableUtils::GetPropertyExportName(ColumnProperty);
+
+					if (CheckPinUpdated(PinName, Schema->PC_PassThroughImage))
+					{
+						bNeedsUpdate = true;
+					}
+
+					NumPins++;
+				}
 				else if (Object->IsA(UMaterialInstance::StaticClass()))
 				{
 					FString PinName = DataTableUtils::GetPropertyExportName(ColumnProperty);
@@ -696,6 +720,7 @@ void UCustomizableObjectNodeTable::RemapPinsData(const TMap<UEdGraphPin*, UEdGra
 			{
 				PinDataNewPin->ImageMode = PinDataOldPin->ImageMode;
 				PinDataNewPin->SetDefaultImageMode(PinDataOldPin->IsDefaultImageMode());
+				PinDataNewPin->SetIsArrayTexture(PinDataOldPin->IsArrayTexture());
 			}
 		}
 	}
@@ -1120,6 +1145,11 @@ void UCustomizableObjectNodeTable::ChangeImagePinMode(UEdGraphPin* Pin, bool bSe
 {
 	if (UCustomizableObjectNodeTableImagePinData* PinData = Cast<UCustomizableObjectNodeTableImagePinData>(GetPinData(*(Pin))))
 	{
+		if (PinData->IsArrayTexture())
+		{
+			return;
+		}
+
 		if (PinData->IsDefaultImageMode() && !bSetDefault)
 		{
 			ETableTextureType Mode = DefaultImageMode == ETableTextureType::PASSTHROUGH_TEXTURE ? ETableTextureType::MUTABLE_TEXTURE : ETableTextureType::PASSTHROUGH_TEXTURE;
@@ -1161,6 +1191,17 @@ bool UCustomizableObjectNodeTable::IsImagePinDefault(UEdGraphPin* Pin)
 	}
 
 	return true;
+}
+
+
+bool UCustomizableObjectNodeTable::IsImageArrayPin(UEdGraphPin* Pin)
+{
+	if (UCustomizableObjectNodeTableImagePinData* PinData = Cast<UCustomizableObjectNodeTableImagePinData>(GetPinData(*(Pin))))
+	{
+		return PinData->IsArrayTexture();
+	}
+
+	return false;
 }
 
 

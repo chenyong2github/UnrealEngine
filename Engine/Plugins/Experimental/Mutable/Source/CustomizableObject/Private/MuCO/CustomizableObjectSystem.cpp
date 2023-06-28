@@ -846,7 +846,7 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance,
 
 		for (TPair<uint32, FGeneratedTexture>& Item : CustomizableObjectInstancePrivateData->TexturesToRelease)
 		{
-			UCustomizableInstancePrivateData::ReleaseMutableTexture(Item.Value.Id, Item.Value.Texture, Cache);
+			UCustomizableInstancePrivateData::ReleaseMutableTexture(Item.Value.Id, Cast<UTexture2D>(Item.Value.Texture), Cache);
 		}
 
 		CustomizableObjectInstancePrivateData->TexturesToRelease.Empty();

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DataTable.h"
+#include "Engine/Texture2DArray.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
 
@@ -17,6 +18,7 @@ class UEdGraphPin;
 class UObject;
 class USkeletalMesh;
 class UTexture2D;
+class UTexture2DArray;
 struct FGuid;
 
 
@@ -64,6 +66,9 @@ public:
 	bool IsDefaultImageMode() { return bIsDefault; }
 	void SetDefaultImageMode(bool bValue) { bIsDefault = bValue; }
 
+	bool IsArrayTexture() { return bIsArrayTexture; }
+	void SetIsArrayTexture(bool bValue) { bIsArrayTexture = bValue; }
+
 	// Pin Type
 	UPROPERTY()
 	ETableTextureType ImageMode = ETableTextureType::MUTABLE_TEXTURE;
@@ -72,6 +77,9 @@ private:
 
 	UPROPERTY()
 	bool bIsDefault = true;
+
+	UPROPERTY()
+	bool bIsArrayTexture = false;
 
 };
 
@@ -299,6 +307,9 @@ public:
 
 	// Returns true if the pin is in the default mode (same as node)
 	bool IsImagePinDefault(UEdGraphPin* Pin);
+
+	// Returns true if the pin is a texture array pin
+	bool IsImageArrayPin(UEdGraphPin* Pin);
 
 	// Returns the image mode of the column
 	ETableTextureType GetColumnImageMode(const FString& ColumnName) const;

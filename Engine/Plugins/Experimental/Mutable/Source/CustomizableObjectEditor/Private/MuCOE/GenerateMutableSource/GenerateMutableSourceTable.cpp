@@ -4,6 +4,7 @@
 
 #include "Animation/AnimInstance.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2DArray.h"
 #include "GameplayTagContainer.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
@@ -336,16 +337,23 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 
 		else if (SoftObjectProperty->PropertyClass->IsChildOf(UTexture::StaticClass()))
 		{
-			UTexture2D* Texture = Cast<UTexture2D>(Object);
+			UTexture* Texture = nullptr;
 
-			if (!Texture)
+			// Two supported texture types
+			UTexture2D* Texture2D = Cast<UTexture2D>(Object);
+			UTexture2DArray* TextureArray = Cast<UTexture2DArray>(Object);
+
+			if (!Texture2D && !TextureArray)
 			{
-				Texture = TableNode->GetColumnDefaultAssetByType<UTexture2D>(ColumnName);
-				FString Message = Cast<UObject>(Object) ? "not a Texture2D" : "null";
+				Texture2D = TableNode->GetColumnDefaultAssetByType<UTexture2D>(ColumnName);
+				TextureArray = TableNode->GetColumnDefaultAssetByType<UTexture2DArray>(ColumnName);
 
-				FString msg = FString::Printf(TEXT("Texture from column [%s] row [%s] is %s. The default texture will be used instead."), *ColumnName, *RowName, *Message);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+				FString Message = Cast<UObject>(Object) ? "not a suported Texture" : "null";
+				FString WarningMessage = FString::Printf(TEXT("Texture from column [%s] row [%s] is %s. The default texture will be used instead."), *ColumnName, *RowName, *Message);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(WarningMessage), TableNode);
 			}
+
+			check(Texture2D || TextureArray);
 
 			// Getting column index from column name
 			CurrentColumn = MutableTable->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get());
@@ -357,6 +365,9 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 
 			if (TableNode->GetColumnImageMode(ColumnName) == ETableTextureType::PASSTHROUGH_TEXTURE)
 			{
+				// There will be always one of the two options
+				Texture = Texture2D ? Cast<UTexture>(Texture2D) : Cast<UTexture>(TextureArray);
+
 				uint32* FoundIndex = GenerationContext.PassThroughTextureToIndexMap.Find(Texture);
 				uint32 ImageReferenceID;
 
@@ -374,7 +385,7 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 			}
 			else
 			{
-				GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, Texture, TableNode, CurrentColumn, RowIdx));
+				GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, Texture2D, TableNode, CurrentColumn, RowIdx));
 			}
 		}
 
