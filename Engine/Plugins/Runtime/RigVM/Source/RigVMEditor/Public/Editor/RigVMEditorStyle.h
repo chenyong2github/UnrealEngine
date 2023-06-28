@@ -89,8 +89,6 @@ public:
 			Set("RigVM.Node.PinTree.Arrow_Expanded_Right", new IMAGE_BRUSH("Slate/RigVM_TreeArrow_Expanded_Right", Icon10x10, DefaultForeground));
 			Set("RigVM.Node.PinTree.Arrow_Expanded_Hovered_Right", new IMAGE_BRUSH("Slate/RigVM_TreeArrow_Expanded_Hovered_Right", Icon10x10, DefaultForeground));
 		}
-
-		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 
 	static FRigVMEditorStyle& Get()
