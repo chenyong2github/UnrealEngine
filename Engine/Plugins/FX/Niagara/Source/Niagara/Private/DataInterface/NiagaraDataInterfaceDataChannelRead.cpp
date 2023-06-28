@@ -36,6 +36,24 @@ DECLARE_CYCLE_STAT(TEXT("NDIDataChannelRead Spawn"), STAT_NDIDataChannelRead_Spa
 DECLARE_CYCLE_STAT(TEXT("NDIDataChannelRead Tick"), STAT_NDIDataChannelRead_Tick, STATGROUP_NiagaraDataChannels);
 DECLARE_CYCLE_STAT(TEXT("NDIDataChannelRead PostTick"), STAT_NDIDataChannelRead_PostTick, STATGROUP_NiagaraDataChannels);
 
+static int GNDCReadForceTG = -1;
+static FAutoConsoleVariableRef CVarNDCReadForceTG(
+	TEXT("fx.Niagara.DataChannels.ForceReadTickGroup"),
+	GNDCReadForceTG,
+	TEXT("When >= 0 this will force Niagara systems with NDC read DIs to tick in the given Tick Group."),
+	ECVF_Default
+);
+
+static bool GNDCReadForcePrevFrame = false;
+static FAutoConsoleVariableRef CVarNDCReadForcePrevFrame(
+	TEXT("fx.Niagara.DataChannels.ForceReadPrevFrame"),
+	GNDCReadForcePrevFrame,
+	TEXT("When true this will force Niagara systems with NDC read DIs to read from the previous frame."),
+	ECVF_Default
+);
+
+
+
 namespace NDIDataChannelReadLocal
 {
 	static const TCHAR* CommonShaderFile = TEXT("/Plugin/FX/Niagara/Private/DataChannel/NiagaraDataInterfaceDataChannelCommon.ush");
@@ -457,7 +475,9 @@ void UNiagaraDataInterfaceDataChannelRead::ProvidePerInstanceDataForRenderThread
 
 	//Always update the dataset, this may change without triggering a full update if it's layout is the same.
 	TargetData->ChannelDataRTProxy = SourceData.DataChannelData ? SourceData.DataChannelData->GetRTProxy() : nullptr;
-	TargetData->bReadPrevFrame = bReadCurrentFrame == false;
+
+	bool bReadPrevFrame = bReadCurrentFrame == false || GNDCReadForcePrevFrame;
+	TargetData->bReadPrevFrame = bReadPrevFrame;
 
 	if (SourceData.bUpdateRTData && INiagaraModule::DataChannelsEnabled())
 	{
@@ -528,6 +548,24 @@ void UNiagaraDataInterfaceDataChannelRead::GetEmitterDependencies(UNiagaraSystem
 // 			FNiagaraDataInterfaceUtilities::ForEachVMFunctionEquals(SourceDI, Asset, HandleVMFunc);
 // 		}
 // 	}
+}
+
+bool UNiagaraDataInterfaceDataChannelRead::HasTickGroupPrereqs() const
+{
+	if (GNDCReadForceTG >= 0 && GNDCReadForceTG < (int32)ETickingGroup::TG_MAX)
+	{
+		return true;
+	}
+	return false;
+}
+
+ETickingGroup UNiagaraDataInterfaceDataChannelRead::CalculateTickGroup(const void* PerInstanceData) const
+{
+	if(GNDCReadForceTG >= 0 && GNDCReadForceTG < (int32)ETickingGroup::TG_MAX)
+	{
+		return (ETickingGroup)GNDCReadForceTG;
+	}
+	return NiagaraFirstTickGroup; 
 }
 
 #if WITH_EDITORONLY_DATA
@@ -866,7 +904,8 @@ void UNiagaraDataInterfaceDataChannelRead::Num(FVectorVMExternalFunctionContext&
 
 	FNDIOutputParam<int32> OutNum(Context);
 
-	FNiagaraDataBuffer* Buffer = InstData->GetReadBufferCPU(bReadCurrentFrame == false);
+	bool bReadPrevFrame = bReadCurrentFrame == false || GNDCReadForcePrevFrame;
+	FNiagaraDataBuffer* Buffer = InstData->GetReadBufferCPU(bReadPrevFrame);
 
 	int32 Num = 0;
 	if (Buffer && INiagaraModule::DataChannelsEnabled())
@@ -892,7 +931,8 @@ void UNiagaraDataInterfaceDataChannelRead::Read(FVectorVMExternalFunctionContext
 	const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo = InstData->FuncToDataSetBindingInfo.IsValidIndex(FuncIdx) ? InstData->FuncToDataSetBindingInfo[FuncIdx].Get() : nullptr;
 	FNDIVariadicOutputHandler<16> VariadicOutputs(Context, BindingInfo);//TODO: Make static / avoid allocation
 
-	FNiagaraDataBuffer* Data = InstData->GetReadBufferCPU(bReadCurrentFrame == false);
+	bool bReadPrevFrame = bReadCurrentFrame == false || GNDCReadForcePrevFrame;
+	FNiagaraDataBuffer* Data = InstData->GetReadBufferCPU(bReadPrevFrame);
 	if (Data && BindingInfo && INiagaraModule::DataChannelsEnabled())
  	{
  		//FString Label = TEXT("NDIDataChannelRead::Read() - ");
@@ -958,7 +998,8 @@ void UNiagaraDataInterfaceDataChannelRead::Consume(FVectorVMExternalFunctionCont
 
 	//TODO: Optimize for constant bConsume.
 	//TODO: Optimize for long runs of bConsume==true;
-	FNiagaraDataBuffer* Data = InstData->GetReadBufferCPU(bReadCurrentFrame == false);
+	bool bReadPrevFrame = bReadCurrentFrame == false || GNDCReadForcePrevFrame;
+	FNiagaraDataBuffer* Data = InstData->GetReadBufferCPU(bReadPrevFrame);
 	if (Data && BindingInfo && INiagaraModule::DataChannelsEnabled())
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
@@ -1039,7 +1080,9 @@ void UNiagaraDataInterfaceDataChannelRead::SpawnFromSpawnInfo(FVectorVMExternalF
 
 	FNiagaraEmitterInstance* EmittterInst = InstData->EmitterInstance;
 	FNiagaraDataChannelData* DataChannelData = InstData->DataChannelData.Get();
-	FNiagaraDataBuffer* Data = DataChannelData ? DataChannelData->GetCPUData(!bReadCurrentFrame) : nullptr;
+
+	bool bReadPrevFrame = bReadCurrentFrame == false || GNDCReadForcePrevFrame;
+	FNiagaraDataBuffer* Data = DataChannelData ? DataChannelData->GetCPUData(bReadPrevFrame) : nullptr;
 
 	if ( INiagaraModule::DataChannelsEnabled() && Data && EmittterInst )
 	{
@@ -1074,6 +1117,8 @@ void UNiagaraDataInterfaceDataChannelRead::SpawnConditional(FVectorVMExternalFun
 {
 	SCOPE_CYCLE_COUNTER(STAT_NDIDataChannelRead_Spawn);
 
+	//UE_LOG(LogNiagara, Warning, TEXT("UNiagaraDataInterfaceDataChannelRead::SpawnConditional - %u"), FuncIdx);
+
 	//This should only be called from emitter scripts and since it has per instance data then we process them individually.
 	check(Context.GetNumInstances() == 1);
 
@@ -1092,7 +1137,9 @@ void UNiagaraDataInterfaceDataChannelRead::SpawnConditional(FVectorVMExternalFun
 
 	FNiagaraEmitterInstance* EmittterInst = InstData->EmitterInstance;
 	FNiagaraDataChannelData* DataChannelData = InstData->DataChannelData.Get();
-	FNiagaraDataBuffer* Data = DataChannelData ? DataChannelData->GetCPUData(!bReadCurrentFrame) : nullptr;
+
+	bool bReadPrevFrame = bReadCurrentFrame == false || GNDCReadForcePrevFrame;
+	FNiagaraDataBuffer* Data = DataChannelData ? DataChannelData->GetCPUData(bReadPrevFrame) : nullptr;
 
 	bool bSpawn = INiagaraModule::DataChannelsEnabled() && Data && Data->GetNumInstances() > 0 && EmittterInst && EmittterInst->IsActive() && InEnabled.GetAndAdvance();
 	if(bSpawn)

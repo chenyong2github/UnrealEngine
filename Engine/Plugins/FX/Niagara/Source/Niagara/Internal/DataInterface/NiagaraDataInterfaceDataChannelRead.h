@@ -140,7 +140,10 @@ public:
 	NIAGARA_API virtual void PostStageTick(FNDICpuPostStageContext& Context)override;
 	NIAGARA_API virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	NIAGARA_API virtual void GetEmitterDependencies(UNiagaraSystem* Asset, TArray<FVersionedNiagaraEmitter>& Dependencies) const;
-	
+
+	virtual bool HasTickGroupPrereqs() const override;
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
+
 	//We cannot overlap frames as we must correctly sync up with the data channel manager on Begin/End frame etc.
 	virtual bool PostSimulateCanOverlapFrames() const { return false; }
 	//UNiagaraDataInterface Interface

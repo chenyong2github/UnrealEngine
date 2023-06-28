@@ -82,6 +82,10 @@ void UNiagaraDataChannelHandler_Islands::EndFrame(float DeltaTime, FNiagaraWorld
 
 void UNiagaraDataChannelHandler_Islands::Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld)
 {
+	Super::Tick(DeltaTime, TickGroup, OwningWorld);
+
+	//static UEnum* TGEnum = StaticEnum<ETickingGroup>();
+	//UE_LOG(LogNiagara,Warning, TEXT("UNiagaraDataChannelHandler_Islands::Tick - %s"), *TGEnum->GetDisplayNameTextByValue((int32)TickGroup).ToString());
 	const UNiagaraDataChannel_Islands* IslandChannel = GetChannelTyped<const UNiagaraDataChannel_Islands>();
 	for (auto It = ActiveIslands.CreateIterator(); It; ++It)
 	{
@@ -304,7 +308,6 @@ void FNDCIsland::OnAcquired(FVector Location)
 			{
 				NiagaraSystems.Add(NewComp);
 				NewComp->SetSystemFixedBounds(HandlerSystemBounds);
-				NewComp->SetTickBehavior(ENiagaraTickBehavior::ForceTickLast);
 				NewComp->Activate();
 			}
 		}

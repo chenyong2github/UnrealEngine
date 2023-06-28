@@ -51,11 +51,13 @@ void UNiagaraDataChannelHandler_Global::Init(const UNiagaraDataChannel* InChanne
 
 void UNiagaraDataChannelHandler_Global::BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)
 {
+	Super::BeginFrame(DeltaTime, OwningWorld);
 	Data->BeginFrame(this);
 }
 
 void UNiagaraDataChannelHandler_Global::EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)
 {
+	Super::EndFrame(DeltaTime, OwningWorld);
 	Data->EndFrame(this);
 }
 
