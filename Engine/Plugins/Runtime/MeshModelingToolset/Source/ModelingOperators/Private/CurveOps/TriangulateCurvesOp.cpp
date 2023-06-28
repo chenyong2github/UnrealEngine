@@ -89,6 +89,11 @@ void FTriangulateCurvesOp::CalculateResult(FProgressCancel* Progress)
 	{
 		for (int32 PathIdx = 0; PathIdx < Paths.Num(); ++PathIdx)
 		{
+			if (Paths[PathIdx].Vertices.Num() < 3)
+			{
+				continue;
+			}
+			
 			FVector3d Normal, PlanePoint;
 			PolygonTriangulation::ComputePolygonPlane<double>(Paths[PathIdx].Vertices, Normal, PlanePoint);
 			if (bFlipResult)

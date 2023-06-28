@@ -36,10 +36,16 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 			return TriSignedArea * OrientationSign < 0;
 		}
 	};
+	
+	
+	OutTriangles.Reset();
 
-	// Polygon must have at least three vertices/edges
+	// Polygon must have at least three vertices/edges, or result is empty
 	int32 PolygonVertexCount = VertexPositions.Num();
-	check(PolygonVertexCount >= 3);
+	if (PolygonVertexCount < 3)
+	{
+		return;
+	}
 
 
 	// compute signed area of polygon
@@ -55,7 +61,6 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 	T OrientationSign = (bIsClockwise) ? -T(1) : T(1);
 
 
-	OutTriangles.Reset();
 
 
 	// If perimeter has 3 vertices, just copy content of perimeter out 
@@ -247,11 +252,14 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector<T>>& Ve
 		}
 	};
 
-	// Polygon must have at least three vertices/edges
-	int32 PolygonVertexCount = VertexPositions.Num();
-	check(PolygonVertexCount >= 3);
-
 	OutTriangles.Reset();
+
+	// Polygon must have at least three vertices/edges, or result is empty
+	int32 PolygonVertexCount = VertexPositions.Num();
+	if (PolygonVertexCount < 3)
+	{
+		return;
+	}
 
 	// If perimeter has 3 vertices, just copy content of perimeter out 
 	if (PolygonVertexCount == 3)
