@@ -83,7 +83,7 @@ FStructureEditorUtils::EStructureError FStructureEditorUtils::IsStructureValid(c
 	{
 		if (OutMsg)
 		{
-			*OutMsg = FText::Format(LOCTEXT("StructureRecursionFmt", "Recursion: Struct cannot have itself as a member variable. Struct '{0}', recursive parent '{1}'"), 
+			*OutMsg = FText::Format(LOCTEXT("StructureRecursionFmt", "Recursion: Recursion: Struct cannot have itself or a nested struct member referencing itself as a member variable. Struct '{0}', recursive parent '{1}'"), 
 				 FText::FromString(Struct->GetFullName()), FText::FromString(RecursionParent->GetFullName())).ToString();
 		}
 		return EStructureError::Recursion;
