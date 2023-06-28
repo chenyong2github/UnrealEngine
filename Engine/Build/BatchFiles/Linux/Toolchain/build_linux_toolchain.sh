@@ -3,8 +3,12 @@
 set -x
 set -eu
 
-ToolChainVersion=v21
-LLVM_VERSION=15.0.1
+ToolChainVersion=v22
+LLVM_VERSION_MAJOR=16
+LLVM_VERSION=${LLVM_VERSION_MAJOR}.0.6
+LLVM_BRANCH=release/${LLVM_VERSION_MAJOR}.x
+LLVM_TAG=llvmorg-${LLVM_VERSION}
+
 LLVM_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}
 ZLIB_PATH=/src/v1.2.8
 
@@ -67,47 +71,32 @@ unset LD_LIBRARY_PATH
 # Linux
 #
 
-# Build clang
-LLVM=llvm-${LLVM_VERSION}
-CLANG=clang-${LLVM_VERSION}
-UNWIND=libunwind-${LLVM_VERSION}
-LLD=lld-${LLVM_VERSION}
-COMPILER_RT=compiler-rt-${LLVM_VERSION}
-CMAKE_MOD=cmake-${LLVM_VERSION}
+echo "Cloning LLVM (tag $LLVM_TAG only)"
+# clone -b can also accept tag names
+git clone https://github.com/llvm/llvm-project llvm-src -b ${LLVM_TAG} --single-branch --depth 1 -c advice.detachedHead=false
+pushd llvm-src
+git -c advice.detachedHead=false checkout tags/${LLVM_TAG} -b ${LLVM_BRANCH}
+popd
 
-wget ${LLVM_URL}/${LLVM}.src.tar.xz
-wget ${LLVM_URL}/${CLANG}.src.tar.xz
-wget ${LLVM_URL}/${UNWIND}.src.tar.xz
-wget ${LLVM_URL}/${LLD}.src.tar.xz
-wget ${LLVM_URL}/${COMPILER_RT}.src.tar.xz
-wget ${LLVM_URL}/${CMAKE_MOD}.src.tar.xz
-
-mkdir -p llvm
-tar -xf $LLVM.src.tar.xz --strip-components 1 -C llvm
-mkdir -p llvm/tools/clang
-tar -xf $CLANG.src.tar.xz --strip-components 1 -C llvm/tools/clang/
-mkdir -p llvm/libunwind
-tar -xf $UNWIND.src.tar.xz --strip-components 1 -C llvm/libunwind/
-mkdir -p llvm/tools/lld
-tar -xf $LLD.src.tar.xz --strip-components 1 -C llvm/tools/lld/
-mkdir -p llvm/projects/compiler-rt
-tar -xf $COMPILER_RT.src.tar.xz --strip-components 1 -C llvm/projects/compiler-rt/
-
-#llvm has cmake/modules, where compiler-rt has cmake/Modules and cmake.sr.tar.xz has cmake/Modules...
-tar -xf $CMAKE_MOD.src.tar.xz --strip-components 2 -C llvm/cmake/modules/
-tar -xf $CMAKE_MOD.src.tar.xz --strip-components 1 -C llvm/projects/compiler-rt/cmake/
 
 # this fixes an issue where AT_HWCAP2 is just not defined correctly in our sysroot. This is likely due to
 # AT_HWCAP2 being around since glibc 2.18 offically, while we are still stuck on 2.17 glibc.
-patch -d llvm/projects/compiler-rt/ -p 2 < /src/patches/compiler-rt/manually-define-AT_HWCAP2.diff
+patch -d llvm-src -p 1 < /src/patches/compiler-rt/manually-define-AT_HWCAP2.diff
+
+# this fixes lack of HWCAP_CRC32 in the old glibc (similar issue)
+patch -d llvm-src -p 1 < /src/patches/compiler-rt/cpu_model_define_HWCAP_CRC32.diff
 
 # move back to defaulting to dwarf 4, as if we leave to dwarf 5 libs built with dwarf5 will force everything to dwarf5
 # even if you request dwarf 4. dwarf 5 currently causes issues with dump_syms and gdb/lldb earlier versions
-patch -d llvm/tools/ -p 1 < /src/patches/clang/default-dwarf-4.patch
+patch -d llvm-src -p 1 < /src/patches/clang/default-dwarf-4.patch
+
+# add a patch to disable auto-upgrade of debug info. It missed clang 16.x, so this patch shouldn't be needed for clang 17.x going forward
+# See https://reviews.llvm.org/D143229 for context
+patch -d llvm-src -p 1 < /src/patches/llvm/disable-auto-upgrade-debug-info.patch
 
 # LLVM has just failed to support stand-alone LLD build, cheat by moving a required header into a location it can be found easily
 # if you fulling include this you end up breaking other things. https://github.com/llvm/llvm-project/issues/48572
-cp -rf llvm/libunwind/include/mach-o/ llvm/include
+cp -rf llvm-src/libunwind/include/mach-o/ llvm-src/llvm/include
 
 mkdir -p build-clang
 pushd build-clang
@@ -117,7 +106,8 @@ pushd build-clang
 	#   4.8.5.  You can temporarily opt out using
 	#   LLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN, but very soon your toolchain won't be
 	#   supported.
-	cmake3 -G "Unix Makefiles" ../llvm \
+	cmake3 -G "Unix Makefiles" ../llvm-src/llvm \
+		-DLLVM_ENABLE_PROJECTS=llvm\;clang\;lld\;compiler-rt \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLLVM_ENABLE_TERMINFO=OFF \
 		-DLLVM_ENABLE_LIBXML2=OFF \
@@ -181,16 +171,16 @@ for arch in $TARGETS; do
 		continue
 	fi
 
-	mkdir -p ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION}/{lib,share,include}
+	mkdir -p ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION_MAJOR}/{lib,share,include}
 
 	# copy share + include files (same as x86_64)
-	cp -r ${OutputDirLinux}/x86_64-unknown-linux-gnu/lib/clang/${LLVM_VERSION}/share/* ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION}/share/
-	cp -r ${OutputDirLinux}/x86_64-unknown-linux-gnu/lib/clang/${LLVM_VERSION}/include/* ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION}/include/
+	cp -r ${OutputDirLinux}/x86_64-unknown-linux-gnu/lib/clang/${LLVM_VERSION_MAJOR}/share/* ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION_MAJOR}/share/
+	cp -r ${OutputDirLinux}/x86_64-unknown-linux-gnu/lib/clang/${LLVM_VERSION_MAJOR}/include/* ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION_MAJOR}/include/
 
 	mkdir -p build-rt-$arch
 	pushd build-rt-$arch
 
-		cmake3 -G "Unix Makefiles" ../llvm/projects/compiler-rt \
+		cmake3 -G "Unix Makefiles" ../llvm-src/compiler-rt \
 			-DCMAKE_BUILD_TYPE=Release \
 			-DCMAKE_SYSTEM_NAME="Linux" \
 			-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
@@ -219,7 +209,7 @@ for arch in $TARGETS; do
 	popd
 
 	echo "Copying compiler rt..."
-	cp -r install-rt-$arch/lib/* ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION}/lib/
+	cp -r install-rt-$arch/lib/* ${OutputDirLinux}/$arch/lib/clang/${LLVM_VERSION_MAJOR}/lib/
 done
 
 # Create version file
@@ -261,7 +251,8 @@ pushd ${OutputDirLinux}
 	mkdir -p build/{src,scripts}
 	cp /src/build/build-linux-x86_64-unknown-linux-gnu/.build/tarballs/* build/src
 	cp /src/build/build-linux-aarch64-unknown-linux-gnueabi/.build/tarballs/* build/src
-	cp /src/build/*.src.tar.xz build/src
+	tar czfvh /src/build/llvm-${LLVM_VERSION}-github-snapshot.src.tar.gz --hard-dereference /src/build/llvm-src
+	cp /src/build/*.src.tar.gz build/src
 	cp /src/*.{config,sh,nsi,bat} build/scripts
 
 	echo tar czfhv /src/build/${ToolChainVersionName}.tar.gz --hard-dereference *
@@ -273,10 +264,12 @@ pushd ${OutputDirWindows}
 	mkdir -p build/{src,scripts}
 	cp /src/build/build-windows-x86_64-unknown-linux-gnu/.build/tarballs/* build/src
 	cp /src/build/build-windows-aarch64-unknown-linux-gnueabi/.build/tarballs/* build/src
-	cp /src/build/*.src.tar.xz build/src
+	zip -r /src/build/llvm-${LLVM_VERSION}-github-snapshot.src.zip /src/build/llvm-src
+	cp /src/build/*.src.zip build/src
 	cp /src/*.{config,sh,nsi,bat} build/scripts
 
 	zip -r /src/build/${ToolChainVersionName}-windows.zip *
 popd
 
+echo "Remember to repack Linux tarball - it needs DSOs from under /lib directory deleted or clang won't run! Compare with previous toolchains! ([RCL] FIXME: 2023-06-28 fix the script to do this)"
 echo done.
