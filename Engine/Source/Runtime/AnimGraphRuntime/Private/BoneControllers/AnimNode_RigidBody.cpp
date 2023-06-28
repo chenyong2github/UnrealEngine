@@ -1005,7 +1005,9 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 	SkeletonBoneIndexToBodyIndex.Init(INDEX_NONE, NumSkeletonBones);
 
 	PreviousTransform = SkeletalMeshComp->GetComponentToWorld();
-
+	
+	RemoveClothColliderObjects();
+	
 	ComponentsInSim.Reset();
 	ComponentsInSimTick = 0;
 
@@ -1243,8 +1245,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		PhysicsSimulation->SetIgnoreCollisionPairTable(IgnorePairs);
 		PhysicsSimulation->SetIgnoreCollisionActors(IgnoreCollisionActors);
-
-		CollectClothColliderObjects(SkeletalMeshComp);
 
 		SolverSettings = UsePhysicsAsset->SolverSettings;
 		PhysicsSimulation->SetSolverSettings(
@@ -1486,6 +1486,13 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 				PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
 			}
 		}
+	}
+
+	if (bUseExternalClothCollision && ClothColliders.IsEmpty())
+	{
+		// The Cloth Collider assets are part of the SkelMeshComponent and can be initialized after the first call to InitPhysics. Keep checking here until some 
+		// are found, following the behavior of the cloth system (see USkeletalMeshComponent::UpdateClothTransformImp())
+		CollectClothColliderObjects(SKC);
 	}
 }
 
