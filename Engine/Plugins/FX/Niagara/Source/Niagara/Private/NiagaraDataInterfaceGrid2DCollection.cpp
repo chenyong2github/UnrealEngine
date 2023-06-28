@@ -195,6 +195,12 @@ struct FNiagaraGrid2DLegacyTiled2DInfo
 
 	void CopyTo2D(FRDGBuilder& GraphBuilder, FRDGTexture* SourceTexture, FRHITexture* DestinationTextureRHI, const TCHAR* NameIfNotRegistered) const
 	{
+		const FRHITextureDesc& DestTextureDesc = DestinationTextureRHI->GetDesc();
+		if (ensureMsgf(DestTextureDesc.Dimension != ETextureDimension::Texture2D, TEXT("Destination for Grid2D copy is invalid type (%d), copy will fail"), DestTextureDesc.Dimension))
+		{
+			return;
+		}
+
 		FRDGTexture* DestinationTexture = GraphBuilder.FindExternalTexture(DestinationTextureRHI);
 		if (DestinationTexture == nullptr)
 		{
@@ -209,13 +215,24 @@ struct FNiagaraGrid2DLegacyTiled2DInfo
 			CopyInfo.DestPosition.X = (iAttribute % NumTiles.X) * NumCells.X;
 			CopyInfo.DestPosition.Y = (iAttribute / NumTiles.X) * NumCells.Y;
 			CopyInfo.DestPosition.Z = 0;
-			AddCopyTexturePass(GraphBuilder, SourceTexture, DestinationTexture, CopyInfo);
+			if (ensureMsgf(
+					(CopyInfo.DestPosition.X + CopyInfo.Size.X <= DestTextureDesc.Extent.X) && (CopyInfo.DestPosition.Y + CopyInfo.Size.Y <= DestTextureDesc.Extent.Y),
+					TEXT("Destination for Grid2D can not hold all the attributes, copy will fail.")))
+			{
+				AddCopyTexturePass(GraphBuilder, SourceTexture, DestinationTexture, CopyInfo);
+			}
 		}
 	}
 
 	void CopyTo2D(FRHICommandList& RHICmdList, FRHITexture* Src, FRHITexture* Dst) const
 	{
 		check(Src != nullptr && Dst != nullptr);
+
+		const FRHITextureDesc& DestTextureDesc = Dst->GetDesc();
+		if (ensureMsgf(DestTextureDesc.Dimension != ETextureDimension::Texture2D, TEXT("Destination for Grid2D copy is invalid type (%d), copy will fail"), DestTextureDesc.Dimension))
+		{
+			return;
+		}
 
 		FRHITransitionInfo TransitionsBefore[] = {
 			FRHITransitionInfo(Src, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
@@ -231,7 +248,12 @@ struct FNiagaraGrid2DLegacyTiled2DInfo
 			CopyInfo.DestPosition.X = (iAttribute % NumTiles.X) * NumCells.X;
 			CopyInfo.DestPosition.Y = (iAttribute / NumTiles.X) * NumCells.Y;
 			CopyInfo.DestPosition.Z = 0;
-			RHICmdList.CopyTexture(Src, Dst, CopyInfo);
+			if (ensureMsgf(
+				(CopyInfo.DestPosition.X + CopyInfo.Size.X <= DestTextureDesc.Extent.X) && (CopyInfo.DestPosition.Y + CopyInfo.Size.Y <= DestTextureDesc.Extent.Y),
+				TEXT("Destination for Grid2D can not hold all the attributes, copy will fail.")))
+			{
+				RHICmdList.CopyTexture(Src, Dst, CopyInfo);
+			}
 		}
 
 		FRHITransitionInfo TransitionsAfter[] = {
