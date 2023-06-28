@@ -40,6 +40,11 @@ UObject* FindEditorBindingsOwner(UObject* InObject)
 
 UStruct* ResolveLeafValueStructType(FStateTreeDataView ValueView, const TArray<FBindingChainElement>& InBindingChain)
 {
+	if (ValueView.GetMemory() == nullptr)
+	{
+		return nullptr;
+	}
+	
 	FStateTreePropertyPath Path;
 
 	for (const FBindingChainElement& Element : InBindingChain)
