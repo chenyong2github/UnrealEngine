@@ -25,6 +25,9 @@ public:
 	virtual FGuid GetParentNodeId() const override;
 	virtual UCustomizableObject* GetParentObject() const override;
 
+	// UCustomizableObjectNodeEditMaterialBase interface
+	virtual void SetLayoutIndex(const int32 LayoutIndex);
+
 	// Own interface
 	/** Index of the layout to use to patch blocks. */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)

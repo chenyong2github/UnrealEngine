@@ -65,3 +65,8 @@ UCustomizableObject* UCustomizableObjectNodeEditMaterialBase::GetParentObject() 
 	return ParentMaterialObject;
 }
 
+
+void UCustomizableObjectNodeEditMaterialBase::SetLayoutIndex(const int32 LayoutIndex)
+{
+	ParentLayoutIndex = LayoutIndex;
+}

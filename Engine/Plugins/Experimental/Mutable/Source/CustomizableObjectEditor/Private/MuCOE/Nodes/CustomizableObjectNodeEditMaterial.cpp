@@ -88,8 +88,8 @@ void UCustomizableObjectNodeEditMaterial::SetParentNode(UCustomizableObject* Obj
 	Super::SetParentNode(Object, NodeId);
 	
 	PostSetParentNodeWork(Object, NodeId);
-	
-	BlockIds.Empty();
+
+	SelectAllLayoutBlocks();
 }
 
 
@@ -275,6 +275,36 @@ FCustomizableObjectNodeParentedMaterial& UCustomizableObjectNodeEditMaterial::Ge
 {
 	return *this;	
 }
+
+
+void UCustomizableObjectNodeEditMaterial::SetLayoutIndex(const int32 LayoutIndex)
+{
+	ParentLayoutIndex = LayoutIndex;
+	SelectAllLayoutBlocks();
+}
+
+
+void UCustomizableObjectNodeEditMaterial::SelectAllLayoutBlocks()
+{
+	BlockIds.Empty();
+
+	// On reset parent material we want to select all nodes 
+	if (UCustomizableObjectNodeMaterialBase* ParentMaterialNode = GetParentMaterialNode())
+	{
+		TArray<UCustomizableObjectLayout*> Layouts = ParentMaterialNode->GetLayouts();
+
+		if (Layouts.IsValidIndex(ParentLayoutIndex))
+		{
+			UCustomizableObjectLayout* Layout = Layouts[ParentLayoutIndex];
+
+			for (const FCustomizableObjectLayoutBlock& Block : Layout->Blocks)
+			{
+				BlockIds.AddUnique(Block.Id);
+			}
+		}
+	}
+}
+
 
 
 #undef LOCTEXT_NAMESPACE

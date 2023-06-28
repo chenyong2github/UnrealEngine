@@ -93,7 +93,7 @@ TSharedPtr<FString> FCustomizableObjectNodeEditMaterialBaseDetails::GenerateLayo
 
 	TSharedPtr<FString> ItemToSelect = nullptr;
 
-	UCustomizableObjectNodeMaterialBase* ParentMaterialNode = NodeEditMaterialBase->GetParentMaterialNode();
+	UCustomizableObjectNodeMaterialBase* ParentMaterialNode = NodeEditMaterialBase->GetParentMaterialNodeIfPath();
 
 	if (ParentMaterialNode && ParentMaterialNode->GetLayouts().Num())
 	{
@@ -121,7 +121,7 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::OnLayoutComboBoxSelectionCh
 	{
 		if (LayoutOptionNames[OptionIndex] == Selection)
 		{
-			LayoutProperty->SetValue(LayoutOptionReferences[OptionIndex]);
+			NodeEditMaterialBase->SetLayoutIndex(LayoutOptionReferences[OptionIndex]);
 			DetailBuilderPtr->ForceRefreshDetails();
 			break;	
 		}
