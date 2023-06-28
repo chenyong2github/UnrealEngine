@@ -99,10 +99,15 @@ public:
 		return Inst;
 	}
 	
-	~FRigVMEditorStyle()
+	static void Register()
 	{
-		FSlateStyleRegistry::UnRegisterSlateStyle(*this);
+		FSlateStyleRegistry::RegisterSlateStyle(Get());
 	}
 
+	static void Unregister()
+	{
+		FSlateStyleRegistry::UnRegisterSlateStyle(Get());
+	}
+	
 	FSlateColor SpacePickerSelectColor;
 };
