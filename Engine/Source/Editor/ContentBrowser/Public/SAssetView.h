@@ -16,6 +16,7 @@
 #include "ContentBrowserDataLegacyBridge.h"
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserItem.h"
+#include "ContentBrowserTelemetry.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "Framework/Views/ITypedTableView.h"
@@ -1194,6 +1195,24 @@ private:
 
 	/** An Id for the cache of the data sources for the filters compilation */
 	FContentBrowserDataFilterCacheIDOwner FilterCacheID;
+	
+	/*
+	 * Telemetry-related fields
+	 */ 
+	// Guid to correlate different telemetry events for this instance of an asset view over time 
+	FGuid ViewCorrelationGuid; 
+	// Guid to correlate different telemetry events for a 'session' of search/filtering, reset when new backend items are gathered for filtering
+	FGuid FilterSessionCorrelationGuid;
+	// In progress filter session telemetry - will be sent when filtering ends or user cancels or interacts with a partial filter set
+	UE::Telemetry::ContentBrowser::FFrontendFilterTelemetry CurrentFrontendFilterTelemetry;
+	
+	// If there is in-progress filter telemetry, mark it as complete and send pending data 
+	void OnCompleteFiltering(double InAmortizeDuration);
+	// If there is in-progress filter telemetry, mark it as incomplete and send pending data 
+	void OnInterruptFiltering();
+	// Update telemetry for user interaction during an incomplete filtering
+	void OnInteractDuringFiltering();
+
 public:
 	bool ShouldColumnGenerateWidget(const FString ColumnName) const;
 };

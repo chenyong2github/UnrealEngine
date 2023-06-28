@@ -19,6 +19,17 @@ FContentBrowserDataFilterList& FContentBrowserDataFilterList::operator=(const FC
 	return *this;
 }
 
+TArray<const UScriptStruct*> FContentBrowserDataFilterList::GetFilterTypes() const
+{
+	TArray<const UScriptStruct*> Types;
+	Types.Reserve(TypedFilters.Num());
+	for (const FStructOnScope& Filter : TypedFilters)
+	{
+		Types.Add(CastChecked<const UScriptStruct>(Filter.GetStruct()));
+	}
+	return Types;
+}
+
 void* FContentBrowserDataFilterList::FindOrAddFilter(const UScriptStruct* InFilterType)
 {
 	check(InFilterType);

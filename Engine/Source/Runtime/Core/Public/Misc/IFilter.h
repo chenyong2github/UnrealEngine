@@ -15,6 +15,9 @@ public:
 	typedef TItemType ItemType;
 
 	virtual ~IFilter(){ }
+	
+	/** Convenience function for identifying types of filter in logging, telemetry, etc. */
+	virtual FString GetName() const { return FString{}; };
 
 	/** Returns whether the specified Item passes the Filter's restrictions */
 	virtual bool PassesFilter( TItemType InItem ) const = 0;

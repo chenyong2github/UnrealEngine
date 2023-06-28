@@ -35,7 +35,7 @@ public:
 	FFilterBase(TSharedPtr<FFilterCategory> InCategory) : FilterCategory(InCategory) {}
 
 	/** Returns the system name for this filter */
-	virtual FString GetName() const = 0;
+	virtual FString GetName() const override = 0;
 
 	/** Returns the human readable name for this filter */
 	virtual FText GetDisplayName() const = 0;

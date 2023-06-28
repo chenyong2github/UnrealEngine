@@ -26,7 +26,7 @@ class UContentBrowserDataSource;
 class UContentBrowserDataSubsystem;
 
 /** Flags controlling which item types should be included */
-UENUM()
+UENUM(Flags)
 enum class EContentBrowserItemTypeFilter : uint8
 {
 	IncludeNone = 0,
@@ -37,7 +37,7 @@ enum class EContentBrowserItemTypeFilter : uint8
 ENUM_CLASS_FLAGS(EContentBrowserItemTypeFilter);
 
 /** Flags controlling which item categories should be included */
-UENUM()
+UENUM(Flags)
 enum class EContentBrowserItemCategoryFilter : uint8
 {
 	IncludeNone = 0,
@@ -50,7 +50,7 @@ enum class EContentBrowserItemCategoryFilter : uint8
 ENUM_CLASS_FLAGS(EContentBrowserItemCategoryFilter);
 
 /** Flags controlling which item attributes should be included */
-UENUM()
+UENUM(Flags)
 enum class EContentBrowserItemAttributeFilter : uint8
 {
 	IncludeNone = 0,
@@ -138,6 +138,8 @@ public:
 
 	/** Remove all filters in the list */
 	void ClearFilters();
+	
+	TArray<const UScriptStruct*> GetFilterTypes() const;
 
 private:
 	/** Set the contents of this list to be a deep copy of the contents of the other list */

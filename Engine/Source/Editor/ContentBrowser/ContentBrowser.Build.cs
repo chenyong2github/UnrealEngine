@@ -43,6 +43,7 @@ public class ContentBrowser : ModuleRules
 				"ToolMenus",
 				"StatusBar",
 				"ToolWidgets",
+				"TelemetryUtils"
 			}
 		);
 

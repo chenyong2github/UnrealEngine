@@ -49,6 +49,7 @@
 #include "Settings/ContentBrowserSettings.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
+#include "TelemetryRouter.h"
 #include "Textures/SlateIcon.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "ToolMenus.h"
@@ -190,6 +191,8 @@ SAssetView::~SAssetView()
 
 void SAssetView::Construct( const FArguments& InArgs )
 {
+	ViewCorrelationGuid = FGuid::NewGuid();	
+
 	InitialNumAmortizedTasks = 0;
 	TotalAmortizeTime = 0;
 	AmortizeStartTime = 0;
@@ -1044,9 +1047,20 @@ void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 		{
 			AmortizeStartTime = FPlatformTime::Seconds();
 			InitialNumAmortizedTasks = ItemsPendingFrontendFilter.Num();
+			
+			CurrentFrontendFilterTelemetry = { ViewCorrelationGuid, FilterSessionCorrelationGuid };
+			CurrentFrontendFilterTelemetry.FrontendFilters = FrontendFilters;
+			CurrentFrontendFilterTelemetry.TotalItemsToFilter = ItemsPendingFrontendFilter.Num() + ItemsPendingPriorityFilter.Num();
+			CurrentFrontendFilterTelemetry.PriorityItemsToFilter = ItemsPendingPriorityFilter.Num();
 		}
 
+		int32 PreviousFilteredAssetItems = FilteredAssetItems.Num();
 		ProcessItemsPendingFilter(TickStartTime);
+		if (PreviousFilteredAssetItems == 0 && FilteredAssetItems.Num() != 0)
+		{
+			CurrentFrontendFilterTelemetry.ResultLatency = FPlatformTime::Seconds() - AmortizeStartTime;
+		}
+		CurrentFrontendFilterTelemetry.TotalResults = FilteredAssetItems.Num(); // Provide number of results even if filtering is interrupted
 
 		if (HasItemsPendingFilter())
 		{
@@ -1055,16 +1069,14 @@ void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 				// Don't sync to selection if we are just going to do it below
 				SortList(!PendingSyncItems.Num());
 			}
+			
+			CurrentFrontendFilterTelemetry.WorkDuration += FPlatformTime::Seconds() - TickStartTime;
 
 			// Need to finish processing queried items before rest of function is safe
 			return;
 		}
 		else
 		{
-			TotalAmortizeTime += FPlatformTime::Seconds() - AmortizeStartTime;
-			AmortizeStartTime = 0;
-			InitialNumAmortizedTasks = 0;
-
 			// Update the columns in the column view now that we know the majority type
 			if (CurrentViewType == EAssetViewType::Column)
 			{
@@ -1087,6 +1099,15 @@ void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 				// Don't sync to selection if we are just going to do it below
 				SortList(!PendingSyncItems.Num());
 			}
+
+			CurrentFrontendFilterTelemetry.WorkDuration += FPlatformTime::Seconds() - TickStartTime;
+
+			double AmortizeDuration = FPlatformTime::Seconds() - AmortizeStartTime;
+			TotalAmortizeTime += AmortizeDuration;
+			AmortizeStartTime = 0;
+			InitialNumAmortizedTasks = 0;
+			
+			OnCompleteFiltering(AmortizeDuration);
 		}
 	}
 
@@ -1928,8 +1949,13 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter(bool bInvalidateCa
 
 void SAssetView::RefreshSourceItems()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("SAssetView::RefreshSourceItems");
 	const double RefreshSourceItemsStartTime = FPlatformTime::Seconds();
+	
+	OnInterruptFiltering();
 
+	FilterSessionCorrelationGuid = FGuid::NewGuid();
+	UE::Telemetry::ContentBrowser::FBackendFilterTelemetry Telemetry(ViewCorrelationGuid, FilterSessionCorrelationGuid);
 	FilteredAssetItems.Reset();
 	FilteredAssetItemTypeCounts.Reset();
 	VisibleItems.Reset();
@@ -1972,13 +1998,16 @@ void SAssetView::RefreshSourceItems()
 
 		if (SourcesData.OnEnumerateCustomSourceItemDatas.IsBound())
 		{
+			Telemetry.bHasCustomItemSources = true;
 			SourcesData.OnEnumerateCustomSourceItemDatas.Execute(AddNewItem);
 		}
 
+		FContentBrowserDataFilter DataFilter; // Must live long enough to provide telemetry
 		if (SourcesData.IsIncludingVirtualPaths() || SourcesData.HasCollections()) 
 		{
 			const bool bInvalidateFilterCache = true;
-			const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter(bInvalidateFilterCache);
+			DataFilter = CreateBackendDataFilter(bInvalidateFilterCache);
+			Telemetry.DataFilter = &DataFilter;
 
 			bWereItemsRecursivelyFiltered = DataFilter.bRecursivePaths;
 
@@ -2029,6 +2058,10 @@ void SAssetView::RefreshSourceItems()
 				}
 			}
 		}
+
+		Telemetry.NumBackendItems = AvailableBackendItems.Num();
+		Telemetry.RefreshSourceItemsDurationSeconds = FPlatformTime::Seconds() - RefreshSourceItemsStartTime;
+		FTelemetryRouter::Get().ProvideTelemetry(Telemetry);
 	}
 
 	UE_LOG(LogContentBrowser, VeryVerbose, TEXT("AssetView - RefreshSourceItems completed in %0.4f seconds"), FPlatformTime::Seconds() - RefreshSourceItemsStartTime);
@@ -2117,6 +2150,8 @@ void SAssetView::RefreshFilteredItems()
 {
 	const double RefreshFilteredItemsStartTime = FPlatformTime::Seconds();
 
+	OnInterruptFiltering();
+	
 	ItemsPendingFrontendFilter.Reset();
 	FilteredAssetItems.Reset();
 	FilteredAssetItemTypeCounts.Reset();
@@ -3571,6 +3606,7 @@ void SAssetView::OnOpenAssetsOrFolders()
 {
 	if (OnItemsActivated.IsBound())
 	{
+		OnInteractDuringFiltering();
 		const TArray<FContentBrowserItem> SelectedItems = GetSelectedItems();
 		OnItemsActivated.Execute(SelectedItems, EAssetTypeActivationMethod::Opened);
 	}
@@ -3580,6 +3616,7 @@ void SAssetView::OnPreviewAssets()
 {
 	if (OnItemsActivated.IsBound())
 	{
+		OnInteractDuringFiltering();
 		const TArray<FContentBrowserItem> SelectedItems = GetSelectedItems();
 		OnItemsActivated.Execute(SelectedItems, EAssetTypeActivationMethod::Previewed);
 	}
@@ -3964,6 +4001,7 @@ TSharedPtr<SWidget> SAssetView::OnGetContextMenuContent()
 			RenamingAsset.Reset();
 		}
 
+		OnInteractDuringFiltering();
 		const TArray<FContentBrowserItem> SelectedItems = GetSelectedItems();
 		return OnGetItemContextMenu.Execute(SelectedItems);
 	}
@@ -4039,6 +4077,7 @@ void SAssetView::OnListMouseButtonDoubleClick(TSharedPtr<FAssetViewItem> AssetIt
 
 	if (OnItemsActivated.IsBound())
 	{
+		OnInteractDuringFiltering();
 		OnItemsActivated.Execute(MakeArrayView(&AssetItem->GetItem(), 1), EAssetTypeActivationMethod::DoubleClicked);
 	}
 }
@@ -4047,6 +4086,7 @@ FReply SAssetView::OnDraggingAssetItem( const FGeometry& MyGeometry, const FPoin
 {
 	if (bAllowDragging)
 	{
+		OnInteractDuringFiltering();
 		// Use the custom drag handler?
 		if (FEditorDelegates::OnAssetDragStarted.IsBound())
 		{
@@ -4104,6 +4144,8 @@ void SAssetView::AssetRenameBegin(const TSharedPtr<FAssetViewItem>& Item, const 
 {
 	check(!RenamingAsset.IsValid());
 	RenamingAsset = Item;
+
+	OnInteractDuringFiltering();
 
 	if (DeferredItemToCreate.IsValid())
 	{
@@ -5003,6 +5045,33 @@ void SAssetView::HandleItemDataDiscoveryComplete()
 void SAssetView::SetFilterBar(TSharedPtr<SFilterList> InFilterBar)
 {
 	FilterBar = InFilterBar;
+}
+
+void SAssetView::OnCompleteFiltering(double InAmortizeDuration)
+{
+	CurrentFrontendFilterTelemetry.AmortizeDuration = InAmortizeDuration;
+	CurrentFrontendFilterTelemetry.bCompleted = true;
+	FTelemetryRouter::Get().ProvideTelemetry(CurrentFrontendFilterTelemetry);
+	CurrentFrontendFilterTelemetry = {};
+}
+
+void SAssetView::OnInterruptFiltering()
+{
+	if (CurrentFrontendFilterTelemetry.FilterSessionCorrelationGuid.IsValid())
+	{
+		CurrentFrontendFilterTelemetry.AmortizeDuration = FPlatformTime::Seconds() - AmortizeStartTime;
+		CurrentFrontendFilterTelemetry.bCompleted = false;
+		FTelemetryRouter::Get().ProvideTelemetry(CurrentFrontendFilterTelemetry);
+		CurrentFrontendFilterTelemetry = {};
+	}
+}
+
+void SAssetView::OnInteractDuringFiltering()
+{
+	if (CurrentFrontendFilterTelemetry.FilterSessionCorrelationGuid.IsValid() && !CurrentFrontendFilterTelemetry.TimeUntilInteraction.IsSet())
+	{
+		CurrentFrontendFilterTelemetry.TimeUntilInteraction = FPlatformTime::Seconds() - AmortizeStartTime;
+	}
 }
 
 #undef checkAssetList
