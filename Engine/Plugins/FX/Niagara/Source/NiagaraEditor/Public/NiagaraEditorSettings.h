@@ -428,6 +428,7 @@ public:
 	NIAGARAEDITOR_API bool GetUpdateStackValuesOnCommitOnly() const;
 
 private:
+	NIAGARAEDITOR_API bool IsAllowedObjectByClassUsageInternal(const UObject& InObject, TSet<const UObject*>& CheckedObjects) const;
 	NIAGARAEDITOR_API bool IsAllowedAssetObjectByClassUsageInternal(const UObject& InAssetObject, TSet<const UObject*>& CheckedAssetObjects) const;
 
 	NIAGARAEDITOR_API void SetupNamespaceMetadata();
