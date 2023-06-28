@@ -825,6 +825,8 @@ void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserI
 
 void USocialParty::HandlePartyDataReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FName& Namespace, const FOnlinePartyData& PartyData)
 {
+	UE_LOG(LogParty, Verbose, TEXT("USocialParty::HandlePartyDataReceived"));
+
 	if (Namespace != DefaultPartyDataNamespace)
 	{
 		return;
