@@ -2744,19 +2744,21 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		GetStaticMesh()->IsCompiling() == false &&
 		GetStaticMesh()->HasValidRenderData();
 
-	if (bMeshIsValid)
+	if (!bMeshIsValid)
 	{
-		check(InstancingRandomSeed != 0);
-		
-		// if instance data was modified, update GPU copy
-		// generally happens only in editor 
-		if (InstanceUpdateCmdBuffer.NumTotalCommands() != 0)
-		{
-			FlushInstanceUpdateCommands(true);
-		}
-		
-		ProxySize = PerInstanceRenderData->ResourceSize;
+		return nullptr;
 	}
+
+	check(InstancingRandomSeed != 0);
+		
+	// if instance data was modified, update GPU copy
+	// generally happens only in editor 
+	if (InstanceUpdateCmdBuffer.NumTotalCommands() != 0)
+	{
+		FlushInstanceUpdateCommands(true);
+	}
+		
+	ProxySize = PerInstanceRenderData->ResourceSize;
 
 	return Super::CreateSceneProxy();
 }

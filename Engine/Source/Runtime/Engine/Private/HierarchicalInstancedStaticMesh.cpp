@@ -3316,20 +3316,22 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		!GetStaticMesh()->IsCompiling() &&
 		GetStaticMesh()->HasValidRenderData(false);
 
-	if (bMeshIsValid)
+	if (!bMeshIsValid)
 	{
-		check(InstancingRandomSeed != 0);
-
-		// If instance data was modified, update GPU copy.
-		// If InstanceBuffer was initialized with RequireCPUAccess (always true in editor).
-		if (InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
-		{
-			PerInstanceRenderData->UpdateFromCommandBuffer(InstanceUpdateCmdBuffer);
-		}
-
-		ProxySize = PerInstanceRenderData->ResourceSize;
-		INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
+		return nullptr;
 	}
+		
+	check(InstancingRandomSeed != 0);
+
+	// If instance data was modified, update GPU copy.
+	// If InstanceBuffer was initialized with RequireCPUAccess (always true in editor).
+	if (InstanceUpdateCmdBuffer.NumInlineCommands() > 0 && PerInstanceRenderData->InstanceBuffer.RequireCPUAccess)
+	{
+		PerInstanceRenderData->UpdateFromCommandBuffer(InstanceUpdateCmdBuffer);
+	}
+
+	ProxySize = PerInstanceRenderData->ResourceSize;
+	INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
 
 	// NOTE: Purposefully skipping UInstancedStaticMeshComponent implementation
 	return UStaticMeshComponent::CreateSceneProxy();
