@@ -1183,7 +1183,7 @@ FBox ARecastNavMesh::GetNavMeshBounds() const
 
 FBox ARecastNavMesh::GetNavMeshTileBounds(int32 TileIndex) const
 {
-	FBox Bounds;
+	FBox Bounds(ForceInit);
 	if (RecastNavMeshImpl)
 	{
 		Bounds = RecastNavMeshImpl->GetNavMeshTileBounds(TileIndex);
