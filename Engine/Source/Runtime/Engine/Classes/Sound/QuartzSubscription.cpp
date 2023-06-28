@@ -22,13 +22,13 @@ namespace Audio
 	}
 } // namespace Audio
 
-FQuartzTickableObject::FQuartzTickableObject()
-{}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FQuartzTickableObject::~FQuartzTickableObject()
 {
-	QuartzUnsubscribe();
+	if(const TSharedPtr<FQuartzTickableObjectsManager> ObjManagerPtr = TickableObjectManagerPtr.Pin())
+	{
+		ObjManagerPtr->UnsubscribeFromQuartzTick(this);
+	}
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -48,14 +48,17 @@ FQuartzTickableObject* FQuartzTickableObject::Init(UWorld* InWorldPtr)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UQuartzSubsystem* QuartzSubsystemPtr = UQuartzSubsystem::Get(InWorldPtr);
-	QuartzSubscriptionToken.Subscribe(this, QuartzSubsystemPtr);
+	if(ensure(QuartzSubsystemPtr))
+	{
+		TickableObjectManagerPtr = QuartzSubsystemPtr->GetTickableObjectManager();
+
+		if(TSharedPtr<FQuartzTickableObjectsManager> ObjManagerPtr = TickableObjectManagerPtr.Pin())
+		{
+			ObjManagerPtr->SubscribeToQuartzTick(this);
+		}
+	}
 
 	return this;
-}
-
-void FQuartzTickableObject::QuartzUnsubscribe()
-{
-	QuartzSubscriptionToken.Unsubscribe();
 }
 
 int32 FQuartzTickableObject::AddCommandDelegate(const FOnQuartzCommandEventBP& InDelegate)
@@ -87,8 +90,8 @@ UQuartzSubsystem* FQuartzTickableObject::GetQuartzSubsystem() const
 void FQuartzTickableObject::ExecCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data)
 {
 	checkSlow(Data.DelegateSubType < EQuartzCommandDelegateSubType::Count);
-	
-	if(const TSharedPtr<FQuartzTickableObjectsManager> ObjManagerPtr = QuartzSubscriptionToken.GetTickableObjectManager())
+
+	if(const TSharedPtr<FQuartzTickableObjectsManager> ObjManagerPtr = TickableObjectManagerPtr.Pin())
 	{
 		ObjManagerPtr->PushLatencyTrackerResult(Data.RequestRecieved());
 	}
@@ -129,7 +132,7 @@ void FQuartzTickableObject::ExecCommand(const Audio::FQuartzQuantizedCommandDele
 
 void FQuartzTickableObject::ExecCommand(const Audio::FQuartzMetronomeDelegateData& Data)
 {
-	if(const TSharedPtr<FQuartzTickableObjectsManager> ObjManagerPtr = QuartzSubscriptionToken.GetTickableObjectManager())
+	if(const TSharedPtr<FQuartzTickableObjectsManager> ObjManagerPtr = TickableObjectManagerPtr.Pin())
 	{
 		ObjManagerPtr->PushLatencyTrackerResult(Data.RequestRecieved());
 	}

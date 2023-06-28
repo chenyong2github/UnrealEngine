@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "QuartzSubscriptionToken.h"
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Containers/ConsumeAllMpmcQueue.h"
 
@@ -127,7 +126,7 @@ class FQuartzTickableObject
 {
 public:
 	// ctor
-	FQuartzTickableObject();
+	FQuartzTickableObject() {}
 
 	// explicitly defaulted ctors (to disable deprecation warnings in compiler-generated functions)
     PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -150,7 +149,8 @@ public:
 
 	ENGINE_API void AddMetronomeBpDelegate(EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent);
 
-	bool IsInitialized() const { return QuartzSubscriptionToken.IsSubscribed(); }
+
+	bool IsInitialized() const { return TickableObjectManagerPtr.IsValid(); }
 
 	ENGINE_API Audio::FQuartzGameThreadSubscriber GetQuartzSubscriber();
 
@@ -178,8 +178,6 @@ protected:
 	ENGINE_API void SetNotificationAnticipationAmountMilliseconds(const double Milliseconds);
 	ENGINE_API void SetNotificationAnticipationAmountMusicalDuration(const EQuartzCommandQuantization Duration,  const double Multiplier);
 
-	void QuartzUnsubscribe();
-
 private:
 	struct FMetronomeDelegateGameThreadData
 	{
@@ -205,7 +203,7 @@ public:
 
 private:
 	Audio::FQuartzOffset NotificationOffset;
+	TWeakPtr<FQuartzTickableObjectsManager> TickableObjectManagerPtr;
 
-	FQuartzSubscriptionToken QuartzSubscriptionToken;
 }; // class FQuartzTickableObject
 

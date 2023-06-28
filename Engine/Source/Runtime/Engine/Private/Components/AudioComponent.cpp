@@ -308,7 +308,6 @@ void UAudioComponent::OnUnregister()
 void UAudioComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	QuartzUnsubscribe();
 }
 
 const UObject* UAudioComponent::AdditionalStatObject() const
