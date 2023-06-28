@@ -14,13 +14,12 @@ enum class EVoiceBlockReasons : uint8
 {
 	None		= 0,		// Communication with this client has no filter reasons
 	Muted		= 1 << 0,	// The owning player controller has explicitly muted the player
-	MutedBy		= 1 << 1,	// The owning player controller was explicitly muted by the player
-	Gameplay	= 1 << 2,	// The player was muted for gameplay reasons
-	Blocked		= 1 << 3,	// The owning player controller has blocked the player
-	BlockedBy	= 1 << 4,	// The owning player controller was blocked by the player
+	Gameplay	= 1 << 1,	// The player was muted for gameplay reasons
+	Blocked		= 1 << 2,	// The owning player controller has blocked the player
+	BlockedBy	= 1 << 3,	// The owning player controller was blocked by the player
 };
 ENUM_CLASS_FLAGS(EVoiceBlockReasons);
-ENUM_RANGE_BY_VALUES(EVoiceBlockReasons, EVoiceBlockReasons::Muted, EVoiceBlockReasons::MutedBy, EVoiceBlockReasons::Gameplay, EVoiceBlockReasons::Blocked, EVoiceBlockReasons::BlockedBy);
+ENUM_RANGE_BY_VALUES(EVoiceBlockReasons, EVoiceBlockReasons::Muted, EVoiceBlockReasons::Gameplay, EVoiceBlockReasons::Blocked, EVoiceBlockReasons::BlockedBy);
 
 /**
  * Container responsible for managing the mute state of a player controller

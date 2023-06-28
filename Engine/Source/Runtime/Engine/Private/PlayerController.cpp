@@ -3747,6 +3747,11 @@ void APlayerController::ClientMutePlayer_Implementation(FUniqueNetIdRepl PlayerI
 	ULocalPlayer* LP = Cast<ULocalPlayer>(Player);
 	UWorld* World = GetWorld();
 
+	// @todo: As of now we don't have a proper way to inform the client of the specific voice block reason
+	// without changing the function signatures, therefore all server reasons are funneled into the client
+	// as "muted" for the time being.
+	MuteList.AddVoiceBlockReason(PlayerId.GetUniqueNetId(), EVoiceBlockReasons::Muted);
+
 	if (LP != NULL && World)
 	{
 		// Have the voice subsystem mute this player
@@ -3759,6 +3764,8 @@ void APlayerController::ClientUnmutePlayer_Implementation(FUniqueNetIdRepl Playe
 	// Use the local player to determine the controller id
 	ULocalPlayer* LP = Cast<ULocalPlayer>(Player);
 	UWorld* World = GetWorld();
+
+	MuteList.RemoveVoiceBlockReason(PlayerId.GetUniqueNetId(), EVoiceBlockReasons::Muted);
 
 	if (LP != NULL && World)
 	{

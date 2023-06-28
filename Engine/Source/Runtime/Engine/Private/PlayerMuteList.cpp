@@ -7,6 +7,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMuteList)
 
+constexpr EVoiceBlockReasons ClientVisibleVoiceFilterReasons = EVoiceBlockReasons::Muted | EVoiceBlockReasons::Gameplay | EVoiceBlockReasons::Blocked;
+
 FString LexToString(const EVoiceBlockReasons& Reason)
 {
 	FString Result;
@@ -26,9 +28,6 @@ FString LexToString(const EVoiceBlockReasons& Reason)
 				break;
 			case EVoiceBlockReasons::Muted:
 				Result += TEXT("MUTED");
-				break;
-			case EVoiceBlockReasons::MutedBy:
-				Result += TEXT("MUTED BY");
 				break;
 			case EVoiceBlockReasons::Gameplay:
 				Result += TEXT("GAMEPLAY");
@@ -57,7 +56,8 @@ bool FPlayerMuteList::AddVoiceBlockReason(const FUniqueNetIdPtr& PlayerId, EVoic
 	const EVoiceBlockReasons OldBlockReasons = BlockReasons;
 	EnumAddFlags(BlockReasons, VoiceBlockReason);
 	
-	return OldBlockReasons == EVoiceBlockReasons::None;
+	return (OldBlockReasons & ClientVisibleVoiceFilterReasons) == EVoiceBlockReasons::None && 
+		VoiceBlockReason != EVoiceBlockReasons::BlockedBy;
 }
 
 bool FPlayerMuteList::RemoveVoiceBlockReason(const FUniqueNetIdPtr& PlayerId, EVoiceBlockReasons VoiceBlockReason)
@@ -69,7 +69,8 @@ bool FPlayerMuteList::RemoveVoiceBlockReason(const FUniqueNetIdPtr& PlayerId, EV
 		const EVoiceBlockReasons OldBlockReasons = *BlockReasons;
 		EnumRemoveFlags(*BlockReasons, VoiceBlockReason);
 
-		return OldBlockReasons != EVoiceBlockReasons::None && *BlockReasons == EVoiceBlockReasons::None;
+		return (OldBlockReasons & ClientVisibleVoiceFilterReasons) != EVoiceBlockReasons::None && 
+			(*BlockReasons & ClientVisibleVoiceFilterReasons) == EVoiceBlockReasons::None;
 	}
 
 	return false;
@@ -83,19 +84,6 @@ void FPlayerMuteList::ServerMutePlayer(APlayerController* OwningPC, const FUniqu
 		// This is the first reason added, so we transitioned unmuted -> muted. Replicate mute state to client
 		OwningPC->ClientMutePlayer(MuteId);
 	}
-
-	// Find the muted player's player controller so it can be notified
-	APlayerController* OtherPC = OwningPC->GetPlayerControllerForMuting(MuteId);
-	const FUniqueNetIdRepl& OwningPlayerId = OwningPC->PlayerState->GetUniqueId();
-	if (OtherPC != NULL)
-	{
-		// Update their packet filter too
-		if (OtherPC->MuteList.AddVoiceBlockReason(OwningPlayerId.GetUniqueNetId(), EVoiceBlockReasons::MutedBy))
-		{
-			// This is the first reason added, so we transitioned unmuted -> muted. Tell the other PC to mute this one
-			OtherPC->ClientMutePlayer(OwningPlayerId);
-		}
-	}
 }
 
 void FPlayerMuteList::ServerUnmutePlayer(APlayerController* OwningPC, const FUniqueNetIdRepl& UnmuteId)
@@ -105,19 +93,6 @@ void FPlayerMuteList::ServerUnmutePlayer(APlayerController* OwningPC, const FUni
 	{
 		// We removed the last flag, transitioning from muted -> unmuted. Replicate mute state to client.
 		OwningPC->ClientUnmutePlayer(UnmuteId);
-	}
-
-	// Find the muted player's player controller so it can be notified
-	APlayerController* OtherPC = OwningPC->GetPlayerControllerForMuting(UnmuteId);
-	const FUniqueNetIdRepl& OwningPlayerId = OwningPC->PlayerState->GetUniqueId();
-	if (OtherPC != NULL)
-	{
-		// Update their packet filter list too
-		if (OtherPC->MuteList.RemoveVoiceBlockReason(OwningPlayerId.GetUniqueNetId(), EVoiceBlockReasons::MutedBy))
-		{
-			// We removed the last flag, transitioning from muted->unmuted.Replicate mute state to other PC.
-			OtherPC->ClientUnmutePlayer(OwningPlayerId);
-		}
 	}
 }
 
