@@ -154,6 +154,20 @@ FRDGTextureUAVRef FNiagaraPooledRWTexture::GetOrCreateUAV(FRDGBuilder& GraphBuil
 
 void FNiagaraPooledRWTexture::CopyToTexture(FRDGBuilder& GraphBuilder, FRHITexture* DestinationTextureRHI, const TCHAR* NameIfNotRegistered)
 {
+	const FPooledRenderTargetDesc& TextureDesc = Texture->GetDesc();
+	const FRHITextureDesc& DestTextureDesc = DestinationTextureRHI->GetDesc();
+	if (!ensureMsgf(
+			(DestTextureDesc.Dimension == ETextureDimension::Texture3D) &&
+			(DestTextureDesc.Format == TextureDesc.Format) &&
+			(DestTextureDesc.Extent == TextureDesc.Extent) &&
+			(DestTextureDesc.Depth == TextureDesc.Depth),
+			TEXT("FNiagaraPooledRWTexture::CopyToTexture - Destination does not match copy will fail")
+		)
+	)
+	{
+		return;
+	}
+
 	FRDGTexture* SourceTexture = GetOrCreateTexture(GraphBuilder);
 	FRDGTexture* DestinationTexture = GraphBuilder.FindExternalTexture(DestinationTextureRHI);
 	if (DestinationTexture == nullptr)
