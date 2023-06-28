@@ -38,6 +38,7 @@
 #include "RigVMFunctions/RigVMDispatch_If.h"
 #include "RigVMFunctions/RigVMDispatch_Select.h"
 #include "Algo/Copy.h"
+#include "Brushes/SlateColorBrush.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
