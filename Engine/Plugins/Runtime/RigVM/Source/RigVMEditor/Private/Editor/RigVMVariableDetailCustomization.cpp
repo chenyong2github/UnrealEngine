@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigVariableDetailsCustomization.h"
+#include "Editor/RigVMVariableDetailCustomization.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "ControlRig.h"
+#include "RigVMHost.h"
 #include "DetailLayoutBuilder.h"
 #include "BlueprintEditorModule.h"
 #include "DetailCategoryBuilder.h"
@@ -10,21 +10,21 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "RigVMModel/RigVMController.h"
 
-#define LOCTEXT_NAMESPACE "ControlRigVariableDetailsCustomization"
+#define LOCTEXT_NAMESPACE "RigVMVariableDetailCustomization"
 
-TSharedPtr<IDetailCustomization> FControlRigVariableDetailsCustomization::MakeInstance(TSharedPtr<IBlueprintEditor> InBlueprintEditor)
+TSharedPtr<IDetailCustomization> FRigVMVariableDetailCustomization::MakeInstance(TSharedPtr<IBlueprintEditor> InBlueprintEditor)
 {
 	const TArray<UObject*>* Objects = (InBlueprintEditor.IsValid() ? InBlueprintEditor->GetObjectsCurrentlyBeingEdited() : nullptr);
 	if (Objects && Objects->Num() == 1)
 	{
 		if (UBlueprint* Blueprint = Cast<UBlueprint>((*Objects)[0]))
 		{
-			if (Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(UControlRig::StaticClass()))
+			if (Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(URigVMHost::StaticClass()))
 			{
-				return MakeShareable(new FControlRigVariableDetailsCustomization(InBlueprintEditor, Blueprint));
+				return MakeShareable(new FRigVMVariableDetailCustomization(InBlueprintEditor, Blueprint));
 			}
 		}
 	}
@@ -32,7 +32,7 @@ TSharedPtr<IDetailCustomization> FControlRigVariableDetailsCustomization::MakeIn
 	return nullptr;
 }
 
-void FControlRigVariableDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+void FRigVMVariableDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailLayout.GetObjectsBeingCustomized(ObjectsBeingCustomized);
@@ -61,8 +61,8 @@ void FControlRigVariableDetailsCustomization::CustomizeDetails(IDetailLayoutBuil
 				[
 					SNew(SCheckBox)
 					.Visibility(IsAnimationFlagEnabled(PropertyBeingCustomized) ? EVisibility::Visible : EVisibility::Hidden)
-					.IsChecked_Raw(this, &FControlRigVariableDetailsCustomization::IsAnimationOutputChecked, PropertyBeingCustomized)
-					.OnCheckStateChanged_Raw(this, &FControlRigVariableDetailsCustomization::HandleAnimationOutputCheckStateChanged, PropertyBeingCustomized)
+					.IsChecked_Raw(this, &FRigVMVariableDetailCustomization::IsAnimationOutputChecked, PropertyBeingCustomized)
+					.OnCheckStateChanged_Raw(this, &FRigVMVariableDetailCustomization::HandleAnimationOutputCheckStateChanged, PropertyBeingCustomized)
 					.ToolTipText(AnimationOutputTooltipText)
 				];
 
@@ -80,34 +80,34 @@ void FControlRigVariableDetailsCustomization::CustomizeDetails(IDetailLayoutBuil
 				[
 					SNew(SCheckBox)
 					.Visibility(IsAnimationFlagEnabled(PropertyBeingCustomized) ? EVisibility::Visible : EVisibility::Hidden)
-					.IsChecked_Raw(this, &FControlRigVariableDetailsCustomization::IsAnimationInputChecked, PropertyBeingCustomized)
-					.OnCheckStateChanged_Raw(this, &FControlRigVariableDetailsCustomization::HandleAnimationInputCheckStateChanged, PropertyBeingCustomized)
+					.IsChecked_Raw(this, &FRigVMVariableDetailCustomization::IsAnimationInputChecked, PropertyBeingCustomized)
+					.OnCheckStateChanged_Raw(this, &FRigVMVariableDetailCustomization::HandleAnimationInputCheckStateChanged, PropertyBeingCustomized)
 					.ToolTipText(AnimationInputTooltipText)
 				];
 		}
 	}
 }
 
-bool FControlRigVariableDetailsCustomization::IsAnimationFlagEnabled(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const
+bool FRigVMVariableDetailCustomization::IsAnimationFlagEnabled(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const
 {
 	return false;
 }
 
-ECheckBoxState FControlRigVariableDetailsCustomization::IsAnimationOutputChecked(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const
+ECheckBoxState FRigVMVariableDetailCustomization::IsAnimationOutputChecked(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const
 {
 	return ECheckBoxState::Unchecked;
 }
 
-void FControlRigVariableDetailsCustomization::HandleAnimationOutputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakFieldPtr<FProperty> PropertyBeingCustomized)
+void FRigVMVariableDetailCustomization::HandleAnimationOutputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakFieldPtr<FProperty> PropertyBeingCustomized)
 {
 }
 
-ECheckBoxState FControlRigVariableDetailsCustomization::IsAnimationInputChecked(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const
+ECheckBoxState FRigVMVariableDetailCustomization::IsAnimationInputChecked(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const
 {
 	return ECheckBoxState::Unchecked;
 }
 
-void FControlRigVariableDetailsCustomization::HandleAnimationInputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakFieldPtr<FProperty> PropertyBeingCustomized)
+void FRigVMVariableDetailCustomization::HandleAnimationInputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakFieldPtr<FProperty> PropertyBeingCustomized)
 {
 }
 

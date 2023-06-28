@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "Engine/Blueprint.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMHost.h"
@@ -207,6 +208,9 @@ public:
 
 	/** Get the (skeleton) generated class for this rigvm blueprint */
 	URigVMBlueprintGeneratedClass* GetRigVMBlueprintSkeletonClass() const;
+
+	/** Returns the class used as the super class for all generated classes */
+	virtual UClass* GetRigVMBlueprintGeneratedClassPrototype() const { return URigVMBlueprintGeneratedClass::StaticClass(); }
 
 	/** Returns the expected schema class to use for this blueprint */
 	virtual UClass* GetRigVMSchemaClass() const { return URigVMSchema::StaticClass(); }
@@ -467,7 +471,7 @@ public:
 	FOnRigVMCompiledEvent& OnVMCompiled();
 
 	UFUNCTION(BlueprintCallable, Category = "VM")
-	UClass* GetRigVMHostClass();
+	UClass* GetRigVMHostClass() const;
 
 	UFUNCTION(BlueprintCallable, Category = "VM")
 	URigVMHost* CreateRigVMHost();

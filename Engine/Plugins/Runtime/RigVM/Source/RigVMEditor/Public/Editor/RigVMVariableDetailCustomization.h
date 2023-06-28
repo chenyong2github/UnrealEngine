@@ -12,13 +12,13 @@ class IDetailLayoutBuilder;
 class IBlueprintEditor;
 class UBlueprint;
 
-class FControlRigVariableDetailsCustomization : public IDetailCustomization
+class RIGVMEDITOR_API FRigVMVariableDetailCustomization : public IDetailCustomization
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedPtr<IDetailCustomization> MakeInstance(TSharedPtr<IBlueprintEditor> InBlueprintEditor);
 
-	FControlRigVariableDetailsCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, UBlueprint* Blueprint)
+	FRigVMVariableDetailCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, UBlueprint* Blueprint)
 		: BlueprintEditorPtr(InBlueprintEditor)
 		, BlueprintPtr(Blueprint)
 	{}

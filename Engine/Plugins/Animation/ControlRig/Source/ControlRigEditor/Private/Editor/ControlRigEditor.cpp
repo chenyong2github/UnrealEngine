@@ -96,7 +96,6 @@
 #include "Units/Execution/RigUnit_SequenceExecution.h"
 #include "Editor/ControlRigContextMenuContext.h"
 #include "Types/ISlateMetaData.h"
-#include "ControlRigGraphDetails.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/WatchedPin.h"
 #include "ToolMenus.h"
@@ -107,6 +106,7 @@
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "AnimationEditorViewportClient.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "Editor/RigVMGraphDetailCustomization.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -294,6 +294,11 @@ FControlRigEditor::~FControlRigEditor()
 		constexpr bool bSetPreviewMeshInAsset = false;
 		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
 	}
+}
+
+UClass* FControlRigEditor::GetDetailWrapperClass() const
+{
+	return UControlRigWrapperObject::StaticClass();
 }
 
 UControlRigBlueprint* FControlRigEditor::GetControlRigBlueprint() const
@@ -630,7 +635,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		Inspector->GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(StructToCustomize->GetFName(),
 			FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]()
 			{
-				return FControlRigGraphMathTypeDetails::MakeInstance();
+				return FRigVMGraphMathTypeDetailCustomization::MakeInstance();
 			}));
 	}
 
@@ -1068,7 +1073,7 @@ void FControlRigEditor::ExtendToolbar()
 	FControlRigEditorModule& ControlRigEditorModule = FModuleManager::LoadModuleChecked<FControlRigEditorModule>("ControlRigEditor");
 	AddToolbarExtender(ControlRigEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
-	TArray<IControlRigEditorModule::FControlRigEditorToolbarExtender> ToolbarExtenderDelegates = ControlRigEditorModule.GetAllControlRigEditorToolbarExtenders();
+	TArray<FRigVMEditorModule::FRigVMEditorToolbarExtender> ToolbarExtenderDelegates = ControlRigEditorModule.GetAllRigVMEditorToolbarExtenders();
 
 	for (auto& ToolbarExtenderDelegate : ToolbarExtenderDelegates)
 	{
@@ -1890,15 +1895,6 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool
 			{
 				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
 				WrapperObject->AddToRoot();
-
-				if(bClassCreated)
-				{
-					UClass* WrapperClass = WrapperObject->GetClassForNodes(ModelNodes, false);
-					check(WrapperClass);
-
-					FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-					EditModule.RegisterCustomClassLayout(WrapperClass->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigWrappedNodeDetails::MakeInstance));
-				}
 
 				// todo: use transform widget for transforms
 				// todo: use rotation widget for rotations

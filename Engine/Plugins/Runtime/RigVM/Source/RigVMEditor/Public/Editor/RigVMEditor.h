@@ -33,7 +33,7 @@ protected:
 
 private:
 
-	/** Our currently running control rig instance */
+	/** Our currently running rig vm instance */
 	TObjectPtr<URigVMHost> Host;
 
 	FPreviewHostUpdated PreviewHostUpdated;

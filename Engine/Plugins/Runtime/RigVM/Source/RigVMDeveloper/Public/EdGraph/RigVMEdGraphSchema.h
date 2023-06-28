@@ -252,7 +252,7 @@ public:
 public:
 	URigVMEdGraphSchema();
 
-	virtual const FName& GetGraphNameForUI() const { return GraphName_RigVM; }
+	virtual const FName& GetRootGraphName() const { return GraphName_RigVM; }
 
 	// UEdGraphSchema interface
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;

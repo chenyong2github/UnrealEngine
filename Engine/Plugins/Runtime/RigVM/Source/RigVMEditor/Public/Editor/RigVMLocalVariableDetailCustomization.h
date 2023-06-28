@@ -5,20 +5,20 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
-#include "ControlRig.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMHost.h"
+#include "RigVMBlueprint.h"
 #include "Editor/RigVMDetailsViewWrapperObject.h"
-#include "Graph/ControlRigGraph.h"
+#include "EdGraph/RigVMEdGraph.h"
 #include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 
 class IPropertyHandle;
 
-class FRigVMLocalVariableDetails : public IDetailCustomization
+class RIGVMEDITOR_API FRigVMLocalVariableDetailCustomization : public IDetailCustomization
 {
-	FRigVMLocalVariableDetails()
+	FRigVMLocalVariableDetailCustomization()
 	: GraphBeingCustomized(nullptr)
 	, BlueprintBeingCustomized(nullptr)
 	, NameValidator(nullptr, nullptr, NAME_None)
@@ -30,7 +30,7 @@ public:
 	// Makes a new instance of this detail layout class for a specific detail view requesting it
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShareable(new FRigVMLocalVariableDetails);
+		return MakeShareable(new FRigVMLocalVariableDetailCustomization);
 	}
 
 	/** IDetailCustomization interface */
@@ -39,7 +39,7 @@ public:
 private:
 
 	URigVMGraph* GraphBeingCustomized;
-	UControlRigBlueprint* BlueprintBeingCustomized;
+	URigVMBlueprint* BlueprintBeingCustomized;
 	FRigVMGraphVariableDescription VariableDescription;
 	TArray<TWeakObjectPtr<URigVMDetailsViewWrapperObject>> ObjectsBeingCustomized;
 

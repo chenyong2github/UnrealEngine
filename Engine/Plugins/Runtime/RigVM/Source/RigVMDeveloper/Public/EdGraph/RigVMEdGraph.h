@@ -60,6 +60,8 @@ public:
 	void CacheEntryNameList();
 	const TArray<TSharedPtr<FString>>* GetEntryNameList(URigVMPin* InPin = nullptr) const;
 
+	virtual const TArray<TSharedPtr<FString>>* GetNameListForWidget(const FString& InWidgetName) const { return nullptr; }
+
 	UPROPERTY()
 	FString ModelNodePath;
 

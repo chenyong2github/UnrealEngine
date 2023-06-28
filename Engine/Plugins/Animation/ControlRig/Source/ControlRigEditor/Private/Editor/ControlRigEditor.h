@@ -72,6 +72,9 @@ public:
 	FControlRigEditor();
 	virtual ~FControlRigEditor();
 
+	// FRigVMEditor interface
+	virtual UClass* GetDetailWrapperClass() const;
+
 	// FBlueprintEditor interface
 	virtual UBlueprint* GetBlueprintObj() const override;
 	virtual TSubclassOf<UEdGraphSchema> GetDefaultSchemaClass() const override;

@@ -54,6 +54,8 @@ public:
 		return GetElementNameList(ERigElementType::Curve);
 	}
 
+	virtual const TArray<TSharedPtr<FString>>* GetNameListForWidget(const FString& InWidgetName) const override;
+
 	void CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries);
 	const TArray<TSharedPtr<FString>>* GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
 	const TArray<TSharedPtr<FString>>* GetElementNameList(URigVMPin* InPin = nullptr) const;

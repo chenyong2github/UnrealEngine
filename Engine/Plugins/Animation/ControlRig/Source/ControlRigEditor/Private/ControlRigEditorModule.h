@@ -29,15 +29,13 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	/** FRigVMEditorModule interface */
+	virtual UClass* GetRigVMBlueprintClass() const override;
+	virtual void GetNodeContextMenuActions(URigVMBlueprint* RigVMBlueprint, const URigVMEdGraphNode* EdGraphNode, URigVMNode* ModelNode, UToolMenu* Menu) const override;
+	virtual void GetPinContextMenuActions(URigVMBlueprint* RigVMBlueprint, const UEdGraphPin* EdGraphPin, URigVMPin* ModelPin, UToolMenu* Menu) const override;
+
 	/** IControlRigEditorModule interface */
 	virtual TSharedRef<IControlRigEditor> CreateControlRigEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UControlRigBlueprint* Blueprint) override;
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<FExtender>, FControlRigEditorToolbarExtender, const TSharedRef<FUICommandList> /*InCommandList*/, TSharedRef<IControlRigEditor> /*InControlRigEditor*/);
-	virtual TArray<FControlRigEditorToolbarExtender>& GetAllControlRigEditorToolbarExtenders() override { return ControlRigEditorToolbarExtenders; }
-	/** IHasMenuExtensibility interface */
-	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
-
-	/** IHasToolBarExtensibility interface */
-	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 	
 	/** Animation Toolbar Extender*/
 	void AddControlRigExtenderToToolMenu(FName InToolMenuName);
@@ -50,17 +48,7 @@ public:
 	static void UnLinkLevelSequence(UAnimSequence* AnimSequence);
 	void ExtendAnimSequenceMenu();
 
-	virtual void GetTypeActions(UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar) override;
-	virtual void GetInstanceActions(UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar) override;
-	virtual FConnectionDrawingPolicy* CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) override;
-	virtual void GetContextMenuActions(const UControlRigGraphSchema* Schema, class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
-
-	/* FStructureEditorUtils::INotifyOnStructChanged Interface, used to respond to changes to user defined structs */
-	virtual void PreChange(const UUserDefinedStruct* Changed, FStructureEditorUtils::EStructureEditorChangeInfo ChangedType) override;
-	virtual void PostChange(const UUserDefinedStruct* Changed, FStructureEditorUtils::EStructureEditorChangeInfo ChangedType) override;
 private:
-	/** Handle a new animation controller blueprint being created */
-	void HandleNewBlueprintCreated(UBlueprint* InBlueprint);
 
 	/** Handle for our sequencer control rig parameter track editor */
 	FDelegateHandle ControlRigParameterTrackCreateEditorHandle;
@@ -70,23 +58,7 @@ private:
 	/** StaticClass is not safe on shutdown, so we cache the name, and use this to unregister on shut down */
 	TArray<FName> ClassesToUnregisterOnShutdown;
 	TArray<FName> PropertiesToUnregisterOnShutdown;
-
-	/** Extensibility managers */
-	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
-	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
-	TArray<FControlRigEditorToolbarExtender> ControlRigEditorToolbarExtenders;
-
-	/** Node factory for the control rig graph */
-	TSharedPtr<FRigVMEdGraphPanelNodeFactory> ControlRigGraphPanelNodeFactory;
-
-	/** Pin factory for the control rig graph */
-	TSharedPtr<FControlRigGraphPanelPinFactory> ControlRigGraphPanelPinFactory;
-
-	/** Delegate handles for blueprint utils */
-	FDelegateHandle RefreshAllNodesDelegateHandle;
-	FDelegateHandle ReconstructAllNodesDelegateHandle;
-	FDelegateHandle BlueprintVariableCustomizationHandle;
-
+	
 	/** Param to hold Filter Result to pass to Filter*/
 	bool bFilterAssetBySkeleton;
 

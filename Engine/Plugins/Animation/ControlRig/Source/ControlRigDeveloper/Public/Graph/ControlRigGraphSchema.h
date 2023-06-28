@@ -32,6 +32,6 @@ public:
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 
 	// URigVMEdGraphSchema interface
-	virtual const FName& GetGraphNameForUI() const override { return GraphName_ControlRig; }
+	virtual const FName& GetRootGraphName() const override { return GraphName_ControlRig; }
 	virtual bool IsRigVMDefaultEvent(const FName& InEventName) const override;
 };

@@ -20,6 +20,7 @@
 #include "ClassViewerFilter.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintActions.h"
+#include "ControlRigEditorModule.h"
 #include "RigVMBlueprintGeneratedClass.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraph.h"
@@ -290,7 +291,7 @@ UObject* UControlRigBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* I
 	else
 	{
 		UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BPTYPE_Normal, UControlRigBlueprint::StaticClass(), URigVMBlueprintGeneratedClass::StaticClass(), CallingContext));
-		CreateRigGraphIfRequired(ControlRigBlueprint);
+		FControlRigEditorModule::Get().CreateRootGraphIfRequired(ControlRigBlueprint);
 		return ControlRigBlueprint;
 	}
 }
@@ -308,30 +309,6 @@ UControlRigBlueprint* UControlRigBlueprintFactory::CreateNewControlRigAsset(cons
 UControlRigBlueprint* UControlRigBlueprintFactory::CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject)
 {
 	return FControlRigBlueprintActions::CreateControlRigFromSkeletalMeshOrSkeleton(InSelectedObject);
-}
-
-void UControlRigBlueprintFactory::CreateRigGraphIfRequired(UControlRigBlueprint* InBlueprint)
-{
-	if(InBlueprint == nullptr)
-	{
-		return;
-	}
-	
-	for(UEdGraph* EdGraph : InBlueprint->UbergraphPages)
-	{
-		if(EdGraph->IsA<UControlRigGraph>())
-		{
-			return;
-		}
-	}
-	
-	// add an initial graph for us to work in
-	const UControlRigGraphSchema* ControlRigGraphSchema = GetDefault<UControlRigGraphSchema>();
-	UEdGraph* ControlRigGraph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, ControlRigGraphSchema->GraphName_ControlRig, UControlRigGraph::StaticClass(), UControlRigGraphSchema::StaticClass());
-	ControlRigGraph->bAllowDeletion = false;
-	FBlueprintEditorUtils::AddUbergraphPage(InBlueprint, ControlRigGraph);
-	InBlueprint->LastEditedDocuments.AddUnique(ControlRigGraph);
-	InBlueprint->PostLoad();
 }
 
 #undef LOCTEXT_NAMESPACE

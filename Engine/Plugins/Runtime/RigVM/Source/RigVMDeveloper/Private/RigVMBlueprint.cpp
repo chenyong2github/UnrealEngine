@@ -2503,7 +2503,7 @@ FOnRigVMCompiledEvent& URigVMBlueprint::OnVMCompiled()
 	return VMCompiledEvent;
 }
 
-UClass* URigVMBlueprint::GetRigVMHostClass()
+UClass* URigVMBlueprint::GetRigVMHostClass() const
 {
 	return GeneratedClass;
 }

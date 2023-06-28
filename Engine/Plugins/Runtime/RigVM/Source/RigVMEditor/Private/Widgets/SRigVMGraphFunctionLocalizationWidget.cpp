@@ -32,7 +32,7 @@ SRigVMGraphFunctionLocalizationItem::SRigVMGraphFunctionLocalizationItem(const F
 		DisplayText = FText::FromString(FString::Printf(TEXT("%s :: %s"), *OuterName, *FunctionName));
 		ToolTipText = bIsPublic ?
 			FText::FromString(FString::Printf(TEXT("%s :: %s is public. Check this to create a local copy."), *OuterName, *FunctionName)) :
-			FText::FromString(FString::Printf(TEXT("%s :: %s is private. A local copy has to be created. To avoid this you can turn it public in the source Control Rig."), *OuterName, *FunctionName));
+			FText::FromString(FString::Printf(TEXT("%s :: %s is private. A local copy has to be created. To avoid this you can turn it public in the source rig vm."), *OuterName, *FunctionName));
 	}
 }
 

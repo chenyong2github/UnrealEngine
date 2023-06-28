@@ -6,28 +6,29 @@
 #include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Graph/ControlRigGraph.h"
-#include "ControlRigBlueprint.h"
-#include "Editor/ControlRigEditor.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "RigVMBlueprint.h"
+#include "Editor/RigVMEditor.h"
 #include "SGraphPin.h"
 #include "Widgets/SRigVMGraphNode.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Editor/RigVMDetailsViewWrapperObject.h"
 #include "IDetailPropertyExtensionHandler.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "SAdvancedTransformInputBox.h"
+#include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 
 class IDetailLayoutBuilder;
 
-class FControlRigArgumentGroupLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentGroupLayout>
+class RIGVMEDITOR_API FRigVMFunctionArgumentGroupLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FRigVMFunctionArgumentGroupLayout>
 {
 public:
-	FControlRigArgumentGroupLayout(
+	FRigVMFunctionArgumentGroupLayout(
 		URigVMGraph* InGraph, 
-		UControlRigBlueprint* InBlueprint,
-		TWeakPtr<IControlRigEditor> InEditor,
+		URigVMBlueprint* InBlueprint,
+		TWeakPtr<FRigVMEditor> InEditor,
 		bool bInputs);
-	virtual ~FControlRigArgumentGroupLayout();
+	virtual ~FRigVMFunctionArgumentGroupLayout();
 
 private:
 	/** IDetailCustomNodeBuilder Interface*/
@@ -44,25 +45,25 @@ private:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	TWeakObjectPtr<URigVMGraph> GraphPtr;
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
-	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
+	TWeakObjectPtr<URigVMBlueprint> RigVMBlueprintPtr;
+	TWeakPtr<FRigVMEditor> RigVMEditorPtr;
 	bool bIsInputGroup;
 	FSimpleDelegate OnRebuildChildren;
 };
 
-class FControlRigArgumentLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentLayout>
+class RIGVMEDITOR_API FRigVMFunctionArgumentLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FRigVMFunctionArgumentLayout>
 {
 public:
 
-	FControlRigArgumentLayout(
+	FRigVMFunctionArgumentLayout(
 		URigVMPin* InPin, 
 		URigVMGraph* InGraph, 
-		UControlRigBlueprint* InBlueprint,
-		TWeakPtr<IControlRigEditor> InEditor)
+		URigVMBlueprint* InBlueprint,
+		TWeakPtr<FRigVMEditor> InEditor)
 		: PinPtr(InPin)
 		, GraphPtr(InGraph)
-		, ControlRigBlueprintPtr(InBlueprint)
-		, ControlRigEditorPtr(InEditor)
+		, RigVMBlueprintPtr(InBlueprint)
+		, RigVMEditorPtr(InEditor)
 		, NameValidator(InBlueprint, InGraph, InPin->GetFName())
 	{}
 
@@ -109,10 +110,10 @@ private:
 	TWeakObjectPtr<URigVMGraph> GraphPtr;
 
 	/** The blueprint we are editing */
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+	TWeakObjectPtr<URigVMBlueprint> RigVMBlueprintPtr;
 
 	/** The editor we are editing */
-	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
+	TWeakPtr<FRigVMEditor> RigVMEditorPtr;
 
 	/** Holds a weak pointer to the argument name widget, used for error notifications */
 	TWeakPtr<SEditableTextBox> ArgumentNameWidget;
@@ -121,14 +122,14 @@ private:
 	FRigVMLocalVariableNameValidator NameValidator;
 };
 
-class FControlRigArgumentDefaultNode : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentDefaultNode>
+class RIGVMEDITOR_API FRigVMFunctionArgumentDefaultNode : public IDetailCustomNodeBuilder, public TSharedFromThis<FRigVMFunctionArgumentDefaultNode>
 {
 public:
-	FControlRigArgumentDefaultNode(
+	FRigVMFunctionArgumentDefaultNode(
 		URigVMGraph* InGraph,
-		UControlRigBlueprint* InBlueprint
+		URigVMBlueprint* InBlueprint
 	);
-	virtual ~FControlRigArgumentDefaultNode();
+	virtual ~FRigVMFunctionArgumentDefaultNode();
 
 private:
 	/** IDetailCustomNodeBuilder Interface*/
@@ -146,25 +147,26 @@ private:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	TWeakObjectPtr<URigVMGraph> GraphPtr;
-	TWeakObjectPtr<UControlRigGraph> EdGraphOuterPtr;
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+	TWeakObjectPtr<URigVMEdGraph> EdGraphOuterPtr;
+	TWeakObjectPtr<URigVMBlueprint> RigVMBlueprintPtr;
 	FSimpleDelegate OnRebuildChildren;
 	TSharedPtr<SRigVMGraphNode> OwnedNodeWidget;
 	FDelegateHandle GraphChangedDelegateHandle;
 };
 
 
-/** Customization for editing Control Rig graphs */
-class FControlRigGraphDetails : public IDetailCustomization
+/** Customization for editing rig vm graphs */
+class RIGVMEDITOR_API FRigVMGraphDetailCustomization : public IDetailCustomization
 {
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedPtr<IDetailCustomization> MakeInstance(TSharedPtr<IBlueprintEditor> InBlueprintEditor);
+	static TSharedPtr<IDetailCustomization> MakeInstance(TSharedPtr<IBlueprintEditor> InBlueprintEditor, const UClass* InExpectedBlueprintClass);
 
-	FControlRigGraphDetails(TSharedPtr<IControlRigEditor> InControlRigEditor, UControlRigBlueprint* ControlRigBlueprint)
-		: ControlRigEditorPtr(InControlRigEditor)
-		, ControlRigBlueprintPtr(ControlRigBlueprint)
+	FRigVMGraphDetailCustomization(TSharedPtr<FRigVMEditor> RigVMigEditor, URigVMBlueprint* RigVMBlueprint)
+		: RigVMEditorPtr(RigVMigEditor)
+		, RigVMBlueprintPtr(RigVMBlueprint)
+		, bIsPickingColor(false)
 	{}
 
 	// IDetailCustomization interface
@@ -193,13 +195,13 @@ public:
 private:
 
 	/** The Blueprint editor we are embedded in */
-	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
+	TWeakPtr<FRigVMEditor> RigVMEditorPtr;
 
 	/** The graph we are editing */
-	TWeakObjectPtr<UControlRigGraph> GraphPtr;
+	TWeakObjectPtr<URigVMEdGraph> GraphPtr;
 
 	/** The blueprint we are editing */
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+	TWeakObjectPtr<URigVMBlueprint> RigVMBlueprintPtr;
 
 	/** The color block widget */
 	TSharedPtr<SColorBlock> ColorBlock;
@@ -210,12 +212,12 @@ private:
 	static TArray<TSharedPtr<FString>> AccessSpecifierStrings;
 };
 
-/** Customization for editing a Control Rig node */
-class FControlRigWrappedNodeDetails : public IDetailCustomization
+/** Customization for editing a rig vm node */
+class RIGVMEDITOR_API FRigVMWrappedNodeDetailCustomization : public IDetailCustomization
 {
 public:
 	
-	FControlRigWrappedNodeDetails();
+	FRigVMWrappedNodeDetailCustomization();
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
@@ -231,22 +233,22 @@ public:
 	void OnNameListComboBox(FNameProperty* InProperty, const TArray<TSharedPtr<FString>>* InNameList);
 	void CustomizeLiveValues(IDetailLayoutBuilder& DetailLayout);
 
-	UControlRigBlueprint* BlueprintBeingCustomized;
+	URigVMBlueprint* BlueprintBeingCustomized;
 	TArray<TWeakObjectPtr<URigVMDetailsViewWrapperObject>> ObjectsBeingCustomized;
 	TArray<TWeakObjectPtr<URigVMNode>> NodesBeingCustomized;
 	TMap<FName, TSharedPtr<SRigVMGraphPinNameListValueWidget>> NameListWidgets;
 };
 
-/** Customization for editing a Control Rig node */
-class FControlRigGraphMathTypeDetails : public IPropertyTypeCustomization
+/** Customization for editing a rig vm node */
+class RIGVMEDITOR_API FRigVMGraphMathTypeDetailCustomization : public IPropertyTypeCustomization
 {
 public:
 
-	FControlRigGraphMathTypeDetails();
+	FRigVMGraphMathTypeDetailCustomization();
 	
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShareable(new FControlRigGraphMathTypeDetails);
+		return MakeShareable(new FRigVMGraphMathTypeDetailCustomization);
 	}
 
 	/** IPropertyTypeCustomization interface */
@@ -923,19 +925,19 @@ protected:
 	}
 		
 	UScriptStruct* ScriptStruct;
-	UControlRigBlueprint* BlueprintBeingCustomized;
+	URigVMBlueprint* BlueprintBeingCustomized;
 	URigVMGraph* GraphBeingCustomized;
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized; 
 };
 
 template<>
-inline bool FControlRigGraphMathTypeDetails::IsQuaternionBasedRotation<FEulerTransform>() { return false; }
+inline bool FRigVMGraphMathTypeDetailCustomization::IsQuaternionBasedRotation<FEulerTransform>() { return false; }
 
 template<>
-inline bool FControlRigGraphMathTypeDetails::IsQuaternionBasedRotation<FRotator>() { return false; }
+inline bool FRigVMGraphMathTypeDetailCustomization::IsQuaternionBasedRotation<FRotator>() { return false; }
 
 template<>
-inline void FControlRigGraphMathTypeDetails::ExtendVectorArgs<FVector>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
+inline void FRigVMGraphMathTypeDetailCustomization::ExtendVectorArgs<FVector>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
 {
 	using VectorType = FVector;
 	typedef typename VectorType::FReal NumericType;
@@ -958,7 +960,7 @@ inline void FControlRigGraphMathTypeDetails::ExtendVectorArgs<FVector>(TSharedRe
 }
 
 template<>
-inline void FControlRigGraphMathTypeDetails::ExtendVectorArgs<FVector4>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
+inline void FRigVMGraphMathTypeDetailCustomization::ExtendVectorArgs<FVector4>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
 {
 	using VectorType = FVector4;
 	typedef typename VectorType::FReal NumericType;
@@ -993,7 +995,7 @@ inline void FControlRigGraphMathTypeDetails::ExtendVectorArgs<FVector4>(TSharedR
 }
 
 template<>
-inline void FControlRigGraphMathTypeDetails::ExtendRotationArgs<FQuat>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
+inline void FRigVMGraphMathTypeDetailCustomization::ExtendRotationArgs<FQuat>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
 {
 	using RotationType = FQuat;
 	typedef typename RotationType::FReal NumericType;
@@ -1017,7 +1019,7 @@ inline void FControlRigGraphMathTypeDetails::ExtendRotationArgs<FQuat>(TSharedRe
 }
 
 template<>
-inline void FControlRigGraphMathTypeDetails::ExtendRotationArgs<FRotator>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
+inline void FRigVMGraphMathTypeDetailCustomization::ExtendRotationArgs<FRotator>(TSharedRef<class IPropertyHandle> InPropertyHandle, void* ArgumentsPtr)
 {
 	using RotationType = FRotator;
 	typedef typename RotationType::FReal NumericType;

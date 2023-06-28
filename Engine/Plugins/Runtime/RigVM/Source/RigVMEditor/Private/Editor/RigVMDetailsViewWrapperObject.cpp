@@ -10,6 +10,8 @@
 
 #if WITH_EDITOR
 #include "PropertyEditorModule.h"
+#include "Editor/RigVMGraphDetailCustomization.h"
+#include "Editor/RigVMLocalVariableDetailCustomization.h"
 #endif
 
 TMap<URigVMDetailsViewWrapperObject::FPerClassInfo, UClass*> URigVMDetailsViewWrapperObject::InfoToClass;
@@ -65,8 +67,8 @@ UClass* URigVMDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruc
 		return nullptr;
 	}
 
-	UClass* SuperClass = URigVMDetailsViewWrapperObject::StaticClass();
-	const FName WrapperClassName(FString::Printf(TEXT("%s_WrapperObject"), *InStruct->GetStructCPPName()));
+	UClass* SuperClass = GetClass();
+	const FName WrapperClassName(FString::Printf(TEXT("%s_%s"), *SuperClass->GetName(), *InStruct->GetStructCPPName()));
 
 	UClass* WrapperClass = NewObject<UClass>(
 		GetTransientPackage(),
@@ -161,6 +163,17 @@ UClass* URigVMDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruc
 	// import the defaults from the struct onto the class
 	TSharedPtr<FStructOnScope> DefaultStruct = MakeShareable(new FStructOnScope(InStruct));
 	CopyPropertiesForUnrelatedStructs((uint8*)CDO, WrapperClass, DefaultStruct->GetStructMemory(), DefaultStruct->GetStruct());
+
+#if WITH_EDITOR
+	if(InStruct->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(WrapperClassName))
+		{
+			PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigVMLocalVariableDetailCustomization::MakeInstance));
+		}
+	}
+#endif
 
 	return WrapperClass;
 }
@@ -321,9 +334,9 @@ UClass* URigVMDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InN
 		return nullptr;
 	}
 
-	UClass* SuperClass = URigVMDetailsViewWrapperObject::StaticClass();
+	UClass* SuperClass = GetClass();
 	const int32 HashForNotation = (int32)GetTypeHash(PerClassInfo);
-	const FName WrapperClassName(FString::Printf(TEXT("RigNode%d_WrapperObject"), HashForNotation));
+	const FName WrapperClassName(FString::Printf(TEXT("%s_%d"), *SuperClass->GetName(), HashForNotation));
 
 	UClass* WrapperClass = NewObject<UClass>(
 		GetTransientPackage(),
@@ -343,7 +356,7 @@ UClass* URigVMDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InN
 	WrapperClass->ClassConfigName = SuperClass->ClassConfigName;
 	WrapperClass->ClassFlags |= CLASS_NotPlaceable | CLASS_Hidden;
 
-	WrapperClass->SetMetaData(TEXT("DisplayName"), TEXT("Rig Node"));
+	WrapperClass->SetMetaData(TEXT("DisplayName"), TEXT("RigVM Node"));
 
 	// create properties - one for each pin to inspect
 	FField** LinkToProperty = &WrapperClass->ChildProperties;
@@ -479,6 +492,12 @@ UClass* URigVMDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InN
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	EditModule.RegisterCustomClassLayout(WrapperClass->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigVMWrappedNodeDetailCustomization::MakeInstance));
+#endif
+
 
 	return WrapperClass;	
 }

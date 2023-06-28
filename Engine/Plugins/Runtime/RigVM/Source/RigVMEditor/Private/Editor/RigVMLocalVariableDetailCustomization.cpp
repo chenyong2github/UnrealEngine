@@ -1,22 +1,21 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigLocalVariableDetails.h"
-
+#include "Editor/RigVMLocalVariableDetailCustomization.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "SPinTypeSelector.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "RigVMBlueprintGeneratedClass.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "RigVMCore/RigVM.h"
 
 #define LOCTEXT_NAMESPACE "LocalVariableDetails"
 
-void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FRigVMLocalVariableDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	ObjectsBeingCustomized.Reset();
 
@@ -37,7 +36,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		}
 		if (ensure(GraphBeingCustomized))
 		{
-			BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<UControlRigBlueprint>();
+			BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<URigVMBlueprint>();
 		}
 
 		NameValidator = FRigVMLocalVariableNameValidator(BlueprintBeingCustomized, GraphBeingCustomized, VariableDescription.Name);
@@ -51,7 +50,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	TypeObjectHandle = DetailBuilder.GetProperty(TEXT("CPPTypeObject"));
 	DefaultValueHandle = DetailBuilder.GetProperty(TEXT("DefaultValue"));
 	
-	const UEdGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+	const UEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
 	Category.AddCustomRow( LOCTEXT("LocalVariableName", "Variable Name") )
@@ -66,9 +65,9 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	[
 		SNew(SEditableTextBox)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(this, &FRigVMLocalVariableDetails::GetName)
-		.OnTextCommitted(this, &FRigVMLocalVariableDetails::SetName)
-		.OnVerifyTextChanged(this, &FRigVMLocalVariableDetails::OnVerifyNameChanged)
+		.Text(this, &FRigVMLocalVariableDetailCustomization::GetName)
+		.OnTextCommitted(this, &FRigVMLocalVariableDetailCustomization::SetName)
+		.OnVerifyTextChanged(this, &FRigVMLocalVariableDetailCustomization::OnVerifyNameChanged)
 	];
 
 	Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
@@ -82,8 +81,8 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		.MaxDesiredWidth(980.f)
 		[
 			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(GetDefault<UEdGraphSchema_K2>(), &UEdGraphSchema_K2::GetVariableTypeTree))
-			.TargetPinType(this, &FRigVMLocalVariableDetails::OnGetPinInfo)
-			.OnPinTypeChanged(this, &FRigVMLocalVariableDetails::HandlePinInfoChanged)
+			.TargetPinType(this, &FRigVMLocalVariableDetailCustomization::OnGetPinInfo)
+			.OnPinTypeChanged(this, &FRigVMLocalVariableDetailCustomization::HandlePinInfoChanged)
 			.Schema(Schema)
 			.TypeTreeFilter(ETypeTreeFilter::None)
 			.Font(DetailFontInfo)
@@ -93,7 +92,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	if (BlueprintBeingCustomized)
 	{
 		URigVMBlueprintGeneratedClass* RigClass = BlueprintBeingCustomized->GetRigVMBlueprintGeneratedClass();
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+		URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */));
 		if (CDO->GetVM() != nullptr)
 		{
 			FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *GraphBeingCustomized->GetGraphName(), *VariableDescription.Name.ToString());
@@ -123,12 +122,12 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	}
 }
 
-FText FRigVMLocalVariableDetails::GetName() const
+FText FRigVMLocalVariableDetailCustomization::GetName() const
 {
 	return FText::FromName(VariableDescription.Name);
 }
 
-void FRigVMLocalVariableDetails::SetName(const FText& InNewText, ETextCommit::Type InCommitType)
+void FRigVMLocalVariableDetailCustomization::SetName(const FText& InNewText, ETextCommit::Type InCommitType)
 {
 	if(InCommitType == ETextCommit::OnCleared)
 	{
@@ -144,7 +143,7 @@ void FRigVMLocalVariableDetails::SetName(const FText& InNewText, ETextCommit::Ty
 	NameHandle->SetValue(VariableDescription.Name);
 }
 
-bool FRigVMLocalVariableDetails::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
+bool FRigVMLocalVariableDetailCustomization::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
 {
 	EValidatorResult Result = NameValidator.IsValid(InText.ToString(), false);
 	OutErrorMessage = INameValidatorInterface::GetErrorText(InText.ToString(), Result);	
@@ -152,7 +151,7 @@ bool FRigVMLocalVariableDetails::OnVerifyNameChanged(const FText& InText, FText&
 	return Result == EValidatorResult::Ok || Result == EValidatorResult::ExistingName;
 }
 
-FEdGraphPinType FRigVMLocalVariableDetails::OnGetPinInfo() const
+FEdGraphPinType FRigVMLocalVariableDetailCustomization::OnGetPinInfo() const
 {
 	if (!VariableDescription.Name.IsNone())
 	{
@@ -161,7 +160,7 @@ FEdGraphPinType FRigVMLocalVariableDetails::OnGetPinInfo() const
 	return FEdGraphPinType();
 }
 
-void FRigVMLocalVariableDetails::HandlePinInfoChanged(const FEdGraphPinType& PinType)
+void FRigVMLocalVariableDetailCustomization::HandlePinInfoChanged(const FEdGraphPinType& PinType)
 {
 	VariableDescription.ChangeType(PinType);
 	FRigVMBlueprintCompileScope CompileScope(BlueprintBeingCustomized);
@@ -169,12 +168,12 @@ void FRigVMLocalVariableDetails::HandlePinInfoChanged(const FEdGraphPinType& Pin
 	TypeObjectHandle->SetValue(VariableDescription.CPPTypeObject);	
 }
 
-ECheckBoxState FRigVMLocalVariableDetails::HandleBoolDefaultValueIsChecked() const
+ECheckBoxState FRigVMLocalVariableDetailCustomization::HandleBoolDefaultValueIsChecked() const
 {
 	return VariableDescription.DefaultValue == "1" ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void FRigVMLocalVariableDetails::OnBoolDefaultValueChanged(ECheckBoxState InCheckBoxState)
+void FRigVMLocalVariableDetailCustomization::OnBoolDefaultValueChanged(ECheckBoxState InCheckBoxState)
 {
 	VariableDescription.DefaultValue = InCheckBoxState == ECheckBoxState::Checked ? "1" : "0";
 	DefaultValueHandle->SetValue(VariableDescription.DefaultValue);

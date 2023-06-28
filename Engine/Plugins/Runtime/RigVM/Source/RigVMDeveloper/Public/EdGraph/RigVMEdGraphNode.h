@@ -271,8 +271,8 @@ private:
 	mutable TOptional<bool> DrawAsCompactNodeCache;
 
 	friend class SRigVMGraphNode;
-	friend class FRigVMArgumentLayout;
-	friend class FRigVMEdGraphDetails;
+	friend class FRigVMFunctionArgumentLayout;
+	friend class FRigVMEdGraphDetailCustomization;
 	friend class URigVMEdGraphTemplateNodeSpawner;
 	friend class URigVMEdGraphArrayNodeSpawner;
 	friend class URigVMEdGraphIfNodeSpawner;

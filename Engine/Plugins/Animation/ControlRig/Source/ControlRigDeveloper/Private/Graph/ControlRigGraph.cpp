@@ -42,6 +42,27 @@ void UControlRigGraph::InitializeFromBlueprint(URigVMBlueprint* InBlueprint)
 
 TArray<TSharedPtr<FString>> UControlRigGraph::EmptyElementNameList;
 
+const TArray<TSharedPtr<FString>>* UControlRigGraph::GetNameListForWidget(const FString& InWidgetName) const
+{
+	if (InWidgetName == TEXT("BoneName"))
+	{
+		return GetBoneNameList();
+	}
+	if (InWidgetName == TEXT("ControlName"))
+	{
+		return GetControlNameListWithoutAnimationChannels();
+	}
+	if (InWidgetName == TEXT("SpaceName"))
+	{
+		return GetNullNameList();
+	}
+	if (InWidgetName == TEXT("CurveName"))
+	{
+		return GetCurveNameList();
+	}
+	return nullptr;
+}
+
 void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries)
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
