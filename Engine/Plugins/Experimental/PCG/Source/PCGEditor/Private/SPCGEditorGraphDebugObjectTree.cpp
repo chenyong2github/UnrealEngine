@@ -121,6 +121,7 @@ void SPCGEditorGraphDebugObjectTree::Construct(const FArguments& InArgs, TShared
 				.OnGenerateRow(this, &SPCGEditorGraphDebugObjectTree::MakeTreeRowWidget)
 				.OnGetChildren(this, &SPCGEditorGraphDebugObjectTree::OnGetChildren)
 				.OnSelectionChanged(this, &SPCGEditorGraphDebugObjectTree::OnSelectionChanged)
+				.OnSetExpansionRecursive(this, &SPCGEditorGraphDebugObjectTree::OnSetExpansionRecursive)
 				.ItemHeight(18)
 				.AllowOverscroll(EAllowOverscroll::No)
 				.ExternalScrollbar(VerticalScrollBar)
@@ -555,6 +556,23 @@ void SPCGEditorGraphDebugObjectTree::OnSelectionChanged(FPCGEditorGraphDebugObje
 		if (const FPCGStack* PCGStack = InItem->GetPCGStack())
 		{
 			PCGEditor.Pin()->SetComponentAndStackBeingInspected(PCGComponent, *PCGStack);
+		}
+	}
+}
+
+void SPCGEditorGraphDebugObjectTree::OnSetExpansionRecursive(FPCGEditorGraphDebugObjectItemPtr InItem, bool bInExpand)
+{
+	if (!InItem.IsValid() || !DebugObjectTreeView.IsValid())
+	{
+		return;
+	}
+
+	DebugObjectTreeView->SetItemExpansion(InItem, bInExpand);
+	for (const FPCGEditorGraphDebugObjectItemPtr& ChildItem : InItem->GetChildren())
+	{
+		if (ChildItem.IsValid())
+		{
+			OnSetExpansionRecursive(ChildItem, bInExpand);
 		}
 	}
 }
