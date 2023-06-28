@@ -2,7 +2,7 @@
 
 #include "Editor/RigInfluenceMapTabSummoner.h"
 #include "Editor/SRigHierarchy.h"
-#include "ControlRigEditorStyle.h"
+#include "Editor/RigVMEditorStyle.h"
 #include "Editor/ControlRigEditor.h"
 #include "SKismetInspector.h"
 #include "ControlRigBlueprint.h"
@@ -16,7 +16,7 @@ FRigInfluenceMapTabSummoner::FRigInfluenceMapTabSummoner(const TSharedRef<FContr
 	, ControlRigEditor(InControlRigEditor)
 {
 	TabLabel = LOCTEXT("RigInfluenceMapTabLabel", "Rig Influence Map");
-	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
+	TabIcon = FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVM.TabIcon");
 
 	bIsSingleton = true;
 

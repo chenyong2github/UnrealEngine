@@ -36,6 +36,7 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ControlRigEditorStyle.h"
+#include "Editor/RigVMEditorStyle.h"
 #include "EditorFontGlyphs.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -1091,7 +1092,7 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	{
 		/*
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ExecuteGraph,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ExecuteGraph"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVM.ExecuteGraph"));
 		*/
 
 		ToolbarBuilder.AddToolBarButton(
@@ -1112,7 +1113,7 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			true);
 
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().AutoCompileGraph,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.AutoCompileGraph"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVM.AutoCompileGraph"));
 
 		ToolbarBuilder.AddWidget(SNew(SBlueprintEditorSelectedDebugObjectWidget, SharedThis(this)));
 
@@ -1499,7 +1500,7 @@ FSlateIcon FControlRigEditor::GetExecutionModeIcon(EControlRigExecutionModeType 
 	{
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Debug");
 	}
-	return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ReleaseMode");
+	return FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVM.ReleaseMode");
 }
 
 FSlateIcon FControlRigEditor::GetExecutionModeIcon() const

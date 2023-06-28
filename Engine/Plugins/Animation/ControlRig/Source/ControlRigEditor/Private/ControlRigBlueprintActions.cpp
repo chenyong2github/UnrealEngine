@@ -3,7 +3,7 @@
 #include "ControlRigBlueprintActions.h"
 #include "ControlRigBlueprintFactory.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigEditorStyle.h"
+#include "Editor/RigVMEditorStyle.h"
 #include "IControlRigEditorModule.h"
 
 #include "Styling/SlateIconFinder.h"
@@ -160,7 +160,7 @@ void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()
 						"CreateControlRig",
 						LOCTEXT("CreateControlRig", "Control Rig"),
 						LOCTEXT("CreateControlRig_ToolTip", "Creates a control rig and preconfigures it for this asset"),
-						FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig", "ControlRig.RigUnit"),
+						FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVM", "RigVM.Unit"),
 						FExecuteAction::CreateLambda([SelectedObjects]()
 						{
 							for (UObject* SelectedObject : SelectedObjects)

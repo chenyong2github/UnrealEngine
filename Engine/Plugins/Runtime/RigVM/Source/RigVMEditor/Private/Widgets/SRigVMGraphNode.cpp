@@ -87,7 +87,7 @@ void SRigVMGraphNode::Construct( const FArguments& InArgs )
 
 	UpdatePinTreeView();
 
-	const FSlateBrush* ImageBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.Bug.Dot")).GetIcon();
+	const FSlateBrush* ImageBrush = FSlateIcon(TEXT("RigVMEditorStyle"), TEXT("RigVM.Bug.Dot")).GetIcon();
 
 	VisualDebugIndicatorWidget =
 		SNew(SImage)
@@ -1365,23 +1365,23 @@ const FSlateBrush* SRigVMGraphNode::GetExpanderImage(int32 InPinInfoIndex, bool 
 	
 	if(ExpandedHoveredLeftBrush == nullptr)
 	{
-		static const TCHAR* ExpandedHoveredLeftName = TEXT("ControlRig.Node.PinTree.Arrow_Expanded_Hovered_Left");
-		static const TCHAR* ExpandedHoveredRightName = TEXT("ControlRig.Node.PinTree.Arrow_Expanded_Hovered_Right");
-		static const TCHAR* ExpandedLeftName = TEXT("ControlRig.Node.PinTree.Arrow_Expanded_Left");
-		static const TCHAR* ExpandedRightName = TEXT("ControlRig.Node.PinTree.Arrow_Expanded_Right");
-		static const TCHAR* CollapsedHoveredLeftName = TEXT("ControlRig.Node.PinTree.Arrow_Collapsed_Hovered_Left");
-		static const TCHAR* CollapsedHoveredRightName = TEXT("ControlRig.Node.PinTree.Arrow_Collapsed_Hovered_Right");
-		static const TCHAR* CollapsedLeftName = TEXT("ControlRig.Node.PinTree.Arrow_Collapsed_Left");
-		static const TCHAR* CollapsedRightName = TEXT("ControlRig.Node.PinTree.Arrow_Collapsed_Right");
+		static const TCHAR* ExpandedHoveredLeftName = TEXT("RigVM.Node.PinTree.Arrow_Expanded_Hovered_Left");
+		static const TCHAR* ExpandedHoveredRightName = TEXT("RigVM.Node.PinTree.Arrow_Expanded_Hovered_Right");
+		static const TCHAR* ExpandedLeftName = TEXT("RigVM.Node.PinTree.Arrow_Expanded_Left");
+		static const TCHAR* ExpandedRightName = TEXT("RigVM.Node.PinTree.Arrow_Expanded_Right");
+		static const TCHAR* CollapsedHoveredLeftName = TEXT("RigVM.Node.PinTree.Arrow_Collapsed_Hovered_Left");
+		static const TCHAR* CollapsedHoveredRightName = TEXT("RigVM.Node.PinTree.Arrow_Collapsed_Hovered_Right");
+		static const TCHAR* CollapsedLeftName = TEXT("RigVM.Node.PinTree.Arrow_Collapsed_Left");
+		static const TCHAR* CollapsedRightName = TEXT("RigVM.Node.PinTree.Arrow_Collapsed_Right");
 		
-		ExpandedHoveredLeftBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), ExpandedHoveredLeftName).GetIcon();
-		ExpandedHoveredRightBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), ExpandedHoveredRightName).GetIcon();
-		ExpandedLeftBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), ExpandedLeftName).GetIcon();
-		ExpandedRightBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), ExpandedRightName).GetIcon();
-		CollapsedHoveredLeftBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), CollapsedHoveredLeftName).GetIcon();
-		CollapsedHoveredRightBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), CollapsedHoveredRightName).GetIcon();
-		CollapsedLeftBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), CollapsedLeftName).GetIcon();
-		CollapsedRightBrush = FSlateIcon(TEXT("ControlRigEditorStyle"), CollapsedRightName).GetIcon();
+		ExpandedHoveredLeftBrush = FSlateIcon(TEXT("RigVMEditorStyle"), ExpandedHoveredLeftName).GetIcon();
+		ExpandedHoveredRightBrush = FSlateIcon(TEXT("RigVMEditorStyle"), ExpandedHoveredRightName).GetIcon();
+		ExpandedLeftBrush = FSlateIcon(TEXT("RigVMEditorStyle"), ExpandedLeftName).GetIcon();
+		ExpandedRightBrush = FSlateIcon(TEXT("RigVMEditorStyle"), ExpandedRightName).GetIcon();
+		CollapsedHoveredLeftBrush = FSlateIcon(TEXT("RigVMEditorStyle"), CollapsedHoveredLeftName).GetIcon();
+		CollapsedHoveredRightBrush = FSlateIcon(TEXT("RigVMEditorStyle"), CollapsedHoveredRightName).GetIcon();
+		CollapsedLeftBrush = FSlateIcon(TEXT("RigVMEditorStyle"), CollapsedLeftName).GetIcon();
+		CollapsedRightBrush = FSlateIcon(TEXT("RigVMEditorStyle"), CollapsedRightName).GetIcon();
 	}
 
 	if(PinInfos.IsValidIndex(InPinInfoIndex))

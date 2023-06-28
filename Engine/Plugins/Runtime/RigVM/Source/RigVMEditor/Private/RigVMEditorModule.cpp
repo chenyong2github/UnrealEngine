@@ -6,6 +6,8 @@
 
 #include "RigVMEditorModule.h"
 #include "Modules/ModuleManager.h"
+#include "Editor/RigVMExecutionStackCommands.h"
+#include "Editor/RigVMEditorStyle.h"
 
 DEFINE_LOG_CATEGORY(LogRigVMEditor);
 
@@ -18,6 +20,8 @@ FRigVMEditorModule& FRigVMEditorModule::Get()
 
 void FRigVMEditorModule::StartupModule()
 {
+	FRigVMExecutionStackCommands::Register();
+	FRigVMEditorStyle::Get();
 }
 
 void FRigVMEditorModule::ShutdownModule()

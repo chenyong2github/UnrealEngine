@@ -14,6 +14,7 @@
 #include "ISequencerModule.h"
 #include "IAssetTools.h"
 #include "ControlRigEditorStyle.h"
+#include "Editor/RigVMEditorStyle.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
@@ -61,7 +62,6 @@
 #include "RigVMBlueprintUtils.h"
 #include "ControlRigBlueprintCommands.h"
 #include "ControlRigHierarchyCommands.h"
-#include "Editor/RigVMExecutionStackCommands.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/ControlRigEditorEditMode.h"
 #include "ControlRigElementDetails.h"
@@ -146,7 +146,6 @@ void FControlRigEditorModule::StartupModule()
 	FControlRigEditModeCommands::Register();
 	FControlRigBlueprintCommands::Register();
 	FControlRigHierarchyCommands::Register();
-	FRigVMExecutionStackCommands::Register();
 	FControlRigEditorStyle::Get();
 
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
@@ -223,14 +222,14 @@ void FControlRigEditorModule::StartupModule()
 	FEditorModeRegistry::Get().RegisterMode<FControlRigEditMode>(
 		FControlRigEditMode::ModeName,
 		NSLOCTEXT("AnimationModeToolkit", "DisplayName", "Animation"),
-		FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRigEditMode", "ControlRigEditMode.Small"),
+		FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVMEditMode", "RigVMEditMode.Small"),
 		true,
 		8000);
 
 	FEditorModeRegistry::Get().RegisterMode<FControlRigEditorEditMode>(
 		FControlRigEditorEditMode::ModeName,
 		NSLOCTEXT("RiggingModeToolkit", "DisplayName", "Rigging"),
-		FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRigEditMode", "ControlRigEditMode.Small"),
+		FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "RigVMEditMode", "RigVMEditMode.Small"),
 		false,
 		8500);
 

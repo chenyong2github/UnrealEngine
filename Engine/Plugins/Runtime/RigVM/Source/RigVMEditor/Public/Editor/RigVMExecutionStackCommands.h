@@ -13,7 +13,7 @@ public:
 		"ControlRigStack",
 		NSLOCTEXT("Contexts", "RigStack", "Execution Stack"),
 		NAME_None, // "MainFrame" // @todo Fix this crash
-		"ControlRigEditorStyle" // Icon Style Set
+		"RigVMEditorStyle" // Icon Style Set
 	)
 	{}
 	

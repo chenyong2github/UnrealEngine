@@ -1285,7 +1285,7 @@ FSlateIcon URigVMEdGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 	static FSlateIcon EventIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 	static FSlateIcon EntryReturnIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Default_16x");
 	static FSlateIcon CollapsedNodeIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.SubGraph_16x");
-	static FSlateIcon TemplateNodeIcon("ControlRigEditorStyle", "ControlRig.Template");
+	static FSlateIcon TemplateNodeIcon("RigVMEditorStyle", "RigVM.Template");
 
 	if (URigVMNode* ModelNode = GetModelNode())
 	{

@@ -13,7 +13,7 @@ FRigVMExecutionStackTabSummoner::FRigVMExecutionStackTabSummoner(const TSharedRe
 	, RigVMEditor(InRigVMEditor)
 {
 	TabLabel = LOCTEXT("RigVMExecutionStackTabLabel", "Execution Stack");
-	TabIcon = FSlateIcon(TEXT("ControlRigEditorStyle"), "ExecutionStack.TabIcon");
+	TabIcon = FSlateIcon(TEXT("RigVMEditorStyle"), "ExecutionStack.TabIcon");
 
 	bIsSingleton = true;
 

@@ -59,7 +59,7 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 	{
 		case ERigStackEntry::Operator:
 		{
-			Icon = FSlateIcon(TEXT("RigVMEditor"), "ControlRig.RigUnit").GetIcon();
+			Icon = FSlateIcon(TEXT("RigVMEditor"), "RigVM.Unit").GetIcon();
 			break;
 		}
 		case ERigStackEntry::Info:
