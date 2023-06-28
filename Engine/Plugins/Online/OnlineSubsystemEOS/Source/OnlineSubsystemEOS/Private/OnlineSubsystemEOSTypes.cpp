@@ -101,7 +101,7 @@ FUniqueNetIdEOSRegistry& FUniqueNetIdEOSRegistry::Get()
 	return TLazySingleton<FUniqueNetIdEOSRegistry>::Get();
 }
 
-FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const FString& NetIdStr)
+FUniqueNetIdEOSRef FUniqueNetIdEOSRegistry::FindOrAddImpl(const FString& NetIdStr)
 {
 	FString EpicAccountIdStr;
 	FString ProductUserIdStr;
@@ -109,7 +109,7 @@ FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const FString& NetIdSt
 		|| (!EpicAccountIdStr.IsEmpty() && EpicAccountIdStr.Len() != EOS_EPICACCOUNTID_MAX_LENGTH)
 		|| (!ProductUserIdStr.IsEmpty() && ProductUserIdStr.Len() != EOS_PRODUCTUSERID_MAX_LENGTH))
 	{
-		return nullptr;
+		return FUniqueNetIdEOS::EmptyId();
 	}
 
 	EOS_EpicAccountId EpicAccountId = nullptr;
@@ -126,7 +126,7 @@ FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const FString& NetIdSt
 	return FindOrAddImpl(EpicAccountId, ProductUserId);
 }
 
-FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const uint8* Bytes, int32 Size)
+FUniqueNetIdEOSRef FUniqueNetIdEOSRegistry::FindOrAddImpl(const uint8* Bytes, int32 Size)
 {
 	if (Size == EOS_ID_BYTE_SIZE)
 	{
@@ -134,12 +134,13 @@ FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const uint8* Bytes, in
 		FUniqueNetIdEOS Temp(Bytes, Size);
 		return FindOrAddImpl(Temp.GetEpicAccountId(), Temp.GetProductUserId());
 	}
-	return nullptr;
+	return FUniqueNetIdEOS::EmptyId();
 }
 
-FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const EOS_EpicAccountId InEpicAccountId, const EOS_ProductUserId InProductUserId)
+FUniqueNetIdEOSRef FUniqueNetIdEOSRegistry::FindOrAddImpl(const EOS_EpicAccountId InEpicAccountId, const EOS_ProductUserId InProductUserId)
 {
 	FUniqueNetIdEOSPtr Result;
+
 	const bool bInEpicAccountIdValid = EOS_EpicAccountId_IsValid(InEpicAccountId) == EOS_TRUE;
 	const bool bInProductUserIdValid = EOS_ProductUserId_IsValid(InProductUserId) == EOS_TRUE;
 	if (bInEpicAccountIdValid || bInProductUserIdValid)
@@ -150,6 +151,7 @@ FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const EOS_EpicAccountI
 		auto FindExisting = [this, InEpicAccountId, InProductUserId, bInEpicAccountIdValid, bInProductUserIdValid, &bUpdateEpicAccountId, &bUpdateProductUserId]()
 		{
 			FUniqueNetIdEOSPtr Result;
+
 			if (const FUniqueNetIdEOSRef* FoundEas = bInEpicAccountIdValid ? EasToNetId.Find(InEpicAccountId) : nullptr)
 			{
 				Result = *FoundEas;
@@ -171,11 +173,10 @@ FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const EOS_EpicAccountI
 				check(!bFoundProductUserIdValid || !bInProductUserIdValid || InProductUserId == FoundProductUserId);
 				bUpdateEpicAccountId = !bFoundEpicAccountIdValid && bInEpicAccountIdValid;
 				bUpdateProductUserId = !bFoundProductUserIdValid && bInProductUserIdValid;
-
 			}
+
 			return Result;
 		};
-
 
 		{
 			// First take read lock and look for existing elements
@@ -222,5 +223,49 @@ FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindOrAddImpl(const EOS_EpicAccountI
 		}
 	}
 
-	return Result;
+	return Result ? Result.ToSharedRef() : FUniqueNetIdEOS::EmptyId();
+}
+
+FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindImpl(EOS_EpicAccountId EpicAccountId)
+{
+	FUniqueNetIdEOSRef* Result = EasToNetId.Find(EpicAccountId);
+
+	return Result ? FUniqueNetIdEOSPtr(*Result) : nullptr;
+}
+
+FUniqueNetIdEOSPtr FUniqueNetIdEOSRegistry::FindImpl(EOS_ProductUserId ProductUserId)
+{
+	FUniqueNetIdEOSRef* Result = PuidToNetId.Find(ProductUserId);
+
+	return Result ? FUniqueNetIdEOSPtr(*Result) : nullptr;
+}
+
+FUniqueNetIdEOSRef FUniqueNetIdEOSRegistry::FindCheckedImpl(EOS_EpicAccountId EpicAccountId)
+{
+	FUniqueNetIdEOSRef* Result = EasToNetId.Find(EpicAccountId);
+	check(Result != nullptr);
+
+	if (Result != nullptr)
+	{
+		return *Result;
+	}
+	else
+	{
+		return FUniqueNetIdEOS::EmptyId();
+	}
+}
+
+FUniqueNetIdEOSRef FUniqueNetIdEOSRegistry::FindCheckedImpl(EOS_ProductUserId ProductUserId)
+{
+	FUniqueNetIdEOSRef* Result = PuidToNetId.Find(ProductUserId);
+	check(Result != nullptr);
+
+	if (Result != nullptr)
+	{
+		return *Result;
+	}
+	else
+	{
+		return FUniqueNetIdEOS::EmptyId();
+	}
 }

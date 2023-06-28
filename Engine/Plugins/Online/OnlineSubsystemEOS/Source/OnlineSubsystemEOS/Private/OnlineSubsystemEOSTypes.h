@@ -79,9 +79,15 @@ private:
 class FUniqueNetIdEOSRegistry
 {
 public:
-	static FUniqueNetIdEOSPtr FindOrAdd(const FString& NetIdStr) { return Get().FindOrAddImpl(NetIdStr); }
-	static FUniqueNetIdEOSPtr FindOrAdd(const uint8* Bytes, int32 Size) { return Get().FindOrAddImpl(Bytes, Size); }
-	static FUniqueNetIdEOSPtr FindOrAdd(EOS_EpicAccountId EpicAccountId, EOS_ProductUserId ProductUserId) { return Get().FindOrAddImpl(EpicAccountId, ProductUserId); }
+	static FUniqueNetIdEOSRef FindOrAdd(const FString& NetIdStr) { return Get().FindOrAddImpl(NetIdStr); }
+	static FUniqueNetIdEOSRef FindOrAdd(const uint8* Bytes, int32 Size) { return Get().FindOrAddImpl(Bytes, Size); }
+	static FUniqueNetIdEOSRef FindOrAdd(EOS_EpicAccountId EpicAccountId, EOS_ProductUserId ProductUserId) { return Get().FindOrAddImpl(EpicAccountId, ProductUserId); }
+
+	static FUniqueNetIdEOSPtr Find(EOS_EpicAccountId EpicAccountId) { return Get().FindImpl(EpicAccountId); }
+	static FUniqueNetIdEOSPtr Find(EOS_ProductUserId ProductUserId) { return Get().FindImpl(ProductUserId); }
+
+	static FUniqueNetIdEOSRef FindChecked(EOS_EpicAccountId EpicAccountId) { return Get().FindCheckedImpl(EpicAccountId); }
+	static FUniqueNetIdEOSRef FindChecked(EOS_ProductUserId ProductUserId) { return Get().FindCheckedImpl(ProductUserId); }
 
 private:
 	FRWLock Lock;
@@ -90,9 +96,15 @@ private:
 
 	static FUniqueNetIdEOSRegistry& Get();
 
-	FUniqueNetIdEOSPtr FindOrAddImpl(const FString& NetIdStr);
-	FUniqueNetIdEOSPtr FindOrAddImpl(const uint8* Bytes, int32 Size);
-	FUniqueNetIdEOSPtr FindOrAddImpl(EOS_EpicAccountId EpicAccountId, EOS_ProductUserId ProductUserId);
+	FUniqueNetIdEOSRef FindOrAddImpl(const FString& NetIdStr);
+	FUniqueNetIdEOSRef FindOrAddImpl(const uint8* Bytes, int32 Size);
+	FUniqueNetIdEOSRef FindOrAddImpl(EOS_EpicAccountId EpicAccountId, EOS_ProductUserId ProductUserId);
+
+	FUniqueNetIdEOSPtr FindImpl(EOS_EpicAccountId EpicAccountId);
+	FUniqueNetIdEOSPtr FindImpl(EOS_ProductUserId ProductUserId);
+
+	FUniqueNetIdEOSRef FindCheckedImpl(EOS_EpicAccountId EpicAccountId);
+	FUniqueNetIdEOSRef FindCheckedImpl(EOS_ProductUserId ProductUserId);
 };
 
 #ifndef AUTH_ATTR_REFRESH_TOKEN

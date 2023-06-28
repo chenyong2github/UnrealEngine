@@ -118,9 +118,11 @@ public:
 
 	void UpdateNetIdStr(const FString& PrevNetId, const FString& NewNetId)
 	{
-		ListClass ListEntry = NetIdStringToListEntryMap[PrevNetId];
-		NetIdStringToListEntryMap.Remove(PrevNetId);
-		NetIdStringToListEntryMap.Add(NewNetId, ListEntry);
+		if (ListClass* ListEntry = NetIdStringToListEntryMap.Find(PrevNetId))
+		{
+			NetIdStringToListEntryMap.Add(NewNetId, *ListEntry);
+			NetIdStringToListEntryMap.Remove(PrevNetId);
+		}
 	}
 
 	ListClassReturnType GetByIndex(int32 Index)
@@ -365,17 +367,11 @@ private:
 	/** General map for all registered online users */
 	TUniqueNetIdMap<FUserOnlineAccountEOSRef> UniqueNetIdToUserAccountMap;
 
-	/** General account mappings */
-	TMap<EOS_EpicAccountId, FString> AccountIdToStringMap;
-	TMap<EOS_ProductUserId, FString> ProductUserIdToStringMap;
-
 	/** Per user friends lists accessible by user num or net id */
 	TMap<int32, FFriendsListEOSRef> LocalUserNumToFriendsListMap;
 	TMap<FString, FFriendsListEOSRef> NetIdStringToFriendsListMap;
 
 	/** Ids mapped to remote users */
-	TMap<FString, FOnlineUserPtr> NetIdStringToOnlineUserMap;
-	TMap<EOS_EpicAccountId, FOnlineUserPtr> EpicAccountIdToOnlineUserMap;
 	TMap<FString, IAttributeAccessInterfaceRef> NetIdStringToAttributeAccessMap;
 	TMap<EOS_EpicAccountId, IAttributeAccessInterfaceRef> EpicAccountIdToAttributeAccessMap;
 
