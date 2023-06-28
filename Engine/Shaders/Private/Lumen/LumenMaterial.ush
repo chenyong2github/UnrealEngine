@@ -375,7 +375,7 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferDa
 	Out.SceneDepth = GBufferData.Depth;
 	Out.WorldNormal = GBufferData.WorldNormal;
 	Out.Roughness = GBufferData.Roughness;
-	Out.Anisotropy = 0;
+	Out.Anisotropy = GBufferData.Anisotropy;
 	Out.TopLayerRoughness = GetClearCoatRoughness(GBufferData);
 	Out.MaterialAO = GBufferData.GBufferAO;
 	Out.ShadingID = GBufferData.ShadingModelID;
@@ -527,9 +527,22 @@ bool ShouldComputeIndirectLighting(FLumenMaterialData In)
 float3x3 GetTangentBasis(FLumenMaterialData In)
 {
 #if STRATA_ENABLED
-	if (In.Anisotropy != 0) { return In.TangentBasis; } else { return GetTangentBasis(In.WorldNormal);}
+	if (HasAnisotropy(In) { return In.TangentBasis; } else { return GetTangentBasis(In.WorldNormal);}
 #else
-	return GetTangentBasis(In.WorldNormal);
+#if !FRONT_LAYER_TRANSLUCENCY
+	if (HasAnisotropy(In)) 
+	{ 
+		float3x3 TangentBasis;
+		TangentBasis[0] = In.GBufferData.WorldTangent;
+		TangentBasis[1] = cross(In.WorldNormal, In.GBufferData.WorldTangent);
+		TangentBasis[2] = In.WorldNormal;
+		return TangentBasis; 
+	} 
+	else 
+#endif
+	{ 
+		return GetTangentBasis(In.WorldNormal);
+	}
 #endif
 }
 
@@ -540,7 +553,7 @@ float3x3 GetTangentBasis(FLumenMaterialData In)
 FBxDFSample SampleStrataBxDF(const uint TermMask, FLumenMaterialData InMaterial, float3 V, float4 E)
 {
 	// Temporary place holder while converting lumen
-	return SampleDefaultLitBxDF(TermMask, InMaterial.WorldNormal, InMaterial.Roughness, V, E);
+	return SampleDefaultLitBxDF(TermMask, InMaterial.WorldNormal, GetTangentBasis(InMaterial), InMaterial.Roughness, V, E);
 }
 #endif
 
@@ -552,14 +565,10 @@ FBxDFSample SampleBxDF(const uint TermMask, FLumenMaterialData InMaterial, float
 	FBxDFSample Unused = (FBxDFSample)0;
 	return Unused;
 #else
-	FGBufferData InGBufferData;
+	FGBufferData InGBufferData = InMaterial.GBufferData;
 	InGBufferData.Roughness = InMaterial.Roughness;
 	InGBufferData.WorldNormal = InMaterial.WorldNormal;
 	InGBufferData.ShadingModelID = InMaterial.ShadingID;
-	InGBufferData.BaseColor = InMaterial.GBufferData.BaseColor;
-	InGBufferData.Specular = InMaterial.GBufferData.Specular;
-	InGBufferData.CustomData = InMaterial.GBufferData.CustomData;
-	InGBufferData.Metallic = InMaterial.GBufferData.Metallic;
 	return SampleBxDF(TermMask, InGBufferData, V, E);
 #endif
 }

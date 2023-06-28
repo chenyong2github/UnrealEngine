@@ -369,11 +369,17 @@ void ReflectionGenerateRaysCS(
 			{
 				const float2 E = GenerateRandom(ReflectionTracingCoord);
 
-				float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
+				float3x3 TangentBasis = GetTangentBasis(Material);
 				float3 TangentV = mul(TangentBasis, -CameraVector);
 
-				//float4 GGXSample = ImportanceSampleGGX(E, Pow4(Material.TopLayerRoughness));
-				float4 GGXSample = ImportanceSampleVisibleGGX(E, Pow2(Material.TopLayerRoughness), TangentV);
+				float2 Alpha = Pow2(Material.TopLayerRoughness).xx;
+
+				if (HasAnisotropy(Material))
+				{
+					GetAnisotropicRoughness(Alpha.x, Material.Anisotropy, Alpha.x, Alpha.y);
+				}
+
+				float4 GGXSample = ImportanceSampleVisibleGGX(E, Alpha, TangentV);
 				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
 				RayDirection = reflect(CameraVector, WorldH);
 				ConeAngle = 1.0f / max(GGXSample.w, 0.0001f);
@@ -500,10 +506,10 @@ void ReflectionResolveCS(
 
 				const bool bHasAnisotropy = HasAnisotropy(Material);
 				const float EffectiveRoughness = clamp(Material.TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f);
-				float2 ax_ay = Pow2(EffectiveRoughness);
+				float2 ax_ay = Pow2(EffectiveRoughness).xx;
 				if (bHasAnisotropy)
 				{
-					GetAnisotropicRoughness(EffectiveRoughness, Material.Anisotropy, ax_ay.x, ax_ay.y);
+					GetAnisotropicRoughness(ax_ay.x, Material.Anisotropy, ax_ay.x, ax_ay.y);
 				}
 				float a2 = ax_ay.x * ax_ay.y;
 

@@ -926,7 +926,7 @@ FBxDFSample SampleBxDFWrapper(const uint TermMask, FLumenMaterialData MaterialDa
   #if STRATA_ENABLED
 	return SampleStrataBxDF(TermMask, MaterialData, V, E);
   #else
-	return SampleDefaultLitBxDF(TermMask, MaterialData.WorldNormal, MaterialData.Roughness, V, E);
+	return SampleDefaultLitBxDF(TermMask, MaterialData.WorldNormal, GetTangentBasis(MaterialData), MaterialData.Anisotropy, MaterialData.Roughness, V, E);
   #endif
 #else
 	return SampleBxDF(TermMask, MaterialData, V, E);

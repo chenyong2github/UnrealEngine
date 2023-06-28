@@ -65,14 +65,12 @@ FBxDFSample SampleDiffuseBxDF(float3 N, float4 E)
 	return BxDFSample;
 }
 
-FBxDFSample SampleDefaultLitBxDF(uint TermMask, float3 WorldNormal, float Roughness, float3 V, float4 E)
+FBxDFSample SampleDefaultLitBxDF(uint TermMask, float3 WorldNormal, float3x3 TangentBasis, float Anisotropy, float Roughness, float3 V, float4 E)
 {
 	TermMask &= SHADING_TERM_DIFFUSE | SHADING_TERM_SPECULAR;
 
 	float2 DiskE = UniformSampleDiskConcentric(E.xy);
-
 	float3 N = WorldNormal;
-	float3x3 TangentBasis = GetTangentBasis(N);
 
 	// TODO: stocastically choose SHADING_TERM_D or SHADING_TERM_DIFFUSE if TermMask == (SHADING_TERM_D | SHADING_TERM_SPECULAR)
 
@@ -88,17 +86,22 @@ FBxDFSample SampleDefaultLitBxDF(uint TermMask, float3 WorldNormal, float Roughn
 	}
 	else if (TermMask == SHADING_TERM_SPECULAR)
 	{
-		float a = Pow2(Roughness);
+		float2 Alpha = Pow2(Roughness).xx;
+
+		if (Anisotropy != 0)
+		{
+			GetAnisotropicRoughness(Alpha.x, Anisotropy, Alpha.x, Alpha.y);
+		}
 
 		float3 TangentV = mul(TangentBasis, V);
 
 #if 1
 		// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
 		// PDF = G_SmithV * D / (4 * NoV);
-		float4 TangentH = ImportanceSampleVisibleGGX(E.xy, a, TangentV);
+		float4 TangentH = ImportanceSampleVisibleGGX(E.xy, Alpha, TangentV);
 #else
 		// PDF = D * NoH / (4 * VoH),
-		float4 TangentH = ImportanceSampleGGX(E.xy, a * a);
+		float4 TangentH = ImportanceSampleGGX(E.xy, Alpha * Alpha);
 #endif
 
 		float HPDF = TangentH.w;
@@ -125,7 +128,22 @@ FBxDFSample SampleDefaultLitBxDF(uint TermMask, float3 WorldNormal, float Roughn
 
 	return BxDFSample;
 }
-FBxDFSample SampleDefaultLitBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4 E) { return SampleDefaultLitBxDF(TermMask, GBuffer.WorldNormal, GBuffer.Roughness, V, E); }
+FBxDFSample SampleDefaultLitBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4 E) 
+{ 
+	float3x3 TangentBasis;
+
+	if (GBuffer.Anisotropy != 0) 
+	{ 
+		TangentBasis[0] = GBuffer.WorldTangent;
+		TangentBasis[1] = cross(GBuffer.WorldNormal, GBuffer.WorldTangent);
+		TangentBasis[2] = GBuffer.WorldNormal;
+	} 
+	else 
+	{ 
+		TangentBasis = GetTangentBasis(GBuffer.WorldNormal);
+	}
+	return SampleDefaultLitBxDF(TermMask, GBuffer.WorldNormal, TangentBasis, GBuffer.Anisotropy, GBuffer.Roughness, V, E); 
+}
 
 FBxDFSample SampleHairBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4 E)
 #if 1
