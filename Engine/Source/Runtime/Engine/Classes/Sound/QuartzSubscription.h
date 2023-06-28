@@ -127,7 +127,7 @@ class FQuartzTickableObject
 {
 public:
 	// ctor
-	FQuartzTickableObject();
+	ENGINE_API FQuartzTickableObject() {}
 
 	// explicitly defaulted ctors (to disable deprecation warnings in compiler-generated functions)
     PRAGMA_DISABLE_DEPRECATION_WARNINGS

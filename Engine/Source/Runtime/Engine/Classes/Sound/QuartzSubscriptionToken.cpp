@@ -1,4 +1,6 @@
-﻿#include "QuartzSubscriptionToken.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "QuartzSubscriptionToken.h"
 
 #include "Quartz/QuartzSubsystem.h"
 #include "Sound/QuartzQuantizationUtilities.h"
