@@ -773,7 +773,7 @@ void UPCGBlueprintElement::PointLoop(FPCGContext& InContext, const UPCGPointData
 {
 	if (!InData)
 	{
-		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataLoopOnPoints", "Invalid input data in LoopOnPoints"));
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataPointLoop", "Invalid input data in PointLoop"));
 		return;
 	}
 
@@ -800,7 +800,7 @@ void UPCGBlueprintElement::VariableLoop(FPCGContext& InContext, const UPCGPointD
 {
 	if (!InData)
 	{
-		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataMultiLoopOnPoints", "Invalid input data in MultiLoopOnPoints"));
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataVariableLoop", "Invalid input data in VariableLoop"));
 		return;
 	}
 
@@ -827,7 +827,7 @@ void UPCGBlueprintElement::NestedLoop(FPCGContext& InContext, const UPCGPointDat
 {
 	if (!InOuterData || !InInnerData)
 	{
-		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataLoopOnPointPairs", "Invalid input data in LoopOnPointPairs"));
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataNestedLoop", "Invalid input data in NestedLoop"));
 		return;
 	}
 
