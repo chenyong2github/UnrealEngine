@@ -391,8 +391,11 @@ bool SDetailCategoryTableRow::CanPasteCategory()
 	FString ClipboardContent;
 	FPropertyEditorClipboard::ClipboardPaste(ClipboardContent);
 
-	// If same as last, return previously resolved applicability
-	if (PreviousClipboardData.Content.Get({}).Equals(ClipboardContent))
+	const bool bChildrenHaveChanged = PreviousClipboardData.PreviousPropertyHandleNum != PropertyHandles.Num();
+
+	// If child property count hasn't changed, and content same as last, return previously resolved applicability
+	if (!bChildrenHaveChanged
+		&& PreviousClipboardData.Content.Get({}).Equals(ClipboardContent))
 	{
 		return PreviousClipboardData.bIsApplicable;
 	}
@@ -427,6 +430,7 @@ bool SDetailCategoryTableRow::CanPasteCategory()
 	// @note: properties must all match to be applicable
 	PreviousClipboardData.Content = ClipboardContent;
 
+	PreviousClipboardData.PreviousPropertyHandleNum = PropertyHandles.Num();
 	return PreviousClipboardData.bIsApplicable = Algo::Compare(PreviousClipboardData.PropertyNames, PropertyNames);
 }
 

@@ -25,6 +25,9 @@ namespace UE::PropertyEditor::Internal
 		/** Applicability of the clipboard content to this row. */ 
 		bool bIsApplicable = false;
 
+		/** Previous PropertyHandle count, used to validate applicability. */
+		int32 PreviousPropertyHandleNum = INDEX_NONE;
+
 		/** Deserialized property values (as text). */
 		TMap<FName, FString> PropertyValues;
 
@@ -36,6 +39,7 @@ namespace UE::PropertyEditor::Internal
 		{
 			Content.Reset();
 			bIsApplicable = false;
+			PreviousPropertyHandleNum = INDEX_NONE;
 			PropertyValues.Reset();
 			PropertyNames.Reset();
 		}
