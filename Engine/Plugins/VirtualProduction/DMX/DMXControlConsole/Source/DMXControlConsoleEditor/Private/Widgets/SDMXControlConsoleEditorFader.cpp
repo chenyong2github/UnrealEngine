@@ -576,6 +576,14 @@ void SDMXControlConsoleEditorFader::OnBeginValueChange()
 		return;
 	}
 
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+	if (!IsSelected())
+	{
+		SelectionHandler->ClearSelection();
+		SelectionHandler->AddToSelection(Fader.Get());
+	}
+
 	PreCommittedValue = Fader->GetValue();
 }
 
