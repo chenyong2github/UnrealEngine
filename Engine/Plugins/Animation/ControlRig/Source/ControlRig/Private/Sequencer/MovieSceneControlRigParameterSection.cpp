@@ -2325,7 +2325,7 @@ float UMovieSceneControlRigParameterSection::GetTotalWeightValue(FFrameTime InTi
 	return WeightVal;
 }
 
-void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, bool bSelectedControls)
+void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, EMovieSceneKeyInterpolation DefaultInterpolation, bool bSelectedControls)
 {
 	TArray<FName> SelectedControls;
 	if (bSelectedControls && ControlRig)
@@ -2343,7 +2343,7 @@ void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, b
 	{
 		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Scalar.ParameterName))
 		{
-			Scalar.ParameterCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			AddKeyToChannel(&Scalar.ParameterCurve, InFrame, 0.0f, DefaultInterpolation);
 			Scalar.ParameterCurve.AutoSetTangents();
 		}
 	}
@@ -2351,9 +2351,9 @@ void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, b
 	{
 		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Vector2D.ParameterName))
 		{
-			Vector2D.XCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			AddKeyToChannel(&Vector2D.XCurve, InFrame, 0.0f, DefaultInterpolation);
 			Vector2D.XCurve.AutoSetTangents();
-			Vector2D.YCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			AddKeyToChannel(&Vector2D.YCurve, InFrame, 0.0f, DefaultInterpolation);
 			Vector2D.YCurve.AutoSetTangents();
 		}
 	}
@@ -2361,11 +2361,11 @@ void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, b
 	{
 		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Vector.ParameterName))
 		{
-			Vector.XCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			AddKeyToChannel(&Vector.XCurve, InFrame, 0.0f, DefaultInterpolation);
 			Vector.XCurve.AutoSetTangents();
-			Vector.YCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			AddKeyToChannel(&Vector.YCurve, InFrame, 0.0f, DefaultInterpolation);
 			Vector.YCurve.AutoSetTangents();
-			Vector.ZCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			AddKeyToChannel(&Vector.ZCurve, InFrame, 0.0f, DefaultInterpolation);
 			Vector.ZCurve.AutoSetTangents();
 		}
 	}
@@ -2375,17 +2375,17 @@ void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, b
 		{
 			for (int32 Index = 0; Index < 3; ++Index)
 			{
-				Transform.Translation[Index].AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+				AddKeyToChannel(&Transform.Translation[Index], InFrame, 0.0f, DefaultInterpolation);
 				Transform.Translation[Index].AutoSetTangents();
-				Transform.Rotation[Index].AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+				AddKeyToChannel(&Transform.Rotation[Index], InFrame, 0.0f, DefaultInterpolation);
 				Transform.Rotation[Index].AutoSetTangents();
 				if (GetBlendType() == EMovieSceneBlendType::Additive)
 				{
-					Transform.Scale[Index].AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+					AddKeyToChannel(&Transform.Scale[Index], InFrame, 0.0f, DefaultInterpolation);
 				}
 				else
 				{
-					Transform.Scale[Index].AddCubicKey(InFrame, 1.0f, ERichCurveTangentMode::RCTM_Auto);
+					AddKeyToChannel(&Transform.Scale[Index], InFrame, 1.0f, DefaultInterpolation);
 				}
 				Transform.Scale[Index].AutoSetTangents();
 
@@ -2394,9 +2394,9 @@ void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, b
 	}
 }
 
-void UMovieSceneControlRigParameterSection::KeyWeightValue(FFrameNumber InFrame, float InVal)
+void UMovieSceneControlRigParameterSection::KeyWeightValue(FFrameNumber InFrame, EMovieSceneKeyInterpolation DefaultInterpolation, float InVal)
 {
-	Weight.AddCubicKey(InFrame, InVal, ERichCurveTangentMode::RCTM_Auto);
+	AddKeyToChannel(&Weight, InFrame, InVal, DefaultInterpolation);
 	Weight.AutoSetTangents();
 }
 

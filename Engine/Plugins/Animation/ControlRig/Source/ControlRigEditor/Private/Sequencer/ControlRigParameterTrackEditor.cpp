@@ -4683,7 +4683,6 @@ void FControlRigParameterSection::CollapseAllLayers()
 	}
 }
 
-
 void FControlRigParameterSection::KeyZeroValue()
 {
 	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
@@ -4691,9 +4690,11 @@ void FControlRigParameterSection::KeyZeroValue()
 	FScopedTransaction Transaction(LOCTEXT("KeyZeroValue", "Key Zero Value"));
 	ParameterSection->Modify();
 	FFrameTime Time = SequencerPtr->GetLocalTime().Time;
-	ParameterSection->KeyZeroValue(Time.GetFrame(),true);
+	EMovieSceneKeyInterpolation DefaultInterpolation = SequencerPtr->GetKeyInterpolation();
+	ParameterSection->KeyZeroValue(Time.GetFrame(), DefaultInterpolation, true);
 	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 }
+
 void FControlRigParameterSection::KeyWeightValue(float Val)
 {
 	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
@@ -4707,7 +4708,8 @@ void FControlRigParameterSection::KeyWeightValue(float Val)
 		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 	}
 	FFrameTime Time = SequencerPtr->GetLocalTime().Time;
-	ParameterSection->KeyWeightValue(Time.GetFrame(), Val);
+	EMovieSceneKeyInterpolation DefaultInterpolation = SequencerPtr->GetKeyInterpolation();
+	ParameterSection->KeyWeightValue(Time.GetFrame(), DefaultInterpolation, Val);
 	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 }
 
