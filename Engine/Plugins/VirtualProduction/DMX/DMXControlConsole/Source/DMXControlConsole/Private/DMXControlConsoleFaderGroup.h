@@ -250,7 +250,7 @@ private:
 
 	/** Fader Group expansion state saved from the Editor */
 	UPROPERTY()
-	bool bIsExpanded = false;
+	bool bIsExpanded = true;
 
 	/** In Editor activity state of the Fader Group */
 	UPROPERTY()

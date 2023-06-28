@@ -82,6 +82,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SDMXReadOnlyFixturePatchList)
 	: _ListDescriptor(FDMXReadOnlyFixturePatchListDescriptor())
+	, _DMXLibrary(nullptr)
 	{}
 
 		SLATE_ARGUMENT(FDMXReadOnlyFixturePatchListDescriptor, ListDescriptor)

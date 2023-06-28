@@ -293,7 +293,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowCheckBoxStateChanged(
 	UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
 	if (FaderGroup)
 	{
-		FaderGroup->ToggleMute();
+		const bool bIsMuted = CheckBoxState == ECheckBoxState::Unchecked;
+		FaderGroup->SetMute(bIsMuted);
 	}
 }
 
@@ -338,21 +339,8 @@ ECheckBoxState SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowChecked(con
 		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 		if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 		{
-			if (const UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch))
-			{
-				if (FaderGroup->IsMuted())
-				{
-					const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
-					const bool bIsAnyFaderUnmuted = Algo::AnyOf(AllFaders, [](const UDMXControlConsoleFaderBase* Fader)
-						{
-							return Fader && !Fader->IsMuted();
-						});
-
-					return bIsAnyFaderUnmuted ? ECheckBoxState::Undetermined : ECheckBoxState::Unchecked;
-				}
-
-				return ECheckBoxState::Checked;
-			}
+			const UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
+			return IsValid(FaderGroup) && FaderGroup->IsMuted() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 		}
 	}
 

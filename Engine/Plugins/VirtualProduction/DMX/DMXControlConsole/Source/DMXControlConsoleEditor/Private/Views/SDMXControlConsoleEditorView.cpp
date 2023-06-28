@@ -312,6 +312,14 @@ FReply SDMXControlConsoleEditorView::OnKeyDown(const FGeometry& MyGeometry, cons
 	return FReply::Unhandled();
 }
 
+FReply SDMXControlConsoleEditorView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
+	SelectionHandler->ClearSelection();
+	return FReply::Handled();
+}
+
 void SDMXControlConsoleEditorView::PostUndo(bool bSuccess)
 {
 	UpdateFixturePatchVerticalBox();
@@ -598,17 +606,15 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 					FSlateIcon(), 
 					FUIAction
 					(
-						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode), 
-						FCanExecuteAction(), 
-						FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFaderGroupsViewMode() == ViewMode; })
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode)
 					), 
 					NAME_None, 
-					EUserInterfaceActionType::RadioButton
+					EUserInterfaceActionType::Button
 				);
 			};
 
-		AddMenuEntryLambda(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
-		AddMenuEntryLambda(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
+		AddMenuEntryLambda(TEXT("Collapse All"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryLambda(TEXT("Expand All"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 

@@ -820,7 +820,13 @@ ECheckBoxState SDMXControlConsoleEditorFader::IsMuteChecked() const
 {
 	if (Fader.IsValid())
 	{
-		return Fader->IsMuted() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+		if (Fader->IsMuted()) 
+		{
+			return ECheckBoxState::Unchecked;
+		}
+
+		const UDMXControlConsoleFaderGroup& OwnerFaderGroup = Fader->GetOwnerFaderGroupChecked();
+		return OwnerFaderGroup.IsMuted() ? ECheckBoxState::Undetermined : ECheckBoxState::Checked;
 	}
 
 	return ECheckBoxState::Undetermined;
