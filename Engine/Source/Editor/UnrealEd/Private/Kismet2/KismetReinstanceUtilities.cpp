@@ -1764,6 +1764,14 @@ void FBlueprintCompileReinstancer::MoveDependentSkelToReinst(UClass* const Owner
 		ReinstClass->Bind();
 		ReinstClass->StaticLink(true);
 
+		if (!ReinstClass->GetSparseClassDataStruct())
+		{
+			if (UScriptStruct* SparseClassDataStructArchetype = ReinstClass->GetSparseClassDataArchetypeStruct())
+			{
+				ReinstClass->SetSparseClassDataStruct(SparseClassDataStructArchetype);
+			}
+		}
+
 		// Map the old class to the new one
 		NewSkeletonToOldSkeleton.Add(CurClass, ReinstClass);
 
