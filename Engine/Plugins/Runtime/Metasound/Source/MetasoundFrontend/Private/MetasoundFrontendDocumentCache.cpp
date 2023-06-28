@@ -36,6 +36,7 @@ namespace Metasound::Frontend
 
 		OutDelegates.OnDependencyAdded.AddSP(this, &FDocumentCache::OnDependencyAdded);
 		OutDelegates.OnRemovingDependency.AddSP(this, &FDocumentCache::OnRemovingDependency);
+		OutDelegates.OnRenamingDependencyClass.AddSP(this, &FDocumentCache::OnRenamingDependencyClass);
 
 		if (!EdgeCache.IsValid())
 		{
@@ -130,6 +131,20 @@ namespace Metasound::Frontend
 		const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(DependencyBeingRemoved.Metadata);
 		KeyToIndex.Remove(Key);
 		IDToIndex.Remove(DependencyBeingRemoved.ID);
+	}
+
+	void FDocumentCache::OnRenamingDependencyClass(const int32 IndexBeingRenamed, const FMetasoundFrontendClassName& NewName)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendClass& DependencyBeingRemoved = GetDocument().Dependencies[IndexBeingRenamed];
+		const FNodeRegistryKey OldKey = NodeRegistryKey::CreateKey(DependencyBeingRemoved.Metadata);
+		FMetasoundFrontendClassMetadata NewMetadata = DependencyBeingRemoved.Metadata;
+		NewMetadata.SetClassName(NewName);
+		const FNodeRegistryKey NewKey = NodeRegistryKey::CreateKey(NewMetadata);
+
+		KeyToIndex.Add(NewKey, IndexBeingRenamed);
+		KeyToIndex.Remove(OldKey);
 	}
 
 	FDocumentGraphInterfaceCache::FDocumentGraphInterfaceCache(TSharedRef<IDocumentCache> ParentCache)

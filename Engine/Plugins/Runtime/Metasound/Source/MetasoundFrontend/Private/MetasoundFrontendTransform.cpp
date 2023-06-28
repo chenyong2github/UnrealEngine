@@ -992,5 +992,13 @@ namespace Metasound
 
 			return true;
 		}
+
+		bool FRenameRootGraphClass::Transform(FMetasoundFrontendDocument& InOutDocument) const
+		{
+			FMetasoundFrontendClassMetadata& Metadata = InOutDocument.RootGraph.Metadata;
+			Metadata.SetClassName(NewClassName);
+
+			return true;
+		}
 	} // namespace Frontend
 } // namespace Metasound

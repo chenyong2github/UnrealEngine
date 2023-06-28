@@ -624,6 +624,11 @@ void UMetaSoundBuilderBase::RemoveNodeInputDefault(const FMetaSoundBuilderNodeIn
 	OutResult = bInputDefaultRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
+void UMetaSoundBuilderBase::RenameRootGraphClass(const FMetasoundFrontendClassName& InName)
+{
+	Builder.RenameRootGraphClass(InName);
+}
+
 #if WITH_EDITOR
 void UMetaSoundBuilderBase::SetAuthor(const FString& InAuthor)
 {
@@ -680,6 +685,11 @@ FMetasoundFrontendVersion UMetaSoundBuilderBase::FindNodeClassVersion(const FMet
 
 	OutResult = EMetaSoundBuilderResult::Failed;
 	return FMetasoundFrontendVersion::GetInvalid();
+}
+
+FMetasoundFrontendClassName UMetaSoundBuilderBase::GetRootGraphClassName() const
+{
+	return Builder.GetDocument().RootGraph.Metadata.GetClassName();
 }
 
 void UMetaSoundBuilderBase::GetNodeInputData(const FMetaSoundBuilderNodeInputHandle& InputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult)
@@ -776,6 +786,11 @@ void UMetaSoundBuilderBase::ConvertToPreset(const TScriptInterface<IMetaSoundDoc
 	{
 		OutResult = EMetaSoundBuilderResult::Failed;
 	}
+}
+
+void UMetaSoundBuilderBase::UpdateDependencyClassNames(const TMap<FMetasoundFrontendClassName, FMetasoundFrontendClassName>& OldToNewReferencedClassNames)
+{
+	Builder.UpdateDependencyClassNames(OldToNewReferencedClassNames);
 }
 
 TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundPatchBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& InBuilderOptions) const

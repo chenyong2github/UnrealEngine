@@ -17,6 +17,7 @@
 #include "MetasoundAssetSubsystem.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundDetailCustomization.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -37,6 +38,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "PackageMigrationContext.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Styling/CoreStyle.h"
@@ -822,6 +824,8 @@ namespace Metasound
 					constexpr bool bIncludeNamespace = false;
 					return FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
 				});
+
+				AssetTools.GetOnPackageMigration().AddRaw(this, &FModule::OnPackageMigration);
 			}
 
 			virtual void ShutdownModule() override
@@ -840,6 +844,7 @@ namespace Metasound
 					{
 						AssetTools.UnregisterAssetTypeActions(AssetAction.ToSharedRef());
 					}
+					AssetTools.GetOnPackageMigration().RemoveAll(this);
 				}
 
 				if (GraphConnectionFactory.IsValid())
@@ -865,6 +870,59 @@ namespace Metasound
 				PinTypes.Reset();
 			}
 
+			void OnPackageMigration(UE::AssetTools::FPackageMigrationContext& MigrationContext)
+			{
+				// Migration can create temporary new packages that use the same name 
+				// (and therefore node registry key) as the asset migrated. 
+				// So generate new class names to avoid registry key collisions. 
+				if (MigrationContext.GetCurrentStep() == UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::InstancedPackagesLoaded)
+				{
+					// Gather the new MetaSound assets
+					TMap<FMetasoundFrontendClassName, FMetasoundFrontendClassName> OldToNewReferencedClassNames;
+					TArray<UMetaSoundBuilderBase*> NewMetaSoundAssetBuilders;
+					TArray<FMetasoundAssetBase*> NewMetaSoundAssets;
+					for (const UE::AssetTools::FPackageMigrationContext::FMigrationPackageData& MigrationPackageData : MigrationContext.GetMigrationPackagesData())
+					{
+						UPackage* Package = MigrationPackageData.GetInstancedPackage();
+						if (Package)
+						{
+							UObject* MainAsset = Package->FindAssetInPackage();
+							// Only apply to MetaSound assets 
+							if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MainAsset))
+							{
+								FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MainAsset);
+								if (MetaSoundAsset)
+								{
+									UMetaSoundBuilderBase& MetaSoundBuilder = UMetaSoundBuilderSubsystem::GetChecked().AttachBuilderToAssetChecked(*MainAsset);
+									NewMetaSoundAssetBuilders.Add(&MetaSoundBuilder);
+									NewMetaSoundAssets.Add(MetaSoundAsset);
+								}
+							}
+						}
+					}
+
+					// Assign new class names and cache mapping with old one
+					for (UMetaSoundBuilderBase* MetaSoundBuilder : NewMetaSoundAssetBuilders)
+					{
+						const FMetasoundFrontendClassName NewReferencedClassName = FMetasoundFrontendClassName(/*Namespace=*/{}, FName(FGuid::NewGuid().ToString()), /*Variant=*/{});
+						const FMetasoundFrontendClassName OldReferencedClassName = MetaSoundBuilder->GetRootGraphClassName();
+
+						MetaSoundBuilder->RenameRootGraphClass(NewReferencedClassName);
+						OldToNewReferencedClassNames.FindOrAdd(OldReferencedClassName) = NewReferencedClassName;
+					}
+
+					// Fix up dependencies 
+					for (UMetaSoundBuilderBase* MetaSoundBuilder : NewMetaSoundAssetBuilders)
+					{
+						MetaSoundBuilder->UpdateDependencyClassNames(OldToNewReferencedClassNames);
+					}
+					for (FMetasoundAssetBase* MetaSoundAsset : NewMetaSoundAssets)
+					{
+						MetaSoundAsset->RebuildReferencedAssetClasses();
+					}
+				}
+			}
+			
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 			TMap<EMetasoundFrontendLiteralType, const TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral>> InputDefaultLiteralClassRegistry;
 			TMap<FName, FEdGraphPinType> PinTypes;

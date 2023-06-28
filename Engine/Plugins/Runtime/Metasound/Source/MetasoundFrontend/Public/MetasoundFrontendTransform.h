@@ -230,12 +230,19 @@ namespace Metasound
 				return FRenameRootGraphClass(GeneratedClassName).Transform(InDocument);
 			}
 
+			static bool Generate(FMetasoundFrontendDocument& InDocument, const FGuid& InGuid, const FName Namespace = { }, const FName Variant = { })
+			{
+				const FMetasoundFrontendClassName GeneratedClassName = { Namespace, *InGuid.ToString(), Variant };
+				return FRenameRootGraphClass(GeneratedClassName).Transform(InDocument);
+			}
+
 			FRenameRootGraphClass(const FMetasoundFrontendClassName InClassName)
 				: NewClassName(InClassName)
 			{
 			}
 
 			bool Transform(FDocumentHandle InDocument) const override;
+			bool Transform(FMetasoundFrontendDocument& InOutDocument) const override;
 		};
 	}
 }

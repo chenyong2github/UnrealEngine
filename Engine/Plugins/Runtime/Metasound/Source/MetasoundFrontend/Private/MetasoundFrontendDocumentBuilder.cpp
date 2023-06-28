@@ -2097,6 +2097,20 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveNode(const FGuid& InNodeID)
 	return false;
 }
 
+bool FMetaSoundFrontendDocumentBuilder::RenameRootGraphClass(const FMetasoundFrontendClassName& InName)
+{
+	FGuid NameGuid;
+	if (FGuid::Parse(InName.Name.ToString(), NameGuid))
+	{
+		return Metasound::Frontend::FRenameRootGraphClass::Generate(GetDocument(), NameGuid, InName.Namespace, InName.Variant);
+	}
+	else
+	{
+		UE_LOG(LogMetaSound, Error, TEXT("Attempting to rename a root graph class with class name '%s' which contains an invalid name guid."), *InName.GetFullName().ToString());
+		return false;
+	}
+}
+
 #if WITH_EDITOR
 void FMetaSoundFrontendDocumentBuilder::SetAuthor(const FString& InAuthor)
 {
@@ -2344,5 +2358,22 @@ bool FMetaSoundFrontendDocumentBuilder::SwapGraphOutput(const FMetasoundFrontend
 		checkf(bEdgeAdded, TEXT("Failed to add replacement edge when swapping paired outputs"));
 	}
 
+	return true;
+}
+
+bool FMetaSoundFrontendDocumentBuilder::UpdateDependencyClassNames(const TMap<FMetasoundFrontendClassName, FMetasoundFrontendClassName>& OldToNewReferencedClassNames)
+{
+	for (FMetasoundFrontendClass& Dependency : GetDocument().Dependencies)
+	{
+		const FMetasoundFrontendClassName OldName = Dependency.Metadata.GetClassName();
+		if (const FMetasoundFrontendClassName* NewName = OldToNewReferencedClassNames.Find(OldName))
+		{
+			const int32* DependencyIndex = DocumentCache->FindDependencyIndex(Dependency.ID);
+			check(DependencyIndex);
+			GetDocumentDelegates().OnRenamingDependencyClass.Broadcast(*DependencyIndex, *NewName);
+			Dependency.Metadata.SetClassName(*NewName);
+		}
+	}
+	
 	return true;
 }

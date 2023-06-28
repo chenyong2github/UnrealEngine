@@ -1227,6 +1227,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 	// Return string version of full name.
 	FString ToString() const;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendClassName& ClassName)
+	{
+		return GetTypeHash(ClassName.GetFullName());
+	}
+
 	METASOUNDFRONTEND_API friend bool operator==(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS);
 
 	METASOUNDFRONTEND_API friend bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS);

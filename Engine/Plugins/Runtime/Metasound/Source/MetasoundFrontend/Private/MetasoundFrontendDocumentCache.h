@@ -141,6 +141,7 @@ namespace Metasound::Frontend
 	private:
 		void OnDependencyAdded(int32 InNewIndex);
 		void OnRemovingDependency(int32 IndexBeingRemoved);
+		void OnRenamingDependencyClass(const int32 IndexBeingRenamed, const FMetasoundFrontendClassName& NewName);
 
 		// Cache of dependency (Class) ID to corresponding class dependency index
 		TSortedMap<FGuid, int32> IDToIndex;
