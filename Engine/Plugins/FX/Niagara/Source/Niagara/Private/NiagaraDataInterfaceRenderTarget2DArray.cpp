@@ -673,6 +673,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 		{
 			return false;
 		}
+		check(InstanceData->TargetTexture);
 		InstanceData->TargetTexture->bCanCreateUAV = true;
 		//InstanceData->TargetTexture->bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);

@@ -709,6 +709,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 		{
 			return false;
 		}
+		check(InstanceData->TargetTexture);
 		InstanceData->TargetTexture->bCanCreateUAV = true;
 		InstanceData->TargetTexture->bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		InstanceData->TargetTexture->RenderTargetFormat = InstanceData->Format;

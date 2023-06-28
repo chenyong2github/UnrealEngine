@@ -767,6 +767,7 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::UpdateInstanceTexture(FNiagaraSyste
 		{
 			return false;
 		}
+		check(InstanceData->TargetTexture);
 		InstanceData->TargetTexture->bCanCreateUAV = true;
 		InstanceData->TargetTexture->bAutoGenerateMips = false;
 		InstanceData->TargetTexture->OverrideFormat = InstanceData->Format;
