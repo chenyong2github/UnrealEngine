@@ -18,7 +18,6 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Engine/World.h"
 #include "Animation/Skeleton.h"
-#include "Animation/Rig.h"
 #include "Engine/SkeletalMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosDeformableGameplayComponent)
