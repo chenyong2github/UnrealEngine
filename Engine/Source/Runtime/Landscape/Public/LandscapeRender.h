@@ -762,6 +762,7 @@ protected:
 	TArray<FLandscapeBatchElementParams> StaticBatchParamArray;
 
 	bool bNaniteActive;
+	bool bUsesLandscapeCulling;
 
 
 #if WITH_EDITOR

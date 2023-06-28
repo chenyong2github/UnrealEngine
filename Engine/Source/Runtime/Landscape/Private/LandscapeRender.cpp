@@ -1065,6 +1065,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, ComponentSizeVerts(InComponent->ComponentSizeQuads + 1)
 	, SectionBase(InComponent->GetSectionBase())
 	, LandscapeComponent(InComponent)
+	, bUsesLandscapeCulling(false)
 	, WeightmapScaleBias(InComponent->WeightmapScaleBias)
 	, VisibilityWeightmapTexture(nullptr)
 	, VisibilityWeightmapChannel(-1)
@@ -1105,6 +1106,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 
 	bNaniteActive = InComponent->IsNaniteActive();
+	bUsesLandscapeCulling = (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()));
 
 	EnableGPUSceneSupportFlags();
 
@@ -1242,7 +1244,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 
 	// Landscape GPU culling uses VF that requires primitive UB
-	bVFRequiresPrimitiveUniformBuffer |= (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()));
+	bVFRequiresPrimitiveUniformBuffer |= bUsesLandscapeCulling;
 
 	ComponentLightInfo = MakeUnique<FLandscapeLCI>(InComponent, FeatureLevel, bVFRequiresPrimitiveUniformBuffer != 0);
 	check(ComponentLightInfo);
@@ -1407,7 +1409,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	VertexFactory = SharedBuffers->VertexFactory;
 	FixedGridVertexFactory = SharedBuffers->FixedGridVertexFactory;
 
-	if (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()))
+	if (bUsesLandscapeCulling)
 	{
 		Culling::RegisterLandscape(RHICmdList, *SharedBuffers, FeatureLevel, LandscapeKey, SubsectionSizeVerts, NumSubsections);
 	}
@@ -2123,7 +2125,7 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		BatchElement.MinVertexIndex = SharedBuffers->IndexRanges[LODIndex].MinIndexFull;
 		BatchElement.MaxVertexIndex = SharedBuffers->IndexRanges[LODIndex].MaxIndexFull;
 				
-		if (!bForToolMesh && !bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()))
+		if (!bForToolMesh && bUsesLandscapeCulling)
 		{
 			Culling::SetupMeshBatch(*SharedBuffers, MeshBatch);
 		}
