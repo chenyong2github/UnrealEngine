@@ -15,6 +15,7 @@ class UPhysicsAssetThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual bool CanVisualizeAsset(UObject* Object) override;
 
 	// Begin UThumbnailRenderer Object
 	UNREALED_API virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily) override;
