@@ -378,10 +378,7 @@ bool IsSkeletalMeshCompatibleWithRefSkeleton(FMutableComponentInfo& ComponentInf
 	return true;
 }
 
-void SetAndPropagatePoseBoneUsage(
-		mu::Mesh& MutableMesh, int32 PoseIndex, mu::EBoneUsageFlags Usage, 
-		const TMap<FName, int32>* BoneNameToSkeletonIndexMap = nullptr,
-		const TMap<FName, int32>* BoneNameToPoseIndexMap = nullptr)
+void SetAndPropagatePoseBoneUsage(mu::Mesh& MutableMesh, int32 PoseIndex, mu::EBoneUsageFlags Usage)
 {
 	if (!MutableMesh.GetSkeleton())
 	{
@@ -390,39 +387,17 @@ void SetAndPropagatePoseBoneUsage(
 
 	const mu::Skeleton& MutableSkeleton = *MutableMesh.GetSkeleton();
 
-	if (PoseIndex < 0 || PoseIndex >= MutableMesh.BonePoses.Num())
+	if (!MutableMesh.BonePoses.IsValidIndex(PoseIndex))
 	{
 		check(false);
 		return;
 	}
 
-	int32 BoneIndex = [&]() 
-	{
-		if (BoneNameToSkeletonIndexMap)
-		{
-			const int32* Found = BoneNameToSkeletonIndexMap->Find(FName(MutableMesh.BonePoses[PoseIndex].BoneName.c_str()));
-			return Found ? *Found : INDEX_NONE;
-		}
-		else
-		{
-			return MutableSkeleton.FindBone(MutableMesh.BonePoses[PoseIndex].BoneName.c_str());
-		}
-	}();
+	int32 BoneIndex = MutableSkeleton.FindBone(MutableMesh.BonePoses[PoseIndex].BoneId);
 
 	while (BoneIndex != INDEX_NONE)
 	{
-		PoseIndex = [&]()
-		{
-			if (BoneNameToPoseIndexMap)
-			{
-				const int32* Found = BoneNameToPoseIndexMap->Find(FName(MutableSkeleton.GetBoneName(BoneIndex)));
-				return Found ? *Found : INDEX_NONE;
-			}
-			else
-			{
-				return MutableMesh.FindBonePose(MutableSkeleton.GetBoneName(BoneIndex));
-			}
-		}();
+		PoseIndex = MutableMesh.FindBonePose(MutableSkeleton.GetBoneId(BoneIndex));
 
 		if (PoseIndex == INDEX_NONE)
 		{
@@ -472,7 +447,7 @@ TArray<TTuple<UPhysicsAsset*, int32>> GetPhysicsAssetsFromAnimInstance(const TSo
 	return Result;
 }
 
-TArray<uint8> MakePhysicsAssetBodySetupRelevancyMap(UPhysicsAsset* Asset, const mu::Ptr<mu::Mesh>& Mesh)
+TArray<uint8> MakePhysicsAssetBodySetupRelevancyMap(const FMutableGraphGenerationContext& GenerationContext, UPhysicsAsset* Asset, const mu::Ptr<mu::Mesh>& Mesh)
 {
 	const int32 BodySetupsNum = Asset->SkeletalBodySetups.Num();
 
@@ -486,15 +461,14 @@ TArray<uint8> MakePhysicsAssetBodySetupRelevancyMap(UPhysicsAsset* Asset, const 
 
 	for (int32 BodyIndex = 0; BodyIndex < BodySetupsNum; ++BodyIndex)
 	{
-		FString BodyBoneName = Asset->SkeletalBodySetups[BodyIndex]->BoneName.ToString();
-
-		RelevancyMap[BodyIndex] = Mesh->GetSkeleton()->FindBone(TCHAR_TO_ANSI(*BodyBoneName)) >= 0;
+		const int32 BoneNameId = GenerationContext.BoneNames.Find(Asset->SkeletalBodySetups[BodyIndex]->BoneName);
+		RelevancyMap[BodyIndex] = BoneNameId != INDEX_NONE && Mesh->GetSkeleton()->FindBone(uint16(BoneNameId)) != INDEX_NONE;
 	}
 
 	return RelevancyMap;
 }
 
-mu::Ptr<mu::PhysicsBody> MakePhysicsBodyFromAsset(UPhysicsAsset* Asset, const TArray<uint8>& BodySetupRelevancyMap)
+mu::Ptr<mu::PhysicsBody> MakePhysicsBodyFromAsset(FMutableGraphGenerationContext& GenerationContext, UPhysicsAsset* Asset, const TArray<uint8>& BodySetupRelevancyMap)
 {
 	check(Asset);
 	check(Asset->SkeletalBodySetups.Num() == BodySetupRelevancyMap.Num());
@@ -527,8 +501,8 @@ mu::Ptr<mu::PhysicsBody> MakePhysicsBodyFromAsset(UPhysicsAsset* Asset, const TA
 
 		TObjectPtr<USkeletalBodySetup>& BodySetup = SkeletalBodySetups[SourceBodyIndex++];
 
-		FString BodyBoneName = BodySetup->BoneName.ToString();
-		PhysicsBody->SetBodyBoneName(B, TCHAR_TO_ANSI(*BodyBoneName));
+		const uint16 BodyBoneId = GenerationContext.BoneNames.AddUnique(BodySetup->BoneName);
+		PhysicsBody->SetBodyBoneId(B, BodyBoneId);
 		
 		const int32 NumSpheres = BodySetup->AggGeom.SphereElems.Num();
 		PhysicsBody->SetSphereCount(B, NumSpheres);
@@ -784,7 +758,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 			RequiredBones.AddUnique(RemappedBones[RequiredBoneIndex]);
 		}
 
-		// Build BoneMap
+		// Rebuild BoneMap
 		const TArray<uint16>& SourceBoneMap = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].BoneMap;
 		const int32 NumBonesInBoneMap = SourceBoneMap.Num();
 		const int32 NumRemappedBones = RemappedBones.Num();
@@ -800,58 +774,55 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 			bBoneMapModified = bBoneMapModified || SourceBoneMap[BoneIndex] != FinalBoneIndex;
 		}
 
-		const int32 NumBonesBoneMap = BoneMap.Num();
-		const int32 NumRequiredBones = RequiredBones.Num();
-
-		// BoneMap mapping the BoneMap indices to those of the mu::skeleton
-		TArray<uint16> MutableBoneMap;
-		MutableBoneMap.Reserve(NumBonesBoneMap);
-
-		// Mapping of RequiredBones from RefSkeletonIndex to mu::Skeleton BoneIndex
-		TMap<int32, int32> InverseBoneMap;
-		InverseBoneMap.Reserve(NumRequiredBones);
-
-		for (int32 BoneIndex = 0; BoneIndex < NumBonesBoneMap; ++BoneIndex)
-		{
-			int32 RefSkeletonIndex = BoneMap[BoneIndex];
-			InverseBoneMap.Add(RefSkeletonIndex, BoneIndex);
-			MutableBoneMap.Add(BoneIndex);
-		}
-
-		MutableMesh->SetBoneMap(MutableBoneMap);
-
-		// Create the skeleton and poses for this mesh
+		// Create the skeleton, poses, and BoneMap for this mesh
 		mu::SkeletonPtr MutableSkeleton = new mu::Skeleton;
 		MutableMesh->SetSkeleton(MutableSkeleton);
 
+		const int32 NumRequiredBones = RequiredBones.Num();
 		MutableMesh->SetBonePoseCount(NumRequiredBones);
 		MutableSkeleton->SetBoneCount(NumRequiredBones);
 
+		// MutableBoneMap will not keep an index to the Skeleton, but to the BoneName
+		TArray<uint16> MutableBoneMap;
+		MutableBoneMap.SetNum(BoneMap.Num());
+		
 		const TArray<FMeshBoneInfo>& RefBoneInfo = InSkeletalMesh->GetRefSkeleton().GetRefBoneInfo();
-		for (int32 RequiredBoneIndex = 0; RequiredBoneIndex < NumRequiredBones; ++RequiredBoneIndex)
+		for (int32 BoneIndex = 0; BoneIndex < NumRequiredBones; ++BoneIndex)
 		{
-			const int32 RefSkelIndex = RequiredBones[RequiredBoneIndex];
-			const FMeshBoneInfo& BoneInfo = RefBoneInfo[RefSkelIndex];
-			
-			const int32 BoneIndex = InverseBoneMap.FindOrAdd(RefSkelIndex, InverseBoneMap.Num());
-			const int32 ParentBoneIndex = BoneInfo.ParentIndex != INDEX_NONE ? InverseBoneMap.FindOrAdd(BoneInfo.ParentIndex, InverseBoneMap.Num()) : INDEX_NONE;
+			const int32 RefSkeletonBoneIndex = RequiredBones[BoneIndex];
+
+			const FMeshBoneInfo& BoneInfo = RefBoneInfo[RefSkeletonBoneIndex];
+			const int32 ParentBoneIndex = RequiredBones.Find(BoneInfo.ParentIndex);
 
 			// Set bone hierarchy
-			const FString BoneName = BoneInfo.Name.ToString();
-			MutableSkeleton->SetBoneName(BoneIndex, StringCast<ANSICHAR>(*BoneName).Get());
+			const uint16 BoneId = uint16(GenerationContext.BoneNames.AddUnique(BoneInfo.Name));
+
+			MutableSkeleton->SetBoneId(BoneIndex, BoneId);
 			MutableSkeleton->SetBoneParent(BoneIndex, ParentBoneIndex);
 
+			// Debug. Will not be serialized
+			MutableSkeleton->SetBoneFName(BoneIndex, BoneInfo.Name);
+
+			// BoneMap: Convert RefSkeletonBoneIndex to BoneId
+			const int32 BoneMapIndex = BoneMap.Find(RefSkeletonBoneIndex);
+			if (BoneMapIndex != INDEX_NONE)
+			{
+				MutableBoneMap[BoneMapIndex] = BoneId;
+			}
+
 			// Set bone pose
-			FMatrix44f BaseInvMatrix = InSkeletalMesh->GetRefBasesInvMatrix()[RefSkelIndex];
+			FMatrix44f BaseInvMatrix = InSkeletalMesh->GetRefBasesInvMatrix()[RefSkeletonBoneIndex];
 			FTransform3f BaseInvTransform;
 			BaseInvTransform.SetFromMatrix(BaseInvMatrix);
 
 			mu::EBoneUsageFlags BoneUsageFlags = mu::EBoneUsageFlags::None;
-			EnumAddFlags(BoneUsageFlags, BoneIndex < NumBonesBoneMap ? mu::EBoneUsageFlags::Skinning : mu::EBoneUsageFlags::None);
-			EnumAddFlags(BoneUsageFlags, BoneInfo.ParentIndex == INDEX_NONE ? mu::EBoneUsageFlags::Root : mu::EBoneUsageFlags::None);
+			EnumAddFlags(BoneUsageFlags, BoneMapIndex != INDEX_NONE ? mu::EBoneUsageFlags::Skinning : mu::EBoneUsageFlags::None);
+			EnumAddFlags(BoneUsageFlags, ParentBoneIndex == INDEX_NONE ? mu::EBoneUsageFlags::Root : mu::EBoneUsageFlags::None);
 
-			MutableMesh->SetBonePose(BoneIndex, StringCast<ANSICHAR>(*BoneName).Get(), BaseInvTransform.Inverse(), BoneUsageFlags);
+			MutableMesh->SetBonePose(BoneIndex, BoneId, BaseInvTransform.Inverse(), BoneUsageFlags);
 		}
+
+		MutableMesh->SetBoneMap(MutableBoneMap);
 	}
 
 	// Vertices
@@ -1569,7 +1540,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 		TArray<uint8> DiscardedBodySetups;
 		DiscardedBodySetups.Init(1, SkeletalBodySetups.Num());
 
-		for (int32 BodySetupIndex = 0; BodySetupIndex < SkeletalBodySetups.Num(); ++BodySetupIndex )
+		for (int32 BodySetupIndex = 0; BodySetupIndex < SkeletalBodySetups.Num(); ++BodySetupIndex)
 		{
 			TObjectPtr<USkeletalBodySetup>& BodySetup = SkeletalBodySetups[BodySetupIndex];
 			if (!BodySetup)
@@ -1577,22 +1548,17 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 				continue;
 			}
 
-			FString BodyBoneName = BodySetup->BoneName.ToString();
+			const int32 BoneNameIndex = GenerationContext.BoneNames.Find(BodySetup->BoneName);
+			const int32 BonePoseIndex = MutableMesh->FindBonePose(uint16(BoneNameIndex));
 
-			const int32 SkeletonBoneCount = MutableMesh->GetSkeleton()->GetBoneCount();
-			for ( int32 I = 0; I < SkeletonBoneCount; ++I )
+			if (BonePoseIndex == INDEX_NONE)
 			{
-				FString SkeletonBoneName = MutableMesh->GetSkeleton()->GetBoneName(I);
-				
-				if (SkeletonBoneName.Equals(BodyBoneName))
-				{
-					RelevantBodySetups.Add(BodySetup);
-					DiscardedBodySetups[BodySetupIndex] = 0;
-					int32 BonePoseIndex = MutableMesh->FindBonePose(StringCast<ANSICHAR>(*BodyBoneName).Get());
-					
-					EnumAddFlags(MutableMesh->BonePoses[BonePoseIndex].BoneUsageFlags, mu::EBoneUsageFlags::Physics);
-				}
+				continue;
 			}
+		
+			RelevantBodySetups.Add(BodySetup);
+			DiscardedBodySetups[BodySetupIndex] = 0;
+			EnumAddFlags(MutableMesh->BonePoses[BonePoseIndex].BoneUsageFlags, mu::EBoneUsageFlags::Physics);
 		}
 
 		const int32 NumDiscardedSetups = Algo::CountIf(DiscardedBodySetups, [](const uint8& V) { return V; });
@@ -1646,8 +1612,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 		{
 			TObjectPtr<USkeletalBodySetup>& BodySetup = RelevantBodySetups[B];
 			
-			FString BodyBoneName = BodySetup->BoneName.ToString();
-			PhysicsBody->SetBodyBoneName( B, StringCast<ANSICHAR>(*BodyBoneName).Get() );
+			const uint16 BoneId = GenerationContext.BoneNames.AddUnique(BodySetup->BoneName);
+			PhysicsBody->SetBodyBoneId( B, BoneId);
 			
 			const int32 NumSpheres = BodySetup->AggGeom.SphereElems.Num();
 			PhysicsBody->SetSphereCount( B, NumSpheres );
@@ -1748,14 +1714,14 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 				mu::EBoneUsageFlags::Skinning | mu::EBoneUsageFlags::Physics | mu::EBoneUsageFlags::Deform;
 		if (EnumHasAnyFlags(BonePose.BoneUsageFlags, FlagsToPropagate))
 		{
-			const int32 BoneIndex = MutableMesh->GetSkeleton()->FindBone(MutableMesh->GetBonePoseName(I));
+			const int32 Index = MutableMesh->GetSkeleton()->FindBone(MutableMesh->GetBonePoseBoneId(I));
 
-			if (BoneIndex == INDEX_NONE)
+			if (Index == INDEX_NONE)
 			{
 				continue;
 			}
 
-			const int32 ParentIndex = MutableMesh->GetSkeleton()->GetBoneParent(BoneIndex);
+			const int32 ParentIndex = MutableMesh->GetSkeleton()->GetBoneParent(Index);
 
 			if (ParentIndex == INDEX_NONE)
 			{	
@@ -1795,9 +1761,9 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 
 			const int32 PhysicsAssetId = GenerationContext.AnimBpOverridePhysicsAssetsInfo.AddUnique(Info);
 
-			mu::Ptr<mu::PhysicsBody> MutableBody = MakePhysicsBodyFromAsset(
+			mu::Ptr<mu::PhysicsBody> MutableBody = MakePhysicsBodyFromAsset(GenerationContext,
 					PropertyAsset,
-					MakePhysicsAssetBodySetupRelevancyMap(PropertyAsset, MutableMesh));
+					MakePhysicsAssetBodySetupRelevancyMap(GenerationContext, PropertyAsset, MutableMesh));
 			MutableBody->CustomId = PhysicsAssetId;
 
 			MutableMesh->AddAdditionalPhysicsBody(MutableBody);
@@ -2252,7 +2218,7 @@ TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>> GetSkeletalMeshesIn
 
 
 bool GetAndValidateReshapeBonesToDeform(
-	TArray<FString>& OutBonesToDeform,
+	TArray<FName>& OutBonesToDeform,
 	const TArray<FMeshReshapeBoneReference>& InBonesToDeform,
 	const TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>>& SkeletalMeshesInfo,
 	const UCustomizableObjectNode* Node,
@@ -2284,7 +2250,7 @@ bool GetAndValidateReshapeBonesToDeform(
 				{
 					if (SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
 					{
-						OutBonesToDeform.AddUnique(BoneName.ToString());
+						OutBonesToDeform.AddUnique(BoneName);
 					}
 
 					MissingBones[InBoneIndex] &= false;
@@ -2361,7 +2327,7 @@ bool GetAndValidateReshapeBonesToDeform(
 
 				if (!bFound && Mesh.Get<USkeletalMesh*>()->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
 				{
-					OutBonesToDeform.AddUnique(BoneName.ToString());
+					OutBonesToDeform.AddUnique(BoneName);
 				}
 			}
 		}
@@ -2377,7 +2343,7 @@ bool GetAndValidateReshapeBonesToDeform(
 		{
 			if (RefSkeleton.GetParentIndex(BoneIndex) != INDEX_NONE)
 			{
-				OutBonesToDeform.AddUnique(RefSkeleton.GetBoneName(BoneIndex).ToString());
+				OutBonesToDeform.AddUnique(RefSkeleton.GetBoneName(BoneIndex));
 			}
 		}
 	}
@@ -2400,7 +2366,7 @@ bool GetAndValidateReshapeBonesToDeform(
 				if (RefSkeleton.FindBoneIndex(BoneName) == INDEX_NONE 
 					&& SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
 				{
-					OutBonesToDeform.AddUnique(BoneName.ToString());
+					OutBonesToDeform.AddUnique(BoneName);
 				}
 			}
 		}
@@ -2411,7 +2377,7 @@ bool GetAndValidateReshapeBonesToDeform(
 
 
 bool GetAndValidateReshapePhysicsToDeform(
-	TArray<FString>& OutPhysiscsToDeform,
+	TArray<FName>& OutPhysiscsToDeform,
 	const TArray<FMeshReshapeBoneReference>& InPhysicsToDeform,
 	const TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>>& SkeletalMeshesInfo,
 	EBoneDeformSelectionMethod SelectionMethod,
@@ -2566,8 +2532,7 @@ bool GetAndValidateReshapePhysicsToDeform(
 		{
 			if (BoneInclusionSet[I])
 			{
-				FName SetupBoneName = PhysicsAsset->SkeletalBodySetups[I]->BoneName;
-				OutPhysiscsToDeform.AddUnique(SetupBoneName.ToString());
+				OutPhysiscsToDeform.AddUnique(PhysicsAsset->SkeletalBodySetups[I]->BoneName);
 			}
 		}
 	}
@@ -2769,19 +2734,19 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 					bool bWarningFound = false;
 					if (TypedMorphNode->bReshapeSkeleton)
 					{
-						TArray<FString> BonesToDeform;
+						TArray<FName> BonesToDeform;
 						bWarningFound = GetAndValidateReshapeBonesToDeform(
 							BonesToDeform, TypedMorphNode->BonesToDeform, SkeletalMeshesToDeform, TypedMorphNode, TypedMorphNode->SelectionMethod, GenerationContext);
 
-						for (const FString& BoneName : BonesToDeform)
+						for (const FName BoneName : BonesToDeform)
 						{
-							Result->AddBoneToDeform(StringCast<ANSICHAR>(*BoneName).Get());
+							Result->AddBoneToDeform(GenerationContext.BoneNames.AddUnique(BoneName));
 						}
 					}
 
 					if (TypedMorphNode->bReshapePhysicsVolumes)
 					{
-						TArray<FString> PhysicsToDeform;
+						TArray<FName> PhysicsToDeform;
 
 						const EBoneDeformSelectionMethod SelectionMethod = TypedMorphNode->PhysicsSelectionMethod;
 						bWarningFound = bWarningFound || GetAndValidateReshapePhysicsToDeform(
@@ -2789,9 +2754,9 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 							TypedMorphNode->PhysicsBodiesToDeform, SkeletalMeshesToDeform, SelectionMethod, 
 							TypedMorphNode, GenerationContext);
 	
-						for (const FString& PhysicsBoneName : PhysicsToDeform)
+						for (const FName& PhysicsBoneName : PhysicsToDeform)
 						{
-							Result->AddPhysicsBodyToDeform(StringCast<ANSICHAR>(*PhysicsBoneName).Get());
+							Result->AddPhysicsBodyToDeform(GenerationContext.BoneNames.AddUnique(PhysicsBoneName));
 						}
 					}
 						
@@ -3422,28 +3387,28 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin* Pin,
 			bool bWarningFound = false;
 			if (TypedNodeReshape->bReshapeSkeleton)
 			{
-				TArray<FString> BonesToDeform;
+				TArray<FName> BonesToDeform;
 				bWarningFound = GetAndValidateReshapeBonesToDeform(
 					BonesToDeform, TypedNodeReshape->BonesToDeform, SkeletalMeshesToDeform, TypedNodeReshape, TypedNodeReshape->SelectionMethod, GenerationContext);
 				
-				for (const FString& BoneName : BonesToDeform)
+				for (const FName& BoneName : BonesToDeform)
 				{
-					MeshNode->AddBoneToDeform(StringCast<ANSICHAR>(*BoneName).Get());
+					MeshNode->AddBoneToDeform(GenerationContext.BoneNames.Find(BoneName));
 				}
 			}
 
 			if (TypedNodeReshape->bReshapePhysicsVolumes)
 			{
 				EBoneDeformSelectionMethod SelectionMethod = TypedNodeReshape->PhysicsSelectionMethod;
-				TArray<FString> PhysicsToDeform;
+				TArray<FName> PhysicsToDeform;
 				bWarningFound = bWarningFound || GetAndValidateReshapePhysicsToDeform(
 					PhysicsToDeform, 
 					TypedNodeReshape->PhysicsBodiesToDeform, SkeletalMeshesToDeform, SelectionMethod, 
 					TypedNodeReshape, GenerationContext);
 
-				for (const FString& PhysicsBoneName : PhysicsToDeform)
+				for (const FName& PhysicsBoneName : PhysicsToDeform)
 				{
-					MeshNode->AddPhysicsBodyToDeform(StringCast<ANSICHAR>(*PhysicsBoneName).Get());
+					MeshNode->AddPhysicsBodyToDeform(GenerationContext.BoneNames.Find(PhysicsBoneName));
 				}	
 			}
 			
@@ -3525,10 +3490,10 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin* Pin,
 
 			if (TypedNode->PoseAsset && GenerationContext.GetCurrentComponentInfo().RefSkeletalMesh)
 			{
-				TArray<FString> ArrayBoneName;
+				TArray<FName> ArrayBoneName;
 				TArray<FTransform> ArrayTransform;
 				UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(TypedNode->PoseAsset, GenerationContext.GetCurrentComponentInfo().RefSkeletalMesh, ArrayBoneName, ArrayTransform);
-				mu::NodeMeshApplyPosePtr NodeMeshApplyPose = CreateNodeMeshApplyPose(InputMeshNode, GenerationContext.Object, ArrayBoneName, ArrayTransform);
+				mu::NodeMeshApplyPosePtr NodeMeshApplyPose = CreateNodeMeshApplyPose(GenerationContext, InputMeshNode, ArrayBoneName, ArrayTransform);
 
 				if (NodeMeshApplyPose)
 				{

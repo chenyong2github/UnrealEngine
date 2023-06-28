@@ -70,7 +70,7 @@ namespace mu
 	//! Reference version
 	//---------------------------------------------------------------------------------------------
 	inline void MeshClipMorphPlane(Mesh* Result, const Mesh* pBase, const vec3f& origin, const vec3f& normal, float dist, float factor, float radius,
-		float radius2, float angle, const FShape& selectionShape, bool& bOutSuccess, const mu::string& boneName = mu::string(), float vertexSelectionBoneMaxRadius = -1.f)
+		float radius2, float angle, const FShape& selectionShape, bool& bOutSuccess, const int32 BoneId = INDEX_NONE, float vertexSelectionBoneMaxRadius = -1.f)
 	{
 		bOutSuccess = true;
 		//float radius = 8.f;
@@ -96,33 +96,32 @@ namespace mu
 			return;
 		}
 
-		TArray<bool> bone_is_affected;
+		TArray<bool> AffectedBones;
 		TArray<vertex_bone_info> vertex_info;
 
-        auto pBaseSkeleton = pBase->GetSkeleton();
-        if (!boneName.empty() && pBaseSkeleton )
+        Ptr<const Skeleton> BaseSkeleton = pBase->GetSkeleton();
+
+		const int32 BaseBoneIndex = BaseSkeleton ? BaseSkeleton->FindBone(BoneId) : INDEX_NONE;
+        if (BaseBoneIndex != INDEX_NONE)
 		{
-            bone_is_affected.SetNum(pBaseSkeleton->GetBoneCount());
+			AffectedBones.SetNum(BaseSkeleton->GetBoneCount());
+			AffectedBones[BaseBoneIndex] = true;
 
-            for (int32 bone_idx = 0; bone_idx < pBaseSkeleton->GetBoneCount(); ++bone_idx)
+            for (int32 BoneIndex = 0; BoneIndex < BaseSkeleton->GetBoneCount(); ++BoneIndex)
 			{
-				int32 current_idx = bone_idx;
-				bool found_bone = false;
-
-				while (current_idx >= 0)
+				int32 CurrentBoneIndex = BoneIndex;
+				while (CurrentBoneIndex >= 0)
 				{
-                    if (pBaseSkeleton->GetBoneName(current_idx) == boneName)
+                    if (BaseSkeleton->GetBoneId(CurrentBoneIndex) == BaseBoneIndex)
 					{
-						found_bone = true;
+						AffectedBones[BoneIndex] = true;
 						break;
 					}
 					else
 					{
-                        current_idx = pBaseSkeleton->GetBoneParent(current_idx);
+						CurrentBoneIndex = BaseSkeleton->GetBoneParent(CurrentBoneIndex);
 					}
 				}
-
-				bone_is_affected[bone_idx] = found_bone;
 			}
 
 			// Look for affected vertex indices
@@ -303,8 +302,8 @@ namespace mu
 						}
 
 						if (
-							(  !boneName.empty() && VertexIsAffectedByBone(v, bone_is_affected, vertex_info) && VertexIsInMaxRadius(vertex, origin, vertexSelectionBoneMaxRadius))
-                            || (boneName.empty() && selectionShape.type == (uint8_t)FShape::Type::None)
+							(  BaseBoneIndex != INDEX_NONE && VertexIsAffectedByBone(v, AffectedBones, vertex_info) && VertexIsInMaxRadius(vertex, origin, vertexSelectionBoneMaxRadius))
+                            || (BaseBoneIndex == INDEX_NONE && selectionShape.type == (uint8_t)FShape::Type::None)
                             || (selectionShape.type == (uint8_t)FShape::Type::AABox && PointInBoundingBox(vertex, selectionShape))
 							)
 						{

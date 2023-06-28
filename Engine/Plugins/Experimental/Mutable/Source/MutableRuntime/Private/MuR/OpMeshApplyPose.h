@@ -38,7 +38,7 @@ namespace mu
 		skinTransforms.SetNum(pSkeleton->GetBoneCount());
         for ( int32 b=0; b< pSkeleton->GetBoneCount(); ++b )
         {
-            int32 poseBoneIndex = pPose->FindBonePose(pSkeleton->GetBoneName(b));
+            int32 poseBoneIndex = pPose->FindBonePose(pSkeleton->GetBoneId(b));
 
             if( poseBoneIndex != INDEX_NONE )
             {

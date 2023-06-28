@@ -1208,6 +1208,8 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 			Object->ReferencedSkeletons.Add(Skeleton);
 		}
 
+		Object->SetBoneNamesArray(GenerationContext.BoneNames);
+
 		// Pass-through textures
 		TArray<TSoftObjectPtr<UTexture2D>> NewReferencedPassThroughTextures;
 

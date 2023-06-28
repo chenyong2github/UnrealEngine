@@ -495,8 +495,8 @@ struct FInstanceUpdateData
 
 		TArray<uint16> SkeletonIds;
 
-		TArray<FName> BoneNames;
-		TMap<FName, FMatrix44f> BoneMatricesWithScale;
+		TArray<uint16> BoneIds;
+		TArray<FMatrix44f> BoneMatricesWithScale;
 	};
 
 	TArray<FSkeletonData> Skeletons;

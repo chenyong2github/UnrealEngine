@@ -1998,7 +1998,7 @@ namespace mu
 					Ptr<Mesh> Result = CreateMesh(Source ? Source->GetDataSize() : 0);
 
 					bool bOutSuccess = false;
-					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, mu::string(), -1);
+					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, INDEX_NONE, -1);
 					
 					if (!bOutSuccess)
 					{
@@ -2014,16 +2014,13 @@ namespace mu
 
 				else if (args.vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
 				{
-					check(args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num());
-
 					FShape selectionShape;
 					selectionShape.type = (uint8)FShape::Type::None;
-					const string& selectionBone = pModel->GetPrivate()->m_program.m_constantStrings[args.vertexSelectionShapeOrBone];
 
 					Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
 
 					bool bOutSuccess = false;
-					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, selectionBone, args.maxBoneRadius);
+					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, args.vertexSelectionShapeOrBone, args.maxBoneRadius);
 
 					if (!bOutSuccess)
 					{
@@ -2045,7 +2042,7 @@ namespace mu
 					Ptr<Mesh> Result = CreateMesh(Source ? Source->GetDataSize() : 0);
 
 					bool bOutSuccess = false;
-					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, mu::string(), -1.0f);
+					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, INDEX_NONE, -1.0f);
 
 					if (!bOutSuccess)
 					{
@@ -2413,29 +2410,19 @@ namespace mu
 					FMemory::Memcpy(&NumBones, Data, sizeof(int32)); 
 					Data += sizeof(int32);
 					
-					TArray<string> BonesToDeform;
-					BonesToDeform.SetNum(NumBones);
-					for (int32 b = 0; b < NumBones; ++b)
-					{
-						int32 ConstStringIndex;
-						FMemory::Memcpy(&ConstStringIndex, Data, sizeof(int32));
-						BonesToDeform[b] = pModel->GetPrivate()->m_program.m_constantStrings[ConstStringIndex].c_str();
-						Data += sizeof(int32);
-					}
+					TArray<uint16> BonesToDeform;
+					BonesToDeform.SetNumUninitialized(NumBones);
+					FMemory::Memcpy(BonesToDeform.GetData(), Data, NumBones * sizeof(uint16));
+					Data += NumBones * sizeof(uint16);
 
 					int32 NumPhysicsBodies;
 					FMemory::Memcpy(&NumPhysicsBodies, Data, sizeof(int32)); 
 					Data += sizeof(int32);
 
-					TArray<string> PhysicsToDeform;
-					PhysicsToDeform.SetNum(NumPhysicsBodies);
-					for (int32 b = 0; b < NumPhysicsBodies; ++b)
-					{
-						int32 ConstStringIndex;
-						FMemory::Memcpy(&ConstStringIndex, Data, sizeof(int32));
-						PhysicsToDeform[b] = pModel->GetPrivate()->m_program.m_constantStrings[ConstStringIndex].c_str();
-						Data += sizeof(int32);
-					}
+					TArray<uint16> PhysicsToDeform;
+					PhysicsToDeform.SetNumUninitialized(NumPhysicsBodies);
+					FMemory::Memcpy(PhysicsToDeform.GetData(), Data, NumPhysicsBodies * sizeof(uint16));
+					Data += NumPhysicsBodies * sizeof(uint16);
 
 					const EMeshBindShapeFlags BindFlags = static_cast<EMeshBindShapeFlags>(Args.flags);
 
@@ -2668,7 +2655,9 @@ namespace mu
                 // Only if both are valid.
                 if (Source && pSkeleton)
                 {
-                    if (Source->GetSkeleton() && !Source->GetSkeleton()->m_bones.IsEmpty())
+                    if ( Source->GetSkeleton()
+                         &&
+                         !Source->GetSkeleton()->BoneIds.IsEmpty() )
                     {
                         // For some reason we already have bone data, so we can't just overwrite it
                         // or the skinning may break. This may happen because of a problem in the

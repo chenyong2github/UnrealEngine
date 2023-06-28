@@ -30,12 +30,12 @@ namespace mu
 		bool m_reshapePhysicsVolumes = false;
 	
 
-		TArray<string> m_bonesToDeform;
-		TArray<string> m_physicsToDeform;
+		TArray<uint16> BonesToDeform;
+		TArray<uint16> PhysicsToDeform;
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 8;
+            uint32_t ver = 9;
 			arch << ver;
 
 			arch << m_pBaseMesh;
@@ -44,9 +44,9 @@ namespace mu
 			arch << m_reshapeVertices;
 			arch << m_reshapeSkeleton;
 			arch << m_enableRigidParts;
-			arch << m_bonesToDeform;
+			arch << BonesToDeform;
 			arch << m_reshapePhysicsVolumes;
-			arch << m_physicsToDeform;
+			arch << PhysicsToDeform;
         }
 
 		//!
@@ -54,7 +54,7 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver <= 8);
+			check(ver <= 9);
 
 			arch >> m_pBaseMesh;
 			arch >> m_pBaseShape;
@@ -74,8 +74,23 @@ namespace mu
 				arch >> bDeformAllBones_DEPRECATED;
 			}
 
-			arch >> m_bonesToDeform;
-			
+			if (ver >= 9)
+			{
+				arch >> BonesToDeform;
+			}
+			else
+			{
+				TArray<string> BonesToDeform_DEPRECATED;
+				arch >> BonesToDeform_DEPRECATED;
+
+				const int32 NumBonesToDeform = BonesToDeform_DEPRECATED.Num();
+				BonesToDeform.Reserve(NumBonesToDeform);
+				for (int32 BoneIndex = 0; BoneIndex < NumBonesToDeform; ++BoneIndex)
+				{
+					BonesToDeform.Add(BoneIndex);
+				}
+			}
+
 		  	if (ver >= 4)
 		 	{
 				arch >> m_reshapePhysicsVolumes;
@@ -87,9 +102,21 @@ namespace mu
 				arch >> bDeformAllPhysics_DEPRECATED;
 			}
 
-			if (ver >= 5)
+			if (ver >= 9)
 			{
-				arch >> m_physicsToDeform;
+				arch >> PhysicsToDeform;
+			}
+			else if (ver >= 5)
+			{
+				TArray<string> PhysicsToDeform_DEPRECATED;
+				arch >> PhysicsToDeform_DEPRECATED;
+
+				const int32 NumPhysicsToDeform = PhysicsToDeform_DEPRECATED.Num();
+				PhysicsToDeform.Reserve(NumPhysicsToDeform);
+				for (int32 BoneIndex = 0; BoneIndex < NumPhysicsToDeform; ++BoneIndex)
+				{
+					PhysicsToDeform.Add(BoneIndex);
+				}
 			}
 		}
 

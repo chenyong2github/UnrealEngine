@@ -189,8 +189,8 @@ namespace mu
 		void SetBodyCount(int32 B);
 		int32 GetBodyCount() const;
 	
-		void SetBodyBoneName(int32 B, const char* BoneName);
-		const char* GetBodyBoneName(int32 B) const;
+		void SetBodyBoneId(int32 B, uint16 BoneId);
+		uint16 GetBodyBoneId(int32 B) const;
 		
 		void SetBodyCustomId(int32 B, int32 BodyCustomId);
 		int32 GetBodyCustomId(int32 B) const;
@@ -297,7 +297,7 @@ namespace mu
 		int32 CustomId = -1;
 
 		// Bone name the physics volume aggregate is bound to. 
-		TArray<string> Bones;
+		TArray<uint16> BoneIds;
 		TArray<FPhysicsBodyAggregate> Bodies;
 		TArray<int32> BodiesCustomIds;
 
@@ -314,7 +314,7 @@ namespace mu
 		inline bool operator==(const PhysicsBody& Other) const
         {
         	return CustomId        == Other.CustomId        &&
-				   Bones		   == Other.Bones           &&
+				   BoneIds == Other.BoneIds					&&
         		   Bodies          == Other.Bodies          &&
         	       BodiesCustomIds == Other.BodiesCustomIds &&
 				   bBodiesModified == Other.bBodiesModified;

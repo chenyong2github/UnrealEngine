@@ -65,10 +65,10 @@ namespace mu
 		void SetReshapePhysicsVolumes(bool);
 
 		/** Sets the number of bones that will be deform */
-		void AddBoneToDeform(const char* BoneName);	
+		void AddBoneToDeform(const uint16 BoneName);	
 
 		/** Add a Physics Body to deform */
-		void AddPhysicsBodyToDeform(const char* BoneName);
+		void AddPhysicsBodyToDeform(const uint16 BoneName);
 
         //-----------------------------------------------------------------------------------------
 		// Interface pattern

@@ -13,11 +13,11 @@ class ITableRow;
 /** Container with the information required to generate the tree of bones */
 struct FBoneDefinition
 {
-	FText ParentBoneName = FText(INVTEXT(""));
-	int32 ParentBoneIndex = -1;
+	FName ParentBoneName = FName("");
+	int32 ParentBoneIndex = INDEX_NONE;
 
-	FText BoneName = FText(INVTEXT(""));
-	int32 BoneIndex = -1;
+	FName BoneName = FName("");
+	int32 BoneIndex = INDEX_NONE;
 };
 
 /** Object responsible of showing with a tree view slate the bones present on the provided mutable skeleton */

@@ -69,12 +69,12 @@ namespace mu
 		hash_combine(res, bool(bReshapeVertices));
 		hash_combine(res, bool(BindingMethod));
 
-		for (const string& S : BonesToDeform)
+		for (const uint16 S : BonesToDeform)
 		{
 			hash_combine(res, S);
 		}
 
-		for (const string& S : PhysicsToDeform)
+		for (const uint16 S : PhysicsToDeform)
 		{
 			hash_combine(res, S);
 		}
@@ -142,17 +142,15 @@ namespace mu
 			AppendCode(program.m_byteCode, Args);
 
 			AppendCode(program.m_byteCode, (int32)BonesToDeform.Num());
-			for (const string& S : BonesToDeform)
+			for (const uint16 S : BonesToDeform)
 			{
-				const uint32 index = program.AddConstant(S);
-				AppendCode(program.m_byteCode, index);
+				AppendCode(program.m_byteCode, S);
 			}
 
 			AppendCode(program.m_byteCode, (int32)PhysicsToDeform.Num());
-			for (const string& S : PhysicsToDeform)
+			for (const uint16 S : PhysicsToDeform)
 			{
-				const uint32 index = program.AddConstant(S);
-				AppendCode(program.m_byteCode, index);
+				AppendCode(program.m_byteCode, S);
 			}
 		}
 	}

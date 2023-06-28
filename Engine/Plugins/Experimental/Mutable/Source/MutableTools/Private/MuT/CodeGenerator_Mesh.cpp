@@ -1786,9 +1786,9 @@ class Node;
 
 		OpBind->bReshapeSkeleton = node.m_reshapeSkeleton;
     	OpBind->bEnableRigidParts = node.m_enableRigidParts;
-		OpBind->BonesToDeform = node.m_bonesToDeform;
+		OpBind->BonesToDeform = node.BonesToDeform;
     	OpBind->bReshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
-		OpBind->PhysicsToDeform = node.m_physicsToDeform;
+		OpBind->PhysicsToDeform = node.PhysicsToDeform;
 		OpBind->bReshapeVertices = node.m_reshapeVertices;
 		OpBind->BindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
 

@@ -1528,6 +1528,7 @@ public:
 	void SerializeClothingDerivedData(FMemoryWriter64& Ar);
 	void DeserializeClothingDerivedData(FMemoryReaderView& Ar);
 
+	FGuid GetCompilationGuid() const;
 
 	int32 FindState( const FString& Name ) const;
 
@@ -1651,6 +1652,8 @@ public:
 
 #if WITH_EDITOR
 	void SetModel(TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model);
+
+	void SetBoneNamesArray(const TArray<FName>& BoneNames);
 #endif
 
 	int32 GetNumLODs() const;
@@ -1661,6 +1664,17 @@ public:
 	/** Return the names used by mutable to identify which mu::Image should be considered of LowPriority. */
 	void GetLowPriorityTextureNames(TArray<FString>& OutTextureNames);
 
+	const TArray<FName>& GetBoneNamesArray() const;
+
+private:
+	
+	/** Stores the bone names of all the bones that can possibly use the generated meshes */
+	UPROPERTY()
+	TArray<FName> BoneNames;
+
+	/** Cache of merged skeletons */
+	TArray<FMergedSkeleton> MergedSkeletons;
+
 	/** Used to prevent GC of MaskOutCache and keep it in memory while it's needed */
 	UPROPERTY(Transient)
 	TObjectPtr<UMutableMaskOutCache> MaskOutCache_HardRef;
@@ -1669,13 +1683,6 @@ public:
 	UPROPERTY()
 	FGuid CompilationGuid;
 
-	/** Cache of merged skeletons */
-	TArray<FMergedSkeleton> MergedSkeletons;
-
-public:
-	FGuid GetCompilationGuid() const;
-
-private:
 	/** BulkData that stores all in-game resources used by Mutable when generating instances.
 	  * Only valid in packaged builds */
 	UPROPERTY()

@@ -537,7 +537,7 @@ namespace mu
 		// Retrieve them in the same order the boxes where put in, so they can be linked to the physics body volumes.
 		for ( const int32 B : UsedIndices )
 		{	
-			int32 BoneIdx = BaseMesh.FindBonePose(PBody.GetBodyBoneName(B));
+			int32 BoneIdx = BaseMesh.FindBonePose(PBody.GetBodyBoneId(B));
 			FTransform3f BoneTransform = FTransform3f::Identity;
 			if (BoneIdx >= 0)
 			{

@@ -686,7 +686,7 @@ namespace mu
 		Result->m_AdditionalBuffers = pSource->m_AdditionalBuffers;
 
 		Result->BonePoses = pSource->BonePoses;
-		Result->BoneMapIndices = pSource->BoneMapIndices;
+		Result->BoneMap = pSource->BoneMap;
 
 		Result->SkeletonIDs = pSource->SkeletonIDs;
 

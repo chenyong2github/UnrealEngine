@@ -233,7 +233,7 @@ namespace mu
 		pResult->CustomId = CustomId;
 
 		pResult->Bodies = Bodies;
-		pResult->Bones = Bones;
+		pResult->BoneIds = BoneIds;
 		pResult->BodiesCustomIds = BodiesCustomIds;
 
 		pResult->bBodiesModified = bBodiesModified;
@@ -258,7 +258,7 @@ namespace mu
 	void PhysicsBody::SetBodyCount(int32 Count)
 	{
 		Bodies.SetNum(Count);
-		Bones.SetNum(Count);
+		BoneIds.SetNum(Count);
 		BodiesCustomIds.Init(-1, Count);
 	}
 
@@ -269,19 +269,17 @@ namespace mu
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	const char* PhysicsBody::GetBodyBoneName(int32 B) const
+	uint16 PhysicsBody::GetBodyBoneId(int32 B) const
 	{
-		check(B >= 0 && B < Bones.Num());
-
-		return Bones[B].c_str();
+		check(BoneIds.IsValidIndex(B));
+		return BoneIds[B];
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	void PhysicsBody::SetBodyBoneName(int32 B, const char* BoneName)
+	void PhysicsBody::SetBodyBoneId(int32 B, const uint16 BoneId)
 	{
-		check(B >= 0 && B < Bones.Num());
-
-		Bones[B] = BoneName;
+		check(BoneIds.IsValidIndex(B));
+		BoneIds[B] = BoneId;
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -711,12 +709,12 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	void PhysicsBody::Serialise(OutputArchive& arch) const
 	{
-		uint32 ver = 2;
+		uint32 ver = 3;
 		arch << ver;
         	
 		arch << CustomId;
 		arch << Bodies;
-		arch << Bones;
+		arch << BoneIds;
 		arch << BodiesCustomIds;
 		arch << bBodiesModified;
 	}
@@ -727,7 +725,7 @@ namespace mu
 	{
 		uint32 ver;
 		arch >> ver;
-		check(ver <= 2);
+		check(ver <= 3);
         	
 		if (ver >= 2)
 		{
@@ -735,7 +733,25 @@ namespace mu
 		}
         	
 		arch >> Bodies;
-		arch >> Bones;
+
+		if (ver >= 3)
+		{
+			arch >> BoneIds;
+		}
+		else
+		{
+			TArray<string> BoneNames;
+			arch >> BoneNames;
+
+			const int32 NumBoneNames = BoneNames.Num();
+			TArray<string> UniqueBoneNames;
+			UniqueBoneNames.Reserve(NumBoneNames);
+			BoneIds.Reserve(NumBoneNames);
+			for (int32 BoneIndex = 0; BoneIndex < NumBoneNames; ++BoneIndex)
+			{
+				BoneIds.Add((uint16)UniqueBoneNames.AddUnique(BoneNames[BoneIndex]));
+			}
+		}
 		arch >> BodiesCustomIds;
 
 		if (ver >= 1)

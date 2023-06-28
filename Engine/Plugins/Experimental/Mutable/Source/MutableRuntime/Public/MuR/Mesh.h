@@ -295,10 +295,7 @@ namespace mu
         void SetTag( int tagIndex, const char* strName );
 
 		//!
-		const char* GetBonePoseName( int32 boneIndex ) const;
-
-		//!
-		int32 FindBonePose(const char* strName) const;
+		int32 FindBonePose(uint16 BoneId) const;
 		
 		//!
 		void SetBonePoseCount(int32 count);
@@ -307,7 +304,10 @@ namespace mu
 		int32 GetBonePoseCount() const;
 
 		//!
-		void SetBonePose(int32 BoneIndex, const char* StrName, FTransform3f Transform, EBoneUsageFlags BoneUsageFlags);
+		void SetBonePose(int32 Index, uint16 BoneId, FTransform3f Transform, EBoneUsageFlags BoneUsageFlags);
+
+		//! Return BoneId (uint16) of the pose at index PoseIndex or INDEX_NONE
+		int32 GetBonePoseBoneId(int32 PoseIndex) const;
 
 		//! Return a matrix stored per bone. It is a set of 16-float values.
 		void GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const;
@@ -409,7 +409,9 @@ namespace mu
 
 		struct FBonePose
 		{
-			string BoneName;
+			// Index of the bone in the CO BoneNames array
+			uint16 BoneId;
+
 			EBoneUsageFlags BoneUsageFlags = EBoneUsageFlags::None;
 			FTransform3f BoneTransform;
 
@@ -423,15 +425,15 @@ namespace mu
 			inline bool operator==(const FBonePose& Other) const
 			{
 				return BoneUsageFlags == Other.BoneUsageFlags
-					&& BoneName == Other.BoneName;
+					&& BoneId == Other.BoneId;
 			}
 		};
 		// This is the pose used by this mesh fragment, used to update the transforms of the final skeleton
 		// taking into consideration the meshes being used.
 		TArray<FBonePose> BonePoses;
 
-		// Array containing the bonemap indices of all surfaces in the mesh.
-		TArray<uint16> BoneMapIndices;
+		// Array containing the bonemaps of all surfaces in the mesh.
+		TArray<uint16> BoneMap;
 
 		//!
 		inline void Serialise(OutputArchive& arch) const;
@@ -448,7 +450,7 @@ namespace mu
 			if (equal) equal = (m_FaceBuffers == o.m_FaceBuffers);
 			if (equal) equal = (m_layouts.Num() == o.m_layouts.Num());
 			if (equal) equal = (BonePoses.Num() == o.BonePoses.Num());
-			if (equal) equal = (BoneMapIndices.Num() == o.BoneMapIndices.Num());
+			if (equal) equal = (BoneMap.Num() == o.BoneMap.Num());
 			if (equal && m_pSkeleton != o.m_pSkeleton)
 			{
 				if (m_pSkeleton && o.m_pSkeleton)
@@ -482,7 +484,7 @@ namespace mu
 				equal &= BonePoses[i] == o.BonePoses[i];
 			}
 
-			if (equal) equal = BoneMapIndices == o.BoneMapIndices;
+			if (equal) equal = BoneMap == o.BoneMap;
 
 			equal &= AdditionalPhysicsBodies.Num() == o.AdditionalPhysicsBodies.Num();
 			for (int32 i = 0; equal && i < AdditionalPhysicsBodies.Num(); ++i)

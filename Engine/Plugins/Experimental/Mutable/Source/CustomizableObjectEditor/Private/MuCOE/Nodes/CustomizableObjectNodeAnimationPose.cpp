@@ -73,7 +73,7 @@ FLinearColor UCustomizableObjectNodeAnimationPose::GetNodeTitleColor() const
 }
 
 
-void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAsset* PoseAsset, USkeletalMesh* RefSkeletalMesh, TArray<FString>& OutArrayBoneName, TArray<FTransform>& OutArrayTransform)
+void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAsset* PoseAsset, USkeletalMesh* RefSkeletalMesh, TArray<FName>& OutArrayBoneName, TArray<FTransform>& OutArrayTransform)
 {
 	if (PoseAsset && RefSkeletalMesh)
 	{
@@ -159,7 +159,7 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 			FTransform BoneToComponentTranform = SkeletalMeshComponent->GetEditableComponentSpaceTransforms()[BoneIndex];
 			FTransform TransformToAdd = BoneToComponentTranform.Inverse() * CumulativePoseTransform;
 
-			OutArrayBoneName.Add(BoneName.ToString());
+			OutArrayBoneName.Add(BoneName);
 			OutArrayTransform.Add(TransformToAdd);
 		}
 	}

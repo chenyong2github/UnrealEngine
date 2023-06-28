@@ -71,7 +71,7 @@ MeshPtr Mesh::Clone() const
 	
 	// Clone bone poses
 	pResult->BonePoses = BonePoses;
-	pResult->BoneMapIndices = BoneMapIndices;
+	pResult->BoneMap = BoneMap;
 
 	// Clone SkeletonIDs
 	pResult->SkeletonIDs = SkeletonIDs;
@@ -156,7 +156,7 @@ MeshPtr Mesh::Clone(EMeshCopyFlags Flags) const
 	// Clone BoneMap
 	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithBoneMap))
 	{
-		pResult->BoneMapIndices = BoneMapIndices;
+		pResult->BoneMap = BoneMap;
 	}
 
 	// Clone SkeletonIDs
@@ -248,7 +248,7 @@ void Mesh::CopyFrom(const Mesh& From, EMeshCopyFlags Flags)
 	// Copy BoneMap
 	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithBoneMap))
 	{
-		BoneMapIndices = From.BoneMapIndices;
+		BoneMap = From.BoneMap;
 	}
 
 	// Copy SkeletonIDs
@@ -420,7 +420,7 @@ void Mesh::GetSurface( int32 surfaceIndex,
             if (firstIndex) *firstIndex = 0;
             if (indexCount) *indexCount = GetIndexCount();
 			if (BoneIndex) *BoneIndex = 0;
-			if (BoneCount) *BoneCount = BoneMapIndices.Num();
+			if (BoneCount) *BoneCount = BoneMap.Num();
         }
     }
     else
@@ -591,21 +591,9 @@ void Mesh::SetTag( int tagIndex, const char* strName )
 
 
 //---------------------------------------------------------------------------------------------
-const char* Mesh::GetBonePoseName(int32 BoneIndex) const
+int32 Mesh::FindBonePose(const uint16 BoneId) const
 {
-	check(BoneIndex >= 0 && BoneIndex < GetBonePoseCount());
-	if (BoneIndex >= 0 && BoneIndex < GetBonePoseCount())
-	{
-		return BonePoses[BoneIndex].BoneName.c_str();
-	}
-	return "";
-}
-
-
-//---------------------------------------------------------------------------------------------
-int32 Mesh::FindBonePose(const char* StrName) const
-{
-	return BonePoses.IndexOfByPredicate([StrName](const FBonePose& Pose) { return Pose.BoneName == StrName; });
+	return BonePoses.IndexOfByPredicate([BoneId](const FBonePose& Pose) { return Pose.BoneId == BoneId; });
 }
 
 
@@ -625,16 +613,26 @@ int32 mu::Mesh::GetBonePoseCount() const
 
 
 //---------------------------------------------------------------------------------------------
-void mu::Mesh::SetBonePose(int32 BoneIndex, const char* StrName, FTransform3f Transform, EBoneUsageFlags BoneUsageFlags)
+void mu::Mesh::SetBonePose(int32 Index, uint16 BoneId, FTransform3f Transform, EBoneUsageFlags BoneUsageFlags)
 {
-	if (BoneIndex >= 0 && BoneIndex < BonePoses.Num())
+	check(BonePoses.IsValidIndex(Index));
+	if (BonePoses.IsValidIndex(Index))
 	{
-		BonePoses[BoneIndex] = FBonePose{ StrName, BoneUsageFlags, Transform };
+		BonePoses[Index] = FBonePose{ BoneId, BoneUsageFlags, Transform };
 	}
-	else 
+}
+
+
+//---------------------------------------------------------------------------------------------
+int32 Mesh::GetBonePoseBoneId(int32 Index) const
+{
+	check(BonePoses.IsValidIndex(Index));
+	if (BonePoses.IsValidIndex(Index))
 	{
-		check(false);
+		return BonePoses[Index].BoneId;
 	}
+
+	return INDEX_NONE;
 }
 
 
@@ -657,14 +655,14 @@ EBoneUsageFlags Mesh::GetBoneUsageFlags(int32 BoneIndex) const
 //---------------------------------------------------------------------------------------------
 void Mesh::SetBoneMap(const TArray<uint16>& InBoneMap)
 {
-	BoneMapIndices = InBoneMap;
+	BoneMap = InBoneMap;
 }
 
 
 //---------------------------------------------------------------------------------------------
 const TArray<uint16>& Mesh::GetBoneMap() const
 {
-	return BoneMapIndices;
+	return BoneMap;
 }
 
 
@@ -1104,7 +1102,7 @@ void Mesh::EnsureSurfaceData()
 		MESH_SURFACE s;
 		s.m_vertexCount = m_VertexBuffers.GetElementCount();
 		s.m_indexCount = m_IndexBuffers.GetElementCount();
-		s.BoneMapCount = BoneMapIndices.Num();
+		s.BoneMapCount = BoneMap.Num();
 		m_surfaces.Add(s);
 	}
 }
@@ -1226,10 +1224,10 @@ void Mesh::FACE_GROUP::Unserialise(InputArchive& arch)
 //-------------------------------------------------------------------------------------------------
 void Mesh::FBonePose::Serialise(OutputArchive& arch) const
 {
-	const int32 ver = 1;
+	const int32 ver = 2;
 	arch << ver;
 
-	arch << BoneName;
+	arch << BoneId;
 	arch << BoneUsageFlags;
 	arch << BoneTransform;
 }
@@ -1240,9 +1238,19 @@ void Mesh::FBonePose::Unserialise(InputArchive& arch)
 {
 	int32 ver = 0;
 	arch >> ver;
-	check(ver <= 1);
+	check(ver <= 2);
 
-	arch >> BoneName;
+	if (ver <= 1)
+	{
+		string BoneName;
+		arch >> BoneName;
+
+		BoneId = 0;
+	}
+	else
+	{
+		arch >> BoneId;
+	}
 
 	if (ver == 0)
 	{
@@ -1283,7 +1291,7 @@ void Mesh::Serialise(OutputArchive& arch) const
 	arch << m_tags;
 
 	arch << BonePoses;
-	arch << BoneMapIndices;
+	arch << BoneMap;
 
 	arch << AdditionalPhysicsBodies;
 }
@@ -1344,7 +1352,7 @@ void Mesh::Unserialise(InputArchive& arch)
 
 		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 		{
-			BonePoses[BoneIndex].BoneName = m_pSkeleton->GetBoneName(BoneIndex);
+			BonePoses[BoneIndex].BoneId = BoneIndex;
 			BonePoses[BoneIndex].BoneUsageFlags = EBoneUsageFlags::Skinning;
 			BonePoses[BoneIndex].BoneTransform = m_pSkeleton->m_boneTransforms_DEPRECATED[BoneIndex];
 		}
@@ -1352,15 +1360,15 @@ void Mesh::Unserialise(InputArchive& arch)
 
 	if (ver >= 16)
 	{
-		arch >> BoneMapIndices;
+		arch >> BoneMap;
 	}
 	else
 	{
 		const int32 NumBonePoses = BonePoses.Num();
-		BoneMapIndices.SetNum(NumBonePoses);
+		BoneMap.SetNum(NumBonePoses);
 		for (int32 BoneIndex = 0; BoneIndex < NumBonePoses; ++BoneIndex)
 		{
-			BoneMapIndices[BoneIndex] = BoneIndex;
+			BoneMap[BoneIndex] = BoneIndex;
 		}
 
 		for (MESH_SURFACE& Surface : m_surfaces)

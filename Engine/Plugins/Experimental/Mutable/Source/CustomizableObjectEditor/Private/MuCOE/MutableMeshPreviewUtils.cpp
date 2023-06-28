@@ -370,11 +370,11 @@ namespace MutableMeshPreviewUtils
 			OutSkeletalMesh->SetHasVertexColors(false);
 
 			// Find how many bones the bonemap could have
-			int32 NumBoneMapIndices = !InMutableMesh->GetBoneMap().IsEmpty() ? InMutableMesh->GetBoneMap().Num() : InMutableMesh->GetBonePoseCount();
+			const int32 NumBonesInBoneMap = !InMutableMesh->GetBoneMap().IsEmpty() ? InMutableMesh->GetBoneMap().Num() : InMutableMesh->GetBonePoseCount();
 			
 			// Fill the bonemap with zeros
 			TArray<uint16> BoneMap;
-			BoneMap.SetNumZeroed(FMath::Max(NumBoneMapIndices, 1));
+			BoneMap.SetNumZeroed(FMath::Max(NumBonesInBoneMap, 1));
 
 			// Load buffer data found on the mutable model onto the out skeletal mesh
 			// It includes vertex and index buffers

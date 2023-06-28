@@ -31,8 +31,11 @@ namespace mu
 	{
 		SkeletonPtr pResult = new Skeleton();
 
-		pResult->m_bones = m_bones;
-		pResult->m_boneParents = m_boneParents;
+		pResult->BoneIds = BoneIds;
+		pResult->BoneParents = BoneParents;
+
+		// For debug
+		pResult->BoneNames = BoneNames;
 
 		return pResult;
 	}
@@ -41,74 +44,100 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int32 Skeleton::GetBoneCount() const
 	{
-		return m_bones.Num();
+		return BoneIds.Num();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void Skeleton::SetBoneCount(int32 b)
+	void Skeleton::SetBoneCount(int32 NumBones)
 	{
-		m_bones.SetNum(b);
-		m_boneParents.Init(INDEX_NONE, b);
+		BoneNames.SetNum(NumBones);
+		BoneIds.SetNum(NumBones);
+		BoneParents.Init(INDEX_NONE, NumBones);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	const char* Skeleton::GetBoneName(int32 boneIndex) const
+	const FName Skeleton::GetBoneFName(int32 Index) const
 	{
-		check(boneIndex >= 0 && boneIndex < GetBoneCount());
-		if (boneIndex >= 0 && boneIndex < GetBoneCount())
+		if (BoneNames.IsValidIndex(Index))
 		{
-			return m_bones[boneIndex].c_str();
-		}
-		return "";
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void Skeleton::SetBoneName(int32 boneIndex, const char* strName)
-	{
-		check(boneIndex >= 0 && boneIndex < GetBoneCount());
-		if (boneIndex >= 0 && boneIndex < GetBoneCount())
-		{
-			m_bones[boneIndex] = strName;
-		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	int Skeleton::GetBoneParent(int32 boneIndex) const
-	{
-		if (boneIndex >= 0 && boneIndex < m_boneParents.Num())
-		{
-			return m_boneParents[boneIndex];
+			return BoneNames[Index];
 		}
 
-		return -1;
+		return FName("Unknown Bone");
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void Skeleton::SetBoneFName(const int32 Index, const FName BoneName)
+	{
+		if (BoneNames.IsValidIndex(Index))
+		{
+			BoneNames[Index] = BoneName;
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	int32 Skeleton::GetBoneParent(int32 Index) const
+	{
+		if (BoneParents.IsValidIndex(Index))
+		{
+			return BoneParents[Index];
+		}
+
+		return INDEX_NONE;
 	}
 
 
 	//-------------------------------------------------------------------------------------------------
-	void Skeleton::SetBoneParent(int32 boneIndex, int32 parentBoneIndex)
+	void Skeleton::SetBoneParent(int32 Index, int32 ParentIndex)
 	{
-		check(boneIndex >= 0 && boneIndex < GetBoneCount());
-		check(parentBoneIndex >= -1 && parentBoneIndex < GetBoneCount() &&
-			parentBoneIndex < 0xffff);
-		if (boneIndex >= 0 && boneIndex < m_boneParents.Num())
+		check(ParentIndex >= -1 && ParentIndex < GetBoneCount() && ParentIndex < 0xffff);
+		check(BoneParents.IsValidIndex(Index));
+		
+		if (BoneParents.IsValidIndex(Index))
 		{
-			m_boneParents[boneIndex] = (int16_t)parentBoneIndex;
+			BoneParents[Index] = (int16)ParentIndex;
 		}
+	}
+
+
+	//-------------------------------------------------------------------------------------------------
+	uint16 Skeleton::GetBoneId(const int32 Index) const
+	{
+		check(BoneIds.IsValidIndex(Index));
+		return BoneIds[Index];
+	}
+
+	
+	//-------------------------------------------------------------------------------------------------
+	void Skeleton::SetBoneId(const int32 Index, const uint16 BoneId)
+	{
+		check(BoneIds.IsValidIndex(Index));
+		if (BoneIds.IsValidIndex(Index))
+		{
+			BoneIds[Index] = BoneId;
+		}
+	}
+
+
+	//-------------------------------------------------------------------------------------------------
+	int32 Skeleton::FindBone(const uint16 BoneId) const
+	{
+		return BoneIds.Find(BoneId);
 	}
 
 
 	//-------------------------------------------------------------------------------------------------
 	void Skeleton::Serialise(OutputArchive& arch) const
 	{
-		uint32 ver = 5;
+		uint32 ver = 6;
 		arch << ver;
 
-		arch << m_bones;
-		arch << m_boneParents;
+		arch << BoneIds;
+		arch << BoneParents;
 	}
 
 
@@ -119,19 +148,35 @@ namespace mu
 		arch >> ver;
 		check(ver >= 3);
 
-		arch >> m_bones;
+		if(ver >= 6)
+		{
+			arch >> BoneIds;
+		}
+		else
+		{
+			TArray<string> OldBoneNames;
+			arch >> OldBoneNames;
+
+			const int32 NumBones = OldBoneNames.Num();
+
+			BoneIds.SetNum(NumBones);
+			for (int32 Index = 0; Index < NumBones; ++Index)
+			{
+				BoneIds[Index] = Index;
+			}
+		}
 
 		if (ver == 3)
 		{
 			arch >> m_boneTransforms_DEPRECATED;
 		}
 
-		arch >> m_boneParents;
+		arch >> BoneParents;
 
 		if (ver <= 4)
 		{
-			TArray<int32> boneIds;
-			arch >> boneIds;
+			TArray<int32> BoneIds_DEPRECATED;
+			arch >> BoneIds_DEPRECATED;
 		}
 
 		if (ver == 3)

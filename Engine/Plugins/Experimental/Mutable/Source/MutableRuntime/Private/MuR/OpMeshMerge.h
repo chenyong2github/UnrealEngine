@@ -436,7 +436,6 @@ namespace mu
 			bMergeSkeletons = !(*pFirst->GetSkeleton() == *pSecond->GetSkeleton());
 		}
 
-		TArray<uint16> SecondToResultBoneIndices;
 
 		if (bMergeSkeletons)
 		{
@@ -452,40 +451,39 @@ namespace mu
 			pResultSkeleton = pFirstSkeleton ? pFirstSkeleton->Clone() : new Skeleton;
 			Result->SetSkeleton(pResultSkeleton);
 
+			TArray<uint16> SecondToResultBoneIndices;
 			SecondToResultBoneIndices.SetNumUninitialized(NumBonesSecond);
 
 			// Merge pSecond and build the remap array 
 			for (int32 SecondBoneIndex = 0; SecondBoneIndex < NumBonesSecond; ++SecondBoneIndex)
 			{
-				int16 BoneIndex = INDEX_NONE;
-				for (int32 FirstBoneIndex = 0; FirstBoneIndex < NumBonesFirst; ++FirstBoneIndex)
+				const uint16 BoneNameId = pSecondSkeleton->BoneIds[SecondBoneIndex];
+				int32 Index = pResultSkeleton->FindBone(BoneNameId);
+
+				// Add a new bone
+				if (Index == INDEX_NONE)
 				{
-					if (pResultSkeleton->m_bones[FirstBoneIndex] == pSecondSkeleton->GetBoneName(SecondBoneIndex))
+					Index = pResultSkeleton->BoneIds.Add(BoneNameId);
+
+					// Add an incorrect index, to be fixed below in case the parent index is later in the bone array.
+					pResultSkeleton->BoneParents.Add(pSecondSkeleton->BoneParents[SecondBoneIndex]);
+
+					if (pSecondSkeleton->BoneNames.IsValidIndex(SecondBoneIndex))
 					{
-						BoneIndex = FirstBoneIndex;
-						break;
+						pResultSkeleton->BoneNames.Add(pSecondSkeleton->BoneNames[SecondBoneIndex]);
 					}
 				}
 
-				// Add a new bone
-				if (BoneIndex == INDEX_NONE)
-				{
-					BoneIndex = pResultSkeleton->m_bones.Add(pSecondSkeleton->m_bones[SecondBoneIndex]);
-
-					// Add an incorrect index, to be fixed below in case the parent index is later in the bone array.
-					pResultSkeleton->m_boneParents.Add(pSecondSkeleton->m_boneParents[SecondBoneIndex]);
-				}
-
-				SecondToResultBoneIndices[SecondBoneIndex] = (uint16)BoneIndex;
+				SecondToResultBoneIndices[SecondBoneIndex] = (uint16)Index;
 			}
 
 			// Fix second mesh bone parents
-			for (int32 ob = NumBonesFirst; ob < pResultSkeleton->m_boneParents.Num(); ++ob)
+			for (int32 ob = NumBonesFirst; ob < pResultSkeleton->BoneParents.Num(); ++ob)
 			{
-				int16_t secondMeshIndex = pResultSkeleton->m_boneParents[ob];
+				int16 secondMeshIndex = pResultSkeleton->BoneParents[ob];
 				if (secondMeshIndex != INDEX_NONE)
 				{
-					pResultSkeleton->m_boneParents[ob] = SecondToResultBoneIndices[secondMeshIndex];
+					pResultSkeleton->BoneParents[ob] = SecondToResultBoneIndices[secondMeshIndex];
 				}
 			}
 		}
@@ -503,25 +501,23 @@ namespace mu
 		TArray<uint16> RemappedBoneMapIndices;
 
 		// Used to know the format of the bone index buffer
-		uint32 MaxBoneMapIndices = 0;
-		const int32 NumSecondBoneMapIndices = pSecond->BoneMapIndices.Num();
+		uint32 MaxNumBonesInBoneMaps = 0;
+		const int32 NumSecondBonesInBoneMap = pSecond->BoneMap.Num();
 
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Surfaces);
 			
-			const int32 NumFirstBoneMapIndices = pFirst->BoneMapIndices.Num();
-			Result->BoneMapIndices = pFirst->BoneMapIndices;
+			const int32 NumFirstBonesInBoneMap = pFirst->BoneMap.Num();
+			Result->BoneMap = pFirst->BoneMap;
 
 			if (bMergeSurfaces)
 			{
 				// Merge BoneMaps
-				RemappedBoneMapIndices.SetNumUninitialized(NumSecondBoneMapIndices);
+				RemappedBoneMapIndices.SetNumUninitialized(NumSecondBonesInBoneMap);
 
-				for (uint16 SecondBoneMapIndex = 0; SecondBoneMapIndex < NumSecondBoneMapIndices; ++SecondBoneMapIndex)
+				for (uint16 SecondBoneMapIndex = 0; SecondBoneMapIndex < NumSecondBonesInBoneMap; ++SecondBoneMapIndex)
 				{
-					const int32 SecondBoneIndex = pSecond->BoneMapIndices[SecondBoneMapIndex];
-					const int32 BoneIndex = bMergeSkeletons ? SecondToResultBoneIndices[SecondBoneIndex] : SecondBoneIndex;
-					const int32 BoneMapIndex = Result->BoneMapIndices.AddUnique(BoneIndex);
+					const int32 BoneMapIndex = Result->BoneMap.AddUnique(pSecond->BoneMap[SecondBoneMapIndex]);
 					RemappedBoneMapIndices[SecondBoneMapIndex] = BoneMapIndex;
 
 					bRemapBoneIndices = bRemapBoneIndices || BoneMapIndex != SecondBoneMapIndex;
@@ -530,18 +526,12 @@ namespace mu
 				MESH_SURFACE& NewSurface = Result->m_surfaces.AddDefaulted_GetRef();
 				NewSurface.m_vertexCount = pFirst->GetVertexCount() + pSecond->GetVertexCount();
 				NewSurface.m_indexCount = pFirst->GetIndexCount() + pSecond->GetIndexCount();
-				NewSurface.BoneMapCount = Result->BoneMapIndices.Num();
+				NewSurface.BoneMapCount = Result->BoneMap.Num();
 			}
 			else
 			{
-				// Add the bonemaps of the second mesh with the fixed BoneIndices
-				const int32 NumBoneMapIndices = NumFirstBoneMapIndices + NumSecondBoneMapIndices;
-				Result->BoneMapIndices.Reserve(NumBoneMapIndices);
-
-				for (const uint16& BoneIndex : pSecond->BoneMapIndices)
-				{
-					Result->BoneMapIndices.Add(bMergeSkeletons ? SecondToResultBoneIndices[BoneIndex] : BoneIndex);
-				}
+				// Add the BoneMap of the second mesh
+				Result->BoneMap.Append(pSecond->BoneMap);
 
 				// Add pFirst surfaces
 				Result->m_surfaces = pFirst->m_surfaces;
@@ -553,15 +543,15 @@ namespace mu
 				MESH_SURFACE& NewSurface = Result->m_surfaces.Add_GetRef(pSecond->m_surfaces[0]);
 				NewSurface.m_firstVertex += FirstVertexIndex;
 				NewSurface.m_firstIndex += FirstIndexIndex;
-				NewSurface.BoneMapIndex += NumFirstBoneMapIndices;
+				NewSurface.BoneMapIndex += NumFirstBonesInBoneMap;
 			}
 
 			for (const MESH_SURFACE& Surface : Result->m_surfaces)
 			{
-				MaxBoneMapIndices = FMath::Max(MaxBoneMapIndices, Surface.BoneMapCount);
+				MaxNumBonesInBoneMaps = FMath::Max(MaxNumBonesInBoneMaps, Surface.BoneMapCount);
 			}
 
-			Result->BoneMapIndices.Shrink();
+			Result->BoneMap.Shrink();
 		}
 
 
@@ -578,7 +568,7 @@ namespace mu
 			// Add or override bone poses
 			for (const Mesh::FBonePose& SecondBonePose : pSecond->BonePoses)
 			{
-				const int32 ResultBoneIndex = Result->FindBonePose(SecondBonePose.BoneName.c_str());
+				const int32 ResultBoneIndex = Result->FindBonePose(SecondBonePose.BoneId);
 
 				if (ResultBoneIndex != INDEX_NONE)
 				{
@@ -618,11 +608,11 @@ namespace mu
 			// Appends InPhysicsBody to OutPhysicsBody removing Bodies that are equal, have same bone and customId and its properies are identical.	
 			auto AppendPhysicsBodiesUnique = [](PhysicsBody& OutPhysicsBody, const PhysicsBody& InPhysicsBody) -> bool
 			{
-				TArray<string>& OutBones = OutPhysicsBody.Bones;
+				TArray<uint16>& OutBones = OutPhysicsBody.BoneIds;
 				TArray<int32>& OutCustomIds = OutPhysicsBody.BodiesCustomIds;
 				TArray<FPhysicsBodyAggregate>& OutBodies = OutPhysicsBody.Bodies;
 
-				const TArray<string>& InBones = InPhysicsBody.Bones;
+				const TArray<uint16>& InBones = InPhysicsBody.BoneIds;
 				const TArray<int32>& InCustomIds = InPhysicsBody.BodiesCustomIds;
 				const TArray<FPhysicsBodyAggregate>& InBodies = InPhysicsBody.Bodies;
 
@@ -764,7 +754,7 @@ namespace mu
 
 			// Check if the format of the BoneIndex buffer has to change
 			bool bChangeBoneIndicesFormat = false;
-			MESH_BUFFER_FORMAT BoneIndexFormat = MaxBoneMapIndices > MAX_uint8 ? MBF_UINT16 : MBF_UINT8;
+			MESH_BUFFER_FORMAT BoneIndexFormat = MaxNumBonesInBoneMaps > MAX_uint8 ? MBF_UINT16 : MBF_UINT8;
 
 			// Iterate all vertex buffers to check if we need to format bone indices
 			{
@@ -1061,7 +1051,7 @@ namespace mu
 									uint8 BoneMapIndex = pD[ComponentIndex];
 
 									// be defensive
-									if (BoneMapIndex < NumSecondBoneMapIndices)
+									if (BoneMapIndex < NumSecondBonesInBoneMap)
 									{
 										pD[ComponentIndex] = (uint8)RemappedBoneMapIndices[BoneMapIndex];
 									}
@@ -1086,7 +1076,7 @@ namespace mu
 									uint16 BoneMapIndex = pD[ComponentIndex];
 
 									// be defensive
-									if (BoneMapIndex < NumSecondBoneMapIndices)
+									if (BoneMapIndex < NumSecondBonesInBoneMap)
 									{
 										pD[ComponentIndex] = (uint16)RemappedBoneMapIndices[BoneMapIndex];
 									}
@@ -1137,15 +1127,20 @@ namespace mu
         int initialBones = pBase->GetBoneCount();
         for ( int b=0; pOther && b<pOther->GetBoneCount(); ++b)
         {
-            int resultBoneIndex = pBase->FindBone( pOther->GetBoneName(b) );
+            int32 resultBoneIndex = pBase->FindBone( pOther->GetBoneId(b) );
             if ( resultBoneIndex<0 )
             {
-                int32 newIndex = pBase->m_bones.Num();
+                int32 newIndex = pBase->BoneIds.Num();
                 otherToResult.Add(b,newIndex);
-                pBase->m_bones.Add( pOther->m_bones[b] );
+                pBase->BoneIds.Add( pOther->BoneIds[b] );
 
                 // Will be remapped below
-                pBase->m_boneParents.Add(pOther->m_boneParents[b] );
+                pBase->BoneParents.Add(pOther->BoneParents[b] );
+
+				if (pOther->BoneNames.IsValidIndex(b))
+				{
+					pBase->BoneNames.Add(pOther->BoneNames[b]);
+				}
             }
             else
             {
@@ -1156,10 +1151,10 @@ namespace mu
         // Fix bone parent indices of the bones added from pOther
         for ( int b=initialBones;b<pBase->GetBoneCount(); ++b)
         {
-            int16_t sourceIndex = pBase->m_boneParents[b];
+            int16_t sourceIndex = pBase->BoneParents[b];
             if (sourceIndex>=0)
             {
-                pBase->m_boneParents[b] = (int16_t)otherToResult[ sourceIndex ];
+                pBase->BoneParents[b] = (int16_t)otherToResult[ sourceIndex ];
             }
         }
     }
@@ -1178,36 +1173,34 @@ namespace mu
             return;
         }
 
-        mu::SkeletonPtrConst SourceSkeleton = SourceMesh->GetSkeleton();
-		const TArray<uint16>& SourceBoneMaps = SourceMesh->GetBoneMap();
+  //      mu::SkeletonPtrConst SourceSkeleton = SourceMesh->GetSkeleton();
+		//const TArray<uint16>& SourceBoneMaps = SourceMesh->GetBoneMap();
 
-        // Remap the indices of the bonemap to those of the new skeleton
-		TArray<uint16> RemappedBoneMap;
+  //      // Remap the indices of the bonemap to those of the new skeleton
+		//TArray<uint16> RemappedBoneMap;
 
-		const int32 NumBonesBoneMap = SourceBoneMaps.Num();
-		RemappedBoneMap.Reserve(NumBonesBoneMap);
+		//const int32 NumBonesBoneMap = SourceBoneMaps.Num();
+		//RemappedBoneMap.Reserve(NumBonesBoneMap);
 
-		bool bBonesRemapped = false;
+		//bool bBonesRemapped = false;
 
-		for (const uint16& SourceBoneIndex : SourceBoneMaps)
-		{
-			const char* BoneName = SourceSkeleton->GetBoneName(SourceBoneIndex);
-			const uint16 BoneIndex = Skeleton->FindBone(BoneName);
+		//for (const uint16& SourceBoneIndex : SourceBoneMaps)
+		//{
+		//	const uint16 BoneIndex = Skeleton->FindBone(SourceSkeleton->GetBoneId(SourceBoneIndex));
 
-			bBonesRemapped = bBonesRemapped || BoneIndex != SourceBoneIndex;
-			RemappedBoneMap.Add(BoneIndex);
-		}
+		//	bBonesRemapped = bBonesRemapped || BoneIndex != SourceBoneIndex;
+		//	RemappedBoneMap.Add(BoneIndex);
+		//}
 
-        if (!bBonesRemapped)
-        {
-			bOutSuccess = false;
-            return;
-        }
+  //      if (!bBonesRemapped)
+  //      {
+		//	bOutSuccess = false;
+  //          return;
+  //      }
 
 		Result->CopyFrom(*SourceMesh);
-
 		Result->SetSkeleton(Skeleton);
-		Result->SetBoneMap(RemappedBoneMap);
+		//Result->SetBoneMap(RemappedBoneMap);
     }
 	
 }

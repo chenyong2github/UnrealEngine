@@ -1679,8 +1679,8 @@ namespace impl
 
 			// Fill the data used to generate the RefSkeletalMesh
 			TArray<uint16>& SkeletonIds = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].SkeletonIds;
-			TArray<FName>& BoneNames = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneNames;
-			TMap<FName, FMatrix44f>& BoneMatricesWithScale = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneMatricesWithScale;
+			TArray<uint16>& BoneIds = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneIds;
+			TArray<FMatrix44f>& BoneMatricesWithScale = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneMatricesWithScale;
 
 			// Use first valid LOD bone count as a potential total number of bones, used for pre-allocating data arrays
 			if (MinLODComponent.Mesh && MinLODComponent.Mesh->GetSkeleton())
@@ -1688,7 +1688,7 @@ namespace impl
 				const int32 TotalPossibleBones = MinLODComponent.Mesh->GetSkeleton()->GetBoneCount();
 
 				// Out Data
-				BoneNames.Reserve(TotalPossibleBones);
+				BoneIds.Reserve(TotalPossibleBones);
 				BoneMatricesWithScale.Reserve(TotalPossibleBones);
 			}
 
@@ -1700,7 +1700,7 @@ namespace impl
 				FInstanceUpdateData::FComponent& CurrentLODComponent = OperationData->InstanceUpdateData.Components[CurrentLOD.FirstComponent + ComponentIndex];
 				mu::MeshPtrConst Mesh = CurrentLODComponent.Mesh;
 
-				if (!Mesh || !Mesh->GetSkeleton())
+				if (!Mesh)
 				{
 					continue;
 				}
@@ -1712,39 +1712,28 @@ namespace impl
 					SkeletonIds.AddUnique(Mesh->GetSkeletonID(SkeletonIndex));
 				}
 
-				// Add bonemaps from this mesh
+				// Append BoneMap to the array of BoneMaps
 				const TArray<uint16>& BoneMap = Mesh->GetBoneMap();
 				CurrentLODComponent.FirstBoneMap = OperationData->InstanceUpdateData.BoneMaps.Num();
 				CurrentLODComponent.BoneMapCount = BoneMap.Num();
+				OperationData->InstanceUpdateData.BoneMaps.Append(BoneMap);
 
-				OperationData->InstanceUpdateData.BoneMaps.Reserve(CurrentLODComponent.FirstBoneMap + CurrentLODComponent.BoneMapCount);
-
-				const mu::SkeletonPtrConst Skeleton = Mesh->GetSkeleton();
-				for (const uint16& BoneIndex : BoneMap)
-				{
-					const FName BoneName = Skeleton->GetBoneName(BoneIndex);
-					check(BoneName != NAME_None);
-
-					const int32 FinalBoneIndex = BoneNames.AddUnique(BoneName);
-					OperationData->InstanceUpdateData.BoneMaps.Add(FinalBoneIndex);
-				}
-				
 				// Add active bone indices and poses
 				const int32 MaxBoneIndex = Mesh->GetBonePoseCount();
 				CurrentLODComponent.ActiveBones.Reserve(MaxBoneIndex);
 				for (int32 BonePoseIndex = 0; BonePoseIndex < MaxBoneIndex; ++BonePoseIndex)
 				{
-					const FName BoneName = Mesh->GetBonePoseName(BonePoseIndex);
-					check(BoneName != NAME_None);
+					const uint16 BoneId = Mesh->GetBonePoseBoneId(BonePoseIndex);
 
-					const int32 BoneIndex = BoneNames.AddUnique(BoneName); 
-					CurrentLODComponent.ActiveBones.Add(BoneIndex);
+					CurrentLODComponent.ActiveBones.Add(BoneId);
 
-					if (!BoneMatricesWithScale.Contains(BoneName))
+					if(BoneIds.Find(BoneId) == INDEX_NONE)
 					{
+						BoneIds.Add(BoneId);
+
 						FTransform3f Transform;
 						Mesh->GetBoneTransform(BonePoseIndex, Transform);
-						BoneMatricesWithScale.Emplace(BoneName, Transform.Inverse().ToMatrixWithScale());
+						BoneMatricesWithScale.Emplace(Transform.Inverse().ToMatrixWithScale());
 					}
 				}
 			}

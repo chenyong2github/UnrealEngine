@@ -1123,15 +1123,10 @@ bool AreSkeletonsCompatible(const TArray<TObjectPtr<USkeleton>>& InSkeletons)
 #endif
 
 
-USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectInstance* Public, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, int32 ComponentIndex)
+USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObject& CustomizableObject, const FMutableRefSkeletalMeshData& RefSkeletalMeshData, int32 ComponentIndex)
 {
 	MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_MergeSkeletons);
 
-	UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
-
-	check(CustomizableObject);
-	check(RefSkeletalMeshData);
-	
 	FCustomizableInstanceComponentData* ComponentData = GetComponentData(ComponentIndex);
 	check(ComponentData);
 
@@ -1169,8 +1164,8 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 	if (!FinalSkeleton)
 	{
 		FString Msg = FString::Printf(TEXT("MergeSkeletons failed for Customizable Object [%s], Instance [%s]. Skeletons involved: "),
-			*CustomizableObject->GetName(),
-			*Public->GetName());
+			*CustomizableObject.GetName(),
+			*GetOuter()->GetName());
 		
 		const int32 SkeletonCount = Params.SkeletonsToMerge.Num();
 		for (int32 SkeletonIndex = 0; SkeletonIndex < SkeletonCount; ++SkeletonIndex)
@@ -1198,7 +1193,7 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 		}
 
 		// Add Skeleton to the cache
-		CustomizableObject->CacheMergedSkeleton(ComponentIndex, ReferencedSkeletons.SkeletonIds, FinalSkeleton);
+		CustomizableObject.CacheMergedSkeleton(ComponentIndex, ReferencedSkeletons.SkeletonIds, FinalSkeleton);
 		ReferencedSkeletons.SkeletonIds.Empty();
 	}
 	
@@ -1350,7 +1345,7 @@ namespace
 	};
 
 	TObjectPtr<UPhysicsAsset> MakePhysicsAssetFromTemplateAndMutableBody(
-		TObjectPtr<UPhysicsAsset> TemplateAsset, const mu::PhysicsBody* MutablePhysics) 
+		TObjectPtr<UPhysicsAsset> TemplateAsset, const mu::PhysicsBody* MutablePhysics, const UCustomizableObject& CustomizableObject) 
 	{
 		check(TemplateAsset);
 		TObjectPtr<UPhysicsAsset> Result = NewObject<UPhysicsAsset>();
@@ -1365,13 +1360,19 @@ namespace
 
 		Result->bNotForDedicatedServer = TemplateAsset->bNotForDedicatedServer;
 
+		const TArray<FName>& BoneNames = CustomizableObject.GetBoneNamesArray();
 		TMap<FName, int32> BonesInUse;
 
 		const int32 MutablePhysicsBodyCount = MutablePhysics->GetBodyCount();
 		BonesInUse.Reserve(MutablePhysicsBodyCount);
 		for ( int32 I = 0; I < MutablePhysicsBodyCount; ++I )
 		{
-			BonesInUse.Add(FName(MutablePhysics->GetBodyBoneName(I)), I);
+			const uint16 BoneNameId = MutablePhysics->GetBodyBoneId(I);
+			if (BoneNames.IsValidIndex(BoneNameId))
+			{
+				FName BoneName = BoneNames[BoneNameId];
+				BonesInUse.Add(BoneName, I);
+			}
 		}
 
 		const int32 PhysicsAssetBodySetupNum = TemplateAsset->SkeletalBodySetups.Num();
@@ -1471,7 +1472,9 @@ namespace
 
 UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildMainPhysicsAsset(
 	TObjectPtr<UPhysicsAsset> TemplateAsset,
-	const mu::PhysicsBody* MutablePhysics, int32 ComponentId,
+	const mu::PhysicsBody* MutablePhysics,
+	const UCustomizableObject& CustomizableObject,
+	int32 ComponentId,
 	bool bDisableCollisionsBetweenDifferentAssets)
 {
 
@@ -1525,154 +1528,19 @@ UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildMainPhysicsAsset(
 
 	Result->bNotForDedicatedServer = TemplateAsset->bNotForDedicatedServer;
 
-	//auto MakeAggGeomFromMutablePhysics = [](int32 BodyIndex, const mu::PhysicsBody* MutablePhysicsBody) -> FKAggregateGeom
-	//{
-	//	FKAggregateGeom BodyAggGeom;
-
-	//	auto GetCollisionEnabledFormFlags = [](uint32 Flags) -> ECollisionEnabled::Type
-	//	{
-	//		return ECollisionEnabled::Type( Flags & 0xFF ); 
-	//	};
-
-	//	auto GetContributeToMassFromFlags = [](uint32 Flags) -> bool
-	//	{
-	//		return static_cast<bool>( (Flags >> 8 ) & 1 );
-	//	};
-
-	//	const int32 NumSpheres = MutablePhysicsBody->GetSphereCount( BodyIndex );
-	//	TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
-	//	AggSpheres.Empty(NumSpheres);
-	//	for (int32 I = 0; I < NumSpheres; ++I)
-	//	{
-	//		uint32 Flags = MutablePhysicsBody->GetSphereFlags( BodyIndex, I );
-	//		FString Name = MutablePhysicsBody->GetSphereName( BodyIndex, I );
-
-	//		FVector3f Position;
-	//		float Radius;
-
-	//		MutablePhysicsBody->GetSphere( BodyIndex, I, Position, Radius );
-	//		FKSphereElem& NewElem = AggSpheres.AddDefaulted_GetRef();
-	//		
-	//		NewElem.Center = FVector(Position);
-	//		NewElem.Radius = Radius;
-	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-	//		NewElem.SetName(FName(*Name));
-	//	}
-	//	
-	//	const int32 NumBoxes = MutablePhysicsBody->GetBoxCount( BodyIndex );
-	//	TArray<FKBoxElem>& AggBoxes = BodyAggGeom.BoxElems;
-	//	AggBoxes.Empty(NumBoxes);
-	//	for (int32 I = 0; I < NumBoxes; ++I)
-	//	{
-	//		uint32 Flags = MutablePhysicsBody->GetBoxFlags( BodyIndex, I );
-	//		FString Name = MutablePhysicsBody->GetBoxName( BodyIndex, I );
-
-	//		FVector3f Position;
-	//		FQuat4f Orientation;
-	//		FVector3f Size;
-	//		MutablePhysicsBody->GetBox( BodyIndex, I, Position, Orientation, Size );
-
-	//		FKBoxElem& NewElem = AggBoxes.AddDefaulted_GetRef();
-	//		
-	//		NewElem.Center = FVector( Position );
-	//		NewElem.Rotation = FRotator( Orientation.Rotator() );
-	//		NewElem.X = Size.X;
-	//		NewElem.Y = Size.Y;
-	//		NewElem.Z = Size.Z;
-	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-	//		NewElem.SetName( FName(*Name) );
-	//	}
-
-	//	//const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
-	//	//TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
-	//	//AggConvexes.Empty();
-	//	//for (int32 I = 0; I < NumConvexes; ++I)
-	//	//{
-	//	//	uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
-	//	//	FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
-
-	//	//	const FVector3f* Vertices;
-	//	//	const int32* Indices;
-	//	//	int32 NumVertices;
-	//	//	int32 NumIndices;
-	//	//	FTransform3f Transform;
-
-	//	//	MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
-	//	//	
-	//	//	TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
-	//	//	TArrayView<const int32> IndicesView( Indices, NumIndices );
-	//	//}
-
-	//	TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
-	//	const int32 NumSphyls = MutablePhysicsBody->GetSphylCount( BodyIndex );
-	//	AggSphyls.Empty(NumSphyls);
-
-	//	for (int32 I = 0; I < NumSphyls; ++I)
-	//	{
-	//		uint32 Flags = MutablePhysicsBody->GetSphylFlags( BodyIndex, I );
-	//		FString Name = MutablePhysicsBody->GetSphylName( BodyIndex, I );
-
-	//		FVector3f Position;
-	//		FQuat4f Orientation;
-	//		float Radius;
-	//		float Length;
-
-	//		MutablePhysicsBody->GetSphyl( BodyIndex, I, Position, Orientation, Radius, Length );
-
-	//		FKSphylElem& NewElem = AggSphyls.AddDefaulted_GetRef();
-	//		
-	//		NewElem.Center = FVector( Position );
-	//		NewElem.Rotation = FRotator( Orientation.Rotator() );
-	//		NewElem.Radius = Radius;
-	//		NewElem.Length = Length;
-	//		
-	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-	//		NewElem.SetName( FName(*Name) );
-	//	}	
-
-	//	TArray<FKTaperedCapsuleElem>& AggTaperedCapsules = BodyAggGeom.TaperedCapsuleElems;
-	//	const int32 NumTaperedCapsules = MutablePhysicsBody->GetTaperedCapsuleCount( BodyIndex );
-	//	AggTaperedCapsules.Empty(NumTaperedCapsules);
-
-	//	for (int32 I = 0; I < NumTaperedCapsules; ++I)
-	//	{
-	//		uint32 Flags = MutablePhysicsBody->GetTaperedCapsuleFlags( BodyIndex, I );
-	//		FString Name = MutablePhysicsBody->GetTaperedCapsuleName( BodyIndex, I );
-
-	//		FVector3f Position;
-	//		FQuat4f Orientation;
-	//		float Radius0;
-	//		float Radius1;
-	//		float Length;
-
-	//		MutablePhysicsBody->GetTaperedCapsule( BodyIndex, I, Position, Orientation, Radius0, Radius1, Length );
-
-	//		FKTaperedCapsuleElem& NewElem = AggTaperedCapsules.AddDefaulted_GetRef();
-	//		
-	//		NewElem.Center = FVector( Position );
-	//		NewElem.Rotation = FRotator( Orientation.Rotator() );
-	//		NewElem.Radius0 = Radius0;
-	//		NewElem.Radius1 = Radius1;
-	//		NewElem.Length = Length;
-	//		
-	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-	//		NewElem.SetName( FName(*Name) );	
-	//	}	
-
-	//	return BodyAggGeom;
-	//};
-
+	const TArray<FName>& BoneNames = CustomizableObject.GetBoneNamesArray();
 	TMap<FName, int32> BonesInUse;
 
 	const int32 MutablePhysicsBodyCount = MutablePhysics->GetBodyCount();
 	BonesInUse.Reserve(MutablePhysicsBodyCount);
 	for ( int32 I = 0; I < MutablePhysicsBodyCount; ++I )
 	{
-		BonesInUse.Add(FName(MutablePhysics->GetBodyBoneName(I)), I);
+		const uint16 BoneNameId = MutablePhysics->GetBodyBoneId(I);
+		if (BoneNames.IsValidIndex(BoneNameId))
+		{
+			FName BoneName = BoneNames[BoneNameId];
+			BonesInUse.Add(BoneName, I);
+		}
 	}
 
 	// Each array is a set of elements that can collide  
@@ -2116,7 +1984,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 		if (Component.Mesh)
 		{
 			// Construct a new skeleton, fix up ActiveBones and Bonemap arrays and recompute the RefInvMatrices
-			bSuccess = BuildSkeletonData(OperationData, SkeletalMesh, RefSkeletalMeshData, Public, Component.Id);
+			bSuccess = BuildSkeletonData(OperationData, *SkeletalMesh, *RefSkeletalMeshData, *CustomizableObject, Component.Id);
 
 			if (!bSuccess)
 			{
@@ -2128,7 +1996,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 			{
 				constexpr bool bDisallowCollisionBetweenAssets = true;
 				UPhysicsAsset* PhysicsAssetResult = GetOrBuildMainPhysicsAsset(
-					RefSkeletalMeshData->PhysicsAsset.Get(), MutablePhysics.get(), Component.Id, bDisallowCollisionBetweenAssets);
+					RefSkeletalMeshData->PhysicsAsset.Get(), MutablePhysics.get(), *CustomizableObject, Component.Id, bDisallowCollisionBetweenAssets);
 
 				SkeletalMesh->SetPhysicsAsset(PhysicsAssetResult);
 
@@ -2177,7 +2045,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 					PhysicsAssetsUsedByAnimBp.AnimInstancePropertyIndexAndPhysicsAssets.Emplace_GetRef();
 
 				Entry.PropertyIndex = Info.PropertyIndex;
-				Entry.PhysicsAsset = MakePhysicsAssetFromTemplateAndMutableBody(PhysicsAssetTemplate, AdditionalPhysiscBody.get());
+				Entry.PhysicsAsset = MakePhysicsAssetFromTemplateAndMutableBody(PhysicsAssetTemplate, AdditionalPhysiscBody.get(), *CustomizableObject);
 			}
 
 			// Add sockets from the SkeletalMesh of reference and from the MutableMesh
@@ -2190,7 +2058,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 			check(SrcSkeletalMesh);
 
 			// Set the Skeleton from the previously generated mesh and fix up ActiveBones and Bonemap arrays from new components
-			bSuccess = CopySkeletonData(OperationData, SrcSkeletalMesh, SkeletalMesh, Component.Id);
+			bSuccess = CopySkeletonData(OperationData, SrcSkeletalMesh, SkeletalMesh, *CustomizableObject, Component.Id);
 
 			if (!bSuccess)
 			{
@@ -3561,58 +3429,53 @@ void UCustomizableInstancePrivateData::InitSkeletalMeshData(const TSharedPtr<FMu
 }
 
 
-bool UCustomizableInstancePrivateData::BuildSkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, UCustomizableObjectInstance* Public, int32 ComponentIndex)
+bool UCustomizableInstancePrivateData::BuildSkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh& SkeletalMesh, const FMutableRefSkeletalMeshData& RefSkeletalMeshData, UCustomizableObject& CustomizableObject, int32 ComponentIndex)
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::BuildSkeletonData);
 
-	check(SkeletalMesh);
-	check(RefSkeletalMeshData);
-
-	const TObjectPtr<USkeleton> Skeleton = MergeSkeletons(Public, RefSkeletalMeshData, ComponentIndex);
+	const TObjectPtr<USkeleton> Skeleton = MergeSkeletons(CustomizableObject, RefSkeletalMeshData, ComponentIndex);
 	if (!Skeleton)
 	{
 		return false;
 	}
 
-	SkeletalMesh->SetSkeleton(Skeleton);
+	SkeletalMesh.SetSkeleton(Skeleton);
 
-	SkeletalMesh->SetRefSkeleton(Skeleton->GetReferenceSkeleton());
-	FReferenceSkeleton& ReferenceSkeleton = SkeletalMesh->GetRefSkeleton();
+	SkeletalMesh.SetRefSkeleton(Skeleton->GetReferenceSkeleton());
+	FReferenceSkeleton& ReferenceSkeleton = SkeletalMesh.GetRefSkeleton();
 
 	// Check that the bones we need are present in the current Skeleton
 	FInstanceUpdateData::FSkeletonData& MutSkeletonData = OperationData->InstanceUpdateData.Skeletons[ComponentIndex];
-	const int32 MutBoneCount = MutSkeletonData.BoneNames.Num();
+	const int32 MutBoneCount = MutSkeletonData.BoneIds.Num();
 	
-	TMap<FName, uint16> BoneToFinalBoneIndexMap;
+	TMap<uint16, uint16> BoneToFinalBoneIndexMap;
 	BoneToFinalBoneIndexMap.Reserve(MutBoneCount);
 
 	{
 		MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_EnsureBonesExist);
 
+		const TArray<FName>& BoneNames = CustomizableObject.GetBoneNamesArray();
+
 		// Ensure all the required bones are present in the skeleton
 		for (int32 BoneIndex = 0; BoneIndex < MutBoneCount; ++BoneIndex)
 		{
-			FName BoneName = MutSkeletonData.BoneNames[BoneIndex];
+			const uint16 BoneId = MutSkeletonData.BoneIds[BoneIndex];
+			check(BoneNames.IsValidIndex(BoneId));
+
+			const FName BoneName = BoneNames[BoneId]; 
 			check(BoneName != NAME_None);
 
-			int32 SourceBoneIndex = ReferenceSkeleton.FindRawBoneIndex(BoneName);
-			
+			const int32 SourceBoneIndex = ReferenceSkeleton.FindRawBoneIndex(BoneName);
 			if (SourceBoneIndex == INDEX_NONE)
 			{
-				if (MutSkeletonData.BoneMatricesWithScale.Find(BoneName))
-				{
-					// Merged skeleton is missing some bones! This happens if one of the skeletons involved in the merge is discarded due to being incompatible with the rest
-					// or if the source mesh is not in sync with the skeleton. 
-					UE_LOG(LogMutable, Warning, TEXT("Building instance: generated mesh has a bone [%s] not present in the reference mesh [%s]. Failing to generate mesh. "),
-						*BoneName.ToString(), *SkeletalMesh->GetName());
-					return false;
-				}
-
-				// The bone is missing but it's not required. Fix the SourceBoneIndex and continue.
-				SourceBoneIndex = 0;
+				// Merged skeleton is missing some bones! This happens if one of the skeletons involved in the merge is discarded due to being incompatible with the rest
+				// or if the source mesh is not in sync with the skeleton. 
+				UE_LOG(LogMutable, Warning, TEXT("Building instance: generated mesh has a bone [%s] not present in the reference mesh [%s]. Failing to generate mesh. "),
+					*BoneName.ToString(), *SkeletalMesh.GetName());
+				return false;
 			}
 
-			BoneToFinalBoneIndexMap.Add(BoneName, SourceBoneIndex);
+			BoneToFinalBoneIndexMap.Add(BoneId, SourceBoneIndex);
 		}
 	}
 
@@ -3629,14 +3492,13 @@ bool UCustomizableInstancePrivateData::BuildSkeletonData(const TSharedPtr<FMutab
 
 			for (uint32 BoneMapIndex = Component.FirstBoneMap; BoneMapIndex < Component.FirstBoneMap + Component.BoneMapCount; ++BoneMapIndex)
 			{
-				const int32 BoneIndex = OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex];
-				const FName& BoneName = MutSkeletonData.BoneNames[BoneIndex];
-				OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex] = BoneToFinalBoneIndexMap[BoneName];
+				const int32 BoneId = OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex];
+				OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex] = BoneToFinalBoneIndexMap[BoneId];
 			}
 
-			for (uint16& BoneIndex : Component.ActiveBones)
+			for (uint16& BoneId : Component.ActiveBones)
 			{
-				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
+				BoneId = BoneToFinalBoneIndexMap[BoneId];
 			}
 			Component.ActiveBones.Sort();
 		}
@@ -3646,28 +3508,27 @@ bool UCustomizableInstancePrivateData::BuildSkeletonData(const TSharedPtr<FMutab
 		MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_ApplyPose);
 		
 		const int32 RefRawBoneCount = ReferenceSkeleton.GetRawBoneNum();
-		const int32 MutBonePoseCount = MutSkeletonData.BoneMatricesWithScale.Num();
 
-		TArray<FMatrix44f>& RefBasesInvMatrix = SkeletalMesh->GetRefBasesInvMatrix();
+		TArray<FMatrix44f>& RefBasesInvMatrix = SkeletalMesh.GetRefBasesInvMatrix();
 		RefBasesInvMatrix.Empty(RefRawBoneCount);
 
 		// Initialize the base matrices
-		if (RefRawBoneCount == MutBonePoseCount)
+		if (RefRawBoneCount == MutBoneCount)
 		{
-			RefBasesInvMatrix.AddUninitialized(MutBonePoseCount);
+			RefBasesInvMatrix.AddUninitialized(MutBoneCount);
 		}
 		else
 		{
 			// Bad case, some bone poses are missing, calculate the InvRefMatrices to ensure all transforms are there for the second step 
 			MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_CalcInvRefMatrices0);
-			SkeletalMesh->CalculateInvRefMatrices();
+			SkeletalMesh.CalculateInvRefMatrices();
 		}
 
 		// First step is to update the RefBasesInvMatrix for the bones.
-		for (const TPair<FName, FMatrix44f>& BoneMatrix : MutSkeletonData.BoneMatricesWithScale)
+		for (int32 BoneIndex = 0; BoneIndex < MutBoneCount; ++BoneIndex)
 		{
-			const int32 RefSkelBoneIndex = BoneToFinalBoneIndexMap[BoneMatrix.Key];
-			RefBasesInvMatrix[RefSkelBoneIndex] = BoneMatrix.Value;
+			const int32 RefSkelBoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneIds[BoneIndex]];
+			RefBasesInvMatrix[RefSkelBoneIndex] = MutSkeletonData.BoneMatricesWithScale[BoneIndex];
 		}
 
 		// The second step is to update the pose transforms in the ref skeleton from the BasesInvMatrix
@@ -3690,15 +3551,14 @@ bool UCustomizableInstancePrivateData::BuildSkeletonData(const TSharedPtr<FMutab
 
 	{
 		MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_CalcInvRefMatrices);
-		SkeletalMesh->CalculateInvRefMatrices();
+		SkeletalMesh.CalculateInvRefMatrices();
 	}
-
 
 	return true;
 }
 
 
-bool UCustomizableInstancePrivateData::CopySkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SrcSkeletalMesh, USkeletalMesh* DestSkeletalMesh, int32 ComponentIndex)
+bool UCustomizableInstancePrivateData::CopySkeletonData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SrcSkeletalMesh, USkeletalMesh* DestSkeletalMesh, const UCustomizableObject& CustomizableObject, int32 ComponentIndex)
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::CopySkeletonData);
 
@@ -3719,38 +3579,37 @@ bool UCustomizableInstancePrivateData::CopySkeletonData(const TSharedPtr<FMutabl
 
 	// Check that the bones we need are present in the current Skeleton
 	FInstanceUpdateData::FSkeletonData& MutSkeletonData = OperationData->InstanceUpdateData.Skeletons[ComponentIndex];
-	const int32 MutBoneCount = MutSkeletonData.BoneNames.Num();
+	const int32 MutBoneCount = MutSkeletonData.BoneIds.Num();
 	
-	TMap<FName, uint16> BoneToFinalBoneIndexMap;
+	TMap<uint16, uint16> BoneToFinalBoneIndexMap;
 	BoneToFinalBoneIndexMap.Reserve(MutBoneCount);
 
 	{
 		MUTABLE_CPUPROFILER_SCOPE(CopySkeletonData_CheckForMissingBones);
 
+		const TArray<FName>& BoneNames = CustomizableObject.GetBoneNamesArray();
+
 		// Ensure all the required bones are present in the skeleton
 		for (int32 BoneIndex = 0; BoneIndex < MutBoneCount; ++BoneIndex)
 		{
-			FName BoneName = MutSkeletonData.BoneNames[BoneIndex];
+			const uint16 BoneId = MutSkeletonData.BoneIds[BoneIndex];
+			check(BoneNames.IsValidIndex(BoneId));
+
+			const FName BoneName = BoneNames[BoneId];
 			check(BoneName != NAME_None);
 
-			int32 SourceBoneIndex = RefSkeleton.FindRawBoneIndex(BoneName);
+			const int32 SourceBoneIndex = RefSkeleton.FindRawBoneIndex(BoneName);
 			
 			if (SourceBoneIndex == INDEX_NONE)
 			{
-				if (MutSkeletonData.BoneMatricesWithScale.Find(BoneName))
-				{
-					// Merged skeleton is missing some bones! This happens if one of the skeletons involved in the merge is discarded due to being incompatible with the rest
-					// or if the source mesh is not in sync with the skeleton. 
-					UE_LOG(LogMutable, Warning, TEXT("Building instance: generated mesh has a bone [%s] not present in the reference mesh [%s]. Failing to generate mesh. "),
-						*BoneName.ToString(), *DestSkeletalMesh->GetName());
-					return false;
-				}
-
-				// The bone is missing but it's not required. Fix the SourceBoneIndex and continue.
-				SourceBoneIndex = 0;
+				// Merged skeleton is missing some bones! This happens if one of the skeletons involved in the merge is discarded due to being incompatible with the rest
+				// or if the source mesh is not in sync with the skeleton. 
+				UE_LOG(LogMutable, Warning, TEXT("Building instance: generated mesh has a bone [%s] not present in the reference mesh [%s]. Failing to generate mesh. "),
+					*BoneName.ToString(), *DestSkeletalMesh->GetName());
+				return false;
 			}
 
-			BoneToFinalBoneIndexMap.Add(BoneName, SourceBoneIndex);
+			BoneToFinalBoneIndexMap.Add(BoneId, SourceBoneIndex);
 		}
 	}
 
@@ -3767,15 +3626,14 @@ bool UCustomizableInstancePrivateData::CopySkeletonData(const TSharedPtr<FMutabl
 
 			for (uint32 BoneMapIndex = Component.FirstBoneMap; BoneMapIndex < Component.FirstBoneMap + Component.BoneMapCount; ++BoneMapIndex)
 			{
-				const int32 BoneIndex = OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex];
-				const FName& BoneName = MutSkeletonData.BoneNames[BoneIndex];
-				OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex] = BoneToFinalBoneIndexMap[BoneName];
+				const uint16 BoneId = OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex];
+				OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex] = BoneToFinalBoneIndexMap[BoneId];
 			}
 
 			TArray<uint16> UniqueActiveBones;
-			for (const uint16 BoneIndex : Component.ActiveBones)
+			for (const uint16 BoneId : Component.ActiveBones)
 			{
-				UniqueActiveBones.AddUnique(BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]]);
+				UniqueActiveBones.AddUnique(BoneToFinalBoneIndexMap[BoneId]);
 			}
 
 			Exchange(Component.ActiveBones, UniqueActiveBones);

@@ -24,8 +24,8 @@ struct FProgram;
 		ASTChild Mesh;
 		ASTChild Shape;
 
-		TArray<string> BonesToDeform;
-		TArray<string> PhysicsToDeform;
+		TArray<uint16> BonesToDeform;
+		TArray<uint16> PhysicsToDeform;
 
 		uint32 BindingMethod = 0;
 		

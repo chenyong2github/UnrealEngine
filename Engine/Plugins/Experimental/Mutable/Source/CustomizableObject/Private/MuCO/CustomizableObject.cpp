@@ -334,6 +334,7 @@ void UCustomizableObject::ClearCompiledData()
 	ClothSharedConfigsData.Empty();
 	SkinWeightProfilesInfo.Empty();
 	AnimBpOverridePhysiscAssetsInfo.Empty();
+	BoneNames.Empty();
 
 #if WITH_EDITORONLY_DATA
 	CustomizableObjectPathMap.Empty();
@@ -430,6 +431,8 @@ void UCustomizableObject::SaveCompiledData(FArchive& MemoryWriter, bool bSkipEdi
 	MemoryWriter << SkinWeightProfilesInfo;
 
 	MemoryWriter << AnimBpOverridePhysiscAssetsInfo;
+
+	MemoryWriter << BoneNames;
 
 	MemoryWriter << HashToStreamableBlock;
 
@@ -529,6 +532,15 @@ void UCustomizableObject::LoadCompiledData(FArchive& MemoryReader, bool bSkipEdi
 		MemoryReader << SkinWeightProfilesInfo;
 
 		MemoryReader << AnimBpOverridePhysiscAssetsInfo;
+
+		TArray<FString> StringBoneNames;
+		MemoryReader << StringBoneNames;
+
+		BoneNames.Reserve(StringBoneNames.Num());
+		for (const FString& BoneName : StringBoneNames)
+		{
+			BoneNames.Add(FName(*BoneName));
+		}
 
 		MemoryReader << HashToStreamableBlock;
 
@@ -1204,6 +1216,11 @@ void UCustomizableObject::SetModel(TSharedPtr<mu::Model, ESPMode::ThreadSafe> Mo
 	UpdateCompiledDataFromModel();
 }
 
+void UCustomizableObject::SetBoneNamesArray(const TArray<FName>& InBoneNames)
+{
+	BoneNames = InBoneNames;
+}
+
 #endif // End WITH_EDITOR
 
 
@@ -1745,6 +1762,12 @@ void UCustomizableObject::GetLowPriorityTextureNames(TArray<FString>& OutTexture
 			}
 		}
 	}
+}
+
+
+const TArray<FName>& UCustomizableObject::GetBoneNamesArray() const
+{
+	return BoneNames;
 }
 
 

@@ -136,15 +136,15 @@ namespace mu
 	}	
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshReshape::AddBoneToDeform(const char* BoneName)
+	void NodeMeshReshape::AddBoneToDeform(const uint16 BoneId)
 	{
-		m_pD->m_bonesToDeform.Emplace(BoneName);
+		m_pD->BonesToDeform.Emplace(BoneId);
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshReshape::AddPhysicsBodyToDeform(const char* BoneName)
+	void NodeMeshReshape::AddPhysicsBodyToDeform(const uint16 BoneId)
 	{
-		m_pD->m_physicsToDeform.Emplace(BoneName);
+		m_pD->PhysicsToDeform.Emplace(BoneId);
 	}
 
 	void NodeMeshReshape::SetReshapePhysicsVolumes(bool bEnable)

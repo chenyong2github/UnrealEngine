@@ -28,13 +28,13 @@ namespace mu
 		bool bReshapeSkeleton = false;
 		bool bReshapePhysicsVolumes = false;
 		
-		TArray<string> BonesToDeform;
-		TArray<string> PhysicsToDeform;
+		TArray<uint16> BonesToDeform;
+		TArray<uint16> PhysicsToDeform;
 
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 6;
+            uint32_t ver = 7;
 			arch << ver;
 
 			arch << Factor;
@@ -52,7 +52,7 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver <= 6);
+			check(ver <= 7);
 
 			arch >> Factor;
 			arch >> Base;
@@ -89,7 +89,23 @@ namespace mu
 				{
 					arch >> bReshapePhysicsVolumes;
 				}
-				arch >> BonesToDeform;			
+
+				if (ver >= 7)
+				{
+					arch >> BonesToDeform;
+				}
+				else
+				{
+					TArray<string> BonesToDeform_DEPRECATED;
+					arch >> BonesToDeform_DEPRECATED;
+
+					const int32 NumBonesToDeform = BonesToDeform.Num();
+					BonesToDeform.SetNumUninitialized(NumBonesToDeform);
+					for (int32 Index = 0; Index < NumBonesToDeform; ++Index)
+					{
+						BonesToDeform[Index] = Index;
+					}
+				}
 			}
 			else
 			{
@@ -110,9 +126,21 @@ namespace mu
 				arch >> bDeformAllPhysics_DEPRECATED;
 			}
 
-			if (ver >= 3)
+			if (ver >= 7)
 			{
 				arch >> PhysicsToDeform;
+			}
+			else if (ver >= 3)
+			{
+				TArray<string> PhysicsToDeform_DEPRECATED;
+				arch >> PhysicsToDeform_DEPRECATED;
+
+				const int32 NumPhysicsToDeform = PhysicsToDeform.Num();
+				PhysicsToDeform.SetNumUninitialized(NumPhysicsToDeform);
+				for (int32 Index = 0; Index < NumPhysicsToDeform; ++Index)
+				{
+					PhysicsToDeform[Index] = Index;
+				}
 			}
 			else
 			{

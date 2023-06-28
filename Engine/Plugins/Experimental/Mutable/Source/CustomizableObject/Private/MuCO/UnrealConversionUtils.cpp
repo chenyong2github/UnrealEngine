@@ -245,8 +245,7 @@ namespace UnrealConversionUtils
 
 		if (BoneWeightFormat == mu::MBF_NUINT16)
 		{
-			// TODO: 
-			unimplemented()
+			LODModel.SkinWeightVertexBuffer.SetUse16BitBoneWeight(true);
 		}
 
 		// Init skin weight buffer

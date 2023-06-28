@@ -267,7 +267,7 @@ struct FTextureUnrealToMutableTask
 
 struct FPoseBoneData
 {
-	TArray<FString> ArrayBoneName;
+	TArray<FName> ArrayBoneName;
 	TArray<FTransform> ArrayTransform;
 };
 
@@ -613,6 +613,9 @@ struct FMutableGraphGenerationContext
 
 	TArray<const USkeleton*> ReferencedSkeletons;
 
+	// Array of unique BoneNames. All bones from mu::Skeletons will point to the names of it.
+	TArray<FName> BoneNames;
+
 	// Used to aviod Nodes with duplicated ids
 	TMap<FGuid, TArray<const UCustomizableObjectNode*>> NodeIdsMap;
 	TMultiMap<const UCustomizableObject*, FGroupNodeIdsTempData> DuplicatedGroupNodeIds;
@@ -779,7 +782,7 @@ void CheckNumOutputs(const UEdGraphPin& Pin, const FMutableGraphGenerationContex
 UTexture2D* FindReferenceImage(const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext);
 
 
-mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(mu::NodeMeshPtr InputMeshNode, UCustomizableObject * CustomizableObject, TArray<FString> ArrayBoneName, TArray<FTransform> ArrayTransform);
+mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(FMutableGraphGenerationContext& GenerationContext, mu::NodeMeshPtr InputMeshNode, const TArray<FName>& ArrayBoneName, const TArray<FTransform>& ArrayTransform);
 
 
 /** Adds Tag to MutableMesh uniquely, returns the index were the tag has been inserted or the index where an intance of the tag has been found */

@@ -35,7 +35,7 @@ public:
 			+ SHorizontalBox::Slot()
 			[
 				SNew(STextBlock).
-				Text(RowItem->BoneName)
+				Text(FText::FromName(InRowItem->BoneName))
 			]
 		];
 
@@ -118,49 +118,36 @@ void SMutableSkeletonViewer::FillBoneDefinitionArrays()
 	const int32 BoneCount = Skeleton->GetBoneCount();
 	for (int32 BoneIndex = 0; BoneIndex < BoneCount; BoneIndex++)
 	{
-		const char* BoneName = Skeleton->GetBoneName(BoneIndex);
-
-		// Get the parent node
-		const int32 ParentBoneIndex = Skeleton->GetBoneParent(BoneIndex);
-		const char* ParentBoneName = nullptr;
-		if (ParentBoneIndex != -1)
-		{
-			ParentBoneName = Skeleton->GetBoneName(ParentBoneIndex);
-		}
-
 		// Generate a new definition object
 		TSharedPtr<FBoneDefinition> NewBoneDefinition = MakeShareable(new FBoneDefinition());
-		{
-			// Save the bone data
-			NewBoneDefinition->BoneIndex = BoneIndex;
-			NewBoneDefinition->BoneName = FText::FromString(FString(BoneName));
 
+		// Save the bone data
+		NewBoneDefinition->BoneIndex = BoneIndex;
+		NewBoneDefinition->BoneName = Skeleton->GetBoneFName(BoneIndex);
+
+		// Get the parent node if any
+		const int32 ParentBoneIndex = Skeleton->GetBoneParent(BoneIndex);
+		if (ParentBoneIndex != INDEX_NONE)
+		{
 			NewBoneDefinition->ParentBoneIndex = ParentBoneIndex;
-			if (ParentBoneName)
-			{
-				NewBoneDefinition->ParentBoneName = FText::FromString(FString(ParentBoneName));
-			}
-		}
+			NewBoneDefinition->ParentBoneName = Skeleton->GetBoneFName(ParentBoneIndex);
 
-		// Store the root bones on their own data structure separated from the child bones
-		if (NewBoneDefinition->ParentBoneIndex == -1)
-		{
-			RootBones.Add(NewBoneDefinition);
+			// Store child bones
+			ChildBones.Add(NewBoneDefinition);
 		}
 		else
 		{
-			ChildBones.Add(NewBoneDefinition);
+			// Store the root bones on their own data structure separated from the child bones
+			RootBones.Add(NewBoneDefinition);
 		}
 	}
 
 	// Add default definition to tell the user no bone has been found
 	if (RootBones.Num() == 0)
 	{
+		// Save the bone data
 		const TSharedPtr<FBoneDefinition> NewBoneDefinition = MakeShareable(new FBoneDefinition());
-		{
-			// Save the bone data
-			NewBoneDefinition->BoneName = FText(INVTEXT("No bones found..."));
-		}
+		NewBoneDefinition->BoneName = FName("No bones found...");
 		RootBones.Add(NewBoneDefinition);
 	}
 
@@ -181,7 +168,7 @@ void SMutableSkeletonViewer::OnGetChildrenFromBoneDefinition(TSharedPtr<FBoneDef
 	// Iterate over the bone definitions and save the ones that do have as parent the bone we have selected
 	for (TSharedPtr< FBoneDefinition>& PossibleChildBoneDefinition : ChildBones)
 	{
-		if (PossibleChildBoneDefinition.Get()->ParentBoneIndex == TargetBoneIndex)
+		if (PossibleChildBoneDefinition->ParentBoneIndex == TargetBoneIndex)
 		{
 			OutChildrenBones.Add(PossibleChildBoneDefinition);
 		}

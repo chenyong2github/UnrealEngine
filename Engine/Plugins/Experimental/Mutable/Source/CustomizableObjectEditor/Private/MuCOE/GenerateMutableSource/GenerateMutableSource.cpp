@@ -574,7 +574,7 @@ UTexture2D* FindReferenceImage(const UEdGraphPin* Pin, FMutableGraphGenerationCo
 }
 
 
-mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(mu::NodeMeshPtr InputMeshNode, UCustomizableObject * CustomizableObject, TArray<FString> ArrayBoneName, TArray<FTransform> ArrayTransform)
+mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(FMutableGraphGenerationContext& GenerationContext, mu::NodeMeshPtr InputMeshNode, const TArray<FName>& ArrayBoneName, const TArray<FTransform>& ArrayTransform)
 {
 	check(ArrayBoneName.Num() == ArrayTransform.Num());
 
@@ -589,8 +589,12 @@ mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(mu::NodeMeshPtr InputMeshNode, 
 
 	for (int32 i = 0; i < ArrayBoneName.Num(); ++i)
 	{
-		MutableSkeleton->SetBoneName(i, StringCast<ANSICHAR>(*ArrayBoneName[i]).Get());
-		MutableMesh->SetBonePose(i, StringCast<ANSICHAR>(*ArrayBoneName[i]).Get(), (FTransform3f)ArrayTransform[i], mu::EBoneUsageFlags::Skinning);
+		const FName BoneName = ArrayBoneName[i];
+		const uint16 BoneId = uint16(GenerationContext.BoneNames.AddUnique(BoneName));
+
+		MutableSkeleton->SetBoneFName(i, BoneName);
+		MutableSkeleton->SetBoneId(i, BoneId);
+		MutableMesh->SetBonePose(i, BoneId, (FTransform3f)ArrayTransform[i], mu::EBoneUsageFlags::Skinning);
 	}
 
 	mu::NodeMeshApplyPosePtr NodeMeshApplyPose = new mu::NodeMeshApplyPose;
