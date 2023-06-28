@@ -112,6 +112,11 @@ void UControlRigBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEven
 	}
 }
 
+UClass* UControlRigBlueprint::GetControlRigClass()
+{
+	return GetRigVMHostClass();
+}
+
 USkeletalMesh* UControlRigBlueprint::GetPreviewMesh() const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()

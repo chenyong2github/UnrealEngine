@@ -65,6 +65,9 @@ public:
 
 #endif	// #if WITH_EDITOR
 
+	UFUNCTION(BlueprintCallable, Category = "VM")
+	UClass* GetControlRigClass();
+
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	UControlRig* CreateControlRig() { return Cast<UControlRig>(CreateRigVMHost()); }
 
