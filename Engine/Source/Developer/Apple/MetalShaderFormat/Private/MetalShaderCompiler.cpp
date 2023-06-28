@@ -842,6 +842,21 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	FString StandardVersion;
 	switch(VersionEnum)
 	{
+    case 9:
+        StandardVersion = TEXT("3.1");
+        if (bAppleTV)
+        {
+            MinOSVersion = TEXT("-mtvos-version-min=17.0");
+        }
+        else if (bIsMobile)
+        {
+            MinOSVersion = TEXT("-mios-version-min=17.0");
+        }
+        else
+        {
+            MinOSVersion = TEXT("-mmacosx-version-min=14");
+        }
+            break;
     case 8:
         StandardVersion = TEXT("3.0");
         if (bAppleTV)

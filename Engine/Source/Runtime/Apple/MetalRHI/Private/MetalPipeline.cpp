@@ -483,7 +483,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 }
 - (void)initResourceMask:(EMetalShaderFrequency)Frequency
 {
-	NSArray<MTLArgument*>* Arguments = nil;
+    NSArray<id<MTLBinding>>* Bindings = nil;
 	switch(Frequency)
 	{
 		case EMetalShaderVertex:
@@ -491,7 +491,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			MTLRenderPipelineReflection* Reflection = RenderPipelineReflection;
 			check(Reflection);
 			
-			Arguments = Reflection.vertexArguments;
+            Bindings = Reflection.vertexBindings;
 			break;
 		}
 		case EMetalShaderFragment:
@@ -499,7 +499,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			MTLRenderPipelineReflection* Reflection = RenderPipelineReflection;
 			check(Reflection);
 			
-			Arguments = Reflection.fragmentArguments;
+            Bindings = Reflection.fragmentBindings;
 			break;
 		}
 		case EMetalShaderCompute:
@@ -507,7 +507,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			MTLComputePipelineReflection* Reflection = ComputePipelineReflection;
 			check(Reflection);
 			
-			Arguments = Reflection.arguments;
+            Bindings = Reflection.bindings;
 			break;
 		}
 		case EMetalShaderStream:
@@ -515,7 +515,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			MTLRenderPipelineReflection* Reflection = StreamPipelineReflection;
 			check(Reflection);
 			
-			Arguments = Reflection.vertexArguments;
+            Bindings = Reflection.vertexBindings;
 			break;
 		}
 		default:
@@ -523,47 +523,49 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			break;
 	}
 	
-	for (uint32 i = 0; i < Arguments.count; i++)
+	for (uint32 i = 0; i < Bindings.count; i++)
 	{
-		MTLArgument* Arg = [Arguments objectAtIndex:i];
-		check(Arg);
+        id<MTLBinding> Binding = [Bindings objectAtIndex:i];
+		check(Binding);
+        
+        if (!Binding.isUsed)
+        {
+            continue;
+        }
 
-		if (!Arg.active)
+		switch(Binding.type)
 		{
-			continue;
-		}
-
-		switch(Arg.type)
-		{
-			case MTLArgumentTypeBuffer:
+			case MTLBindingTypeBuffer:
 			{
-				checkf(Arg.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
-				if (FString(Arg.name) != TEXT("BufferSizes") && FString(Arg.name) != TEXT("spvBufferSizeConstants"))
+                id<MTLBufferBinding> BufferBinding = (id<MTLBufferBinding>)[Bindings objectAtIndex:i];
+				checkf(Binding.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
+				if (FString(Binding.name) != TEXT("BufferSizes") && FString(Binding.name) != TEXT("spvBufferSizeConstants"))
 				{
-					ResourceMask[Frequency].BufferMask |= (1 << Arg.index);
+					ResourceMask[Frequency].BufferMask |= (1 << Binding.index);
 				
 					if(BufferDataSizes[Frequency].Num() < 31)
 						BufferDataSizes[Frequency].SetNumZeroed(31);
 				
-					BufferDataSizes[Frequency][Arg.index] = Arg.bufferDataSize;
+					BufferDataSizes[Frequency][Binding.index] = BufferBinding.bufferDataSize;
 				}
 				break;
 			}
-			case MTLArgumentTypeThreadgroupMemory:
+			case MTLBindingTypeThreadgroupMemory:
 			{
 				break;
 			}
-			case MTLArgumentTypeTexture:
+			case MTLBindingTypeTexture:
 			{
-				checkf(Arg.index < ML_MaxTextures, TEXT("Metal texture index exceeded!"));
-				ResourceMask[Frequency].TextureMask |= (FMetalTextureMask(1) << Arg.index);
-				TextureTypes[Frequency].Add(Arg.index, (uint8)Arg.textureType);
+                id<MTLTextureBinding> TextureBinding = (id<MTLTextureBinding>)[Bindings objectAtIndex:i];
+				checkf(Binding.index < ML_MaxTextures, TEXT("Metal texture index exceeded!"));
+				ResourceMask[Frequency].TextureMask |= (FMetalTextureMask(1) << Binding.index);
+				TextureTypes[Frequency].Add(Binding.index, (uint8)TextureBinding.textureType);
 				break;
 			}
-			case MTLArgumentTypeSampler:
+			case MTLBindingTypeSampler:
 			{
-				checkf(Arg.index < ML_MaxSamplers, TEXT("Metal sampler index exceeded!"));
-				ResourceMask[Frequency].SamplerMask |= (1 << Arg.index);
+				checkf(Binding.index < ML_MaxSamplers, TEXT("Metal sampler index exceeded!"));
+				ResourceMask[Frequency].SamplerMask |= (1 << Binding.index);
 				break;
 			}
 			default:

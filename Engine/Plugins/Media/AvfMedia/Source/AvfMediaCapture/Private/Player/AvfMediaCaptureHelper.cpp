@@ -170,11 +170,14 @@
 - (AVCaptureDevice*) CaptureDeviceWithID:(NSString*)deviceID
 {
 	AVCaptureDevice* foundDevice = nil;
-		
-	NSArray* deviceTypes = @[
-								AVCaptureDeviceTypeBuiltInWideAngleCamera,
-								AVCaptureDeviceTypeBuiltInMicrophone
-							];
+    NSArray* deviceTypes = nil;
+    
+#if (defined(__IPHONE_17_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_17_0)
+    deviceTypes = @[AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeMicrophone];
+#else
+    deviceTypes = @[AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeBuiltInMicrophone];
+#endif
+
 
 	AVCaptureDeviceDiscoverySession* localDiscoverySession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceTypes
 																													mediaType:nil
@@ -230,8 +233,12 @@
 		// If we have an input add output capture
 		if(self.captureSession.inputs.count > 0)
 		{
-			// Video or Audio Device - need the correct output
-			if(self.captureDevice.deviceType != AVCaptureDeviceTypeBuiltInMicrophone)
+            // Video or Audio Device - need the correct output
+#if (defined(__IPHONE_17_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_17_0)
+            if(self.captureDevice.deviceType != AVCaptureDeviceTypeMicrophone)
+#else
+            if(self.captureDevice.deviceType != AVCaptureDeviceTypeBuiltInMicrophone)
+#endif
 			{
 				AVCaptureVideoDataOutput* videoOutput = [[AVCaptureVideoDataOutput alloc] init];
 				
@@ -346,7 +353,11 @@
 	AVMediaType type = nil;
 	if(self.captureDevice != nil)
 	{
-		if(self.captureDevice.deviceType != AVCaptureDeviceTypeBuiltInMicrophone)
+#if (defined(__IPHONE_17_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_17_0)
+		if(self.captureDevice.deviceType != AVCaptureDeviceTypeMicrophone)
+#else
+        if(self.captureDevice.deviceType != AVCaptureDeviceTypeBuiltInMicrophone)
+#endif
 		{
 			type = AVMediaTypeVideo;
 		}

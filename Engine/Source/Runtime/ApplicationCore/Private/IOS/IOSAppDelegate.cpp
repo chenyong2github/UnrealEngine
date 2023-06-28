@@ -34,6 +34,7 @@
 
 #include <AudioToolbox/AudioToolbox.h>
 #include <AVFoundation/AVAudioSession.h>
+#import <AVFoundation/AVFoundation.h>
 #include "HAL/IConsoleManager.h"
 
 #if WITH_ACCESSIBILITY
@@ -46,6 +47,8 @@
 #else
 #define GAME_THREAD_STACK_SIZE 16 * 1024 * 1024
 #endif
+
+
 
 DEFINE_LOG_CATEGORY(LogIOSAudioSession);
 
@@ -726,8 +729,10 @@ static IOSAppDelegate* CachedDelegate = nil;
 #if PLATFORM_TVOS
 	// TVOS does not have sound recording capabilities.
 	return false;
+#elif (defined(__IPHONE_17_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_17_0)
+    return [[AVAudioApplication sharedInstance] recordPermission] == AVAudioApplicationRecordPermissionGranted;
 #else
-	return [[AVAudioSession sharedInstance] recordPermission] == AVAudioSessionRecordPermissionGranted;
+    return [[AVAudioSession sharedInstance] recordPermission] == AVAudioSessionRecordPermissionGranted;
 #endif
 }
 

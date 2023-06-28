@@ -150,6 +150,9 @@ namespace mtlpp
 			ns::String Ver;
 			switch(options.GetLanguageVersion())
 			{
+                case LanguageVersion::Version3_1:
+                    Ver = @"3.1";
+                    break;
 				case LanguageVersion::Version3_0:
 					Ver = @"3.0";
 					break;
@@ -169,7 +172,7 @@ namespace mtlpp
 			}
 			
 			ns::String Std([NSString stringWithFormat:@"-std=%@-metal%@", PlatformStandards[(int)options.Platform].GetPtr(), Ver.GetPtr()]);
-            if([Ver isEqualToString:@"3.0"])
+            if([Ver isEqualToString:@"3.0"] || [Ver isEqualToString:@"3.1"])
             {
                 Std =([NSString stringWithFormat:@"-std=metal%@", Ver.GetPtr()]);
             }

@@ -1082,14 +1082,19 @@ bool DoCompileMetalShader(
 					break;
 				}
 #else
+                case 7:
+                {
+                    TargetDesc.Version = 20400;
+                    break;
+                }
                 case 8:
                 {
                     TargetDesc.Version = 30000;
                     break;
                 }
-                case 7:
+                case 9:
                 {
-                    TargetDesc.Version = 20400;
+                    TargetDesc.Version = 30100;
                     break;
                 }
                 default:

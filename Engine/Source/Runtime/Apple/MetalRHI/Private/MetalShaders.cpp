@@ -78,18 +78,21 @@ mtlpp::LanguageVersion ValidateVersion(uint32 Version)
     Result = mtlpp::LanguageVersion::Version2_4;
     switch(Version)
     {
-        case 8:
-            Result = mtlpp::LanguageVersion::Version3_0;
-            break;
         case 7:
             Result = mtlpp::LanguageVersion::Version2_4;
             break;
+        case 8:
+            Result = mtlpp::LanguageVersion::Version3_0;
+            break;
+        case 9:
+            Result = mtlpp::LanguageVersion::Version3_1;
+            break;
         case 0:
-            Version = 7;
-            Result = mtlpp::LanguageVersion::Version2_4; // minimum version as of UE5.1
+            Version = 8;
+            Result = mtlpp::LanguageVersion::Version2_4; // minimum version as of UE5.3
             break;
         default:
-            //EMacMetalShaderStandard::MacMetalSLStandard_Minimum and EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum is currently 2.4
+            //EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum is currently 2.4
             UE_LOG(LogTemp, Warning, TEXT("The Metal version currently set is not supported anymore. Set it in the Project Settings. Defaulting to the minimum version."));
             Version = 7;
             Result = mtlpp::LanguageVersion::Version2_4;

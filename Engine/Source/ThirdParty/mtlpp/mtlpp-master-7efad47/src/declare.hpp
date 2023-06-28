@@ -104,6 +104,9 @@ MTLPP_CLASS(MTLPPResourceUsageValidator);
 MTLPP_PROTOCOL(OS_dispatch_data);
 typedef NSObject<OS_dispatch_data>* dispatch_data_t;
 
+MTLPP_PROTOCOL(MTLBinding);
+MTLPP_PROTOCOL(MTLTextureBinding);
+MTLPP_PROTOCOL(MTLBufferBinding);
 MTLPP_PROTOCOL(CAMetalDrawable);
 MTLPP_PROTOCOL(MTLArgumentEncoder);
 MTLPP_PROTOCOL(MTLBlitCommandEncoder);
