@@ -8,22 +8,22 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RigVMModel/RigVMPin.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 
-class UControlRigGraphNode;
+class URigVMEdGraphNode;
 class STableViewBase;
 class SOverlay;
 class SGraphPin;
 class UEdGraphPin;
 
-class SControlRigGraphNode : public SGraphNode
+class RIGVMEDITOR_API SRigVMGraphNode : public SGraphNode
 {
 public:
-	SLATE_BEGIN_ARGS(SControlRigGraphNode)
+	SLATE_BEGIN_ARGS(SRigVMGraphNode)
 		: _GraphNodeObj(nullptr)
 		{}
 
-	SLATE_ARGUMENT(UControlRigGraphNode*, GraphNodeObj)
+	SLATE_ARGUMENT(URigVMEdGraphNode*, GraphNodeObj)
 
 	SLATE_END_ARGS()
 
@@ -75,7 +75,7 @@ private:
 
 	FSlateColor GetPinTextColor(TWeakPtr<SGraphPin> GraphPin) const;
 	FSlateColor GetVariableLabelTextColor(TWeakObjectPtr<URigVMFunctionReferenceNode> FunctionReferenceNode, FName InVariableName) const;
-	FText GetVariableLabelTooltipText(TWeakObjectPtr<UControlRigBlueprint> InBlueprint, FName InVariableName) const;
+	FText GetVariableLabelTooltipText(TWeakObjectPtr<URigVMBlueprint> InBlueprint, FName InVariableName) const;
 
 	FReply HandleAddArrayElement(FString InModelPinPath);
 
@@ -110,7 +110,7 @@ private:
 	/** Cache the node title so we can invalidate it */
 	TSharedPtr<SNodeTitle> NodeTitle;
 
-	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
+	TWeakObjectPtr<URigVMBlueprint> Blueprint;
 
 	FVector2D LastHighDetailSize;
 
@@ -156,7 +156,7 @@ private:
 	TMap<const UEdGraphPin *, TSharedRef<SGraphPin>> PinsToKeep;
 
 	// Delayed pin deletion. To deal with the fact that pin deletion cannot occur until we
-	// have re-generated the pin list. SControlRigGraphNode has already relinquished them
+	// have re-generated the pin list. SRigVMGraphNode has already relinquished them
 	// but we still have a pointer to them in our pin widget.
 	TSet<UEdGraphPin *> PinsToDelete;
 };

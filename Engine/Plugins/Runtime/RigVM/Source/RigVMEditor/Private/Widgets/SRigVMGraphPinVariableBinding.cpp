@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SControlRigGraphPinVariableBinding.h"
+#include "Widgets/SRigVMGraphPinVariableBinding.h"
 #include "Features/IModularFeatures.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -12,14 +12,14 @@
 #include "DetailLayoutBuilder.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMBlueprintGeneratedClass.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-#define LOCTEXT_NAMESPACE "SControlRigGraphPinVariableBinding"
+#define LOCTEXT_NAMESPACE "SRigVMGraphPinVariableBinding"
 
-static const FText ControlRigVariableBindingMultipleValues = LOCTEXT("MultipleValues", "Multiple Values");
+static const FText RigVMGraphVariableBindingMultipleValues = LOCTEXT("MultipleValues", "Multiple Values");
 
-void SControlRigVariableBinding::Construct(const FArguments& InArgs)
+void SRigVMGraphVariableBinding::Construct(const FArguments& InArgs)
 {
 	this->ModelPins = InArgs._ModelPins;
 	this->FunctionReferenceNode = InArgs._FunctionReferenceNode;
@@ -29,16 +29,16 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
-	BindingArgs.CurrentBindingText.BindRaw(this, &SControlRigVariableBinding::GetBindingText);
-	BindingArgs.CurrentBindingImage.BindRaw(this, &SControlRigVariableBinding::GetBindingImage);
-	BindingArgs.CurrentBindingColor.BindRaw(this, &SControlRigVariableBinding::GetBindingColor);
+	BindingArgs.CurrentBindingText.BindRaw(this, &SRigVMGraphVariableBinding::GetBindingText);
+	BindingArgs.CurrentBindingImage.BindRaw(this, &SRigVMGraphVariableBinding::GetBindingImage);
+	BindingArgs.CurrentBindingColor.BindRaw(this, &SRigVMGraphVariableBinding::GetBindingColor);
 
-	BindingArgs.OnCanBindProperty.BindSP(this, &SControlRigVariableBinding::OnCanBindProperty);
-	BindingArgs.OnCanBindToClass.BindSP(this, &SControlRigVariableBinding::OnCanBindToClass);
+	BindingArgs.OnCanBindProperty.BindSP(this, &SRigVMGraphVariableBinding::OnCanBindProperty);
+	BindingArgs.OnCanBindToClass.BindSP(this, &SRigVMGraphVariableBinding::OnCanBindToClass);
 
-	BindingArgs.OnAddBinding.BindSP(this, &SControlRigVariableBinding::OnAddBinding);
-	BindingArgs.OnCanRemoveBinding.BindSP(this, &SControlRigVariableBinding::OnCanRemoveBinding);
-	BindingArgs.OnRemoveBinding.BindSP(this, &SControlRigVariableBinding::OnRemoveBinding);
+	BindingArgs.OnAddBinding.BindSP(this, &SRigVMGraphVariableBinding::OnAddBinding);
+	BindingArgs.OnCanRemoveBinding.BindSP(this, &SRigVMGraphVariableBinding::OnCanRemoveBinding);
+	BindingArgs.OnRemoveBinding.BindSP(this, &SRigVMGraphVariableBinding::OnRemoveBinding);
 
 	BindingArgs.bGeneratePureBindings = true;
 	BindingArgs.bAllowNewBindings = true;
@@ -51,7 +51,7 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 		"Properties",
 		EExtensionHook::After,
 		nullptr,
-		FMenuExtensionDelegate::CreateSP(this, &SControlRigVariableBinding::FillLocalVariableMenu));
+		FMenuExtensionDelegate::CreateSP(this, &SRigVMGraphVariableBinding::FillLocalVariableMenu));
 
 	this->ChildSlot
 	[
@@ -59,7 +59,7 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 	];
 }
 
-FText SControlRigVariableBinding::GetBindingText(URigVMPin* ModelPin) const
+FText SRigVMGraphVariableBinding::GetBindingText(URigVMPin* ModelPin) const
 {
 	if (ModelPin && ModelPin->GetGraph())
 	{
@@ -69,7 +69,7 @@ FText SControlRigVariableBinding::GetBindingText(URigVMPin* ModelPin) const
 	return FText();
 }
 
-FText SControlRigVariableBinding::GetBindingText() const
+FText SRigVMGraphVariableBinding::GetBindingText() const
 {
 	if (ModelPins.Num() > 0)
 	{
@@ -78,7 +78,7 @@ FText SControlRigVariableBinding::GetBindingText() const
 		{
 			if(!GetBindingText(ModelPins[Index]).EqualTo(FirstText))
 			{
-				return ControlRigVariableBindingMultipleValues;
+				return RigVMGraphVariableBindingMultipleValues;
 			}
 		}
 		return FirstText;
@@ -94,7 +94,7 @@ FText SControlRigVariableBinding::GetBindingText() const
 	return FText();
 }
 
-const FSlateBrush* SControlRigVariableBinding::GetBindingImage() const
+const FSlateBrush* SRigVMGraphVariableBinding::GetBindingImage() const
 {
 	static FName TypeIcon(TEXT("Kismet.VariableList.TypeIcon"));
 	static FName ArrayTypeIcon(TEXT("Kismet.VariableList.ArrayTypeIcon"));
@@ -109,11 +109,11 @@ const FSlateBrush* SControlRigVariableBinding::GetBindingImage() const
 	return FAppStyle::GetBrush(TypeIcon);
 }
 
-FLinearColor SControlRigVariableBinding::GetBindingColor() const
+FLinearColor SRigVMGraphVariableBinding::GetBindingColor() const
 {
 	if (Blueprint)
 	{
-		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+		const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 		FName BoundVariable(NAME_None);
 
 		if(ModelPins.Num() > 0)
@@ -165,7 +165,7 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 	return FLinearColor::White;
 }
 
-bool SControlRigVariableBinding::OnCanBindProperty(FProperty* InProperty) const
+bool SRigVMGraphVariableBinding::OnCanBindProperty(FProperty* InProperty) const
 {
 	if (InProperty == BindingArgs.Property)
 	{
@@ -211,7 +211,7 @@ bool SControlRigVariableBinding::OnCanBindProperty(FProperty* InProperty) const
 	return false;
 }
 
-bool SControlRigVariableBinding::OnCanBindToClass(UClass* InClass) const
+bool SRigVMGraphVariableBinding::OnCanBindToClass(UClass* InClass) const
 {
 	if (InClass)
 	{
@@ -220,7 +220,7 @@ bool SControlRigVariableBinding::OnCanBindToClass(UClass* InClass) const
 	return true;
 }
 
-void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+void SRigVMGraphVariableBinding::OnAddBinding(FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
 {
 	if (Blueprint)
 	{
@@ -246,12 +246,12 @@ void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray
 	}
 }
 
-bool SControlRigVariableBinding::OnCanRemoveBinding(FName InPropertyName)
+bool SRigVMGraphVariableBinding::OnCanRemoveBinding(FName InPropertyName)
 {
 	return bCanRemoveBinding;
 }
 
-void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
+void SRigVMGraphVariableBinding::OnRemoveBinding(FName InPropertyName)
 {
 	if (Blueprint)
 	{
@@ -269,7 +269,7 @@ void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 	}
 }
 
-void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder)
+void SRigVMGraphVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder)
 {
 	if(ModelPins.Num() == 0)
 	{
@@ -308,7 +308,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 	MenuBuilder.BeginSection("LocalVariables", LOCTEXT("LocalVariables", "Local Variables"));
 	{
 		static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
-		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+		const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 
 		for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
 		{
@@ -326,7 +326,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 			const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(ExternalVariable);
 
 			MenuBuilder.AddMenuEntry(
-				FUIAction(FExecuteAction::CreateSP(this, &SControlRigVariableBinding::HandleBindToLocalVariable, LocalVariable)),
+				FUIAction(FExecuteAction::CreateSP(this, &SRigVMGraphVariableBinding::HandleBindToLocalVariable, LocalVariable)),
 				SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -356,7 +356,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 	MenuBuilder.EndSection(); // Local Variables
 }
 
-void SControlRigVariableBinding::HandleBindToLocalVariable(FRigVMGraphVariableDescription InLocalVariable)
+void SRigVMGraphVariableBinding::HandleBindToLocalVariable(FRigVMGraphVariableDescription InLocalVariable)
 {
 	if(ModelPins.IsEmpty() || (Blueprint == nullptr))
 	{
@@ -383,7 +383,7 @@ void SControlRigVariableBinding::HandleBindToLocalVariable(FRigVMGraphVariableDe
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SControlRigGraphPinVariableBinding::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+void SRigVMGraphPinVariableBinding::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	this->ModelPins = InArgs._ModelPins;
 	this->Blueprint = InArgs._Blueprint;
@@ -391,9 +391,9 @@ void SControlRigGraphPinVariableBinding::Construct(const FArguments& InArgs, UEd
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
-TSharedRef<SWidget>	SControlRigGraphPinVariableBinding::GetDefaultValueWidget()
+TSharedRef<SWidget>	SRigVMGraphPinVariableBinding::GetDefaultValueWidget()
 {
-	return SNew(SControlRigVariableBinding)
+	return SNew(SRigVMGraphVariableBinding)
 		.Blueprint(Blueprint)
 		.ModelPins(ModelPins);
 }

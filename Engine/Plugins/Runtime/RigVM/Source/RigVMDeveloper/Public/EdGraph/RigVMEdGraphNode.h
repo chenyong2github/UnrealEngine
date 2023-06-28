@@ -270,7 +270,7 @@ private:
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable TOptional<bool> DrawAsCompactNodeCache;
 
-	friend class SRigVMEdGraphNode;
+	friend class SRigVMGraphNode;
 	friend class FRigVMArgumentLayout;
 	friend class FRigVMEdGraphDetails;
 	friend class URigVMEdGraphTemplateNodeSpawner;

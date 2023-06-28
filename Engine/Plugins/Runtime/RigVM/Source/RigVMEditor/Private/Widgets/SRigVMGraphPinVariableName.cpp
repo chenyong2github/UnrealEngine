@@ -1,22 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SControlRigGraphPinVariableName.h"
-#include "Graph/ControlRigGraph.h"
+#include "Widgets/SRigVMGraphPinVariableName.h"
+#include "EdGraph/RigVMEdGraph.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraphSchema_K2.h"
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
+#include "RigVMBlueprint.h"
 
-void SControlRigGraphPinVariableName::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+void SRigVMGraphPinVariableName::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
-TSharedRef<SWidget>	SControlRigGraphPinVariableName::GetDefaultValueWidget()
+TSharedRef<SWidget>	SRigVMGraphPinVariableName::GetDefaultValueWidget()
 {
-	UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphPinObj->GetOwningNode());
+	URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(GraphPinObj->GetOwningNode());
 	URigVMGraph* Model = RigNode->GetModelNode()->GetGraph();
 
 	TSharedPtr<FString> InitialSelected;
@@ -34,27 +35,27 @@ TSharedRef<SWidget>	SControlRigGraphPinVariableName::GetDefaultValueWidget()
 		.MinDesiredWidth(150)
 		.MaxDesiredWidth(400)
 		[
-			SAssignNew(NameComboBox, SControlRigGraphPinEditableNameValueWidget)
+			SAssignNew(NameComboBox, SRigVMGraphPinEditableNameValueWidget)
 				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
 				.OptionsSource(&VariableNames)
-				.OnGenerateWidget(this, &SControlRigGraphPinVariableName::MakeVariableNameItemWidget)
-				.OnSelectionChanged(this, &SControlRigGraphPinVariableName::OnVariableNameChanged)
-				.OnComboBoxOpening(this, &SControlRigGraphPinVariableName::OnVariableNameComboBox)
+				.OnGenerateWidget(this, &SRigVMGraphPinVariableName::MakeVariableNameItemWidget)
+				.OnSelectionChanged(this, &SRigVMGraphPinVariableName::OnVariableNameChanged)
+				.OnComboBoxOpening(this, &SRigVMGraphPinVariableName::OnVariableNameComboBox)
 				.InitiallySelectedItem(InitialSelected)
 				.Content()
 				[
 					SNew(STextBlock)
-					.Text(this, &SControlRigGraphPinVariableName::GetVariableNameText)
+					.Text(this, &SRigVMGraphPinVariableName::GetVariableNameText)
 				]
 		];
 }
 
-FText SControlRigGraphPinVariableName::GetVariableNameText() const
+FText SRigVMGraphPinVariableName::GetVariableNameText() const
 {
 	return FText::FromString( GraphPinObj->GetDefaultAsString() );
 }
 
-void SControlRigGraphPinVariableName::SetVariableNameText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
+void SRigVMGraphPinVariableName::SetVariableNameText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
 {
 	if(!GraphPinObj->GetDefaultAsString().Equals(NewTypeInValue.ToString()))
 	{
@@ -64,12 +65,12 @@ void SControlRigGraphPinVariableName::SetVariableNameText(const FText& NewTypeIn
 	}
 }
 
-TSharedRef<SWidget> SControlRigGraphPinVariableName::MakeVariableNameItemWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> SRigVMGraphPinVariableName::MakeVariableNameItemWidget(TSharedPtr<FString> InItem)
 {
 	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
-void SControlRigGraphPinVariableName::OnVariableNameChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+void SRigVMGraphPinVariableName::OnVariableNameChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
@@ -78,7 +79,7 @@ void SControlRigGraphPinVariableName::OnVariableNameChanged(TSharedPtr<FString> 
 	}
 }
 
-void SControlRigGraphPinVariableName::OnVariableNameComboBox()
+void SRigVMGraphPinVariableName::OnVariableNameComboBox()
 {
 	TSharedPtr<FString> CurrentlySelected;
 	TArray<TSharedPtr<FString>>& LocalVariableNames = GetVariableNames();
@@ -93,9 +94,9 @@ void SControlRigGraphPinVariableName::OnVariableNameComboBox()
 	NameComboBox->SetSelectedItem(CurrentlySelected);
 }
 
-TArray<TSharedPtr<FString>>& SControlRigGraphPinVariableName::GetVariableNames()
+TArray<TSharedPtr<FString>>& SRigVMGraphPinVariableName::GetVariableNames()
 {
-	if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphPinObj->GetOwningNode()))
+	if(URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(GraphPinObj->GetOwningNode()))
 	{
 		if(URigVMVariableNode* ModelNode = Cast<URigVMVariableNode>(RigNode->GetModelNode()))
 		{
@@ -114,7 +115,7 @@ TArray<TSharedPtr<FString>>& SControlRigGraphPinVariableName::GetVariableNames()
 				}
 			}
 
-			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(ModelNode->GetGraph()->GetOuter()))
+			if (URigVMBlueprint* Blueprint = Cast<URigVMBlueprint>(ModelNode->GetGraph()->GetOuter()))
 			{
 				for (FBPVariableDescription& BPVariable : Blueprint->NewVariables)
 				{

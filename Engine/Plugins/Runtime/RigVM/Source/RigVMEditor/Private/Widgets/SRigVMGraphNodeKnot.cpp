@@ -1,25 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Graph/SControlRigGraphNodeKnot.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "Widgets/SRigVMGraphNodeKnot.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "SControlRigGraphNodeKnot"
+#define LOCTEXT_NAMESPACE "SRigVMGraphNodeKnot"
 
-void SControlRigGraphNodeKnot::Construct(const FArguments& InArgs, UEdGraphNode* InKnot)
+void SRigVMGraphNodeKnot::Construct(const FArguments& InArgs, UEdGraphNode* InKnot)
 {
 	SGraphNodeKnot::Construct(SGraphNodeKnot::FArguments(), InKnot);
 
-	if (UControlRigGraphNode* CRNode = Cast<UControlRigGraphNode>(InKnot))
+	if (URigVMEdGraphNode* CRNode = Cast<URigVMEdGraphNode>(InKnot))
 	{
-		CRNode->OnNodeBeginRemoval().AddSP(this, &SControlRigGraphNodeKnot::HandleNodeBeginRemoval);
+		CRNode->OnNodeBeginRemoval().AddSP(this, &SRigVMGraphNodeKnot::HandleNodeBeginRemoval);
 	}
 }
 
-void SControlRigGraphNodeKnot::EndUserInteraction() const
+void SRigVMGraphNodeKnot::EndUserInteraction() const
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -30,7 +30,7 @@ void SControlRigGraphNodeKnot::EndUserInteraction() const
 
 	if (GraphNode)
 	{
-		if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+		if (const URigVMEdGraphSchema* RigSchema = Cast<URigVMEdGraphSchema>(GraphNode->GetSchema()))
 		{
 			RigSchema->EndGraphNodeInteraction(GraphNode);
 		}
@@ -39,13 +39,13 @@ void SControlRigGraphNodeKnot::EndUserInteraction() const
 	SGraphNodeKnot::EndUserInteraction();
 }
 
-void SControlRigGraphNodeKnot::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
+void SRigVMGraphNodeKnot::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	if (!NodeFilter.Find(SharedThis(this)))
 	{
 		if (GraphNode && !RequiresSecondPassLayout())
 		{
-			if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+			if (const URigVMEdGraphSchema* RigSchema = Cast<URigVMEdGraphSchema>(GraphNode->GetSchema()))
 			{
 				RigSchema->SetNodePosition(GraphNode, NewPosition, false);
 			}
@@ -53,9 +53,9 @@ void SControlRigGraphNodeKnot::MoveTo(const FVector2D& NewPosition, FNodeSet& No
 	}
 }
 
-void SControlRigGraphNodeKnot::HandleNodeBeginRemoval()
+void SRigVMGraphNodeKnot::HandleNodeBeginRemoval()
 {
-	if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+	if(URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(GraphNode))
 	{
 		RigNode->OnNodeBeginRemoval().RemoveAll(this);
 	}

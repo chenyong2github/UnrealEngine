@@ -15,7 +15,7 @@
 #include "SEnumCombo.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_DynamicHierarchy.h"
-#include "Graph/SControlRigGraphPinVariableBinding.h"
+#include "Widgets/SRigVMGraphPinVariableBinding.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Styling/AppStyle.h"
 #include "Editor/SRigHierarchyTreeView.h"

@@ -13,7 +13,7 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMCore/RigVM.h"
-#include "Graph/SControlRigGraphPinNameListValueWidget.h"
+#include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "AnimPreviewInstance.h"
 #include "ScopedTransaction.h"
@@ -466,7 +466,7 @@ protected:
 
 	FPreviewControlRigUpdated PreviewControlRigUpdated;
 
-	TSharedPtr<SControlRigGraphPinNameListValueWidget> PinControlNameList;
+	TSharedPtr<SRigVMGraphPinNameListValueWidget> PinControlNameList;
 	bool IsPinControlNameListEnabled() const;
 	TSharedRef<SWidget> MakePinControlNameListItemWidget(TSharedPtr<FString> InItem);
 	FText GetPinControlNameListText() const;

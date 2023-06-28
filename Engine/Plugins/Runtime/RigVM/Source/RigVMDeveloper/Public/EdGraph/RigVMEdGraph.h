@@ -57,6 +57,9 @@ public:
 
 	int32 GetInstructionIndex(const URigVMEdGraphNode* InNode, bool bAsInput);
 
+	void CacheEntryNameList();
+	const TArray<TSharedPtr<FString>>* GetEntryNameList(URigVMPin* InPin = nullptr) const;
+
 	UPROPERTY()
 	FString ModelNodePath;
 
@@ -94,13 +97,14 @@ protected:
 private:
 	TMap<FName, UEdGraphNode*> ModelNodePathToEdNode;
 	mutable TWeakObjectPtr<URigVMGraph> CachedModelGraph;
+	TArray<TSharedPtr<FString>> EntryNameList;
 
 #endif
 	friend class URigVMEdGraphNode;
 	friend class URigVMBlueprint;
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;
-	friend class SControlRigGraphNode;
+	friend class SRigVMGraphNode;
 	friend class URigVMBlueprint;
 
 	friend class URigVMEdGraphUnitNodeSpawner;

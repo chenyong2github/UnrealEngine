@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Graph/ControlRigConnectionDrawingPolicy.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "ControlRig.h"
-#include "ControlRigBlueprint.h"
+#include "EdGraph/RigVMEdGraphConnectionDrawingPolicy.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "RigVMHost.h"
+#include "RigVMBlueprint.h"
 #include "RigVMModel/RigVMController.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-void FControlRigConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins)
+void FRigVMEdGraphConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins)
 {
 	UEdGraphPin* Pin = StartPin->GetPinObj();
 	if (Pin != nullptr)
 	{
-		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Pin->GetOwningNode());
+		URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(Pin->GetOwningNode());
 		if(RigNode)
 		{
 			if(URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(Pin->GetName()))
@@ -25,7 +25,7 @@ void FControlRigConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TShar
 	FKismetConnectionDrawingPolicy::SetIncompatiblePinDrawState(StartPin, VisiblePins);
 }
 
-void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSet< TSharedRef<SWidget> >& VisiblePins)
+void FRigVMEdGraphConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSet< TSharedRef<SWidget> >& VisiblePins)
 {
 	if (VisiblePins.Num() > 0)
 	{
@@ -34,7 +34,7 @@ void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSe
 		UEdGraphPin* Pin = PinWidget->GetPinObj();
 		if (Pin != nullptr)
 		{
-			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
+			if(URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(Pin->GetOwningNode()))
 			{
 				RigNode->GetModel()->PrepareCycleChecking(nullptr, true);
 			}
@@ -43,7 +43,7 @@ void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSe
 	FKismetConnectionDrawingPolicy::ResetIncompatiblePinDrawState(VisiblePins);
 }
 
-void FControlRigConnectionDrawingPolicy::BuildPinToPinWidgetMap(TMap<TSharedRef<SWidget>, FArrangedWidget>& InPinGeometries)
+void FRigVMEdGraphConnectionDrawingPolicy::BuildPinToPinWidgetMap(TMap<TSharedRef<SWidget>, FArrangedWidget>& InPinGeometries)
 {
 	FKismetConnectionDrawingPolicy::BuildPinToPinWidgetMap(InPinGeometries);
 
@@ -75,7 +75,7 @@ void FControlRigConnectionDrawingPolicy::BuildPinToPinWidgetMap(TMap<TSharedRef<
 	}
 }
 
-void FControlRigConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidget>, FArrangedWidget>& InPinGeometries, FArrangedChildren& ArrangedNodes)
+void FRigVMEdGraphConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidget>, FArrangedWidget>& InPinGeometries, FArrangedChildren& ArrangedNodes)
 {
 	auto DrawPin = [this, &ArrangedNodes](UEdGraphPin* ThePin, TSharedRef<SWidget>& InSomePinWidget)
 	{
@@ -141,7 +141,7 @@ void FControlRigConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidg
 	}
 }
 
-void FControlRigConnectionDrawingPolicy::DetermineLinkGeometry(
+void FRigVMEdGraphConnectionDrawingPolicy::DetermineLinkGeometry(
 	FArrangedChildren& ArrangedNodes, 
 	TSharedRef<SWidget>& OutputPinWidget,
 	UEdGraphPin* OutputPin,
@@ -161,7 +161,7 @@ void FControlRigConnectionDrawingPolicy::DetermineLinkGeometry(
 	}
 }
 
-bool FControlRigConnectionDrawingPolicy::ShouldChangeTangentForReouteControlPoint(UControlRigGraphNode* Node)
+bool FRigVMEdGraphConnectionDrawingPolicy::ShouldChangeTangentForReouteControlPoint(URigVMEdGraphNode* Node)
 {
 	bool bPinReversed = false;
 	int32 InputPin = 0, OutputPin = 0;
@@ -211,7 +211,7 @@ bool FControlRigConnectionDrawingPolicy::ShouldChangeTangentForReouteControlPoin
 }
 
 // Average of the positions of all pins connected to InPin
-bool FControlRigConnectionDrawingPolicy::GetAverageConnectedPositionForPin(UEdGraphPin* InPin, FVector2D& OutPos) const
+bool FRigVMEdGraphConnectionDrawingPolicy::GetAverageConnectedPositionForPin(UEdGraphPin* InPin, FVector2D& OutPos) const
 {
 	FVector2D Result = FVector2D::ZeroVector;
 	int32 ResultCount = 0;
@@ -237,7 +237,7 @@ bool FControlRigConnectionDrawingPolicy::GetAverageConnectedPositionForPin(UEdGr
 	}
 }
 
-void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
+void FRigVMEdGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
 {
 	FKismetConnectionDrawingPolicy::DetermineWiringStyle(OutputPin, InputPin, Params);
 	if (OutputPin == nullptr || InputPin == nullptr || UseLowDetailConnections())
@@ -250,8 +250,8 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 		Swap(OutputPin, InputPin);
 	}
 
-	UControlRigGraphNode* OutputNode = Cast<UControlRigGraphNode>(OutputPin->GetOwningNode());
-	UControlRigGraphNode* InputNode = Cast<UControlRigGraphNode>(InputPin->GetOwningNode());
+	URigVMEdGraphNode* OutputNode = Cast<URigVMEdGraphNode>(OutputPin->GetOwningNode());
+	URigVMEdGraphNode* InputNode = Cast<URigVMEdGraphNode>(InputPin->GetOwningNode());
 	if (OutputNode && InputNode)
 	{
 		// If the output or input connect to a Reroute Node(Node Knot/Control Point) that is going backwards, we will flip the direction on values going into them
@@ -315,14 +315,14 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 
 			if (OutputInstructionIndex != INDEX_NONE && InputInstructionIndex != INDEX_NONE)
 			{
-				if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(OutputNode)))
+				if (URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(OutputNode)))
 				{
-					if (UControlRig* ControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
+					if (URigVMHost* Host = Cast<URigVMHost>(RigBlueprint->GetObjectBeingDebugged()))
 					{
-						if (const URigVM* VM = ControlRig->GetVM())
+						if (const URigVM* VM = Host->GetVM())
 						{
-							if (VM->WasInstructionVisitedDuringLastRun(ControlRig->GetExtendedExecuteContext(), OutputInstructionIndex) &&
-								VM->WasInstructionVisitedDuringLastRun(ControlRig->GetExtendedExecuteContext(), InputInstructionIndex))
+							if (VM->WasInstructionVisitedDuringLastRun(Host->GetExtendedExecuteContext(), OutputInstructionIndex) &&
+								VM->WasInstructionVisitedDuringLastRun(Host->GetExtendedExecuteContext(), InputInstructionIndex))
 							{
 								bVisited = true;
 							}

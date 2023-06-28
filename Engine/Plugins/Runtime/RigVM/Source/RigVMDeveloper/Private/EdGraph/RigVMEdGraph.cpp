@@ -837,6 +837,34 @@ int32 URigVMEdGraph::GetInstructionIndex(const URigVMEdGraphNode* InNode, bool b
 	return INDEX_NONE;
 }
 
+#if WITH_EDITOR
+
+void URigVMEdGraph::CacheEntryNameList()
+{
+	EntryNameList.Reset();
+	EntryNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
+
+	if(const URigVMBlueprint* Blueprint = CastChecked<URigVMBlueprint>(GetBlueprint()))
+	{
+		const TArray<FName> EntryNames = Blueprint->GetRigVMClient()->GetEntryNames();
+		for (const FName& EntryName : EntryNames)
+		{
+			EntryNameList.Add(MakeShared<FString>(EntryName.ToString()));
+		}
+	}
+}
+
+const TArray<TSharedPtr<FString>>* URigVMEdGraph::GetEntryNameList(URigVMPin* InPin) const
+{
+	if (const URigVMEdGraph* OuterGraph = Cast<URigVMEdGraph>(GetOuter()))
+	{
+		return OuterGraph->GetEntryNameList(InPin);
+	}
+	return &EntryNameList;
+}
+
+#endif
+
 UEdGraphNode* URigVMEdGraph::FindNodeForModelNodeName(const FName& InModelNodeName, const bool bCacheIfRequired)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()

@@ -83,18 +83,6 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDr
 	}
 	CacheNameList<FRigVMDrawContainer>(*DrawContainer, DrawingNameList);
 
-	EntryNameList.Reset();
-	EntryNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
-
-	if(const UControlRigBlueprint* Blueprint = CastChecked<UControlRigBlueprint>(GetBlueprint()))
-	{
-		const TArray<FName> EntryNames = Blueprint->GetRigVMClient()->GetEntryNames();
-		for (const FName& EntryName : EntryNames)
-		{
-			EntryNameList.Add(MakeShared<FString>(EntryName.ToString()));
-		}
-	}
-
 	ShapeNameList.Reset();
 	ShapeNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
 
@@ -222,15 +210,6 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetDrawingNameList(URigVMPi
 	return &DrawingNameList;
 }
 
-const TArray<TSharedPtr<FString>>* UControlRigGraph::GetEntryNameList(URigVMPin* InPin) const
-{
-	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return OuterGraph->GetEntryNameList(InPin);
-	}
-	return &EntryNameList;
-}
-
 const TArray<TSharedPtr<FString>>* UControlRigGraph::GetShapeNameList(URigVMPin* InPin) const
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
@@ -238,6 +217,112 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetShapeNameList(URigVMPin*
 		return OuterGraph->GetShapeNameList(InPin);
 	}
 	return &ShapeNameList;
+}
+
+FReply UControlRigGraph::HandleGetSelectedClicked(URigVMEdGraph* InEdGraph, URigVMPin* InPin, FString InDefaultValue)
+{
+	UControlRigBlueprint* RigVMBlueprint = CastChecked<UControlRigBlueprint>(InEdGraph->GetBlueprint());
+	if(InPin->GetCustomWidgetName() == TEXT("ElementName"))
+	{
+		if (URigVMPin* ParentPin = InPin->GetParentPin())
+		{
+			InEdGraph->GetController()->SetPinDefaultValue(ParentPin->GetPinPath(), InDefaultValue, true, true, false, true);
+			return FReply::Handled();
+		}
+	}
+
+	else if (InPin->GetCustomWidgetName() == TEXT("BoneName"))
+	{
+		URigHierarchy* Hierarchy = RigVMBlueprint->Hierarchy;
+		TArray<FRigElementKey> Keys = Hierarchy->GetSelectedKeys();
+		FRigBaseElement* Element = Hierarchy->FindChecked(Keys[0]);
+		if (Element->GetType() == ERigElementType::Bone)
+		{
+			InEdGraph->GetController()->SetPinDefaultValue(InPin->GetPinPath(), Keys[0].Name.ToString(), true, true, false, true);
+			return FReply::Handled();
+		}
+	}
+
+	// if we don't have a key pin - this is just a plain name.
+	// let's derive the type of element this node deals with from its name.
+	// there's nothing better in place for now.
+	else if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InPin->GetNode()))
+	{
+		const int32 LastIndex = StaticEnum<ERigElementType>()->GetIndexByName(TEXT("Last")); 
+		const FString UnitName = UnitNode->GetScriptStruct()->GetStructCPPName();
+		for(int32 EnumIndex = 0; EnumIndex < LastIndex; EnumIndex++)
+		{
+			const FString EnumDisplayName = StaticEnum<ERigElementType>()->GetDisplayNameTextByIndex(EnumIndex).ToString();
+			if(UnitName.Contains(EnumDisplayName))
+			{
+				const ERigElementType ElementType = (ERigElementType)StaticEnum<ERigElementType>()->GetValueByIndex(EnumIndex);
+
+				FRigElementKey Key;
+				FRigElementKey::StaticStruct()->ImportText(*InDefaultValue, &Key, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
+				if (Key.IsValid())
+				{
+					if(Key.Type == ElementType)
+					{
+						InEdGraph->GetController()->SetPinDefaultValue(InPin->GetPinPath(), Key.Name.ToString(), true, true, false, true);
+						return FReply::Handled();
+					}
+				}
+				break;
+			}
+		}
+	}
+	return FReply::Unhandled();
+}
+
+FReply UControlRigGraph::HandleBrowseClicked(URigVMEdGraph* InEdGraph, URigVMPin* InPin, FString InDefaultValue)
+{
+	UControlRigBlueprint* RigVMBlueprint = CastChecked<UControlRigBlueprint>(InEdGraph->GetBlueprint());
+	URigVMPin* KeyPin = InPin->GetParentPin();
+	if(KeyPin && KeyPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
+	{
+		// browse to rig element key
+		FString DefaultValue = InPin->GetParentPin()->GetDefaultValue();
+		if (!DefaultValue.IsEmpty())
+		{
+			FRigElementKey Key;
+			FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &Key, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
+			if (Key.IsValid())
+			{
+				RigVMBlueprint->GetHierarchyController()->SetSelection({Key});
+			}
+		}
+	}
+	else if (InPin->GetCustomWidgetName() == TEXT("BoneName"))
+	{
+		// browse to named bone
+		const FString DefaultValue = InPin->GetDefaultValue();
+		FRigElementKey Key(*DefaultValue, ERigElementType::Bone);
+		RigVMBlueprint->GetHierarchyController()->SetSelection({Key});
+	}
+	else
+	{
+		// if we don't have a key pin - this is just a plain name.
+		// let's derive the type of element this node deals with from its name.
+		// there's nothing better in place for now.
+		if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InPin->GetNode()))
+		{
+			const int32 LastIndex = StaticEnum<ERigElementType>()->GetIndexByName(TEXT("Last")); 
+			const FString UnitName = UnitNode->GetScriptStruct()->GetStructCPPName();
+			for(int32 EnumIndex = 0; EnumIndex < LastIndex; EnumIndex++)
+			{
+				const FString EnumDisplayName = StaticEnum<ERigElementType>()->GetDisplayNameTextByIndex(EnumIndex).ToString();
+				if(UnitName.Contains(EnumDisplayName))
+				{
+					const FString DefaultValue = InPin->GetDefaultValue();
+					const ERigElementType ElementType = (ERigElementType)StaticEnum<ERigElementType>()->GetValueByIndex(EnumIndex);
+					FRigElementKey Key(*DefaultValue, ElementType);
+					RigVMBlueprint->GetHierarchyController()->SetSelection({Key});
+					break;
+				}
+			}
+		}
+	}
+	return FReply::Handled();
 }
 
 #endif

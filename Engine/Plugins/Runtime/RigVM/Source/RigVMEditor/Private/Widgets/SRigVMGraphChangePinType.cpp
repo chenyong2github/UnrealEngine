@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SControlRigGraphChangePinType.h"
+#include "Widgets/SRigVMGraphChangePinType.h"
 #include "Features/IModularFeatures.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
@@ -9,15 +9,15 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "RigVMModel/RigVMController.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Styling/AppStyle.h"
 
-#define LOCTEXT_NAMESPACE "SControlRigGraphChangePinType"
+#define LOCTEXT_NAMESPACE "SRigVMGraphChangePinType"
 
-static const FText ControlRigChangePinTypeMultipleValues = LOCTEXT("MultipleValues", " - ");
+static const FText RigVMEdGraphChangePinTypeMultipleValues = LOCTEXT("MultipleValues", " - ");
 
-void SControlRigChangePinType::Construct(const FArguments& InArgs)
+void SRigVMGraphChangePinType::Construct(const FArguments& InArgs)
 {
 	this->Types = InArgs._Types;
 	this->Blueprint = InArgs._Blueprint;
@@ -25,9 +25,9 @@ void SControlRigChangePinType::Construct(const FArguments& InArgs)
 
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
-	BindingArgs.CurrentBindingText.BindRaw(this, &SControlRigChangePinType::GetBindingText);
-	BindingArgs.CurrentBindingImage.BindRaw(this, &SControlRigChangePinType::GetBindingImage);
-	BindingArgs.CurrentBindingColor.BindRaw(this, &SControlRigChangePinType::GetBindingColor);
+	BindingArgs.CurrentBindingText.BindRaw(this, &SRigVMGraphChangePinType::GetBindingText);
+	BindingArgs.CurrentBindingImage.BindRaw(this, &SRigVMGraphChangePinType::GetBindingImage);
+	BindingArgs.CurrentBindingColor.BindRaw(this, &SRigVMGraphChangePinType::GetBindingColor);
 
 	BindingArgs.OnCanBindProperty.BindLambda([](const FProperty* InProperty) -> bool { return true; });
 	BindingArgs.OnCanBindToClass.BindLambda([](UClass* InClass) -> bool { return false; });
@@ -43,7 +43,7 @@ void SControlRigChangePinType::Construct(const FArguments& InArgs)
 		"Properties",
 		EExtensionHook::After,
 		nullptr,
-		FMenuExtensionDelegate::CreateSP(this, &SControlRigChangePinType::FillPinTypeMenu));
+		FMenuExtensionDelegate::CreateSP(this, &SRigVMGraphChangePinType::FillPinTypeMenu));
 
 	this->ChildSlot
 	[
@@ -51,7 +51,7 @@ void SControlRigChangePinType::Construct(const FArguments& InArgs)
 	];
 }
 
-FText SControlRigChangePinType::GetBindingText(const FRigVMTemplateArgumentType& InType)
+FText SRigVMGraphChangePinType::GetBindingText(const FRigVMTemplateArgumentType& InType)
 {
 	if(UObject* CPPTypeObject = InType.CPPTypeObject)
 	{
@@ -104,7 +104,7 @@ FText SControlRigChangePinType::GetBindingText(const FRigVMTemplateArgumentType&
 	return FText();
 }
 
-FText SControlRigChangePinType::GetBindingText() const
+FText SRigVMGraphChangePinType::GetBindingText() const
 {
 	if(Types.Num() > 0)
 	{
@@ -115,7 +115,7 @@ FText SControlRigChangePinType::GetBindingText() const
 			const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(Types[Index]);
 			if(!GetBindingText(Type).EqualTo(FirstText))
 			{
-				return ControlRigChangePinTypeMultipleValues;
+				return RigVMEdGraphChangePinTypeMultipleValues;
 			}
 		}
 		return FirstText;
@@ -123,7 +123,7 @@ FText SControlRigChangePinType::GetBindingText() const
 	return FText();
 }
 
-const FSlateBrush* SControlRigChangePinType::GetBindingImage() const
+const FSlateBrush* SRigVMGraphChangePinType::GetBindingImage() const
 {
 	static FName TypeIcon(TEXT("Kismet.VariableList.TypeIcon"));
 	static FName ArrayTypeIcon(TEXT("Kismet.VariableList.ArrayTypeIcon"));
@@ -139,19 +139,19 @@ const FSlateBrush* SControlRigChangePinType::GetBindingImage() const
 	return FAppStyle::GetBrush(TypeIcon);
 }
 
-FLinearColor SControlRigChangePinType::GetBindingColor() const
+FLinearColor SRigVMGraphChangePinType::GetBindingColor() const
 {
 	if(Types.Num() > 0)
 	{
 		const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(Types[0]);
 		const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
-		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+		const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 		return Schema->GetPinTypeColor(PinType);
 	}
 	return FLinearColor::White;
 }
 
-void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
+void SRigVMGraphChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 {
 	if(Types.Num() == 0)
 	{
@@ -251,7 +251,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.BeginSection("PinTypes", LOCTEXT("PinTypes", "Pin Types"));
 	{
 		static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
-		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+		const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 
 		const bool bHasAllTypes =
 			SortedTypes.Num() >=
@@ -296,7 +296,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 			}
 
 			MenuBuilder.AddMenuEntry(
-				FUIAction(FExecuteAction::CreateSP(this, &SControlRigChangePinType::HandlePinTypeChanged, Type)),
+				FUIAction(FExecuteAction::CreateSP(this, &SRigVMGraphChangePinType::HandlePinTypeChanged, Type)),
 				SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -328,7 +328,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection(); // Local Variables
 }
 
-void SControlRigChangePinType::HandlePinTypeChanged(FRigVMTemplateArgumentType InType)
+void SRigVMGraphChangePinType::HandlePinTypeChanged(FRigVMTemplateArgumentType InType)
 {
 	if (OnTypeSelected.IsBound())
 	{

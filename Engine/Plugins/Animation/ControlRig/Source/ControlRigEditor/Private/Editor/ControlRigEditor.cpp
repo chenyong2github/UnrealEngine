@@ -87,7 +87,7 @@
 #include "Editor/SControlRigFunctionLocalizationWidget.h"
 #include "Editor/SControlRigFunctionBulkEditWidget.h"
 #include "Editor/SControlRigBreakLinksWidget.h"
-#include "Graph/SControlRigGraphChangePinType.h"
+#include "Widgets/SRigVMGraphChangePinType.h"
 #include "SGraphPanel.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -3916,7 +3916,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 									.WidthOverride(100.0f)
 									.IsEnabled(this, &FControlRigEditor::IsPinControlNameListEnabled)
 									[
-										SAssignNew(PinControlNameList, SControlRigGraphPinNameListValueWidget)
+										SAssignNew(PinControlNameList, SRigVMGraphPinNameListValueWidget)
 										.OptionsSource(BoneNameList)
 										.OnGenerateWidget(this, &FControlRigEditor::MakePinControlNameListItemWidget)
 										.OnSelectionChanged(this, &FControlRigEditor::OnPinControlNameListChanged)
@@ -4384,6 +4384,7 @@ void FControlRigEditor::CacheNameLists()
 			{
 				ShapeLibraries = &DebuggedControlRig->GetShapeLibraries();
 			}
+			RigGraph->CacheEntryNameList();
 			RigGraph->CacheNameLists(Hierarchy, &ControlRigBP->DrawContainer, *ShapeLibraries);
 		}
 	}

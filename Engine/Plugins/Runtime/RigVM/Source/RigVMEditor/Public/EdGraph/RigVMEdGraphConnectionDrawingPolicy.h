@@ -4,12 +4,12 @@
 
 #include "BlueprintConnectionDrawingPolicy.h"
 
-class UControlRigGraphNode;
+class URigVMEdGraphNode;
 
-class FControlRigConnectionDrawingPolicy : public FKismetConnectionDrawingPolicy
+class RIGVMEDITOR_API FRigVMEdGraphConnectionDrawingPolicy : public FKismetConnectionDrawingPolicy
 {
 public:
-	FControlRigConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
+	FRigVMEdGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
 		: FKismetConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj)
 	{
 		CastImage = FAppStyle::GetBrush( TEXT("GraphEditor.Cast_16x") );
@@ -35,11 +35,11 @@ public:
 
 private:
 	// Each time a reroute node is encountered, input geometry is compared to output geometry to see if the pins on the reroute node need to be reversed
-	TMap<UControlRigGraphNode*, bool> RerouteNodeToReversedDirectionMap;
+	TMap<URigVMEdGraphNode*, bool> RerouteNodeToReversedDirectionMap;
 
 	bool UseLowDetailConnections() const { return ZoomFactor <= 0.175f; /* zoom level -9 */ }
 
-	bool ShouldChangeTangentForReouteControlPoint(UControlRigGraphNode* Node);
+	bool ShouldChangeTangentForReouteControlPoint(URigVMEdGraphNode* Node);
 	// Average of the positions of all pins connected to InPin
 	bool GetAverageConnectedPositionForPin(UEdGraphPin* InPin, FVector2D& OutPos) const;
 

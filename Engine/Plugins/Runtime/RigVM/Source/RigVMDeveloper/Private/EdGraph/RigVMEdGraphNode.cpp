@@ -469,8 +469,8 @@ const FRigVMTemplate* URigVMEdGraphNode::GetTemplate() const
 void URigVMEdGraphNode::ClearErrorInfo()
 {
 	bHasCompilerMessage = false;
-	// SRigVMEdGraphNode only updates if the error types do not match so we have
-	// clear the error type as well, see SRigVMEdGraphNode::RefreshErrorInfo()
+	// SRigVMGraphNode only updates if the error types do not match so we have
+	// clear the error type as well, see SRigVMGraphNode::RefreshErrorInfo()
 	ErrorType = (int32)EMessageSeverity::Info + 1;
 	ErrorMsg = FString();	
 }

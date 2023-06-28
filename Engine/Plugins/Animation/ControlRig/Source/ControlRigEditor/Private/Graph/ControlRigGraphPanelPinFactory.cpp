@@ -4,12 +4,12 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraph.h"
-#include "Graph/SControlRigGraphPinNameList.h"
-#include "Graph/SControlRigGraphPinCurveFloat.h"
-#include "Graph/SControlRigGraphPinVariableName.h"
-#include "Graph/SControlRigGraphPinVariableBinding.h"
-#include "Graph/SGraphPinUserDataNameSpace.h"
-#include "Graph/SGraphPinUserDataPath.h"
+#include "Widgets/SRigVMGraphPinNameList.h"
+#include "Widgets/SRigVMGraphPinCurveFloat.h"
+#include "Widgets/SRigVMGraphPinVariableName.h"
+#include "Widgets/SRigVMGraphPinVariableBinding.h"
+#include "Widgets/SRigVMGraphPinUserDataNameSpace.h"
+#include "Widgets/SRigVMGraphPinUserDataPath.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "SGraphPinComboBox.h"
 #include "ControlRig.h"
@@ -24,6 +24,97 @@
 
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
+	TSharedPtr<SGraphPin> InternalResult = CreatePin_Internal(InPin);
+	if(InternalResult.IsValid())
+	{
+		return InternalResult;
+	}
+	
+	TSharedPtr<SGraphPin> K2PinWidget = FNodeFactory::CreateK2PinWidget(InPin);
+	if(K2PinWidget.IsValid())
+	{
+		if(InPin->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			// if we are an enum pin - and we are inside a RigElementKey,
+			// let's remove the "all" entry.
+			if(InPin->PinType.PinSubCategoryObject == StaticEnum<ERigElementType>())
+			{
+				if(InPin->ParentPin)
+				{
+					if(InPin->ParentPin->PinType.PinSubCategoryObject == FRigElementKey::StaticStruct())
+					{
+						TSharedPtr<SWidget> ValueWidget = K2PinWidget->GetValueWidget();
+						if(ValueWidget.IsValid())
+						{
+							if(TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedPtr<SPinComboBox>(ValueWidget))
+							{
+								if(EnumCombo.IsValid())
+								{
+									EnumCombo->RemoveItemByIndex(StaticEnum<ERigElementType>()->GetIndexByValue((int64)ERigElementType::All));
+								}
+							}
+						}
+					}
+				}
+			}
+
+			const UEnum* RigControlTransformChannelEnum = StaticEnum<ERigControlTransformChannel>();
+			if (InPin->PinType.PinSubCategoryObject == RigControlTransformChannelEnum)
+			{
+				TSharedPtr<SWidget> ValueWidget = K2PinWidget->GetValueWidget();
+				if(ValueWidget.IsValid())
+				{
+					if(TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedPtr<SPinComboBox>(ValueWidget))
+					{
+						if(EnumCombo.IsValid())
+						{
+							if (const UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode()))
+							{
+								if (const URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(InPin->GetName()))
+								{
+									if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
+									{
+										if(UnitNode->GetScriptStruct() &&
+											UnitNode->GetScriptStruct()->IsChildOf(FRigUnit_HierarchyAddControlElement::StaticStruct()))
+										{
+											const TSharedPtr<FStructOnScope> StructInstanceScope = UnitNode->ConstructStructInstance();
+											const FRigUnit_HierarchyAddControlElement* StructInstance = 
+												(const FRigUnit_HierarchyAddControlElement*)StructInstanceScope->GetStructMemory();
+
+											if(const TArray<ERigControlTransformChannel>* VisibleChannels =
+												FRigControlTransformChannelDetails::GetVisibleChannelsForControlType(StructInstance->GetControlTypeToSpawn()))
+											{
+												for(int32 Index = 0; Index < RigControlTransformChannelEnum->NumEnums(); Index++)
+												{
+													const ERigControlTransformChannel Value =
+														(ERigControlTransformChannel)RigControlTransformChannelEnum->GetValueByIndex(Index);
+													if(!VisibleChannels->Contains(Value))
+													{
+														EnumCombo->RemoveItemByIndex(Index);
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return K2PinWidget;
+}
+
+TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin_Internal(UEdGraphPin* InPin) const
+{
+	TSharedPtr<SGraphPin> SuperResult = FRigVMEdGraphPanelPinFactory::CreatePin_Internal(InPin);
+	if(SuperResult.IsValid())
+	{
+		return SuperResult;
+	}
+
 	if (InPin)
 	{
 		if (const UEdGraphNode* OwningNode = InPin->GetOwningNode())
@@ -41,75 +132,63 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 
 			if (URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(InPin->GetName()))
 			{
-				if (ModelPin->IsBoundToVariable())
-				{
-					if (UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
-					{
-						return SNew(SControlRigGraphPinVariableBinding, InPin)
-							.ModelPins({ModelPin})
-							.Blueprint(Blueprint);
-					}
-				}
-
 				FName CustomWidgetName = ModelPin->GetCustomWidgetName();
 				if (CustomWidgetName == TEXT("BoneName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
-						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetBoneNameList);
-				}
+						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetBoneNameList)
+						.OnGetSelectedClicked_UObject(RigGraph, &UControlRigGraph::HandleGetSelectedClicked)
+						.OnBrowseClicked_UObject(RigGraph, &UControlRigGraph::HandleBrowseClicked);
+			}
 				else if (CustomWidgetName == TEXT("ControlName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetControlNameListWithoutAnimationChannels)
-						.OnGetNameListContentForValidation_UObject(RigGraph, &UControlRigGraph::GetControlNameList);
+						.OnGetNameListContentForValidation_UObject(RigGraph, &UControlRigGraph::GetControlNameList)
+						.OnGetSelectedClicked_UObject(RigGraph, &UControlRigGraph::HandleGetSelectedClicked)
+						.OnBrowseClicked_UObject(RigGraph, &UControlRigGraph::HandleBrowseClicked);
 				}
-				else if (CustomWidgetName == TEXT("SpaceName"))
+				else if (CustomWidgetName == TEXT("SpaceName") || CustomWidgetName == TEXT("NullName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
-						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetNullNameList);
+						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetNullNameList)
+						.OnGetSelectedClicked_UObject(RigGraph, &UControlRigGraph::HandleGetSelectedClicked)
+						.OnBrowseClicked_UObject(RigGraph, &UControlRigGraph::HandleBrowseClicked);
 				}
 				else if (CustomWidgetName == TEXT("CurveName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetCurveNameList);
 				}
 				else if (CustomWidgetName == TEXT("ElementName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
-						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetElementNameList);
-				}
-				else if (CustomWidgetName == TEXT("EntryName"))
-				{
-					return SNew(SControlRigGraphPinNameList, InPin)
-						.ModelPin(ModelPin)
-						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetEntryNameList);
+						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetElementNameList)
+						.OnGetSelectedClicked_UObject(RigGraph, &UControlRigGraph::HandleGetSelectedClicked)
+						.OnBrowseClicked_UObject(RigGraph, &UControlRigGraph::HandleBrowseClicked);
 				}
 				else if (CustomWidgetName == TEXT("DrawingName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetDrawingNameList);
 				}
 				else if (CustomWidgetName == TEXT("ShapeName"))
 				{
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetShapeNameList);
-				}
-				else if (CustomWidgetName == TEXT("VariableName"))
-				{
-					return SNew(SControlRigGraphPinVariableName, InPin);
 				}
 				else if (CustomWidgetName == TEXT("AnimationChannelName"))
 				{
@@ -123,7 +202,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						{}
 					};
 					
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameListContent_Lambda([RigGraph](const URigVMPin* InPin)
 						{
@@ -212,7 +291,9 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 
 							static TArray<TSharedPtr<FString>> EmptyNameList;
 							return &EmptyNameList;
-						});
+						})
+						.OnGetSelectedClicked_UObject(RigGraph, &UControlRigGraph::HandleGetSelectedClicked)
+						.OnBrowseClicked_UObject(RigGraph, &UControlRigGraph::HandleBrowseClicked);
 				}
 				else if (CustomWidgetName == TEXT("MetadataName"))
 				{
@@ -226,7 +307,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						{}
 					};
 
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.SearchHintText(NSLOCTEXT("FControlRigGraphPanelPinFactory", "MetadataName", "Metadata Name"))
 						.AllowUserProvidedText(true)
@@ -293,7 +374,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						{}
 					};
 
-					return SNew(SControlRigGraphPinNameList, InPin)
+					return SNew(SRigVMGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.SearchHintText(NSLOCTEXT("FControlRigGraphPanelPinFactory", "TagName", "Tag Name"))
 						.AllowUserProvidedText(true)
@@ -352,106 +433,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 							return &EmptyNameList;
 						});
 				}
-				else if (CustomWidgetName == TEXT("UserDataNameSpace"))
-				{
-					return SNew(SGraphPinUserDataNameSpace, InPin);
-				}
-				else if (CustomWidgetName == TEXT("UserDataPath"))
-				{
-					return SNew(SGraphPinUserDataPath, InPin)
-						.ModelPins({ModelPin});
-				}
 			}
-
-			if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
-			{
-				const UStruct* Struct = Cast<UStruct>(InPin->PinType.PinSubCategoryObject);
-				if (Struct && Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-				{
-					return SNew(SGraphPinExec, InPin);
-				}
-				if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
-				{
-					return SNew(SControlRigGraphPinCurveFloat, InPin);
-				}
-			}
-		}
-
-		TSharedPtr<SGraphPin> K2PinWidget = FNodeFactory::CreateK2PinWidget(InPin);
-		if(K2PinWidget.IsValid())
-		{
-			if(InPin->Direction == EEdGraphPinDirection::EGPD_Input)
-			{
-				// if we are an enum pin - and we are inside a RigElementKey,
-				// let's remove the "all" entry.
-				if(InPin->PinType.PinSubCategoryObject == StaticEnum<ERigElementType>())
-				{
-					if(InPin->ParentPin)
-					{
-						if(InPin->ParentPin->PinType.PinSubCategoryObject == FRigElementKey::StaticStruct())
-						{
-							TSharedPtr<SWidget> ValueWidget = K2PinWidget->GetValueWidget();
-							if(ValueWidget.IsValid())
-							{
-								if(TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedPtr<SPinComboBox>(ValueWidget))
-								{
-									if(EnumCombo.IsValid())
-									{
-										EnumCombo->RemoveItemByIndex(StaticEnum<ERigElementType>()->GetIndexByValue((int64)ERigElementType::All));
-									}
-								}
-							}
-						}
-					}
-				}
-
-				const UEnum* RigControlTransformChannelEnum = StaticEnum<ERigControlTransformChannel>();
-				if (InPin->PinType.PinSubCategoryObject == RigControlTransformChannelEnum)
-				{
-					TSharedPtr<SWidget> ValueWidget = K2PinWidget->GetValueWidget();
-					if(ValueWidget.IsValid())
-					{
-						if(TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedPtr<SPinComboBox>(ValueWidget))
-						{
-							if(EnumCombo.IsValid())
-							{
-								if (const UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode()))
-								{
-									if (const URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(InPin->GetName()))
-									{
-										if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
-										{
-											if(UnitNode->GetScriptStruct() &&
-												UnitNode->GetScriptStruct()->IsChildOf(FRigUnit_HierarchyAddControlElement::StaticStruct()))
-											{
-												const TSharedPtr<FStructOnScope> StructInstanceScope = UnitNode->ConstructStructInstance();
-												const FRigUnit_HierarchyAddControlElement* StructInstance = 
-													(const FRigUnit_HierarchyAddControlElement*)StructInstanceScope->GetStructMemory();
-
-												if(const TArray<ERigControlTransformChannel>* VisibleChannels =
-													FRigControlTransformChannelDetails::GetVisibleChannelsForControlType(StructInstance->GetControlTypeToSpawn()))
-												{
-													for(int32 Index = 0; Index < RigControlTransformChannelEnum->NumEnums(); Index++)
-													{
-														const ERigControlTransformChannel Value =
-															(ERigControlTransformChannel)RigControlTransformChannelEnum->GetValueByIndex(Index);
-														if(!VisibleChannels->Contains(Value))
-														{
-															EnumCombo->RemoveItemByIndex(Index);
-														}
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			return K2PinWidget;
 		}
 	}
 

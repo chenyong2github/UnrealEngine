@@ -9,11 +9,11 @@
 #include "Widgets/Input/SButton.h"
 #include "SGraphPin.h"
 #include "RigVMModel/RigVMPin.h"
-#include "ControlRigBlueprint.h"
-#include "ControlRigAssetUserData.h"
+#include "RigVMBlueprint.h"
+#include "RigVMCore/RigVMAssetUserData.h"
 #include "IPropertyAccessEditor.h"
 
-class SRigVMUserDataPath : public SCompoundWidget
+class RIGVMEDITOR_API SRigVMUserDataPath : public SCompoundWidget
 {
 public:
 
@@ -40,7 +40,7 @@ protected:
 	void FillUserDataPathMenu( FMenuBuilder& InMenuBuilder, FString InParentPath );
 	void HandleSetUserDataPath(FString InUserDataPath);
 
-	UControlRigBlueprint* GetBlueprint() const;
+	URigVMBlueprint* GetBlueprint() const;
 	FString GetUserDataNameSpace(URigVMPin* ModelPin) const;
 	FString GetUserDataNameSpace() const;
 	const UNameSpacedUserData* GetUserDataObject() const;
@@ -51,11 +51,11 @@ protected:
 	bool bAllowUObjects = false;
 };
 
-class SGraphPinUserDataPath : public SGraphPin
+class RIGVMEDITOR_API  SRigVMGraphPinUserDataPath : public SGraphPin
 {
 public:
 
-	SLATE_BEGIN_ARGS(SGraphPinUserDataPath){}
+	SLATE_BEGIN_ARGS(SRigVMGraphPinUserDataPath){}
 
 		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
 

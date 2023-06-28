@@ -9,10 +9,10 @@
 #include "Curves/CurveFloat.h"
 #include "SGraphPin.h"
 
-class SControlRigGraphPinCurveFloat : public SGraphPin, public FCurveOwnerInterface
+class RIGVMEDITOR_API SRigVMGraphPinCurveFloat : public SGraphPin, public FCurveOwnerInterface
 {
 public:
-	SLATE_BEGIN_ARGS(SControlRigGraphPinCurveFloat) {}
+	SLATE_BEGIN_ARGS(SRigVMGraphPinCurveFloat) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj);

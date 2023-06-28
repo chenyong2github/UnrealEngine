@@ -2,7 +2,7 @@
 
 
 #include "Editor/SControlRigGizmoNameList.h"
-#include "Graph/SControlRigGraphPinNameListValueWidget.h"
+#include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraphSchema_K2.h"
 #include "ScopedTransaction.h"
@@ -71,7 +71,7 @@ void SControlRigShapeNameList::ConstructCommon()
 		.MinDesiredWidth(150)
 		.MaxDesiredWidth(400)
 		[
-			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
+			SAssignNew(NameListComboBox, SRigVMGraphPinNameListValueWidget)
 			.OptionsSource(&GetNameList())
 			.OnGenerateWidget(this, &SControlRigShapeNameList::MakeNameListItemWidget)
 			.OnSelectionChanged(this, &SControlRigShapeNameList::OnNameListChanged)

@@ -9,13 +9,13 @@
 #include "RigVMModel/RigVMPin.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "IPropertyAccessEditor.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 
-class SControlRigVariableBinding : public SCompoundWidget
+class RIGVMEDITOR_API SRigVMGraphVariableBinding : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SControlRigVariableBinding)
+	SLATE_BEGIN_ARGS(SRigVMGraphVariableBinding)
 	: _ModelPins()
     , _FunctionReferenceNode(nullptr)
     , _InnerVariableName(NAME_None)
@@ -26,7 +26,7 @@ public:
 		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
 		SLATE_ARGUMENT(URigVMFunctionReferenceNode*, FunctionReferenceNode)
 		SLATE_ARGUMENT(FName, InnerVariableName)
-		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
+		SLATE_ARGUMENT(URigVMBlueprint*, Blueprint)
 		SLATE_ARGUMENT(bool, CanRemoveBinding)
 
 	SLATE_END_ARGS()
@@ -50,19 +50,19 @@ protected:
 	TArray<URigVMPin*> ModelPins;
 	URigVMFunctionReferenceNode* FunctionReferenceNode;
 	FName InnerVariableName;
-	UControlRigBlueprint* Blueprint;
+	URigVMBlueprint* Blueprint;
 	FPropertyBindingWidgetArgs BindingArgs;
 	bool bCanRemoveBinding;
 };
 
-class SControlRigGraphPinVariableBinding : public SGraphPin
+class RIGVMEDITOR_API SRigVMGraphPinVariableBinding : public SGraphPin
 {
 public:
 
-	SLATE_BEGIN_ARGS(SControlRigGraphPinVariableBinding){}
+	SLATE_BEGIN_ARGS(SRigVMGraphPinVariableBinding){}
 
 		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
-		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
+		SLATE_ARGUMENT(URigVMBlueprint*, Blueprint)
 
 	SLATE_END_ARGS()
 
@@ -75,5 +75,5 @@ protected:
 	//~ End SGraphPin Interface
 
 	TArray<URigVMPin*> ModelPins;
-	UControlRigBlueprint* Blueprint;
+	URigVMBlueprint* Blueprint;
 };

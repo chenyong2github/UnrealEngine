@@ -6,9 +6,9 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphNodeKnot.h"
 
-class SControlRigGraphNodeKnot : public SGraphNodeKnot
+class RIGVMEDITOR_API SRigVMGraphNodeKnot : public SGraphNodeKnot
 {
-	SLATE_BEGIN_ARGS(SControlRigGraphNodeKnot) {} 
+	SLATE_BEGIN_ARGS(SRigVMGraphNodeKnot) {} 
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UEdGraphNode* InKnot);

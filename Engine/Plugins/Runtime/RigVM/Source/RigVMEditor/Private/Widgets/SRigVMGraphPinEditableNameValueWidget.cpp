@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Graph/SControlRigGraphPinEditableNameValueWidget.h"
+#include "Widgets/SRigVMGraphPinEditableNameValueWidget.h"
 #include "DetailLayoutBuilder.h"
 
 #define LOCTEXT_NAMESPACE "GraphPinEditableNameValueWidget"
 
-void SControlRigGraphPinEditableNameValueWidget::Construct(const FArguments& InArgs)
+void SRigVMGraphPinEditableNameValueWidget::Construct(const FArguments& InArgs)
 {
 	this->OnComboBoxOpening = InArgs._OnComboBoxOpening;
 	this->OnSelectionChanged = InArgs._OnSelectionChanged;
@@ -25,16 +25,16 @@ void SControlRigGraphPinEditableNameValueWidget::Construct(const FArguments& InA
 			[
 				SAssignNew(this->SearchField, SEditableTextBox)
 				.HintText(LOCTEXT("SearchOrRename", "Search / Rename"))
-				.OnTextChanged(this, &SControlRigGraphPinEditableNameValueWidget::OnSearchTextChanged)
-				.OnTextCommitted(this, &SControlRigGraphPinEditableNameValueWidget::OnSearchTextCommitted)
+				.OnTextChanged(this, &SRigVMGraphPinEditableNameValueWidget::OnSearchTextChanged)
+				.OnTextCommitted(this, &SRigVMGraphPinEditableNameValueWidget::OnSearchTextCommitted)
 			]
 
 			+ SVerticalBox::Slot()
 			[
 				SAssignNew(this->ComboListView, SComboListType)
 				.ListItemsSource(OptionsSource)
-				.OnGenerateRow(this, &SControlRigGraphPinEditableNameValueWidget::GenerateMenuItemRow)
-				.OnSelectionChanged(this, &SControlRigGraphPinEditableNameValueWidget::OnSelectionChanged_Internal)
+				.OnGenerateRow(this, &SRigVMGraphPinEditableNameValueWidget::GenerateMenuItemRow)
+				.OnSelectionChanged(this, &SRigVMGraphPinEditableNameValueWidget::OnSelectionChanged_Internal)
 				.SelectionMode(ESelectionMode::Single)
 				.ExternalScrollbar(InArgs._CustomScrollbar)
 			]
@@ -45,7 +45,7 @@ void SControlRigGraphPinEditableNameValueWidget::Construct(const FArguments& InA
 	if (InArgs._Content.Widget == SNullWidget::NullWidget)
 	{
 		SAssignNew(ButtonContent, STextBlock)
-			.Text(NSLOCTEXT("SControlRigGraphPinEditableNameValueWidget", "ContentWarning", "No Content Provided"))
+			.Text(NSLOCTEXT("SRigVMGraphPinEditableNameValueWidget", "ContentWarning", "No Content Provided"))
 			.ColorAndOpacity(FLinearColor::Red);
 	}
 
@@ -62,7 +62,7 @@ void SControlRigGraphPinEditableNameValueWidget::Construct(const FArguments& InA
 		]
 		.HasDownArrow(InArgs._HasDownArrow)
 		.ContentPadding(InArgs._ContentPadding)
-		.OnMenuOpenChanged(this, &SControlRigGraphPinEditableNameValueWidget::OnMenuOpenChanged)
+		.OnMenuOpenChanged(this, &SRigVMGraphPinEditableNameValueWidget::OnMenuOpenChanged)
 		.IsFocusable(true)
 		);
 	SetMenuContentWidgetToFocus(ComboListView);
@@ -77,12 +77,12 @@ void SControlRigGraphPinEditableNameValueWidget::Construct(const FArguments& InA
 
 }
 
-void SControlRigGraphPinEditableNameValueWidget::ClearSelection()
+void SRigVMGraphPinEditableNameValueWidget::ClearSelection()
 {
 	ComboListView->ClearSelection();
 }
 
-void SControlRigGraphPinEditableNameValueWidget::SetSelectedItem(TSharedPtr<FString> InSelectedItem)
+void SRigVMGraphPinEditableNameValueWidget::SetSelectedItem(TSharedPtr<FString> InSelectedItem)
 {
 	if (TListTypeTraits<TSharedPtr<FString>>::IsPtrValid(InSelectedItem))
 	{
@@ -94,12 +94,12 @@ void SControlRigGraphPinEditableNameValueWidget::SetSelectedItem(TSharedPtr<FStr
 	}
 }
 
-TSharedPtr<FString> SControlRigGraphPinEditableNameValueWidget::GetSelectedItem()
+TSharedPtr<FString> SRigVMGraphPinEditableNameValueWidget::GetSelectedItem()
 {
 	return SelectedItem;
 }
 
-void SControlRigGraphPinEditableNameValueWidget::RefreshOptions()
+void SRigVMGraphPinEditableNameValueWidget::RefreshOptions()
 {
 	if (!ComboListView->IsPendingRefresh())
 	{
@@ -107,7 +107,7 @@ void SControlRigGraphPinEditableNameValueWidget::RefreshOptions()
 	}
 }
 
-TSharedRef<ITableRow> SControlRigGraphPinEditableNameValueWidget::GenerateMenuItemRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRigVMGraphPinEditableNameValueWidget::GenerateMenuItemRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	if (OnGenerateWidget.IsBound())
 	{
@@ -136,7 +136,7 @@ TSharedRef<ITableRow> SControlRigGraphPinEditableNameValueWidget::GenerateMenuIt
 	}
 }
 
-void SControlRigGraphPinEditableNameValueWidget::OnMenuOpenChanged(bool bOpen)
+void SRigVMGraphPinEditableNameValueWidget::OnMenuOpenChanged(bool bOpen)
 {
 	if (bOpen == false)
 	{
@@ -158,11 +158,11 @@ void SControlRigGraphPinEditableNameValueWidget::OnMenuOpenChanged(bool bOpen)
 	}
 	else
 	{
-		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SControlRigGraphPinEditableNameValueWidget::SetFocusPostConstruct));
+		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SRigVMGraphPinEditableNameValueWidget::SetFocusPostConstruct));
 	}
 }
 
-EActiveTimerReturnType SControlRigGraphPinEditableNameValueWidget::SetFocusPostConstruct(double InCurrentTime, float InDeltaTime)
+EActiveTimerReturnType SRigVMGraphPinEditableNameValueWidget::SetFocusPostConstruct(double InCurrentTime, float InDeltaTime)
 {
 	if (SearchField.IsValid())
 	{
@@ -183,7 +183,7 @@ EActiveTimerReturnType SControlRigGraphPinEditableNameValueWidget::SetFocusPostC
 	return EActiveTimerReturnType::Continue;
 }
 
-void SControlRigGraphPinEditableNameValueWidget::OnSelectionChanged_Internal(TSharedPtr<FString> ProposedSelection, ESelectInfo::Type SelectInfo)
+void SRigVMGraphPinEditableNameValueWidget::OnSelectionChanged_Internal(TSharedPtr<FString> ProposedSelection, ESelectInfo::Type SelectInfo)
 {
 	// Ensure that the proposed selection is different
 	if (SelectInfo != ESelectInfo::OnNavigation)
@@ -199,7 +199,7 @@ void SControlRigGraphPinEditableNameValueWidget::OnSelectionChanged_Internal(TSh
 	}
 }
 
-void SControlRigGraphPinEditableNameValueWidget::OnSearchTextChanged(const FText& ChangedText)
+void SRigVMGraphPinEditableNameValueWidget::OnSearchTextChanged(const FText& ChangedText)
 {
 	FString SearchToken = ChangedText.ToString().ToLower();
 	for (int32 i = 0; i < OptionsSource->Num(); i++)
@@ -227,7 +227,7 @@ void SControlRigGraphPinEditableNameValueWidget::OnSearchTextChanged(const FText
 	SelectedItem = TSharedPtr< FString >();
 }
 
-void SControlRigGraphPinEditableNameValueWidget::OnSearchTextCommitted(const FText& ChangedText, ETextCommit::Type CommitType)
+void SRigVMGraphPinEditableNameValueWidget::OnSearchTextCommitted(const FText& ChangedText, ETextCommit::Type CommitType)
 {
 	if (CommitType == ETextCommit::OnEnter)
 	{
@@ -236,7 +236,7 @@ void SControlRigGraphPinEditableNameValueWidget::OnSearchTextCommitted(const FTe
 	}
 }
 
-FReply SControlRigGraphPinEditableNameValueWidget::OnButtonClicked()
+FReply SRigVMGraphPinEditableNameValueWidget::OnButtonClicked()
 {
 	// if user clicked to close the combo menu
 	if (this->IsOpen())

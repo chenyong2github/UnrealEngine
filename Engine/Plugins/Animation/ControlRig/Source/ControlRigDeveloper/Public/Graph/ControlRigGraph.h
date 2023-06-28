@@ -59,9 +59,10 @@ public:
 	const TArray<TSharedPtr<FString>>* GetElementNameList(URigVMPin* InPin = nullptr) const;
 	const TArray<TSharedPtr<FString>> GetSelectedElementsNameList() const;
 	const TArray<TSharedPtr<FString>>* GetDrawingNameList(URigVMPin* InPin = nullptr) const;
-	const TArray<TSharedPtr<FString>>* GetEntryNameList(URigVMPin* InPin = nullptr) const;
 	const TArray<TSharedPtr<FString>>* GetShapeNameList(URigVMPin* InPin = nullptr) const;
 
+	FReply HandleGetSelectedClicked(URigVMEdGraph* InEdGraph, URigVMPin* InPin, FString InDefaultValue);
+	FReply HandleBrowseClicked(URigVMEdGraph* InEdGraph, URigVMPin* InPin, FString InDefaultValue);
 
 private:
 
@@ -116,7 +117,6 @@ private:
 	TMap<ERigElementType, TArray<TSharedPtr<FString>>> ElementNameLists;
 	TArray<TSharedPtr<FString>>	ControlNameListWithoutAnimationChannels;
 	TArray<TSharedPtr<FString>> DrawingNameList;
-	TArray<TSharedPtr<FString>> EntryNameList;
 	TArray<TSharedPtr<FString>> ShapeNameList;
 	int32 LastHierarchyTopologyVersion;
 
@@ -126,7 +126,7 @@ private:
 
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;
-	friend class SControlRigGraphNode;
+	friend class SRigVMGraphNode;
 	friend class UControlRigBlueprint;
 };
 

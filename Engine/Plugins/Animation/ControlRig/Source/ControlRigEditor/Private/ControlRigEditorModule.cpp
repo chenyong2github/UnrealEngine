@@ -8,7 +8,7 @@
 #include "ControlRig.h"
 #include "ControlRigComponent.h"
 #include "ControlRigVariableDetailsCustomization.h"
-#include "Graph/ControlRigConnectionDrawingPolicy.h"
+#include "EdGraph/RigVMEdGraphConnectionDrawingPolicy.h"
 #include "GraphEditorActions.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ISequencerModule.h"
@@ -56,7 +56,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "EdGraphUtilities.h"
-#include "Graph/ControlRigGraphPanelNodeFactory.h"
+#include "EdGraph/RigVMEdGraphPanelNodeFactory.h"
 #include "Graph/ControlRigGraphPanelPinFactory.h"
 #include "RigVMBlueprintUtils.h"
 #include "ControlRigBlueprintCommands.h"
@@ -106,8 +106,8 @@
 #include "Rigs/FKControlRig.h"
 #include "SBakeToControlRigDialog.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
-#include "Graph/SControlRigGraphPinVariableBinding.h"
-#include "Graph/SControlRigGraphChangePinType.h"
+#include "Widgets/SRigVMGraphPinVariableBinding.h"
+#include "Widgets/SRigVMGraphChangePinType.h"
 #include "ControlRigBlueprintFactory.h"
 #include "ControlRigPythonLogDetails.h"
 #include "Dialog/SCustomDialog.h"
@@ -135,6 +135,7 @@
 #include "RigVMFunctions/RigVMDispatch_Array.h"
 #include "RigVMFunctions/RigVMDispatch_MakeStruct.h"
 #include "RigVMFunctions/RigVMDispatch_Constant.h"
+#include "EdGraph/RigVMEdGraphPanelNodeFactory.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -234,7 +235,7 @@ void FControlRigEditorModule::StartupModule()
 		8500);
 
 
-	ControlRigGraphPanelNodeFactory = MakeShared<FControlRigGraphPanelNodeFactory>();
+	ControlRigGraphPanelNodeFactory = MakeShared<FRigVMEdGraphPanelNodeFactory>();
 	FEdGraphUtilities::RegisterVisualNodeFactory(ControlRigGraphPanelNodeFactory);
 
 	ControlRigGraphPanelPinFactory = MakeShared<FControlRigGraphPanelPinFactory>();
@@ -1297,7 +1298,7 @@ void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlu
 
 FConnectionDrawingPolicy* FControlRigEditorModule::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj)
 {
-	return new FControlRigConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+	return new FRigVMEdGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 }
 
 void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema* Schema, UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
@@ -1476,8 +1477,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										if(!Argument->IsSingleton())
 										{
 											TArray<TRigVMTypeIndex> ResolvedTypeIndices = Argument->GetSupportedTypeIndices(TemplateNode->GetResolvedPermutationIndices(true));
-											TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
-											SNew(SControlRigChangePinType)
+											TSharedRef<SRigVMGraphChangePinType> ChangePinTypeWidget =
+											SNew(SRigVMGraphChangePinType)
 											.Blueprint(RigBlueprint)
 											.Types(ResolvedTypeIndices)
 											.OnTypeSelected_Lambda([RigBlueprint, ModelPin](const TRigVMTypeIndex& TypeSelected)
@@ -1613,8 +1614,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							{
 								FToolMenuSection& VariablesSection = Menu->FindOrAddSection(TEXT("Variables"));
 
-								TSharedRef<SControlRigVariableBinding> VariableBindingWidget =
-									SNew(SControlRigVariableBinding)
+								TSharedRef<SRigVMGraphVariableBinding> VariableBindingWidget =
+									SNew(SRigVMGraphVariableBinding)
 									.Blueprint(RigBlueprint)
 									.ModelPins({ModelPin})
 									.CanRemoveBinding(false);

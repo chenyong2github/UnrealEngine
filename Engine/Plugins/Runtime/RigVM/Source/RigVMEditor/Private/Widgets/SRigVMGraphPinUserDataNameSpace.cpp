@@ -1,18 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SGraphPinUserDataNameSpace.h"
-#include "Graph/ControlRigGraph.h"
-#include "ControlRigAssetUserData.h"
+#include "Widgets/SRigVMGraphPinUserDataNameSpace.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "RigVMCore/RigVMAssetUserData.h"
+#include "RigVMBlueprint.h"
 #include "Widgets/Layout/SBox.h"
 #include "ScopedTransaction.h"
 
-void SGraphPinUserDataNameSpace::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+void SRigVMGraphPinUserDataNameSpace::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
-TSharedRef<SWidget>	SGraphPinUserDataNameSpace::GetDefaultValueWidget()
+TSharedRef<SWidget>	SRigVMGraphPinUserDataNameSpace::GetDefaultValueWidget()
 {
 	TSharedPtr<FString> InitialSelected;
 	TArray<TSharedPtr<FString>>& LocalNameSpaces = GetNameSpaces();
@@ -28,27 +29,27 @@ TSharedRef<SWidget>	SGraphPinUserDataNameSpace::GetDefaultValueWidget()
 		.MinDesiredWidth(150)
 		.MaxDesiredWidth(400)
 		[
-			SAssignNew(NameComboBox, SControlRigGraphPinEditableNameValueWidget)
+			SAssignNew(NameComboBox, SRigVMGraphPinEditableNameValueWidget)
 				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
 				.OptionsSource(&NameSpaces)
-				.OnGenerateWidget(this, &SGraphPinUserDataNameSpace::MakeNameSpaceItemWidget)
-				.OnSelectionChanged(this, &SGraphPinUserDataNameSpace::OnNameSpaceChanged)
-				.OnComboBoxOpening(this, &SGraphPinUserDataNameSpace::OnNameSpaceComboBox)
+				.OnGenerateWidget(this, &SRigVMGraphPinUserDataNameSpace::MakeNameSpaceItemWidget)
+				.OnSelectionChanged(this, &SRigVMGraphPinUserDataNameSpace::OnNameSpaceChanged)
+				.OnComboBoxOpening(this, &SRigVMGraphPinUserDataNameSpace::OnNameSpaceComboBox)
 				.InitiallySelectedItem(InitialSelected)
 				.Content()
 				[
 					SNew(STextBlock)
-					.Text(this, &SGraphPinUserDataNameSpace::GetNameSpaceText)
+					.Text(this, &SRigVMGraphPinUserDataNameSpace::GetNameSpaceText)
 				]
 		];
 }
 
-FText SGraphPinUserDataNameSpace::GetNameSpaceText() const
+FText SRigVMGraphPinUserDataNameSpace::GetNameSpaceText() const
 {
 	return FText::FromString( GraphPinObj->GetDefaultAsString() );
 }
 
-void SGraphPinUserDataNameSpace::SetNameSpaceText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
+void SRigVMGraphPinUserDataNameSpace::SetNameSpaceText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
 {
 	if(!GraphPinObj->GetDefaultAsString().Equals(NewTypeInValue.ToString()))
 	{
@@ -58,12 +59,12 @@ void SGraphPinUserDataNameSpace::SetNameSpaceText(const FText& NewTypeInValue, E
 	}
 }
 
-TSharedRef<SWidget> SGraphPinUserDataNameSpace::MakeNameSpaceItemWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> SRigVMGraphPinUserDataNameSpace::MakeNameSpaceItemWidget(TSharedPtr<FString> InItem)
 {
 	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
-void SGraphPinUserDataNameSpace::OnNameSpaceChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+void SRigVMGraphPinUserDataNameSpace::OnNameSpaceChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
@@ -72,7 +73,7 @@ void SGraphPinUserDataNameSpace::OnNameSpaceChanged(TSharedPtr<FString> NewSelec
 	}
 }
 
-void SGraphPinUserDataNameSpace::OnNameSpaceComboBox()
+void SRigVMGraphPinUserDataNameSpace::OnNameSpaceComboBox()
 {
 	TSharedPtr<FString> CurrentlySelected;
 	TArray<TSharedPtr<FString>>& LocalNameSpaces = GetNameSpaces();
@@ -87,7 +88,7 @@ void SGraphPinUserDataNameSpace::OnNameSpaceComboBox()
 	NameComboBox->SetSelectedItem(CurrentlySelected);
 }
 
-TArray<TSharedPtr<FString>>& SGraphPinUserDataNameSpace::GetNameSpaces()
+TArray<TSharedPtr<FString>>& SRigVMGraphPinUserDataNameSpace::GetNameSpaces()
 {
 	NameSpaces.Reset();
 

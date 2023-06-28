@@ -8,22 +8,22 @@
 #include "SGraphPin.h"
 #include "RigVMModel/RigVMPin.h"
 #include "IPropertyAccessEditor.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 
 DECLARE_DELEGATE_OneParam(FOnTypeSelected, TRigVMTypeIndex);
 
-class SControlRigChangePinType : public SCompoundWidget
+class RIGVMEDITOR_API SRigVMGraphChangePinType : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SControlRigChangePinType)
+	SLATE_BEGIN_ARGS(SRigVMGraphChangePinType)
 	: _Types()
     , _Blueprint(nullptr)
 	, _OnTypeSelected(nullptr)
 	{}
 
 		SLATE_ARGUMENT(TArray<TRigVMTypeIndex>, Types)
-		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
+		SLATE_ARGUMENT(URigVMBlueprint*, Blueprint)
 		SLATE_EVENT(FOnTypeSelected, OnTypeSelected)
 
 	SLATE_END_ARGS()
@@ -44,7 +44,7 @@ protected:
 	void HandlePinTypeChanged(FRigVMTemplateArgumentType InType);
 
 	TArray<TRigVMTypeIndex> Types;
-	UControlRigBlueprint* Blueprint;
+	URigVMBlueprint* Blueprint;
 	FOnTypeSelected OnTypeSelected;
 	FPropertyBindingWidgetArgs BindingArgs;
 };

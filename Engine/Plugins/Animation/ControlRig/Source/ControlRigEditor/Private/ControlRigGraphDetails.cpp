@@ -23,7 +23,7 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "EditorCategoryUtils.h"
 #include "IPropertyUtilities.h"
-#include "Graph/SControlRigGraphPinVariableBinding.h"
+#include "Widgets/SRigVMGraphPinVariableBinding.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphDetails"
 
@@ -310,7 +310,7 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 
 void FControlRigArgumentLayout::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
 {
-	// we don't show defaults here - we rely on a SControlRigGraphNode widget in the top of the details
+	// we don't show defaults here - we rely on a SRigVMGraphNode widget in the top of the details
 }
 
 void FControlRigArgumentLayout::OnRemoveClicked()
@@ -622,7 +622,7 @@ void FControlRigArgumentDefaultNode::GenerateChildContent(IDetailChildrenBuilder
 	.WholeRowContent()
 	.MaxDesiredWidth(980.f)
 	[
-		SAssignNew(OwnedNodeWidget, SControlRigGraphNode).GraphNodeObj(ControlRigGraphNode)
+		SAssignNew(OwnedNodeWidget, SRigVMGraphNode).GraphNodeObj(ControlRigGraphNode)
 	];
 
 	OwnedNodeWidget->SetIsEditable(true);
@@ -1351,7 +1351,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 					]
 					.ValueContent()
 					[
-					SNew(SControlRigVariableBinding)
+					SNew(SRigVMGraphVariableBinding)
 						.ModelPins(ModelPins)
 						.Blueprint(BlueprintBeingCustomized)
 					];
@@ -1401,7 +1401,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
         		if (NameList)
         		{
-        			TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListWidget;
+        			TSharedPtr<SRigVMGraphPinNameListValueWidget> NameListWidget;
 
         			if(IDetailPropertyRow* Row = DetailLayout.EditDefaultProperty(PropertyHandle))
         			{
@@ -1412,7 +1412,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 						]
 						.ValueContent()
 						[
-							SAssignNew(NameListWidget, SControlRigGraphPinNameListValueWidget)
+							SAssignNew(NameListWidget, SRigVMGraphPinNameListValueWidget)
 							.OptionsSource(NameList)
 							.OnGenerateWidget(this, &FControlRigWrappedNodeDetails::MakeNameListItemWidget)
 							.OnSelectionChanged(this, &FControlRigWrappedNodeDetails::OnNameListChanged, NameProperty, DetailLayout.GetPropertyUtilities())
@@ -1574,7 +1574,7 @@ void FControlRigWrappedNodeDetails::OnNameListChanged(TSharedPtr<FString> NewSel
 
 void FControlRigWrappedNodeDetails::OnNameListComboBox(FNameProperty* InProperty, const TArray<TSharedPtr<FString>>* InNameList)
 {
-	TSharedPtr<SControlRigGraphPinNameListValueWidget> Widget = NameListWidgets.FindChecked(InProperty->GetFName());
+	TSharedPtr<SRigVMGraphPinNameListValueWidget> Widget = NameListWidgets.FindChecked(InProperty->GetFName());
 	const TSharedPtr<FString> CurrentlySelected = GetCurrentlySelectedItem(InProperty, InNameList);
 	Widget->SetSelectedItem(CurrentlySelected);
 }

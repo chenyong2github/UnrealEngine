@@ -6,12 +6,12 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "SGraphPin.h"
-#include "Graph/SControlRigGraphPinEditableNameValueWidget.h"
+#include "Widgets/SRigVMGraphPinEditableNameValueWidget.h"
 
-class SControlRigGraphPinVariableName : public SGraphPin
+class RIGVMEDITOR_API SRigVMGraphPinVariableName : public SGraphPin
 {
 public:
-	SLATE_BEGIN_ARGS(SControlRigGraphPinVariableName) {}
+	SLATE_BEGIN_ARGS(SRigVMGraphPinVariableName) {}
 	SLATE_END_ARGS()
 
 		void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj);
@@ -30,6 +30,6 @@ protected:
 	TArray<TSharedPtr<FString>>& GetVariableNames();
 
 	TArray<TSharedPtr<FString>> VariableNames;
-	TSharedPtr<SControlRigGraphPinEditableNameValueWidget> NameComboBox;
+	TSharedPtr<SRigVMGraphPinEditableNameValueWidget> NameComboBox;
 
 };

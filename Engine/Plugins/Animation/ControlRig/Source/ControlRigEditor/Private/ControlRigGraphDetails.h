@@ -10,7 +10,7 @@
 #include "ControlRigBlueprint.h"
 #include "Editor/ControlRigEditor.h"
 #include "SGraphPin.h"
-#include "Graph/SControlRigGraphNode.h"
+#include "Widgets/SRigVMGraphNode.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Editor/DetailsViewWrapperObject.h"
 #include "IDetailPropertyExtensionHandler.h"
@@ -149,7 +149,7 @@ private:
 	TWeakObjectPtr<UControlRigGraph> EdGraphOuterPtr;
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
 	FSimpleDelegate OnRebuildChildren;
-	TSharedPtr<SControlRigGraphNode> OwnedNodeWidget;
+	TSharedPtr<SRigVMGraphNode> OwnedNodeWidget;
 	FDelegateHandle GraphChangedDelegateHandle;
 };
 
@@ -234,7 +234,7 @@ public:
 	UControlRigBlueprint* BlueprintBeingCustomized;
 	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
 	TArray<TWeakObjectPtr<URigVMNode>> NodesBeingCustomized;
-	TMap<FName, TSharedPtr<SControlRigGraphPinNameListValueWidget>> NameListWidgets;
+	TMap<FName, TSharedPtr<SRigVMGraphPinNameListValueWidget>> NameListWidgets;
 };
 
 /** Customization for editing a Control Rig node */

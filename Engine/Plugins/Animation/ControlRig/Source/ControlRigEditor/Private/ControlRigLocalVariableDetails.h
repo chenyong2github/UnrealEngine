@@ -9,7 +9,7 @@
 #include "ControlRigBlueprint.h"
 #include "Editor/DetailsViewWrapperObject.h"
 #include "Graph/ControlRigGraph.h"
-#include "Graph/SControlRigGraphPinNameListValueWidget.h"
+#include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
 #include "Graph/ControlRigGraphSchema.h"

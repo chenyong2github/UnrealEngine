@@ -1,29 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Graph/SControlRigGraphNodeComment.h"
+#include "Widgets/SRigVMGraphNodeComment.h"
 #include "EdGraphNode_Comment.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "PropertyPathHelpers.h"
 #include "UObject/PropertyPortFlags.h"
-#include "ControlRigBlueprint.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "RigVMBlueprint.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "RigVMModel/RigVMController.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "SControlRigGraphNodeComment"
+#define LOCTEXT_NAMESPACE "SRigVMGraphNodeComment"
 
-SControlRigGraphNodeComment::SControlRigGraphNodeComment()
+SRigVMGraphNodeComment::SRigVMGraphNodeComment()
 	: SGraphNodeComment()
 	, CachedNodeCommentColor(FLinearColor(-1.f, -1.f, -1.f, -1.f))
 	, CachedColorBubble(INDEX_NONE)
 {
 }
 
-FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SRigVMGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) && bUserIsDragging)
 	{ 
@@ -38,9 +38,9 @@ FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry,
 		if (GraphNode)
 		{
 			UEdGraphNode_Comment* CommentNode = CastChecked<UEdGraphNode_Comment>(GraphNode);
-			if (UControlRigGraph* Graph = Cast<UControlRigGraph>(CommentNode->GetOuter()))
+			if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(CommentNode->GetOuter()))
 			{
-				if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
+				if (URigVMBlueprint* Blueprint = Cast<URigVMBlueprint>(Graph->GetOuter()))
 				{
 					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
 					FVector2D Size(CommentNode->NodeWidth, CommentNode->NodeHeight);
@@ -61,7 +61,7 @@ FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry,
 	return SGraphNodeComment::OnMouseButtonUp(MyGeometry, MouseEvent);
 }
 
-void SControlRigGraphNodeComment::EndUserInteraction() const
+void SRigVMGraphNodeComment::EndUserInteraction() const
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -72,7 +72,7 @@ void SControlRigGraphNodeComment::EndUserInteraction() const
 
 	if (GraphNode)
 	{
-		if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+		if (const URigVMEdGraphSchema* RigSchema = Cast<URigVMEdGraphSchema>(GraphNode->GetSchema()))
 		{
 			RigSchema->EndGraphNodeInteraction(GraphNode);
 		}
@@ -81,7 +81,7 @@ void SControlRigGraphNodeComment::EndUserInteraction() const
 	SGraphNodeComment::EndUserInteraction();
 }
 
-void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SRigVMGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	// catch a renaming action!
 	if (GraphNode)
@@ -102,9 +102,9 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 			CurrentCommentBubbleVisible != bCachedBubbleVisibility ||
 			CurrentCommentColorBubble != (bool) CachedColorBubble)
 		{
-			if (UControlRigGraph* Graph = Cast<UControlRigGraph>(CommentNode->GetOuter()))
+			if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(CommentNode->GetOuter()))
 			{
-				if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
+				if (URigVMBlueprint* Blueprint = Cast<URigVMBlueprint>(Graph->GetOuter()))
 				{
 					if (URigVMController* Controller = Blueprint->GetController(Graph))
 					{
@@ -124,9 +124,9 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 			FLinearColor CurrentNodeCommentColor = CommentNode->CommentColor;
 			if (!FVector4(CachedNodeCommentColor - CurrentNodeCommentColor).IsNearlyZero3())
 			{
-				if (UControlRigGraph* Graph = Cast<UControlRigGraph>(CommentNode->GetOuter()))
+				if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(CommentNode->GetOuter()))
 				{
-					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
+					if (URigVMBlueprint* Blueprint = Cast<URigVMBlueprint>(Graph->GetOuter()))
 					{
 						if (URigVMController* Controller = Blueprint->GetController(Graph))
 						{
@@ -143,18 +143,18 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 	SGraphNodeComment::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
-void SControlRigGraphNodeComment::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
+void SRigVMGraphNodeComment::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	if (!NodeFilter.Find(SharedThis(this)))
 	{
 		if (GraphNode && !RequiresSecondPassLayout())
 		{
-			if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
+			if (const URigVMEdGraphSchema* RigSchema = Cast<URigVMEdGraphSchema>(GraphNode->GetSchema()))
 			{
 				const FVector2D CommentOldPosition = RigSchema->GetNodePositionAtStartOfInteraction(GraphNode);
 				const FVector2D Delta = NewPosition - CommentOldPosition;
 
-				TArray<UEdGraphNode*> NodesToMove = UControlRigGraphSchema::GetNodesToMoveForNode(GraphNode);
+				TArray<UEdGraphNode*> NodesToMove = URigVMEdGraphSchema::GetNodesToMoveForNode(GraphNode);
 				for(UEdGraphNode* NodeToMove : NodesToMove)
 				{
 					// If the internal node is also selected, it will also be moved, so we don't need to take care of it
@@ -180,7 +180,7 @@ void SControlRigGraphNodeComment::MoveTo(const FVector2D& NewPosition, FNodeSet&
 }
 
 /*
-void SControlRigGraphNodeComment::OnCommentTextCommitted(const FText& NewComment, ETextCommit::Type CommitInfo)
+void SRigVMGraphNodeComment::OnCommentTextCommitted(const FText& NewComment, ETextCommit::Type CommitInfo)
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -192,9 +192,9 @@ void SControlRigGraphNodeComment::OnCommentTextCommitted(const FText& NewComment
 	if (GraphNode)
 	{
 		UEdGraphNode_Comment* CommentNode = CastChecked<UEdGraphNode_Comment>(GraphNode);
-		if (UControlRigGraph* Graph = Cast<UControlRigGraph>(CommentNode->GetOuter()))
+		if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(CommentNode->GetOuter()))
 		{
-			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
+			if (URigVMBlueprint* Blueprint = Cast<URigVMBlueprint>(Graph->GetOuter()))
 			{
 				//FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
 				//Blueprint->ModelController->SetNodePosition(CommentNode->GetFName(), Position, true);
@@ -204,23 +204,23 @@ void SControlRigGraphNodeComment::OnCommentTextCommitted(const FText& NewComment
 }
 */
 
-bool SControlRigGraphNodeComment::IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const
+bool SRigVMGraphNodeComment::IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const
 {
 	return IsNodeUnderComment(InNodeWidget->GetPosition());
 }
 
 
-bool SControlRigGraphNodeComment::IsNodeUnderComment(UEdGraphNode* InNode) const
+bool SRigVMGraphNodeComment::IsNodeUnderComment(UEdGraphNode* InNode) const
 {
 	return IsNodeUnderComment(FVector2D(InNode->NodePosX, InNode->NodePosY));
 }
 
-bool SControlRigGraphNodeComment::IsNodeUnderComment(const FVector2D& InNodePosition) const
+bool SRigVMGraphNodeComment::IsNodeUnderComment(const FVector2D& InNodePosition) const
 {
 	return IsNodeUnderComment(GetPosition(), InNodePosition);
 }
 
-bool SControlRigGraphNodeComment::IsNodeUnderComment(const FVector2D& InCommentPosition, const FVector2D& InNodePosition) const
+bool SRigVMGraphNodeComment::IsNodeUnderComment(const FVector2D& InCommentPosition, const FVector2D& InNodePosition) const
 {
 	const FVector2D NodeSize = GetDesiredSize();
 	const FSlateRect CommentRect(InCommentPosition.X, InCommentPosition.Y, InCommentPosition.X + NodeSize.X, InCommentPosition.Y + NodeSize.Y);

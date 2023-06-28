@@ -44,7 +44,7 @@ public:
 
 private:
 
-	friend class SControlRigGraphNode;
+	friend class SRigVMGraphNode;
 	friend class FControlRigArgumentLayout;
 	friend class FControlRigGraphDetails;
 	friend class UControlRigTemplateNodeSpawner;

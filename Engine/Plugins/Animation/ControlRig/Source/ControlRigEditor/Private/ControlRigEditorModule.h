@@ -19,7 +19,7 @@ class FToolBarBuilder;
 class FExtender;
 class FUICommandList;
 class UMovieSceneTrack;
-class FControlRigGraphPanelNodeFactory;
+class FRigVMEdGraphPanelNodeFactory;
 class FControlRigGraphPanelPinFactory;
 
 class FControlRigEditorModule : public IControlRigEditorModule
@@ -77,7 +77,7 @@ private:
 	TArray<FControlRigEditorToolbarExtender> ControlRigEditorToolbarExtenders;
 
 	/** Node factory for the control rig graph */
-	TSharedPtr<FControlRigGraphPanelNodeFactory> ControlRigGraphPanelNodeFactory;
+	TSharedPtr<FRigVMEdGraphPanelNodeFactory> ControlRigGraphPanelNodeFactory;
 
 	/** Pin factory for the control rig graph */
 	TSharedPtr<FControlRigGraphPanelPinFactory> ControlRigGraphPanelPinFactory;

@@ -7,11 +7,11 @@
 
 class UEdGraphNode_Comment;
 
-class SControlRigGraphNodeComment : public SGraphNodeComment
+class RIGVMEDITOR_API SRigVMGraphNodeComment : public SGraphNodeComment
 {
 public:
 
-	SControlRigGraphNodeComment();
+	SRigVMGraphNodeComment();
 
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void EndUserInteraction() const override;

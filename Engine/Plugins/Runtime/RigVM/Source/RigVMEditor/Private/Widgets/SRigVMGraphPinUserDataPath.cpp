@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Graph/SGraphPinUserDataPath.h"
+#include "Widgets/SRigVMGraphPinUserDataPath.h"
 #include "Features/IModularFeatures.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -11,12 +11,11 @@
 #include "EdGraphSchema_K2.h"
 #include "DetailLayoutBuilder.h"
 #include "RigVMModel/RigVMController.h"
-#include "ControlRigBlueprintGeneratedClass.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EdGraphSchema_K2.h"
 
-#define LOCTEXT_NAMESPACE "SGraphPinUserDataPath"
+#define LOCTEXT_NAMESPACE "SRigVMGraphPinUserDataPath"
 
 static const FText GraphPinUserDataPathMultipleValues = LOCTEXT("MultipleValues", "Multiple Values");
 
@@ -160,7 +159,7 @@ FLinearColor SRigVMUserDataPath::GetUserDataColor(const UNameSpacedUserData::FUs
 		const FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InUserData->GetProperty(), nullptr);
 		if(ExternalVariable.IsValid(true))
 		{
-			const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+			const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 			const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(ExternalVariable);
 			return Schema->GetPinTypeColor(PinType);
 		}
@@ -193,7 +192,7 @@ void SRigVMUserDataPath::FillUserDataPathMenu(FMenuBuilder& InMenuBuilder, FStri
 	}
 	{
 		static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
-		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+		const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 
 		const TArray<const UNameSpacedUserData::FUserData*> UserDataArray = UserDataObject->GetUserDataArray(InParentPath);
 
@@ -271,7 +270,7 @@ void SRigVMUserDataPath::FillUserDataPathMenu(FMenuBuilder& InMenuBuilder, FStri
 
 void SRigVMUserDataPath::HandleSetUserDataPath(FString InUserDataPath)
 {
-	UControlRigBlueprint* Blueprint = GetBlueprint();
+	URigVMBlueprint* Blueprint = GetBlueprint();
 	if(ModelPins.IsEmpty() || (Blueprint == nullptr))
 	{
 		return;
@@ -322,11 +321,11 @@ void SRigVMUserDataPath::HandleSetUserDataPath(FString InUserDataPath)
 	}
 }
 
-UControlRigBlueprint* SRigVMUserDataPath::GetBlueprint() const
+URigVMBlueprint* SRigVMUserDataPath::GetBlueprint() const
 {
 	if(!ModelPins.IsEmpty())
 	{
-		return ModelPins[0]->GetTypedOuter<UControlRigBlueprint>();
+		return ModelPins[0]->GetTypedOuter<URigVMBlueprint>();
 	}
 	return nullptr;
 }
@@ -413,13 +412,13 @@ const UNameSpacedUserData::FUserData* SRigVMUserDataPath::GetUserData() const
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SGraphPinUserDataPath::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+void SRigVMGraphPinUserDataPath::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	this->ModelPins = InArgs._ModelPins;
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
-TSharedRef<SWidget>	SGraphPinUserDataPath::GetDefaultValueWidget()
+TSharedRef<SWidget>	SRigVMGraphPinUserDataPath::GetDefaultValueWidget()
 {
 	return SNew(SRigVMUserDataPath)
 		.ModelPins(ModelPins)

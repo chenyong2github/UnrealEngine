@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reservekd.
 
 #pragma once
 
@@ -13,7 +13,7 @@
 /**
  * A searchable text combo box
  */
-class SControlRigGraphPinEditableNameValueWidget : public SComboButton
+class RIGVMEDITOR_API SRigVMGraphPinNameListValueWidget : public SComboButton
 {
 public:
 	/** Type of list used for showing menu options. */
@@ -22,7 +22,7 @@ public:
 	typedef typename TSlateDelegates< TSharedPtr<FString> >::FOnGenerateWidget FOnGenerateWidget;
 	typedef typename TSlateDelegates< TSharedPtr<FString> >::FOnSelectionChanged FOnSelectionChanged;
 
-	SLATE_BEGIN_ARGS(SControlRigGraphPinEditableNameValueWidget)
+	SLATE_BEGIN_ARGS(SRigVMGraphPinNameListValueWidget)
 		: _Content()
 		, _ContentPadding(FMargin(3.0, 3.0))
 		, _OptionsSource()
@@ -32,6 +32,8 @@ public:
 		, _Method()
 		, _MaxListHeight(450.0f)
 		, _HasDownArrow(true)
+		, _SearchHintText(NSLOCTEXT("SRigVMGraphPinNameListValueWidget", "Search", "Search"))
+		, _AllowUserProvidedText(false)
 	{}
 
 	/** Slot for this button's content (optional) */
@@ -63,6 +65,16 @@ public:
 		 */
 		SLATE_ARGUMENT(bool, HasDownArrow)
 
+		/*
+		 * The visible text in the search / editable text field
+		 */
+		SLATE_ARGUMENT(FText, SearchHintText)
+
+		/*
+		 * If set to true the user is allowed to enter custom text here
+		 */
+		SLATE_ARGUMENT(bool, AllowUserProvidedText)
+
 	SLATE_END_ARGS()
 
 	/**
@@ -75,6 +87,7 @@ public:
 	void ClearSelection();
 
 	void SetSelectedItem(TSharedPtr<FString> InSelectedItem);
+	void SetOptionsSource(const TArray< TSharedPtr<FString> >* InOptionsSource);
 
 	/** @return the item currently selected by the combo box. */
 	TSharedPtr<FString> GetSelectedItem();
@@ -95,13 +108,19 @@ private:
 	void OnMenuOpenChanged(bool bOpen);
 
 	/** Invoked when the selection in the list changes */
-	void OnSelectionChanged_Internal(TSharedPtr<FString> ProposedSelection, ESelectInfo::Type SelectInfo);
+	void OnSelectionChanged_Internal(TSharedPtr<FString> ProposedSelection, ESelectInfo::Type SelectInfo, bool bForce = false);
 
 	/** Invoked when the search text changes */
 	void OnSearchTextChanged(const FText& ChangedText);
 
 	/** Invoked when the search is committed*/
 	void OnSearchTextCommitted(const FText& ChangedText, ETextCommit::Type CommitType);
+
+	/** Special case handling for search box key commands */
+	FReply OnSearchTextKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+
+	/** Special case handling for combo list key commands */
+	FReply OnComboListKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
 
 	/** Handle clicking on the content menu */
 	virtual FReply OnButtonClicked() override;
@@ -126,6 +145,7 @@ private:
 	FOnGenerateWidget OnGenerateWidget;
 
 	const TArray< TSharedPtr<FString> >* OptionsSource;
+	bool AllowUserProvidedText;
 
 	/** Used to focus the name box immediately following construction */
 	EActiveTimerReturnType SetFocusPostConstruct(double InCurrentTime, float InDeltaTime);
