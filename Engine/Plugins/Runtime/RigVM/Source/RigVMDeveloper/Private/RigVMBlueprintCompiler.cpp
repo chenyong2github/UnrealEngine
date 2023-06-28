@@ -12,6 +12,7 @@
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Stats/StatsHierarchical.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRigVMCompiler, Log, All);
 #define LOCTEXT_NAMESPACE "RigVMBlueprintCompiler"
