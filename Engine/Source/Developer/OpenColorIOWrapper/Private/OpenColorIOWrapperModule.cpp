@@ -3,7 +3,6 @@
 #include "OpenColorIOWrapperModule.h"
 
 #include "OpenColorIOWrapper.h"
-#include "OpenColorIOLibHandler.h"
 
 
 DEFINE_LOG_CATEGORY(LogOpenColorIOWrapper);
@@ -17,14 +16,11 @@ public:
 	//~ Begin IModuleInterface interface
 	virtual void StartupModule() override
 	{
-		FOpenColorIOLibHandler::Initialize();
 	}
 
 	virtual void ShutdownModule() override
 	{
 		EngineBuiltInConfig.Reset();
-
-		FOpenColorIOLibHandler::Shutdown();
 	}
 	//~ End IModuleInterface interface
 

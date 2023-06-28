@@ -35,12 +35,6 @@ THIRD_PARTY_INCLUDES_END
 
 namespace OpenColorIOWrapper
 {
-	/** OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE equivalent, since we currently cannot delay-load this definition. */
-	constexpr const ANSICHAR* GetInterchangeName()
-	{
-		return "aces_interchange";
-	}
-
 	// Build routine since there is no FAnsiString
 	TUniquePtr<ANSICHAR[]> MakeAnsiString(const TCHAR* Str)
 	{
@@ -179,7 +173,7 @@ FOpenColorIOWrapperConfig::FOpenColorIOWrapperConfig(FStringView InFilePath, EAd
 			if (InOption == WCS_AsInterchangeSpace)
 			{
 				const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
-				ConstColorSpaceRcPtr InterchangeCS = NewConfig->getColorSpace(NewConfig->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
+				ConstColorSpaceRcPtr InterchangeCS = NewConfig->getColorSpace(NewConfig->getCanonicalName(OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE));
 
 				// When the aces interchange color space is present, we add the working color space as an additional option.
 				if (InterchangeCS != nullptr && NewConfig->getColorSpace(AnsiWorkingColorSpaceName.Get()) == nullptr)
@@ -976,13 +970,13 @@ bool FOpenColorIOWrapperProcessor::TransformImage(const FImageView& InOutImage) 
 							InterchangeConfig,
 							AnsiWorkingColorSpaceName.Get(),
 							Config,
-							Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
+							Config->getCanonicalName(OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE));
 					}
 					else if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
 					{
 						InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 							Config,
-							Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()),
+							Config->getCanonicalName(OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE),
 							InterchangeConfig,
 							AnsiWorkingColorSpaceName.Get());
 					}
@@ -1055,7 +1049,7 @@ bool FOpenColorIOWrapperProcessor::TransformImage(const FImageView& SrcImage, co
 						InterchangeConfig,
 						AnsiWorkingColorSpaceName.Get(),
 						Config,
-						Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
+						Config->getCanonicalName(OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE));
 
 					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(SrcBitDepth, SrcBitDepth, OPTIMIZATION_DEFAULT);
 					InterchangeCPUProcessor->apply(SrcImageDesc);
@@ -1071,7 +1065,7 @@ bool FOpenColorIOWrapperProcessor::TransformImage(const FImageView& SrcImage, co
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						Config,
-						Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()),
+						Config->getCanonicalName(OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE),
 						InterchangeConfig,
 						AnsiWorkingColorSpaceName.Get());
 
