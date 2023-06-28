@@ -471,7 +471,7 @@ void FOpenGLProgramBinaryCache::InitPrecaching()
 		if (bDeleteMe)
 		{
 			UE_LOG(LogRHI, Log, TEXT("Deleting binary cache file %s (%d bytes)"), *CacheFileName, CacheStatData.FileSize);
-			PlatformFile.DeleteFile(*CacheName);
+			PlatformFile.DeleteFile(*CacheFileName);
 		}
 	}
 
