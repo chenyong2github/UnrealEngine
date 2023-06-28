@@ -3,6 +3,8 @@
 
 
 #include "EnhancedInputSubsystemInterface.h"
+#include "PlayerMappableKeySettings.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 #include "InputTestFramework.generated.h"
 
 struct FEnhancedActionKeyMapping;
@@ -65,9 +67,24 @@ struct FBindingTargets
 class FMockedEnhancedInputSubsystem : public IEnhancedInputSubsystemInterface
 {
 	TWeakObjectPtr<UEnhancedPlayerInput> PlayerInput;
+	
+	TWeakObjectPtr<UEnhancedInputUserSettings> UserSettings;
+	
 public:
 	FMockedEnhancedInputSubsystem(const class UControllablePlayer& PlayerData);
+	void Init() { InitalizeUserSettings(); }
 	virtual UEnhancedPlayerInput* GetPlayerInput() const override { return PlayerInput.Get(); }
+	virtual UEnhancedInputUserSettings* GetUserSettings() const override;
+	virtual void InitalizeUserSettings() override;
+};
+
+UCLASS()
+class UMockInputUserSettings : public UEnhancedInputUserSettings
+{
+	GENERATED_BODY()
+public:
+	// There won't be an owning local player here so we will override it to avoid unnecessary error logging.
+	virtual void Initialize(ULocalPlayer* LP) override;
 };
 
 UCLASS()
@@ -98,10 +115,29 @@ public:
 	// Ensure we don't try to double bind listeners when applying multiple key mappings
 	TSet<const UInputAction*> MappedActionListeners;
 
-	bool IsValid() const { return Player && Subsystem && PlayerInput.IsValid() && InputComponent.IsValid(); }
+	// The user settings object that we can use to test. Normally this is owned by the EI Local Player subsystem 
+	UPROPERTY()
+	TObjectPtr<UEnhancedInputUserSettings> UserSettings;
+
+	bool IsValid() const { return Player && Subsystem && PlayerInput.IsValid() && InputComponent.IsValid() && UserSettings; }
 
 	// Mocked subsystem implementing IEnhancedInputSubsystemInterface
 	TUniquePtr<FMockedEnhancedInputSubsystem> Subsystem;
+};
+
+// A subclass of UInputAction that will have it's player mappable key settings object set automatically so 
+// we can test re-mappable keys.
+UCLASS()
+class UTestMappableKeysAction : public UInputAction
+{
+	GENERATED_BODY()
+public:
+
+	void SetPlayerMappableKeyOptions(const FName MappingName)
+	{
+		PlayerMappableKeySettings = NewObject<UPlayerMappableKeySettings>(this, TEXT("TestMappingSettings"));
+		PlayerMappableKeySettings->Name = MappingName;
+	}
 };
 
 // Default test values
@@ -110,6 +146,8 @@ static FName TestAction = TEXT("TestAction");
 static FName TestAction2 = TEXT("TestAction2");
 static FName TestAction3 = TEXT("TestAction3");
 static FName TestAction4 = TEXT("TestAction4");
+static FName TestAction5 = TEXT("TestAction5");
+static FName TestAction6 = TEXT("TestAction6");
 // TODO: Create custom keys for the lifetime of the test. Using public keys can cause interference (e.g. AxisConfigs)
 static FKey TestKey = EKeys::A;
 static FKey TestKey2 = EKeys::S;

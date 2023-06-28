@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"ContentBrowser",
 					"SourceControl",
+					"GameplayTags",
                 }
             );
         }

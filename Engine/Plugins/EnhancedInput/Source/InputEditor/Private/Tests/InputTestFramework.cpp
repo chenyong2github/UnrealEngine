@@ -8,12 +8,40 @@
 #include "GameFramework/PlayerController.h"
 #include "InputMappingContext.h"
 #include "Tests/AutomationEditorCommon.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
+#include "NativeGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputTestFramework)
 
 FMockedEnhancedInputSubsystem::FMockedEnhancedInputSubsystem(const UControllablePlayer& PlayerData)
 : PlayerInput(PlayerData.PlayerInput)
+, UserSettings(PlayerData.UserSettings)
 {
+}
+
+UEnhancedInputUserSettings* FMockedEnhancedInputSubsystem::GetUserSettings() const
+{
+	return UserSettings.Get();
+}
+
+void FMockedEnhancedInputSubsystem::InitalizeUserSettings()
+{
+	ULocalPlayer* LP = PlayerInput->GetOwningLocalPlayer();
+	
+	UserSettings->Initialize(LP);
+	UserSettings->ApplySettings();
+}
+
+void UMockInputUserSettings::Initialize(ULocalPlayer* LP)
+{
+	// Create a default key mapping profile in the case where one doesn't exist
+	if (!GetCurrentKeyProfile())
+	{
+		FPlayerMappableKeyProfileCreationArgs Args = {};
+		Args.bSetAsCurrentProfile = true;
+	
+		CreateNewKeyProfile(Args);
+	}
 }
 
 UWorld* AnEmptyWorld()
@@ -36,8 +64,10 @@ UControllablePlayer& AControllablePlayer(UWorld* World)
 	PlayerData->PlayerInput = Cast<UEnhancedPlayerInput>(PlayerData->Player->PlayerInput);
 	PlayerData->InputComponent = Cast<UEnhancedInputComponent>(PlayerData->Player->InputComponent);
 	PlayerData->Player->InitInputSystem();
+	PlayerData->UserSettings = NewObject<UMockInputUserSettings>(GetTransientPackage(), UMockInputUserSettings::StaticClass());
 
 	PlayerData->Subsystem.Reset(new FMockedEnhancedInputSubsystem(*PlayerData));
+	PlayerData->Subsystem->Init();
 
 	check(PlayerData->IsValid());
 
@@ -53,8 +83,10 @@ UInputMappingContext* AnInputContextIsAppliedToAPlayer(UControllablePlayer& Play
 
 UInputAction* AnInputAction(UControllablePlayer& PlayerData, FName ActionName, EInputActionValueType ValueType)
 {
-	UInputAction* Action = NewObject<UInputAction>(PlayerData.Player, ActionName);
+	UTestMappableKeysAction* Action = NewObject<UTestMappableKeysAction>(PlayerData.Player, ActionName);
 	Action->ValueType = ValueType;
+	Action->SetPlayerMappableKeyOptions(ActionName);
+	
 	return PlayerData.InputAction.Emplace(ActionName, Action);
 }
 
