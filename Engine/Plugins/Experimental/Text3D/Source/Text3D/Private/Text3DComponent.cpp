@@ -251,22 +251,9 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	{
 		MarkForLayoutUpdate();
 	}
-	else if (Name == USceneComponent::GetRelativeLocationPropertyName() ||
-			 Name == USceneComponent::GetRelativeRotationPropertyName() ||
-			 Name == USceneComponent::GetRelativeScale3DPropertyName())
-	{
-		// Nothing should be marked for update if Transform was changed, so use the parent of UText3DComponent PECP
-		UText3DComponent::Super::PostEditChangeProperty(PropertyChangedEvent);
-	}
 	else if (const EText3DGroupType* MaterialGroup = UE::Text3D::Private::MaterialToGroup.Find(Name))
 	{
 		UpdateMaterial(*MaterialGroup, Invoke(UE::Text3D::Private::GroupToMaterial[Name], this));
-	}
-	// Any property not explicitly handled should trigger a full rebuild
-	else
-	{
-		MarkForGeometryUpdate();
-		MarkForLayoutUpdate();
 	}
 
 	RebuildInternal();
