@@ -115,8 +115,23 @@ class UProjectileMovementComponent : public UMovementComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation)
 	uint8 bInterpRotation:1;
 
+	/**
+	 * If true, throttle interpolation when not relevant.
+	 * @see ThrottleInterpolationSkipFramesNotRecent, ThrottleInterpolationSkipFramesRecent, ThrottleInterpolationThresholdNotRenderedShortTime, ThrottleInterpolationThresholdNotRenderedLongTime
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation)
+	uint8 bThrottleInterpolation:1;
+
 protected:
+	/**
+	 * True if interpolation has reached the target, false if there is more interpolation required.
+	 */
 	uint8 bInterpolationComplete:1;
+
+	/**
+	 * Tracks the number of frames since the last interpolation.
+	 */
+	int32 ThrottleInterpolationFramesSinceInterp;
 
 public:
 
@@ -345,12 +360,54 @@ public:
 	float InterpLocationSnapToTargetDistance;
 
 	/**
+	 * Time after not rendered recently when we consider throttling interpolation.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation, AdvancedDisplay)
+	float ThrottleInterpolationThresholdNotRenderedShortTime;
+
+	/**
+	 * Time after not rendered for a long time when we consider throttling interpolation.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation, AdvancedDisplay)
+	float ThrottleInterpolationThresholdNotRenderedLongTime;
+
+	/**
+	 * When recently relevant, skip this many frames of interpolation if throttling is enabled.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation, AdvancedDisplay, meta=(ClampMin="0", UIMin="0"))
+	int32 ThrottleInterpolationSkipFramesRecent;
+
+	/**
+	 * When not recently relevant, skip this many frames of interpolation if throttling is enabled.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation, AdvancedDisplay, meta=(ClampMin="0", UIMin="0"))
+	int32 ThrottleInterpolationSkipFramesNotRecent;
+
+	/**
 	 * Returns whether interpolation is complete because the target has been reached. True when interpolation is disabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ProjectileMovement|Interpolation")
 	bool IsInterpolationComplete() const { return bInterpolationComplete || !bInterpMovement; }
 
 protected:
+
+	/**
+	 * Update interpolation throttling for this frame. Uses ComputeThrottleInterpolationMaxFrames() to determine the number of frames to allow to be skipped.
+	 * @return true if throttled this frame, false if there should be an update.
+	 */
+	bool UpdateThrottleInterpolation(float DeltaTime, USceneComponent* InterpComponent);
+
+	/**
+	 * Determine the number of frames to allow to skip when interpolating. Returning 0 means not to allow throttling.
+	 * Default implementation chooses between ThrottleInterpolationThresholdNotRenderedShortTime and ThrottleInterpolationThresholdNotRenderedLongTime based on WasRecentlyRendered(),
+	 * extend or override this for custom behavior.
+	 */
+	virtual int32 ComputeThrottleInterpolationMaxFrames(float DeltaTime, USceneComponent* InterpComponent);
+	
+	/**
+	 * Custom hook to reset throttle interpolation tracking when it was throttling previously.
+	 */
+	virtual void ResetThrottleInterpolation(float DeltaTime);
 
 	// Enum indicating how simulation should proceed after HandleBlockingHit() is called.
 	enum class EHandleBlockingHitResult
