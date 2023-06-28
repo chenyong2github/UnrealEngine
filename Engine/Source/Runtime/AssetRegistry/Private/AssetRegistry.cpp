@@ -7431,13 +7431,13 @@ bool ShouldSearchAllAssetsAtStart()
 			}
 		}
 	}
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR || !UE_BUILD_SHIPPING
 	bool bCommandlineAllAssetsAtStart;
 	if (FParse::Bool(FCommandLine::Get(), TEXT("AssetGatherAll="), bCommandlineAllAssetsAtStart))
 	{
 		bSearchAllAssetsAtStart = bCommandlineAllAssetsAtStart;
 	}
-#endif // !UE_BUILD_SHIPPING
+#endif // WITH_EDITOR || !UE_BUILD_SHIPPING
 	return bSearchAllAssetsAtStart;
 }
 

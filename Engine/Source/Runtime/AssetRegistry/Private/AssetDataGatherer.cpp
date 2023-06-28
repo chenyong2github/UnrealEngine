@@ -3204,13 +3204,13 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 	bWriteMonolithicCache = bCacheWriteEnabled && GPreloadSettings.IsMonolithicCacheActivatedDuringPreload();
 	LastCacheWriteTime = FPlatformTime::Seconds();
 
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR || !UE_BUILD_SHIPPING
 	bool bCommandlineSynchronous;
 	if (FParse::Bool(FCommandLine::Get(), TEXT("AssetGatherSync="), bCommandlineSynchronous))
 	{
 		bAsyncEnabled = !bCommandlineSynchronous;
 	}
-#endif
+#endif // WITH_EDITOR || !UE_BUILD_SHIPPING
 	if (bAsyncEnabled && !FPlatformProcess::SupportsMultithreading())
 	{
 		bAsyncEnabled = false;
