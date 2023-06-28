@@ -1182,6 +1182,10 @@ void FActivatableTreeNode::HandleWidgetActivated()
 		{
 			GetRoot()->UpdateLeafmostActiveNode(SharedThis(this));
 		}
+		else if (RepresentedWidget.IsValid())
+		{
+			UCommonUIActionRouterBase::Get(*RepresentedWidget.Get())->OnBoundActionsUpdated().Broadcast();
+		}
 	}
 }
 

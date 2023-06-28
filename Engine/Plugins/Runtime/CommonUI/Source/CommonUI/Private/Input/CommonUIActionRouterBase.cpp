@@ -689,12 +689,16 @@ void UCommonUIActionRouterBase::HandleRootNodeActivated(TWeakPtr<FActivatableTre
 					{
 						for (FActivatableTreeRootRef& RootNode : SortedRootList->RootList)
 						{
-							if (RootNode->IsReceivingInput() && RootNode->DoesWidgetSupportActivationFocus())
+							if (RootNode->IsReceivingInput())
 							{
 								if (RootNode == ActivatedRoot && !ActiveRootNode.IsValid())
 								{
-									// This will allow us to update the leaf node config on the activated root.
-									ActivatedRoot->UpdateLeafNode();
+									if (RootNode->DoesWidgetSupportActivationFocus())
+									{
+										// This will allow us to update the leaf node config on the activated root.
+										ActivatedRoot->UpdateLeafNode();
+									}
+
 									OnBoundActionsUpdated().Broadcast();
 								}
 								break;
