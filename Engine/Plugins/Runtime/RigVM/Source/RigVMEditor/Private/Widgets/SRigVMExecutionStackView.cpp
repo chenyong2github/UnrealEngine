@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/SControlRigStackView.h"
+#include "Widgets/SRigVMExecutionStackView.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Editor/ControlRigEditor.h"
-#include "ControlRigEditorStyle.h"
-#include "ControlRigStackCommands.h"
-#include "ControlRig.h"
+#include "Editor/RigVMEditor.h"
+#include "Editor/RigVMExecutionStackCommands.h"
+#include "RigVMHost.h"
 #include "RigVMBlueprintGeneratedClass.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
@@ -19,9 +18,9 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Dialog/SCustomDialog.h"
 
-#define LOCTEXT_NAMESPACE "SControlRigStackView"
+#define LOCTEXT_NAMESPACE "SRigVMExecutionStackView"
 
-TAutoConsoleVariable<bool> CVarControlRigExecutionStackDetailedLabels(TEXT("ControlRig.StackDetailedLabels"), false, TEXT("Set to true to turn on detailed labels for the execution stack widget"));
+TAutoConsoleVariable<bool> CVarRigVMExecutionStackDetailedLabels(TEXT("RigVM.StackDetailedLabels"), false, TEXT("Set to true to turn on detailed labels for the execution stack widget"));
 
 //////////////////////////////////////////////////////////////
 /// FRigStackEntry
@@ -38,7 +37,7 @@ FRigStackEntry::FRigStackEntry(int32 InEntryIndex, ERigStackEntry::Type InEntryT
 
 }
 
-TSharedRef<ITableRow> FRigStackEntry::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SControlRigStackView> InStackView, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
+TSharedRef<ITableRow> FRigStackEntry::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigVMExecutionStackView> InStackView, TWeakObjectPtr<URigVMBlueprint> InBlueprint)
 {
 	return SNew(SRigStackItem, InOwnerTable, InEntry, InCommandList, InBlueprint);
 }
@@ -46,7 +45,7 @@ TSharedRef<ITableRow> FRigStackEntry::MakeTreeRowWidget(const TSharedRef<STableV
 //////////////////////////////////////////////////////////////
 /// SRigStackItem
 ///////////////////////////////////////////////////////////
-void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
+void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList, TWeakObjectPtr<URigVMBlueprint> InBlueprint)
 {
 	WeakStackEntry = InStackEntry;
 	WeakBlueprint = InBlueprint;
@@ -60,7 +59,7 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 	{
 		case ERigStackEntry::Operator:
 		{
-			Icon = FControlRigEditorStyle::Get().GetBrush("ControlRig.RigUnit");
+			Icon = FSlateIcon(TEXT("RigVMEditor"), "ControlRig.RigUnit").GetIcon();
 			break;
 		}
 		case ERigStackEntry::Info:
@@ -197,11 +196,11 @@ FText SRigStackItem::GetVisitedCountText() const
 		{
 			if(WeakStackEntry.Pin()->EntryType == ERigStackEntry::Operator)
 			{
-				if(UControlRig* ControlRig = Cast<UControlRig>(WeakBlueprint->GetObjectBeingDebugged()))
+				if(URigVMHost* RigVMHost = Cast<URigVMHost>(WeakBlueprint->GetObjectBeingDebugged()))
 				{
-					if(URigVM* VM = ControlRig->GetVM())
+					if(URigVM* VM = RigVMHost->GetVM())
 					{
-						const int32 Count = VM->GetInstructionVisitedCount(ControlRig->GetExtendedExecuteContext(), WeakStackEntry.Pin()->InstructionIndex);
+						const int32 Count = VM->GetInstructionVisitedCount(RigVMHost->GetExtendedExecuteContext(), WeakStackEntry.Pin()->InstructionIndex);
 						if(Count > 0)
 						{
 							return FText::FromString(FString::FromInt(Count));
@@ -222,11 +221,11 @@ FText SRigStackItem::GetDurationText() const
 		{
 			if(WeakStackEntry.Pin()->EntryType == ERigStackEntry::Operator)
 			{
-				if(UControlRig* ControlRig = Cast<UControlRig>(WeakBlueprint->GetObjectBeingDebugged()))
+				if(URigVMHost* RigVMHost = Cast<URigVMHost>(WeakBlueprint->GetObjectBeingDebugged()))
 				{
-					if(URigVM* VM = ControlRig->GetVM())
+					if(URigVM* VM = RigVMHost->GetVM())
 					{
-						const double MicroSeconds = VM->GetInstructionMicroSeconds(ControlRig->GetExtendedExecuteContext(), WeakStackEntry.Pin()->InstructionIndex);
+						const double MicroSeconds = VM->GetInstructionMicroSeconds(RigVMHost->GetExtendedExecuteContext(), WeakStackEntry.Pin()->InstructionIndex);
 						if(MicroSeconds > 0.0)
 						{
 							return FText::FromString(FString::Printf(TEXT("%d µs"), (int32)MicroSeconds));
@@ -240,39 +239,39 @@ FText SRigStackItem::GetDurationText() const
 }
 
 //////////////////////////////////////////////////////////////
-/// SControlRigStackView
+/// SRigVMExecutionStackView
 ///////////////////////////////////////////////////////////
 
-SControlRigStackView::~SControlRigStackView()
+SRigVMExecutionStackView::~SRigVMExecutionStackView()
 {
-	if (ControlRigEditor.IsValid())
+	if (RigVMEditor.IsValid())
 	{
-		if (OnModelModified.IsValid() && ControlRigEditor.Pin()->GetControlRigBlueprint())
+		if (OnModelModified.IsValid() && RigVMEditor.Pin()->GetRigVMBlueprint())
 		{
-			ControlRigEditor.Pin()->GetControlRigBlueprint()->OnModified().Remove(OnModelModified);
+			RigVMEditor.Pin()->GetRigVMBlueprint()->OnModified().Remove(OnModelModified);
 		}
-		if (OnControlRigInitializedHandle.IsValid())
+		if (OnHostInitializedHandle.IsValid())
 		{
-			if(ControlRigEditor.Pin()->ControlRig)
+			if(RigVMEditor.Pin()->GetRigVMHost())
 			{
-				ControlRigEditor.Pin()->ControlRig->OnInitialized_AnyThread().Remove(OnControlRigInitializedHandle);
+				RigVMEditor.Pin()->GetRigVMHost()->OnInitialized_AnyThread().Remove(OnHostInitializedHandle);
 			}
 		}
-		if (OnPreviewControlRigUpdatedHandle.IsValid())
+		if (OnPreviewHostUpdatedHandle.IsValid())
 		{
-			ControlRigEditor.Pin()->OnPreviewControlRigUpdated().Remove(OnPreviewControlRigUpdatedHandle);
+			RigVMEditor.Pin()->OnPreviewHostUpdated().Remove(OnPreviewHostUpdatedHandle);
 		}
 	}
-	if (ControlRigBlueprint.IsValid() && OnVMCompiledHandle.IsValid())
+	if (RigVMBlueprint.IsValid() && OnVMCompiledHandle.IsValid())
 	{
-		ControlRigBlueprint->OnVMCompiled().Remove(OnVMCompiledHandle);
+		RigVMBlueprint->OnVMCompiled().Remove(OnVMCompiledHandle);
 	}
 }
 
-void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor)
+void SRigVMExecutionStackView::Construct( const FArguments& InArgs, TSharedRef<FRigVMEditor> InRigVMEditor)
 {
-	ControlRigEditor = InControlRigEditor;
-	ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
+	RigVMEditor = InRigVMEditor;
+	RigVMBlueprint = RigVMEditor.Pin()->GetRigVMBlueprint();
 	CommandList = MakeShared<FUICommandList>();
 	bSuspendModelNotifications = false;
 	bSuspendControllerSelection = false;
@@ -307,7 +306,7 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 					.Padding(3.0f, 1.0f)
 					[
 						SAssignNew(FilterBox, SSearchBox)
-						.OnTextChanged(this, &SControlRigStackView::OnFilterTextChanged)
+						.OnTextChanged(this, &SRigVMExecutionStackView::OnFilterTextChanged)
 					]
 				]
 			]
@@ -322,11 +321,11 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 				SAssignNew(TreeView, STreeView<TSharedPtr<FRigStackEntry>>)
 				.TreeItemsSource(&Operators)
 				.SelectionMode(ESelectionMode::Multi)
-				.OnGenerateRow(this, &SControlRigStackView::MakeTableRowWidget, ControlRigBlueprint)
-				.OnGetChildren(this, &SControlRigStackView::HandleGetChildrenForTree)
-				.OnSelectionChanged(this, &SControlRigStackView::OnSelectionChanged)
-				.OnContextMenuOpening(this, &SControlRigStackView::CreateContextMenu)
-				.OnMouseButtonDoubleClick(this, &SControlRigStackView::HandleItemMouseDoubleClick)
+				.OnGenerateRow(this, &SRigVMExecutionStackView::MakeTableRowWidget, RigVMBlueprint)
+				.OnGetChildren(this, &SRigVMExecutionStackView::HandleGetChildrenForTree)
+				.OnSelectionChanged(this, &SRigVMExecutionStackView::OnSelectionChanged)
+				.OnContextMenuOpening(this, &SRigVMExecutionStackView::CreateContextMenu)
+				.OnMouseButtonDoubleClick(this, &SRigVMExecutionStackView::HandleItemMouseDoubleClick)
 				.ItemHeight(28)
 			]
 		]
@@ -334,35 +333,35 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 
 	RefreshTreeView(nullptr);
 
-	if (ControlRigBlueprint.IsValid())
+	if (RigVMBlueprint.IsValid())
 	{
 		if (OnVMCompiledHandle.IsValid())
 		{
-			ControlRigBlueprint->OnVMCompiled().Remove(OnVMCompiledHandle);
+			RigVMBlueprint->OnVMCompiled().Remove(OnVMCompiledHandle);
 		}
 		if (OnModelModified.IsValid())
 		{
-			ControlRigBlueprint->OnModified().Remove(OnModelModified);
+			RigVMBlueprint->OnModified().Remove(OnModelModified);
 		}
-		OnVMCompiledHandle = ControlRigBlueprint->OnVMCompiled().AddSP(this, &SControlRigStackView::OnVMCompiled);
-		OnModelModified = ControlRigBlueprint->OnModified().AddSP(this, &SControlRigStackView::HandleModifiedEvent);
+		OnVMCompiledHandle = RigVMBlueprint->OnVMCompiled().AddSP(this, &SRigVMExecutionStackView::OnVMCompiled);
+		OnModelModified = RigVMBlueprint->OnModified().AddSP(this, &SRigVMExecutionStackView::HandleModifiedEvent);
 
-		if (ControlRigEditor.IsValid())
+		if (RigVMEditor.IsValid())
 		{
-			if (UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig)
+			if (URigVMHost* RigVMHost = RigVMEditor.Pin()->GetRigVMHost())
 			{
-				OnVMCompiled(ControlRigBlueprint.Get(), ControlRig->VM);
+				OnVMCompiled(RigVMBlueprint.Get(), RigVMHost->GetVM());
 			}
 		}
 	}
 
-	if (ControlRigEditor.IsValid())
+	if (RigVMEditor.IsValid())
 	{
-		OnPreviewControlRigUpdatedHandle = ControlRigEditor.Pin()->OnPreviewControlRigUpdated().AddSP(this, &SControlRigStackView::HandlePreviewControlRigUpdated);
+		OnPreviewHostUpdatedHandle = RigVMEditor.Pin()->OnPreviewHostUpdated().AddSP(this, &SRigVMExecutionStackView::HandlePreviewHostUpdated);
 	}
 }
 
-void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selection, ESelectInfo::Type SelectInfo)
+void SRigVMExecutionStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selection, ESelectInfo::Type SelectInfo)
 {
 	if (bSuspendModelNotifications || bSuspendControllerSelection)
 	{
@@ -373,24 +372,24 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 	TArray<TSharedPtr<FRigStackEntry>> SelectedItems = TreeView->GetSelectedItems();
 	if (SelectedItems.Num() > 0)
 	{
-		if (!ControlRigBlueprint.IsValid())
+		if (!RigVMBlueprint.IsValid())
 		{
 			return;
 		}
 
-		URigVMBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetRigVMBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* GeneratedClass = RigVMBlueprint->GetRigVMBlueprintGeneratedClass();
 		if (GeneratedClass == nullptr)
 		{
 			return;
 		}
 
-		UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
-		if (ControlRig == nullptr || ControlRig->GetVM() == nullptr)
+		URigVMHost* Host = RigVMEditor.Pin()->GetRigVMHost();
+		if (Host == nullptr || Host->GetVM() == nullptr)
 		{
 			return;
 		}
 
-		const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+		const FRigVMByteCode& ByteCode = Host->GetVM()->GetByteCode();
 
 		TMap<URigVMGraph*, TArray<FName>> SelectedNodesPerGraph;
 		for (TSharedPtr<FRigStackEntry>& Entry : SelectedItems)
@@ -423,34 +422,34 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 
 		for (const TPair< URigVMGraph*, TArray<FName> >& Pair : SelectedNodesPerGraph)
 		{
-			ControlRigBlueprint->GetOrCreateController(Pair.Key)->SetNodeSelection(Pair.Value);
+			RigVMBlueprint->GetOrCreateController(Pair.Key)->SetNodeSelection(Pair.Value);
 		}
 	}
 }
 
-void SControlRigStackView::BindCommands()
+void SRigVMExecutionStackView::BindCommands()
 {
 	// create new command
-	const FControlRigStackCommands& Commands = FControlRigStackCommands::Get();
-	CommandList->MapAction(Commands.FocusOnSelection, FExecuteAction::CreateSP(this, &SControlRigStackView::HandleFocusOnSelectedGraphNode));
-	CommandList->MapAction(Commands.GoToInstruction, FExecuteAction::CreateSP(this, &SControlRigStackView::HandleGoToInstruction));
+	const FRigVMExecutionStackCommands& Commands = FRigVMExecutionStackCommands::Get();
+	CommandList->MapAction(Commands.FocusOnSelection, FExecuteAction::CreateSP(this, &SRigVMExecutionStackView::HandleFocusOnSelectedGraphNode));
+	CommandList->MapAction(Commands.GoToInstruction, FExecuteAction::CreateSP(this, &SRigVMExecutionStackView::HandleGoToInstruction));
 }
 
-TSharedRef<ITableRow> SControlRigStackView::MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
+TSharedRef<ITableRow> SRigVMExecutionStackView::MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<URigVMBlueprint> InBlueprint)
 {
 	return InItem->MakeTreeRowWidget(OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this), InBlueprint);
 }
 
-void SControlRigStackView::HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> InItem, TArray<TSharedPtr<FRigStackEntry>>& OutChildren)
+void SRigVMExecutionStackView::HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> InItem, TArray<TSharedPtr<FRigStackEntry>>& OutChildren)
 {
 	OutChildren = InItem->Children;
 }
 
-void SControlRigStackView::PopulateStackView(URigVM* InVM)
+void SRigVMExecutionStackView::PopulateStackView(URigVM* InVM)
 {
 	if (InVM)
 	{
-		UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
+		URigVMBlueprint* Blueprint = RigVMEditor.Pin()->GetRigVMBlueprint();
 
 		const FRigVMInstructionArray Instructions = InVM->GetInstructions();
 		const FRigVMByteCode& ByteCode = InVM->GetByteCode();
@@ -458,7 +457,7 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 		TArray<URigVMGraph*> RootGraphs;
 		RootGraphs.AddZeroed(Instructions.Num());
 
-		const bool bUseSimpleLabels = !CVarControlRigExecutionStackDetailedLabels.GetValueOnAnyThread();
+		const bool bUseSimpleLabels = !CVarRigVMExecutionStackDetailedLabels.GetValueOnAnyThread();
 		if(bUseSimpleLabels)
 		{
 			for (int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
@@ -710,7 +709,7 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 	}
 }
 
-void SControlRigStackView::RefreshTreeView(URigVM* InVM)
+void SRigVMExecutionStackView::RefreshTreeView(URigVM* InVM)
 {
 	Operators.Reset();
 
@@ -720,12 +719,12 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 	if (InVM)
 	{
 		// fill the children from the log
-		if (ControlRigEditor.IsValid())
+		if (RigVMEditor.IsValid())
 		{
-			UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
-			if(ControlRig && ControlRig->RigVMLog)
+			URigVMHost* Host = RigVMEditor.Pin()->GetRigVMHost();
+			if(Host && Host->GetLog())
 			{
-				const TArray<FRigVMLog::FLogEntry>& LogEntries = ControlRig->RigVMLog->Entries;
+				const TArray<FRigVMLog::FLogEntry>& LogEntries = Host->GetLog()->Entries;
 				for (const FRigVMLog::FLogEntry& LogEntry : LogEntries)
 				{
 					if (Operators.Num() <= LogEntry.InstructionIndex)
@@ -758,7 +757,7 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 					}
 				}
 
-				ControlRig->GetExtendedExecuteContext().ExecutionHalted().AddSP(this, &SControlRigStackView::HandleExecutionHalted);
+				Host->GetExtendedExecuteContext().ExecutionHalted().AddSP(this, &SRigVMExecutionStackView::HandleExecutionHalted);
 			}
 		}
 	}
@@ -766,7 +765,7 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 	TreeView->RequestTreeRefresh();
 }
 
-TSharedPtr< SWidget > SControlRigStackView::CreateContextMenu()
+TSharedPtr< SWidget > SRigVMExecutionStackView::CreateContextMenu()
 {
 	TArray<TSharedPtr<FRigStackEntry>> SelectedItems = TreeView->GetSelectedItems();
 	if(SelectedItems.Num() == 0)
@@ -774,7 +773,7 @@ TSharedPtr< SWidget > SControlRigStackView::CreateContextMenu()
 		return nullptr;
 	}
 
-	const FControlRigStackCommands& Actions = FControlRigStackCommands::Get();
+	const FRigVMExecutionStackCommands& Actions = FRigVMExecutionStackCommands::Get();
 
 	const bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
@@ -788,20 +787,20 @@ TSharedPtr< SWidget > SControlRigStackView::CreateContextMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SControlRigStackView::HandleFocusOnSelectedGraphNode()
+void SRigVMExecutionStackView::HandleFocusOnSelectedGraphNode()
 {
 	OnSelectionChanged(TSharedPtr<FRigStackEntry>(), ESelectInfo::Direct);
 
 	TArray<TSharedPtr<FRigStackEntry>> SelectedItems = TreeView->GetSelectedItems();
 	if (SelectedItems.Num() > 0)
 	{
-		UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
-		if (ControlRig == nullptr || ControlRig->GetVM() == nullptr)
+		URigVMHost* Host = RigVMEditor.Pin()->GetRigVMHost();
+		if (Host == nullptr || Host->GetVM() == nullptr)
 		{
 			return;
 		}
 
-		const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+		const FRigVMByteCode& ByteCode = Host->GetVM()->GetByteCode();
 		UObject* Subject = ByteCode.GetSubjectForInstruction(SelectedItems[0]->InstructionIndex);
 		if (URigVMNode* SelectedNode = Cast<URigVMNode>(Subject))
 		{
@@ -814,17 +813,17 @@ void SControlRigStackView::HandleFocusOnSelectedGraphNode()
 				} 
 			}
 			
-			if (UEdGraph* EdGraph = ControlRigBlueprint->GetEdGraph(GraphToFocus))
+			if (UEdGraph* EdGraph = RigVMBlueprint->GetEdGraph(GraphToFocus))
 			{
-				ControlRigEditor.Pin()->OpenGraphAndBringToFront(EdGraph, true);
-				ControlRigEditor.Pin()->ZoomToSelection_Clicked();
-				ControlRigEditor.Pin()->HandleModifiedEvent(ERigVMGraphNotifType::NodeSelected, GraphToFocus, SelectedNode);
+				RigVMEditor.Pin()->OpenGraphAndBringToFront(EdGraph, true);
+				RigVMEditor.Pin()->ZoomToSelection_Clicked();
+				RigVMEditor.Pin()->HandleModifiedEvent(ERigVMGraphNotifType::NodeSelected, GraphToFocus, SelectedNode);
 			}
 		}
 	}
 }
 
-void SControlRigStackView::HandleGoToInstruction()
+void SRigVMExecutionStackView::HandleGoToInstruction()
 {
 	// figure out the current instruction's index
 	int32 Index = 0;
@@ -878,27 +877,27 @@ void SControlRigStackView::HandleGoToInstruction()
 	}
 }
 
-void SControlRigStackView::OnVMCompiled(UObject* InCompiledObject, URigVM* InCompiledVM)
+void SRigVMExecutionStackView::OnVMCompiled(UObject* InCompiledObject, URigVM* InCompiledVM)
 {
 	RefreshTreeView(InCompiledVM);
 
-	if (ControlRigEditor.IsValid() && !OnControlRigInitializedHandle.IsValid())
+	if (RigVMEditor.IsValid() && !OnHostInitializedHandle.IsValid())
 	{
-		if(UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig)
+		if(URigVMHost* Host = RigVMEditor.Pin()->GetRigVMHost())
 		{
-			OnControlRigInitializedHandle = ControlRig->OnInitialized_AnyThread().AddSP(this, &SControlRigStackView::HandleControlRigInitializedEvent);
+			OnHostInitializedHandle = Host->OnInitialized_AnyThread().AddSP(this, &SRigVMExecutionStackView::HandleHostInitializedEvent);
 		}
 	}
 }
 
-void SControlRigStackView::HandleExecutionHalted(const int32 InHaltedAtInstruction, UObject* InNode, const FName& InEntryName)
+void SRigVMExecutionStackView::HandleExecutionHalted(const int32 InHaltedAtInstruction, UObject* InNode, const FName& InEntryName)
 {
 	if (HaltedAtInstruction == InHaltedAtInstruction)
 	{
 		return;
 	}
 
-	if (InHaltedAtInstruction == INDEX_NONE && InEntryName == ControlRigEditor.Pin()->ControlRig->GetEventQueue().Last())
+	if (InHaltedAtInstruction == INDEX_NONE && InEntryName == RigVMEditor.Pin()->GetRigVMHost()->GetEventQueue().Last())
 	{
 		HaltedAtInstruction = InHaltedAtInstruction;
 		return;
@@ -912,26 +911,26 @@ void SControlRigStackView::HandleExecutionHalted(const int32 InHaltedAtInstructi
 	}	
 }
 
-void SControlRigStackView::OnFilterTextChanged(const FText& SearchText)
+void SRigVMExecutionStackView::OnFilterTextChanged(const FText& SearchText)
 {
 	FilterText = SearchText;
-	RefreshTreeView(ControlRigEditor.Pin()->ControlRig->GetVM());
+	RefreshTreeView(RigVMEditor.Pin()->GetRigVMHost()->GetVM());
 }
 
-void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+void SRigVMExecutionStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
 	if (bSuspendModelNotifications)
 	{
 		return;
 	}
 
-	UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
-	if (ControlRig == nullptr || ControlRig->GetVM() == nullptr)
+	URigVMHost* Host = RigVMEditor.Pin()->GetRigVMHost();
+	if (Host == nullptr || Host->GetVM() == nullptr)
 	{
 		return;
 	}
 
-	const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+	const FRigVMByteCode& ByteCode = Host->GetVM()->GetByteCode();
 
 	switch (InNotifType)
 	{
@@ -971,11 +970,11 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 	}
 }
 
-void SControlRigStackView::HandleControlRigInitializedEvent(URigVMHost* InControlRig, const FName& InEventName)
+void SRigVMExecutionStackView::HandleHostInitializedEvent(URigVMHost* InHost, const FName& InEventName)
 {
 	TGuardValue<bool> SuspendControllerSelection(bSuspendControllerSelection, true);
 
-	RefreshTreeView(InControlRig->GetVM());
+	RefreshTreeView(InHost->GetVM());
 	OnSelectionChanged(TSharedPtr<FRigStackEntry>(), ESelectInfo::Direct);
 
 	for (TSharedPtr<FRigStackEntry>& Operator : Operators)
@@ -990,12 +989,12 @@ void SControlRigStackView::HandleControlRigInitializedEvent(URigVMHost* InContro
 		}
 	}
 	
-	if (ControlRigEditor.IsValid())
+	if (RigVMEditor.IsValid())
 	{
-		InControlRig->OnInitialized_AnyThread().Remove(OnControlRigInitializedHandle);
-		OnControlRigInitializedHandle.Reset();
+		InHost->OnInitialized_AnyThread().Remove(OnHostInitializedHandle);
+		OnHostInitializedHandle.Reset();
 
-		if (UControlRigBlueprint* RigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
+		if (URigVMBlueprint* RigBlueprint = RigVMEditor.Pin()->GetRigVMBlueprint())
 		{
 			TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
 			for (URigVMGraph* Model : Models)
@@ -1012,24 +1011,24 @@ void SControlRigStackView::HandleControlRigInitializedEvent(URigVMHost* InContro
 	}
 }
 
-void SControlRigStackView::HandlePreviewControlRigUpdated(FControlRigEditor* InEditor)
+void SRigVMExecutionStackView::HandlePreviewHostUpdated(FRigVMEditor* InEditor)
 {
 }
 
-void SControlRigStackView::HandleItemMouseDoubleClick(TSharedPtr<FRigStackEntry> InItem)
+void SRigVMExecutionStackView::HandleItemMouseDoubleClick(TSharedPtr<FRigStackEntry> InItem)
 {
-	if (!ControlRigEditor.IsValid() || !ControlRigBlueprint.IsValid())
+	if (!RigVMEditor.IsValid() || !RigVMBlueprint.IsValid())
 	{
 		return;
 	}
 	
-	UControlRig* ControlRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged());
-	if (!ControlRig || !ControlRig->GetVM())
+	URigVMHost* Host = Cast<URigVMHost>(RigVMBlueprint->GetObjectBeingDebugged());
+	if (!Host || !Host->GetVM())
 	{
 		return;
 	}
 
-	const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+	const FRigVMByteCode& ByteCode = Host->GetVM()->GetByteCode();
 	if (URigVMNode* Subject = Cast<URigVMNode>(ByteCode.GetSubjectForInstruction(InItem->InstructionIndex)))
 	{
 		URigVMGraph* GraphToFocus = Subject->GetGraph();
@@ -1041,11 +1040,11 @@ void SControlRigStackView::HandleItemMouseDoubleClick(TSharedPtr<FRigStackEntry>
 			} 
 		}
 		
-		if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(ControlRigBlueprint->GetEdGraph(GraphToFocus)))
+		if(URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(RigVMBlueprint->GetEdGraph(GraphToFocus)))
 		{
 			if(const UEdGraphNode* Node = EdGraph->FindNodeForModelNodeName(Subject->GetFName()))
 			{
-				ControlRigEditor.Pin()->JumpToHyperlink(Node, false);
+				RigVMEditor.Pin()->JumpToHyperlink(Node, false);
 			}
 		}
 	}

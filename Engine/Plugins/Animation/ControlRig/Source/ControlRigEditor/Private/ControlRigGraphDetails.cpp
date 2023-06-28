@@ -1297,7 +1297,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	for(TWeakObjectPtr<UObject> DetailObject : DetailObjects)
 	{
-		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(DetailObject.Get());
+		URigVMDetailsViewWrapperObject* WrapperObject = CastChecked<URigVMDetailsViewWrapperObject>(DetailObject.Get());
 		if(BlueprintBeingCustomized == nullptr)
 		{
 			BlueprintBeingCustomized = WrapperObject->GetTypedOuter<UControlRigBlueprint>();
@@ -1513,7 +1513,7 @@ TSharedRef<SWidget> FControlRigWrappedNodeDetails::MakeNameListItemWidget(TShare
 FText FControlRigWrappedNodeDetails::GetNameListText(FNameProperty* InProperty) const
 {
 	FText FirstText;
-	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<URigVMDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
 		if (FName* Value = InProperty->ContainerPtrToValuePtr<FName>(ObjectBeingCustomized.Get()))
 		{
@@ -1598,7 +1598,7 @@ void FControlRigWrappedNodeDetails::CustomizeLiveValues(IDetailLayoutBuilder& De
 		return;
 	}
 
-	UDetailsViewWrapperObject* FirstWrapper = ObjectsBeingCustomized[0].Get();
+	URigVMDetailsViewWrapperObject* FirstWrapper = ObjectsBeingCustomized[0].Get();
 	URigVMNode* FirstNode = NodesBeingCustomized[0].Get();
 	if(FirstNode->GetTypedOuter<URigVMFunctionLibrary>())
 	{

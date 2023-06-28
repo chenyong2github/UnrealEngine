@@ -61,7 +61,7 @@
 #include "RigVMBlueprintUtils.h"
 #include "ControlRigBlueprintCommands.h"
 #include "ControlRigHierarchyCommands.h"
-#include "ControlRigStackCommands.h"
+#include "Editor/RigVMExecutionStackCommands.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/ControlRigEditorEditMode.h"
 #include "ControlRigElementDetails.h"
@@ -146,7 +146,7 @@ void FControlRigEditorModule::StartupModule()
 	FControlRigEditModeCommands::Register();
 	FControlRigBlueprintCommands::Register();
 	FControlRigHierarchyCommands::Register();
-	FControlRigStackCommands::Register();
+	FRigVMExecutionStackCommands::Register();
 	FControlRigEditorStyle::Get();
 
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
@@ -2721,7 +2721,7 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 			{
 				return true;
 			}
-			else if (UDetailsViewWrapperObject::IsValidClass(InStructProperty->GetOwnerClass()))
+			else if (URigVMDetailsViewWrapperObject::IsValidClass(InStructProperty->GetOwnerClass()))
 			{
 				return true;
 			}
@@ -2736,9 +2736,9 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 				GeneratorClass->RefreshLinkedProperties();
 				GeneratorClass->RefreshPropertyPaths();	
 			}
-			else if (InStruct->IsChildOf(UDetailsViewWrapperObject::StaticClass()))
+			else if (InStruct->IsChildOf(URigVMDetailsViewWrapperObject::StaticClass()))
 			{
-				UDetailsViewWrapperObject::MarkOutdatedClass(Cast<UClass>(InStruct));
+				URigVMDetailsViewWrapperObject::MarkOutdatedClass(Cast<UClass>(InStruct));
 			}
 		});
 	

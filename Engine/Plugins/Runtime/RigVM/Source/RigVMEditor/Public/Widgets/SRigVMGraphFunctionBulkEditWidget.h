@@ -3,17 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "Dialogs/Dialogs.h"
 #include "IAssetTypeActions.h"
 
-class SControlRigFunctionBulkEditWidget;
+class SRigVMGraphFunctionBulkEditWidget;
 
-class SControlRigFunctionBulkEditWidget : public SCompoundWidget
+class RIGVMEDITOR_API SRigVMGraphFunctionBulkEditWidget : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SControlRigFunctionBulkEditWidget) {}
+	SLATE_BEGIN_ARGS(SRigVMGraphFunctionBulkEditWidget) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
@@ -36,14 +36,14 @@ private:
 
 	TSharedRef<SWidget> MakeAssetViewForReferencedAssets();
 
-	friend class SControlRigFunctionBulkEditDialog;
+	friend class SRigVMGraphFunctionBulkEditDialog;
 };
 
-class SControlRigFunctionBulkEditDialog : public SWindow
+class RIGVMEDITOR_API SRigVMGraphFunctionBulkEditDialog : public SWindow
 {
 public:
 	
-	SLATE_BEGIN_ARGS(SControlRigFunctionBulkEditDialog)
+	SLATE_BEGIN_ARGS(SRigVMGraphFunctionBulkEditDialog)
 	{
 	}
 
@@ -59,7 +59,7 @@ public:
 
 protected:
 
-	TSharedPtr<SControlRigFunctionBulkEditWidget> BulkEditWidget;
+	TSharedPtr<SRigVMGraphFunctionBulkEditWidget> BulkEditWidget;
 	
 	FReply OnButtonClick(EAppReturnType::Type ButtonID);
 	bool IsOkButtonEnabled() const;

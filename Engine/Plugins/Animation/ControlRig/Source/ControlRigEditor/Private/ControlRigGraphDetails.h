@@ -12,7 +12,7 @@
 #include "SGraphPin.h"
 #include "Widgets/SRigVMGraphNode.h"
 #include "Widgets/Colors/SColorBlock.h"
-#include "Editor/DetailsViewWrapperObject.h"
+#include "Editor/RigVMDetailsViewWrapperObject.h"
 #include "IDetailPropertyExtensionHandler.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "SAdvancedTransformInputBox.h"
@@ -232,7 +232,7 @@ public:
 	void CustomizeLiveValues(IDetailLayoutBuilder& DetailLayout);
 
 	UControlRigBlueprint* BlueprintBeingCustomized;
-	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
+	TArray<TWeakObjectPtr<URigVMDetailsViewWrapperObject>> ObjectsBeingCustomized;
 	TArray<TWeakObjectPtr<URigVMNode>> NodesBeingCustomized;
 	TMap<FName, TSharedPtr<SRigVMGraphPinNameListValueWidget>> NameListWidgets;
 };

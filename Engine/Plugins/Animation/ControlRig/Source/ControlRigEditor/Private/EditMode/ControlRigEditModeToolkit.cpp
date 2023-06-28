@@ -16,7 +16,6 @@
 #include "EditMode/SControlRigTweenWidget.h"
 #include "EditMode/SControlRigSnapper.h"
 #include "Tools/SMotionTrailOptions.h"
-#include "Editor/SControlRigProfilingView.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "EditMode/ControlRigEditModeSettings.h"
@@ -180,16 +179,6 @@ TSharedRef<SDockTab> SpawnMotionTrailTab(const FSpawnTabArgs& Args)
 			SNew(SMotionTrailOptions)
 		];
 }
-
-TSharedRef<SDockTab> SpawnRigProfiler(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			SNew(SControlRigProfilingView)
-		];
-}
-
 
 TSharedRef<SDockTab> SpawnOutlinerTab(const FSpawnTabArgs& Args, FControlRigEditMode* InEditorMode)
 {
@@ -398,13 +387,6 @@ void FControlRigEditModeToolkit::RequestModeUITabs()
 			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.EditableMotionTrails")));
 		ModeUILayerPtr->GetTabManager()->RegisterDefaultTabWindowSize(MotionTrailTabName, FVector2D(425, 575));
 
-		ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner("HierarchicalProfiler");
-		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
-			.SetDisplayName(LOCTEXT("HierarchicalProfilerTab", "Hierarchical Profiler"))
-			.SetTooltipText(LOCTEXT("HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
-			.SetGroup(MenuGroup)
-			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("HierarchicalProfiler.TabIcon")));
-
 		ModeUILayer.Pin()->ToolkitHostShutdownUI().BindSP(this, &FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs);
 
 
@@ -432,12 +414,6 @@ void FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs()
 		if (ModeUILayer.IsValid())
 		{
 			TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-			TSharedPtr<SDockTab> ProfilerTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId("HierarchicalProfiler"));
-			if (ProfilerTab)
-			{
-				ProfilerTab->RequestCloseTab();
-			}
-			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner("HierarchicalProfiler");
 
 			TSharedPtr<SDockTab> MotionTrailTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId(MotionTrailTabName));
 			if (MotionTrailTab)

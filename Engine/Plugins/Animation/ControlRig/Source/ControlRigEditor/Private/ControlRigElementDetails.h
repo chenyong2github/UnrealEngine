@@ -9,7 +9,7 @@
 #include "Rigs/RigHierarchy.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
-#include "Editor/DetailsViewWrapperObject.h"
+#include "Editor/ControlRigWrapperObject.h"
 #include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 #include "Editor/SControlRigGizmoNameList.h"
 #include "Styling/SlateTypes.h"
@@ -219,7 +219,7 @@ public:
 			return GetElement<T>();
 		}
 
-		TWeakObjectPtr<UDetailsViewWrapperObject> WrapperObject;
+		TWeakObjectPtr<URigVMDetailsViewWrapperObject> WrapperObject;
 		FRigElementHandle Element;
 		FRigElementHandle DefaultElement;
 	};

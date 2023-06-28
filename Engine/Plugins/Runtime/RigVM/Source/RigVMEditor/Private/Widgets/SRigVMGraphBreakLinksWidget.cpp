@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/SControlRigBreakLinksWidget.h"
+#include "Widgets/SRigVMGraphBreakLinksWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -11,16 +11,16 @@
 #include "Styling/AppStyle.h"
 #include "HAL/ConsoleManager.h"
 #include "RigVMModel/RigVMController.h"
-#include "Editor/ControlRigEditor.h"
+#include "Editor/RigVMEditor.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "Misc/ScopedSlowTask.h"
 
-#define LOCTEXT_NAMESPACE "SControlRigBreakLinksWidget"
+#define LOCTEXT_NAMESPACE "SRigVMGraphBreakLinksWidget"
 
-class SControlRigBreakLinksWidgetRow : public SMultiColumnTableRow< URigVMLink* >
+class SRigVMGraphBreakLinksWidgetRow : public SMultiColumnTableRow< URigVMLink* >
 {
-	SLATE_BEGIN_ARGS(SControlRigBreakLinksWidgetRow) { }
+	SLATE_BEGIN_ARGS(SRigVMGraphBreakLinksWidgetRow) { }
 	SLATE_ARGUMENT(URigVMLink*, Item)
 	SLATE_END_ARGS()
 	
@@ -65,10 +65,10 @@ private:
 };
 
 //////////////////////////////////////////////////////////////
-/// SControlRigBreakLinksWidget
+/// SRigVMGraphBreakLinksWidget
 ///////////////////////////////////////////////////////////
 
-void SControlRigBreakLinksWidget::Construct(const FArguments& InArgs, TArray<URigVMLink*> InLinks)
+void SRigVMGraphBreakLinksWidget::Construct(const FArguments& InArgs, TArray<URigVMLink*> InLinks)
 {
 	Links = InLinks;
 	OnFocusOnLink = InArgs._OnFocusOnLink;
@@ -90,7 +90,7 @@ void SControlRigBreakLinksWidget::Construct(const FArguments& InArgs, TArray<URi
 			     .ItemHeight(24)
 			     .ListItemsSource( &Links )
 			     .ListViewStyle( FAppStyle::Get(), "SimpleListView" )
-			     .OnMouseButtonDoubleClick(this, &SControlRigBreakLinksWidget::HandleItemMouseDoubleClick)
+			     .OnMouseButtonDoubleClick(this, &SRigVMGraphBreakLinksWidget::HandleItemMouseDoubleClick)
 			     .HeaderRow(SNew(SHeaderRow)
 			     	+SHeaderRow::Column(FName(TEXT("Source")))
 			     	.DefaultLabel(LOCTEXT("SourceColumnHeader", "Source"))
@@ -99,24 +99,24 @@ void SControlRigBreakLinksWidget::Construct(const FArguments& InArgs, TArray<URi
 			     	.DefaultLabel(LOCTEXT("TargetColumnHeader", "Target"))
 			     	.FillWidth(0.5f)
 			     )
-			     .OnGenerateRow(this, &SControlRigBreakLinksWidget::GenerateItemRow)
+			     .OnGenerateRow(this, &SRigVMGraphBreakLinksWidget::GenerateItemRow)
 			]
 		]
 	];
 }
 
-TSharedRef<ITableRow> SControlRigBreakLinksWidget::GenerateItemRow(URigVMLink* Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRigVMGraphBreakLinksWidget::GenerateItemRow(URigVMLink* Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SControlRigBreakLinksWidgetRow, OwnerTable)
+	return SNew(SRigVMGraphBreakLinksWidgetRow, OwnerTable)
 			.Item(Item);
 }
 
-void SControlRigBreakLinksWidget::HandleItemMouseDoubleClick(URigVMLink* InItem)
+void SRigVMGraphBreakLinksWidget::HandleItemMouseDoubleClick(URigVMLink* InItem)
 {
 	OnFocusOnLink.ExecuteIfBound(InItem);		
 }
 
-void SControlRigBreakLinksDialog::Construct(const FArguments& InArgs)
+void SRigVMGraphBreakLinksDialog::Construct(const FArguments& InArgs)
 {
 	UserResponse = EAppReturnType::Cancel;
 
@@ -157,7 +157,7 @@ void SControlRigBreakLinksDialog::Construct(const FArguments& InArgs)
                 .HAlign(HAlign_Left)
                 .Padding(2)
                 [
-                    SAssignNew(BreakLinksWidget, SControlRigBreakLinksWidget, InArgs._Links)
+                    SAssignNew(BreakLinksWidget, SRigVMGraphBreakLinksWidget, InArgs._Links)
                     .OnFocusOnLink(InArgs._OnFocusOnLink)
                 ]
 
@@ -176,7 +176,7 @@ void SControlRigBreakLinksDialog::Construct(const FArguments& InArgs)
                         .HAlign(HAlign_Center)
                         .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("OK", "OK"))
-                        .OnClicked(this, &SControlRigBreakLinksDialog::OnButtonClick, EAppReturnType::Ok)
+                        .OnClicked(this, &SRigVMGraphBreakLinksDialog::OnButtonClick, EAppReturnType::Ok)
                     ]
                     +SUniformGridPanel::Slot(1, 0)
                     [
@@ -184,14 +184,14 @@ void SControlRigBreakLinksDialog::Construct(const FArguments& InArgs)
                         .HAlign(HAlign_Center)
                         .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("Cancel", "Cancel"))
-                        .OnClicked(this, &SControlRigBreakLinksDialog::OnButtonClick, EAppReturnType::Cancel)
+                        .OnClicked(this, &SRigVMGraphBreakLinksDialog::OnButtonClick, EAppReturnType::Cancel)
                     ]
                 ]
 			]
 		]);
 }
 
-FReply SControlRigBreakLinksDialog::OnButtonClick(EAppReturnType::Type ButtonID)
+FReply SRigVMGraphBreakLinksDialog::OnButtonClick(EAppReturnType::Type ButtonID)
 {
 	UserResponse = ButtonID;
 
@@ -199,7 +199,7 @@ FReply SControlRigBreakLinksDialog::OnButtonClick(EAppReturnType::Type ButtonID)
 	return FReply::Handled();
 }
 
-EAppReturnType::Type SControlRigBreakLinksDialog::ShowModal()
+EAppReturnType::Type SRigVMGraphBreakLinksDialog::ShowModal()
 {
 	GEditor->EditorAddModalWindow(SharedThis(this));
 	return UserResponse;

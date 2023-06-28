@@ -4,17 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "ControlRigEditorStyle.h"
 
-class FControlRigStackCommands : public TCommands<FControlRigStackCommands>
+class RIGVMEDITOR_API FRigVMExecutionStackCommands : public TCommands<FRigVMExecutionStackCommands>
 {
 public:
-	FControlRigStackCommands() : TCommands<FControlRigStackCommands>
+	FRigVMExecutionStackCommands() : TCommands<FRigVMExecutionStackCommands>
 	(
 		"ControlRigStack",
 		NSLOCTEXT("Contexts", "RigStack", "Execution Stack"),
 		NAME_None, // "MainFrame" // @todo Fix this crash
-		FControlRigEditorStyle::Get().GetStyleSetName() // Icon Style Set
+		"ControlRigEditorStyle" // Icon Style Set
 	)
 	{}
 	

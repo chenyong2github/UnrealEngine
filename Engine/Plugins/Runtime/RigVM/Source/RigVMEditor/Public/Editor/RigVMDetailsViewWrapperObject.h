@@ -5,28 +5,28 @@
 #include "CoreMinimal.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMNode.h"
-#include "DetailsViewWrapperObject.generated.h"
+#include "RigVMDetailsViewWrapperObject.generated.h"
 
-class UDetailsViewWrapperObject;
+class URigVMDetailsViewWrapperObject;
 
-DECLARE_EVENT_ThreeParams(UDetailsViewWrapperObject, FWrappedPropertyChangedChainEvent, UDetailsViewWrapperObject*, const FString&, FPropertyChangedChainEvent&);
+DECLARE_EVENT_ThreeParams(URigVMDetailsViewWrapperObject, FWrappedPropertyChangedChainEvent, URigVMDetailsViewWrapperObject*, const FString&, FPropertyChangedChainEvent&);
 
 UCLASS()
-class UDetailsViewWrapperObject : public UObject
+class RIGVMEDITOR_API URigVMDetailsViewWrapperObject : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UDetailsViewWrapperObject();
+	URigVMDetailsViewWrapperObject();
 
 	// Creating wrappers from a given struct
-	static UClass* GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded = true);
-	static UDetailsViewWrapperObject* MakeInstance(UObject* InOuter, UScriptStruct* InStruct, uint8* InStructMemory, UObject* InSubject = nullptr);
+	virtual UClass* GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded = true) const;
+	static URigVMDetailsViewWrapperObject* MakeInstance(UClass* InWrapperObjectClass, UObject* InOuter, UScriptStruct* InStruct, uint8* InStructMemory, UObject* InSubject = nullptr);
 	UScriptStruct* GetWrappedStruct() const;
 
 	// Creating wrappers from a RigVMNode
-	static UClass* GetClassForNodes(TArray<URigVMNode*> InNodes, bool bCreateIfNeeded = true);
-	static UDetailsViewWrapperObject* MakeInstance(UObject* InOuter, TArray<URigVMNode*> InNodes, URigVMNode* InSubject);
+	virtual UClass* GetClassForNodes(TArray<URigVMNode*> InNodes, bool bCreateIfNeeded = true) const;
+	static URigVMDetailsViewWrapperObject* MakeInstance(UClass* InWrapperObjectClass, UObject* InOuter, TArray<URigVMNode*> InNodes, URigVMNode* InSubject);
 	
 	static void MarkOutdatedClass(UClass* InClass);
 	static bool IsValidClass(UClass* InClass);

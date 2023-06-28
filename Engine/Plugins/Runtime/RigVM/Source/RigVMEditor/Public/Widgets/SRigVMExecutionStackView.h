@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Graph/ControlRigGraph.h"
-#include "ControlRig.h"
-#include "ControlRigBlueprint.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "RigVMHost.h"
+#include "RigVMBlueprint.h"
 #include "Widgets/Views/STreeView.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMBlueprint.h"
 
-class FControlRigEditor;
-class SControlRigStackView;
+class FRigVMEditor;
+class SRigVMExecutionStackView;
 class FUICommandList;
 class SSearchBox;
 
@@ -26,12 +27,12 @@ namespace ERigStackEntry
 }
 
 /** An item in the stack */
-class FRigStackEntry : public TSharedFromThis<FRigStackEntry>
+class RIGVMEDITOR_API FRigStackEntry : public TSharedFromThis<FRigStackEntry>
 {
 public:
 	FRigStackEntry(int32 InEntryIndex, ERigStackEntry::Type InEntryType, int32 InInstructionIndex, ERigVMOpCode InOpCode, const FString& InLabel, const FRigVMASTProxy& InProxy);
 
-	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SControlRigStackView> InStackView, TWeakObjectPtr<UControlRigBlueprint> InBlueprint);
+	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigVMExecutionStackView> InStackView, TWeakObjectPtr<URigVMBlueprint> InBlueprint);
 
 	int32 EntryIndex;
 	ERigStackEntry::Type EntryType;
@@ -48,11 +49,11 @@ class SRigStackItem : public STableRow<TSharedPtr<FRigStackEntry>>
 	SLATE_BEGIN_ARGS(SRigStackItem) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList, TWeakObjectPtr<UControlRigBlueprint> InBlueprint);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList, TWeakObjectPtr<URigVMBlueprint> InBlueprint);
 
 private:
 	TWeakPtr<FRigStackEntry> WeakStackEntry;
-	TWeakObjectPtr<UControlRigBlueprint> WeakBlueprint;
+	TWeakObjectPtr<URigVMBlueprint> WeakBlueprint;
 	TWeakPtr<FUICommandList> WeakCommandList;
 
 	FText GetIndexText() const;
@@ -63,15 +64,15 @@ private:
 	FText GetDurationText() const;
 };
 
-class SControlRigStackView : public SCompoundWidget
+class RIGVMEDITOR_API SRigVMExecutionStackView : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SControlRigStackView) {}
+	SLATE_BEGIN_ARGS(SRigVMExecutionStackView) {}
 	SLATE_END_ARGS()
 
-	~SControlRigStackView();
+	~SRigVMExecutionStackView();
 
-	void Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor);
+	void Construct(const FArguments& InArgs, TSharedRef<FRigVMEditor> InRigVMEditor);
 
 	/** Set Selection Changed */
 	void OnSelectionChanged(TSharedPtr<FRigStackEntry> Selection, ESelectInfo::Type SelectInfo);
@@ -89,7 +90,7 @@ private:
 	void BindCommands();
 
 	/** Make a row widget for the table */
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<UControlRigBlueprint> InBlueprint);
+	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<URigVMBlueprint> InBlueprint);
 
 	/** Get children for the tree */
 	void HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> InItem, TArray<TSharedPtr<FRigStackEntry>>& OutChildren);
@@ -114,8 +115,8 @@ private:
 	bool bSuspendModelNotifications;
 	bool bSuspendControllerSelection;
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
-	void HandleControlRigInitializedEvent(URigVMHost* InControlRig, const FName& InEventName);
-	void HandlePreviewControlRigUpdated(FControlRigEditor* InEditor);
+	void HandleHostInitializedEvent(URigVMHost* InHost, const FName& InEventName);
+	void HandlePreviewHostUpdated(FRigVMEditor* InEditor);
 	void HandleItemMouseDoubleClick(TSharedPtr<FRigStackEntry> InItem);
 
 	/** Populate the execution stack with descriptive names for each instruction */
@@ -126,15 +127,15 @@ private:
 	/** Command list we bind to */
 	TSharedPtr<FUICommandList> CommandList;
 
-	TWeakPtr<FControlRigEditor> ControlRigEditor;
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
+	TWeakPtr<FRigVMEditor> RigVMEditor;
+	TWeakObjectPtr<URigVMBlueprint> RigVMBlueprint;
 
 	TArray<TSharedPtr<FRigStackEntry>> Operators;
 
 	int32 HaltedAtInstruction;
 
 	FDelegateHandle OnModelModified;
-	FDelegateHandle OnControlRigInitializedHandle;
+	FDelegateHandle OnHostInitializedHandle;
 	FDelegateHandle OnVMCompiledHandle;
-	FDelegateHandle OnPreviewControlRigUpdatedHandle;
+	FDelegateHandle OnPreviewHostUpdatedHandle;
 };

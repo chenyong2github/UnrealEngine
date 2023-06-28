@@ -1401,7 +1401,7 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		// we do this to avoid the editmode / viewport shapes to refresh recursively,
 		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
 		bool bSelectBones = true;
-		if (UControlRig* CurrentRig = StrongEditor->ControlRig)
+		if (UControlRig* CurrentRig = StrongEditor->GetControlRig())
 		{
 			bSelectBones = !CurrentRig->IsConstructionModeEnabled();
 		}
@@ -1503,7 +1503,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		// we do this to avoid the editmode / viewport shapes to refresh recursively,
 		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
 		bool bSelectBones = true;
-		if (const UControlRig* CurrentRig = EditorSharedPtr->ControlRig)
+		if (const UControlRig* CurrentRig = EditorSharedPtr->GetControlRig())
 		{
 			bSelectBones = !CurrentRig->IsConstructionModeEnabled();
 		}
@@ -2156,7 +2156,7 @@ URigHierarchy* SRigHierarchy::GetHierarchy() const
 	}
 	if (ControlRigEditor.IsValid())
 	{
-		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
+		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->GetControlRig())
 		{
 			return CurrentRig->GetHierarchy();
 		}

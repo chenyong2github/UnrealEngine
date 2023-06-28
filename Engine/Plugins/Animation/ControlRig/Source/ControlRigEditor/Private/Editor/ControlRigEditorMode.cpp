@@ -7,9 +7,8 @@
 #include "IPersonaToolkit.h"
 #include "PersonaTabs.h"
 #include "Editor/RigHierarchyTabSummoner.h"
-#include "Editor/RigStackTabSummoner.h"
+#include "Editor/RigVMExecutionStackTabSummoner.h"
 #include "Editor/RigCurveContainerTabSummoner.h"
-#include "Editor/RigInfluenceMapTabSummoner.h"
 #include "Editor/RigValidationTabSummoner.h"
 #include "Editor/RigAnimAttributeTabSummoner.h"
 #include "ToolMenus.h"
@@ -21,9 +20,8 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 	ControlRigBlueprintPtr = CastChecked<UControlRigBlueprint>(InControlRigEditor->GetBlueprintObj());
 
 	TabFactories.RegisterFactory(MakeShared<FRigHierarchyTabSummoner>(InControlRigEditor));
-	TabFactories.RegisterFactory(MakeShared<FRigStackTabSummoner>(InControlRigEditor));
+	TabFactories.RegisterFactory(MakeShared<FRigVMExecutionStackTabSummoner>(InControlRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FRigCurveContainerTabSummoner>(InControlRigEditor));
-	//TabFactories.RegisterFactory(MakeShared<FRigInfluenceMapTabSummoner>(InControlRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FRigValidationTabSummoner>(InControlRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FRigAnimAttributeTabSummoner>(InControlRigEditor));
 
@@ -71,7 +69,7 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.5f)
 						->AddTab(FRigHierarchyTabSummoner::TabID, ETabState::OpenedTab)
-						->AddTab(FRigStackTabSummoner::TabID, ETabState::OpenedTab)
+						->AddTab(FRigVMExecutionStackTabSummoner::TabID, ETabState::OpenedTab)
 						->AddTab(FRigCurveContainerTabSummoner::TabID, ETabState::OpenedTab)
 						->AddTab(FBlueprintEditorTabs::MyBlueprintID, ETabState::OpenedTab)
 					)

@@ -21,6 +21,7 @@ public class RigVMEditor : ModuleRules
                 "SlateCore",
                 "InputCore",
                 "ToolWidgets",
+                "Kismet",
                 "KismetWidgets",
             }
         );

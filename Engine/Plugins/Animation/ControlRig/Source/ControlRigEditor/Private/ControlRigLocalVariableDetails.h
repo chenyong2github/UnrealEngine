@@ -7,7 +7,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
-#include "Editor/DetailsViewWrapperObject.h"
+#include "Editor/RigVMDetailsViewWrapperObject.h"
 #include "Graph/ControlRigGraph.h"
 #include "Widgets/SRigVMGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
@@ -41,7 +41,7 @@ private:
 	URigVMGraph* GraphBeingCustomized;
 	UControlRigBlueprint* BlueprintBeingCustomized;
 	FRigVMGraphVariableDescription VariableDescription;
-	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
+	TArray<TWeakObjectPtr<URigVMDetailsViewWrapperObject>> ObjectsBeingCustomized;
 
 	TSharedPtr<IPropertyHandle> NameHandle;
 	TSharedPtr<IPropertyHandle> TypeHandle;

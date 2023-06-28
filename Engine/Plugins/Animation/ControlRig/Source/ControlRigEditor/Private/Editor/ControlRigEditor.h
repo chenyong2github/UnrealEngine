@@ -19,7 +19,7 @@
 #include "ScopedTransaction.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "RigVMModel/RigVMController.h"
-#include "Editor/DetailsViewWrapperObject.h"
+#include "Editor/RigVMDetailsViewWrapperObject.h"
 #include "ControlRigTestData.h"
 #include "RigVMHost.h"
 
@@ -151,6 +151,9 @@ public:
 	UControlRigBlueprint* GetControlRigBlueprint() const;
 
 	// returns the hierarchy being debugged
+	UControlRig* GetControlRig() const;
+
+	// returns the hierarchy being debugged
 	URigHierarchy* GetHierarchyBeingDebugged() const;
 
 	void SetDetailObjects(const TArray<UObject*>& InObjects);
@@ -182,7 +185,7 @@ public:
 	FControlRigEditorEditMode* GetEditMode() const;
 
 	// this changes everytime you compile, so don't cache it expecting it will last. 
-	UControlRig* GetInstanceRig() const { return ControlRig;  }
+	UControlRig* GetInstanceRig() const { return GetControlRig();  }
 
 	void OnCurveContainerChanged();
 
@@ -196,9 +199,6 @@ public:
 	FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() { return OnKeyDownDelegate; }
 	FOnGetContextMenu& OnGetViewportContextMenu() { return OnGetViewportContextMenuDelegate; }
 	FNewMenuCommandsDelegate& OnViewportContextMenuCommands() { return OnViewportContextMenuCommandsDelegate; }
-
-	DECLARE_EVENT_OneParam(FControlRigEditor, FPreviewControlRigUpdated, FControlRigEditor*);
-	FPreviewControlRigUpdated& OnPreviewControlRigUpdated() { return PreviewControlRigUpdated;  }
 
 	virtual bool SelectLocalVariable(const UEdGraph* Graph, const FName& VariableName) override;
 
@@ -245,7 +245,7 @@ protected:
 	virtual void SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents) override;
 	virtual void FocusInspectorOnGraphSelection(const TSet<class UObject*>& NewSelection, bool bForceRefresh = false) override;
 
-	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+	virtual void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject) override;
 	void HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM);
 	void HandleControlRigExecutedEvent(URigVMHost* InControlRig, const FName& InEventName);
 	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode, const FName& InEntryName);
@@ -407,9 +407,6 @@ protected:
 	/** Preview instance inspector widget */
 	TSharedPtr<SWidget> PreviewEditor;
 
-	/** Our currently running control rig instance */
-	TObjectPtr<UControlRig> ControlRig;
-
 	/** preview scene */
 	TSharedPtr<IPersonaPreviewScene> PreviewScene;
 
@@ -435,7 +432,7 @@ protected:
 	/** delegate for changing property */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
-	void OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent);
+	void OnWrappedPropertyChangedChainEvent(URigVMDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent);
 	void OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, URigVMBlueprint* InTargetBlueprint, bool bForce);
 	FRigVMController_BulkEditResult OnRequestBulkEditDialog(URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
 	bool OnRequestBreakLinksDialog(TArray<URigVMLink*> InLinks);
@@ -464,8 +461,6 @@ protected:
 	/** Are we currently compiling through the user interface */
 	bool bIsCompilingThroughUI;
 
-	FPreviewControlRigUpdated PreviewControlRigUpdated;
-
 	TSharedPtr<SRigVMGraphPinNameListValueWidget> PinControlNameList;
 	bool IsPinControlNameListEnabled() const;
 	TSharedRef<SWidget> MakePinControlNameListItemWidget(TSharedPtr<FString> InItem);
@@ -490,7 +485,7 @@ protected:
 
 	bool bAllowBulkEdits;
 
-	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
+	TArray<TStrongObjectPtr<URigVMDetailsViewWrapperObject>> WrapperObjects;
 	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
 
 	FDelegateHandle PropertyChangedHandle;

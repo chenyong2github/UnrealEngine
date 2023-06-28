@@ -5,18 +5,18 @@
 #include "CoreMinimal.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 
-class FControlRigEditor;
+class FRigVMEditor;
 
-struct FRigStackTabSummoner : public FWorkflowTabFactory
+struct RIGVMEDITOR_API FRigVMExecutionStackTabSummoner : public FWorkflowTabFactory
 {
 public:
 	static const FName TabID;
 	
 public:
-	FRigStackTabSummoner(const TSharedRef<FControlRigEditor>& InControlRigEditor);
+	FRigVMExecutionStackTabSummoner(const TSharedRef<FRigVMEditor>& InRigVMEditor);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 	
 protected:
-	TWeakPtr<FControlRigEditor> ControlRigEditor;
+	TWeakPtr<FRigVMEditor> RigVMEditor;
 };

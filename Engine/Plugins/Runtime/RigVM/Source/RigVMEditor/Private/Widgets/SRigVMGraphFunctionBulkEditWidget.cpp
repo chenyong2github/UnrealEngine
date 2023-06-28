@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/SControlRigFunctionBulkEditWidget.h"
+#include "Widgets/SRigVMGraphFunctionBulkEditWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -17,13 +17,13 @@
 #include "IContentBrowserSingleton.h"
 #include "Misc/ScopedSlowTask.h"
 
-#define LOCTEXT_NAMESPACE "SControlRigFunctionBulkEditWidget"
+#define LOCTEXT_NAMESPACE "SRigVMGraphFunctionBulkEditWidget"
 
 //////////////////////////////////////////////////////////////
-/// SControlRigFunctionBulkEditWidget
+/// SRigVMGraphFunctionBulkEditWidget
 ///////////////////////////////////////////////////////////
 
-void SControlRigFunctionBulkEditWidget::Construct(const FArguments& InArgs, URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
+void SRigVMGraphFunctionBulkEditWidget::Construct(const FArguments& InArgs, URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
 {
 	Blueprint = InBlueprint;
 	Controller = InController;
@@ -49,18 +49,18 @@ void SControlRigFunctionBulkEditWidget::Construct(const FArguments& InArgs, URig
 	];
 }
 
-TSharedPtr<SWidget> SControlRigFunctionBulkEditWidget::OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets)
+TSharedPtr<SWidget> SRigVMGraphFunctionBulkEditWidget::OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets)
 {
 	return nullptr;
 }
 
-void SControlRigFunctionBulkEditWidget::OnAssetsActivated(const TArray<FAssetData>& ActivatedAssets,
+void SRigVMGraphFunctionBulkEditWidget::OnAssetsActivated(const TArray<FAssetData>& ActivatedAssets,
 	EAssetTypeActivationMethod::Type ActivationMethod)
 {
 	// nothing to do here
 }
 
-void SControlRigFunctionBulkEditWidget::LoadAffectedAssets()
+void SRigVMGraphFunctionBulkEditWidget::LoadAffectedAssets()
 {
 	TArray<FAssetData> FirstLevelReferenceAssets = Controller->GetAffectedAssets(EditType, false);
 
@@ -96,7 +96,7 @@ void SControlRigFunctionBulkEditWidget::LoadAffectedAssets()
 	Controller->OnBulkEditProgressDelegate.Unbind();
 }
 
-TSharedRef<SWidget> SControlRigFunctionBulkEditWidget::MakeAssetViewForReferencedAssets()
+TSharedRef<SWidget> SRigVMGraphFunctionBulkEditWidget::MakeAssetViewForReferencedAssets()
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 	FAssetPickerConfig AssetPickerConfig;
@@ -108,8 +108,8 @@ TSharedRef<SWidget> SControlRigFunctionBulkEditWidget::MakeAssetViewForReference
 	AssetPickerConfig.bAutohideSearchBar = true;
 	AssetPickerConfig.Filter.ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("InvalidClass")));
 	AssetPickerConfig.Filter.bIncludeOnlyOnDiskAssets = false;
-	AssetPickerConfig.OnAssetsActivated = FOnAssetsActivated::CreateSP(this, &SControlRigFunctionBulkEditWidget::OnAssetsActivated);
-	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP( this, &SControlRigFunctionBulkEditWidget::OnGetAssetContextMenu );
+	AssetPickerConfig.OnAssetsActivated = FOnAssetsActivated::CreateSP(this, &SRigVMGraphFunctionBulkEditWidget::OnAssetsActivated);
+	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP( this, &SRigVMGraphFunctionBulkEditWidget::OnGetAssetContextMenu );
 
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.OnGetCustomSourceAssets.BindLambda([this](const FARFilter& SourceFilter, TArray<FAssetData>& AddedAssets)
@@ -121,7 +121,7 @@ TSharedRef<SWidget> SControlRigFunctionBulkEditWidget::MakeAssetViewForReference
 }
 
 
-void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
+void SRigVMGraphFunctionBulkEditDialog::Construct(const FArguments& InArgs)
 {
 	UserResponse = EAppReturnType::Cancel;
 
@@ -167,7 +167,7 @@ void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
                 .HAlign(HAlign_Left)
                 .Padding(2)
                 [
-                    SAssignNew(BulkEditWidget, SControlRigFunctionBulkEditWidget, InArgs._Blueprint, InArgs._Controller, InArgs._Function, InArgs._EditType)
+                    SAssignNew(BulkEditWidget, SRigVMGraphFunctionBulkEditWidget, InArgs._Blueprint, InArgs._Controller, InArgs._Function, InArgs._EditType)
                 ]
 
                 +SVerticalBox::Slot()
@@ -185,7 +185,7 @@ void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
                         .HAlign(HAlign_Center)
                         .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("OK", "OK"))
-                        .OnClicked(this, &SControlRigFunctionBulkEditDialog::OnButtonClick, EAppReturnType::Ok)
+                        .OnClicked(this, &SRigVMGraphFunctionBulkEditDialog::OnButtonClick, EAppReturnType::Ok)
                     ]
                     +SUniformGridPanel::Slot(1, 0)
                     [
@@ -193,14 +193,14 @@ void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
                         .HAlign(HAlign_Center)
                         .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("Cancel", "Cancel"))
-                        .OnClicked(this, &SControlRigFunctionBulkEditDialog::OnButtonClick, EAppReturnType::Cancel)
+                        .OnClicked(this, &SRigVMGraphFunctionBulkEditDialog::OnButtonClick, EAppReturnType::Cancel)
                     ]
                 ]
 			]
 		]);
 }
 
-FReply SControlRigFunctionBulkEditDialog::OnButtonClick(EAppReturnType::Type ButtonID)
+FReply SRigVMGraphFunctionBulkEditDialog::OnButtonClick(EAppReturnType::Type ButtonID)
 {
 	UserResponse = ButtonID;
 
@@ -214,7 +214,7 @@ FReply SControlRigFunctionBulkEditDialog::OnButtonClick(EAppReturnType::Type But
 	return FReply::Handled();
 }
 
-EAppReturnType::Type SControlRigFunctionBulkEditDialog::ShowModal()
+EAppReturnType::Type SRigVMGraphFunctionBulkEditDialog::ShowModal()
 {
 	GEditor->EditorAddModalWindow(SharedThis(this));
 	return UserResponse;

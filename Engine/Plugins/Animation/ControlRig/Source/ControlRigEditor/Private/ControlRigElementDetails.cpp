@@ -537,7 +537,7 @@ void FRigControlTransformChannelDetails::CustomizeHeader(TSharedRef<IPropertyHan
 	InStructPropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Object : Objects)
 	{
-		if (const UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(Object))
+		if (const URigVMDetailsViewWrapperObject* WrapperObject = Cast<URigVMDetailsViewWrapperObject>(Object))
 		{
 			if(WrapperObject->GetWrappedStruct() == FRigControlElement::StaticStruct())
 			{
@@ -672,7 +672,7 @@ void FRigBaseElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	DetailBuilder.GetObjectsBeingCustomized(DetailObjects);
 	for(TWeakObjectPtr<UObject> DetailObject : DetailObjects)
 	{
-		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(DetailObject.Get());
+		URigVMDetailsViewWrapperObject* WrapperObject = CastChecked<URigVMDetailsViewWrapperObject>(DetailObject.Get());
 
 		const FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>().GetKey();
 
@@ -1121,9 +1121,10 @@ bool FRigBaseElementDetails::ContainsElementByPredicate(const TFunction<bool(con
 
 void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule)
 {
-	FRigBoneElementDetails().RegisterSectionMappings(PropertyEditorModule, UDetailsViewWrapperObject::GetClassForStruct(FRigBoneElement::StaticStruct()));
-	FRigNullElementDetails().RegisterSectionMappings(PropertyEditorModule, UDetailsViewWrapperObject::GetClassForStruct(FRigNullElement::StaticStruct()));
-	FRigControlElementDetails().RegisterSectionMappings(PropertyEditorModule, UDetailsViewWrapperObject::GetClassForStruct(FRigControlElement::StaticStruct()));
+	const URigVMDetailsViewWrapperObject* CDOWrapper = CastChecked<URigVMDetailsViewWrapperObject>(UControlRigWrapperObject::StaticClass()->GetDefaultObject());
+	FRigBoneElementDetails().RegisterSectionMappings(PropertyEditorModule, CDOWrapper->GetClassForStruct(FRigBoneElement::StaticStruct()));
+	FRigNullElementDetails().RegisterSectionMappings(PropertyEditorModule, CDOWrapper->GetClassForStruct(FRigNullElement::StaticStruct()));
+	FRigControlElementDetails().RegisterSectionMappings(PropertyEditorModule, CDOWrapper->GetClassForStruct(FRigControlElement::StaticStruct()));
 }
 
 void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)

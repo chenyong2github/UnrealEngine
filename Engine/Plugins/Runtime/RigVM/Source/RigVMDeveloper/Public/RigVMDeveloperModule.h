@@ -9,5 +9,5 @@
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogRigVMDeveloper, Log, All);
+RIGVMDEVELOPER_API DECLARE_LOG_CATEGORY_EXTERN(LogRigVMDeveloper, Log, All);
 

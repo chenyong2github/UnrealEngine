@@ -24,7 +24,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	DetailBuilder.GetObjectsBeingCustomized(DetailObjects);
 	for(TWeakObjectPtr<UObject> DetailObject : DetailObjects)
 	{
-		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(DetailObject.Get());
+		URigVMDetailsViewWrapperObject* WrapperObject = CastChecked<URigVMDetailsViewWrapperObject>(DetailObject.Get());
 		ObjectsBeingCustomized.Add(WrapperObject);
 	}
 

@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BlueprintEditor.h"
+#include "Editor/RigVMEditor.h"
 
 class UControlRigBlueprint;
 class FBlueprintActionDatabaseRegistrar;
 
-class IControlRigEditor : public FBlueprintEditor
+class IControlRigEditor : public FRigVMEditor
 {
 };

@@ -3,20 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "Dialogs/Dialogs.h"
 #include "IAssetTypeActions.h"
 
 class ITableRow;
 class STableViewBase;
 
-DECLARE_DELEGATE_OneParam(FControlRigOnFocusOnLinkRequestedDelegate, URigVMLink*);
+DECLARE_DELEGATE_OneParam(FRigVMOnFocusOnLinkRequestedDelegate, URigVMLink*);
 
-class SControlRigBreakLinksWidget : public SCompoundWidget
+class RIGVMEDITOR_API SRigVMGraphBreakLinksWidget : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SControlRigBreakLinksWidget) {}
-	SLATE_ARGUMENT(FControlRigOnFocusOnLinkRequestedDelegate, OnFocusOnLink)
+	SLATE_BEGIN_ARGS(SRigVMGraphBreakLinksWidget) {}
+	SLATE_ARGUMENT(FRigVMOnFocusOnLinkRequestedDelegate, OnFocusOnLink)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TArray<URigVMLink*> InLinks);
@@ -29,23 +29,23 @@ private:
 	TSharedRef<ITableRow> GenerateItemRow(URigVMLink* Item, const TSharedRef<STableViewBase>& OwnerTable);
  
 	TArray<URigVMLink*> Links;
-	FControlRigOnFocusOnLinkRequestedDelegate OnFocusOnLink;
+	FRigVMOnFocusOnLinkRequestedDelegate OnFocusOnLink;
 
 	void HandleItemMouseDoubleClick(URigVMLink* InItem);
 
-	friend class SControlRigBreakLinksDialog;
+	friend class SRigVMGraphBreakLinksDialog;
 };
 
-class SControlRigBreakLinksDialog : public SWindow
+class RIGVMEDITOR_API SRigVMGraphBreakLinksDialog : public SWindow
 {
 public:
 	
-	SLATE_BEGIN_ARGS(SControlRigBreakLinksDialog)
+	SLATE_BEGIN_ARGS(SRigVMGraphBreakLinksDialog)
 	{
 	}
 
 	SLATE_ARGUMENT(TArray<URigVMLink*>, Links)
-	SLATE_ARGUMENT(FControlRigOnFocusOnLinkRequestedDelegate, OnFocusOnLink)
+	SLATE_ARGUMENT(FRigVMOnFocusOnLinkRequestedDelegate, OnFocusOnLink)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -54,7 +54,7 @@ public:
 
 protected:
 
-	TSharedPtr<SControlRigBreakLinksWidget> BreakLinksWidget;
+	TSharedPtr<SRigVMGraphBreakLinksWidget> BreakLinksWidget;
 	
 	FReply OnButtonClick(EAppReturnType::Type ButtonID);
 	bool IsOkButtonEnabled() const;

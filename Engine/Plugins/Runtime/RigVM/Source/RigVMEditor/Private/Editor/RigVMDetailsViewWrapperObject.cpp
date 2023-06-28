@@ -1,31 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/DetailsViewWrapperObject.h"
-#include "Units/RigUnit.h"
-#include "ControlRigElementDetails.h"
-#include "ControlRigLocalVariableDetails.h"
+#include "Editor/RigVMDetailsViewWrapperObject.h"
+#include "RigVMCore/RigVMStruct.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "Modules/ModuleManager.h"
-#include "ControlRig.h"
 #include "Algo/Sort.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(DetailsViewWrapperObject)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDetailsViewWrapperObject)
 
 #if WITH_EDITOR
 #include "PropertyEditorModule.h"
 #endif
 
-TMap<UDetailsViewWrapperObject::FPerClassInfo, UClass*> UDetailsViewWrapperObject::InfoToClass;
-TMap<UClass*, UDetailsViewWrapperObject::FPerClassInfo> UDetailsViewWrapperObject::ClassToInfo;
-TSet<UClass*> UDetailsViewWrapperObject::OutdatedClassToRecreate;
+TMap<URigVMDetailsViewWrapperObject::FPerClassInfo, UClass*> URigVMDetailsViewWrapperObject::InfoToClass;
+TMap<UClass*, URigVMDetailsViewWrapperObject::FPerClassInfo> URigVMDetailsViewWrapperObject::ClassToInfo;
+TSet<UClass*> URigVMDetailsViewWrapperObject::OutdatedClassToRecreate;
 
 static const TCHAR DiscardedWrapperClassTemplateName[] = TEXT("DiscardedWrapperClassTemplate");
 
-UDetailsViewWrapperObject::UDetailsViewWrapperObject()
+URigVMDetailsViewWrapperObject::URigVMDetailsViewWrapperObject()
 	: bIsSettingValue(false)
 {
 }
 
-UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded)
+UClass* URigVMDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded) const
 {
 	check(InStruct != nullptr);
 
@@ -67,7 +65,7 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 		return nullptr;
 	}
 
-	UClass* SuperClass = UDetailsViewWrapperObject::StaticClass();
+	UClass* SuperClass = URigVMDetailsViewWrapperObject::StaticClass();
 	const FName WrapperClassName(FString::Printf(TEXT("%s_WrapperObject"), *InStruct->GetStructCPPName()));
 
 	UClass* WrapperClass = NewObject<UClass>(
@@ -147,36 +145,6 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 		LinkToProperty = &(*LinkToProperty)->Next;
 	}
 
-#if WITH_EDITOR
-	if(InStruct->IsChildOf(FRigBaseElement::StaticStruct()))
-	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(WrapperClassName))
-		{
-			if(InStruct == FRigBoneElement::StaticStruct())
-			{
-				PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigBoneElementDetails::MakeInstance));
-			}
-			else if(InStruct == FRigNullElement::StaticStruct())
-			{
-				PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigNullElementDetails::MakeInstance));
-			}
-			else if(InStruct == FRigControlElement::StaticStruct())
-			{
-				PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigControlElementDetails::MakeInstance));
-			}
-		}
-	}
-	else if(InStruct->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
-	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(WrapperClassName))
-		{
-			PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigVMLocalVariableDetails::MakeInstance));
-		}
-	}
-#endif
-	
 	// Update the class
 	WrapperClass->Bind();
 	WrapperClass->StaticLink(true);
@@ -197,31 +165,33 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 	return WrapperClass;
 }
 
-UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UObject* InOuter, UScriptStruct* InStruct, uint8* InStructMemory, UObject* InSubject)
+URigVMDetailsViewWrapperObject* URigVMDetailsViewWrapperObject::MakeInstance(UClass* InWrapperObjectClass, UObject* InOuter, UScriptStruct* InStruct, uint8* InStructMemory, UObject* InSubject)
 {
+	check(InWrapperObjectClass != nullptr);
 	check(InStruct != nullptr);
 
 	InOuter = InOuter == nullptr ? GetTransientPackage() : InOuter;
-	
-	UClass* WrapperClass = GetClassForStruct(InStruct);
+
+	const URigVMDetailsViewWrapperObject* CDO = CastChecked<URigVMDetailsViewWrapperObject>(InWrapperObjectClass->GetDefaultObject());
+	const UClass* WrapperClass = CDO->GetClassForStruct(InStruct);
 	if(WrapperClass == nullptr)
 	{
 		return nullptr;
 	}
 
-	UDetailsViewWrapperObject* Instance = NewObject<UDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
+	URigVMDetailsViewWrapperObject* Instance = NewObject<URigVMDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
 	Instance->SetContent(InStructMemory, InStruct);
 	Instance->SetSubject(InSubject);
 
 	return Instance;
 }
 
-UScriptStruct* UDetailsViewWrapperObject::GetWrappedStruct() const
+UScriptStruct* URigVMDetailsViewWrapperObject::GetWrappedStruct() const
 {
 	return ClassToInfo.FindChecked(GetClass()).ScriptStruct;
 }
 
-UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes, bool bCreateIfNeeded)
+UClass* URigVMDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes, bool bCreateIfNeeded) const
 {
 	if(InNodes.IsEmpty())
 	{
@@ -351,7 +321,7 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 		return nullptr;
 	}
 
-	UClass* SuperClass = UDetailsViewWrapperObject::StaticClass();
+	UClass* SuperClass = URigVMDetailsViewWrapperObject::StaticClass();
 	const int32 HashForNotation = (int32)GetTypeHash(PerClassInfo);
 	const FName WrapperClassName(FString::Printf(TEXT("RigNode%d_WrapperObject"), HashForNotation));
 
@@ -486,7 +456,7 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 	InfoToClass.Add(PerClassInfo, WrapperClass);
 	ClassToInfo.Add(WrapperClass, PerClassInfo);
 
-	UDetailsViewWrapperObject* CDO = Cast<UDetailsViewWrapperObject>(WrapperClass->GetDefaultObject(true));
+	URigVMDetailsViewWrapperObject* CDO = Cast<URigVMDetailsViewWrapperObject>(WrapperClass->GetDefaultObject(true));
 	CDO->AddToRoot();
 
 	// setup the CDO's defaults to match the units
@@ -494,7 +464,7 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 	{
 		UScriptStruct* UnitStruct = UnitStructs[0];
 		FStructOnScope DefaultStructScope(UnitStruct);
-		const FRigUnit* DefaultStruct = (const FRigUnit*)DefaultStructScope.GetStructMemory();
+		const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)DefaultStructScope.GetStructMemory();
 
 		for (TFieldIterator<FProperty> UnitProperty(UnitStruct); UnitProperty; ++UnitProperty)
 		{
@@ -513,27 +483,28 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 	return WrapperClass;	
 }
 
-UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UObject* InOuter, TArray<URigVMNode*> InNodes, URigVMNode* InSubject)
+URigVMDetailsViewWrapperObject* URigVMDetailsViewWrapperObject::MakeInstance(UClass* InWrapperObjectClass, UObject* InOuter, TArray<URigVMNode*> InNodes, URigVMNode* InSubject)
 {
 	InOuter = InOuter == nullptr ? GetTransientPackage() : InOuter;
-	
-	UClass* WrapperClass = GetClassForNodes(InNodes);
+
+	const URigVMDetailsViewWrapperObject* CDO = CastChecked<URigVMDetailsViewWrapperObject>(InWrapperObjectClass->GetDefaultObject());
+	const UClass* WrapperClass = CDO->GetClassForNodes(InNodes);
 	if(WrapperClass == nullptr)
 	{
 		return nullptr;
 	}
 
-	UDetailsViewWrapperObject* Instance = NewObject<UDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
+	URigVMDetailsViewWrapperObject* Instance = NewObject<URigVMDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
 	Instance->SetContent(InSubject);
 	Instance->SetSubject(InSubject);
 
-	InSubject->GetGraph()->OnModified().AddUObject(Instance, &UDetailsViewWrapperObject::HandleModifiedEvent);
+	InSubject->GetGraph()->OnModified().AddUObject(Instance, &URigVMDetailsViewWrapperObject::HandleModifiedEvent);
 	
 	return Instance;
 
 }
 
-void UDetailsViewWrapperObject::MarkOutdatedClass(UClass* InClass)
+void URigVMDetailsViewWrapperObject::MarkOutdatedClass(UClass* InClass)
 {
 	if (InClass)
 	{
@@ -541,7 +512,7 @@ void UDetailsViewWrapperObject::MarkOutdatedClass(UClass* InClass)
 	}
 }
 
-bool UDetailsViewWrapperObject::IsValidClass(UClass* InClass)
+bool URigVMDetailsViewWrapperObject::IsValidClass(UClass* InClass)
 {
 	if (!InClass)
 	{
@@ -561,22 +532,22 @@ bool UDetailsViewWrapperObject::IsValidClass(UClass* InClass)
 	return true;
 }
 
-FString UDetailsViewWrapperObject::GetWrappedNodeNotation() const
+FString URigVMDetailsViewWrapperObject::GetWrappedNodeNotation() const
 {
 	return ClassToInfo.FindChecked(GetClass()).Notation;
 }
 
-void UDetailsViewWrapperObject::SetContent(const uint8* InStructMemory, const UStruct* InStruct)
+void URigVMDetailsViewWrapperObject::SetContent(const uint8* InStructMemory, const UStruct* InStruct)
 {
 	CopyPropertiesForUnrelatedStructs((uint8*)this, GetClass(), InStructMemory, InStruct);
 }
 
-void UDetailsViewWrapperObject::GetContent(uint8* OutStructMemory, const UStruct* InStruct) const
+void URigVMDetailsViewWrapperObject::GetContent(uint8* OutStructMemory, const UStruct* InStruct) const
 {
 	CopyPropertiesForUnrelatedStructs(OutStructMemory, InStruct, (const uint8*)this, GetClass());
 }
 
-void UDetailsViewWrapperObject::SetContent(URigVMNode* InNode)
+void URigVMDetailsViewWrapperObject::SetContent(URigVMNode* InNode)
 {
 	for(URigVMPin* Pin : InNode->GetPins())
 	{
@@ -584,7 +555,7 @@ void UDetailsViewWrapperObject::SetContent(URigVMNode* InNode)
 	}
 }
 
-UObject* UDetailsViewWrapperObject::GetSubject() const
+UObject* URigVMDetailsViewWrapperObject::GetSubject() const
 {
 	if(SubjectPtr.IsValid())
 	{
@@ -593,12 +564,12 @@ UObject* UDetailsViewWrapperObject::GetSubject() const
 	return nullptr;
 }
 
-void UDetailsViewWrapperObject::SetSubject(UObject* InSubject)
+void URigVMDetailsViewWrapperObject::SetSubject(UObject* InSubject)
 {
 	SubjectPtr = TWeakObjectPtr<UObject>(InSubject);
 }
 
-void UDetailsViewWrapperObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+void URigVMDetailsViewWrapperObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
@@ -624,7 +595,7 @@ void UDetailsViewWrapperObject::PostEditChangeChainProperty(FPropertyChangedChai
 	WrappedPropertyChangedChainEvent.Broadcast(this, PropertyPath, PropertyChangedEvent);
 }
 
-void UDetailsViewWrapperObject::CopyPropertiesForUnrelatedStructs(uint8* InTargetMemory,
+void URigVMDetailsViewWrapperObject::CopyPropertiesForUnrelatedStructs(uint8* InTargetMemory,
 	const UStruct* InTargetStruct, const uint8* InSourceMemory, const UStruct* InSourceStruct)
 {
 	check(InTargetMemory);
@@ -648,7 +619,7 @@ void UDetailsViewWrapperObject::CopyPropertiesForUnrelatedStructs(uint8* InTarge
 	}
 }
 
-void UDetailsViewWrapperObject::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph,
+void URigVMDetailsViewWrapperObject::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph,
 	UObject* InSubject)
 {
 	if(InNotifType != ERigVMGraphNotifType::PinDefaultValueChanged)
@@ -665,7 +636,7 @@ void UDetailsViewWrapperObject::HandleModifiedEvent(ERigVMGraphNotifType InNotif
 	SetContentForPin(Pin->GetRootPin());
 }
 
-void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
+void URigVMDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 {
 	if(bIsSettingValue)
 	{
@@ -681,13 +652,13 @@ void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 		return;
 	}
 
-	class FDetailsViewWrapperObjectImportErrorContext : public FOutputDevice
+	class FRigVMDetailsViewWrapperObjectImportErrorContext : public FOutputDevice
 	{
 	public:
 
 		int32 NumErrors;
 
-		FDetailsViewWrapperObjectImportErrorContext()
+		FRigVMDetailsViewWrapperObjectImportErrorContext()
 			: FOutputDevice()
 			, NumErrors(0)
 		{
@@ -695,7 +666,7 @@ void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 
 		virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
 		{
-			UE_LOG(LogControlRig, Error, TEXT("Error Importing To Hierarchy: %s"), V);
+			UE_LOG(LogRigVMDeveloper, Error, TEXT("Error Importing To Hierarchy: %s"), V);
 			NumErrors++;
 		}
 	};
@@ -703,7 +674,7 @@ void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 	// it's possible that the pin has been filtered out when creating the class
 	if(const FProperty* Property = GetClass()->FindPropertyByName(InPin->GetFName()))
 	{
-		FDetailsViewWrapperObjectImportErrorContext ErrorPipe;
+		FRigVMDetailsViewWrapperObjectImportErrorContext ErrorPipe;
 		Property->ImportText_InContainer(*DefaultValue, this, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);
 	}
 }

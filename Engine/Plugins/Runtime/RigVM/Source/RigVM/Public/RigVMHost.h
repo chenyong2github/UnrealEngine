@@ -209,6 +209,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "RigVM")
 	URigVM* GetVM();
 
+#if WITH_EDITOR
+	const FRigVMLog* GetLog() const { return RigVMLog; }
+#endif
+
 	DECLARE_EVENT_TwoParams(URigVM, FRigVMExecutedEvent, class URigVMHost*, const FName&);
 	FRigVMExecutedEvent& OnInitialized_AnyThread() { return InitializedEvent; }
 	FRigVMExecutedEvent& OnExecuted_AnyThread() { return ExecutedEvent; }

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/SControlRigFunctionLocalizationWidget.h"
+#include "Widgets/SRigVMGraphFunctionLocalizationWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -12,13 +12,13 @@
 #include "HAL/ConsoleManager.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 
-#define LOCTEXT_NAMESPACE "SControlRigFunctionLocalizationWidget"
+#define LOCTEXT_NAMESPACE "SRigVMGraphFunctionLocalizationWidget"
 
 //////////////////////////////////////////////////////////////
-/// SControlRigFunctionLocalizationItem
+/// SRigVMGraphFunctionLocalizationItem
 ///////////////////////////////////////////////////////////
 
-SControlRigFunctionLocalizationItem::SControlRigFunctionLocalizationItem(const FRigVMGraphFunctionIdentifier& InFunction)
+SRigVMGraphFunctionLocalizationItem::SRigVMGraphFunctionLocalizationItem(const FRigVMGraphFunctionIdentifier& InFunction)
     : Function(InFunction)
 {
 	FString OuterName;
@@ -37,13 +37,13 @@ SControlRigFunctionLocalizationItem::SControlRigFunctionLocalizationItem(const F
 }
 
 //////////////////////////////////////////////////////////////
-/// SControlRigFunctionLocalizationTableRow
+/// SRigVMGraphFunctionLocalizationTableRow
 ///////////////////////////////////////////////////////////
 
-void SControlRigFunctionLocalizationTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, SControlRigFunctionLocalizationWidget* InLocalizationWidget, TSharedRef<SControlRigFunctionLocalizationItem> InFunctionItem)
+void SRigVMGraphFunctionLocalizationTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, SRigVMGraphFunctionLocalizationWidget* InLocalizationWidget, TSharedRef<SRigVMGraphFunctionLocalizationItem> InFunctionItem)
 {
-	STableRow<TSharedPtr<SControlRigFunctionLocalizationItem>>::Construct(
-		STableRow<TSharedPtr<SControlRigFunctionLocalizationItem>>::FArguments()
+	STableRow<TSharedPtr<SRigVMGraphFunctionLocalizationItem>>::Construct(
+		STableRow<TSharedPtr<SRigVMGraphFunctionLocalizationItem>>::FArguments()
 		.Content()
 		[
 			SNew(SVerticalBox)
@@ -71,9 +71,9 @@ void SControlRigFunctionLocalizationTableRow::Construct(const FArguments& InArgs
 				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
-					.IsChecked(InLocalizationWidget, &SControlRigFunctionLocalizationWidget::IsFunctionEnabled, InFunctionItem->Function)
-					.OnCheckStateChanged(InLocalizationWidget, &SControlRigFunctionLocalizationWidget::SetFunctionEnabled, InFunctionItem->Function)
-					.IsEnabled(InLocalizationWidget, &SControlRigFunctionLocalizationWidget::IsFunctionPublic, InFunctionItem->Function)
+					.IsChecked(InLocalizationWidget, &SRigVMGraphFunctionLocalizationWidget::IsFunctionEnabled, InFunctionItem->Function)
+					.OnCheckStateChanged(InLocalizationWidget, &SRigVMGraphFunctionLocalizationWidget::SetFunctionEnabled, InFunctionItem->Function)
+					.IsEnabled(InLocalizationWidget, &SRigVMGraphFunctionLocalizationWidget::IsFunctionPublic, InFunctionItem->Function)
 					.ToolTipText(InFunctionItem->ToolTipText)
 				]
 			]
@@ -83,10 +83,10 @@ void SControlRigFunctionLocalizationTableRow::Construct(const FArguments& InArgs
 }
 
 //////////////////////////////////////////////////////////////
-/// SControlRigFunctionLocalizationWidget
+/// SRigVMGraphFunctionLocalizationWidget
 ///////////////////////////////////////////////////////////
 
-void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, URigVMBlueprint* InTargetBlueprint)
+void SRigVMGraphFunctionLocalizationWidget::Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, URigVMBlueprint* InTargetBlueprint)
 {
 	FunctionsToLocalize.Add(InFunctionToLocalize);
 	FunctionItems.Reset();
@@ -137,7 +137,7 @@ void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, 
 
 	for (FRigVMGraphFunctionData* FunctionForTable : FunctionsForTable)
 	{
-		FunctionItems.Add(MakeShared<SControlRigFunctionLocalizationItem>(FunctionForTable->Header.LibraryPointer));
+		FunctionItems.Add(MakeShared<SRigVMGraphFunctionLocalizationItem>(FunctionForTable->Header.LibraryPointer));
 	}
 
 	ChildSlot
@@ -152,28 +152,28 @@ void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, 
 				.Visibility(EVisibility::Visible)
 				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
 				[
-					SNew(SListView<TSharedPtr<SControlRigFunctionLocalizationItem>>)
+					SNew(SListView<TSharedPtr<SRigVMGraphFunctionLocalizationItem>>)
 					.ListItemsSource(&FunctionItems)
-					.OnGenerateRow(this, &SControlRigFunctionLocalizationWidget::GenerateFunctionListRow)
+					.OnGenerateRow(this, &SRigVMGraphFunctionLocalizationWidget::GenerateFunctionListRow)
 					.SelectionMode(ESelectionMode::None)
 				]
 			]
 		];
 }
 
-TSharedRef<ITableRow> SControlRigFunctionLocalizationWidget::GenerateFunctionListRow(TSharedPtr<SControlRigFunctionLocalizationItem> InItem, const TSharedRef<STableViewBase>& InOwningTable)
+TSharedRef<ITableRow> SRigVMGraphFunctionLocalizationWidget::GenerateFunctionListRow(TSharedPtr<SRigVMGraphFunctionLocalizationItem> InItem, const TSharedRef<STableViewBase>& InOwningTable)
 {
-	TSharedRef<SControlRigFunctionLocalizationTableRow> TableRow = SNew(SControlRigFunctionLocalizationTableRow, InOwningTable, this, InItem.ToSharedRef());
+	TSharedRef<SRigVMGraphFunctionLocalizationTableRow> TableRow = SNew(SRigVMGraphFunctionLocalizationTableRow, InOwningTable, this, InItem.ToSharedRef());
 	TableRows.Add(InItem->Function, TableRow);
 	return TableRow;
 }
 
-ECheckBoxState SControlRigFunctionLocalizationWidget::IsFunctionEnabled(const FRigVMGraphFunctionIdentifier InFunction) const
+ECheckBoxState SRigVMGraphFunctionLocalizationWidget::IsFunctionEnabled(const FRigVMGraphFunctionIdentifier InFunction) const
 {
 	return FunctionsToLocalize.Contains(InFunction) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void SControlRigFunctionLocalizationWidget::SetFunctionEnabled(ECheckBoxState NewState, const FRigVMGraphFunctionIdentifier InFunction)
+void SRigVMGraphFunctionLocalizationWidget::SetFunctionEnabled(ECheckBoxState NewState, const FRigVMGraphFunctionIdentifier InFunction)
 {
 	if(NewState == ECheckBoxState::Checked)
 	{
@@ -185,7 +185,7 @@ void SControlRigFunctionLocalizationWidget::SetFunctionEnabled(ECheckBoxState Ne
 	}
 }
 
-bool SControlRigFunctionLocalizationWidget::IsFunctionPublic(const FRigVMGraphFunctionIdentifier InFunction) const
+bool SRigVMGraphFunctionLocalizationWidget::IsFunctionPublic(const FRigVMGraphFunctionIdentifier InFunction) const
 {
 	IRigVMGraphFunctionHost* FunctionHost = nullptr;
 	if (UObject* FunctionHostObj = InFunction.HostObject.TryLoad())
@@ -200,7 +200,7 @@ bool SControlRigFunctionLocalizationWidget::IsFunctionPublic(const FRigVMGraphFu
 	return false;	
 }
 
-void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
+void SRigVMGraphFunctionLocalizationDialog::Construct(const FArguments& InArgs)
 {
 	UserResponse = EAppReturnType::Cancel;
 
@@ -213,7 +213,7 @@ void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
     );
 	
 	SWindow::Construct(SWindow::FArguments()
-        .Title(LOCTEXT("SControlRigFunctionLocalizationDialog_Title", "Select function(s) to localize"))
+        .Title(LOCTEXT("SRigVMGraphFunctionLocalizationDialog_Title", "Select function(s) to localize"))
         .SupportsMinimize(false)
         .SupportsMaximize(false)
         .SizingRule( ESizingRule::Autosized )
@@ -245,7 +245,7 @@ void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
                 .HAlign(HAlign_Left)
                 .Padding(2)
                 [
-                    SAssignNew(FunctionsWidget, SControlRigFunctionLocalizationWidget, InArgs._Function, InArgs._TargetBlueprint)
+                    SAssignNew(FunctionsWidget, SRigVMGraphFunctionLocalizationWidget, InArgs._Function, InArgs._TargetBlueprint)
                 ]
 
                 +SVerticalBox::Slot()
@@ -263,8 +263,8 @@ void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
                         .HAlign(HAlign_Center)
                         .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("OK", "OK"))
-                        .OnClicked(this, &SControlRigFunctionLocalizationDialog::OnButtonClick, EAppReturnType::Ok)
-                        .IsEnabled(this, &SControlRigFunctionLocalizationDialog::IsOkButtonEnabled)
+                        .OnClicked(this, &SRigVMGraphFunctionLocalizationDialog::OnButtonClick, EAppReturnType::Ok)
+                        .IsEnabled(this, &SRigVMGraphFunctionLocalizationDialog::IsOkButtonEnabled)
                     ]
                     +SUniformGridPanel::Slot(1, 0)
                     [
@@ -272,14 +272,14 @@ void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
                         .HAlign(HAlign_Center)
                         .ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
                         .Text(LOCTEXT("Cancel", "Cancel"))
-                        .OnClicked(this, &SControlRigFunctionLocalizationDialog::OnButtonClick, EAppReturnType::Cancel)
+                        .OnClicked(this, &SRigVMGraphFunctionLocalizationDialog::OnButtonClick, EAppReturnType::Cancel)
                     ]
                 ]
 			]
 		]);
 }
 
-FReply SControlRigFunctionLocalizationDialog::OnButtonClick(EAppReturnType::Type ButtonID)
+FReply SRigVMGraphFunctionLocalizationDialog::OnButtonClick(EAppReturnType::Type ButtonID)
 {
 	UserResponse = ButtonID;
 	RequestDestroyWindow();
@@ -287,18 +287,18 @@ FReply SControlRigFunctionLocalizationDialog::OnButtonClick(EAppReturnType::Type
 	return FReply::Handled();
 }
 
-bool SControlRigFunctionLocalizationDialog::IsOkButtonEnabled() const
+bool SRigVMGraphFunctionLocalizationDialog::IsOkButtonEnabled() const
 {
 	return FunctionsWidget->FunctionsToLocalize.Num() > 0;
 }
 
-EAppReturnType::Type SControlRigFunctionLocalizationDialog::ShowModal()
+EAppReturnType::Type SRigVMGraphFunctionLocalizationDialog::ShowModal()
 {
 	GEditor->EditorAddModalWindow(SharedThis(this));
 	return UserResponse;
 }
 
-TArray<FRigVMGraphFunctionIdentifier>& SControlRigFunctionLocalizationDialog::GetFunctionsToLocalize()
+TArray<FRigVMGraphFunctionIdentifier>& SRigVMGraphFunctionLocalizationDialog::GetFunctionsToLocalize()
 {
 	return FunctionsWidget->FunctionsToLocalize;
 }
