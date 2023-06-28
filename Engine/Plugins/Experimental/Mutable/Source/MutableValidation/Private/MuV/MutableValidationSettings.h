@@ -13,5 +13,5 @@ public:
 
 	/** If true, validation of referenced COs from asset subject to data validation, will be run. */
 	UPROPERTY(config, EditAnywhere, Category = Validation)
-	bool bEnableIndirectValidation = true;
+	bool bEnableIndirectValidation = false;
 };
