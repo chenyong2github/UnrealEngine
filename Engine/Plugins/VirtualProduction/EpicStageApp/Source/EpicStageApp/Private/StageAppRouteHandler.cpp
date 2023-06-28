@@ -723,6 +723,10 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragBegin(const F
 
 		PerRendererData->PrimaryActor = FDisplayClusterWeakStageActorPtr(PrimaryActor);
 	}
+	else
+	{
+		PerRendererData->PrimaryActor.Reset();
+	}
 
 	if (!DragTimeoutTickerHandle.IsValid())
 	{
@@ -888,7 +892,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorCreate(const FRem
 		FDisplayClusterLightCardEditorHelper& LightCardHelper = PerRendererData->GetLightCardHelper();
 
 		FSceneViewInitOptions ViewInitOptions;
-		if (PerRendererData->GetSceneViewInitOptions(ViewInitOptions, false))
+		if (PerRendererData->GetSceneViewInitOptions(ViewInitOptions))
 		{
 			const FSceneView View(ViewInitOptions);
 			LightCardHelper.MoveActorsToPixel({ NewActor }, PixelPos, View);

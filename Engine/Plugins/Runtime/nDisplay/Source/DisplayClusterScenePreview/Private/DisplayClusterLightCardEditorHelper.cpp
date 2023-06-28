@@ -323,7 +323,8 @@ void FDisplayClusterLightCardEditorHelper::MoveActorsToPixel(
 		AverageCoords.Conform();
 
 		// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
-		const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
+		const FVector LocalDirection = CachedRootActor->GetActorRotation().RotateVector(Direction);
+		const FSphericalCoordinates DesiredCoords(LocalDirection * 100.0f);
 		const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
 
 		// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
