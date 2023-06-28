@@ -100,6 +100,8 @@ private:
 	FCompilationMessageCache CompilationLogsContainer;
 	
 private:
+	void SetCompilationState(ECustomizableObjectCompilationState InState);
+
 	ECustomizableObjectCompilationState State = ECustomizableObjectCompilationState::None;
 	
 	void CompileInternal(UCustomizableObject* Object, const FCompilationOptions& Options, bool bAsync = false);

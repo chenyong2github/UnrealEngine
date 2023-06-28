@@ -62,7 +62,7 @@ bool FCustomizableObjectCompiler::Tick()
 		else
 		{
 			bUpdated = true;
-			State = ECustomizableObjectCompilationState::Completed;
+			SetCompilationState(ECustomizableObjectCompilationState::Completed);
 
 			RemoveCompileNotification();
 
@@ -82,7 +82,8 @@ bool FCustomizableObjectCompiler::Tick()
 
 	if (SaveDDTask.IsValid() && SaveDDTask->IsCompleted())
 	{
-		State = ECustomizableObjectCompilationState::Completed;
+		SetCompilationState(ECustomizableObjectCompilationState::Completed);
+
 		bUpdated = true;
 
 		FinishSavingDerivedData();
@@ -889,11 +890,22 @@ void FCustomizableObjectCompiler::GetCompilationMessages(TArray<FText>& OutWarni
 }
 
 
+void FCustomizableObjectCompiler::SetCompilationState(ECustomizableObjectCompilationState InState)
+{
+	State = InState;
+	
+	if (CurrentObject)
+	{
+		CurrentObject->CompilationState = InState;
+	}
+}
+
+
 void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, const FCompilationOptions& InOptions, bool bAsync)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FCustomizableObjectCompiler::Compile)
 	
-	State = ECustomizableObjectCompilationState::Failed;
+	SetCompilationState(ECustomizableObjectCompilationState::Failed);
 
 	if (!Object) return;
 
@@ -1282,7 +1294,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 
 		CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(MutableRoot));
 		CompileTask->Options = Options;
-		State = ECustomizableObjectCompilationState::InProgress;
+		SetCompilationState(ECustomizableObjectCompilationState::InProgress);
 
 		if (GenerationContext.ArrayTextureUnrealToMutableTask.Num() > 0)
 		{
@@ -1311,7 +1323,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 
 			CurrentObject->PostCompile(); 
 
-			State = ECustomizableObjectCompilationState::Completed;
+			SetCompilationState(ECustomizableObjectCompilationState::Completed);
 		}
 		else
 		{
@@ -1569,11 +1581,11 @@ void FCustomizableObjectCompiler::NotifyCompilationErrors() const
 	const FText Prefix = FText::FromString(CurrentObject ? CurrentObject->GetName() : "Customizable Object");
 
 	const FText Message = NoWarningsOrErrors ?
-		FText::Format(LOCTEXT("CompilationFinishedSuccessfully", "{0} finished compiling successfully."), Prefix) :
+		FText::Format(LOCTEXT("CompilationFinishedSuccessfully", "{0} finished compiling."), Prefix) :
 		NumIgnoreds > 0 ?
-		FText::Format(LOCTEXT("CompilationFinished_WithIgnoreds", "{0} finished compiling successfully with {1} {1}|plural(one=warning,other=warnings), {2} {2}|plural(one=error,other=errors) and {3} more similar warnings."), Prefix, NumWarnings, NumErrors, NumIgnoreds)
+		FText::Format(LOCTEXT("CompilationFinished_WithIgnoreds", "{0} finished compiling with {1} {1}|plural(one=warning,other=warnings), {2} {2}|plural(one=error,other=errors) and {3} more similar warnings."), Prefix, NumWarnings, NumErrors, NumIgnoreds)
 		:
-		FText::Format(LOCTEXT("CompilationFinished_WithoutIgnoreds", "{0} finished compiling successfully with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors)."), Prefix, NumWarnings, NumErrors);
+		FText::Format(LOCTEXT("CompilationFinished_WithoutIgnoreds", "{0} finished compiling with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors)."), Prefix, NumWarnings, NumErrors);
 	
 	FCustomizableObjectEditorLogger::CreateLog(Message)
 	.Category(ELoggerCategory::Compilation)

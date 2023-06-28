@@ -3019,42 +3019,45 @@ void UCustomizableObjectSystem::SetOnlyGenerateRequestedLODsEnabled(bool bIsEnab
 void UCustomizableObjectSystem::AddUncompiledCOWarning(const UCustomizableObject& InObject, FString const* OptionalLogInfo)
 {
 	FString Msg;
-	Msg += FString::Printf(TEXT("Warning: Customizable Object [%s] not compiled. Please compile and save the object."), *InObject.GetName());
+	Msg += FString::Printf(TEXT("Warning: Customizable Object [%s] not compiled."), *InObject.GetName());
 	GEngine->AddOnScreenDebugMessage((uint64)((PTRINT)&InObject), 10.0f, FColor::Red, Msg);
 
 #if WITH_EDITOR
+	// Mutable will spam these warnings constantly due to the tick and LOD manager checking for instances to update with every tick. Send only one message per CO in the editor.
+	if (UncompiledCustomizableObjectIds.Find(InObject.GetVersionId()) != INDEX_NONE)
+	{
+		return;
+	}
+	
+	// Add notification
+	UncompiledCustomizableObjectIds.Add(InObject.GetVersionId());
+
+	FMessageLog MessageLog("Mutable");
+	MessageLog.Warning(FText::FromString(Msg));
+
+	if (!UncompiledCustomizableObjectsNotificationPtr.IsValid())
+	{
+		FNotificationInfo Info(FText::FromString("Uncompiled Customizable Object/s found. Please, check the Message Log - Mutable for more information."));
+		Info.bFireAndForget = true;
+		Info.bUseThrobber = true;
+		Info.FadeOutDuration = 1.0f;
+		Info.ExpireDuration = 5.0f;
+
+		UncompiledCustomizableObjectsNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+	}
+
 	const FString ErrorString = FString::Printf(
 		TEXT("Customizable Object [%s] not compiled.  Compile via the editor or via code before instancing.  %s"),
-						   *InObject.GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
+		*InObject.GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
+
 #else // !WITH_EDITOR
 	const FString ErrorString = FString::Printf(
 		TEXT("Customizable Object [%s] not compiled.  This is not an Editor build, so this is an unrecoverable bad state; could be due to code or a cook failure.  %s"),
-						   *InObject.GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
+		*InObject.GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
 #endif
 
 	// Also log an error so if this happens as part of a bug report we'll have this info.
 	UE_LOG(LogMutable, Error, TEXT("%s"), *ErrorString);
-
-#if WITH_EDITOR
-	if (UncompiledCustomizableObjectIds.Find(InObject.GetVersionId()) == INDEX_NONE)
-	{
-		UncompiledCustomizableObjectIds.Add(InObject.GetVersionId());
-
-		FMessageLog MessageLog("Mutable");
-		MessageLog.Warning(FText::FromString(Msg));
-
-		if (!UncompiledCustomizableObjectsNotificationPtr.IsValid())
-		{
-			FNotificationInfo Info(FText::FromString("Uncompiled Customizable Object/s found. Please, check the Message Log - Mutable for more information."));
-			Info.bFireAndForget = true;
-			Info.bUseThrobber = true;
-			Info.FadeOutDuration = 1.0f;
-			Info.ExpireDuration = 5.0f;
-
-			UncompiledCustomizableObjectsNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-		}
-	}
-#endif
 }
 
 void UCustomizableObjectSystem::EnableBenchmark()
@@ -3125,10 +3128,7 @@ void UCustomizableObjectSystem::OnPreBeginPIE(const bool bIsSimulatingInEditor)
 
 void UCustomizableObjectSystem::StartNextRecompile()
 {
-	if (ObjectsToRecompile.Num() % 10 == 0) // TODO DRB: What?  If we can add more than one between calls, this might never be hit.  Why % 10?
-	{
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-	}
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 	FAssetData Itr = ObjectsToRecompile.Pop();
 	UCustomizableObject* CustomizableObject = Cast<UCustomizableObject>(Itr.GetAsset());

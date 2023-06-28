@@ -1625,6 +1625,8 @@ public:
 	UPROPERTY(Transient)
 	FGuid Identifier;
 
+	ECustomizableObjectCompilationState CompilationState = ECustomizableObjectCompilationState::None;
+
 	FPostCompileDelegate PostCompileDelegate;
 
 	void PostCompile();

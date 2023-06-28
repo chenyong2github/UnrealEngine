@@ -274,6 +274,9 @@ public:
 	void SetSelectedParameterProfileDirty();
 	bool IsSelectedParameterProfileDirty() const;
 
+	/** Return true if the instance is not locked and if it's compiled */
+	bool CanUpdateInstance() const;
+
 	/** Update Skeletal Mesh asynchronously. */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	void UpdateSkeletalMeshAsync(bool bIgnoreCloseDist = false, bool bForceHighPriority = false);

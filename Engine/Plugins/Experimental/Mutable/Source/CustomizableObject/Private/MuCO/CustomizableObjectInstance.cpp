@@ -598,6 +598,11 @@ void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInsta
 	if (bInvalidatePreviousData)
 	{
 		InvalidateGeneratedData();
+
+#if WITH_EDITOR
+		// Clear the Generated flag to trigger a new update after changing or compiling the CO,
+		ClearCOInstanceFlags(Generated);
+#endif
 	}
 
 	Public->GetDescriptor().ReloadParameters();
@@ -745,6 +750,22 @@ void UCustomizableInstancePrivateData::PostEditChangePropertyWithoutEditor(USkel
 }
 
 
+bool UCustomizableObjectInstance::CanUpdateInstance() const
+{
+	UCustomizableObject* CustomizableObject = GetCustomizableObject();
+	if (!CustomizableObject)
+	{
+		return false;
+	}
+
+#if WITH_EDITOR
+	return CustomizableObject->ConditionalAutoCompile();
+#else
+	return CustomizableObject->IsCompiled();
+#endif
+}
+
+
 void UCustomizableObjectInstance::UpdateSkeletalMeshAsync(bool bIgnoreCloseDist, bool bForceHighPriority)
 {
 	DoUpdateSkeletalMesh( false, false, bIgnoreCloseDist, bForceHighPriority, nullptr, nullptr);
@@ -763,22 +784,10 @@ EUpdateRequired UCustomizableObjectInstance::IsUpdateRequired(bool bIsCloseDistT
 	const UCustomizableInstancePrivateData* const Private = GetPrivate();
 	
 	UCustomizableObject* CustomizableObject = GetCustomizableObject();
-	if (!CustomizableObject || CustomizableObject->IsLocked())
+	if (!CanUpdateInstance() || CustomizableObject->IsLocked())
 	{
 		return EUpdateRequired::NoUpdate;
 	}
-	
-#if WITH_EDITOR
-	if (!CustomizableObject->IsCompiled() && !CustomizableObject->ConditionalAutoCompile())
-	{
-		return EUpdateRequired::NoUpdate;
-	}
-#else
-	if (!CustomizableObject->IsCompiled())
-	{
-		return EUpdateRequired::NoUpdate;		
-	}
-#endif
 
 	const bool bIsGenerated = Private->HasCOInstanceFlags(Generated);
 	const int32 NumGeneratedInstancesLimit = System->GetInstanceLODManagement()->GetNumGeneratedInstancesLimitFullLODs();
@@ -864,7 +873,12 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::DoUpdateSkeletalMesh);
 	check(IsInGameThread());
-	check(!OptionalUpdateRequired || *OptionalUpdateRequired != EUpdateRequired::NoUpdate) // If no update is required this functions must not be called.
+	check(!OptionalUpdateRequired || *OptionalUpdateRequired != EUpdateRequired::NoUpdate); // If no update is required this functions must not be called.
+
+	if (!CanUpdateInstance())
+	{
+		return;
+	}
 
 	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 
@@ -928,6 +942,11 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 
 void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public, const bool bOnlyUpdatePrioForUpdates, FMutableInstanceUpdateMap& InOutRequestedUpdates)
 {
+	if (!Public.CanUpdateInstance())
+	{
+		return;
+	}
+
 	const EUpdateRequired UpdateRequired = Public.IsUpdateRequired(true, true, false);
 	if (UpdateRequired != EUpdateRequired::NoUpdate) // Since this is done in the tick, avoid starting an update that we know for sure that would not be performed. Once started it has some performance implications that we want to avoid.
 	{
@@ -973,25 +992,32 @@ void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects(UCusto
 
 void UCustomizableInstancePrivateData::UpdateInstanceIfNotGenerated(UCustomizableObjectInstance& Public, FMutableInstanceUpdateMap& InOutRequestedUpdates)
 {
-	if (!HasCOInstanceFlags(Generated))
+	if (HasCOInstanceFlags(Generated))
 	{
-		Public.DoUpdateSkeletalMesh(false, true, false, false, nullptr, nullptr);
+		return;
+	}
 
-		EQueuePriorityType Priority = Public.GetUpdatePriority(true, true, false, false);
-		FMutableUpdateCandidate* UpdateCandidate = InOutRequestedUpdates.Find(&Public);
+	if (!Public.CanUpdateInstance())
+	{
+		return;
+	}
 
-		if (UpdateCandidate)
-		{
-			UpdateCandidate->Priority = Priority;
-			UpdateCandidate->Issue();
-		}
-		else
-		{
-			FMutableUpdateCandidate Candidate(&Public);
-			Candidate.Priority = Priority;
-			Candidate.Issue();
-			InOutRequestedUpdates.Add(&Public, Candidate);
-		}
+	Public.DoUpdateSkeletalMesh(false, true, false, false, nullptr, nullptr);
+
+	EQueuePriorityType Priority = Public.GetUpdatePriority(true, true, false, false);
+	FMutableUpdateCandidate* UpdateCandidate = InOutRequestedUpdates.Find(&Public);
+
+	if (UpdateCandidate)
+	{
+		UpdateCandidate->Priority = Priority;
+		UpdateCandidate->Issue();
+	}
+	else
+	{
+		FMutableUpdateCandidate Candidate(&Public);
+		Candidate.Priority = Priority;
+		Candidate.Issue();
+		InOutRequestedUpdates.Add(&Public, Candidate);
 	}
 }
 
@@ -1988,7 +2014,7 @@ bool UCustomizableInstancePrivateData::DoComponentsNeedUpdate(UCustomizableObjec
 	{
 		bFoundEmptyLOD = true;
 		bUpdateMeshes = true;
-		UE_LOG(LogMutable, Warning, TEXT("Building instance: an LOD has no mesh geometry. This cannot be handled by Unreal."));
+		UE_LOG(LogMutable, Warning, TEXT("Building instance: An LOD has no mesh geometry. This cannot be handled by Unreal."));
 	}
 
 	bOutEmptyMesh = bFoundEmptyLOD || bFoundEmptyMesh;
@@ -2009,7 +2035,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 	if (bEmptyMesh)
 	{
 		Public->SkeletalMeshStatus = ESkeletalMeshState::UpdateError;
-		UE_LOG(LogMutable, Warning, TEXT("Updating skeletal mesh error for mesh %s"), *Public->GetName());
+		UE_LOG(LogMutable, Warning, TEXT("Updating skeletal mesh error for CO Instance %s"), *Public->GetName());
 
 		Public->SkeletalMeshes.Reset(); // What about all the references
 
@@ -6437,6 +6463,11 @@ void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLO
 		return;
 	}
 
+	if (!CanUpdateInstance())
+	{
+		return;
+	}
+
 #if !UE_BUILD_SHIPPING
 	// Ignore Min/Max LOD limits. Mainly used for debug
 	if (!bIgnoreMinMaxLOD)
@@ -6470,6 +6501,8 @@ void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLO
 		// TODO Pere: With Requested LODs We could skip updates by increasing the lower limit of LODs mutable can generate if only MinLOD have changed.
 
 		const int32 ComponentCount = GetNumComponents();
+		MutableUpdateCandidate.RequestedLODLevels.SetNum(ComponentCount);
+
 		const TArray<uint16>& GeneratedLODsPerComponent = DescriptorRuntimeHash.GetRequestedLODs();
 
 		const bool bIgnoreGeneratedLODs = DescriptorRuntimeHash != UpdateDescriptorRuntimeHash || GeneratedLODsPerComponent.Num() != ComponentCount;

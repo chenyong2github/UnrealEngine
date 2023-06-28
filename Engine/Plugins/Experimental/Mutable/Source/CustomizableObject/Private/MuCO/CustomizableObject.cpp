@@ -727,6 +727,12 @@ bool UCustomizableObject::ConditionalAutoCompile()
 		return false;
 	}
 
+	// Don't re-compile objects if they failed to compile. 
+	if (CompilationState == ECustomizableObjectCompilationState::Failed)
+	{
+		return false;
+	}
+
 	// Don't compile if we're running game, Compile and/or if AutoCompile is disabled
 	if (IsRunningGame() || System->IsCompilationDisabled() || !System->IsAutoCompileEnabled())
 	{
@@ -1208,18 +1214,7 @@ int32 UCustomizableObject::GetNumLODs() const
 
 int32 UCustomizableObject::GetComponentCount() const
 {
-	if (!IsCompiled())
-	{
-		UE_LOG(LogMutable, Warning,
-		       TEXT(
-			       "You are trying to get the component count of the non-compiled CO %s. This will always return 0 as value."
-		       ), *GetName()
-		);
-
-		return 0;
-	}
-	
-	return NumMeshComponentsInRoot;
+	return IsCompiled() ? NumMeshComponentsInRoot : 0;
 }
 
 int UCustomizableObject::GetParameterCount() const
