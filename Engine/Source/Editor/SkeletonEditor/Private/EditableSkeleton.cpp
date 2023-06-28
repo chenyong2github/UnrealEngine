@@ -1405,6 +1405,36 @@ void FEditableSkeleton::RemoveCompatibleSkeleton(const USkeleton* InCompatibleSk
 	PersonaModule.BroadcastAssetFamilyChange();
 }
 
+void FEditableSkeleton::RefreshRigConfig()
+{
+	Skeleton->RefreshRigConfig();
+}
+
+void FEditableSkeleton::SetRigConfig(URig* InRig)
+{
+	const FScopedTransaction Transaction(LOCTEXT("RigAssetChanged", "Select Rig"));
+	Skeleton->Modify();
+	Skeleton->SetRigConfig(InRig);
+}
+
+void FEditableSkeleton::SetRigBoneMapping(const FName& InNodeName, const FName& InBoneName)
+{
+	const FScopedTransaction Transaction(LOCTEXT("BoneMappingChanged", "Change Bone Mapping"));
+	Skeleton->Modify();
+	Skeleton->SetRigBoneMapping(InNodeName, InBoneName);
+}
+
+void FEditableSkeleton::SetRigBoneMappings(const TMap<FName, FName>& InMappings)
+{
+	const FScopedTransaction Transaction(LOCTEXT("BoneMappingsChanged", "Change Bone Mappings"));
+	Skeleton->Modify();
+
+	for (const TPair<FName, FName>& Mapping : InMappings)
+	{
+		Skeleton->SetRigBoneMapping(Mapping.Key, Mapping.Value);
+	}
+}
+
 void FEditableSkeleton::RemoveUnusedBones()
 {
 	TArray<FName> SkeletonBones;

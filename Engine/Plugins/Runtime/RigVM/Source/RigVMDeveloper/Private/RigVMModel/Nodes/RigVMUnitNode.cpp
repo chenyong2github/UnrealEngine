@@ -2,6 +2,7 @@
 
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 
+#include "Animation/Rig.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMModel/RigVMControllerActions.h"
 #include "RigVMUserWorkflowRegistry.h"

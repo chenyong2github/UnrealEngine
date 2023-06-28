@@ -217,6 +217,21 @@ struct FNameMapping
 };
 
 USTRUCT()
+struct FRigConfiguration
+{
+	GENERATED_USTRUCT_BODY()
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	TObjectPtr<class URig>  Rig = nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// @todo in the future we can make this to be run-time data
+	UPROPERTY()
+	TArray<FNameMapping> BoneMappingTable;
+};
+
+USTRUCT()
 struct FAnimSlotGroup
 {
 	GENERATED_USTRUCT_BODY()
@@ -578,6 +593,11 @@ private:
 	/** The additional skeletal meshes to use when previewing this skeleton */
 	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
 	TSoftObjectPtr<class UDataAsset> AdditionalPreviewSkeletalMeshes;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	FRigConfiguration RigConfig;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** rig property will be saved separately */
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -1001,6 +1021,21 @@ public:
 	// Asset registry information for compatible skeletons
 	ENGINE_API static const FName CompatibleSkeletonsNameTag;
 	ENGINE_API static const FString CompatibleSkeletonsTagDelimiter;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// rig Configs
+	ENGINE_API static const FName RigTag;
+	ENGINE_API void SetRigConfig(URig * Rig);
+	ENGINE_API FName GetRigBoneMapping(const FName& NodeName) const;
+	ENGINE_API bool SetRigBoneMapping(const FName& NodeName, FName BoneName);
+	ENGINE_API FName GetRigNodeNameFromBoneName(const FName& BoneName) const;
+	// this make sure it stays within the valid range
+	ENGINE_API int32 GetMappedValidNodes(TArray<FName> &OutValidNodeNames);
+	// verify if it has all latest data
+	ENGINE_API void RefreshRigConfig();
+	int32 FindRigBoneMapping(const FName& NodeName) const;
+	ENGINE_API URig * GetRig() const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif
 

@@ -5,6 +5,7 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMDeveloperModule.h"
 #include "Algo/Count.h"
+#include "Animation/Rig.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "RigVMStringUtils.h"
 
