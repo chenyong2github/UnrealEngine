@@ -150,6 +150,7 @@ namespace UnrealBuildTool
 		Latest,
 		Preview,
 		Experimental,
+		Any = Latest | Preview | Experimental
 	}
 
 	/// <summary>
