@@ -463,26 +463,16 @@ FRSAKeyHandle FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<const ui
 	return NewKey;
 }
 
-FRSAKeyHandle FEncryptionContextOpenSSL::GetPublicKey_RSA(const void* Source, const int32 Length)
+FRSAKeyHandle FEncryptionContextOpenSSL::GetPublicKey_RSA(const FStringView PemSource)
 {
-	BIO* KeyBuf = BIO_new_mem_buf(Source, Length);
+	auto ConvertedSource = StringCast<UTF8CHAR>(PemSource.GetData());
+
+	BIO* KeyBuf = BIO_new_mem_buf(ConvertedSource.Get(), ConvertedSource.Length());
 	RSA* Key = PEM_read_bio_RSA_PUBKEY(KeyBuf, 0, 0, 0);
 
 	BIO_free(KeyBuf);
 
 	return Key;
-}
-
-FRSAKeyHandle FEncryptionContextOpenSSL::GetPublicKey_RSA(const TArrayView<const uint8> Source)
-{
-	return GetPublicKey_RSA(Source.GetData(), Source.Num());
-}
-
-FRSAKeyHandle FEncryptionContextOpenSSL::GetPublicKey_RSA(const FStringView Source)
-{
-	auto ConvertedSource = StringCast<UTF8CHAR>(Source.GetData());
-
-	return GetPublicKey_RSA(ConvertedSource.Get(), ConvertedSource.Length());
 }
 
 void FEncryptionContextOpenSSL::DestroyKey_RSA(FRSAKeyHandle Key)

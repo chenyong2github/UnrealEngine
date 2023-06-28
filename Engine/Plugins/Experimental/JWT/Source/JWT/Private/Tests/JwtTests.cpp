@@ -171,12 +171,7 @@ bool FJwtVerificationTest::RunTest(const FString& Parameters)
 
 	// Set the public key
 	{
-		TArray<uint8> PublicKeyBytes(
-			reinterpret_cast<uint8*>(TCHAR_TO_ANSI(*TestKeys::PUBLICKEY_RSA)),
-			TestKeys::PUBLICKEY_RSA.Len());
-
-
-		if (!Verifier.SetPublicKey(PublicKeyBytes))
+		if (!Verifier.SetPublicKey(TestKeys::PUBLICKEY_RSA))
 		{
 			AddError(TEXT("Could not set public key."));
 			return false;

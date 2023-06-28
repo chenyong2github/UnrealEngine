@@ -36,23 +36,14 @@ public:
 
 public:
 
-	/*
-	 * Set the public RSA key.
-	 *
-	 * @param InKey Raw key bytes
-	 *
-	 * @return Whether the operation was successful
-	 */
-	bool SetPublicKey(const TArrayView<const uint8> InKey);
-
 	/**
-	 * Set the public RSA key.
+	 * Set the public RSA key from PEM.
 	 *
-	 * @param InKey Key as string view
+	 * @param InPemKey Key in PEM format as string view
 	 *
 	 * @return Whether the operation was successful
 	 */
-	bool SetPublicKey(const FStringView InKey);
+	bool SetPublicKey(const FStringView InPemKey);
 
 private:
 

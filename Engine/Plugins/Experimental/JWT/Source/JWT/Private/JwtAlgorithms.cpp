@@ -40,7 +40,7 @@ bool FJwtAlgorithm_RS256::VerifySignature(
 }
 
 
-bool FJwtAlgorithm_RS256::SetPublicKey(const TArrayView<const uint8> InKey)
+bool FJwtAlgorithm_RS256::SetPublicKey(const FStringView InPemKey)
 {
 	if (!EncryptionContext.IsValid())
 	{
@@ -52,27 +52,18 @@ bool FJwtAlgorithm_RS256::SetPublicKey(const TArrayView<const uint8> InKey)
 		DestroyKey(PublicKey);
 	}
 
-	PublicKey = EncryptionContext->GetPublicKey_RSA(InKey);
+	PublicKey = EncryptionContext->GetPublicKey_RSA(InPemKey);
 
 	if (!PublicKey)
 	{
 		UE_LOG(LogJwt, Error,
-			TEXT("[FJwtAlgorithm_RS256::SetPublicKey] RSA public key is invalid."));
+			TEXT("[FJwtAlgorithm_RS256::SetPublicKey] "
+				"RSA public key from string is invalid."));
 
 		return false;
 	}
 
 	return true;
-}
-
-
-bool FJwtAlgorithm_RS256::SetPublicKey(const FStringView InKey)
-{
-	TArray<uint8> PublicKeyBytes;
-
-	FJwtUtils::StringViewToBytes(InKey, PublicKeyBytes);
-
-	return SetPublicKey(PublicKeyBytes);
 }
 
 

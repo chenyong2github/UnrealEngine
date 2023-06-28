@@ -84,9 +84,7 @@ public:
 	bool GenerateKey_RSA(const int32 InNumKeyBits, TArray<uint8>& OutPublicExponent, TArray<uint8>& OutPrivateExponent, TArray<uint8>& OutModulus);
 
 	FRSAKeyHandle CreateKey_RSA(const TArrayView<const uint8> PublicExponent, const TArrayView<const uint8> PrivateExponent, const TArrayView<const uint8> Modulus);
-	FRSAKeyHandle GetPublicKey_RSA(const void* Source, const int32 Length);
-	FRSAKeyHandle GetPublicKey_RSA(const TArrayView<const uint8> Source);
-	FRSAKeyHandle GetPublicKey_RSA(const FStringView Source);
+	FRSAKeyHandle GetPublicKey_RSA(const FStringView PemSource);
 	void DestroyKey_RSA(FRSAKeyHandle Key);
 	int32 GetKeySize_RSA(FRSAKeyHandle Key);
 	int32 GetMaxDataSize_RSA(FRSAKeyHandle Key);
