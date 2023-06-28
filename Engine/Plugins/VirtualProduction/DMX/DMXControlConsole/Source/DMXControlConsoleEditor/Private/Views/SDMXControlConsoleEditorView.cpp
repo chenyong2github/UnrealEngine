@@ -653,11 +653,12 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
 
 	MenuBuilder.BeginSection("Fader Groups", LOCTEXT("FaderGroupsSelectionCategory", "Fader Groups"));
 	{
-		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, bool bOnlyVisible = false)
+		// Selection buttons menu entries
+		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FText& Label, bool bOnlyVisible = false)
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(Label),
+					Label,
 					FText::GetEmpty(), 
 					FSlateIcon(), 
 					FUIAction
@@ -669,8 +670,25 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
 				);
 			};
 
-		AddMenuEntryFn(TEXT("Select All"));
-		AddMenuEntryFn(TEXT("Select Visible"), true);
+		AddMenuEntryLambda(LOCTEXT("EditorViewSelectAllButtonLabel", "Select All"));
+		AddMenuEntryLambda(LOCTEXT("EditorViewSelectOnlyFilteredLabel", "Select Only Filtered"), true);
+
+		// Selection toggle button menu entry
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("EditorViewAutoSelectLabel", "Auto-Select"),
+			LOCTEXT("EditorViewAutoSelectToolTip", "Checked if activated Fader Groups must be automatically selected."),
+			FSlateIcon(),
+			FUIAction
+			(
+				FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ToggleAutoSelect),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::GetAutoSelect)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -915,11 +933,11 @@ void SDMXControlConsoleEditorView::OnFadersViewModeSelected(const EDMXControlCon
 	EditorConsoleModel.SetFadersViewMode(ViewMode);
 }
 
-void SDMXControlConsoleEditorView::OnSelectAll(bool bOnlyVisible) const
+void SDMXControlConsoleEditorView::OnSelectAll(bool bOnlyMatchingFilter) const
 {
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
-	SelectionHandler->SelectAll(bOnlyVisible);
+	SelectionHandler->SelectAll(bOnlyMatchingFilter);
 }
 
 void SDMXControlConsoleEditorView::OnClearAll()

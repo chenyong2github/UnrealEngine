@@ -179,30 +179,35 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 		const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 		TArray<UObject*> FaderGroupsToAddToSelection;
 		TArray<UObject*> FaderGroupsToRemoveFromSelection;
-		Algo::ForEach(AllFaderGroups, [SelectedItems, &FaderGroupsToAddToSelection, &FaderGroupsToRemoveFromSelection](UDMXControlConsoleFaderGroup* FaderGroup)
+		for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
+		{
+			if (!FaderGroup || !FaderGroup->HasFixturePatch())
 			{
-				if (!FaderGroup || !FaderGroup->HasFixturePatch())
+				return;
+			}
+
+			const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+			const bool bIsFixturePatchSelected = SelectedItems.ContainsByPredicate([FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
 				{
-					return;
-				}
+					return FixturePatchRef.IsValid() && FixturePatchRef->GetFixturePatch() == FixturePatch;
+				});
 
-				const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
-				const bool bIsFixturePatchSelected = SelectedItems.ContainsByPredicate([FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
-					{
-						return FixturePatchRef.IsValid() && FixturePatchRef->GetFixturePatch() == FixturePatch;
-					});
-
-				FaderGroup->SetIsActive(bIsFixturePatchSelected);
-				if (bIsFixturePatchSelected)
+			FaderGroup->SetIsActive(bIsFixturePatchSelected);
+			FaderGroup->SetIsExpanded(bIsFixturePatchSelected);
+			if (bIsFixturePatchSelected)
+			{
+				const bool bAutoSelect = EditorConsoleModel->GetAutoSelect();
+				if (bAutoSelect)
 				{
 					const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
 					FaderGroupsToAddToSelection.Append(AllFaders);
 				}
-				else
-				{
-					FaderGroupsToRemoveFromSelection.Add(FaderGroup);
-				}
-			});
+			}
+			else
+			{
+				FaderGroupsToRemoveFromSelection.Add(FaderGroup);
+			}
+		}
 
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		SelectionHandler->AddToSelection(FaderGroupsToAddToSelection);

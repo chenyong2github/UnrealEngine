@@ -74,6 +74,12 @@ public:
 	/** Sets the current Input Mode for Faders. */
 	void SetInputMode(EDMXControlConsoleEditorInputMode NewInputMode) { InputMode = NewInputMode; }
 
+	/** Gets the current autoselection state. */
+	bool GetAutoSelect() const { return bAutoSelect; }
+
+	/** Toggles autoselection state. */
+	void ToggleAutoSelect();
+
 	/** Sends DMX on the Control Console */
 	void SendDMX();
 
@@ -231,4 +237,8 @@ private:
 	
 	/** Current input mode for Faders widgets */
 	EDMXControlConsoleEditorInputMode InputMode = EDMXControlConsoleEditorInputMode::Absolute;
+
+	UPROPERTY(Config)
+	/** True if activated Fader Groups must be selected by default */
+	bool bAutoSelect = false;
 };

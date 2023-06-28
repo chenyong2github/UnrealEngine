@@ -115,7 +115,7 @@ private:
 	void OnFadersViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const;
 
 	/** Called when a Selection option is selected */
-	void OnSelectAll(bool bOnlyVisible = false) const;
+	void OnSelectAll(bool bOnlyMatchingFilter = false) const;
 
 	/** Called when Control Console gets cleared */
 	void OnClearAll();

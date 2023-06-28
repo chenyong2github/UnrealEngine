@@ -48,6 +48,12 @@ void UDMXControlConsoleEditorModel::SetFadersViewMode(EDMXControlConsoleEditorVi
 	OnFadersViewModeChanged.Broadcast();
 }
 
+void UDMXControlConsoleEditorModel::ToggleAutoSelect()
+{
+	bAutoSelect = !bAutoSelect;
+	SaveConfig();
+}
+
 void UDMXControlConsoleEditorModel::SendDMX()
 {
 	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
@@ -264,6 +270,11 @@ void UDMXControlConsoleEditorModel::LoadConsole(const FAssetData& AssetData)
 			CurrentControlConsoleData->StopSendingDMX();
 		}
 
+		// Selection handler may not yet be valid, as the getter creates it
+		if (!SelectionHandler.IsValid())
+		{
+			SelectionHandler = MakeShared<FDMXControlConsoleEditorSelection>();
+		}
 		SelectionHandler->ClearSelection();
 
 		const FScopedTransaction LoadConsoleTransaction(LOCTEXT("LoadConsoleTransaction", "Load Control Console"));
