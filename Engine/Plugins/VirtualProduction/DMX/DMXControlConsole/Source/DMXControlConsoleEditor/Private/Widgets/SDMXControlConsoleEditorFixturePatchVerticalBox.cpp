@@ -183,7 +183,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 		{
 			if (!FaderGroup || !FaderGroup->HasFixturePatch())
 			{
-				return;
+				continue;
 			}
 
 			const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
