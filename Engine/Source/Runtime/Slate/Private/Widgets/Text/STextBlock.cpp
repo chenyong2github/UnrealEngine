@@ -130,6 +130,11 @@ void STextBlock::Construct( const FArguments& InArgs )
 
 FSlateFontInfo STextBlock::GetFont() const
 {
+	return GetFontRef();
+}
+
+const FSlateFontInfo& STextBlock::GetFontRef() const
+{
 	return bIsAttributeFontSet ? Font.Get() : TextStyle.Font;
 }
 
@@ -140,6 +145,11 @@ const FSlateBrush* STextBlock::GetStrikeBrush() const
 
 FSlateColor STextBlock::GetColorAndOpacity() const
 {
+	return GetColorAndOpacityRef();
+}
+
+const FSlateColor& STextBlock::GetColorAndOpacityRef() const
+{
 	return bIsAttributeColorAndOpacitySet ? ColorAndOpacity.Get() : TextStyle.ColorAndOpacity;
 }
 
@@ -149,6 +159,11 @@ FVector2f STextBlock::GetShadowOffset() const
 }
 
 FLinearColor STextBlock::GetShadowColorAndOpacity() const
+{
+	return GetShadowColorAndOpacityRef();
+}
+
+const FLinearColor& STextBlock::GetShadowColorAndOpacityRef() const
 {
 	return bIsAttributeShadowColorAndOpacitySet ? ShadowColorAndOpacity.Get() : TextStyle.ShadowColorAndOpacity;
 }
@@ -296,6 +311,17 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	}
 	else
 	{
+		FTextBlockStyle::CompareParams StyleParams(TextStyle
+			, GetFontRef()
+			, GetColorAndOpacityRef()
+			, GetShadowOffset()
+			, GetShadowColorAndOpacityRef()
+			, GetHighlightColor()
+			, GetHighlightShape()
+			, GetStrikeBrush());
+
+		TextLayoutCache->ConditionallyUpdateTextStyle(MoveTemp(StyleParams));
+
 		// ComputeDesiredSize will also update the text layout cache if required
 		const FVector2D TextSize = TextLayoutCache->ComputeDesiredSize(
 			FSlateTextBlockLayout::FWidgetDesiredSizeArgs(
@@ -308,7 +334,7 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 				Margin.Get(),
 				LineHeightPercentage.Get(),
 				Justification.Get()),
-			LayoutScaleMultiplier, GetComputedTextStyle());
+			LayoutScaleMultiplier);
 
 		return FVector2D(FMath::Max(MinDesiredWidth.Get(), TextSize.X), TextSize.Y);
 	}

@@ -100,6 +100,21 @@ public:
 	SLATE_API FSlateTextBlockLayout(SWidget* InOwner, FTextBlockStyle InDefaultTextStyle, const TOptional<ETextShapingMethod> InTextShapingMethod, const TOptional<ETextFlowDirection> InTextFlowDirection, const FCreateSlateTextLayout& InCreateSlateTextLayout, TSharedRef<ITextLayoutMarshaller> InMarshaller, TSharedPtr<IBreakIterator> InLineBreakPolicy);
 
 	/**
+	 * Conditionally update the text style if needed
+	 */
+	SLATE_API void ConditionallyUpdateTextStyle(const FTextBlockStyle& InTextStyle);
+
+	/**
+	 * Conditionally update the text style if needed
+	 */
+	SLATE_API void ConditionallyUpdateTextStyle(const FTextBlockStyle::CompareParams& InNewStyleParams);
+
+	/**
+	 * Get the computed desired size for this layout, updating the internal cache as required
+	 */
+	SLATE_API FVector2D ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale);
+
+	/**
 	 * Get the computed desired size for this layout, updating the internal cache as required
 	 */
 	SLATE_API FVector2D ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
@@ -189,6 +204,9 @@ private:
 
 	/** Is the style used by the text marshaller up-to-date? */
 	bool IsStyleUpToDate(const FTextBlockStyle& NewStyle) const;
+
+	/** Is the style used by the text marshaller up-to-date? */
+	bool IsStyleUpToDate(const FTextBlockStyle::CompareParams& InNewStyleParams) const;
 
 	/** Calculate the wrapping width based on the given fixed wrap width, and whether we're auto-wrapping */
 	float CalculateWrappingWidth() const;

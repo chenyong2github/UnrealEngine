@@ -25,7 +25,42 @@ FSlateTextBlockLayout::FSlateTextBlockLayout(SWidget* InOwner, FTextBlockStyle I
 	TextLayout->SetLineBreakIterator(MoveTemp(InLineBreakPolicy));
 }
 
-FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle)
+void FSlateTextBlockLayout::ConditionallyUpdateTextStyle(const FTextBlockStyle& InTextStyle)
+{
+	// Has the style used for this text block changed?
+	if (!IsStyleUpToDate(InTextStyle))
+	{
+		TextLayout->SetDefaultTextStyle(InTextStyle);
+		Marshaller->MakeDirty(); // will regenerate the text using the new default style
+	}
+}
+
+void FSlateTextBlockLayout::ConditionallyUpdateTextStyle(const FTextBlockStyle::CompareParams& InNewStyleParams)
+{
+	// Has the style used for this text block changed?
+	if (!IsStyleUpToDate(InNewStyleParams))
+	{
+		FTextBlockStyle ComputedStyle = InNewStyleParams.StyleBase;
+		ComputedStyle.SetFont(InNewStyleParams.Font);
+		if (InNewStyleParams.StrikeBrush)
+		{
+			ComputedStyle.SetStrikeBrush(*InNewStyleParams.StrikeBrush);
+		}
+		ComputedStyle.SetColorAndOpacity(InNewStyleParams.ColorAndOpacity);
+		ComputedStyle.SetShadowOffset(InNewStyleParams.ShadowOffset);
+		ComputedStyle.SetShadowColorAndOpacity(InNewStyleParams.ShadowColorAndOpacity);
+		ComputedStyle.SetHighlightColor(InNewStyleParams.HighlightColor);
+		if (InNewStyleParams.HighlightShape)
+		{
+			ComputedStyle.SetHighlightShape(*InNewStyleParams.HighlightShape);
+		}
+		TextLayout->SetDefaultTextStyle(MoveTemp(ComputedStyle));
+		Marshaller->MakeDirty(); // will regenerate the text using the new default style
+	}
+}
+
+
+FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale)
 {
 	// Cache the wrapping rules so that we can recompute the wrap at width in paint.
 	CachedWrapTextAt = InWidgetArgs.WrapTextAt;
@@ -46,13 +81,6 @@ FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetDesiredSizeArgs
 	if (PreviousTransformPolicy != TextLayout->GetTransformPolicy())
 	{
 		Marshaller->MakeDirty();
-	}
-
-	// Has the style used for this text block changed?
-	if (!IsStyleUpToDate(InTextStyle))
-	{
-		TextLayout->SetDefaultTextStyle(InTextStyle);
-		Marshaller->MakeDirty(); // will regenerate the text using the new default style
 	}
 
 	{
@@ -96,6 +124,12 @@ FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetDesiredSizeArgs
 	TextLayout->UpdateIfNeeded();
 
 	return TextLayout->GetSize();
+}
+
+FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle)
+{
+	ConditionallyUpdateTextStyle(InTextStyle);
+	return ComputeDesiredSize(InWidgetArgs, InScale);
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -335,6 +369,12 @@ bool FSlateTextBlockLayout::IsStyleUpToDate(const FTextBlockStyle& NewStyle) con
 {
 	const FTextBlockStyle& CurrentStyle = TextLayout->GetDefaultTextStyle();
 	return CurrentStyle.IsIdenticalTo(NewStyle);
+}
+
+bool FSlateTextBlockLayout::IsStyleUpToDate(const FTextBlockStyle::CompareParams& InNewStyleParams) const
+{
+	const FTextBlockStyle& CurrentStyle = TextLayout->GetDefaultTextStyle();
+	return CurrentStyle.IsIdenticalTo(InNewStyleParams);
 }
 
 float FSlateTextBlockLayout::CalculateWrappingWidth() const

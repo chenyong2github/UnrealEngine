@@ -259,8 +259,14 @@ public:
 	/** Gets the current foreground color */
 	SLATE_API FSlateColor GetColorAndOpacity() const;
 
+	/** Gets the current foreground color as ref */
+	const FSlateColor& GetColorAndOpacityRef() const;
+
 	/** Gets the current font */
 	SLATE_API FSlateFontInfo GetFont() const;
+
+	/** Gets the current font as ref */
+	const FSlateFontInfo& GetFontRef() const;
 
 	/** Gets the current strike brush */
 	SLATE_API const FSlateBrush* GetStrikeBrush() const;
@@ -273,6 +279,9 @@ public:
 
 	/** Gets the current shadow color and opacity */
 	SLATE_API FLinearColor GetShadowColorAndOpacity() const;
+
+	/** Gets the current shadow color and opacity as ref */
+	const FLinearColor& GetShadowColorAndOpacityRef() const;
 
 	/** Gets the current highlight color */
 	SLATE_API FSlateColor GetHighlightColor() const;

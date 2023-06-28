@@ -412,6 +412,59 @@ struct FTextBlockStyle : public FSlateWidgetStyle
 			&& OverflowPolicy == InOther.OverflowPolicy;
 	}
 
+
+	/** Helper struct to compare two text styles without constructing a temporary text style */
+	struct CompareParams
+	{
+		CompareParams(const FTextBlockStyle& InStyleBase
+					, const FSlateFontInfo& InFont
+					, const FSlateColor& InColorAndOpacity
+					, const FVector2f InShadowOffset
+					, const FLinearColor& InShadowColorAndOpacity
+					, const FSlateColor InHighlightColor
+					, const FSlateBrush* InHighlightShape
+					, const FSlateBrush* InStrikeBrush)
+			: StyleBase(InStyleBase)
+			, Font(InFont)
+			, ColorAndOpacity(InColorAndOpacity)
+			, ShadowOffset(InShadowOffset)
+			, ShadowColorAndOpacity(InShadowColorAndOpacity)
+			, HighlightColor(InHighlightColor)
+			, HighlightShape(InHighlightShape)
+			, StrikeBrush(InStrikeBrush)
+		{}
+
+		const FTextBlockStyle& StyleBase;
+		const FSlateFontInfo& Font;
+		const FSlateColor& ColorAndOpacity;
+		const FVector2f ShadowOffset;
+		const FLinearColor& ShadowColorAndOpacity;
+		const FSlateColor HighlightColor;
+		const FSlateBrush* HighlightShape;
+		const FSlateBrush* StrikeBrush;
+	};
+
+	/**
+	 * Checks to see whether this style is identical to another.
+	 */
+	bool IsIdenticalTo(const FTextBlockStyle::CompareParams& InNewStyleParams) const
+	{
+		const FSlateBrush& NewStrikeBrush = InNewStyleParams.StrikeBrush ? *InNewStyleParams.StrikeBrush : InNewStyleParams.StyleBase.StrikeBrush;
+		const FSlateBrush& NewHighlightShape = InNewStyleParams.HighlightShape ? *InNewStyleParams.HighlightShape : InNewStyleParams.StyleBase.HighlightShape;
+
+		return Font.IsIdenticalTo(InNewStyleParams.Font)
+			&& ColorAndOpacity == InNewStyleParams.ColorAndOpacity
+			&& ShadowOffset == InNewStyleParams.ShadowOffset
+			&& ShadowColorAndOpacity == InNewStyleParams.ShadowColorAndOpacity
+			&& SelectedBackgroundColor == InNewStyleParams.StyleBase.SelectedBackgroundColor
+			&& HighlightColor == InNewStyleParams.HighlightColor
+			&& HighlightShape == NewHighlightShape
+			&& StrikeBrush == NewStrikeBrush
+			&& UnderlineBrush == InNewStyleParams.StyleBase.UnderlineBrush
+			&& TransformPolicy == InNewStyleParams.StyleBase.TransformPolicy
+			&& OverflowPolicy == InNewStyleParams.StyleBase.OverflowPolicy;
+	}
+
 	/**
 	 * Unlinks all colors in this style.
 	 * @see FSlateColor::Unlink
