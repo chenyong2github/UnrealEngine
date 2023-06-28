@@ -1128,6 +1128,7 @@ namespace UnrealBuildTool
 			if (AppleExports.UseModernXcode(ProjectFile))
 			{
 				Logger.LogInformation("Generating plist (only step needed when deploying with Modern Xcode)");
+				AppDirectory = BinaryPath + "/" + GameExeName + ".app";
 				GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUnrealGame, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, BundleID, bBuildAsFramework);
 
 				//// for now, copy the executable into the .app

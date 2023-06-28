@@ -147,23 +147,27 @@ namespace UnrealBuildTool
 				FileReference StubFile = FileReference.Combine(Binary.OutputFilePath.Directory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".stub");
 				BuildProducts.Add(StubFile, BuildProductType.Package);
 
-				if (Target.Platform == UnrealTargetPlatform.TVOS)
+				// These Payload assets and .app bundle are no longer needed for Modern Xcode
+				if (!bUseModernXcode)
 				{
-					FileReference AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "AssetCatalog", "Assets.car");
-					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
-				}
-				else if (Target.Platform == UnrealTargetPlatform.IOS)
-				{
-					int Index = Binary.OutputFilePath.GetFileNameWithoutExtension().IndexOf("-");
-					string OutputFile = Binary.OutputFilePath.GetFileNameWithoutExtension().Substring(0, Index > 0 ? Index : Binary.OutputFilePath.GetFileNameWithoutExtension().Length);
-					FileReference AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "Assets.car");
-					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
+					if (Target.Platform == UnrealTargetPlatform.TVOS)
+					{
+						FileReference AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "AssetCatalog", "Assets.car");
+						BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
+					}
+					else if (Target.Platform == UnrealTargetPlatform.IOS)
+					{
+						int Index = Binary.OutputFilePath.GetFileNameWithoutExtension().IndexOf("-");
+						string OutputFile = Binary.OutputFilePath.GetFileNameWithoutExtension().Substring(0, Index > 0 ? Index : Binary.OutputFilePath.GetFileNameWithoutExtension().Length);
+						FileReference AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "Assets.car");
+						BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
 
-					// Default AppIcons need to be copied as is in the Payload's root, even when using an asset catalog.
-					AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "AppIcon60x60@2x.png");
-					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
-					AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "AppIcon76x76@2x~ipad.png");
-					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
+						// Default AppIcons need to be copied as is in the Payload's root, even when using an asset catalog.
+						AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "AppIcon60x60@2x.png");
+						BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
+						AssetFile = FileReference.Combine(Binary.OutputFilePath.Directory, "Payload", OutputFile + ".app", "AppIcon76x76@2x~ipad.png");
+						BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
+					}
 				}
 			}
 			if (Target.IOSPlatform.bGeneratedSYM && ProjectSettings.bGenerateCrashReportSymbols && Binary.Type == UEBuildBinaryType.StaticLibrary)
@@ -764,7 +768,7 @@ namespace UnrealBuildTool
 			return OutputFile;
 		}
 
-		private static void PackageStub(string BinaryPath, string GameName, string ExeName)
+		public static void PackageStub(string BinaryPath, string GameName, string ExeName, bool bUseModernXcode)
 		{
 			// create the ipa
 			string IPAName = BinaryPath + "/" + ExeName + ".stub";
@@ -782,8 +786,8 @@ namespace UnrealBuildTool
 			}
 
 			// set up the directories
-			string ZipWorkingDir = String.Format("Payload/{0}.app/", GameName);
-			string ZipSourceDir = String.Format("{0}/Payload/{1}.app", BinaryPath, GameName);
+			string ZipWorkingDir = String.Format(bUseModernXcode ? "{0}.app/" : "Payload/{0}.app/", GameName);
+			string ZipSourceDir = String.Format(bUseModernXcode ? "{0}/{1}.app" : "{0}/Payload/{1}.app", BinaryPath, GameName);
 
 			// create the file
 			using (ZipFile Zip = new ZipFile())
@@ -1736,11 +1740,11 @@ namespace UnrealBuildTool
 				// Package the stub
 				if (Target.bBuildAsFramework)
 				{
-					PackageStub(FrameworkPayloadDirectory.ParentDirectory!.ToString(), AppName, Target.OutputPath.GetFileNameWithoutExtension());
+					PackageStub(FrameworkPayloadDirectory.ParentDirectory!.ToString(), AppName, Target.OutputPath.GetFileNameWithoutExtension(), AppleExports.UseModernXcode(Target.ProjectFile));
 				}
 				else
 				{
-					PackageStub(RemoteShadowDirectoryMac, AppName, Target.OutputPath.GetFileNameWithoutExtension());
+					PackageStub(RemoteShadowDirectoryMac, AppName, Target.OutputPath.GetFileNameWithoutExtension(), AppleExports.UseModernXcode(Target.ProjectFile));
 				}
 			}
 			else

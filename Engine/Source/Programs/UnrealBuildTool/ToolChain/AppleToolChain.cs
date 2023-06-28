@@ -695,12 +695,19 @@ namespace UnrealBuildTool
 		public UnrealTargetConfiguration Configuration;
 		public string TargetName;
 
-		public ApplePostBuildSyncTarget(ReadOnlyTargetRules Target)
+		// For iOS/TVOS
+		public bool bCreateStubIPA;
+		public FileReference StubOutputPath;
+
+		public ApplePostBuildSyncTarget(ReadOnlyTargetRules Target, FileItem Executable)
 		{
 			Platform = Target.Platform;
 			Configuration = Target.Configuration;
 			ProjectFile = Target.ProjectFile;
 			TargetName = Target.Name;
+
+			bCreateStubIPA = Target.IOSPlatform.bCreateStubIPA;
+			StubOutputPath = Executable.Location;
 		}
 	}
 
@@ -753,6 +760,12 @@ namespace UnrealBuildTool
 				Logger.LogError("ERROR: Failed to finalize the .app with Xcode. Check the log for more information");
 			}
 
+			if ((Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+				&& Target.bCreateStubIPA)
+			{
+				IOSToolChain.PackageStub(Target.StubOutputPath.Directory.FullName, Target.TargetName, Target.StubOutputPath.GetFileNameWithoutExtension(), true);
+			}
+
 			return ExitCode;
 		}
 
@@ -772,7 +785,7 @@ namespace UnrealBuildTool
 
 		public static Action CreatePostBuildSyncAction(ReadOnlyTargetRules Target, FileItem Executable, DirectoryReference IntermediateDir, IActionGraphBuilder Graph)
 		{
-			ApplePostBuildSyncTarget PostBuildSync = new(Target);
+			ApplePostBuildSyncTarget PostBuildSync = new(Target, Executable);
 			FileReference PostBuildSyncFile = FileReference.Combine(IntermediateDir!, "PostBuildSync.dat");
 			BinaryFormatterUtils.Save(PostBuildSyncFile, PostBuildSync);
 
@@ -785,12 +798,17 @@ namespace UnrealBuildTool
 			PostBuildSyncAction.StatusDescription = $"Executing PostBuildSync [{Executable.Location}]";
 			PostBuildSyncAction.bCanExecuteRemotely = false;
 
-
 			if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 			{
 				// @todo: do we need one per Target for IOS? Client? I dont think so for Modern
 				FileReference PlistFile = FileReference.Combine(AppleToolChain.GetActualProjectDirectory(Target.ProjectFile), "Build/IOS/UBTGenerated/Info.Template.plist");
 				PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(PlistFile));
+
+				if (PostBuildSync.bCreateStubIPA)
+				{
+					FileReference StubFile = FileReference.Combine(Executable.Directory.Location, Executable.Location.GetFileNameWithoutExtension() + ".stub");
+					PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(StubFile));
+				}
 			}
 
 			return PostBuildSyncAction;
