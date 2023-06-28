@@ -377,12 +377,14 @@ void FMetalUnorderedAccessView::UpdateView()
         bool bUseSourceTexture = Info.bAllMips && Info.bAllSlices &&
                                 UAVDimensionToMetalTextureType(Info.Dimension) == TextureType && MetalFormat == Texture->Texture.GetPixelFormat();
         
+        bool bIsAtomicCompatible = EnumHasAllFlags(Texture->GetDesc().Flags, TexCreate_AtomicCompatible) ||
+                                            EnumHasAllFlags(Texture->GetDesc().Flags, ETextureCreateFlags::Atomic64Compatible);
+        
         // We can use the source texture directly if the view's format / mip count etc matches.
         if (bUseSourceTexture)
 		{
             // If we are using texture atomics then we need to bind them as buffers because Metal lacks texture atomics
-            if((EnumHasAllFlags(Texture->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) ||
-               EnumHasAllFlags(Texture->GetDesc().Flags, TexCreate_AtomicCompatible)) && Texture->Texture.GetBuffer())
+            if((EnumHasAllFlags(Texture->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || bIsAtomicCompatible) && Texture->Texture.GetBuffer())
             {
                 FMetalBuffer MetalBuffer(Texture->Texture.GetBuffer(), false);
                 InitAsTextureBufferBacked(Texture->Texture, MetalBuffer,
@@ -409,6 +411,12 @@ void FMetalUnorderedAccessView::UpdateView()
                 ArraySize = Info.ArrayRange.Num * 6;
             }
             
+            // Metal doesn't support atomic Texture2DArray
+            if(bIsAtomicCompatible && Info.Dimension == FRHIViewDesc::EDimension::Texture2DArray)
+            {
+                TextureType = mtlpp::TextureType::Texture2D;
+            }
+            
 			FMetalTexture MetalTexture(Texture->Texture.NewTextureView(
 				MetalFormat,
                 TextureType,
@@ -417,7 +425,7 @@ void FMetalUnorderedAccessView::UpdateView()
 			);
             
             // If we are using texture atomics then we need to bind them as buffers because Metal lacks texture atomics
-            if((EnumHasAllFlags(Texture->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Texture->GetDesc().Flags,TexCreate_AtomicCompatible))
+            if((EnumHasAllFlags(Texture->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || bIsAtomicCompatible)
 				 && Texture->Texture.GetBuffer())
             {
                 FMetalBuffer MetalBuffer(Texture->Texture.GetBuffer(), false);

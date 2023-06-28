@@ -985,11 +985,11 @@ bool DoCompileMetalShader(
     		// Detect if we need to patch VSM shaders (flatten 2D array as regular 2D texture).
 			// Must be done as VSM uses 2DArray and requires atomics support. And Metal does not
 			// support atomics on 2Darray...
-			bool bShouldFlatten2DArray = Input.Environment.GetCompileArgument(TEXT("VIRTUAL_SHADOW_MAP"), 0)
-                                            || Input.Environment.GetCompileArgument(TEXT("VIRTUAL_TEXTURE_TARGET"), 0)
-                                            || Input.ShaderName.Find("PhysicalPage") != INDEX_NONE
-                                            || Input.ShaderName.Find("Virtual") != INDEX_NONE
-                                            || Input.ShaderName.Find("ClassifyMaterial") != INDEX_NONE;
+			bool bShouldFlatten2DArray = InPreprocessedShader.Find("VIRTUAL_SHADOW_MAP 1") > 0
+                                        || InPreprocessedShader.Find("VIRTUAL_TEXTURE_TARGET 1") > 0
+                                        || Input.ShaderName.Find("PhysicalPage") != INDEX_NONE
+                                        || Input.ShaderName.Find("Virtual") != INDEX_NONE
+                                        || Input.ShaderName.Find("ClassifyMaterial") != INDEX_NONE;
 
 			// Need to patch Clear/Memset CS too.
 			if (!bShouldFlatten2DArray)
