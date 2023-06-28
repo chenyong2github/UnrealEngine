@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"MainFrame",
 					"AppFramework",
+                    "RigVMEditor",
 				}
 			);
 
