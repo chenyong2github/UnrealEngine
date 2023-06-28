@@ -22,6 +22,9 @@ namespace Audio
 	}
 } // namespace Audio
 
+FQuartzTickableObject::FQuartzTickableObject()
+{}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FQuartzTickableObject::~FQuartzTickableObject()
 {
