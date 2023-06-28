@@ -16,7 +16,6 @@ class SDMXPixelMappingDesignerView;
 class SDMXPixelMappingDetailsView;
 class SDMXPixelMappingDMXLibraryView;
 class SDMXPixelMappingLayoutView;
-class SDMXPixelMappingInputSourceView;
 class SDMXPixelMappingPreviewView;
 class UDMXPixelMapping;
 class UDMXPixelMappingBaseComponent;
@@ -106,9 +105,6 @@ public:
 
 	const TSet<FDMXPixelMappingComponentReference>& GetSelectedComponents() const { return SelectedComponents; }
 
-	/** Gets or creates the Input Source View for this Pixel Mapping instance */
-	TSharedRef<SDMXPixelMappingInputSourceView> GetOrCreateInputSourceView();
-
 	/** Gets or creates the DMX Library View for this Pixel Mapping instance */
 	TSharedRef<SDMXPixelMappingDMXLibraryView> GetOrCreateDMXLibraryView();
 
@@ -179,9 +175,6 @@ private:
 
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
-	/** Spawns the Input Source View */
-	TSharedRef<SDockTab> SpawnTab_InputSourceView(const FSpawnTabArgs& Args);
-
 	/** Spawns the DMX Library View */
 	TSharedRef<SDockTab> SpawnTab_DMXLibraryView(const FSpawnTabArgs& Args);
 
@@ -211,9 +204,6 @@ private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
-	/** The Input Source View instance */
-	TSharedPtr<SDMXPixelMappingInputSourceView> InputSourceView;
-	
 	/** The Input Source View instance */
 	TSharedPtr<SDMXPixelMappingDMXLibraryView> DMXLibraryView;
 
@@ -261,9 +251,6 @@ private:
 	bool bRemovingComponents = false;
 
 public:
-	/** Name of the Input Source View Tab */
-	static const FName InputSourceViewTabID;
-
 	/** Name of the DMX Library View Tab */
 	static const FName DMXLibraryViewTabID;
 

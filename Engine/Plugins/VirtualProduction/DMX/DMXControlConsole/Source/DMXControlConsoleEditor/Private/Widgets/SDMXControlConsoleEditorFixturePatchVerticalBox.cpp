@@ -35,7 +35,7 @@ SDMXControlConsoleEditorFixturePatchVerticalBox::~SDMXControlConsoleEditorFixtur
 {
 	if (FixturePatchList.IsValid())
 	{
-		const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor = FixturePatchList->GetListDescriptor();
+		const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor = FixturePatchList->MakeListDescriptor();
 
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 		EditorConsoleModel->SaveFixturePatchListDescriptorToConfig(ListDescriptor);

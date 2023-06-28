@@ -6,6 +6,8 @@
 
 class FDMXPixelMappingToolkit;
 class IDetailsView;
+class UObject;
+
 
 class SDMXPixelMappingDetailsView
 	: public SCompoundWidget
@@ -29,10 +31,10 @@ private:
 	/** Registers the designer specific customizations */
 	void RegisterCustomizations();
 
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
+	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 
-	/** Property viewing widget */
-	TSharedPtr<IDetailsView> PropertyView;
+	/** The details view that is displayed */
+	TSharedPtr<IDetailsView> DetailsView;
 
 	/** Selected objects for this detail view */
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;

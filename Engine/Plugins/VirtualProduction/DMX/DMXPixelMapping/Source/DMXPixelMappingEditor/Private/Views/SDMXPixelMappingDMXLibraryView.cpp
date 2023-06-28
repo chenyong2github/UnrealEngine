@@ -2,34 +2,40 @@
 
 #include "Views/SDMXPixelMappingDMXLibraryView.h"
 
-#include "DMXPixelMapping.h"
-#include "DMXPixelMappingComponentReference.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
-#include "Library/DMXLibrary.h"
-#include "Templates/DMXPixelMappingComponentTemplate.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "ViewModels/DMXPixelMappingDMXLibraryViewModel.h"
-#include "Widgets/SDMXPixelMappingFixturePatchList.h"
-
-#include "Editor.h"
+#include "DMXPixelMapping.h"
+#include "DMXPixelMappingComponentReference.h"
+#include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "IDetailsView.h"
+#include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXLibrary.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/SBoxPanel.h"
+#include "Templates/DMXPixelMappingComponentTemplate.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "ViewModels/DMXPixelMappingDMXLibraryViewModel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Layout/SScrollBox.h"
-
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SDMXPixelMappingFixturePatchList.h"
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingDMXLibraryView"
+
+
+SDMXPixelMappingDMXLibraryView::~SDMXPixelMappingDMXLibraryView()
+{
+	if (ViewModel && FixturePatchList.IsValid())
+	{
+		ViewModel->SaveFixturePatchListDescriptor(FixturePatchList->MakeListDescriptor());
+	}
+}
 
 void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
@@ -39,6 +45,17 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 		return;
 	}
 	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+	ViewModel = NewObject<UDMXPixelMappingDMXLibraryViewModel>();
+
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.bAllowSearch = false;
+	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	ModelDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	ModelDetailsView->SetObject(ViewModel);
 
 	const TAttribute<bool> AddDMXLibraryButtonEnabledAttribute = TAttribute<bool>::CreateLambda(
 		[this]()
@@ -94,23 +111,103 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 				]
 			]
 
-			// Details views 
+			// Fixture group name 
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
+				.Padding(4.f)
+				[
+					SAssignNew(FixtureGroupNameTextBlock, STextBlock)
+					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+				]
+			]
+
+			
+			// DMX Library (Model details)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				ModelDetailsView.ToSharedRef()
+			]
+
+			// 'Add selected Fixture Patches' and 'Add all Patches' buttons
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(AddPatchesHorizontalBox, SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.Padding(4.f)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FLinearColor::White)
+					.ToolTipText(LOCTEXT("AddSelectedPatchesTooltip", "Adds the selected patches to the Pixel Mapping"))
+					.ContentPadding(FMargin(5.0f, 1.0f))
+					.OnClicked(this, &SDMXPixelMappingDMXLibraryView::OnAddSelectedPatchesClicked)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("AddSelectedPatchesLabel", "Add Selected Patches"))
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(8.f, 4.f)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FLinearColor::White)
+					.ToolTipText(LOCTEXT("AddAllPatchesTooltip", "Adds all patches to the Pixel Mapping"))
+					.ContentPadding(FMargin(5.0f, 1.0f))
+					.OnClicked(this, &SDMXPixelMappingDMXLibraryView::OnAddAllPatchesClicked)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("AddAllPatchesLabel", "Add All Patches"))
+					]
+				]
+			]
+		
+			// Fixture patch list
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+				.Padding(FMargin(8.f, 2.f, 2.f, 0.f))
+				[
+					SAssignNew(FixturePatchList, SDMXPixelMappingFixturePatchList, Toolkit)
+				]
+			]
+
+			// 'All patches added to pixelmapping' info
 			+ SVerticalBox::Slot()
 			.FillHeight(1.f)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
 			[
-				SAssignNew(DMXLibrariesScrollBox, SScrollBox)
-				.Orientation(EOrientation::Orient_Vertical)
+				SAssignNew(AllPatchesAddedTextBlock, STextBlock)
+				.Text(LOCTEXT("AllPatchesAddedHint", "All Patches added to Pixel Mapping"))
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			]
 		]
 	];
 
 	ForceRefresh();
 
-	UDMXLibrary::GetOnEntitiesAdded().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved);
-	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved);
+	// Refresh on changes
+	ViewModel->OnDMXLibraryChanged.AddSP(this, &SDMXPixelMappingDMXLibraryView::RequestRefresh);
+	UDMXLibrary::GetOnEntitiesAdded().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntityAddedOrRemoved);
+	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntityAddedOrRemoved);
 	UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved);
 	UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved);
-
+	
+	// Follow selection
 	Toolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentSelected);
 
 	// Apply the current selection
@@ -127,7 +224,7 @@ void SDMXPixelMappingDMXLibraryView::RequestRefresh()
 
 void SDMXPixelMappingDMXLibraryView::AddReferencedObjects(FReferenceCollector& Collector) 
 {
-	Collector.AddReferencedObjects(ViewModels);
+	Collector.AddReferencedObject(ViewModel);
 }
 
 void SDMXPixelMappingDMXLibraryView::PostUndo(bool bSuccess)
@@ -140,91 +237,52 @@ void SDMXPixelMappingDMXLibraryView::PostRedo(bool bSuccess)
 	RequestRefresh();
 }
 
-void SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
-{
-	RequestRefresh();
-}
-
-void SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
-{
-	RequestRefresh();
-}
-
 void SDMXPixelMappingDMXLibraryView::ForceRefresh()
 {
 	RefreshTimerHandle.Invalidate();
 
-	if (!WeakToolkit.IsValid())
+	if (ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
 	{
-		return;
-	}
-	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+		ViewModel->UpdateFixtureGroupFromSelection(WeakToolkit);
 
-	DMXLibrariesScrollBox->ClearChildren();
-	ViewModels.Reset();
+		const UDMXPixelMappingFixtureGroupComponent* EditedFixtureGroup = ViewModel->GetFixtureGroupComponent();
+		const EVisibility DMXLibraryVisibility = EditedFixtureGroup ? EVisibility::Visible : EVisibility::Collapsed;
 
-	const TArray<UDMXPixelMappingFixtureGroupComponent*> FixtureGroupComponents = GetFixtureGroupComponents();
-	for (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent : FixtureGroupComponents)
-	{
-		UDMXPixelMappingDMXLibraryViewModel* ViewModel = UDMXPixelMappingDMXLibraryViewModel::CreateNew(Toolkit, FixtureGroupComponent);
-		if (!ViewModel->IsFixtureGroupOrChildSelected())
-		{
-			// Only display selected models
-			continue;
-		}
-		ViewModels.Add(ViewModel);
+		FixtureGroupNameTextBlock->SetVisibility(DMXLibraryVisibility);
+		ModelDetailsView->SetVisibility(DMXLibraryVisibility);
 
-		// Listen to dmx library changes
-		ViewModel->OnDMXLibraryChanged.AddSP(this, &SDMXPixelMappingDMXLibraryView::RequestRefresh);
+		const FText FixtureGroupName = EditedFixtureGroup ? FText::FromString(EditedFixtureGroup->GetUserFriendlyName()) : LOCTEXT("NoFixtureGroupSelectedHint", "No Fixture Group selected");
+		FixtureGroupNameTextBlock->SetText(FixtureGroupName);
 
-		// Create title content
-		const TSharedRef<SHorizontalBox> TitleContentBox = SNew(SHorizontalBox);
-		TitleContentBox->AddSlot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.FillWidth(1.f)
-			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
-				.Text_Lambda([FixtureGroupComponent]()
-					{
-						return FixtureGroupComponent ? FText::FromString(FixtureGroupComponent->GetUserFriendlyName()) : FText::GetEmpty();
-					})
-			];
+		UDMXLibrary* DMXLibrary = EditedFixtureGroup ? EditedFixtureGroup->DMXLibrary : nullptr;
+		const EVisibility FixturePatchListVisibility = DMXLibrary ? EVisibility::Visible : EVisibility::Collapsed;
 
-		// Create body content
-		const TSharedRef<SVerticalBox> BodyContent =
-			SNew(SVerticalBox)
+		FixturePatchList->SetDMXLibrary(DMXLibrary);
 
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				CreateDetailsViewForModel(*ViewModel)
-			]
+		// Update the list to only display patches that are not added to pixel mapping
+		const TArray<UDMXEntityFixturePatch*> FixturePatchesInDMXLibrary = GetFixturePatchesInDMXLibrary();
+		const TArray<UDMXEntityFixturePatch*> FixturePatchesInPixelMapping = GetFixturePatchesInPixelMapping();
 
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SDMXPixelMappingFixturePatchList, Toolkit, ViewModel)
-			];
+		TArray<FDMXEntityFixturePatchRef> HiddenFixturePatches;
+		Algo::TransformIf(FixturePatchesInDMXLibrary, HiddenFixturePatches,
+			[&FixturePatchesInPixelMapping](const UDMXEntityFixturePatch* FixturePatchInDMXLibrary)
+			{
+				return FixturePatchesInPixelMapping.Contains(FixturePatchInDMXLibrary);
+			},
+			[&FixturePatchesInPixelMapping](UDMXEntityFixturePatch* FixturePatchInDMXLibrary)
+			{
+				return FDMXEntityFixturePatchRef(FixturePatchInDMXLibrary);
+			});
+		FixturePatchList->SetExcludedFixturePatches(HiddenFixturePatches);
 
-		// Add to scrollbox
-		DMXLibrariesScrollBox->AddSlot()
-			[
-				SNew(SExpandableArea)
-				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
-				.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))				
-				.HeaderPadding(4.f)
-				.Padding(FMargin(8.f, 2.f, 2.f, 0.f))
-				.HeaderContent()
-				[
-					TitleContentBox
-				]
-				.BodyContent()
-				[
-					BodyContent
-				]
-			];
+		// Only show options to add or select when fixture patches are available
+		const EVisibility AddFixturePatchOptionsVisibility = FixturePatchesInDMXLibrary.Num() > HiddenFixturePatches.Num() ? EVisibility::Visible : EVisibility::Collapsed;
+		AddPatchesHorizontalBox->SetVisibility(AddFixturePatchOptionsVisibility);
+		FixturePatchList->SetVisibility(AddFixturePatchOptionsVisibility);
+
+		// Show an info if all patches are added to pixel mapping
+		const EVisibility AllPatchesAddedVisibility = !FixturePatchesInDMXLibrary.IsEmpty() && FixturePatchesInDMXLibrary.Num() == HiddenFixturePatches.Num() ? EVisibility::Visible : EVisibility::Collapsed;
+		AllPatchesAddedTextBlock->SetVisibility(AllPatchesAddedVisibility);
 	}
 }
 
@@ -237,143 +295,178 @@ void SDMXPixelMappingDMXLibraryView::OnComponentSelected()
 	}
 
 	bRenderComponentContainedInSelection = false;
-	bool bHasValidModel = false;
+	bool bSelectionContainsViewModel = false;
 
 	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = Toolkit->GetSelectedComponents();
-	UDMXPixelMappingFixtureGroupComponent* ComponentToFocus = nullptr;
 	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
 	{
 		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
 		do
 		{
+			// Is renderer component contained in selection?
 			bRenderComponentContainedInSelection |= Component->GetClass() == UDMXPixelMappingRendererComponent::StaticClass();
 
-			const TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>* const CorrespondingViewModelPtr = Algo::FindByPredicate(ViewModels, [Component](const UDMXPixelMappingDMXLibraryViewModel* ViewModel)
-				{
-					return ViewModel->GetFixtureGroupComponent() == Component;
-				});
-			if (CorrespondingViewModelPtr)
+			if (ViewModel && ViewModel->GetFixtureGroupComponent() == Component)
 			{
-				bHasValidModel = true;
+				// Is view model's fixture group contained in selection?
+				bSelectionContainsViewModel = true;
 			}
 
 			Component = Component->GetParent();
 		} while (Component);
 	}
 
-	if (!bHasValidModel)
+	if (!bSelectionContainsViewModel)
 	{
 		RequestRefresh();
 	}
 }
 
+void SDMXPixelMappingDMXLibraryView::OnEntityAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+{
+	RequestRefresh();
+}
+
+void SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+{
+	RequestRefresh();
+}
+
 FReply SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked()
 {
-	if (!WeakToolkit.IsValid())
+	if (ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
 	{
-		return FReply::Unhandled();
+		const FScopedTransaction AddFixtureGroupTransaction(LOCTEXT("AddFixtureGroupTransaction", "Add Fixture Group"));
+		ViewModel->CreateAndSetNewFixtureGroup(WeakToolkit);
+
+		RequestRefresh();
 	}
-	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
-
-	UDMXPixelMappingRootComponent* RootComponent = GetPixelMappingRootComponent();
-	UDMXPixelMappingRendererComponent* ActiveRendererComponent = Toolkit->GetActiveRendererComponent();
-	if (!RootComponent || !ActiveRendererComponent)
-	{
-		return FReply::Handled();
-	}
-
-	const TArray<UDMXPixelMappingFixtureGroupComponent*> OtherFixtureGroupComponents = GetFixtureGroupComponents();
-
-	const FScopedTransaction AddFixtureGroupTransaction(LOCTEXT("AddFixtureGroupTransaction", "Add Fixture Group"));
-	const TSharedRef<FDMXPixelMappingComponentTemplate> Template = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupComponent::StaticClass());
-	const TArray<UDMXPixelMappingBaseComponent*> NewComponents = Toolkit->CreateComponentsFromTemplates(RootComponent, ActiveRendererComponent, TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>{ Template });
-	if (!ensureMsgf(NewComponents.Num() == 1 && NewComponents[0]->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass(), TEXT("Cannot find newly added Fixture Group Component, hence cannot select it.")))
-	{
-		return FReply::Handled();
-	}
-	UDMXPixelMappingFixtureGroupComponent* NewFixtureGroupComponent = CastChecked<UDMXPixelMappingFixtureGroupComponent>(NewComponents[0]);
-	SelectFixtureGroupComponent(NewFixtureGroupComponent);
-
-	// Place the new fixture group
-	if (OtherFixtureGroupComponents.IsEmpty())
-	{
-		// If there's no group, add one that scales the current texture to the active renderer component
-		if (Toolkit->CanSizeSelectedComponentToTexture())
-		{
-			Toolkit->SizeSelectedComponentToTexture(true);
-		}
-	}
-	else
-	{
-		// If there's already a group, place it over the bottom right most existing group
-		FVector2D NewPosition(0.f, 0.f);
-		FVector2D NewSize = NewFixtureGroupComponent->GetSize();
-		for (UDMXPixelMappingFixtureGroupComponent* Other : OtherFixtureGroupComponents)
-		{
-			if (Other->GetPosition().Y > NewPosition.Y)
-			{
-				NewPosition = Other->GetPosition();
-				NewSize = Other->GetSize();
-			}
-		}
-		NewPosition += FVector2D(FMath::Max(1.f, NewSize.X / 16), FMath::Max(1.f, NewSize.Y / 16));
-
-		NewFixtureGroupComponent->SetPosition(NewPosition);
-		NewFixtureGroupComponent->SetSize(NewSize);
-	}
-
 	return FReply::Handled();
 }
 
-TSharedRef<SWidget> SDMXPixelMappingDMXLibraryView::CreateDetailsViewForModel(UDMXPixelMappingDMXLibraryViewModel& Model) const
+FReply SDMXPixelMappingDMXLibraryView::OnAddSelectedPatchesClicked()
 {
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bHideSelectionTip = true;
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	const TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-
-	DetailsView->SetObject(&Model);
-
-	return DetailsView;
-}
-
-void SDMXPixelMappingDMXLibraryView::SelectFixtureGroupComponent(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent)
-{
-	if (const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin())
+	if (ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
 	{
-		const FDMXPixelMappingComponentReference ComponentRefToSelect(Toolkit, FixtureGroupComponent);
-		const TSet<FDMXPixelMappingComponentReference> NewSelection{ ComponentRefToSelect };
-		Toolkit->SelectComponents(NewSelection);
+		const FScopedTransaction AddSelectedFixturePatchesTransaction(LOCTEXT("AddSelectedFixturePatchesTransaction", "Add Fixture Patches to Pixel Mapping"));
+
+		const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedFixturePatches = FixturePatchList->GetSelectedFixturePatchRefs();
+		ViewModel->AddFixturePatchesEnsured(SelectedFixturePatches);
+
+		// Select the next fixture patches in the list
+		FixturePatchList->SelectAfter(SelectedFixturePatches);
+
+		RequestRefresh();
 	}
+	return FReply::Handled();
 }
 
-UDMXPixelMappingRootComponent* SDMXPixelMappingDMXLibraryView::GetPixelMappingRootComponent() const
+FReply SDMXPixelMappingDMXLibraryView::OnAddAllPatchesClicked()
 {
-	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.IsValid() ? WeakToolkit.Pin() : nullptr;
-	UDMXPixelMapping* PixelMapping = Toolkit.IsValid() ? Toolkit->GetDMXPixelMapping() : nullptr;
-
-	return PixelMapping ? PixelMapping->GetRootComponent() : nullptr;
-}
-
-TArray<UDMXPixelMappingFixtureGroupComponent*> SDMXPixelMappingDMXLibraryView::GetFixtureGroupComponents() const
-{
-	TArray<UDMXPixelMappingFixtureGroupComponent*> FixtureGroupComponents;
-	UDMXPixelMappingRendererComponent* RendererComponent = WeakToolkit.IsValid() ? WeakToolkit.Pin()->GetActiveRendererComponent() : nullptr;
-	if (RendererComponent)
+	if (ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
 	{
-		for (UDMXPixelMappingBaseComponent* Child : RendererComponent->GetChildren())
+		const FScopedTransaction AddAllFixturePatchesTransaction(LOCTEXT("AddAllFixturePatchesTransaction", "Add Fixture Patches to Pixel Mapping"));
+
+		const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> AllVisibleFixturePatches = FixturePatchList->GetVisibleFixturePatchRefs();
+		ViewModel->AddFixturePatchesEnsured(AllVisibleFixturePatches);
+
+		RequestRefresh();
+	}
+	return FReply::Handled();
+}
+
+FReply SDMXPixelMappingDMXLibraryView::OnFixturePatchRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (!ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
+	{
+		return FReply::Handled();
+	}
+
+	UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = ViewModel->GetFixtureGroupComponent();
+	if (!FixtureGroupComponent)
+	{
+		return FReply::Handled();
+	}
+
+	const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedPatches = FixturePatchList->GetSelectedFixturePatchRefs();
+	if (!SelectedPatches.IsEmpty())
+	{
+		TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>> Templates;
+		for (const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef : SelectedPatches)
 		{
-			if (UDMXPixelMappingFixtureGroupComponent* GroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Child))
+			if (!FixturePatchRef.IsValid())
 			{
-				FixtureGroupComponents.Add(GroupComponent);
+				continue;
+			}
+
+			const UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
+			const UDMXEntityFixtureType* FixtureType = FixturePatch ? FixturePatch->GetFixtureType() : nullptr;
+			const FDMXFixtureMode* ActiveModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
+			if (FixturePatch && FixtureType && ActiveModePtr)
+			{
+				if (ActiveModePtr->bFixtureMatrixEnabled)
+				{
+					TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchMatrixTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixComponent::StaticClass(), *FixturePatchRef);
+					Templates.Add(FixturePatchMatrixTemplate);
+				}
+				else
+				{
+					TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchItemTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), *FixturePatchRef);
+					Templates.Add(FixturePatchItemTemplate);
+				}
 			}
 		}
+		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, Templates, FixtureGroupComponent));
 	}
 
-	return FixtureGroupComponents;
+	return FReply::Unhandled();
 }
+
+TArray<UDMXEntityFixturePatch*> SDMXPixelMappingDMXLibraryView::GetFixturePatchesInDMXLibrary() const
+{
+	if (!ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
+	{
+		return TArray<UDMXEntityFixturePatch*>();
+	}
+
+	UDMXLibrary* DMXLibrary = ViewModel->GetDMXLibrary();
+	return DMXLibrary ? DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>() : TArray<UDMXEntityFixturePatch*>();
+}
+
+TArray<UDMXEntityFixturePatch*> SDMXPixelMappingDMXLibraryView::GetFixturePatchesInPixelMapping() const
+{
+	TArray<UDMXEntityFixturePatch*> FixturePatchesInPixelMapping;
+	if (!ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
+	{
+		return FixturePatchesInPixelMapping;
+	}
+
+	UDMXPixelMapping* PixelMapping = WeakToolkit.IsValid() ? WeakToolkit.Pin()->GetDMXPixelMapping() : nullptr;
+	UDMXLibrary* DMXLibrary = ViewModel->GetDMXLibrary();
+
+	if (PixelMapping && DMXLibrary)
+	{
+		PixelMapping->ForEachComponent([&FixturePatchesInPixelMapping, DMXLibrary](UDMXPixelMappingBaseComponent* Component)
+			{
+				if (UDMXPixelMappingFixtureGroupItemComponent* FixtureGroupItem = Cast<UDMXPixelMappingFixtureGroupItemComponent>(Component))
+				{
+					if (FixtureGroupItem->FixturePatchRef.DMXLibrary == DMXLibrary)
+					{
+						FixturePatchesInPixelMapping.Add(FixtureGroupItem->FixturePatchRef.GetFixturePatch());
+					}
+				}
+				else if (UDMXPixelMappingMatrixComponent* Matrix = Cast<UDMXPixelMappingMatrixComponent>(Component))
+				{
+					if (Matrix->FixturePatchRef.DMXLibrary == DMXLibrary)
+					{
+						FixturePatchesInPixelMapping.Add(Matrix->FixturePatchRef.GetFixturePatch());
+					}
+				}
+			});
+	}
+
+	return FixturePatchesInPixelMapping;
+}
+
 
 #undef LOCTEXT_NAMESPACE

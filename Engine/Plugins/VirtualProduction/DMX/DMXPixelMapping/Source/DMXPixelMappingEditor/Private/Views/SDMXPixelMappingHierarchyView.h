@@ -69,6 +69,9 @@ public:
 	void RequestComponentRedraw(UDMXPixelMappingBaseComponent* Component);
 
 private:
+	/** Called when the 'Add Input Source' button was clicked */
+	FReply OnAddInputSourceButtonClicked();
+
 	TSharedPtr<SWidget> WidgetHierarchy_OnContextMenuOpening();
 	void WidgetHierarchy_OnGetChildren(FDMXPixelMappingHierarchyItemWidgetModelPtr InParent, FDMXPixelMappingHierarchyItemWidgetModelArr& OutChildren);
 	TSharedRef< ITableRow > WidgetHierarchy_OnGenerateRow(FDMXPixelMappingHierarchyItemWidgetModelPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);

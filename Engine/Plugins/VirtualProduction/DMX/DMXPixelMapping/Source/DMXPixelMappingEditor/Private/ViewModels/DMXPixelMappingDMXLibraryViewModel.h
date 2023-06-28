@@ -15,6 +15,7 @@
 class FDMXPixelMappingToolkit;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
+class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingFixtureGroupComponent;
 class UDMXPixelMappingRootComponent;
 
@@ -28,23 +29,20 @@ class UDMXPixelMappingDMXLibraryViewModel
 	GENERATED_BODY()
 
 public:
-	/** Creates a new model */
-	static UDMXPixelMappingDMXLibraryViewModel* CreateNew(const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit, UDMXPixelMappingFixtureGroupComponent* InFixtureGroup);
+	/** Adds a fixture group to pixel mapping. Sets it for this model */
+	void CreateAndSetNewFixtureGroup(TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit);
 
-	/** Returns the DMX Library */
+	/** Sets the fixture group for this model from what's currently selected. Note only single selection is supported as of 5.3 */
+	void UpdateFixtureGroupFromSelection(TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit);
+
+	/** Adds specified fixture patches to the pixel mapping. Ensures all patches are of the same library as the one of the current group. */
+	void AddFixturePatchesEnsured(const TArray<TSharedPtr<FDMXEntityFixturePatchRef>>& FixturePatches);
+
+	/** Returns the DMX Library, or nullptr if none or many are selected */
 	UDMXLibrary* GetDMXLibrary() const { return DMXLibrary;  }
 
-	/** Sets the fixture group this model uses */ 
-	UDMXPixelMappingFixtureGroupComponent* GetFixtureGroupComponent() const;
-
-	/** Returns the root component of the pixel mapping */
-	UDMXPixelMappingRootComponent* GetPixelMappingRootComponent() const;
-
-	/** Returns true if the fixture group or one of its children is selected */
-	bool IsFixtureGroupOrChildSelected() const;
-
-	/** Returns the fixture patches in use in the pixel mapping */
-	const TArray<FDMXEntityFixturePatchRef> GetFixturePatchesInUse() const;
+	/** Returns the Fixture Group, or nullptr if none or many are selected */
+	UDMXPixelMappingFixtureGroupComponent* GetFixtureGroupComponent() const { return WeakFixtureGroupComponent.Get(); }
 
 	/** Returns the default fixture patch list descriptor */
 	const FDMXReadOnlyFixturePatchListDescriptor& GetFixturePatchListDescriptor() const { return FixturePatchListDescriptor; }
@@ -72,7 +70,19 @@ private:
 	/** Removes invalid patches from pixel mapping */
 	void RemoveInvalidPatches();
 
-	/** Returns the fixture group components in the pixel mapping */
+	/** Selects the fixture group component */
+	void SelectFixtureGroupComponent(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent);
+
+	/** Layouts components evenly over the parent group */
+	void LayoutEvenOverParent(const TArray<UDMXPixelMappingBaseComponent*> Components);
+
+	/** Layouts components after the last patch in the parent group */
+	void LayoutAfterLastPatch(const TArray<UDMXPixelMappingBaseComponent*> Components);
+
+	/** Returns the root component of the pixel mapping */
+	UDMXPixelMappingRootComponent* GetPixelMappingRootComponent() const;
+
+	/** Gets all fixture groups that use the same library as the current fixture group in use */
 	TArray<UDMXPixelMappingFixtureGroupComponent*> GetFixtureGroupComponentsOfSameLibrary() const;
 
 	/** The DMX library of this view */

@@ -21,7 +21,6 @@
 #include "Views/SDMXPixelMappingDetailsView.h"
 #include "Views/SDMXPixelMappingDMXLibraryView.h"
 #include "Views/SDMXPixelMappingHierarchyView.h"
-#include "Views/SDMXPixelMappingInputSourceView.h"
 #include "Views/SDMXPixelMappingLayoutView.h"
 #include "Views/SDMXPixelMappingPreviewView.h"
 
@@ -36,7 +35,6 @@
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingToolkit"
 
-const FName FDMXPixelMappingToolkit::InputSourceViewTabID(TEXT("DMXPixelMappingEditor_InputSourceViewTabID"));
 const FName FDMXPixelMappingToolkit::DMXLibraryViewTabID(TEXT("DMXPixelMappingEditor_DMXLibraryViewTabID"));
 const FName FDMXPixelMappingToolkit::HierarchyViewTabID(TEXT("DMXPixelMappingEditor_HierarchyViewTabID"));
 const FName FDMXPixelMappingToolkit::DesignerViewTabID(TEXT("DMXPixelMappingEditor_DesignerViewTabID"));
@@ -74,11 +72,6 @@ void FDMXPixelMappingToolkit::RegisterTabSpawners(const TSharedRef<class FTabMan
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-	InTabManager->RegisterTabSpawner(InputSourceViewTabID, FOnSpawnTab::CreateSP(this, &FDMXPixelMappingToolkit::SpawnTab_InputSourceView))
-		.SetDisplayName(LOCTEXT("Tab_InputSourceView", "Input Source"))
-		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "ClassIcon.DMXPixelMapping"));
-
 	InTabManager->RegisterTabSpawner(DMXLibraryViewTabID, FOnSpawnTab::CreateSP(this, &FDMXPixelMappingToolkit::SpawnTab_DMXLibraryView))
 		.SetDisplayName(LOCTEXT("Tab_DMXLibraryView", "DMX Library"))
 		.SetGroup(WorkspaceMenuCategoryRef)
@@ -114,7 +107,6 @@ void FDMXPixelMappingToolkit::UnregisterTabSpawners(const TSharedRef<class FTabM
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
-	InTabManager->UnregisterTabSpawner(InputSourceViewTabID);
 	InTabManager->UnregisterTabSpawner(HierarchyViewTabID);
 	InTabManager->UnregisterTabSpawner(DesignerViewTabID);
 	InTabManager->UnregisterTabSpawner(PreviewViewTabID);
@@ -511,7 +503,7 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 
 	CreateInternalViews();
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PixelMapping_Layout_v8")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PixelMapping_Layout_v9")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -527,20 +519,14 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 					->Split
 					(
 						FTabManager::NewStack()
-						->AddTab(InputSourceViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.25f)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
 						->AddTab(DMXLibraryViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.25f)
+						->SetSizeCoefficient(0.382f)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(HierarchyViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.5f)
+						->SetSizeCoefficient(0.618)
 					)
 				)
 				->SetSizeCoefficient(0.25f)
@@ -572,13 +558,13 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 					(
 						FTabManager::NewStack()
 						->AddTab(DetailsViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.6f)
+						->SetSizeCoefficient(0.618f)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(LayoutViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.4f)
+						->SetSizeCoefficient(0.382f)
 					)
 				)
 				->SetSizeCoefficient(0.25f)
@@ -607,19 +593,6 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 			SelectComponents(TSet<FDMXPixelMappingComponentReference>({ ComponentReference }));
 		}
 	}
-}
-
-TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_InputSourceView(const FSpawnTabArgs& Args)
-{
-	check(Args.GetTabId() == InputSourceViewTabID);
-
-	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("InputSourceViewTabID", "InputSource"))
-		[
-			InputSourceView.ToSharedRef()
-		];
-
-	return SpawnedTab;
 }
 
 TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_DMXLibraryView(const FSpawnTabArgs& Args)
@@ -702,7 +675,6 @@ TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_LayoutView(const FSpawnTa
 
 void FDMXPixelMappingToolkit::CreateInternalViews()
 {
-	GetOrCreateInputSourceView();
 	GetOrCreateDMXLibraryView();
 	GetOrCreateHierarchyView();
 	GetOrCreateDesignerView();
@@ -714,16 +686,6 @@ void FDMXPixelMappingToolkit::CreateInternalViews()
 void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent)
 {
 	UpdateBlueprintNodes(GetDMXPixelMapping());
-}
-
-TSharedRef<SDMXPixelMappingInputSourceView> FDMXPixelMappingToolkit::GetOrCreateInputSourceView()
-{
-	if (!InputSourceView.IsValid())
-	{
-		InputSourceView = SNew(SDMXPixelMappingInputSourceView, SharedThis(this));
-	}
-
-	return InputSourceView.ToSharedRef();
 }
 
 TSharedRef<SDMXPixelMappingDMXLibraryView> FDMXPixelMappingToolkit::GetOrCreateDMXLibraryView()

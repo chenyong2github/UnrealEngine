@@ -2,29 +2,33 @@
 
 #include "Views/SDMXPixelMappingHierarchyView.h"
 
-#include "DMXPixelMappingEditorUtils.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "Framework/Views/TableViewMetadata.h"
-#include "ViewModels/DMXPixelMappingHierarchyViewModel.h"
-#include "Misc/TextFilter.h"
-#include "Widgets/SDMXPixelMappingHierarchyItem.h"
-
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
+#include "DMXPixelMapping.h"
+#include "DMXPixelMappingEditorUtils.h"
 #include "Exporters/Exporter.h"
 #include "Factories.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Framework/Views/TreeFilterHandler.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/TextFilter.h"
 #include "ScopedTransaction.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "UnrealExporter.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/SDMXPixelMappingHierarchyItem.h"
+#include "ViewModels/DMXPixelMappingHierarchyViewModel.h"
+#include "Views/SDMXPixelMappingDesignerView.h"
+#include "Views/SDMXPixelMappingPreviewView.h"
 #include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingHierarchyView"
+
 
 class FDMXPixelMappingBaseComponentTextFactory 
 	: public FCustomizableTextObjectFactory
@@ -108,6 +112,41 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(4.f)
+				.AutoHeight()
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FLinearColor::White)
+					.ToolTipText(LOCTEXT("AddInputSourceTooltip", "Adds a new input source to the pixelmapping asset"))
+					.ContentPadding(FMargin(5.0f, 1.0f))
+					.OnClicked(this, &SDMXPixelMappingHierarchyView::OnAddInputSourceButtonClicked)
+					.Content()
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(0.f, 1.f))
+						[
+							SNew(SImage)
+							.Image(FAppStyle::GetBrush("Plus"))
+						]
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						.Padding(FMargin(2.f, 0.f, 2.f, 0.f))
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("AddInputSourceLabel", "Add Source"))
+						]
+					]
+				]
+
 				+ SVerticalBox::Slot()
 				.FillHeight(1.0f)
 				[
@@ -166,6 +205,39 @@ FReply SDMXPixelMappingHierarchyView::OnKeyDown(const FGeometry& MyGeometry, con
 	}
 
 	return FReply::Unhandled();
+}
+
+FReply SDMXPixelMappingHierarchyView::OnAddInputSourceButtonClicked()
+{
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
+	UDMXPixelMapping* PixelMapping = Toolkit.IsValid() ? Toolkit->GetDMXPixelMapping() : nullptr;
+	UDMXPixelMappingRootComponent* RootComponent = PixelMapping ? PixelMapping->GetRootComponent() : nullptr;
+	if (!Toolkit.IsValid() || !PixelMapping || !RootComponent)
+	{
+		return FReply::Handled();
+	}
+
+	const FScopedTransaction AddRendererTransaction(LOCTEXT("AddRendererTransaction", "Add Pixel Mapping Input Source"));
+	PixelMapping->GetRootComponent()->PreEditChange(nullptr);
+	Toolkit->AddRenderer();
+	PixelMapping->GetRootComponent()->PostEditChange();
+
+	UDMXPixelMappingRendererComponent* RendererComponentToSelect = Toolkit->GetActiveRendererComponent();
+	if (RendererComponentToSelect)
+	{
+		const FDMXPixelMappingComponentReference ComponentRefToSelect(Toolkit, RendererComponentToSelect);
+		const TSet<FDMXPixelMappingComponentReference> NewSelection{ ComponentRefToSelect };
+		Toolkit->SelectComponents(NewSelection);
+
+		// Zoom to fit
+		const TSharedRef<SDMXPixelMappingDesignerView> DesignerView = Toolkit->GetOrCreateDesignerView();
+		const TSharedRef<SDMXPixelMappingPreviewView> PreviewView = Toolkit->GetOrCreatePreviewView();
+		constexpr bool bInstantZoom = false;
+		DesignerView->ZoomToFit(bInstantZoom);
+		PreviewView->ZoomToFit(bInstantZoom);
+	}
+
+	return FReply::Handled();
 }
 
 TSharedPtr<SWidget> SDMXPixelMappingHierarchyView::WidgetHierarchy_OnContextMenuOpening()

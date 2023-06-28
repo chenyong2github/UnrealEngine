@@ -2,24 +2,24 @@
 
 #pragma once
 
-#include "Library/DMXEntityReference.h"
-
 #include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
+#include "Library/DMXEntityReference.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/GCObject.h"
 
 class FDMXPixelMappingToolkit;
-class SDMXReadOnlyFixturePatchList;
-class UDMXPixelMapping;
-class UDMXPixelMappingBaseComponent;
-class UDMXPixelMappingFixtureGroupComponent;
-class UDMXPixelMappingDMXLibraryViewModel;
-class UDMXPixelMappingRootComponent;
-
 class FReply;
 class IDetailsView;
-class SScrollBox;
+class SBorder;
+class SDMXPixelMappingFixturePatchList;
+class SHorizontalBox;
+class STextBlock;
+class UDMXEntity;
+class UDMXLibrary;
+class UDMXPixelMapping;
+class UDMXPixelMappingBaseComponent;
+class UDMXPixelMappingDMXLibraryViewModel;
 
 
 /** Displays the DMX Library of the currently selected fixture group component */
@@ -29,8 +29,12 @@ class SDMXPixelMappingDMXLibraryView
 	, public FSelfRegisteringEditorUndoClient
 {
 public:
-	SLATE_BEGIN_ARGS(SDMXPixelMappingDMXLibraryView) { }
+	SLATE_BEGIN_ARGS(SDMXPixelMappingDMXLibraryView) 
+	{}
+
 	SLATE_END_ARGS()
+
+	virtual ~SDMXPixelMappingDMXLibraryView();
 
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
@@ -53,38 +57,38 @@ protected:
 	//~ End FSelfRegisteringEditorUndoClient interface
 
 private:
-	/** Called when a component was added to or removed from the pixel mapping */
-	void OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
-
-	/** Called when entities were added to or removed from a DMX Library */
-	void OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
+	/** Refreshes the widget */
+	void ForceRefresh();
 
 	/** Called when a component was selected */
 	void OnComponentSelected();
 
-	/** Refreshes the widget */
-	void ForceRefresh();
+	/** Called when an entity was added or removed from the DMX Library */
+	void OnEntityAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
+
+	/** Called when a component was added or removed from pixel mapping */
+	void OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
 	/** Called when the 'Add DMX Library' button was clicked */
 	FReply OnAddDMXLibraryButtonClicked();
 
-	/** Creates a details view for the DMX Library View Model */
-	TSharedRef<SWidget> CreateDetailsViewForModel(UDMXPixelMappingDMXLibraryViewModel& Model) const;
+	/** Called when the 'Add Selected Patches' button was clicked */
+	FReply OnAddSelectedPatchesClicked();
 
-	/** Selects the fixture group component */
-	void SelectFixtureGroupComponent(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent);
+	/** Called when the 'Add All Patches' button was clicked */
+	FReply OnAddAllPatchesClicked();
 
-	/** Returns the root component of the pixel mapping */
-	UDMXPixelMappingRootComponent* GetPixelMappingRootComponent() const;
+	/** Called when a fixture patch row was dragged */
+	FReply OnFixturePatchRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
-	/** Returns the fixture group components in the pixel mapping */
-	TArray<UDMXPixelMappingFixtureGroupComponent*> GetFixtureGroupComponents() const;
+	/** Helper that returns all fixture patches in use in the pixel mapping */
+	TArray<UDMXEntityFixturePatch*> GetFixturePatchesInDMXLibrary() const;
 
-	/** List of fixture patches the user can select from */
-	TSharedPtr<SDMXReadOnlyFixturePatchList> FixturePatchList;
+	/** Helper that returns all fixture patches in use in the pixel mapping */
+	TArray<UDMXEntityFixturePatch*> GetFixturePatchesInPixelMapping() const;
 
-	/** Scrollbox that holds the details views */
-	TSharedPtr<SScrollBox> DMXLibrariesScrollBox;
+	/** Border that holds the details views */
+	TSharedPtr<SBorder> DMXLibraryBorder;
 
 	/** Timer handle for the Request Refresh method */
 	FTimerHandle RefreshTimerHandle;
@@ -92,8 +96,23 @@ private:
 	/** True if a renderere component is contained in the current selection */
 	bool bRenderComponentContainedInSelection = false;
 
+	/** Text block displaying the selected fixture group name */
+	TSharedPtr<STextBlock> FixtureGroupNameTextBlock;
+
+	/** Text block displaying 'all patches added' when no patches are available to add from the dmx library */
+	TSharedPtr<STextBlock> AllPatchesAddedTextBlock;
+
+	/** List of fixture patches the user can select from */
+	TSharedPtr<SDMXPixelMappingFixturePatchList> FixturePatchList;
+
+	/** Horizontal box containing the 'add selected patches' and 'add all patches' buttons */
+	TSharedPtr<SHorizontalBox> AddPatchesHorizontalBox;
+
+	/** Details view for the model, displays the library picker */
+	TSharedPtr<IDetailsView> ModelDetailsView;
+
 	/** The view model of the focused DMX Library */
-	TArray<TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>> ViewModels;
+	TObjectPtr<UDMXPixelMappingDMXLibraryViewModel> ViewModel;
 
 	/** The toolkit of this editor */
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;

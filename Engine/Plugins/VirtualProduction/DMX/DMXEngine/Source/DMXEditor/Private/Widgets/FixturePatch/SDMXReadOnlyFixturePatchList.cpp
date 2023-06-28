@@ -69,7 +69,7 @@ const FName FDMXReadOnlyFixturePatchListCollumnIDs::Patch = "Patch";
 
 void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 {
-	DMXLibrary = InArgs._DMXLibrary;
+	WeakDMXLibrary = InArgs._DMXLibrary;
 
 	IsRowEnabledDelegate = InArgs._IsRowEnabled;
 	IsRowVisibleDelegate = InArgs._IsRowVisibile;
@@ -147,7 +147,7 @@ void SDMXReadOnlyFixturePatchList::RequestListRefresh()
 
 void SDMXReadOnlyFixturePatchList::SetDMXLibrary(UDMXLibrary* InDMXLibrary)
 {
-	DMXLibrary = InDMXLibrary;
+	WeakDMXLibrary = InDMXLibrary;
 	RequestListRefresh();
 }
 
@@ -184,7 +184,7 @@ TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SDMXReadOnlyFixturePatchList::GetV
 	return VisilbleFixturePatchRefs;
 }
 
-FDMXReadOnlyFixturePatchListDescriptor SDMXReadOnlyFixturePatchList::GetListDescriptor() const
+FDMXReadOnlyFixturePatchListDescriptor SDMXReadOnlyFixturePatchList::MakeListDescriptor() const
 {
 	FDMXReadOnlyFixturePatchListDescriptor ListDescriptor;
 	ListDescriptor.SortedByColumnID = SortedByColumnID;
@@ -229,10 +229,16 @@ void SDMXReadOnlyFixturePatchList::RefreshList()
 	ListRows.Reset(ListItems.Num());
 
 	SortByColumnID(EColumnSortPriority::Max, SortedByColumnID, SortMode);
+	ListItems = FilterListItems(SearchBox->GetText());
 
-	if (SearchBox.IsValid())
+	ListItems.RemoveAll([this](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
+		{
+			return ExcludedFixturePatches.Contains(FixturePatchRef->GetFixturePatch());
+		});
+
+	if (ListView.IsValid())
 	{
-		ListItems = FilterListItems(SearchBox->GetText());
+		ListView->RebuildList();
 	}
 }
 
@@ -323,12 +329,12 @@ void SDMXReadOnlyFixturePatchList::UpdateListItems()
 {
 	ListItems.Empty();
 
-	if (!DMXLibrary.IsValid())
+	if (!WeakDMXLibrary.IsValid())
 	{
 		return;
 	}
 
-	const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = WeakDMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesInLibrary)
 	{
 		if (!FixturePatch)
@@ -339,11 +345,6 @@ void SDMXReadOnlyFixturePatchList::UpdateListItems()
 		const TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef = MakeShared<FDMXEntityFixturePatchRef>();
 		FixturePatchRef->SetEntity(FixturePatch);
 		ListItems.Add(FixturePatchRef);
-	}
-
-	if (ListView.IsValid())
-	{
-		ListView->RebuildList();
 	}
 }
 
@@ -394,7 +395,7 @@ void SDMXReadOnlyFixturePatchList::OnSearchTextChanged(const FText& SearchText)
 
 void SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved(UDMXLibrary* InDMXLibrary, TArray<UDMXEntity*> Entities)
 {
-	if (InDMXLibrary == DMXLibrary)
+	if (InDMXLibrary == WeakDMXLibrary)
 	{
 		RequestListRefresh();
 	}
@@ -403,7 +404,7 @@ void SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved(UDMXLibrary* InDMXLibr
 void SDMXReadOnlyFixturePatchList::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
 	// Refresh only if the fixture patch is in the library this editor handles
-	if (FixturePatch && FixturePatch->GetParentLibrary() == DMXLibrary)
+	if (FixturePatch && FixturePatch->GetParentLibrary() == WeakDMXLibrary)
 	{
 		RequestListRefresh();
 	}
@@ -412,7 +413,7 @@ void SDMXReadOnlyFixturePatchList::OnFixturePatchChanged(const UDMXEntityFixture
 void SDMXReadOnlyFixturePatchList::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
 	// Refresh only if the fixture type is in the library this editor handles
-	if (FixtureType && FixtureType->GetParentLibrary() == DMXLibrary)
+	if (FixtureType && FixtureType->GetParentLibrary() == WeakDMXLibrary)
 	{
 		RequestListRefresh();
 	}

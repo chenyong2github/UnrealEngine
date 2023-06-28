@@ -51,7 +51,7 @@ struct DMXEDITOR_API FDMXReadOnlyFixturePatchListDescriptor
 	GENERATED_BODY()
 
 	FDMXReadOnlyFixturePatchListDescriptor()
-		: SortedByColumnID(FDMXReadOnlyFixturePatchListCollumnIDs::FixturePatchName)
+		: SortedByColumnID(FDMXReadOnlyFixturePatchListCollumnIDs::Patch)
 		, ColumnIDToShowStateMap(TMap<FName, bool>())
 	{
 		ColumnIDToShowStateMap.Add(FDMXReadOnlyFixturePatchListCollumnIDs::EditorColor) = true;
@@ -128,10 +128,10 @@ public:
 	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> GetVisibleFixturePatchRefs() const;
 
 	/** Gets the a descriptor for the current parameters for this list */
-	FDMXReadOnlyFixturePatchListDescriptor GetListDescriptor() const;
+	FDMXReadOnlyFixturePatchListDescriptor MakeListDescriptor() const;
 
 	/** Gets the current displayed DMX library */
-	UDMXLibrary* GetDMXLibrary() const { return DMXLibrary.Get(); }
+	UDMXLibrary* GetDMXLibrary() const { return WeakDMXLibrary.Get(); }
 
 	/** Sets the displayed DMX library */
 	void SetDMXLibrary(UDMXLibrary* InDMXLibrary);
@@ -237,7 +237,7 @@ protected:
 	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> ListItems;
 
 	/** Current displayed DMX Library */
-	TWeakObjectPtr<UDMXLibrary> DMXLibrary;
+	TWeakObjectPtr<UDMXLibrary> WeakDMXLibrary;
 
 	// Slate Arguments
 	TArray<FDMXEntityFixturePatchRef> ExcludedFixturePatches;
