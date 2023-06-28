@@ -7,7 +7,7 @@
 #include "SSearchableComboBox.h"
 #include "AnimGraphNode_ControlRig.generated.h"
 
-struct FVariableMappingInfo;
+struct FRigVMVariableMappingInfo;
 
 UCLASS(MinimalAPI)
 class UAnimGraphNode_ControlRig : public UAnimGraphNode_CustomProperty
@@ -45,11 +45,13 @@ private:
 	ECheckBoxState IsPropertyExposed(FName PropertyName) const;
 	void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
 
-	// SVariableMappingWidget related
+#if WITH_EDITOR
+	// SRigVMVariableMappingWidget related
 	void OnVariableMappingChanged(const FName& PathName, const FName& Curve, bool bInput);
 	FName GetVariableMapping(const FName& PathName, bool bInput);
 	void GetAvailableMapping(const FName& PathName, TArray<FName>& OutArray, bool bInput);
-	void CreateVariableMapping(const FString& FilteredText, TArray< TSharedPtr<FVariableMappingInfo> >& OutArray, bool bInput);
+	void CreateVariableMapping(const FString& FilteredText, TArray< TSharedPtr<FRigVMVariableMappingInfo> >& OutArray, bool bInput);
+#endif
 
 	bool IsAvailableToMapToCurve(const FName& PropertyName, bool bInput) const;
 	bool IsInputProperty(const FName& PropertyName) const;

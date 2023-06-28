@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "SVariableMappingWidget.h"
+#include "Widgets/SRigVMVariableMappingWidget.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
-#define LOCTEXT_NAMESPACE "SVariableMappingWidget"
+#define LOCTEXT_NAMESPACE "SRigVMVariableMappingWidget"
 
 static const FName ColumnId_VarLabel("Variable");
 static const FName ColumnID_MappingLabel("Mapping");
 
-void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SRigVMVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	Item = InArgs._Item;
 	OnVariableMappingChanged = InArgs._OnVariableMappingChanged;
@@ -36,9 +36,9 @@ void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedR
 			VariableOptionList.Add(MakeShareable(new FString(MappingVar.ToString())));
 		}
 	}
-	//SMultiColumnTableRow< FVariableMappingInfoPtr >::Construct(FSuperRowType::FArguments(), InOwnerTableView);
-	STableRow<TSharedPtr<FVariableMappingInfoPtr>>::Construct(
-		STableRow<TSharedPtr<FVariableMappingInfoPtr>>::FArguments()
+	//SMultiColumnTableRow< FRigVMVariableMappingInfoPtr >::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+	STableRow<TSharedPtr<FRigVMVariableMappingInfoPtr>>::Construct(
+		STableRow<TSharedPtr<FRigVMVariableMappingInfoPtr>>::FArguments()
 		.Padding(FMargin(3.0f, 2.0f))
 		.Content()
 		[
@@ -52,9 +52,9 @@ void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedR
 				SNew(STextBlock)
 				.Text(FText::FromString(Item->GetDisplayName()))
 				//.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("BoldText"))
-				.HighlightText(this, &SVariableMappingTreeRow::GetFilterText)
+				.HighlightText(this, &SRigVMVariableMappingTreeRow::GetFilterText)
 				//.IsReadOnly(true)
-				//.IsSelected(this, &SMultiColumnTableRow< FVariableMappingInfoPtr >::IsSelectedExclusively)
+				//.IsSelected(this, &SMultiColumnTableRow< FRigVMVariableMappingInfoPtr >::IsSelectedExclusively)
 			]
 // 			+ SHorizontalBox::Slot()
 // 			.Padding(2.0f, 4.0f)
@@ -80,9 +80,9 @@ void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedR
 				.AutoWidth()
 				[
 					SNew(SCheckBox)
-					.IsChecked(this, &SVariableMappingTreeRow::IsPinChecked)
-					.OnCheckStateChanged(this, &SVariableMappingTreeRow::OnPinCheckStatusChanged)
-					.IsEnabled(this, &SVariableMappingTreeRow::IsPinEnabled)
+					.IsChecked(this, &SRigVMVariableMappingTreeRow::IsPinChecked)
+					.OnCheckStateChanged(this, &SRigVMVariableMappingTreeRow::OnPinCheckStatusChanged)
+					.IsEnabled(this, &SRigVMVariableMappingTreeRow::IsPinEnabled)
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(0.0f, 4.0f)
@@ -97,24 +97,24 @@ void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedR
 				[
 					SAssignNew(VarOptionComboBox, SSearchableComboBox)
 					.OptionsSource(&VariableOptionList)
-					.OnGenerateWidget(this, &SVariableMappingTreeRow::MakeVarOptionComboWidget)
-					.OnSelectionChanged(this, &SVariableMappingTreeRow::OnVarOptionSourceChanged)
-					.OnComboBoxOpening(this, &SVariableMappingTreeRow::OnVarOptionComboOpening)
-					.IsEnabled(this, &SVariableMappingTreeRow::IsVarOptionEnabled)
+					.OnGenerateWidget(this, &SRigVMVariableMappingTreeRow::MakeVarOptionComboWidget)
+					.OnSelectionChanged(this, &SRigVMVariableMappingTreeRow::OnVarOptionSourceChanged)
+					.OnComboBoxOpening(this, &SRigVMVariableMappingTreeRow::OnVarOptionComboOpening)
+					.IsEnabled(this, &SRigVMVariableMappingTreeRow::IsVarOptionEnabled)
 					.ContentPadding(2)
 					.Content()
 					[
 						SNew(STextBlock)
-						.Text(this, &SVariableMappingTreeRow::GetVarOptionComboBoxContent)
+						.Text(this, &SRigVMVariableMappingTreeRow::GetVarOptionComboBoxContent)
 						//.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						.ToolTipText(this, &SVariableMappingTreeRow::GetVarOptionComboBoxToolTip)
+						.ToolTipText(this, &SRigVMVariableMappingTreeRow::GetVarOptionComboBoxToolTip)
 					]
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.OnClicked(FOnClicked::CreateSP(this, &SVariableMappingTreeRow::OnClearButtonClicked))
+					.OnClicked(FOnClicked::CreateSP(this, &SRigVMVariableMappingTreeRow::OnClearButtonClicked))
 					.Text(FText::FromString(TEXT("x")))
 				]
 
@@ -123,7 +123,7 @@ void SVariableMappingTreeRow::Construct(const FArguments& InArgs, const TSharedR
 		InOwnerTableView);
 }
 
-bool SVariableMappingTreeRow::IsVarOptionEnabled() const
+bool SRigVMVariableMappingTreeRow::IsVarOptionEnabled() const
 {
 	// if pin is not checked
 	if (IsPinChecked()==ECheckBoxState::Unchecked && 
@@ -135,7 +135,7 @@ bool SVariableMappingTreeRow::IsVarOptionEnabled() const
 	return false;
 }
 
-ECheckBoxState SVariableMappingTreeRow::IsPinChecked() const
+ECheckBoxState SRigVMVariableMappingTreeRow::IsPinChecked() const
 {
 	if (OnPinGetCheckState.IsBound())
 	{
@@ -145,7 +145,7 @@ ECheckBoxState SVariableMappingTreeRow::IsPinChecked() const
 	return ECheckBoxState::Unchecked;
 }
 
-void SVariableMappingTreeRow::OnPinCheckStatusChanged(ECheckBoxState NewState)
+void SRigVMVariableMappingTreeRow::OnPinCheckStatusChanged(ECheckBoxState NewState)
 {
 	if (OnPinCheckStateChanged.IsBound())
 	{
@@ -153,7 +153,7 @@ void SVariableMappingTreeRow::OnPinCheckStatusChanged(ECheckBoxState NewState)
 	}
 }
 
-bool SVariableMappingTreeRow::IsPinEnabled() const
+bool SRigVMVariableMappingTreeRow::IsPinEnabled() const
 {
 	if (OnPinIsEnabledCheckState.IsBound())
 	{
@@ -164,7 +164,7 @@ bool SVariableMappingTreeRow::IsPinEnabled() const
 }
 
 
-FReply SVariableMappingTreeRow::OnClearButtonClicked()
+FReply SRigVMVariableMappingTreeRow::OnClearButtonClicked()
 {
 	if (OnVariableMappingChanged.IsBound())
 	{
@@ -174,7 +174,7 @@ FReply SVariableMappingTreeRow::OnClearButtonClicked()
 	return FReply::Handled();
 }
 
-FText SVariableMappingTreeRow::GetFilterText() const
+FText SRigVMVariableMappingTreeRow::GetFilterText() const
 {
 	if (OnGetFilteredText.IsBound())
 	{
@@ -184,7 +184,7 @@ FText SVariableMappingTreeRow::GetFilterText() const
 	return FText::GetEmpty();
 }
 
-void SVariableMappingTreeRow::OnVarOptionComboOpening()
+void SRigVMVariableMappingTreeRow::OnVarOptionComboOpening()
 {
 	VariableOptionList.Reset();
 	if (OnGetAvailableMapping.IsBound())
@@ -216,7 +216,7 @@ void SVariableMappingTreeRow::OnVarOptionComboOpening()
 	}
 }
 
-void SVariableMappingTreeRow::OnVarOptionSourceChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+void SRigVMVariableMappingTreeRow::OnVarOptionSourceChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
 {
 	// if it's set from code, we did that on purpose
 	if (SelectInfo != ESelectInfo::Direct)
@@ -228,7 +228,7 @@ void SVariableMappingTreeRow::OnVarOptionSourceChanged(TSharedPtr<FString> NewSe
 	}
 }
 
-FText SVariableMappingTreeRow::GetVarOptionComboBoxContent() const
+FText SRigVMVariableMappingTreeRow::GetVarOptionComboBoxContent() const
 {
 	if (OnGetVariableMapping.IsBound())
 	{
@@ -238,12 +238,12 @@ FText SVariableMappingTreeRow::GetVarOptionComboBoxContent() const
 	return FText::FromString(TEXT("Invalid"));
 }
 
-FText SVariableMappingTreeRow::GetVarOptionComboBoxToolTip() const
+FText SRigVMVariableMappingTreeRow::GetVarOptionComboBoxToolTip() const
 {
 	return LOCTEXT("VarOptionComboToolTip", "Map input/output variable to available options.");
 }
 
-TSharedPtr<FString> SVariableMappingTreeRow::GetVarOptionString(FName VarOptionName) const
+TSharedPtr<FString> SRigVMVariableMappingTreeRow::GetVarOptionString(FName VarOptionName) const
 {
 	return TSharedPtr<FString>();
 	FString VarOptionString = VarOptionName.ToString();
@@ -260,14 +260,14 @@ TSharedPtr<FString> SVariableMappingTreeRow::GetVarOptionString(FName VarOptionN
 	return TSharedPtr<FString>();
 }
 
-TSharedRef<SWidget> SVariableMappingTreeRow::MakeVarOptionComboWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> SRigVMVariableMappingTreeRow::MakeVarOptionComboWidget(TSharedPtr<FString> InItem)
 {
 	return SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 //////////////////////////////////////////////////////////////////////////
-// SVariableMappingWidget
+// SRigVMVariableMappingWidget
 
-void SVariableMappingWidget::Construct(const FArguments& InArgs/*, FSimpleMulticastDelegate& InOnPostUndo*/)
+void SRigVMVariableMappingWidget::Construct(const FArguments& InArgs/*, FSimpleMulticastDelegate& InOnPostUndo*/)
 {
 	OnGetAvailableMappingDelegate = InArgs._OnGetAvailableMapping;
 	OnGetVariableMappingDelegate = InArgs._OnGetVariableMapping;
@@ -278,7 +278,7 @@ void SVariableMappingWidget::Construct(const FArguments& InArgs/*, FSimpleMultic
 	OnPinGetCheckStateDelegate = InArgs._OnPinGetCheckState;
 	OnPinIsEnabledCheckStateDelegate = InArgs._OnPinIsEnabledCheckState;
 
-	//InOnPostUndo.Add(FSimpleDelegate::CreateSP(this, &SVariableMappingWidget::PostUndo));
+	//InOnPostUndo.Add(FSimpleDelegate::CreateSP(this, &SRigVMVariableMappingWidget::PostUndo));
 
 	ChildSlot
 		[
@@ -296,18 +296,18 @@ void SVariableMappingWidget::Construct(const FArguments& InArgs/*, FSimpleMultic
 				[
 					SAssignNew(NameFilterBox, SSearchBox)
 					.SelectAllTextWhenFocused(true)
-					.OnTextChanged(this, &SVariableMappingWidget::OnFilterTextChanged)
-					.OnTextCommitted(this, &SVariableMappingWidget::OnFilterTextCommitted)
+					.OnTextChanged(this, &SRigVMVariableMappingWidget::OnFilterTextChanged)
+					.OnTextCommitted(this, &SRigVMVariableMappingWidget::OnFilterTextCommitted)
 				]
 			]
 
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)		// This is required to make the scrollbar work, as content overflows Slate containers by default
 			[
-				SAssignNew(VariableMappingTreeView, SVariableMappingTreeView)
+				SAssignNew(VariableMappingTreeView, SRigVMVariableMappingTreeView)
 				.TreeItemsSource(&VariableMappingList)
-				.OnGenerateRow(this, &SVariableMappingWidget::MakeTreeRowWidget)
-				.OnGetChildren(this, &SVariableMappingWidget::GetChildrenForInfo)
+				.OnGenerateRow(this, &SRigVMVariableMappingWidget::MakeTreeRowWidget)
+				.OnGetChildren(this, &SRigVMVariableMappingWidget::GetChildrenForInfo)
 				.ItemHeight(22.0f)
 			]
 		];
@@ -315,26 +315,26 @@ void SVariableMappingWidget::Construct(const FArguments& InArgs/*, FSimpleMultic
 	RefreshVariableMappingList();
 }
 
-TSharedRef<ITableRow> SVariableMappingWidget::MakeTreeRowWidget(TSharedPtr<FVariableMappingInfo> InInfo, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRigVMVariableMappingWidget::MakeTreeRowWidget(TSharedPtr<FRigVMVariableMappingInfo> InInfo, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SVariableMappingTreeRow, OwnerTable)
+	return SNew(SRigVMVariableMappingTreeRow, OwnerTable)
 		.Item(InInfo)
 		.OnVariableMappingChanged(OnVariableMappingChangedDelegate)
 		.OnGetVariableMapping(OnGetVariableMappingDelegate)
 		.OnGetAvailableMapping(OnGetAvailableMappingDelegate)
-		.OnGetFilteredText(this, &SVariableMappingWidget::GetFilterText)
+		.OnGetFilteredText(this, &SRigVMVariableMappingWidget::GetFilterText)
 		.OnVariableOptionAvailable(OnVariableOptionAvailableDelegate)
 		.OnPinCheckStateChanged(OnPinCheckStateChangedDelegate)
 		.OnPinGetCheckState(OnPinGetCheckStateDelegate)
 		.OnPinIsEnabledCheckState(OnPinIsEnabledCheckStateDelegate);
 }
 
-void SVariableMappingWidget::GetChildrenForInfo(TSharedPtr<FVariableMappingInfo> InInfo, TArray< TSharedPtr<FVariableMappingInfo> >& OutChildren)
+void SRigVMVariableMappingWidget::GetChildrenForInfo(TSharedPtr<FRigVMVariableMappingInfo> InInfo, TArray< TSharedPtr<FRigVMVariableMappingInfo> >& OutChildren)
 {
 	OutChildren = InInfo->Children;
 }
 
-void SVariableMappingWidget::OnFilterTextChanged(const FText& SearchText)
+void SRigVMVariableMappingWidget::OnFilterTextChanged(const FText& SearchText)
 {
 	// need to make sure not to have the same text go
 	// otherwise, the widget gets recreated multiple times causing 
@@ -346,33 +346,33 @@ void SVariableMappingWidget::OnFilterTextChanged(const FText& SearchText)
 	}
 }
 
-void SVariableMappingWidget::OnFilterTextCommitted(const FText& SearchText, ETextCommit::Type CommitInfo)
+void SRigVMVariableMappingWidget::OnFilterTextCommitted(const FText& SearchText, ETextCommit::Type CommitInfo)
 {
 	// Just do the same as if the user typed in the box
 	OnFilterTextChanged(SearchText);
 }
 
-TSharedRef<ITableRow> SVariableMappingWidget::GenerateVariableMappingRow(TSharedPtr<FVariableMappingInfo> InInfo, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRigVMVariableMappingWidget::GenerateVariableMappingRow(TSharedPtr<FRigVMVariableMappingInfo> InInfo, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	check(InInfo.IsValid());
 
 	return
-		SNew(SVariableMappingTreeRow, OwnerTable)
+		SNew(SRigVMVariableMappingTreeRow, OwnerTable)
 		.Item(InInfo)
 		.OnVariableMappingChanged(OnVariableMappingChangedDelegate)
 		.OnGetVariableMapping(OnGetVariableMappingDelegate)
 		.OnGetAvailableMapping(OnGetAvailableMappingDelegate)
-		.OnGetFilteredText(this, &SVariableMappingWidget::GetFilterText);
+		.OnGetFilteredText(this, &SRigVMVariableMappingWidget::GetFilterText);
 }
 
-void SVariableMappingWidget::RefreshVariableMappingList()
+void SRigVMVariableMappingWidget::RefreshVariableMappingList()
 {
 	OnCreateVariableMappingDelegate.ExecuteIfBound(FilterText.ToString(), VariableMappingList);
 
 	VariableMappingTreeView->RequestListRefresh();
 }
 
-// void SVariableMappingWidget::PostUndo()
+// void SRigVMVariableMappingWidget::PostUndo()
 // {
 // 	RefreshVariableMappingList();
 // }

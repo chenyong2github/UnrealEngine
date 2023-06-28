@@ -7,7 +7,9 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "DetailWidgetRow.h"
-#include "SVariableMappingWidget.h"
+#if WITH_EDITOR
+#include "Widgets/SRigVMVariableMappingWidget.h"
+#endif
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimationGraphSchema.h"
@@ -502,33 +504,37 @@ void UAnimGraphNode_ControlRig::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& InputCategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Input")));
 
 	FDetailWidgetRow& InputWidgetRow = InputCategoryBuilder.AddCustomRow(FText::FromString(TEXT("Input")));
+#if WITH_EDITOR
 	InputWidgetRow.WholeRowContent()
 	[
-		SNew(SVariableMappingWidget)
-		.OnVariableMappingChanged(FOnVariableMappingChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnVariableMappingChanged, true))
-		.OnGetVariableMapping(FOnGetVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetVariableMapping, true))
-		.OnGetAvailableMapping(FOnGetAvailableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetAvailableMapping, true))
-		.OnCreateVariableMapping(FOnCreateVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::CreateVariableMapping, true))
-		.OnVariableOptionAvailable(FOnVarOptionAvailable::CreateUObject(this, &UAnimGraphNode_ControlRig::IsAvailableToMapToCurve, true))
-		.OnPinGetCheckState(FOnPinGetCheckState::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposed))
-		.OnPinCheckStateChanged(FOnPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged))
-		.OnPinIsEnabledCheckState(FOnPinIsCheckEnabled::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposeEnabled))
+		SNew(SRigVMVariableMappingWidget)
+		.OnVariableMappingChanged(FOnRigVMVariableMappingChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnVariableMappingChanged, true))
+		.OnGetVariableMapping(FOnRigVMGetVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetVariableMapping, true))
+		.OnGetAvailableMapping(FOnRigVMGetAvailableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetAvailableMapping, true))
+		.OnCreateVariableMapping(FOnRigVMCreateVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::CreateVariableMapping, true))
+		.OnVariableOptionAvailable(FOnRigVMVarOptionAvailable::CreateUObject(this, &UAnimGraphNode_ControlRig::IsAvailableToMapToCurve, true))
+		.OnPinGetCheckState(FOnRigVMPinGetCheckState::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposed))
+		.OnPinCheckStateChanged(FOnRigVMPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged))
+		.OnPinIsEnabledCheckState(FOnRigVMPinIsCheckEnabled::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposeEnabled))
 	];
+#endif
 
 	IDetailCategoryBuilder& OutputCategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Output")));
 	FDetailWidgetRow& OutputWidgetRow = OutputCategoryBuilder.AddCustomRow(FText::FromString(TEXT("Output")));
+#if WITH_EDITOR
 	OutputWidgetRow.WholeRowContent()
 	[
-		SNew(SVariableMappingWidget)
-		.OnVariableMappingChanged(FOnVariableMappingChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnVariableMappingChanged, false))
-		.OnGetVariableMapping(FOnGetVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetVariableMapping, false))
-		.OnGetAvailableMapping(FOnGetAvailableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetAvailableMapping, false))
-		.OnCreateVariableMapping(FOnCreateVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::CreateVariableMapping, false))
-		.OnVariableOptionAvailable(FOnVarOptionAvailable::CreateUObject(this, &UAnimGraphNode_ControlRig::IsAvailableToMapToCurve, false))
-		.OnPinGetCheckState(FOnPinGetCheckState::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposed))
-		.OnPinCheckStateChanged(FOnPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged))
-		.OnPinIsEnabledCheckState(FOnPinIsCheckEnabled::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposeEnabled))
+		SNew(SRigVMVariableMappingWidget)
+		.OnVariableMappingChanged(FOnRigVMVariableMappingChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnVariableMappingChanged, false))
+		.OnGetVariableMapping(FOnRigVMGetVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetVariableMapping, false))
+		.OnGetAvailableMapping(FOnRigVMGetAvailableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetAvailableMapping, false))
+		.OnCreateVariableMapping(FOnRigVMCreateVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::CreateVariableMapping, false))
+		.OnVariableOptionAvailable(FOnRigVMVarOptionAvailable::CreateUObject(this, &UAnimGraphNode_ControlRig::IsAvailableToMapToCurve, false))
+		.OnPinGetCheckState(FOnRigVMPinGetCheckState::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposed))
+		.OnPinCheckStateChanged(FOnRigVMPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged))
+		.OnPinIsEnabledCheckState(FOnRigVMPinIsCheckEnabled::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposeEnabled))
 	];
+#endif
 
 	TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.ControlRigClass"), GetClass());
 	if (ClassHandle->IsValidHandle())
@@ -592,6 +598,8 @@ void UAnimGraphNode_ControlRig::GetVariables(bool bInput, TMap<FName, FRigVMExte
 		}
 	}
 }
+
+#if WITH_EDITOR
 
 void UAnimGraphNode_ControlRig::OnVariableMappingChanged(const FName& PathName, const FName& Curve, bool bInput)
 {
@@ -668,7 +676,7 @@ void UAnimGraphNode_ControlRig::GetAvailableMapping(const FName& PathName, TArra
 	}
 }
 
-void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredText, TArray< TSharedPtr<FVariableMappingInfo> >& OutArray, bool bInput)
+void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredText, TArray< TSharedPtr<FRigVMVariableMappingInfo> >& OutArray, bool bInput)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -687,9 +695,9 @@ void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredTex
 		if (!bDoFiltering || 
 			(DisplayName.Contains(FilteredText) || MappedName.Contains(FilteredText)))
 		{
-			TSharedRef<FVariableMappingInfo> Item = FVariableMappingInfo::Make(Iter.Key());
+			TSharedRef<FRigVMVariableMappingInfo> Item = FRigVMVariableMappingInfo::Make(Iter.Key());
 
-			FVariableMappingInfo& ItemRaw = Item.Get();
+			FRigVMVariableMappingInfo& ItemRaw = Item.Get();
 			FString PathString = ItemRaw.GetPathName().ToString();
 			FString DisplayString = ItemRaw.GetDisplayName();
 
@@ -715,7 +723,7 @@ void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredTex
 
 							if (!bDoFiltering || DisplayName.Contains(FilteredText))
 							{
-								TSharedRef<FVariableMappingInfo> Item = FVariableMappingInfo::Make(ControlName);
+								TSharedRef<FRigVMVariableMappingInfo> Item = FRigVMVariableMappingInfo::Make(ControlName);
 								OutArray.Add(Item);
 							}
 						}
@@ -726,6 +734,8 @@ void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredTex
 		}
 	}
 }
+
+#endif
 
 void UAnimGraphNode_ControlRig::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

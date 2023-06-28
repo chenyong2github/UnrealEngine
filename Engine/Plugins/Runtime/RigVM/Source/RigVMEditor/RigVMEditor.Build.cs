@@ -17,6 +17,14 @@ public class RigVMEditor : ModuleRules
                 "BlueprintGraph",
                 "GraphEditor",
                 "UnrealEd",
+                // "EditorFramework",
+                //"Kismet",
+                //"PropertyEditor",
+                //"ApplicationCore",
+                "Slate",
+                "SlateCore",
+                "InputCore",
+                "ToolWidgets",
             }
         );
     }
