@@ -1124,7 +1124,7 @@ bool UEnhancedInputUserSettings::SetKeyProfile(const FGameplayTag& InProfileId)
 {
 	if (!GetLocalPlayer())
 	{
-		UE_LOG(LogEnhancedInput, Error, TEXT("Failed to find the Local Player associated with the Enhanced Input user settings!"), *InProfileId.ToString());
+		UE_LOG(LogEnhancedInput, Log, TEXT("Failed to find the Local Player associated with the Enhanced Input user settings!"), *InProfileId.ToString());
 		return false;
 	}
 
