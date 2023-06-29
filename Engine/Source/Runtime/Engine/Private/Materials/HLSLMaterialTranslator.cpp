@@ -11692,8 +11692,11 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 				const bool bRootOfParameterBlendingSubTree		= bCurrentOpRequestParameterBlending && !bInsideParameterBlendingSubTree;
 				const bool bUseParameterBlending				= bCurrentOpRequestParameterBlending || bInsideParameterBlendingSubTree;
 
-				CurrentOperator.bUseParameterBlending			= bUseParameterBlending;
-				CurrentOperator.bRootOfParameterBlendingSubTree	= bRootOfParameterBlendingSubTree;
+				if (CurrentOperator.BSDFType == STRATA_BSDF_TYPE_SLAB)
+				{
+					CurrentOperator.bUseParameterBlending = bUseParameterBlending;
+					CurrentOperator.bRootOfParameterBlendingSubTree = bRootOfParameterBlendingSubTree;
+				}
 
 				switch (CurrentOperator.OperatorType)
 				{
