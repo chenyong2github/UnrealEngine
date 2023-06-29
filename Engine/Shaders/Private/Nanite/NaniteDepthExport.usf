@@ -94,10 +94,13 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	uint SceneZMask = ToScalarMemory(BitFieldExtractU32(SceneHTile[TileIndex], 4u, 0u));
+	uint HTileValue = ToScalarMemory(SceneHTile[TileIndex]);
+	uint SceneZMask = BitFieldExtractU32(HTileValue, 4u, 0u);
+	uint SceneSMem = IsHiStencilTileConfig(PlatformConfig) ? BitFieldExtractU32(HTileValue, 2u, 8u) : 0x3;
 	float SceneDepthValue = DecompressDepthValue(SceneDepth, SceneZMask, PixelPos.xy, ThreadIndex, 0.0f, PlatformConfig);
+	uint SceneStencilValue = DecompressStencilValue(SceneStencil, SceneSMem, PixelPos.xy, 0);
 
-	bool bWriteDepth = false;
+	bool bWriteDepthStencil = false;
 
 	// Avoid the parallel reduction and exports if the tile has no Nanite
 	// pixels. This is an optimization of course, but it also will preserve
@@ -153,7 +156,6 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 
 				SceneDepthValue = NaniteDepthValue;
 
-				uint OutStencil;
 				if (bWriteCustomStencil)
 				{
 					uint CustomStencilMask = (PrimitiveData.CustomStencilValueAndMask >> 8u) & 0xFFu;
@@ -164,14 +166,12 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 						CustomStencilMask = 0xFFu;
 					}
 
-					OutStencil = PrimitiveData.CustomStencilValueAndMask & CustomStencilMask;
+					SceneStencilValue = PrimitiveData.CustomStencilValueAndMask & CustomStencilMask;
 				}
 				else 
 				{
-					OutStencil = select(bIsDecalReceiver, DepthExportConfig.z, 0u);
+					SceneStencilValue = select(bIsDecalReceiver, DepthExportConfig.z, 0u);
 				}
-
-				SceneStencil[PixelPos.xy] = OutStencil;
 
 			#if VELOCITY_EXPORT
 				// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass.
@@ -223,16 +223,17 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 	#endif
 
 		// Only write out SceneDepth and expand SceneHTile if there are Nanite fragments that survive depth testing against the scene
-		bWriteDepth = WaveActiveAnyTrue(NanitePixelVisible);
+		bWriteDepthStencil = WaveActiveAnyTrue(NanitePixelVisible);
 	}
 
 	const float TileMinSceneDepth = WaveActiveMin(SceneDepthValue);
 	const float TileMaxSceneDepth = WaveActiveMax(SceneDepthValue);
 
 	BRANCH
-	if (bWriteDepth)
+	if (bWriteDepthStencil)
 	{
 		SceneDepth[PixelPos.xy] = SceneDepthValue; // Write uncompressed depth value out
+		SceneStencil[PixelPos.xy] = SceneStencilValue;
 
 		if (WaveIsFirstLane())
 		{

@@ -348,6 +348,48 @@ float DecompressDepthValue(RWTexture2D<float> DepthBuffer, uint ZMask, uint2 Pix
 	return DecompressDepthValue_Internal(Layout, ZOffset, ZMask, PixelPos, ThreadIndex, ClearValue, PlatformConfig);
 }
 
+uint DecompressStencilValue(Texture2D<uint> StencilBuffer, uint SMem, uint2 PixelPos, uint ClearValue)
+{
+	// SMem
+	// 0 = Clear
+	// 1 = Single
+	// 2 = Clear and Expanded
+	// 3 = Expanded
+	if ((SMem & 0x1) == 0)
+	{
+		return ClearValue;
+	}
+
+	if (SMem == 1)
+	{
+		return StencilBuffer[PixelPos & (uint2)~7u];
+	}
+
+	// Expanded
+	return StencilBuffer[PixelPos];
+}
+
+uint DecompressStencilValue(RWTexture2D<uint> StencilBuffer, uint SMem, uint2 PixelPos, uint ClearValue)
+{
+	// SMem
+	// 0 = Clear
+	// 1 = Single
+	// 2 = Clear and Expanded
+	// 3 = Expanded
+	if ((SMem & 0x1) == 0)
+	{
+		return ClearValue;
+	}
+
+	if (SMem == 1)
+	{
+		return StencilBuffer[PixelPos & (uint2)~7u];
+	}
+
+	// Expanded
+	return StencilBuffer[PixelPos];
+}
+
 uint2 PixelFromThreadIndex(uint Element)
 {
 	uint2 PixelPos;
