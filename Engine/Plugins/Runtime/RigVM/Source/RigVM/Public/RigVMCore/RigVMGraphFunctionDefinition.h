@@ -467,4 +467,7 @@ struct RIGVM_API FRigVMGraphFunctionData
 	bool IsAnyOperandSharedAcrossArguments() const;
 
 	bool PatchSharedArgumentOperandsIfRequired();
+
+	static const FString EntryString;
+	static const FString ReturnString;
 };

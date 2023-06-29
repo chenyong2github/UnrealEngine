@@ -242,6 +242,9 @@ private:
 	FRigVMOperand FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue = false);
 	const FRigVMCompilerWorkData::FRigVMASTProxyArray& FindProxiesWithSharedOperand(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData);
 
+	static FString GetPinNameWithDirectionPrefix(const URigVMPin* Pin);
+	static int32 GetOperandFunctionInterfaceParameterIndex(const TArray<FString>& OperandsPinNames, const FRigVMFunctionCompilationData* FunctionCompilationData, const FRigVMOperand& Operand);
+
 	bool ValidateNode(URigVMNode* InNode, bool bCheck = true);
 	
 	void ReportInfo(const FString& InMessage);

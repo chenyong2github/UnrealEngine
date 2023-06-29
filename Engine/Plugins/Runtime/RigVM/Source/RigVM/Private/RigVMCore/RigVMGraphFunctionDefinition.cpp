@@ -6,6 +6,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMGraphFunctionDefinition)
 
+const FString FRigVMGraphFunctionData::EntryString = TEXT("Entry");
+const FString FRigVMGraphFunctionData::ReturnString = TEXT("Return");
+
 FRigVMExternalVariable FRigVMGraphFunctionArgument::GetExternalVariable() const
 {
 	FRigVMExternalVariable Variable;
@@ -157,8 +160,6 @@ FString FRigVMGraphFunctionData::GetArgumentNameFromPinHash(const FString& InPin
 		Left.Reset();
 		if(RigVMStringUtils::SplitPinPathAtStart(PinPath, Left, PinName))
 		{
-			static FString EntryString = TEXT("Entry");
-			static FString ReturnString = TEXT("Return");
 			if(Left.Equals(EntryString, ESearchCase::CaseSensitive) ||
 				Left.Equals(ReturnString, ESearchCase::CaseSensitive))
 			{

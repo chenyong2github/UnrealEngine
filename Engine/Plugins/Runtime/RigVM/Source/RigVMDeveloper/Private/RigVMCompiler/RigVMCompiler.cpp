@@ -2061,7 +2061,8 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 	}
 	else
 	{
-		TArray<FRigVMOperand> Operands;		
+		TArray<FRigVMOperand> Operands;
+		TArray<FString> OperandsPinNames;
 		for(const URigVMPin* Pin : FunctionReferenceNode->GetPins())
 		{
 			const FRigVMExprAST* ChildExpr = InExpr->FindExprWithPinName(Pin->GetFName());
@@ -2072,6 +2073,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				if(!SourceVarExpr->IsExecuteContext())
 				{
 					Operands.Add(WorkData.ExprToOperand.FindChecked(SourceVarExpr));
+					OperandsPinNames.Add(GetPinNameWithDirectionPrefix(Pin));
 				}
 			}
 			else if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
@@ -2080,6 +2082,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				if(!SourceVarExpr->IsExecuteContext())
 				{
 					Operands.Add(WorkData.ExprToOperand.FindChecked(SourceVarExpr));
+					OperandsPinNames.Add(GetPinNameWithDirectionPrefix(Pin));
 				}
 			}
 			else
@@ -2143,12 +2146,12 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 					const FRigVMOperand& OuterOperand = WorkData.PinPathToOperand->FindChecked(FString::Printf(TEXT("Variable::%s"), *OuterVariableName.ToString()));
 					Operand->RegisterIndex = OuterOperand.RegisterIndex;
 				}
-				// Operand is an interface pin: replace the index and memory type
-				else if (Operand->GetMemoryType() == ERigVMMemoryType::Work &&
-					Operands.IsValidIndex(Operand->RegisterIndex))
+				// If Operand is an interface pin: replace the index and memory type
+				else if (const int32 FunctionInterfaceParameterIndex = GetOperandFunctionInterfaceParameterIndex(OperandsPinNames, FunctionCompilationData, *Operand); FunctionInterfaceParameterIndex != INDEX_NONE)
 				{
-					Operand->MemoryType = Operands[Operand->GetRegisterIndex()].MemoryType;
-					Operand->RegisterIndex = Operands[Operand->GetRegisterIndex()].RegisterIndex;
+					const FRigVMOperand& InterfaceOperand = Operands[FunctionInterfaceParameterIndex];
+					Operand->MemoryType = InterfaceOperand.GetMemoryType();
+					Operand->RegisterIndex = InterfaceOperand.GetRegisterIndex();
 				}
 				else
 				{
@@ -3445,6 +3448,37 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 
 	// finally store and return the cache the the input proxy
 	return WorkData.CachedProxiesWithSharedOperand.Add(InProxy, PinProxies);
+}
+
+FString URigVMCompiler::GetPinNameWithDirectionPrefix(const URigVMPin* Pin)
+{
+	const FString & Prefix = (Pin->GetDirection() == ERigVMPinDirection::Input) ? FRigVMGraphFunctionData::EntryString : (Pin->GetDirection() == ERigVMPinDirection::Output) ? FRigVMGraphFunctionData::ReturnString : "";
+	const FString NameWithDirectionPrefix = Prefix + "_" + FRigVMPropertyDescription::SanitizeName(FName(Pin->GetName())).ToString();
+	return NameWithDirectionPrefix;
+}
+
+int32 URigVMCompiler::GetOperandFunctionInterfaceParameterIndex(const TArray<FString>& OperandsPinNames, const FRigVMFunctionCompilationData* FunctionCompilationData, const FRigVMOperand& Operand)
+{
+	const FRigVMFunctionCompilationPropertyDescription& CompilationPropertyDescription = (Operand.GetMemoryType() == ERigVMMemoryType::Work)
+		? FunctionCompilationData->WorkPropertyDescriptions[Operand.GetRegisterIndex()]
+		: FunctionCompilationData->LiteralPropertyDescriptions[Operand.GetRegisterIndex()];
+
+	const FString PropertyName = FRigVMPropertyDescription::SanitizeName(CompilationPropertyDescription.Name).ToString();
+	const int32 NumParams = OperandsPinNames.Num();
+	for (int32 ParamIndex = 0; ParamIndex < NumParams; ParamIndex++)
+	{
+		const FString& InterfacePinName = OperandsPinNames[ParamIndex];
+		if (const int32 SubStrStart = PropertyName.Find(InterfacePinName, ESearchCase::CaseSensitive, ESearchDir::FromEnd); SubStrStart != -1)
+		{
+			const FString Name = PropertyName.RightChop(SubStrStart);  // with this, we make sure that we don't return Argument_1 when searching for Argument
+			if (Name.Equals(InterfacePinName, ESearchCase::CaseSensitive))
+			{
+				return ParamIndex;
+			}
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 bool URigVMCompiler::ValidateNode(URigVMNode* InNode, bool bCheck)
