@@ -1081,6 +1081,9 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 					.InitiallySelectedAsset(*CurrentPreset)
 					.FlyoutTileSize(FVector2D(80, 80))
 					.ComboButtonTileSize(FVector2D(80, 80))
+					.AssetThumbnailLabel(EThumbnailLabel::AssetName)
+					.bForceShowPluginContent(true)
+					.bForceShowEngineContent(true)
 				]
 				+ SHorizontalBox::Slot()
 				[
@@ -1101,7 +1104,7 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 						.Text_Lambda([this](){
 						if (CurrentPresetLabel.IsEmpty())
 						{
-							return LOCTEXT("NewPresetNoCollectionSpecifiedMessage", "None - Preset will be added to Editor Presets.");
+							return LOCTEXT("NewPresetNoCollectionSpecifiedMessage", "None - Preset will be added to the default Personal Presets Collection.");
 						}
 						else {
 							return CurrentPresetLabel;
@@ -1111,8 +1114,6 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 				]					
 			],
 			FolderDialogArguments, true);
-
-		return FReply::Handled();
 	};
 
 	constexpr bool bShouldCloseMenuAfterSelection = true;
@@ -1162,59 +1163,24 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 		}
 
 		MenuBuilder.BeginSection(NoExtensionHook, LOCTEXT("ModelingPresetPanelHeaderManagePresets", "Manage Presets"));
-		MenuBuilder.AddWidget(
-			SNew(SButton)
-			.OnClicked(FOnClicked::CreateLambda(OpenNewPresetDialog))
-			.Content()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(4.0, 0.0f)
-			[
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
-			]
-		+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(4.0, 0.0f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ModelingPresetPanelCreateNewPreset", "Create New Preset"))
-				.Justification(ETextJustify::Center)
-				.Font(FAppStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
-			]
-			], FText());
 
-		MenuBuilder.AddWidget(
-			SNew(SButton)
-			.OnClicked_Lambda([this]() {IPresetEditorModule::Get().ExecuteOpenPresetEditor(); return FReply::Handled(); })
-			.Content()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(4.0, 0.0f)
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(4.0, 0.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ModelingPresetPanelOpenPresetManager", "Preset Manager"))
-					.Justification(ETextJustify::Center)
-					.Font(FAppStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
-				]
-			], FText());
+		FUIAction CreateNewPresetAction;
+		CreateNewPresetAction.ExecuteAction = FExecuteAction::CreateLambda(OpenNewPresetDialog);
+		MenuBuilder.AddMenuEntry(
+			FText(LOCTEXT("ModelingPresetPanelCreateNewPreset", "Create New Preset")),
+			FText(LOCTEXT("ModelingPresetPanelCreateNewPresetTooltip", "Create New Preset in specified Collection")),
+			FSlateIcon( FAppStyle::Get().GetStyleSetName(), "Icons.Plus"),
+			CreateNewPresetAction);
+
+		FUIAction OpenPresetManangerAction;
+		OpenPresetManangerAction.ExecuteAction = FExecuteAction::CreateLambda([this]() {
+			IPresetEditorModule::Get().ExecuteOpenPresetEditor();
+		});
+		MenuBuilder.AddMenuEntry(
+			FText(LOCTEXT("ModelingPresetPanelOpenPresetMananger", "Manage Presets...")),
+			FText(LOCTEXT("ModelingPresetPanelOpenPresetManagerTooltip", "Open Preset Manager to manage presets and their collections")),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"),
+			OpenPresetManangerAction);
 
 		MenuBuilder.EndSection();
 

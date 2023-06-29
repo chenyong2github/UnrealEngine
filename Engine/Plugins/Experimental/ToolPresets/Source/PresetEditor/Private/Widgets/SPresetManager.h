@@ -20,7 +20,7 @@ class SEditableTextBox;
 template<class ItemType> class STreeView;
 template<class ItemType> class SListView;
 class UInteractiveToolsPresetCollectionAsset;
-
+class FUICommandList;
 
 /**
  * Implements the preset manager panel.
@@ -56,6 +56,7 @@ public:
 		bool bEnabled = false;
 		FSoftObjectPath CollectionPath;
 		bool bIsDefaultCollection = false;
+		bool bIsRenaming = false;
 		FText EntryLabel;
 		FSlateBrush EntryIcon;
 		int32 Count = 0;
@@ -173,6 +174,8 @@ protected:
 
 private:
 
+	void BindCommands();
+
 	void RegeneratePresetTrees();
 
 	int32 GetTotalPresetCount() const;
@@ -184,13 +187,19 @@ private:
 	void HandleEditorTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
 	EVisibility ProjectPresetCollectionsVisibility() const;
 
+	TSharedPtr<SWidget> OnGetPresetContextMenuContent() const;
+	TSharedPtr<SWidget> OnGetCollectionContextMenuContent() const;
+
 	void GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry);
 	TSharedRef<ITableRow> HandleListGenerateRow(TSharedPtr<FPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable);
     void HandleListSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo);
 
-	EVisibility EditAreaVisibility() const;
+	bool EditAreaEnabled() const;
 	void SetCollectionEnabled(TSharedPtr<FPresetViewEntry> TreeEntry, ECheckBoxState State);
 	void DeletePresetFromCollection(TSharedPtr< FPresetViewEntry > Entry);
+
+	void CollectionRenameStarted(TSharedPtr<FPresetViewEntry> TreeEntry, TSharedPtr<SEditableTextBox> RenameWidget);
+	void CollectionRenameEnded(TSharedPtr<FPresetViewEntry> TreeEntry, const FText& NewText);
 
 	void DeleteSelectedUserPresetCollection();
 	void AddNewUserPresetCollection();
@@ -205,9 +214,19 @@ private:
 	UInteractiveToolsPresetCollectionAsset* GetCollectionFromEntry(TSharedPtr<FPresetViewEntry> Entry);
 	void SaveIfDefaultCollection(TSharedPtr<FPresetViewEntry> Entry);
 
+	void OnDeleteClicked();
+	bool CanDelete();
+
+	void OnRenameClicked();
+	bool CanRename();
+
 private:
+	
+	TSharedPtr<FUICommandList> UICommandList;
 
 	TWeakObjectPtr<UPresetUserSettings> UserSettings;
+
+	TWeakPtr< SListView<TSharedPtr<FPresetViewEntry> > >  LastFocusedList;
 
 	bool bAreProjectCollectionsExpanded = true;
 	TSharedPtr<SButton> ProjectCollectionsExpander;
@@ -228,6 +247,7 @@ private:
 
 	int32 TotalPresetCount;
 	bool bHasActiveCollection;
+	bool bHasPresetsInCollection;
 	FText ActiveCollectionLabel;
 	bool bIsActiveCollectionEnabled;
 

@@ -116,7 +116,11 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 		];
 
 
-	ComboButton->SetOnGetMenuContent(FOnGetContent::CreateLambda([this]() 
+	EThumbnailLabel::Type TileThumbnailLabel = InArgs._AssetThumbnailLabel;
+	bool bForceShowEngineContent = InArgs._bForceShowEngineContent;
+	bool bForceShowPluginContent = InArgs._bForceShowPluginContent;
+
+	ComboButton->SetOnGetMenuContent(FOnGetContent::CreateLambda([this, TileThumbnailLabel,bForceShowEngineContent, bForceShowPluginContent]()
 	{
 		// Configure filter for asset picker
 		FAssetPickerConfig Config;
@@ -129,8 +133,10 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 		Config.bFocusSearchBoxWhenOpened = true;
 		Config.bAllowNullSelection = true;
 		Config.bAllowDragging = false;
-		Config.ThumbnailLabel = EThumbnailLabel::Type::NoLabel;
+		Config.ThumbnailLabel = TileThumbnailLabel;
 		Config.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SToolInputAssetComboPanel::NewAssetSelected);
+		Config.bForceShowEngineContent = bForceShowEngineContent;
+		Config.bForceShowPluginContent = bForceShowPluginContent;
 
 		// build asset picker UI
 		TSharedRef<SToolInputAssetPicker> AssetPickerWidget = SNew( SToolInputAssetPicker )

@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"ContentBrowser",
 					"ContentBrowserData",
 					"EditorConfig",
+					"AssetTools",
 				}
 			);
 		}

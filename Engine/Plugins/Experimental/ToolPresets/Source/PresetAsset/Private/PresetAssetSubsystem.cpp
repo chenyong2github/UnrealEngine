@@ -49,7 +49,7 @@ void UPresetAssetSubsystem::InitializeDefaultCollection()
 	*/
 
 	DefaultCollection = NewObject<UInteractiveToolsPresetCollectionAsset>();
-	DefaultCollection->CollectionLabel = LOCTEXT("DefaultCollectionLabel", "Editor Presets");
+	DefaultCollection->CollectionLabel = LOCTEXT("DefaultCollectionLabel", "Personal Presets (Default)");
 	DefaultCollection->LoadEditorConfig();
 }
 

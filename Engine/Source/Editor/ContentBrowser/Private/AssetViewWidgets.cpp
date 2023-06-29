@@ -1911,6 +1911,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 					]
 
 					+SVerticalBox::Slot()
+					.AutoHeight()
 					[
 						SNew(SBorder)
 						.Padding(FMargin(2.0f, 3.0f))
@@ -1920,6 +1921,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 							+ SVerticalBox::Slot()
 							.Padding(2.0f,2.0f,0.0f,0.0f)
 							.VAlign(VAlign_Top)
+						    .AutoHeight()
 							.HAlign(IsFolder() ? HAlign_Center : HAlign_Left)
 							[
 								SNew(SBox)
