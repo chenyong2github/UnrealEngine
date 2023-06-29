@@ -33,6 +33,8 @@ public class RigVMDeveloper : ModuleRules
 					"Kismet",
                 }
 			);
+
+            PrivateIncludePathModuleNames.Add("RigVMEditor");
         }
     }
 }
