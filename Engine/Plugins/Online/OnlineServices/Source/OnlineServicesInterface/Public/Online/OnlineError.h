@@ -145,6 +145,22 @@ public:
 		return ErrorId;
 	}
 
+	FString GetFriendlyErrorCode() const
+	{
+		if (ErrorCode == Errors::ErrorCode::Success)
+		{
+			return TEXT("Success");
+		}
+		else if (Details)
+		{
+			return Details->GetFriendlyErrorCode(*this);
+		}
+		else
+		{
+			return GetErrorId();
+		}
+	}
+
 	const FOnlineError* GetInner() const
 	{
 		return Inner.IsValid() ? Inner.Get() : nullptr;
