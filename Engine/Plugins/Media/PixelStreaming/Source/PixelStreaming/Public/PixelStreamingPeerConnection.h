@@ -284,6 +284,7 @@ private:
 	std::unique_ptr<class FPeerWebRTCStatsSource> StatsSource;
 
 	bool IsSFU = false;
+	bool bIsDestroying = false;
 
 	// TODO these static methods can probably be moved off into a singleton or something
 	static void CreatePeerConnectionFactory();

@@ -257,6 +257,9 @@ FPixelStreamingPeerConnection::FPixelStreamingPeerConnection() = default;
 
 FPixelStreamingPeerConnection::~FPixelStreamingPeerConnection()
 {
+	// callbacks might still be fired as we're destroying this object, we want to make sure we dont try and access this still.
+	bIsDestroying = true;
+
 	// need to remove the audio/video sinks before deleting it.
 	if (PeerConnection)
 	{
@@ -796,7 +799,11 @@ void FPixelStreamingPeerConnection::CreateSDP(ESDPType SDPType, EReceiveMediaOpt
 			}
 		};
 
-		SetLocalDescription(SDP, OnSetLocalDescriptionSuccess, OnSetLocalDescriptionFail);
+		// prevents this callback from continuing if we're currently in the destructor
+		if (!bIsDestroying)
+		{
+			SetLocalDescription(SDP, OnSetLocalDescriptionSuccess, OnSetLocalDescriptionFail);
+		}
 	};
 
 	auto OnCreateSDPFail = [ErrorCallback](const FString& Error) {
