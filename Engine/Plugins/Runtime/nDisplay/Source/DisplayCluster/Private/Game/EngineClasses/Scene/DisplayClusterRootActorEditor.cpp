@@ -406,6 +406,12 @@ void ADisplayClusterRootActor::ResetClusterNodePreviewRendering_Editor()
 
 bool ADisplayClusterRootActor::ImplUpdatePreviewRenderFrame_Editor(const FString& InClusterNodeId)
 {
+	// Skip rendering on dedicated server
+	if (GetGameInstance() && GetGameInstance()->IsDedicatedServerInstance())
+	{
+		return false;
+	}
+
 	// Update cluster node for render:
 	if (PreviewRenderFrameClusterNodeId != InClusterNodeId)
 	{
