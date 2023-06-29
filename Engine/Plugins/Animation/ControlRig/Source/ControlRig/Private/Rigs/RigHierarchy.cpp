@@ -1937,9 +1937,10 @@ bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* In
 	const TElementDependencyMap* DependencyMapPtr = &InDependencyMap;
 
 #if WITH_EDITOR
+	// Keep this in function scope, since we might be taking a pointer to it.
+	TElementDependencyMap DependencyMapFromVM;
 	{
 		FScopeLock Lock(&ExecuteContextLock);
-		TElementDependencyMap DependencyMapFromVM;
 		if(ExecuteContext != nullptr && DependencyMapPtr->IsEmpty())
 		{
 			if(ExecuteContext->VM)
