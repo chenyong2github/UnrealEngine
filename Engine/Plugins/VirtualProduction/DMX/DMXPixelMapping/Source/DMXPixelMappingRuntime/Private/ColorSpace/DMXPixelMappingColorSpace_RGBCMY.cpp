@@ -70,7 +70,9 @@ void UDMXPixelMappingColorSpace_RGBCMY::PostEditChangeChainProperty(FPropertyCha
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttributeName, Name))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttributeName, Name) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_RGBCMY, LuminanceType) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_RGBCMY, LuminanceAttribute))
 	{
 		ClearCachedAttributeValues();
 	}
