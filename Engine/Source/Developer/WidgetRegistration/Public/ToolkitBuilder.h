@@ -98,33 +98,7 @@ protected:
 	FGetEditableToolPaletteConfigManager GetConfigManager;
 };
 
-/*
- * A simple struct to carry initialization data for an FToolkitBuilder
- */
-struct FToolkitBuilderArgs
-{
-	FToolkitBuilderArgs(const FName& InToolbarCustomizationName) : ToolbarCustomizationName(InToolbarCustomizationName) 
-	{
-	}
-	
-	/** Name of the toolbar this mode uses and can be used by external systems to customize that mode toolbar */
-	const FName& ToolbarCustomizationName;
-
-	/** A TSharedPointer to the FUICommandList for the current mode */
-	TSharedPtr<FUICommandList> ToolkitCommandList;
-
-	/** The FToolkitSections which holds the sections defined for this Toolkit */
-	TSharedPtr<FToolkitSections> ToolkitSections;
-
-	/** If bShowCategoryButtonLabels == true, the category button
-	* labels should be, else they are not displayed  */	
-	bool bShowCategoryButtonLabels;
-
-	/** If SelectedCategoryTitleVisibility == EVisibility::Visible, the selected
-	 * category title is visible, else it is not displayed  */	
-	EVisibility SelectedCategoryTitleVisibility;
-};
-
+struct FToolkitBuilderArgs;
 
 /**
  * The FToolElementRegistrationArgs which is specified for Toolkits
@@ -141,6 +115,20 @@ public:
 	
 	virtual  ~FToolkitBuilder() override;
 	
+	// Used to specify what happens when you click the category button of a category that is already active.
+	enum class ECategoryReclickBehavior : uint8
+	{
+		// Do nothing if the same category button is clicked.
+		NoEffect,
+
+		// Toggle the active category off, so no category is active.
+		ToggleOff,
+
+		// Do the same thing that would be done if we were switching from a different category. Note that
+		// this will trigger OnActivePaletteChanged.
+		TreatAsChanged,
+	};
+
 	/*
 	 * Initializes the data to necessary to build the category toolbar
 	 *
@@ -392,4 +380,39 @@ private:
 	/** If ActivePaletteButtonVisibility == EVisibility::Visible, the command buttons in the active palette
 	 * are visible, otherwise they are not displayed. By default the state is Visible  */
 	EVisibility ActivePaletteButtonVisibility = EVisibility::Visible;
+
+	/** Specifies what happens if you click the category button of an already-active catogory */
+	ECategoryReclickBehavior CategoryReclickBehavior = ECategoryReclickBehavior::NoEffect;
+};
+
+//~ This is defined after the class declaration so we can use the nested enum, which there isn't
+//~ a way to forward-declare.
+/*
+ * A simple struct to carry initialization data for an FToolkitBuilder
+ */
+struct FToolkitBuilderArgs
+{
+	FToolkitBuilderArgs(const FName& InToolbarCustomizationName) : ToolbarCustomizationName(InToolbarCustomizationName)
+	{
+	}
+
+	/** Name of the toolbar this mode uses and can be used by external systems to customize that mode toolbar */
+	const FName& ToolbarCustomizationName;
+
+	/** A TSharedPointer to the FUICommandList for the current mode */
+	TSharedPtr<FUICommandList> ToolkitCommandList;
+
+	/** The FToolkitSections which holds the sections defined for this Toolkit */
+	TSharedPtr<FToolkitSections> ToolkitSections;
+
+	/** If bShowCategoryButtonLabels == true, the category button
+	* labels should be, else they are not displayed  */
+	bool bShowCategoryButtonLabels;
+
+	/** If SelectedCategoryTitleVisibility == EVisibility::Visible, the selected
+	 * category title is visible, else it is not displayed  */
+	EVisibility SelectedCategoryTitleVisibility;
+
+	/** Specifies what happens if you click the category button of an already-active catogory */
+	FToolkitBuilder::ECategoryReclickBehavior CategoryReclickBehavior = FToolkitBuilder::ECategoryReclickBehavior::NoEffect;
 };

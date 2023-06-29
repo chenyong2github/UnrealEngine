@@ -227,6 +227,8 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 	ToolkitBuilderArgs.ToolkitCommandList = GetToolkitCommands();
 	ToolkitBuilderArgs.ToolkitSections = ToolkitSections;
 	ToolkitBuilderArgs.SelectedCategoryTitleVisibility = EVisibility::Collapsed;
+	// This lets us re-show the buttons if the user clicks a category with a tool still active.
+	ToolkitBuilderArgs.CategoryReclickBehavior = FToolkitBuilder::ECategoryReclickBehavior::TreatAsChanged;
 	ToolkitBuilder = MakeShared<FToolkitBuilder>(ToolkitBuilderArgs);
 	ToolkitBuilder->SetCategoryButtonLabelVisibility(UISettings->bShowCategoryButtonLabels);
 

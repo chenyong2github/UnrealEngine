@@ -92,7 +92,8 @@ FToolkitBuilder::FToolkitBuilder(const FToolkitBuilderArgs& Args) :
 	ToolbarCustomizationName(Args.ToolbarCustomizationName),
 	ToolkitCommandList(Args.ToolkitCommandList),
 	ToolkitSections(Args.ToolkitSections),
-	SelectedCategoryTitleVisibility(Args.SelectedCategoryTitleVisibility)
+	SelectedCategoryTitleVisibility(Args.SelectedCategoryTitleVisibility),
+	CategoryReclickBehavior(Args.CategoryReclickBehavior)
 {
 	SetCategoryButtonLabelVisibility(Args.bShowCategoryButtonLabels);
 	ResetWidget();
@@ -312,12 +313,20 @@ void FToolkitBuilder::TogglePalette(TSharedPtr<FToolPalette> Palette)
 	
 	if (ActivePalette && ActivePalette->LoadToolPaletteAction->GetCommandName() == CommandName)
 	{
-		return;
-/*
- *		@TODO: ~ enable this code for hiding category select on toggle		
- *		ActivePalette = nullptr;
-		ResetToolPaletteWidget();
-		return; */
+		switch (CategoryReclickBehavior)
+		{
+		case ECategoryReclickBehavior::NoEffect:
+			return;
+		case ECategoryReclickBehavior::ToggleOff:
+			ActivePalette = nullptr;
+			ResetToolPaletteWidget();
+			return;
+		case ECategoryReclickBehavior::TreatAsChanged:
+			// Fall through to the other handling
+			break;
+		default:
+			ensure(false);
+		}
 	}
 	
 	CreatePalette(Palette);
