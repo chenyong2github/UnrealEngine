@@ -541,6 +541,8 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 			
 			StopCaptureImpl(bAllowPendingFrameToBeProcess);
 
+			SetCaptureAudioDevice(FAudioDeviceHandle());
+
 			if (CaptureSource)
 			{
 				constexpr bool bFlushRenderingCommands = false;

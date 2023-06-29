@@ -181,7 +181,6 @@ protected:
 	void RegisterBufferListener(FAudioDevice* AudioDevice);
 	void UnregisterBufferListener(FAudioDevice* AudioDevice);
 
-private:
 	void RegisterAudioDevice(const FAudioDeviceHandle& InAudioDeviceHandle);
 	void UnregisterAudioDevice();
 
@@ -215,7 +214,7 @@ class FMainMediaIOAudioCapture : public FMediaIOAudioCapture
 {
 public:
 	FMainMediaIOAudioCapture();
-	virtual ~FMainMediaIOAudioCapture();
+	virtual ~FMainMediaIOAudioCapture() override;
 
 private:
 #if WITH_EDITOR
@@ -224,5 +223,5 @@ private:
 #endif
 
 	void RegisterMainAudioDevice();
-	void UnregisterMainAudioDevice();
+	void RegisterCurrentAudioDevice();
 };
