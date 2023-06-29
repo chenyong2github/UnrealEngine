@@ -93,6 +93,8 @@ private:
 private:
 	TWeakPtr<SWindow> ParentWindow;
 	TSharedPtr<SWidget> FooterContent;
+	/** The container for the Add and Cancel buttons. */
+	TSharedPtr<SWidget> AddCancelButtons;
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<SComboBox<TSharedPtr<FString>>> ParentComboBox;
 	TSharedPtr<SComboBox<TSharedPtr<FDisplayClusterConfiguratorPresetSize>>> PresetsComboBox;

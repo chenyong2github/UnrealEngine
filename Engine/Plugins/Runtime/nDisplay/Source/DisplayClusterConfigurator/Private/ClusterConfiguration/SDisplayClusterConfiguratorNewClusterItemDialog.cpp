@@ -261,7 +261,7 @@ void SDisplayClusterConfiguratorNewClusterItemDialog::Construct(const FArguments
 			.AutoHeight()
 			.Padding(2)
 			[
-				SNew(SUniformGridPanel)
+				SAssignNew(AddCancelButtons, SUniformGridPanel)
 				.MinDesiredSlotHeight(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotHeight"))
 				.MinDesiredSlotWidth(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotWidth"))
 				.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
@@ -387,7 +387,7 @@ FOptionalSize SDisplayClusterConfiguratorNewClusterItemDialog::GetDetailsMaxDesi
 {
 	// The maximum size of the details panel box is dynamically computed as the max window size minus the size of all
 	// other elements on the window, including any footer content.
-	return MaxWindowHeight - 128 - FooterContent->GetTickSpaceGeometry().GetLocalSize().Y;
+	return MaxWindowHeight - 128 - FooterContent->GetTickSpaceGeometry().GetLocalSize().Y - AddCancelButtons->GetTickSpaceGeometry().GetLocalSize().Y;
 }
 
 #undef LOCTEXT_NAMESPACE
