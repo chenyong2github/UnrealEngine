@@ -706,8 +706,20 @@ FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(c
 	}
 
 	// We assume that LODIndex and MaterialIndex are valid for the imported model
-	int32 SkeletalMeshMaterialIndex = -1;
+	int32 SkeletalMeshMaterialIndex = INDEX_NONE;
+	
+	// Check if we have lod info map to get the correct material index
+	if (const FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LODIndex))
+	{
+		if (LodInfo->LODMaterialMap.IsValidIndex(SectionIndex))
+		{
+			SkeletalMeshMaterialIndex = LodInfo->LODMaterialMap[SectionIndex];
+		}
+	}
 
+	// Only deduce index when the explicit mapping is not found or there is no remap
+	if (SkeletalMeshMaterialIndex == INDEX_NONE)
+	{
 	if (ImportedModel && ImportedModel->LODModels.IsValidIndex(LODIndex) && ImportedModel->LODModels[LODIndex].Sections.IsValidIndex(SectionIndex))
 	{
 		SkeletalMeshMaterialIndex = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
@@ -724,14 +736,6 @@ FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(c
 			}
 		}
 	}
-	
-	// Check if we have lod info map to get the correct material index
-	if (const FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LODIndex))
-	{
-		if (LodInfo->LODMaterialMap.IsValidIndex(SectionIndex))
-		{
-			SkeletalMeshMaterialIndex = LodInfo->LODMaterialMap[SectionIndex];
-		}
 	}
 	
 	if (SkeletalMesh->GetMaterials().IsValidIndex(SkeletalMeshMaterialIndex))
