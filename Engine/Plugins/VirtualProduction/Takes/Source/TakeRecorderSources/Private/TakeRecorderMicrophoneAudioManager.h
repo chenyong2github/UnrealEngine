@@ -70,6 +70,9 @@ private:
 	/** Builds the list of audio devices which will be used in the device menu */
 	void BuildDeviceInfoArray();
 
+	/** Returns whether audio device with given Id was found during enumeration */
+	bool IsAudioDeviceAvailable(const FString& InDeviceId);
+
 	/** The audio recorder object which manages low level recording of audio data */
 	TUniquePtr<IAudioCaptureEditor> AudioRecorder;
 };

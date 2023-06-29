@@ -113,9 +113,9 @@ void UTakeRecorderMicrophoneAudioManager::FinalizeRecording()
 
 int32 UTakeRecorderMicrophoneAudioManager::GetDeviceChannelCount()
 {
-	if (AudioInputDevice.DeviceId.Len() > 0)
+	if (!AudioInputDevice.DeviceId.IsEmpty())
 	{
-		for (FAudioInputDeviceInfoProperty DeviceInfo : AudioInputDevice.DeviceInfoArray)
+		for (const FAudioInputDeviceInfoProperty& DeviceInfo : AudioInputDevice.DeviceInfoArray)
 		{
 			if (DeviceInfo.DeviceId == AudioInputDevice.DeviceId)
 			{
@@ -125,6 +125,22 @@ int32 UTakeRecorderMicrophoneAudioManager::GetDeviceChannelCount()
 	}
 
 	return 0;
+}
+
+bool UTakeRecorderMicrophoneAudioManager::IsAudioDeviceAvailable(const FString& InDeviceId)
+{
+	if (!InDeviceId.IsEmpty())
+	{
+		for (const FAudioInputDeviceInfoProperty& DeviceInfo : AudioInputDevice.DeviceInfoArray)
+		{
+			if (DeviceInfo.DeviceId == InDeviceId)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void UTakeRecorderMicrophoneAudioManager::BuildDeviceInfoArray()
@@ -193,9 +209,18 @@ void UTakeRecorderMicrophoneAudioManager::BuildDeviceInfoArray()
 			return LeftLen < RightLen;
 		});
 
-	// Default to using the default input device if not already set
-	if (bFoundDefaultDevice && AudioInputDevice.DeviceId.IsEmpty())
+	if (bFoundDefaultDevice)
 	{
-		AudioInputDevice.DeviceId = DefaultDeviceInfo.DeviceId;
+		if (AudioInputDevice.DeviceId.IsEmpty())
+		{
+			// Default to using the default input device if not already set
+			AudioInputDevice.DeviceId = DefaultDeviceInfo.DeviceId;
+		}
+		else if (!IsAudioDeviceAvailable(AudioInputDevice.DeviceId))
+		{
+			// Revert to using the default input device if previously saved device is not available
+			AudioInputDevice.DeviceId = DefaultDeviceInfo.DeviceId;
+			UE_LOG(LogTakesCore, Error, TEXT("Previously saved audio input device unavailable. Falling back to default device \"%s\""), *DefaultDeviceInfo.DeviceName);
+		}
 	}
 }

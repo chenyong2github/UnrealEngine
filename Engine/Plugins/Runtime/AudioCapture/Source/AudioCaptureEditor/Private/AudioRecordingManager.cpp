@@ -228,12 +228,15 @@ TObjectPtr<USoundWave> FAudioRecordingManager::GetRecordedSoundWave(const FRecor
 			ProcessRecordedData(InSourceSettings);
 		}
 
-		if (RecordedSoundWaves[InSourceSettings.InputChannelNumber - 1] != nullptr)
+		const int32 ChannelIndex = InSourceSettings.InputChannelNumber - 1;
+		if (RecordedSoundWaves.IsValidIndex(ChannelIndex) && RecordedSoundWaves[ChannelIndex] != nullptr)
 		{
-			return RecordedSoundWaves[InSourceSettings.InputChannelNumber - 1];
+			return RecordedSoundWaves[ChannelIndex];
 		}
-
-		return CreateSoundWaveAsset(InSourceSettings);
+		else if (NumRecordedSamples > 0)
+		{
+			return CreateSoundWaveAsset(InSourceSettings);
+		}
 	}
 
 	return nullptr;
