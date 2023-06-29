@@ -78,6 +78,11 @@ public:
 	// Used to avoid showing some of the selection filter buttons in triedit (in the detail customization)
 	bool bDisplayPolygroupReliantControls = true;
 
+	// Whether to enable the different selection modes (in the detail customization)
+	bool bCanSelectVertices = true;
+	bool bCanSelectEdges = true;
+	bool bCanSelectFaces = true;
+
 	/** Invert current selection. If selection is empty, has same effect as Select All, and is similarly dependent on selection filter. */
 	UFUNCTION(CallInEditor, Category = SelectionActions)
 	void InvertSelection();

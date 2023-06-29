@@ -68,21 +68,46 @@ void FMeshTopologySelectionMechanicPropertiesDetails::CustomizeDetails(IDetailLa
 	ToolbarBuilder.BeginSection("SelectionFilter");
 	ToolbarBuilder.BeginBlockGroup();
 
-	TSharedPtr<IPropertyHandle> SelectVerticesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTopologySelectionMechanicProperties, bSelectVertices),
-		UMeshTopologySelectionMechanicProperties::StaticClass());
-	// This first bool we're not going to hide. Instead we're going to end up replacing it with the selection filter
-	//SelectVerticesHandle->MarkHiddenByCustomization();
-	AddToggleButtonForBool(SelectVerticesHandle, "PolyEd.SelectCorners");
+	// This first bool we're not going to hide. Instead we're going to end up replacing it with the selection filter below
+	TSharedPtr<IPropertyHandle> FirstHandle = nullptr;
 
-	TSharedPtr<IPropertyHandle> SelectEdgesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTopologySelectionMechanicProperties, bSelectEdges),
-		UMeshTopologySelectionMechanicProperties::StaticClass());
-	SelectEdgesHandle->MarkHiddenByCustomization();
-	AddToggleButtonForBool(SelectEdgesHandle, "PolyEd.SelectEdges");
+	// Hide or add a toggle button for the given property based on bCanSelect
+	auto ProcessButtonForBool = [&FirstHandle, AddToggleButtonForBool](TSharedPtr<IPropertyHandle> PropertyHandle, bool bCanSelect, FName IconName, bool& bCurrentlySelecting)
+	{
+		if (bCanSelect)
+		{
+			if (FirstHandle == nullptr)
+			{
+				FirstHandle = PropertyHandle;
+			}
+			else
+			{
+				PropertyHandle->MarkHiddenByCustomization();
+			}
+			AddToggleButtonForBool(PropertyHandle, IconName);
+		}
+		else
+		{
+			bCurrentlySelecting = false;
+			PropertyHandle->MarkHiddenByCustomization();
+		}
+	};
 
-	TSharedPtr<IPropertyHandle> SelectFacesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTopologySelectionMechanicProperties, bSelectFaces),
-		UMeshTopologySelectionMechanicProperties::StaticClass());
-	SelectFacesHandle->MarkHiddenByCustomization();
-	AddToggleButtonForBool(SelectFacesHandle, "PolyEd.SelectFaces");
+	ProcessButtonForBool(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTopologySelectionMechanicProperties, bSelectVertices), UMeshTopologySelectionMechanicProperties::StaticClass()),
+		Properties->bCanSelectVertices,
+		"PolyEd.SelectCorners",
+		Properties->bSelectVertices);
+
+	ProcessButtonForBool(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTopologySelectionMechanicProperties, bSelectEdges), UMeshTopologySelectionMechanicProperties::StaticClass()),
+		Properties->bCanSelectEdges,
+		"PolyEd.SelectEdges",
+		Properties->bSelectEdges);
+
+	ProcessButtonForBool(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMeshTopologySelectionMechanicProperties, bSelectFaces), UMeshTopologySelectionMechanicProperties::StaticClass()),
+		Properties->bCanSelectFaces,
+		"PolyEd.SelectFaces",
+		Properties->bSelectFaces);
+
 
 	ToolbarBuilder.EndBlockGroup();
 	ToolbarBuilder.EndSection();
@@ -109,23 +134,26 @@ void FMeshTopologySelectionMechanicPropertiesDetails::CustomizeDetails(IDetailLa
 
 	// Now we're going to take one of the old checkboxes and replace it with our seleciton filter. Doing this instead
 	// of creating a custom row allows us to use the original splitter, which will then align with the other splitters.
-	IDetailPropertyRow* SelectionFilterRow = DetailBuilder.EditDefaultProperty(SelectVerticesHandle);
+	if (FirstHandle)
+	{
+		IDetailPropertyRow* SelectionFilterRow = DetailBuilder.EditDefaultProperty(FirstHandle);
 
-	const FText SelectionFilterLabel = LOCTEXT("SelectionFilterLabel", "Selection Filter");
+		const FText SelectionFilterLabel = LOCTEXT("SelectionFilterLabel", "Selection Filter");
 
-	SelectionFilterRow->CustomWidget()
-		.NameContent()
-		[
-			SelectVerticesHandle->CreatePropertyNameWidget(SelectionFilterLabel, SelectionFilterLabel)
-		]
-		.ValueContent()
-		[
-			SNew(SBox)
-			.Padding(FMargin(0, ModelingUIConstants::DetailRowVertPadding))
+		SelectionFilterRow->CustomWidget()
+			.NameContent()
 			[
-				ToolbarBuilder.MakeWidget()
+				FirstHandle->CreatePropertyNameWidget(SelectionFilterLabel, SelectionFilterLabel)
 			]
-		];
+			.ValueContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0, ModelingUIConstants::DetailRowVertPadding))
+				[
+					ToolbarBuilder.MakeWidget()
+				]
+			];
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
