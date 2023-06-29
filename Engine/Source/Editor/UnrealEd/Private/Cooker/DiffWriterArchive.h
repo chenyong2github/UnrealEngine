@@ -7,12 +7,14 @@
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
+#include "Logging/LogVerbosity.h"
 #include "Serialization/Archive.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/PackageWriter.h"
 #include "Templates/RefCounting.h"
+#include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
@@ -22,6 +24,15 @@ class FUObjectThreadContext;
 class UObject;
 struct FUObjectSerializeContext;
 
+
+namespace UE::DiffWriterArchive
+{
+
+extern const TCHAR* const IndentToken;
+extern const TCHAR* const NewLineToken;
+typedef TUniqueFunction<void(ELogVerbosity::Type, FStringView)> FMessageCallback;
+
+}
 
 struct FDiffWriterDiffInfo
 {
@@ -248,6 +259,7 @@ public:
 		const int64 MaxDiffsToLog,
 		int32& InOutDiffsLogged,
 		TMap<FName, FArchiveDiffStats>& OutStats,
+		const UE::DiffWriterArchive::FMessageCallback& MessageCallback,
 		bool bSuppressLogging = false);
 
 	/** Creates map with mismatching callstacks. */
@@ -264,7 +276,8 @@ public:
 		const FPackageData& DestPackage,
 		const FString& AssetFilename,
 		const int32 MaxDiffsToLog,
-		const EPackageHeaderFormat PackageHeaderFormat = EPackageHeaderFormat::PackageFileSummary);
+		const EPackageHeaderFormat PackageHeaderFormat,
+		const UE::DiffWriterArchive::FMessageCallback& MessageCallback);
 
 	/** Returns a new linker for loading the specified package. */
 	static FLinkerLoad* CreateLinkerForPackage(
@@ -316,7 +329,8 @@ class FDiffWriterArchive
 public:
 	using FPackageData = FDiffWriterArchiveWriter::FPackageData;
 
-	FDiffWriterArchive(UObject* InAsset, const TCHAR* InFilename, bool bInCollectCallstacks = true, const FDiffWriterDiffMap* InDiffMap = nullptr);
+	FDiffWriterArchive(UObject* InAsset, const TCHAR* InFilename, UE::DiffWriterArchive::FMessageCallback&& InMessageCallback,
+		bool bInCollectCallstacks = true, const FDiffWriterDiffMap* InDiffMap = nullptr);
 	virtual ~FDiffWriterArchive();
 
 	FDiffWriterCallstacks& GetCallstacks()
@@ -352,4 +366,5 @@ public:
 private:
 	FDiffWriterCallstacks Callstacks;
 	FDiffWriterArchiveWriter StackTraceWriter;
+	UE::DiffWriterArchive::FMessageCallback MessageCallback;
 };

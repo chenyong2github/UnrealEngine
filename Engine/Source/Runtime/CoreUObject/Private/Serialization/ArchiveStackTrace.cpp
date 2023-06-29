@@ -170,6 +170,15 @@ void ForceKillPackageAndLinker(FLinkerLoad* Linker)
 	}
 }
 
+bool ShouldIgnoreDiff()
+{
+	return GIgnoreDiffManager.ShouldIgnoreDiff();
+}
+bool ShouldBypassDiff()
+{
+	return GIgnoreDiffManager.ShouldBypassDiff();
+}
+
 } // namespace UE::ArchiveStackTrace
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS;

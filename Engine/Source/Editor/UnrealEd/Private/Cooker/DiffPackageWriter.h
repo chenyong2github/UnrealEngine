@@ -121,11 +121,15 @@ private:
 	bool FilterPackageName(const FString& InWildcard);
 	void ConditionallyDumpObjList();
 	void ConditionallyDumpObjects();
+	UE::DiffWriterArchive::FMessageCallback GetDiffWriterMessageCallback();
+	virtual void OnDiffWriterMessage(ELogVerbosity::Type Verbosity, FStringView Message);
 
 	FDiffWriterDiffMap DiffMap[2];
 	TUniquePtr<FDiffWriterCallstacks> ExportsCallstacks;
 	FBeginPackageInfo BeginInfo;
 	TUniquePtr<ICookedPackageWriter> Inner;
+	const TCHAR* Indent = nullptr;
+	const TCHAR* NewLine = nullptr;
 	FString DumpObjListParams;
 	FString PackageFilter;
 	int64 ExportsDiffMapOffset[2] = {0, 0};

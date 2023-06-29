@@ -7,12 +7,14 @@
 #include "CookOnTheSide/CookLog.h"
 #include "CoreGlobals.h"
 #include "Engine/Engine.h"
+#include "Logging/LogMacros.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CString.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/Parse.h"
 #include "Misc/OutputDevice.h"
+#include "Misc/OutputDeviceHelper.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Templates/UniquePtr.h"
@@ -22,6 +24,8 @@
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogDiff, Log, All);
 
 FDiffPackageWriter::FDiffPackageWriter(TUniquePtr<ICookedPackageWriter>&& InInner)
 	: Inner(MoveTemp(InInner))
@@ -45,6 +49,10 @@ FDiffPackageWriter::FDiffPackageWriter(TUniquePtr<ICookedPackageWriter>&& InInne
 	}
 
 	ParseCmds();
+
+	Indent = FCString::Spc(FOutputDeviceHelper::FormatLogLine(ELogVerbosity::Warning,
+		LogDiff.GetCategoryName(), TEXT(""), GPrintLogTimes).Len());
+	NewLine = TEXT("\n"); // OutputDevices are responsible for remapping to LINE_TERMINATOR if desired
 }
 
 void FDiffPackageWriter::ParseCmds()
@@ -188,6 +196,24 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 	Inner->WritePackageData(LocalInfo, ExportsArchive, FileRegions);
 }
 
+UE::DiffWriterArchive::FMessageCallback FDiffPackageWriter::GetDiffWriterMessageCallback()
+{
+	return UE::DiffWriterArchive::FMessageCallback([this](ELogVerbosity::Type Verbosity, FStringView Message)
+		{
+			this->OnDiffWriterMessage(Verbosity, Message);
+		});
+}
+
+void FDiffPackageWriter::OnDiffWriterMessage(ELogVerbosity::Type Verbosity, FStringView Message)
+{
+	FString ResolvedText(Message);
+	check(this->Indent && this->NewLine);
+	ResolvedText.ReplaceInline(UE::DiffWriterArchive::IndentToken, this->Indent);
+	ResolvedText.ReplaceInline(UE::DiffWriterArchive::NewLineToken, this->NewLine);
+
+	FMsg::Logf(__FILE__, __LINE__, LogDiff.GetCategoryName(), Verbosity, TEXT("%s"), *ResolvedText);
+}
+
 TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerArchive(FName PackageName, UObject* Asset, uint16 MultiOutputIndex)
 {
 	// The entire package will be serialized to memory and then compared against package on disk.
@@ -196,12 +222,12 @@ TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerArchive(FName Pac
 		check(MultiOutputIndex < 2);
 		// Each difference will be logged with its Serialize call stack trace
 		return TUniquePtr<FLargeMemoryWriter>(new FDiffWriterArchive(Asset, *PackageName.ToString(),
-			true /* bInCollectCallstacks */, &DiffMap[MultiOutputIndex]));
+			GetDiffWriterMessageCallback(), true /* bInCollectCallstacks */, &DiffMap[MultiOutputIndex]));
 	}
 	else
 	{
 		return TUniquePtr<FLargeMemoryWriter>(new FDiffWriterArchive(Asset, *PackageName.ToString(),
-			false /* bInCollectCallstacks */));
+			GetDiffWriterMessageCallback(), false /* bInCollectCallstacks */));
 	}
 }
 

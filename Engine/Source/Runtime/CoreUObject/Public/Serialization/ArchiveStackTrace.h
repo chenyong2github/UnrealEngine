@@ -77,6 +77,8 @@ struct FPackageData
 COREUOBJECT_API bool LoadPackageIntoMemory(const TCHAR* InFilename,
 	FPackageData& OutPackageData, TUniquePtr<uint8>& OutLoadedBytes);
 COREUOBJECT_API void ForceKillPackageAndLinker(FLinkerLoad* Linker);
+COREUOBJECT_API bool ShouldIgnoreDiff();
+COREUOBJECT_API bool ShouldBypassDiff();
 
 } // namespace UE::ArchiveStackTrace
 
