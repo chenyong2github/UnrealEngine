@@ -434,9 +434,17 @@ private:
 	void RemoveReaderFromTls() const
 	{
 		int32 ReaderIndex = GetReadersTls().IndexOfByPredicate([this](FReaderNum ReaderNum) { return ReaderNum.Reader == this; });
-		checkfSlow(ReaderIndex != INDEX_NONE,
-			TEXT("Invalid usage of the race detector! No matching AcquireReadAccess(): %u readers, %u writers on thread %u"),
-			LoadState().ReaderNum, LoadState().WriterNum, LoadState().GetWriterThreadId());
+
+		ensureMsgf(ReaderIndex != INDEX_NONE,
+			TEXT("Either invalid usage of the access detector (no matching AcquireReadAccess()) or the access detector was trivially relocated (this instance is not registered): %u readers, %u writers on thread %u:\nCurrent thread %u callstack:\n%s"),
+			LoadState().ReaderNum, LoadState().WriterNum, LoadState().GetWriterThreadId(), 
+			FPlatformTLS::GetCurrentThreadId(), *GetCurrentThreadCallstack());
+
+		if (ReaderIndex == INDEX_NONE)
+		{
+			return; // to avoid asserting on the next line inside TArray
+		}
+
 		uint32 ReaderNum = --GetReadersTls()[ReaderIndex].Num;
 		if (ReaderNum == 0)
 		{
@@ -556,8 +564,11 @@ public:
 		if (LocalState.ReaderNum >= 1)
 		{	// check that all readers are on the current thread
 			int32 ReaderIndex = GetReadersTls().IndexOfByPredicate([this](FReaderNum ReaderNum) { return ReaderNum.Reader == this; });
-			ensureMsgf(ReaderIndex != INDEX_NONE, TEXT("Race detector is not trivially copyable while this delegate is copied trivially. Consider changing this delegate to use `FNotThreadSafeNotCheckedDelegateUserPolicy`"));
-			
+
+			ensureMsgf(ReaderIndex != INDEX_NONE, 
+				TEXT("Either a race detected (%u reader(s) on another thread(s) while acquiring write access on the current thread) or the access detector was trivially relocated:\nCurrent thread %u callstack:\n%s"), 
+				LocalState.ReaderNum, FPlatformTLS::GetCurrentThreadId(), *GetCurrentThreadCallstack());
+
 			if (ReaderIndex == INDEX_NONE)
 			{
 				return; // to avoid asserting on the next line inside TArray

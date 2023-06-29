@@ -459,6 +459,50 @@ bool FMRSWRecursiveAccessDetectorTest::RunTest(const FString& Parameters)
 #pragma warning(pop)
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMRSWRecursiveAccessDetectorTrivialRelocationTest, "System.Core.MRSWRecursiveAccessDetector.TrivialRelocation", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+bool FMRSWRecursiveAccessDetectorTrivialRelocationTest::RunTest(const FString& Parameters)
+{
+#pragma warning(push)
+#pragma warning(disable:6001) // "Using uninitialized memory" warning
+
+#if 0
+	{	// trivial relocation by shrinking a TArray while read-accessed is not supported by the race detector. asserts, must provide a useful message
+		TArray<FMRSWRecursiveAccessDetector> Arr;
+
+		Arr.AddDefaulted();
+		Arr.AddDefaulted();
+
+		Arr[1].AcquireReadAccess(); // acquire read access on the old instance
+
+		Arr.RemoveAtSwap(0); // remove the unused first element
+
+		Arr.Shrink(); // trigger trivial relocation
+
+		Arr[0].ReleaseReadAccess(); // release read access on the new broken instance
+	}
+#endif
+
+	{	// trivial relocation by shrinking a TArray while write-accessed is supported by the race detector
+		TArray<FMRSWRecursiveAccessDetector> Arr;
+
+		Arr.AddDefaulted();
+		Arr.AddDefaulted();
+
+		Arr[1].AcquireWriteAccess(); // acquire access on the old instance
+
+		Arr.RemoveAtSwap(0); // remove the unused first element
+
+		Arr.Shrink(); // trigger trivial relocation
+
+		Arr[0].ReleaseWriteAccess(); // release access on the new broken instance
+	}
+
+	return true;
+
+#pragma warning(pop)
+}
+
 template<uint64 Num, typename AccessDetectorType>
 void RWAccessDetectorPerfTest()
 {
