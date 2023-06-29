@@ -367,6 +367,12 @@ private:
 			return TEXT("[none]");
 		}
 
+		// to get the callstack of another thread we suspend it first. it's a bad idea to suspend the current thread
+		if (FPlatformTLS::GetCurrentThreadId() == ThreadId)
+		{
+			return GetCurrentThreadCallstack();
+		}
+
 		const SIZE_T StackTraceSize = 65536;
 		ANSICHAR StackTrace[StackTraceSize] = { 0 };
 		FPlatformStackWalk::ThreadStackWalkAndDump(StackTrace, StackTraceSize, 0, ThreadId);
