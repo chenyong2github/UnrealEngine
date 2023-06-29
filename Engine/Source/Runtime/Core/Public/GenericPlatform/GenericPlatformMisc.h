@@ -279,6 +279,18 @@ namespace EErrorReportMode
 }
 
 
+/**
+ * Enumerates supported message dialog category types.
+ */
+enum class EAppMsgCategory : uint8
+{
+	Warning,
+	Error,
+	Success,
+	Info,
+};
+
+
 namespace EAppMsgType
 {
 	/**

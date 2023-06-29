@@ -191,7 +191,7 @@ class FZenDashboardApp
 				FText Title = LOCTEXT("ConfirmToDeleteZenServerData_Title", "Zen Server Data Delete");
 				FText ConfirmMessage = FText::Format(LOCTEXT("ConfirmToDeleteZenServerData", "You are about to delete all local Zen Server data at:\n\n{0}\n\nThis will require you to build or download all data stored there which can take a long time. Are you sure you want to proceed?"),
 					FText::FromString(RunContext.GetDataPath()));
-				EAppReturnType::Type OkToDelete = OpenModalMessageDialog_Internal(EAppMsgType::YesNo, ConfirmMessage, Title, Window);
+				EAppReturnType::Type OkToDelete = OpenModalMessageDialog_Internal(EAppMsgCategory::Warning, EAppMsgType::YesNo, ConfirmMessage, Title, Window);
 				if (OkToDelete == EAppReturnType::No)
 				{
 					return;
@@ -539,11 +539,11 @@ private:
 		return LOCTEXT("WindowTitle", "Zen Dashboard");
 	}
 
-	EAppReturnType::Type OnModalMessageDialog(EAppMsgType::Type InMessage, const FText& InText, const FText& InTitle)
+	EAppReturnType::Type OnModalMessageDialog(EAppMsgCategory InMessageCategory, EAppMsgType::Type InMessage, const FText& InText, const FText& InTitle)
 	{
 		if (IsInGameThread() && FSlateApplication::IsInitialized() && FSlateApplication::Get().CanAddModalWindow())
 		{
-			return OpenModalMessageDialog_Internal(InMessage, InText, InTitle, Window);
+			return OpenModalMessageDialog_Internal(InMessageCategory, InMessage, InText, InTitle, Window);
 		}
 		else
 		{
@@ -553,12 +553,12 @@ private:
 
 	void InstallMessageDialogOverride()
 	{
-		FCoreDelegates::ModalErrorMessage.BindRaw(this, &FZenDashboardApp::OnModalMessageDialog);
+		FCoreDelegates::ModalMessageDialog.BindRaw(this, &FZenDashboardApp::OnModalMessageDialog);
 	}
 
 	void RemoveMessageDialogOverride()
 	{
-		FCoreDelegates::ModalErrorMessage.Unbind();
+		FCoreDelegates::ModalMessageDialog.Unbind();
 	}
 };
 

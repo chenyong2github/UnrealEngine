@@ -208,7 +208,7 @@ public:
 	static CORE_API FSimpleMulticastDelegate ColorPickerChanged;
 
 	/** requests to open a message box */
-	static CORE_API TDelegate<EAppReturnType::Type(EAppMsgType::Type, const FText&, const FText&)> ModalErrorMessage;
+	static CORE_API TDelegate<EAppReturnType::Type(EAppMsgCategory, EAppMsgType::Type, const FText&, const FText&)> ModalMessageDialog;
 
 	/** Called when the user accepts an invitation to the current game */
 	static CORE_API TMulticastDelegate<void(const FString&, const FString&)> OnInviteAccepted;

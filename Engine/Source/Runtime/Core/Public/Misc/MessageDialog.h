@@ -29,17 +29,21 @@ struct FMessageDialog
 
 	/**
 	 * Open a modal message box dialog
+	 * @param MessageCategory Controls the icon used for the dialog
 	 * @param MessageType Controls buttons dialog should have
 	 * @param Message Text of message to show
 	 * @param Title Optional title to use (defaults to "Message")
 	*/
 	static CORE_API EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message);
 	static CORE_API EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText& Title);
+	static CORE_API EAppReturnType::Type Open( EAppMsgCategory MessageCategory, EAppMsgType::Type MessageType, const FText& Message);
+	static CORE_API EAppReturnType::Type Open( EAppMsgCategory MessageCategory, EAppMsgType::Type MessageType, const FText& Message, const FText& Title);
 	UE_DEPRECATED(5.3, "Use the overload of Open that takes the Title by-value.")
 	static CORE_API EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText* OptTitle);
 
 	/**
 	 * Open a modal message box dialog
+	 * @param MessageCategory Controls the icon used for the dialog
 	 * @param MessageType Controls buttons dialog should have
 	 * @param DefaultValue If the application is Unattended, the function will log and return DefaultValue
 	 * @param Message Text of message to show
@@ -47,6 +51,8 @@ struct FMessageDialog
 	*/
 	static CORE_API EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message);
 	static CORE_API EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText& Title);
+	static CORE_API EAppReturnType::Type Open(EAppMsgCategory MessageCategory, EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message);
+	static CORE_API EAppReturnType::Type Open(EAppMsgCategory MessageCategory, EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText& Title);
 	UE_DEPRECATED(5.3, "Use the overload of Open that takes the Title by-value.")
 	static CORE_API EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle);
 };

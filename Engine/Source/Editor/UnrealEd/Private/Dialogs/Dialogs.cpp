@@ -39,24 +39,41 @@ class SChoiceDialog : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SChoiceDialog )	{}
-		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
+		SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
 		SLATE_ATTRIBUTE(FText, Message)	
 		SLATE_ATTRIBUTE(float, WrapMessageAt)
-		SLATE_ATTRIBUTE(EAppMsgType::Type, MessageType)
+		SLATE_ARGUMENT(EAppMsgCategory, MessageCategory)
+		SLATE_ARGUMENT(EAppMsgType::Type, MessageType)
 	SLATE_END_ARGS()
 
 	BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 	void Construct( const FArguments& InArgs )
 	{
-		ParentWindow = InArgs._ParentWindow.Get();
+		ParentWindow = InArgs._ParentWindow;
 		ParentWindow->SetWidgetToFocusOnActivate(SharedThis(this));
 		Response = EAppReturnType::Cancel;
-		MessageType = InArgs._MessageType.Get();
+		MessageType = InArgs._MessageType;
 
 		FSlateFontInfo MessageFont( FAppStyle::GetFontStyle("StandardDialog.LargeFont"));
 		MyMessage = InArgs._Message;
 
 		TSharedPtr<SUniformGridPanel> ButtonBox;
+
+		const FSlateBrush* IconBrush = FAppStyle::Get().GetBrush("Icons.WarningWithColor.Large");
+		switch (InArgs._MessageCategory)
+		{
+		case EAppMsgCategory::Error:
+			IconBrush = FAppStyle::Get().GetBrush("Icons.ErrorWithColor.Large");
+			break;
+		case EAppMsgCategory::Success:
+			IconBrush = FAppStyle::Get().GetBrush("Icons.SuccessWithColor.Large");
+			break;
+		case EAppMsgCategory::Info:
+			IconBrush = FAppStyle::Get().GetBrush("Icons.InfoWithColor.Large");
+			break;
+		default:
+			break;
+		}
 
 		this->ChildSlot
 		[	
@@ -80,7 +97,7 @@ public:
 					[
 						SNew(SImage)
 						.DesiredSizeOverride(FVector2D(24.f, 24.f))
-						.Image(FAppStyle::Get().GetBrush("Icons.WarningWithColor.Large"))
+						.Image(IconBrush)
 					]
 
 					+SHorizontalBox::Slot()
@@ -356,7 +373,7 @@ private:
 };
 
 
-void CreateMsgDlgWindow(TSharedPtr<SWindow>& OutWindow, TSharedPtr<SChoiceDialog>& OutDialog, EAppMsgType::Type InMessageType,
+void CreateMsgDlgWindow(TSharedPtr<SWindow>& OutWindow, TSharedPtr<SChoiceDialog>& OutDialog, EAppMsgCategory InMessageCategory, EAppMsgType::Type InMessageType,
 						const FText& InMessage, const FText& InTitle, FOnMsgDlgResult ResultCallback=NULL)
 {
 	OutWindow = SNew(SWindow)
@@ -369,6 +386,7 @@ void CreateMsgDlgWindow(TSharedPtr<SWindow>& OutWindow, TSharedPtr<SChoiceDialog
 		.ParentWindow(OutWindow)
 		.Message(InMessage)
 		.WrapMessageAt(512.0f)
+		.MessageCategory(InMessageCategory)
 		.MessageType(InMessageType);
 
 	OutDialog->ResultCallback = ResultCallback;
@@ -376,7 +394,7 @@ void CreateMsgDlgWindow(TSharedPtr<SWindow>& OutWindow, TSharedPtr<SChoiceDialog
 	OutWindow->SetContent(OutDialog.ToSharedRef());
 }
 
-EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType, EAppReturnType::Type InDefaultValue, const FText& InMessage, const FText& InTitle)
+EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgCategory InMessageCategory, EAppMsgType::Type InMessageType, EAppReturnType::Type InDefaultValue, const FText& InMessage, const FText& InTitle)
 {
 	EAppReturnType::Type Response = InDefaultValue;
 	if (FApp::IsUnattended() == true || GIsRunningUnattendedScript)
@@ -388,7 +406,7 @@ EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType,
 		TSharedPtr<SWindow> MsgWindow = NULL;
 		TSharedPtr<SChoiceDialog> MsgDialog = NULL;
 
-		CreateMsgDlgWindow(MsgWindow, MsgDialog, InMessageType, InMessage, InTitle);
+		CreateMsgDlgWindow(MsgWindow, MsgDialog, InMessageCategory, InMessageType, InMessage, InTitle);
 
 		GEditor->EditorAddModalWindow(MsgWindow.ToSharedRef());
 
@@ -398,7 +416,7 @@ EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType,
 	return Response;
 }
 
-EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle)
+EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgCategory InMessageCategory, EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle)
 {
 	EAppReturnType::Type DefaultValue = EAppReturnType::Yes;
 	switch (InMessageType)
@@ -440,17 +458,17 @@ EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType,
 		}
 	}
 
-	return OpenMessageDialog_Internal(InMessageType, DefaultValue, InMessage, InTitle);
+	return OpenMessageDialog_Internal(InMessageCategory, InMessageType, DefaultValue, InMessage, InTitle);
 }
 
 EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle)
 {
-	return OpenMessageDialog_Internal(InMessageType, InMessage, InTitle);
+	return OpenMessageDialog_Internal(EAppMsgCategory::Warning, InMessageType, InMessage, InTitle);
 }
 
 EAppReturnType::Type OpenMsgDlgInt(EAppMsgType::Type InMessageType, EAppReturnType::Type InDefaultValue, const FText& InMessage, const FText& InTitle)
 {
-	return OpenMessageDialog_Internal(InMessageType, InDefaultValue, InMessage, InTitle);
+	return OpenMessageDialog_Internal(EAppMsgCategory::Warning, InMessageType, InDefaultValue, InMessage, InTitle);
 }
 
 TSharedRef<SWindow> OpenMsgDlgInt_NonModal(EAppMsgType::Type InMessageType, const FText& InMessage, const FText& InTitle,
@@ -459,7 +477,7 @@ TSharedRef<SWindow> OpenMsgDlgInt_NonModal(EAppMsgType::Type InMessageType, cons
 	TSharedPtr<SWindow> MsgWindow = NULL;
 	TSharedPtr<SChoiceDialog> MsgDialog = NULL;
 
-	CreateMsgDlgWindow(MsgWindow, MsgDialog, InMessageType, InMessage, InTitle, ResultCallback);
+	CreateMsgDlgWindow(MsgWindow, MsgDialog, EAppMsgCategory::Warning, InMessageType, InMessage, InTitle, ResultCallback);
 
 	FSlateApplication::Get().AddWindow(MsgWindow.ToSharedRef());
 

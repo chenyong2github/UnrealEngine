@@ -48,10 +48,11 @@ public:
 	 * @param Message 		Text of the message to show
 	 * @param MessageType 	Specifies which buttons the dialog should have
 	 * @param DefaultValue 	If the application is Unattended, the function will log and return DefaultValue
+	 * @param MessageCategory The category of the message (affects the icon used)
 	 * @return The result of the users decision, or DefaultValue if running in unattended mode.
 	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "Show Message Dialog", Category = "Editor Scripting | Message Dialog")
-	static TEnumAsByte<EAppReturnType::Type> ShowMessage(const FText& Title, const FText& Message, TEnumAsByte<EAppMsgType::Type> MessageType, TEnumAsByte<EAppReturnType::Type> DefaultValue = EAppReturnType::Type::No);
+	static TEnumAsByte<EAppReturnType::Type> ShowMessage(const FText& Title, const FText& Message, TEnumAsByte<EAppMsgType::Type> MessageType, TEnumAsByte<EAppReturnType::Type> DefaultValue = EAppReturnType::Type::No, EAppMsgCategory MessageCategory = EAppMsgCategory::Warning);
 
 	/**
 	* Open a modal suppressable warning window, if suppressed will return the default value

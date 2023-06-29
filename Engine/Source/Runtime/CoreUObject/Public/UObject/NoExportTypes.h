@@ -419,6 +419,19 @@ enum class EPropertyAccessChangeNotifyMode : uint8
 };
 
 /**
+ * Enumerates supported message dialog category types.
+ * @note Mirrored from GenericPlatformMisc.h
+ */
+UENUM(BlueprintType)
+enum class EAppMsgCategory : uint8
+{
+	Warning,
+	Error,
+	Success,
+	Info,
+};
+
+/**
 * Enum denoting message dialog return types.
 * @note Mirrored from GenericPlatformMisc.h
 */

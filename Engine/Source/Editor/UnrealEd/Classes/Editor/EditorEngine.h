@@ -1626,12 +1626,13 @@ public:
 
 	/** 
 	 * Displays a modal message dialog 
+	 * @param	InMessageCategory Category of the message box
 	 * @param	InMessage	Type of the message box
 	 * @param	InText		Message to display
 	 * @param	InTitle		Title for the message box
 	 * @return	Returns the result of the modal message box
 	 */
-	UNREALED_API EAppReturnType::Type OnModalMessageDialog(EAppMsgType::Type InMessage, const FText& InText, const FText& InTitle);
+	UNREALED_API EAppReturnType::Type OnModalMessageDialog(EAppMsgCategory InMessageCategory, EAppMsgType::Type InMessage, const FText& InText, const FText& InTitle);
 
 	/** 
 	 * Returns whether an object should replace an exisiting one or not 

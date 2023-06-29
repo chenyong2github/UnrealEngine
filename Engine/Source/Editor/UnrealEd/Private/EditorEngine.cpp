@@ -1041,7 +1041,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 
 	check(!HasAnyFlags(RF_ClassDefaultObject));
 
-	FCoreDelegates::ModalErrorMessage.BindUObject(this, &UEditorEngine::OnModalMessageDialog);
+	FCoreDelegates::ModalMessageDialog.BindUObject(this, &UEditorEngine::OnModalMessageDialog);
 	FCoreUObjectDelegates::ShouldLoadOnTop.BindUObject(this, &UEditorEngine::OnShouldLoadOnTop);
 	FCoreDelegates::PreWorldOriginOffset.AddUObject(this, &UEditorEngine::PreWorldOriginOffset);
 	FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UEditorEngine::OnAssetLoaded);
@@ -1398,7 +1398,7 @@ void UEditorEngine::FinishDestroy()
 
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);
-		FCoreDelegates::ModalErrorMessage.Unbind();
+		FCoreDelegates::ModalMessageDialog.Unbind();
 		FCoreUObjectDelegates::ShouldLoadOnTop.Unbind();
 		FCoreDelegates::PreWorldOriginOffset.RemoveAll(this);
 		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
@@ -4909,11 +4909,11 @@ void UEditorEngine::CloseEntryPopupWindow()
 	}
 }
 
-EAppReturnType::Type UEditorEngine::OnModalMessageDialog(EAppMsgType::Type InMessage, const FText& InText, const FText& InTitle)
+EAppReturnType::Type UEditorEngine::OnModalMessageDialog(EAppMsgCategory InMessageCategory, EAppMsgType::Type InMessage, const FText& InText, const FText& InTitle)
 {
 	if( IsInGameThread() && FSlateApplication::IsInitialized() && FSlateApplication::Get().CanAddModalWindow() )
 	{
-		return OpenMessageDialog_Internal(InMessage, InText, InTitle);
+		return OpenMessageDialog_Internal(InMessageCategory, InMessage, InText, InTitle);
 	}
 	else
 	{

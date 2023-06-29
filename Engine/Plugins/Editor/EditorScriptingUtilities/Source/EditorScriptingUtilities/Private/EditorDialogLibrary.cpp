@@ -18,9 +18,9 @@
 
 #define LOCTEXT_NAMESPACE "EditorDialogLibrary"
 
-TEnumAsByte<EAppReturnType::Type> UEditorDialogLibrary::ShowMessage(const FText& Title, const FText& Message, TEnumAsByte<EAppMsgType::Type> MessageType, TEnumAsByte<EAppReturnType::Type> DefaultValue)
+TEnumAsByte<EAppReturnType::Type> UEditorDialogLibrary::ShowMessage(const FText& Title, const FText& Message, TEnumAsByte<EAppMsgType::Type> MessageType, TEnumAsByte<EAppReturnType::Type> DefaultValue, EAppMsgCategory MessageCategory)
 {
-	return FMessageDialog::Open(MessageType, DefaultValue, Message, Title);
+	return FMessageDialog::Open(MessageCategory, MessageType, DefaultValue, Message, Title);
 }
 
 bool UEditorDialogLibrary::ShowSuppressableWarningDialog(const FText& Title, const FText& Message, const FString& InIniSettingName, const FString& InIniSettingFileNameOverride, bool bDefaultValue)
