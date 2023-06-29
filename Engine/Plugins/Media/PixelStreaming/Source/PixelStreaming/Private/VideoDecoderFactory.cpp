@@ -68,15 +68,17 @@ namespace UE::PixelStreaming
 		// some reason unsupported, then we fall through to negotiating codecs.
 		if (!NegotiateCodecs)
 		{
-			SupportedFormats.clear();
-			AddSupportedCodecFormats(SelectedCodec, CodecMap, SupportedFormats);
+			std::vector<webrtc::SdpVideoFormat> TempSupportedFormats;
+			AddSupportedCodecFormats(SelectedCodec, CodecMap, TempSupportedFormats);
 			
-			if (SupportedFormats.empty())
+			if (TempSupportedFormats.empty())
 			{
 				UE_LOG(LogPixelStreaming, Error, TEXT("Selected codec was not a supported codec, falling back to negotiating codecs..."));
 			}
 			else
 			{
+				SupportedFormats.clear();
+				SupportedFormats = TempSupportedFormats;
 				return SupportedFormats;
 			}
 		}
