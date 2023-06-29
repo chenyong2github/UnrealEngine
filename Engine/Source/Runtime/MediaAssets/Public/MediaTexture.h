@@ -85,7 +85,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta=(DisplayName="Total number of Mipmaps to output"))
 	uint8 NumMips;
 
-	/** Enable new style output (default = false). */
+	/** Enable new style output. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta = (DisplayName = "Enable new style output"))
 	bool NewStyleOutput;
 
@@ -265,6 +265,7 @@ public:
 
 	MEDIAASSETS_API virtual FString GetDesc() override;
 	MEDIAASSETS_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	MEDIAASSETS_API virtual void PostInitProperties() override;
 	MEDIAASSETS_API virtual void PostLoad() override;
 	MEDIAASSETS_API virtual bool IsPostLoadThreadSafe() const override;
 

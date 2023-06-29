@@ -275,6 +275,18 @@ void UMediaTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 
+void UMediaTexture::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+#if WITH_EDITORONLY_DATA
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad))
+	{
+		NewStyleOutput = true;
+	}
+#endif
+}
+
 void UMediaTexture::PostLoad()
 {
 	Super::PostLoad();
