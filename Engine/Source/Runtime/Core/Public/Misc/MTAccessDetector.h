@@ -355,9 +355,17 @@ private:
 			ensureMsgf(InState.GetWriterThreadId() == CurrentThreadId,
 				TEXT("Data race detected! Acquiring read access on thread %u concurrently with %d writers on thread %u:\nCurrent thread %u callstack:\n%s\nWriter thread %u callstack:\n%s"),
 				CurrentThreadId, InState.WriterNum, InState.GetWriterThreadId(), 
-				CurrentThreadId, *GetThreadCallstack(CurrentThreadId),
+				CurrentThreadId, *GetCurrentThreadCallstack(),
 				InState.GetWriterThreadId(), *GetThreadCallstack(InState.GetWriterThreadId()));
 		}
+	}
+
+	static FString GetCurrentThreadCallstack()
+	{
+		const SIZE_T StackTraceSize = 65536;
+		ANSICHAR StackTrace[StackTraceSize] = { 0 };
+		FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 0);
+		return StackTrace;
 	}
 
 	static FString GetThreadCallstack(uint32 ThreadId)
@@ -487,7 +495,7 @@ public:
 			TEXT("Race detector destroyed while being accessed on another thread: %d readers, %d writers on thread %u:\nCurrent thread %u callstack:\n%s\nWriter thread %u callstack:\n%s"),
 			LoadState().ReaderNum - ExpectedState.ReaderNum, 
 			LoadState().WriterNum - ExpectedState.WriterNum, LoadState().GetWriterThreadId(), 
-			FPlatformTLS::GetCurrentThreadId(), *GetThreadCallstack(FPlatformTLS::GetCurrentThreadId()),
+			FPlatformTLS::GetCurrentThreadId(), *GetCurrentThreadCallstack(),
 			LoadState().GetWriterThreadId(), *GetThreadCallstack(LoadState().GetWriterThreadId()));
 	}
 
@@ -557,8 +565,7 @@ public:
 
 			ensureMsgf(GetReadersTls()[ReaderIndex].Num == LocalState.ReaderNum,
 				TEXT("Data race detected: %d reader(s) on another thread(s) while acquiring write access.\nCurrent thread %u callstack:\n%s"),
-				LocalState.ReaderNum - GetReadersTls()[ReaderIndex].Num,
-				FPlatformTLS::GetCurrentThreadId(), *GetThreadCallstack(FPlatformTLS::GetCurrentThreadId()));
+				LocalState.ReaderNum - GetReadersTls()[ReaderIndex].Num, FPlatformTLS::GetCurrentThreadId(), *GetCurrentThreadCallstack());
 		}
 
 		uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -567,7 +574,7 @@ public:
 			ensureMsgf(LocalState.GetWriterThreadId() == CurrentThreadId,
 				TEXT("Data race detected: acquiring write access on thread %u concurrently with %d writers on thread %u:\nCurrent thread %u callstack:\n%s\nWriter thread %u callstack:\n%s"), 
 				CurrentThreadId, LocalState.WriterNum, LocalState.GetWriterThreadId(), 
-				CurrentThreadId, *GetThreadCallstack(CurrentThreadId),
+				CurrentThreadId, *GetCurrentThreadCallstack(),
 				LocalState.GetWriterThreadId(), *GetThreadCallstack(LocalState.GetWriterThreadId()));
 		}
 
@@ -580,7 +587,7 @@ public:
 			LocalState.ReaderNum, PrevState.ReaderNum,
 			LocalState.WriterNum, PrevState.WriterNum,
 			LocalState.GetWriterThreadId(), PrevState.GetWriterThreadId(), 
-			CurrentThreadId, *GetThreadCallstack(CurrentThreadId),
+			CurrentThreadId, *GetCurrentThreadCallstack(),
 			PrevState.GetWriterThreadId(), *GetThreadCallstack(PrevState.GetWriterThreadId()));
 	}
 
@@ -607,7 +614,7 @@ public:
 			LocalState.ReaderNum, PrevState.ReaderNum,
 			LocalState.WriterNum, PrevState.WriterNum,
 			LocalState.GetWriterThreadId(), PrevState.GetWriterThreadId(), 
-			FPlatformTLS::GetCurrentThreadId(), *GetThreadCallstack(FPlatformTLS::GetCurrentThreadId()),
+			FPlatformTLS::GetCurrentThreadId(), *GetCurrentThreadCallstack(),
 			PrevState.GetWriterThreadId(), *GetThreadCallstack(PrevState.GetWriterThreadId()));
 	}
 
