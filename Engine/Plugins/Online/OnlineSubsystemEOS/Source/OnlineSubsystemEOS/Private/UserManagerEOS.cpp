@@ -1375,7 +1375,10 @@ void FUserManagerEOS::ResolveUniqueNetIds(int32 LocalUserNum, const TArray<EOS_P
 	}
 	else
 	{
-		Callback(ResolvedUniqueNetIds);
+		EOSSubsystem->ExecuteNextTick([Callback, ResolvedUniqueNetIds]()
+			{
+				Callback(ResolvedUniqueNetIds);
+			});
 	}
 }
 
