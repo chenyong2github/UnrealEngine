@@ -125,14 +125,17 @@ public:
 
 	static UPixelStreamingDelegates* GetPixelStreamingDelegates()
 	{
-		if (Singleton == nullptr)
-		{
-			return CreateInstance();
-		}
-		return Singleton;
+		return CreateInstance();
+	}
+
+	virtual ~UPixelStreamingDelegates()
+	{
+		Singleton = nullptr;
+		bIsExiting = true;
 	}
 
 private:
 	// The singleton object.
 	static UPixelStreamingDelegates* Singleton;
+	static bool bIsExiting;
 };
