@@ -110,7 +110,6 @@ void ULyraAssetManager::StartInitialLoading()
 	// This does all of the scanning, need to do this now even if loads are deferred
 	Super::StartInitialLoading();
 
-	STARTUP_JOB(InitializeAbilitySystem());
 	STARTUP_JOB(InitializeGameplayCueManager());
 
 	{
@@ -120,13 +119,6 @@ void ULyraAssetManager::StartInitialLoading()
 
 	// Run all the queued up startup jobs
 	DoAllStartupJobs();
-}
-
-void ULyraAssetManager::InitializeAbilitySystem()
-{
-	SCOPED_BOOT_TIMING("ULyraAssetManager::InitializeAbilitySystem");
-
-	UAbilitySystemGlobals::Get().InitGlobalData();
 }
 
 void ULyraAssetManager::InitializeGameplayCueManager()

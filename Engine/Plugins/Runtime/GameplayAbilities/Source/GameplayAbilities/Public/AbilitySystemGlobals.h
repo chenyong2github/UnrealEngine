@@ -50,14 +50,11 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 		return *IGameplayAbilitiesModule::Get().GetAbilitySystemGlobals();
 	}
 
-	/** Should be called once as part of project setup to load global data tables and tags */
+	/** Will be called once on first use to load global data tables and tags (see FGameplayAbilitiesModule::GetAbilitySystemGlobals) */
 	virtual void InitGlobalData();
 
 	/** Returns true if InitGlobalData has been called */
-	bool IsAbilitySystemGlobalsInitialized()
-	{
-		return GlobalAttributeSetInitter.IsValid();
-	}
+	bool IsAbilitySystemGlobalsInitialized() const;
 
 	/** Returns the globally registered curve table */
 	UCurveTable* GetGlobalCurveTable();
@@ -388,6 +385,8 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UGameplayTagReponseTable> GameplayTagResponseTable;
+
+	bool bInitialized = false;
 
 	/** Set to true if you want clients to try to predict gameplay effects done to targets. If false it will only predict self effects */
 	UPROPERTY(config)

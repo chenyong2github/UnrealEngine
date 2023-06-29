@@ -33,6 +33,7 @@ class FGameplayAbilitiesModule : public IGameplayAbilitiesModule
 
 			AbilitySystemGlobals = NewObject<UAbilitySystemGlobals>(GetTransientPackage(), SingletonClass, NAME_None);
 			AbilitySystemGlobals->AddToRoot();
+			AbilitySystemGlobals->InitGlobalData();
 			AbilitySystemGlobalsReadyCallback.Broadcast();
 		}
 

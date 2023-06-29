@@ -99,7 +99,6 @@ private:
 	void DoAllStartupJobs();
 
 	// Sets up the ability system
-	void InitializeAbilitySystem();
 	void InitializeGameplayCueManager();
 
 	// Called periodically during loads, could be used to feed the status to a loading screen

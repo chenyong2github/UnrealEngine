@@ -61,8 +61,20 @@ UAbilitySystemGlobals::UAbilitySystemGlobals(const FObjectInitializer& ObjectIni
 #endif // #if WITH_EDITORONLY_DATA
 }
 
+bool UAbilitySystemGlobals::IsAbilitySystemGlobalsInitialized() const
+{
+	return bInitialized;
+}
+
 void UAbilitySystemGlobals::InitGlobalData()
 {
+	// Make sure the user didn't try to initialize the system again (we call InitGlobalData automatically in UE5.3+).
+	if (IsAbilitySystemGlobalsInitialized())
+	{
+		return;
+	}
+	bInitialized = true;
+
 	LLM_SCOPE(TEXT("AbilitySystem"));
 	GetGlobalCurveTable();
 	GetGlobalAttributeMetaDataTable();
