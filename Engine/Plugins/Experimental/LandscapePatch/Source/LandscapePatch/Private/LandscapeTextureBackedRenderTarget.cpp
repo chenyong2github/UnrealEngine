@@ -25,6 +25,9 @@ namespace LandscapeTextureBackedRenderTargetLocals
 		// TODO: How do we allow lossless compression, instead of disallowing compression entirely? Just setting 
 		// LossyCompressionAmount to ETextureLossyCompressionAmount::TLCA_None is not sufficient.
 		Texture->CompressionNone = true;
+		// If we don't do this, then each newly created empty texture created will request the DDC to re-compile it,
+		// which is problematic if the texture is being recreated over and over in a construction script.
+		Texture->Source.UseHashAsGuid();
 
 		return Texture;
 	}
