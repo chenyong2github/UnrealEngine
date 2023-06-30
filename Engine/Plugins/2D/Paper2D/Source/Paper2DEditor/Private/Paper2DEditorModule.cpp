@@ -4,8 +4,10 @@
 #include "Paper2DEditorLog.h"
 #include "EditorModeRegistry.h"
 
+#include "AssetRegistry/AssetDataTagMap.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Subsystems/ImportSubsystem.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 
 #include "PropertyEditorModule.h"
@@ -311,23 +313,31 @@ private:
 				const FName SourceTextureMemberName = UPaperSprite::GetSourceTextureMemberName();
 				for (const FAssetData& SpriteAssetData : AssetsData)
 				{
-					FAssetData SavedTextureAssetData = AssetRegistry.GetAssetByObjectPath(SpriteAssetData.TagsAndValues.FindTag(SourceTextureMemberName).GetValue());
-				
-					FSoftObjectPath TextureSourcePath;
-					if (SavedTextureAssetData.IsRedirector())
+					// We can't update a cooked asset
+					if (!SpriteAssetData.HasAnyPackageFlags(PKG_Cooked))
 					{
-						TextureSourcePath = AssetRegistry.GetRedirectedObjectPath(SavedTextureAssetData.GetSoftObjectPath());
-					}
-					else
-					{
-						TextureSourcePath = SavedTextureAssetData.GetSoftObjectPath();
-					}
-
-					if (TextureSourcePath == TexturePath)
-					{
-						if (UPaperSprite* PaperSprite = Cast<UPaperSprite>(SpriteAssetData.GetAsset()))
+						FAssetTagValueRef AssetTagValue = SpriteAssetData.TagsAndValues.FindTag(SourceTextureMemberName);
+						if (AssetTagValue.IsSet())
 						{
-							PaperSprite->OnObjectReimported(Texture);
+							FAssetData SavedTextureAssetData = AssetRegistry.GetAssetByObjectPath(AssetTagValue.GetValue());
+				
+							FSoftObjectPath TextureSourcePath;
+							if (SavedTextureAssetData.IsRedirector())
+							{
+								TextureSourcePath = AssetRegistry.GetRedirectedObjectPath(SavedTextureAssetData.GetSoftObjectPath());
+							}
+							else
+							{
+								TextureSourcePath = SavedTextureAssetData.GetSoftObjectPath();
+							}
+
+							if (TextureSourcePath == TexturePath)
+							{
+								if (UPaperSprite* PaperSprite = Cast<UPaperSprite>(SpriteAssetData.GetAsset()))
+								{
+									PaperSprite->OnObjectReimported(Texture);
+								}
+							}
 						}
 					}
 				}
