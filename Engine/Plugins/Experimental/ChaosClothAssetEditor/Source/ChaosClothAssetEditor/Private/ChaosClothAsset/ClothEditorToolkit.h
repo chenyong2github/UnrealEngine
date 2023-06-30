@@ -122,7 +122,7 @@ private:
 	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage) const;
 	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const;
-	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const;
+	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
 	void OnNodeDeleted(const TSet<UObject*>& DeletedNodes) const;
 
 	/** Scene in which the 3D sim space preview meshes live. Ownership shared with AdvancedPreviewSettingsWidget*/
@@ -147,6 +147,8 @@ private:
 	FString DataflowTerminalPath = "";
 	TSharedPtr<Dataflow::FEngineContext> DataflowContext;
 	Dataflow::FTimestamp LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
+	FDelegateHandle OnNodeInvalidatedDelegateHandle;
+	TSharedPtr<FDataflowNode> DataflowNode;
 
 	static const FName GraphCanvasTabId;
 	TSharedPtr<SDockTab> GraphEditorTab;

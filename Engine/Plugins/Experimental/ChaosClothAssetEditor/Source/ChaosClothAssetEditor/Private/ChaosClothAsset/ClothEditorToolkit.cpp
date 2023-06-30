@@ -206,6 +206,12 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 
 FChaosClothAssetEditorToolkit::~FChaosClothAssetEditorToolkit()
 {
+	if (DataflowNode && OnNodeInvalidatedDelegateHandle.IsValid())
+	{
+		DataflowNode->GetOnNodeInvalidatedDelegate().Remove(OnNodeInvalidatedDelegateHandle);
+	}
+	DataflowNode.Reset();
+
 	if (ClothPreviewViewportClient)
 	{
 		// Delete the gizmo in the viewport before deleting the EditorModeManager. The Gizmo Manager can get tripped up if it gets deleted
@@ -887,7 +893,7 @@ void FChaosClothAssetEditorToolkit::OnNodeTitleCommitted(const FText& InNewText,
 	FDataflowEditorCommands::OnNodeTitleCommitted(InNewText, InCommitType, GraphNode);
 }
 
-void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const
+void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection)
 {
 	auto GetClothCollectionIfPossible = [](const TSharedPtr<const FDataflowNode> DataflowNode, const TSharedPtr<Dataflow::FEngineContext> Context) -> TSharedPtr<FManagedArrayCollection>
 	{
@@ -927,15 +933,32 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 	{
 		Dataflow->RenderTargets.Reset();
 
-		for (const UObject* const Selected : NewSelection)
+		for (UObject* const Selected : NewSelection)
 		{
-			if (const UDataflowEdNode* const Node = Cast<UDataflowEdNode>(Selected))
+			if (UDataflowEdNode* const Node = Cast<UDataflowEdNode>(Selected))
 			{
 				Dataflow->RenderTargets.Add(Node);
 
-				if (const TSharedPtr<const FDataflowNode> DataflowNode = Node->GetDataflowNode())
+				if (DataflowNode && OnNodeInvalidatedDelegateHandle.IsValid())
+				{
+					DataflowNode->GetOnNodeInvalidatedDelegate().Remove(OnNodeInvalidatedDelegateHandle);
+				}
+				DataflowNode = Node->GetDataflowNode();
+
+				if (DataflowNode)
 				{
 					Collection = GetClothCollectionIfPossible(DataflowNode, this->DataflowContext);
+					DataflowNode->GetOnNodeInvalidatedDelegate();
+
+					// Set a callback to re-evaluate the node if it is invalidated
+					OnNodeInvalidatedDelegateHandle = DataflowNode->GetOnNodeInvalidatedDelegate().AddLambda(
+						[this, &GetClothCollectionIfPossible](FDataflowNode* InDataflowNode)
+						{
+							if (DataflowNode.Get() == InDataflowNode)
+							{
+								GetClothCollectionIfPossible(DataflowNode, DataflowContext);
+							}
+						});
 				}
 			}
 		}
