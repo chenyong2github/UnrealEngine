@@ -39,3 +39,12 @@ void UPCGLoadAlembicFunctionLibrary::LoadAlembicFileToPCG(const FPCGLoadAlembicB
 		}
 	}
 }
+
+void UPCGLoadAlembicFunctionLibrary::SetupFromStandard(FPCGLoadAlembicBPData& Data, EPCGLoadAlembicStandardSetup InSetup)
+{
+	if (InSetup != EPCGLoadAlembicStandardSetup::None)
+	{
+		Data.ConversionSettings.Preset = EAbcConversionPreset::Custom;
+		UPCGLoadAlembicSettings::SetupFromStandard(InSetup, Data.ConversionSettings.Scale, Data.ConversionSettings.Rotation, Data.bConversionFlipHandedness, Data.AttributeMapping);
+	}	
+}

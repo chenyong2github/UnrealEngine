@@ -88,7 +88,7 @@ bool FPCGLoadDataTableElement::PrepareLoad(FPCGExternalDataContext* Context) con
 		if (const FPCGAttributePropertySelector* MappedField = Settings->AttributeMapping.Find(FieldName))
 		{
 			PointPropertySelector.ImportFromOtherSelector(*MappedField);
-			FieldName = PointPropertySelector.GetDisplayText().ToString();
+			FieldName = PointPropertySelector.GetName().ToString();
 		}
 		else
 		{

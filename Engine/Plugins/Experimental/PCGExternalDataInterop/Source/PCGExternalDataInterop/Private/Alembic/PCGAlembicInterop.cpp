@@ -266,7 +266,7 @@ void ParseAlembicObject(FPCGExternalDataContext* Context, const Alembic::Abc::IO
 
 				FPCGAttributePropertyOutputSelector PointPositionSelector;
 				PointPositionSelector.ImportFromOtherSelector(*RemappedPositions);
-				const FString PropName = PointPositionSelector.GetDisplayText().ToString();
+				const FString PropName = PointPositionSelector.GetName().ToString();
 
 				if (CreatePointAccessorAndValidate(Context, PointData, AlembicPositionAccessor, PointPositionSelector, PropName, PointPropertyAccessor))
 				{
@@ -304,7 +304,7 @@ void ParseAlembicObject(FPCGExternalDataContext* Context, const Alembic::Abc::IO
 				if (const FPCGAttributePropertySelector* MappedField = Settings->AttributeMapping.Find(PropName))
 				{
 					PointPropertySelector = *MappedField;
-					PropName = PointPropertySelector.GetDisplayText().ToString();
+					PropName = PointPropertySelector.GetName().ToString();
 				}
 				else
 				{

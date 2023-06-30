@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Elements/PCGLoadAlembicElement.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 
 #include "AbcImportSettings.h"
@@ -20,6 +21,9 @@ struct PCGEXTERNALDATAINTEROPEDITOR_API FPCGLoadAlembicBPData
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	FAbcConversionSettings ConversionSettings;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (Tooltip = "Flips rotation direction (W), useful together with swizzling"))
+	bool bConversionFlipHandedness = false;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	TMap<FString, FPCGAttributePropertyInputSelector> AttributeMapping;
 };
@@ -31,4 +35,7 @@ class PCGEXTERNALDATAINTEROPEDITOR_API UPCGLoadAlembicFunctionLibrary : public U
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|IO")
 	static void LoadAlembicFileToPCG(const FPCGLoadAlembicBPData& Settings, FPCGDataCollection& Data, UObject* TargetOuter);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|IO", meta = (ScriptMethod))
+	static void SetupFromStandard(UPARAM(ref) FPCGLoadAlembicBPData& Data, EPCGLoadAlembicStandardSetup InSetup);
 };
