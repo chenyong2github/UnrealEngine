@@ -213,13 +213,8 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 		{
 			const FPCGPoint& Point = Points[CurrentPointIndex++];
 
-			if (Point.Density <= 0.0f)
-			{
-				continue;
-			}
-
 			FRandomStream RandomSource = UPCGBlueprintHelpers::GetRandomStream(Point, Settings, Context.SourceComponent.Get());
-			int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
+			const int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 			int RandomPick = 0;
 			while(RandomPick < MeshInstances.Num() && CumulativeWeights[RandomPick] <= RandomWeightedPick)

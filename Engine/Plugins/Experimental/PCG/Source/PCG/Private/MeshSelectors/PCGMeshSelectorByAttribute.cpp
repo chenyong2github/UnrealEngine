@@ -167,12 +167,7 @@ bool UPCGMeshSelectorByAttribute::SelectInstances(
 	while (CurrentPointIndex < Points.Num())
 	{
 		const FPCGPoint& Point = Points[CurrentPointIndex++];
-
-		if (Point.Density <= 0.0f)
-		{
-			continue;
-		}
-
+		
 		PCGMetadataValueKey ValueKey = Attribute->GetValueKey(Point.MetadataEntry);
 		TSoftObjectPtr<UStaticMesh>* NewMesh = ValueKeyToMesh.Find(ValueKey);
 		TSoftObjectPtr<UStaticMesh> Mesh = nullptr;
@@ -184,7 +179,7 @@ bool UPCGMeshSelectorByAttribute::SelectInstances(
 
 			if (!MeshSoftObjectPath.IsEmpty() && MeshSoftObjectPath != TEXT("None"))
 			{
-				FSoftObjectPath MeshPath(MeshSoftObjectPath);
+				const FSoftObjectPath MeshPath(MeshSoftObjectPath);
 				Mesh = TSoftObjectPtr<UStaticMesh>(MeshPath);
 
 				if (Mesh.IsNull())

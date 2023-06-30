@@ -204,12 +204,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 	{
 		const FPCGPoint& Point = Points[CurrentPointIndex++];
 
-		if (Point.Density <= 0.0f)
-		{
-			continue;
-		}
-
-		PCGMetadataValueKey ValueKey = Attribute->GetValueKey(Point.MetadataEntry);
+		const PCGMetadataValueKey ValueKey = Attribute->GetValueKey(Point.MetadataEntry);
 
 		// if no mesh list was processed for this attribute value, fallback to the default mesh list
 		FPCGInstancesAndWeights* InstancesAndWeights = CategoryEntryToInstancesAndWeights.Find(ValueKey);
@@ -229,7 +224,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 		const int TotalWeight = InstancesAndWeights->CumulativeWeights.Last();
 
 		FRandomStream RandomSource = UPCGBlueprintHelpers::GetRandomStream(Point, Settings, Context.SourceComponent.Get());
-		int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
+		const int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 		int RandomPick = 0;
 		while(RandomPick < InstancesAndWeights->MeshInstances.Num() && InstancesAndWeights->CumulativeWeights[RandomPick] <= RandomWeightedPick)
