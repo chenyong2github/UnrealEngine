@@ -1073,36 +1073,16 @@ public:
 	}
 
 	/**
-	 * Finds the first true/false bit in the array, and returns the bit index.
-	 * If there is none, INDEX_NONE is returned.
+	 * Finds the first occurrence of the specified value (true/false) in the array, and returns the bit index.
+	 * If the specified value is not found, INDEX_NONE is returned.
+	 *
+	 * @param  bValue  The value (true/false) to search for.
+	 *
+	 * @return The index of the first occurrence of the specified value (true/false), or INDEX_NONE if not found.
 	 */
 	int32 Find(bool bValue) const
 	{
-		// Iterate over the array until we see a word with a matching bit
-		const uint32 Test = bValue ? 0u : (uint32)-1;
-
-		const uint32* RESTRICT DwordArray = GetData();
-		const int32 LocalNumBits = NumBits;
-		const int32 DwordCount = FBitSet::CalculateNumWords(LocalNumBits);
-		int32 DwordIndex = 0;
-		while (DwordIndex < DwordCount && DwordArray[DwordIndex] == Test)
-		{
-			++DwordIndex;
-		}
-
-		if (DwordIndex < DwordCount)
-		{
-			// If we're looking for a false, then we flip the bits - then we only need to find the first one bit
-			const uint32 Bits = bValue ? (DwordArray[DwordIndex]) : ~(DwordArray[DwordIndex]);
-			UE_ASSUME(Bits != 0);
-			const int32 LowestBitIndex = FMath::CountTrailingZeros(Bits) + (DwordIndex << NumBitsPerDWORDLogTwo);
-			if (LowestBitIndex < LocalNumBits)
-			{
-				return LowestBitIndex;
-			}
-		}
-
-		return INDEX_NONE;
+		return FindFromImpl(bValue, 0);
 	}
 
 private:
@@ -1163,9 +1143,13 @@ public:
 	}
 
 	/**
-	* Finds the last true/false bit in the array, and returns the bit index.
-	* If there is none, INDEX_NONE is returned.
-	*/
+	 * Finds the last occurrence of the specified value (true/false) in the array, and returns the bit index.
+	 * If the specified value is not found, INDEX_NONE is returned.
+	 *
+	 * @param  bValue  The value (true/false) to search for.
+	 *
+	 * @return The index of the last occurrence of the specified value (true/false), or INDEX_NONE if not found.
+	 */
 	int32 FindLast(bool bValue) const 
 	{
 		const int32 LocalNumBits = NumBits;
@@ -1201,86 +1185,53 @@ public:
 		return Result;
 	}
 
+	/**
+	 * Checks if the array contains the specified value (true/false).
+	 *
+	 * @param  bValue  The value (true/false) to check for.
+	 *
+	 * @return true if the array contains the specified value, false otherwise.
+	 */
 	FORCEINLINE bool Contains(bool bValue) const
 	{
 		return Find(bValue) != INDEX_NONE;
 	}
 
 	/**
-	 * Finds the first zero bit in the array, sets it to true, and returns the bit index.
-	 * If there is none, INDEX_NONE is returned.
+	 * Finds the first occurrence of a zero bit in the array and sets it to one, returning the bit index.
+	 * If there are no zero bits in the array, INDEX_NONE is returned.
+	 *
+	 * @param  StartIndex  The index to start the search from. Defaults to 0.
+	 *
+	 * @return The index of the first occurrence of a zero bit that was successfully set to one, or INDEX_NONE if not found.
 	 */
-	int32 FindAndSetFirstZeroBit(int32 ConservativeStartIndex = 0)
+	int32 FindAndSetFirstZeroBit(int32 StartIndex = 0)
 	{
-		// Iterate over the array until we see a word with a zero bit.
-		uint32* RESTRICT DwordArray = GetData();
-		const int32 LocalNumBits = NumBits;
-		const int32 DwordCount = FBitSet::CalculateNumWords(LocalNumBits);
-		int32 DwordIndex = FMath::DivideAndRoundDown(ConservativeStartIndex, NumBitsPerDWORD);
-		while (DwordIndex < DwordCount && DwordArray[DwordIndex] == (uint32)-1)
+		const int32 FirstZeroBitIndex = FindFromImpl(false, StartIndex);
+		if (FirstZeroBitIndex != INDEX_NONE)
 		{
-			++DwordIndex;
+			(*this)[FirstZeroBitIndex] = true;
+			CheckInvariants();
 		}
-
-		if (DwordIndex < DwordCount)
-		{
-			// Flip the bits, then we only need to find the first one bit -- easy.
-			const uint32 Bits = ~(DwordArray[DwordIndex]);
-			UE_ASSUME(Bits != 0);
-			const uint32 LowestBit = (Bits) & (-(int32)Bits);
-			const int32 LowestBitIndex = FMath::CountTrailingZeros(Bits) + (DwordIndex << NumBitsPerDWORDLogTwo);
-			if (LowestBitIndex < LocalNumBits)
-			{
-				DwordArray[DwordIndex] |= LowestBit;
-				CheckInvariants();
-				return LowestBitIndex;
-			}
-		}
-
-		return INDEX_NONE;
+		return FirstZeroBitIndex;
 	}
 
 	/**
-	 * Finds the last zero bit in the array, sets it to true, and returns the bit index.
-	 * If there is none, INDEX_NONE is returned.
+	 * Finds the last occurrence of a zero bit in the array and sets it to one, returning the bit index.
+	 * If there are no zero bits in the array, INDEX_NONE is returned.
+	 *
+	 * @return The index of the last occurrence of a zero bit that was successfully set to one, or INDEX_NONE if not found.
 	 */
 	int32 FindAndSetLastZeroBit()
 	{
-		const int32 LocalNumBits = NumBits;
-
-		// Get the correct mask for the last word
-		uint32 Mask = GetLastWordMask();
-
-		// Iterate over the array until we see a word with a zero bit.
-		uint32 DwordIndex = FBitSet::CalculateNumWords(LocalNumBits);
-		uint32* RESTRICT DwordArray = GetData();
-		for (;;)
+		const int32 LastZeroBitIndex = FindLast(false);
+		if (LastZeroBitIndex != INDEX_NONE)
 		{
-			if (DwordIndex == 0)
-			{
-				return INDEX_NONE;
-			}
-			--DwordIndex;
-			if ((DwordArray[DwordIndex] & Mask) != Mask)
-			{
-				break;
-			}
-			Mask = ~0u;
+			(*this)[LastZeroBitIndex] = true;
+			CheckInvariants();
 		}
-
-		// Flip the bits, then we only need to find the first one bit -- easy.
-		const uint32 Bits = ~DwordArray[DwordIndex] & Mask;
-		UE_ASSUME(Bits != 0);
-
-		uint32 BitIndex = (NumBitsPerDWORD - 1) - FMath::CountLeadingZeros(Bits);
-		DwordArray[DwordIndex] |= 1u << BitIndex;
-
-		CheckInvariants();
-
-		int32 Result = BitIndex + (DwordIndex << NumBitsPerDWORDLogTwo);
-		return Result;
+		return LastZeroBitIndex;
 	}
-
 
 	/**
 	 * Return the bitwise AND of two bit arrays. The resulting bit array will be sized according to InFlags.

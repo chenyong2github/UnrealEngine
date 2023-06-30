@@ -2030,15 +2030,15 @@ TEST_CASE_NAMED(FBitArrayFindTest, "System::Core::Containers::BitArray::Find", "
 	}
 
 	{
-		TBitArray<> ArrTrue2(true, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find true in an array containing 32 true"), ArrTrue2.Find(true) == 0);
-		CHECK_MESSAGE(TEXT("Find false in an array containing 32 true"), ArrTrue2.Find(false) == INDEX_NONE);
+		TBitArray<> ArrTrue(true, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find true in an array containing 32 true"), ArrTrue.Find(true) == 0);
+		CHECK_MESSAGE(TEXT("Find false in an array containing 32 true"), ArrTrue.Find(false) == INDEX_NONE);
 	}
 
 	{
-		TBitArray<> ArrFalse2(false, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find false in an array containing 32 false"), ArrFalse2.Find(false) == 0);
-		CHECK_MESSAGE(TEXT("Find true in an array containing 32 false"), ArrFalse2.Find(true) == INDEX_NONE);
+		TBitArray<> ArrFalse(false, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find false in an array containing 32 false"), ArrFalse.Find(false) == 0);
+		CHECK_MESSAGE(TEXT("Find true in an array containing 32 false"), ArrFalse.Find(true) == INDEX_NONE);
 	}
 
 	{
@@ -2057,23 +2057,23 @@ TEST_CASE_NAMED(FBitArrayFindTest, "System::Core::Containers::BitArray::Find", "
 TEST_CASE_NAMED(FBitArrayFindFromTest, "System::Core::Containers::BitArray::FindFrom", "[ApplicationContextMask][SmokeFilter]")
 {
 	{
-		TBitArray<> ArrTrue2(true, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 0"), ArrTrue2.FindFrom(true, 0) == 0);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 1"), ArrTrue2.FindFrom(true, 1) == 1);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 31"), ArrTrue2.FindFrom(true, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 32"), ArrTrue2.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 1"), ArrTrue2.FindFrom(false, 1) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 32"), ArrTrue2.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
+		TBitArray<> ArrTrue(true, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 0"), ArrTrue.FindFrom(true, 0) == 0);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 1"), ArrTrue.FindFrom(true, 1) == 1);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 31"), ArrTrue.FindFrom(true, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 32"), ArrTrue.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 1"), ArrTrue.FindFrom(false, 1) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 32"), ArrTrue.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
 	}
 
 	{
-		TBitArray<> ArrFalse2(false, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 0"), ArrFalse2.FindFrom(false, 0) == 0);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 1"), ArrFalse2.FindFrom(false, 1) == 1);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 31"), ArrFalse2.FindFrom(false, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse2.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find true in an array full of false, starting at index 1"), ArrFalse2.FindFrom(true, 1) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse2.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
+		TBitArray<> ArrFalse(false, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 0"), ArrFalse.FindFrom(false, 0) == 0);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 1"), ArrFalse.FindFrom(false, 1) == 1);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 31"), ArrFalse.FindFrom(false, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find true in an array full of false, starting at index 1"), ArrFalse.FindFrom(true, 1) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
 	}
 
 	{
@@ -2088,6 +2088,83 @@ TEST_CASE_NAMED(FBitArrayFindFromTest, "System::Core::Containers::BitArray::Find
 		ArrTrueThenFalse.Add(false, NumBitsPerDWORD);
 		CHECK_MESSAGE(TEXT("Find true in an array containing 32 true and then 32 false, starting after all of the true"), ArrTrueThenFalse.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
 		CHECK_MESSAGE(TEXT("Find false in an array containing 32 true and then 32 false, starting after all of the true"), ArrTrueThenFalse.FindFrom(false, NumBitsPerDWORD) == NumBitsPerDWORD);
+	}
+}
+
+TEST_CASE_NAMED(FBitArrayTestFindLastTest, "System::Core::Containers::BitArray::FindLast", "[ApplicationContextMask][SmokeFilter]")
+{
+	{
+		TBitArray<> ArrEmpty;
+		CHECK_MESSAGE(TEXT("Find last true in an empty array"), ArrEmpty.FindLast(true) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find last false in an empty array"), ArrEmpty.FindLast(false) == INDEX_NONE);
+	}
+
+	{
+		TBitArray<> ArrTrue(true, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find last true in an array containing 32 true"), ArrTrue.FindLast(true) == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Find last false in an array containing 32 true"), ArrTrue.FindLast(false) == INDEX_NONE);
+	}
+
+	{
+		TBitArray<> ArrFalse(false, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find last false in an array containing 32 false"), ArrFalse.FindLast(false) == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Find last true in an array containing 32 false"), ArrFalse.FindLast(true) == INDEX_NONE);
+	}
+
+	{
+		TBitArray<> ArrFalseThenTrue(false, NumBitsPerDWORD);
+		ArrFalseThenTrue.Add(true);
+		CHECK_MESSAGE(TEXT("Find last true in an array containing multiple false and then a single true"), ArrFalseThenTrue.FindLast(true) == NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find last false in an array containing multiple false and then a single true"), ArrFalseThenTrue.FindLast(false) == NumBitsPerDWORD - 1);
+	}
+
+	{
+		TBitArray<> ArrTrueThenFalse(true, NumBitsPerDWORD);
+		ArrTrueThenFalse.Add(false);
+		CHECK_MESSAGE(TEXT("Find last false in an array containing multiple true and then a single false"), ArrTrueThenFalse.FindLast(false) == NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find last true in an array containing multiple true and then a single false"), ArrTrueThenFalse.FindLast(true) == NumBitsPerDWORD - 1);
+	}
+}
+
+TEST_CASE_NAMED(FBitArrayTestFindAndSetFirstZeroBitTest, "System::Core::Containers::BitArray::FindAndSetFirstZeroBit", "[ApplicationContextMask][SmokeFilter]")
+{
+	{
+		TBitArray<> ArrEmpty;
+		CHECK_MESSAGE(TEXT("Find and set first zero bit in an empty array"), ArrEmpty.FindAndSetFirstZeroBit() == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Array should remain empty and have no set bits"), ArrEmpty.IsEmpty() && ArrEmpty.CountSetBits() == 0);
+	}
+
+	{
+		TBitArray<> ArrTrue(true, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find and set first zero bit in an array containing 32 true"), ArrTrue.FindAndSetFirstZeroBit() == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Array should still contain 32 true bits"), ArrTrue.CountSetBits() == NumBitsPerDWORD);
+	}
+
+	{
+		TBitArray<> ArrFalse(false, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find and set first zero bit in an array containing 32 false"), ArrFalse.FindAndSetFirstZeroBit() == 0);
+		CHECK_MESSAGE(TEXT("Array should contain 1 true bit"), ArrFalse.CountSetBits() == 1);
+	}
+}
+
+TEST_CASE_NAMED(FBitArrayTestFindAndSetLastZeroBitTest, "System::Core::Containers::BitArray::FindAndSetLastZeroBit", "[ApplicationContextMask][SmokeFilter]")
+{
+	{
+		TBitArray<> ArrEmpty;
+		CHECK_MESSAGE(TEXT("Find and set last zero bit in an empty array"), ArrEmpty.FindAndSetLastZeroBit() == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find and set last zero bit in an empty array"), ArrEmpty == TBitArray<>());
+	}
+
+	{
+		TBitArray<> ArrTrue(true, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find and set last zero bit in an array containing 32 true"), ArrTrue.FindAndSetLastZeroBit() == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Array should still contain 32 true bits"), ArrTrue.CountSetBits() == NumBitsPerDWORD);
+	}
+
+	{
+		TBitArray<> ArrFalse(false, NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find and set last zero bit in an array containing 32 false"), ArrFalse.FindAndSetLastZeroBit() == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Array should contain 1 true bit"), ArrFalse.CountSetBits() == 1);
 	}
 }
 
