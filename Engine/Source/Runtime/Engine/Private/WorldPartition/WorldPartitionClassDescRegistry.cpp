@@ -420,7 +420,11 @@ void FWorldPartitionClassDescRegistry::PrefetchClassDesc(UClass* InClass)
 						
 		if (!ClassByPath.Contains(ParentClassPath))
 		{
-			PrefetchClassDescs({ ParentClassPath });
+			// Only prefetch classes that exists on disk
+			if (!ParentClass->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
+			{
+				PrefetchClassDescs({ ParentClassPath });
+			}
 
 			if (ClassByPath.Contains(ParentClassPath))
 			{
