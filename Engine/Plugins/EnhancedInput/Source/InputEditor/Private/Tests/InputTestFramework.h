@@ -78,7 +78,7 @@ public:
 	virtual void InitalizeUserSettings() override;
 };
 
-UCLASS()
+UCLASS(hidedropdown, NotBlueprintable, NotBlueprintType)
 class UMockInputUserSettings : public UEnhancedInputUserSettings
 {
 	GENERATED_BODY()
@@ -127,7 +127,7 @@ public:
 
 // A subclass of UInputAction that will have it's player mappable key settings object set automatically so 
 // we can test re-mappable keys.
-UCLASS()
+UCLASS(hidedropdown, NotBlueprintable, NotBlueprintType)
 class UTestMappableKeysAction : public UInputAction
 {
 	GENERATED_BODY()
