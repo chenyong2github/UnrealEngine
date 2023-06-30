@@ -34,6 +34,25 @@ struct FPointWeightMap
 #endif
 	{}
 
+	explicit FPointWeightMap(int32 NumPoints, float Value = 0.f)
+#if WITH_EDITORONLY_DATA
+		: Name(NAME_None)
+		, CurrentTarget((uint8)EWeightMapTargetCommon::None)
+		, bEnabled(false)
+#endif
+	{
+		Values.Init(Value, NumPoints);
+	}
+
+	explicit FPointWeightMap(const TConstArrayView<float>& InValues)
+		: Values(InValues)
+#if WITH_EDITORONLY_DATA
+		, Name(NAME_None)
+		, CurrentTarget((uint8)EWeightMapTargetCommon::None)
+		, bEnabled(false)
+#endif
+	{}
+
 	~FPointWeightMap()
 	{}
 
