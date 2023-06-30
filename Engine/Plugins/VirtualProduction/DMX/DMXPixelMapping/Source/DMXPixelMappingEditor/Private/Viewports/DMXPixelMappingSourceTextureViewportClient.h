@@ -9,7 +9,7 @@ class SDMXPixelMappingSourceTextureViewport;
 class FDMXPixelMappingToolkit;
 
 class FDMXPixelMappingSourceTextureViewportClient
-	: public FViewportClient
+	: public FCommonViewportClient
 {
 public:
 	/** Constructor */
@@ -25,6 +25,10 @@ protected:
 	//~ Begin FViewportClient Interface
 	virtual void Draw(FViewport* Viewport, FCanvas* Canvas) override;
 	//~ End FViewportClient Interface
+
+	//~ Begin FViewport Interface
+	virtual float UpdateViewportClientWindowDPIScale() const override;
+	//~ End FViewport Interface
 
 private:
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;

@@ -6,6 +6,7 @@
 #include "CanvasTypes.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Engine/Texture.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Slate/SceneViewport.h"
 #include "Texture2DPreview.h"
 #include "TextureResource.h"
@@ -122,4 +123,19 @@ void FDMXPixelMappingSourceTextureViewportClient::Draw(FViewport* InViewport, FC
 		TileItem.BlendMode = ESimpleElementBlendMode::SE_BLEND_MAX;
 		Canvas->DrawItem(TileItem);
 	}
+}
+
+float FDMXPixelMappingSourceTextureViewportClient::UpdateViewportClientWindowDPIScale() const
+{
+	float DPIScale = 1.f;
+	if (WeakSourceTextureViewport.IsValid())
+	{
+		TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(WeakSourceTextureViewport.Pin().ToSharedRef());
+		if (WidgetWindow.IsValid())
+		{
+			DPIScale = WidgetWindow->GetNativeWindow()->GetDPIScaleFactor();
+		}
+	}
+
+	return DPIScale;
 }
