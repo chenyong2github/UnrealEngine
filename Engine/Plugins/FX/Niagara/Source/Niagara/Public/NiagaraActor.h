@@ -19,6 +19,8 @@ public:
 
 	NIAGARA_API virtual void PostRegisterAllComponents() override;
 
+	NIAGARA_API virtual void PostUnregisterAllComponents() override;
+
 	/** Set true for this actor to self-destruct when the Niagara system finishes, false otherwise */
 	UFUNCTION(BlueprintCallable, Category=NiagaraActor)
 	NIAGARA_API void SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish);

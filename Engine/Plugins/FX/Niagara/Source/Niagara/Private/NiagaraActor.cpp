@@ -81,6 +81,17 @@ void ANiagaraActor::PostRegisterAllComponents()
 	}
 }
 
+void ANiagaraActor::PostUnregisterAllComponents()
+{
+	Super::PostUnregisterAllComponents();
+
+	// Clear Notification Delegate
+	if (NiagaraComponent)
+	{
+		NiagaraComponent->OnSystemFinished.RemoveAll(this);
+	}
+}
+
 void ANiagaraActor::SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish)
 {
 	bDestroyOnSystemFinish = bShouldDestroyOnSystemFinish ? 1 : 0;  
