@@ -3184,8 +3184,6 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 	, bFinishedInitialDiscovery(false)
 	, bAllModuleLoadingPhasesComplete(false)
 	, WaitBatchCount(0)
-	, NumCachedAssetFiles(0)
-	, NumUncachedAssetFiles(0)
 	, LastMonolithicCacheSaveUncachedAssetFiles(0)
 	, CacheInUseCount(0)
 	, bIsSavingAsyncCache(false)
@@ -3613,6 +3611,8 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		}
 	};
 
+	int32 NewCachedAssetFiles = 0;
+	int32 NewUncachedAssetFiles = 0;
 	// Try to read each file in the batch out of the cache, and accumulate a list for more expensive reading of all of the files that are not in the cache 
 	TArray<FReadContext> ReadContexts;
 	for (FGatheredPathData& AssetFileData : LocalFilesToSearch)
@@ -3662,7 +3662,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		if (DiskCachedAssetData)
 		{
 			// Add the valid cached data to our results, and to the map of data we keep to write out the new version of the cache file
-			++NumCachedAssetFiles;
+			++NewCachedAssetFiles;
 
 			// Set the transient flags based on whether our current cache has dependency data.
 			// Note that in editor, bGatherAssetPackageData is always true, no way to turn it off,
@@ -3713,7 +3713,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		}
 		else if (ReadContext.bResult)
 		{
-			++NumUncachedAssetFiles;
+			++NewUncachedAssetFiles;
 
 			// Add the results from a cooked package into our results on cooked package
 			LocalCookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(ReadContext.CookedPackageNamesWithoutAssetData));
@@ -3772,6 +3772,9 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		CookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(LocalCookedPackageNamesWithoutAssetDataResults));
 		VerseResults.Append(MoveTemp(LocalVerseResults));
 		BlockedResults.Append(MoveTemp(LocalBlockedResults));
+
+		NumUncachedAssetFiles += NewUncachedAssetFiles;
+		NumCachedAssetFiles += NewCachedAssetFiles;
 
 		if (bHasCancelation)
 		{
@@ -3955,11 +3958,15 @@ void FAssetDataGatherer::GetAndTrimSearchResults(FResults& InOutResults, FResult
 	OutContext.bAbleToProgress = !bIsIdle;
 }
 
-void FAssetDataGatherer::GetDiagnostics(float& OutGatherTimeSeconds, float& OutDiscoverTimeSeconds)
+FAssetGatherDiagnostics FAssetDataGatherer::GetDiagnostics()
 {
-	Discovery->GetDiagnostics(OutDiscoverTimeSeconds);
+	FAssetGatherDiagnostics Diag;
+	Discovery->GetDiagnostics(Diag.DiscoveryTimeSeconds);
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
-	OutGatherTimeSeconds = CumulativeGatherTime;
+	Diag.GatherTimeSeconds = CumulativeGatherTime;
+	Diag.NumCachedAssetFiles = NumCachedAssetFiles;
+	Diag.NumUncachedAssetFiles = NumUncachedAssetFiles;
+	return Diag;
 }
 
 void FAssetDataGatherer::GetPackageResults(TMultiMap<FName, FAssetData*>& OutAssetResults, TMultiMap<FName, FPackageDependencyData>& OutDependencyResults)
@@ -4265,15 +4272,17 @@ void FAssetDataGatherer::TryReserveSaveMonolithicCache(bool& bOutShouldSave, TAr
 		return;
 	}
 	CHECK_IS_LOCKED_CURRENT_THREAD(TickLock);
+	int32 LocalNumUncachedAssetFiles;
 	{
 		FGathererScopeLock ResultsScopeLock(&ResultsLock);
 		bOutShouldSave = bWriteMonolithicCache;
+		LocalNumUncachedAssetFiles = NumUncachedAssetFiles;
 	}
 	if (bOutShouldSave)
 	{
 		GetMonolithicCacheAssetsToSave(AssetsToSave);
 		bIsSavingAsyncCache = true;
-		LastMonolithicCacheSaveUncachedAssetFiles = NumUncachedAssetFiles;
+		LastMonolithicCacheSaveUncachedAssetFiles = LocalNumUncachedAssetFiles ;
 	}
 	bSaveAsyncCacheTriggered = false;
 }

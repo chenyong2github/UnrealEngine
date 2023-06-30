@@ -186,8 +186,10 @@ public:
 	Impl::EGatherStatus TickGatherer(Impl::FEventContext& EventContext,
 		Impl::FClassInheritanceContext& InheritanceContext, const double TickStartTime, bool& bOutInterrupted,
 		TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
-	/** Send a log message with the search statistics. */
-	void LogSearchDiagnostics() const;
+	/** Send a log message with the search statistics. 
+	 *  StartTime is used to report wall clock search time in the case of background scan
+	 */
+	void LogSearchDiagnostics(double StartTime) const;
 	/** Look for and load a single AssetData result from the gatherer. */
 	void TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath);
 	void ClearGathererCache();
@@ -392,6 +394,8 @@ private:
 	/** The highest number of pending results observed during initial gathering */
 	int32 HighestPending = 0;
 
+	/** Time the initial async search was started */
+	double InitialSearchStartTime = 0.0f;
 	/** Flag to indicate if we used an initial async search */
 	bool bInitialSearchStarted;
 	/** Flag to indicate if the initial background search has completed */

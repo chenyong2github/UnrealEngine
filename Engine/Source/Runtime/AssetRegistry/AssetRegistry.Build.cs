@@ -13,6 +13,7 @@ public class AssetRegistry : ModuleRules
 				"TraceLog",
 				"ApplicationCore",
 				"Projects",
+				"TelemetryUtils"
 			}
 			);
 

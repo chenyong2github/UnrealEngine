@@ -52,6 +52,18 @@ typedef FScopeLock FGathererScopeLock;
 #define CHECK_IS_NOT_LOCKED_CURRENT_THREAD(CritSec) do {} while (false)
 #endif
 
+struct FAssetGatherDiagnostics
+{
+	/** Time spent identifying asset files on disk */
+	float DiscoveryTimeSeconds;
+	/** Time spent reading asset files on disk / from cache */
+	float GatherTimeSeconds;
+	/** How many files in the search results were read from the cache. */
+	int32 NumCachedAssetFiles;
+	/** How many files in the search results were not in the cache and were read by parsing the file. */
+	int32 NumUncachedAssetFiles;
+};
+
 /**
  * Async task for gathering asset data from from the file list in FAssetRegistry
  */
@@ -124,7 +136,7 @@ public:
 	/** Gets search results from the data gatherer. */
 	void GetAndTrimSearchResults(FResults& InOutResults, FResultContext& OutContext);
 	/** Get diagnostics for telemetry or logging. */
-	void GetDiagnostics(float& OutGatherTimeSeconds, float& OutDiscoverTimeSeconds);
+	FAssetGatherDiagnostics GetDiagnostics();
 	/** Gets just the AssetResults and DependencyResults from the data gatherer. */
 	void GetPackageResults(TMultiMap<FName, FAssetData*>& OutAssetResults,
 		TMultiMap<FName, FPackageDependencyData>& OutDependencyResults);
@@ -424,6 +436,10 @@ private:
 	double LastCacheWriteTime;
 	/** The cached value of the NumPathsToSearch returned by Discovery the last time we synchronized with it. */
 	int32 NumPathsToSearchAtLastSyncPoint;
+	/** The total number of files in the search results that were read from the cache. */
+	int32 NumCachedAssetFiles = 0;
+	/** The total number of files in the search results that were not in the cache and were read by parsing the file. */
+	int32 NumUncachedAssetFiles = 0;
 	/**
 	 * Track whether we are allowed to read from a monolithic cache that should be loaded during tick.
 	 * Even if we are or not, if bCacheReadEnabled the AssetRegistry can also call LoadCacheFile/ScanPathsSynchronous to
@@ -469,10 +485,6 @@ private:
 	TMap<FName, FDiskCachedAssetData*> NewCachedAssetDataMap;
 	/** Used to block on gather results. If non-zero, tick should end when WaitBatchCount files have been processed. */
 	int32 WaitBatchCount;
-	/** How many files in the search results were read from the cache. */
-	int32 NumCachedAssetFiles;
-	/** How many files in the search results were not in the cache and were read by parsing the file. */
-	int32 NumUncachedAssetFiles;
 	/** How many uncached asset files had been discovered at the last async cache save */
 	int32 LastMonolithicCacheSaveUncachedAssetFiles;
 	/**
