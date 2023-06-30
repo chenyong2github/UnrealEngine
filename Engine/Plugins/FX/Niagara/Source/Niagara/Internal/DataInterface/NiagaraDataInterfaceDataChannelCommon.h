@@ -333,22 +333,34 @@ struct FNDIVariadicOutputHandler
 
 	void Fallback(int32 Count)
 	{
-		for (int32 OutIdx = 0; OutIdx < FloatOutputs.Num(); ++OutIdx)
+		if(Count > 0)
 		{
-			FMemory::Memzero(FloatOutputs[OutIdx].GetDest(), sizeof(float) * Count);
-			FloatOutputs[OutIdx].Advance(Count);
-		}
+			for (int32 OutIdx = 0; OutIdx < FloatOutputs.Num(); ++OutIdx)
+			{
+				if(FloatOutputs[OutIdx].IsValid())
+				{
+					FMemory::Memzero(FloatOutputs[OutIdx].GetDest(), sizeof(float) * Count);
+					FloatOutputs[OutIdx].Advance(Count);
+				}
+			}
 
-		for (int32 OutIdx = 0; OutIdx < IntOutputs.Num(); ++OutIdx)
-		{
-			FMemory::Memzero(IntOutputs[OutIdx].GetDest(), sizeof(int32) * Count);
-			IntOutputs[OutIdx].Advance(Count);
-		}
+			for (int32 OutIdx = 0; OutIdx < IntOutputs.Num(); ++OutIdx)
+			{
+				if (IntOutputs[OutIdx].IsValid())
+				{
+					FMemory::Memzero(IntOutputs[OutIdx].GetDest(), sizeof(int32) * Count);
+					IntOutputs[OutIdx].Advance(Count);
+				}
+			}
 
-		for (int32 OutIdx = 0; OutIdx < HalfOutputs.Num(); ++OutIdx)
-		{
-			FMemory::Memzero(HalfOutputs[OutIdx].GetDest(), sizeof(FFloat16) * Count);
-			HalfOutputs[OutIdx].Advance(Count);
+			for (int32 OutIdx = 0; OutIdx < HalfOutputs.Num(); ++OutIdx)
+			{
+				if (HalfOutputs[OutIdx].IsValid())
+				{
+					FMemory::Memzero(HalfOutputs[OutIdx].GetDest(), sizeof(FFloat16) * Count);
+					HalfOutputs[OutIdx].Advance(Count);
+				}
+			}
 		}
 	}
 };
