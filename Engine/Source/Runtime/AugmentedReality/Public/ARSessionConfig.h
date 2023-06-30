@@ -246,6 +246,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AR Settings")
 	void AddCandidateImage(UARCandidateImage* NewCandidateImage);
     
+	// Remove a candidate image from the ARSessionConfig, by pointer, note the image object must match, not the content of the image.
+	UFUNCTION(BlueprintCallable, Category = "AR Settings")
+	void RemoveCandidateImage(UARCandidateImage* CandidateImage);
+
+	// Remove a candidate image from the ARSessionConfig, by index.
+	UFUNCTION(BlueprintCallable, Category = "AR Settings")
+	void RemoveCandidateImageAtIndex(int Index);
+
+	// Remove all candidate images from the ARSessionConfig
+	UFUNCTION(BlueprintCallable, Category = "AR Settings")
+	void ClearCandidateImages();
+
 	/** @see MaxNumSimultaneousImagesTracked */
 	UFUNCTION(BlueprintCallable, Category = "AR Settings")
     int32 GetMaxNumSimultaneousImagesTracked() const;

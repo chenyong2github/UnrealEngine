@@ -119,6 +119,28 @@ void UARSessionConfig::AddCandidateImage(UARCandidateImage* NewCandidateImage)
 	CandidateImages.Add(NewCandidateImage);
 }
 
+void UARSessionConfig::RemoveCandidateImage(UARCandidateImage* CandidateImage)
+{
+	int ImagesRemoved = CandidateImages.Remove(CandidateImage);
+}
+
+void UARSessionConfig::RemoveCandidateImageAtIndex(int Index)
+{
+	if (Index < 0 || Index >= CandidateImages.Num())
+	{
+		UE_LOG(LogBlueprint, Warning, TEXT("RemoveCandidateImageAtIndex failed because the index is invalid.  No image removed."));
+	}
+	else
+	{
+		CandidateImages.RemoveAt(Index);
+	}
+}
+
+void UARSessionConfig::ClearCandidateImages()
+{
+	CandidateImages.Empty();
+}
+
 int32 UARSessionConfig::GetMaxNumSimultaneousImagesTracked() const
 {
     return MaxNumSimultaneousImagesTracked;
