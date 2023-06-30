@@ -188,17 +188,16 @@ RWBuffer<float4> OutSampleDeformationsBuffer;
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 { 
 	const uint SampleIndex = DispatchThreadId.x;
-	if (SampleIndex >= (MaxSampleCount + 4))
+	if (SampleIndex >= HAIR_RBF_ENTRY_COUNT(MaxSampleCount))
 	{
 		return;
 	}
 
-	uint WeightsOffset = SampleIndex * (MaxSampleCount+4);
+	uint WeightsOffset = SampleIndex * HAIR_RBF_ENTRY_COUNT(MaxSampleCount);
 	float3 SampleDeformation = float3(0,0,0);
 	for(uint i = 0; i < MaxSampleCount; ++i, ++WeightsOffset)
 	{
-		SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] * 
-				(SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]).xyz;
+		SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] * (SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]).xyz;
 	}
 
 	OutSampleDeformationsBuffer[SampleIndex] = float4(SampleDeformation,1);

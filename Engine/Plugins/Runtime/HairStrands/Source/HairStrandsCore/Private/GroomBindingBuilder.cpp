@@ -11,6 +11,7 @@
 #include "Async/ParallelFor.h"
 #include "GlobalShader.h"
 #include "Misc/ScopedSlowTask.h"
+#include "GroomRBFDeformer.h"
 
 #if WITH_EDITORONLY_DATA
 
@@ -57,7 +58,7 @@ static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("3f");
+	return TEXT("3h");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -562,11 +563,20 @@ namespace GroomBinding_RBFWeighting
 	FWeightsBuilder::FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
 		const FVector3f* SourcePositions, const FVector3f* TargetPositions)
 	{
-		const uint32 PolyRows = NumRows + 4;
-		const uint32 PolyColumns = NumColumns + 4;
+		const uint32 PolyRows 	 = FGroomRBFDeformer::GetEntryCount(NumRows);
+		const uint32 PolyColumns = FGroomRBFDeformer::GetEntryCount(NumColumns);
+
+		const uint32 SampleCount = NumRows;
+		const uint32 WeightCount = FGroomRBFDeformer::GetWeightCount(SampleCount);
 
 		MatrixEntries.Init(0.0, PolyRows * PolyColumns);
 		InverseEntries.Init(0.0, PolyRows * PolyColumns);
+
+		// Sanity check
+		check(NumRows == NumColumns);
+		check(WeightCount == MatrixEntries.Num());
+		check(WeightCount == InverseEntries.Num());
+
 		TArray<float>& LocalEntries = MatrixEntries;
 		ParallelFor(NumRows,
 			[

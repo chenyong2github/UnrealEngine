@@ -41,16 +41,16 @@ void UpdateMeshSamples(
 	TArray<FVector3f>& OutSampleDeformationsBuffer
 )
 {
-	OutSampleDeformationsBuffer.SetNum(MaxSampleCount + 4);
+	const uint32 EntryCount = FGroomRBFDeformer::GetEntryCount(MaxSampleCount);
+	OutSampleDeformationsBuffer.SetNum(EntryCount);
 
-	for (uint32 SampleIndex = 0; SampleIndex < MaxSampleCount + 4; ++SampleIndex)
+	for (uint32 SampleIndex = 0; SampleIndex < EntryCount; ++SampleIndex)
 	{
-		uint32 WeightsOffset = SampleIndex * (MaxSampleCount + 4);
+		uint32 WeightsOffset = SampleIndex * EntryCount;
 		FVector3f SampleDeformation(FVector3f::ZeroVector);
 		for (uint32 i = 0; i < MaxSampleCount; ++i, ++WeightsOffset)
 		{
-			SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] *
-				(SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]); 
+			SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] * (SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]);
 		}
 
 		OutSampleDeformationsBuffer[SampleIndex] = SampleDeformation;
@@ -822,3 +822,15 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 	}
 #endif // #if WITH_EDITORONLY_DATA
 }
+
+uint32 FGroomRBFDeformer::GetEntryCount(uint32 InSampleCount)
+{
+	return HAIR_RBF_ENTRY_COUNT(InSampleCount);
+}
+
+uint32 FGroomRBFDeformer::GetWeightCount(uint32 InSampleCount)
+{
+	const uint32 EntryCount = GetEntryCount(InSampleCount);
+	return EntryCount * EntryCount;
+}
+
