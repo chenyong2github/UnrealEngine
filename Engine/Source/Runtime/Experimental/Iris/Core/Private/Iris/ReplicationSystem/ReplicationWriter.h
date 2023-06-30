@@ -472,6 +472,8 @@ private:
 	void DiscardAllRecords();
 	void StopAllReplication();
 
+	void MarkObjectDirty(FInternalNetRefIndex InternalIndex, const char* Caller);
+
 private:
 	// Replication parameters
 	FReplicationParameters Parameters;
