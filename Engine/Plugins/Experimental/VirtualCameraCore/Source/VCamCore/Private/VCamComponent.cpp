@@ -2,28 +2,28 @@
 
 #include "VCamComponent.h"
 
+#include "Input/InputVCamSubsystem.h"
 #include "Modifier/VCamModifier.h"
 #include "Modifier/VCamModifierContext.h"
 #include "Output/VCamOutputProviderBase.h"
 #include "Util/LevelViewportUtils.h"
+#include "VCamComponentInstanceData.h"
 #include "VCamCoreCustomVersion.h"
+#include "VCamSubsystem.h"
 
 #include "Algo/ForEach.h"
 #include "CineCameraComponent.h"
 #include "CoreGlobals.h"
-#include "Engine/GameEngine.h"
 #include "Engine/InputDelegateBinding.h"
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystemInterface.h"
-#include "UserSettings/EnhancedInputUserSettings.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/InputSettings.h"
 #include "ILiveLinkClient.h"
 #include "InputMappingContext.h"
-#include "Input/InputVCamSubsystem.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkTransformRole.h"
-#include "VCamSubsystem.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 #include "Util/CookingUtils.h"
 
 #if WITH_EDITOR
@@ -107,113 +107,81 @@ void UVCamComponent::OnComponentCreated()
 	{
 		InputProfile = *NewInputProfile;
 	}
-	
-	EnsureInitializedIfAllowed();
+
+	// ApplyComponentInstanceData will handle initialization if the construction script is being re-run on a Blueprint created component.
+	const bool bIsBlueprintCreatedComponent = CreationMethod == EComponentCreationMethod::SimpleConstructionScript || CreationMethod == EComponentCreationMethod::UserConstructionScript;
+	if (!bIsBlueprintCreatedComponent || !GIsReconstructingBlueprintInstances)
+	{
+		EnsureInitializedIfAllowed();
+	}
 }
 
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
-	Deinitialize();
+	CleanupRegisteredDelegates();
 
-	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	// Components that are being destroyed as part of re-running the construction script should not Deinitialize because ApplyComponentInstanceData may want to re-apply the display state later.
+	// Deinitializing here would kill any remote connections.
+	const bool bIsBlueprintCreatedComponent = CreationMethod == EComponentCreationMethod::SimpleConstructionScript || CreationMethod == EComponentCreationMethod::UserConstructionScript;
+	if (bIsBlueprintCreatedComponent && GIsReconstructingBlueprintInstances)
 	{
-		ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		LiveLinkClient.OnLiveLinkTicked().RemoveAll(this);
+		// GetComponentInstanceData has saved our internal state and ApplyComponentInstanceData will steal it later. For safety, let's not reference the to be stolen output providers anymore.
+		OutputProviders.Empty();
+		Deinitialize(EVCamInitializationFlags::ReapplyInstanceData);
 	}
-
-#if WITH_EDITOR
-	// Remove all event listeners
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+	else
 	{
-		LevelEditorModule->OnMapChanged().RemoveAll(this);
+		// This case should happen only when the owning actor is removed. 
+		Deinitialize();
 	}
-
-	FEditorDelegates::BeginPIE.RemoveAll(this);
-	FEditorDelegates::EndPIE.RemoveAll(this);
-
-	MultiUserShutdown();
-	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
-#endif
+	
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
-void UVCamComponent::HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+void UVCamComponent::BeginDestroy()
 {
-	for (const TPair<UObject*, UObject*>& ReplacementPair : ReplacementMap)
+	CleanupRegisteredDelegates();
+	Deinitialize();
+	Super::BeginDestroy();
+}
+
+TStructOnScope<FActorComponentInstanceData> UVCamComponent::GetComponentInstanceData() const
+{
+	return MakeStructOnScope<FActorComponentInstanceData, FVCamComponentInstanceData>(this);
+}
+
+void UVCamComponent::ApplyComponentInstanceData(FVCamComponentInstanceData& ComponentInstanceData, ECacheApplyPhase CacheApplyPhase)
+{
+	if (CacheApplyPhase != ECacheApplyPhase::PostUserConstructionScript)
 	{
-		UObject* FromObject = ReplacementPair.Key;
-		UObject* ToObject = ReplacementPair.Value;
-
-		if (ToObject == this)
+		return;
+	}
+	
+	// Steal output providers from previous source and reapply it to this component
+	// OnComponentDestroyed makes sure that the old component, which has just been destroyed by the construction script, no longer references the output providers.
+	for (UVCamOutputProviderBase* StoredOutputProvider : ComponentInstanceData.StolenOutputProviders)
+	{
+		if (!StoredOutputProvider)
 		{
-			if (UVCamComponent* OldComponent = Cast<UVCamComponent>(FromObject))
-			{
-				OldComponent->NotifyComponentWasReplaced(this);
-			}
+			continue;
+		}
+		
+		UVCamOutputProviderBase* ExistingOutputProvider = FindObject<UVCamOutputProviderBase>(this, *StoredOutputProvider->GetName());
+		if (ExistingOutputProvider && ExistingOutputProvider != StoredOutputProvider)
+		{
+			const FName NewTrashName = MakeUniqueObjectName(this, ExistingOutputProvider->GetClass(), TEXT("TRASH_"));
+			ExistingOutputProvider->Rename(*NewTrashName.ToString());
+		}
 
-			OnComponentReplaced.Broadcast(this);
+		if (StoredOutputProvider->GetOuter() != this)
+		{
+			StoredOutputProvider->Rename(nullptr, this);
 		}
 	}
-}
-
-
-void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent)
-{
-	check(ReplacementComponent);
-
-	// Make sure to copy over our delegate bindings to the component replacing us
-	ReplacementComponent->OnComponentReplaced = OnComponentReplaced;
-	OnComponentReplaced.Clear();
 	
-	const bool bWasEnabled = bEnabled;
-	// Ensure all modifiers and output providers get deinitialized
-	if (bEnabled)
-	{
-		SetEnabled(false);
-	}
-	
-	// Refresh the enabled state on the new component to prevent any stale state from the replacement but only do so once.
-	// Careful: NotifyComponentWasReplaced can be called multiple times with the same arguments.
-	// If this is not the first time NotifyComponentWasReplaced is called, then bWasEnabled will already be false (see above).
-	const bool bNeedsToStartupOutputProviders = bWasEnabled && ReplacementComponent->IsEnabled();
-	if (bNeedsToStartupOutputProviders)
-	{
-		ReplacementComponent->ViewportLocker.Reset();
-		ReplacementComponent->SetEnabled(false);
-		ReplacementComponent->SetEnabled(true);
-	}
-
-	// There's a current issue where FKeys will be nulled when the component reconstructs so we'll explicitly
-	// pass the Input Profile to the new component to avoid this
-	ReplacementComponent->InputProfile = InputProfile;
-	ReplacementComponent->ApplyInputProfile();
-	
-	DestroyComponent();
-}
-
-void UVCamComponent::RegisterInputComponent()
-{
-	// Ensure we start from a clean slate
-	UnregisterInputComponent();
-	
-	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
-	{
-		InputSubsystem->PushInputComponent(InputComponent);
-	}
-}
-
-void UVCamComponent::UnregisterInputComponent()
-{
-	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem()
-		// InputComponent is nulled by GC when exiting the engine
-		; InputComponent && InputSubsystem)
-	{
-		// Note: Despite the functions being called "Pop" it's actually just removing our specific input component from
-		// the stack rather than blindly popping the top component
-		InputSubsystem->PopInputComponent(InputComponent);
-	}
-	
-	AppliedInputContexts.Reset();
+	OutputProviders = ComponentInstanceData.StolenOutputProviders;
+	LiveLinkSubject = ComponentInstanceData.LiveLinkSubject;
+	Initialize(EVCamInitializationFlags::ReapplyInstanceData);
 }
 
 bool UVCamComponent::CanUpdate() const
@@ -234,7 +202,6 @@ bool UVCamComponent::CanUpdate() const
 	const bool bHasValidComponent = GetTargetCamera() != nullptr;
 	
 	return bShouldUpdate && bIsSupportedWorld && bHasValidComponent;
-
 }
 
 void UVCamComponent::OnAttachmentChanged()
@@ -1258,6 +1225,30 @@ void UVCamComponent::EnsureDelegatesRegistered()
 	}
 }
 
+void UVCamComponent::CleanupRegisteredDelegates()
+{
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	{
+		ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+		LiveLinkClient.OnLiveLinkTicked().RemoveAll(this);
+	}
+
+#if WITH_EDITOR
+	// Remove all event listeners
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+	{
+		LevelEditorModule->OnMapChanged().RemoveAll(this);
+	}
+
+	FEditorDelegates::BeginPIE.RemoveAll(this);
+	FEditorDelegates::EndPIE.RemoveAll(this);
+
+	MultiUserShutdown();
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+#endif
+}
+
 void UVCamComponent::EnsureInitializedIfAllowed()
 {
 	if (!IsInitialized() && bEnabled)
@@ -1272,19 +1263,23 @@ bool UVCamComponent::IsInitialized() const
 	return SubsystemCollection.IsInitialized();
 }
 
-void UVCamComponent::Initialize()
+void UVCamComponent::Initialize(const EVCamInitializationFlags Flags)
 {
 	if (!UE::VCamCore::Private::CanInitVCamInstance(this))
 	{
 		return;
 	}
+
+	// 1. Input
+	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::InputSystem))
+	{
+		SubsystemCollection.Initialize(this);
+		RegisterInputComponent();
+	}
 	
-	SubsystemCollection.Initialize(this);
-	// 1. Input is required
-	RegisterInputComponent();
 
 	// 2. Output provider overlay widgets will access the modifiers, so let's init them first
-	const bool bInitModifiers = ShouldEvaluateModifierStack() && CanUpdate(); 
+	const bool bInitModifiers = EnumHasAnyFlags(Flags, EVCamInitializationFlags::Modifiers) && ShouldEvaluateModifierStack() && CanUpdate(); 
 	if (bInitModifiers)
 	{
 		for (FModifierStackEntry& ModifierStackEntry : ModifierStack)
@@ -1302,7 +1297,7 @@ void UVCamComponent::Initialize()
 	ApplyInputProfile();
 
 	// 4. Output providers
-	const bool bInitOutputProviders = bInitModifiers && ShouldUpdateOutputProviders();
+	const bool bInitOutputProviders = EnumHasAnyFlags(Flags, EVCamInitializationFlags::OutputProviders) && bInitModifiers && ShouldUpdateOutputProviders();
 	if (bInitOutputProviders)
 	{
 		for (UVCamOutputProviderBase* Provider : OutputProviders)
@@ -1315,34 +1310,43 @@ void UVCamComponent::Initialize()
 	}
 }
 
-void UVCamComponent::Deinitialize()
+void UVCamComponent::Deinitialize(const EVCamInitializationFlags Flags)
 {
 	if (!IsInitialized())
 	{
 		return;
 	}
-	
-	for (UVCamOutputProviderBase* Provider : OutputProviders)
+
+	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::OutputProviders))
 	{
-		if (IsValid(Provider))
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
-			Provider->Deinitialize();
+			if (IsValid(Provider))
+			{
+				Provider->Deinitialize();
+			}
 		}
 	}
 
-	for (FModifierStackEntry& ModifierEntry : ModifierStack)
+	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::Modifiers))
 	{
-		if (IsValid(ModifierEntry.GeneratedModifier))
+		for (FModifierStackEntry& ModifierEntry : ModifierStack)
 		{
-			ModifierEntry.GeneratedModifier->Deinitialize();
+			if (IsValid(ModifierEntry.GeneratedModifier))
+			{
+				ModifierEntry.GeneratedModifier->Deinitialize();
+			}
 		}
 	}
 
 	// Viewports may be manipulated by output providers or modifiers
 	UnlockAllViewports();
 	
-	UnregisterInputComponent();
-	SubsystemCollection.Deinitialize();
+	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::InputSystem))
+	{
+		UnregisterInputComponent();
+		SubsystemCollection.Deinitialize();
+	}
 }
 
 void UVCamComponent::SyncInputSettings()
@@ -1811,4 +1815,86 @@ bool UVCamComponent::IsCameraInVPRole() const
 #else
 	return true;
 #endif
+}
+
+void UVCamComponent::HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	for (const TPair<UObject*, UObject*>& ReplacementPair : ReplacementMap)
+	{
+		UObject* FromObject = ReplacementPair.Key;
+		UObject* ToObject = ReplacementPair.Value;
+
+		if (ToObject == this)
+		{
+			if (UVCamComponent* OldComponent = Cast<UVCamComponent>(FromObject))
+			{
+				OldComponent->NotifyComponentWasReplaced(this);
+			}
+
+			OnComponentReplaced.Broadcast(this);
+		}
+	}
+}
+
+void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent)
+{
+	check(ReplacementComponent);
+
+	// Make sure to copy over our delegate bindings to the component replacing us
+	ReplacementComponent->OnComponentReplaced = OnComponentReplaced;
+	OnComponentReplaced.Clear();
+
+	// If this is a Blueprint created component and is re-running construction scripts, do not mess with Deinitialize / Initialize calls. ApplyComponentInstanceData will handle the logic.
+	const bool bIsBlueprintCreatedComponent = CreationMethod == EComponentCreationMethod::SimpleConstructionScript || CreationMethod == EComponentCreationMethod::UserConstructionScript;
+	if (!bIsBlueprintCreatedComponent || !GIsReconstructingBlueprintInstances)
+	{
+		const bool bWasEnabled = bEnabled;
+		// Ensure all modifiers and output providers get deinitialized
+		if (bEnabled)
+		{
+			SetEnabled(false);
+		}
+	
+		// Refresh the enabled state on the new component to prevent any stale state from the replacement but only do so once.
+		// Careful: NotifyComponentWasReplaced can be called multiple times with the same arguments.
+		// If this is not the first time NotifyComponentWasReplaced is called, then bWasEnabled will already be false (see above).
+		const bool bNeedsToStartupOutputProviders = bWasEnabled && ReplacementComponent->IsEnabled();
+		if (bNeedsToStartupOutputProviders)
+		{
+			ReplacementComponent->ViewportLocker.Reset();
+			ReplacementComponent->EnsureDelegatesRegistered(),
+			ReplacementComponent->SetEnabled(false);
+			ReplacementComponent->SetEnabled(true);
+		}
+	}
+
+	// There's a current issue where FKeys will be nulled when the component reconstructs so we'll explicitly
+	// pass the Input Profile to the new component to avoid this
+	ReplacementComponent->InputProfile = InputProfile;
+	ReplacementComponent->ApplyInputProfile();
+}
+
+void UVCamComponent::RegisterInputComponent()
+{
+	// Ensure we start from a clean slate
+	UnregisterInputComponent();
+	
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
+	{
+		InputSubsystem->PushInputComponent(InputComponent);
+	}
+}
+
+void UVCamComponent::UnregisterInputComponent()
+{
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem()
+		// InputComponent is nulled by GC when exiting the engine
+		; InputComponent && InputSubsystem)
+	{
+		// Note: Despite the functions being called "Pop" it's actually just removing our specific input component from
+		// the stack rather than blindly popping the top component
+		InputSubsystem->PopInputComponent(InputComponent);
+	}
+	
+	AppliedInputContexts.Reset();
 }

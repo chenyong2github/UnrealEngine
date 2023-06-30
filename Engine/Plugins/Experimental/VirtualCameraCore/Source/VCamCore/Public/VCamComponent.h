@@ -32,6 +32,7 @@ class UVCamModifierContext;
 class UVCamOutputProviderBase;
 
 struct FEnhancedActionKeyMapping;
+struct FVCamComponentInstanceData;
 
 #if WITH_EDITOR
 class FLevelEditorViewportClient;
@@ -42,6 +43,19 @@ struct FMultiUserVCamCameraComponentEvent;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComponentReplaced, UVCamComponent*, NewComponent);
+
+enum class EVCamInitializationFlags
+{
+	None = 0,
+	InputSystem = 1 << 0,
+	Modifiers = 1 << 1,
+	OutputProviders = 1 << 2,
+	
+	All = InputSystem | Modifiers | OutputProviders,
+	// When re-applying component instance data, any references to the replaced output providers should be reinitialized.
+	ReapplyInstanceData = InputSystem | Modifiers
+};
+ENUM_CLASS_FLAGS(EVCamInitializationFlags);
 
 /**
  * Provides a modular system for editing a UCineCameraComponent using user widgets.
@@ -84,6 +98,8 @@ public:
 	//~ Begin UActorComponent Interface
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual void BeginDestroy() override;
+	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
@@ -107,8 +123,8 @@ public:
 	void OnTargetViewportEdited();
 #endif // WITH_EDITOR
 
-	UFUNCTION()
-	void HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+	/** Applies the component instance cache */
+	void ApplyComponentInstanceData(FVCamComponentInstanceData& ComponentInstanceData, ECacheApplyPhase CacheApplyPhase);
 
 	bool CanUpdate() const;
 	void Update();
@@ -487,10 +503,12 @@ private:
 	FObjectSubsystemCollection<UVCamSubsystem> SubsystemCollection;
 
 	void EnsureDelegatesRegistered();
+	void CleanupRegisteredDelegates();
+	
 	void EnsureInitializedIfAllowed();
 	bool IsInitialized() const;
-	virtual void Initialize();
-	virtual void Deinitialize();
+	virtual void Initialize(const EVCamInitializationFlags Flags = EVCamInitializationFlags::All);
+	virtual void Deinitialize(const EVCamInitializationFlags Flags = EVCamInitializationFlags::All);
 
 	void SyncInputSettings();
 	
@@ -539,8 +557,7 @@ private:
 	double SecondsSinceLastLocationUpdate = 0;
 	double PreviousUpdateTime = 0;
 #endif
-
-
+	
 	/** Send the current camera state via Multi-user if connected and in a */
 	void SendCameraDataViaMultiUser();
 	
@@ -551,7 +568,9 @@ private:
 	bool IsMultiUserSession() const;
 	bool IsCameraInVPRole() const;
 
-	// When another component replaces us, get a notification so we can clean up
+	/** Detect when this instance replaces an old instance and calls NotifyComponentWasReplaced on the old instance. */
+	void HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+	/** When another component replaces us, get a notification so we can clean up */
 	void NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent);
 
 	/** Utility functions for registering and unregistering our input component with the correct input system */
