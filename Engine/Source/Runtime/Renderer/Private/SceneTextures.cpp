@@ -965,8 +965,6 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.GBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferDTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneDepthAuxTextureSampler = TStaticSamplerState<>::GetRHI();
-	SceneTextureParameters.LocalLightTextureASampler = TStaticSamplerState<>::GetRHI();
-	SceneTextureParameters.LocalLightTextureBSampler = TStaticSamplerState<>::GetRHI();
 
 	if (SceneTextures)
 	{

@@ -814,9 +814,9 @@ void Main(
 #if  PREPASS_LOCAL_LIGHTS_MOBILE
 	{
 		FDeferredLightData MergedLightData = (FDeferredLightData)0;
-		half3 LocalLightA = Texture2DSample(MobileSceneTextures.LocalLightTextureA, MobileSceneTextures.LocalLightTextureASampler,SvPositionToBufferUV(SvPosition)); 
-		half4 LocalLightB = Texture2DSample(MobileSceneTextures.LocalLightTextureB, MobileSceneTextures.LocalLightTextureBSampler,SvPositionToBufferUV(SvPosition));
-	
+		half3 LocalLightA = MobileSceneTextures.LocalLightTextureA.Load(int3(SvPosition.xy, 0)).xyz; 
+		half4 LocalLightB = MobileSceneTextures.LocalLightTextureB.Load(int3(SvPosition.xy, 0));
+
 		MergedLightData.SourceRadius	= 0;
 		MergedLightData.SourceLength	= 0;
 		MergedLightData.Tangent			= 0;

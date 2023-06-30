@@ -62,8 +62,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, ENGIN
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferCTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferDTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthAuxTextureSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, LocalLightTextureASampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, LocalLightTextureBSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureShaderParameters, ENGINE_API)
