@@ -249,6 +249,11 @@ class FCCRStencilMergerPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FCCRStencilMergerPS);
 	SHADER_USE_PARAMETER_STRUCT(FCCRStencilMergerPS, FGlobalShader);
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return !IsMobilePlatform(Parameters.Platform);
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, StencilIds)
