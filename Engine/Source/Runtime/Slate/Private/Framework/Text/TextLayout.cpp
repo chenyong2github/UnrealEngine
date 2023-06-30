@@ -486,6 +486,7 @@ void FTextLayout::JustifyLayout()
 		switch (VisualJustification)
 		{
 		case ETextJustify::Left:
+		case ETextJustify::InvariantLeft:
 			{
 				const float ExtraSpace = LineView.Size.X - LineJustificationWidth;
 				OffsetAdjustment.X = -ExtraSpace;
@@ -500,6 +501,7 @@ void FTextLayout::JustifyLayout()
 			break;
 
 		case ETextJustify::Right:
+		case ETextJustify::InvariantRight:
 			{
 				const float ExtraSpace = LayoutWidthNoMargin - LineJustificationWidth;
 				OffsetAdjustment.X = ExtraSpace;

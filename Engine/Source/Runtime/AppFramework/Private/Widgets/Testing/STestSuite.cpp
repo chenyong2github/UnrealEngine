@@ -2379,6 +2379,14 @@ public:
 		{
 			Justification = ETextJustify::Right;
 		}
+		else if ( *Value == TEXT("Invariant Left") )
+		{
+			Justification = ETextJustify::InvariantLeft;
+		}
+		else if ( *Value == TEXT("Invariant Right") )
+		{
+			Justification = ETextJustify::InvariantRight;
+		}
 	}
 
 	FText JustificationGetSelectedText() const
@@ -2395,6 +2403,14 @@ public:
 		else if ( Justification == ETextJustify::Right )
 		{
 			Text = LOCTEXT("TextJustify::Right", "Right");
+		}
+		else if ( Justification == ETextJustify::InvariantLeft )
+		{
+			Text = LOCTEXT("TextJustify::InvariantLeft", "Invariant Left");
+		}
+		else if ( Justification == ETextJustify::InvariantRight )
+		{
+			Text = LOCTEXT("TextJustify::InvariantRight", "Invariant Right");
 		}
 		return Text;
 	}

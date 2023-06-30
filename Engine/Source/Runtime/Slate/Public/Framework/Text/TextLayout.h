@@ -45,6 +45,16 @@ namespace ETextJustify
 		 * When text is flowing right-to-left, this will align text visually to the left.
 		 */
 		Right,
+
+		/**
+		 * Always justify the text to the left, regardless of the flow direction of the current culture.
+		 */
+		InvariantLeft,
+
+		/**
+		 * Always justify the text to the right, regardless of the flow direction of the current culture.
+		 */
+		InvariantRight,
 	};
 }
 
