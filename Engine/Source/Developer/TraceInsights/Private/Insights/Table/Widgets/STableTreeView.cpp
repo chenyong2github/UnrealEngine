@@ -146,10 +146,13 @@ STableTreeView::STableTreeView()
 
 STableTreeView::~STableTreeView()
 {
-	if (bRunInAsyncMode)
+	if (bRunInAsyncMode && !bIsCloseScheduled)
 	{
-		ensureMsgf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."));
+		UE_LOG(TraceInsights, Log, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. Call OnClose() from the owner tab/window."));
 	}
+
+	// Backup call to OnClose() in case it was not called from the owner.
+	OnClose();
 
 	if (CurrentAsyncOpFilterConfigurator)
 	{
@@ -3359,14 +3362,11 @@ void STableTreeView::OnClose()
 
 	bIsCloseScheduled = true;
 
-	if (bIsUpdateRunning && InProgressAsyncOperationEvent.IsValid() && !InProgressAsyncOperationEvent->IsComplete())
+	if (bIsUpdateRunning)
 	{
 		CancelCurrentAsyncOp();
-
-		FGraphEventArray Prerequisites;
-		Prerequisites.Add(InProgressAsyncOperationEvent);
-		AsyncCompleteTaskEvent = TGraphTask<FTableTreeViewAsyncCompleteTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(SharedThis(this));
-		FInsightsManager::Get()->AddInProgressAsyncOp(AsyncCompleteTaskEvent, TEXT("FTableTreeViewAsyncCompleteTask"));
+		check(InProgressAsyncOperationEvent.IsValid());
+		InProgressAsyncOperationEvent->Wait(ENamedThreads::GameThread);
 	}
 }
 
@@ -3416,6 +3416,11 @@ void STableTreeView::CancelCurrentAsyncOp()
 {
 	if (bIsUpdateRunning)
 	{
+		if (DispatchEvent.IsValid() && !DispatchEvent->IsComplete())
+		{
+			DispatchEvent->DispatchSubsequents();
+		}
+
 		AsyncOperationProgress.CancelCurrentAsyncOp();
 	}
 }

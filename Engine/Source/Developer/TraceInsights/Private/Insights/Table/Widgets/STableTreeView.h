@@ -746,35 +746,6 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTableTreeViewAsyncCompleteTask
-{
-public:
-	FTableTreeViewAsyncCompleteTask(TSharedPtr<STableTreeView> InPtr)
-	{
-		TableTreeViewPtr = InPtr;
-	}
-
-	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FTableTreeViewAsyncCompleteTask, STATGROUP_TaskGraphTasks); }
-	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::GameThread; }
-	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		// The role of this task is to keep the STableTreeView object alive until the task and it's prerequisites are completed and to destroy it on the game thread.
-		FGraphEventRef Event = TableTreeViewPtr->AsyncCompleteTaskEvent;
-		if (TableTreeViewPtr.IsValid())
-		{
-			TableTreeViewPtr.Reset();
-		}
-		FInsightsManager::Get()->RemoveInProgressAsyncOp(Event);
-	}
-
-private:
-	TSharedPtr<STableTreeView> TableTreeViewPtr;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FSearchForItemToSelectTask
 {
 public:

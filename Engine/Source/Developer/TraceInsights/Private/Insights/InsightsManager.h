@@ -328,10 +328,6 @@ public:
 
 	void ScheduleCommand(const FString& InCmd);
 
-	void AddInProgressAsyncOp(FGraphEventRef Event, const FString& Name);
-	void RemoveInProgressAsyncOp(FGraphEventRef Event);
-	void WaitOnInProgressAsyncOps();
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
 

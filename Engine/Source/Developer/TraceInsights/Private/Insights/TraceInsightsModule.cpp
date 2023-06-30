@@ -86,8 +86,6 @@ void FTraceInsightsModule::ShutdownModule()
 {
 	LLM_SCOPE_BYTAG(Insights);
 
-	FInsightsManager::Get()->WaitOnInProgressAsyncOps();
-
 #if !WITH_EDITOR
 	if (FModuleManager::Get().IsModuleLoaded("SourceCodeAccess"))
 	{
