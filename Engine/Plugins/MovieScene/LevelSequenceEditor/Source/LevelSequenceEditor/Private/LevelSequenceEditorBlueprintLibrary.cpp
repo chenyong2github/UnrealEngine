@@ -165,6 +165,24 @@ int32 ULevelSequenceEditorBlueprintLibrary::GetCurrentLocalTime()
 	return 0;
 }
 
+void ULevelSequenceEditorBlueprintLibrary::SetPlaybackSpeed(float NewPlaybackSpeed)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->SetPlaybackSpeed(NewPlaybackSpeed);
+	}
+}
+
+float ULevelSequenceEditorBlueprintLibrary::GetPlaybackSpeed()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		return CurrentSequencer.Pin()->GetPlaybackSpeed();
+	}
+
+	return 0.f;
+}
+
 void ULevelSequenceEditorBlueprintLibrary::PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams)
 {
 	if (CurrentSequencer.IsValid())

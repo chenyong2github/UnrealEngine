@@ -126,6 +126,18 @@ public:
 	static int32 GetCurrentLocalTime();
 
 	/**
+	 * Set playback speed of the current level sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetPlaybackSpeed(float NewPlaybackSpeed);
+
+	/**
+	 * Get playback speed of the current level sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static float GetPlaybackSpeed();
+
+	/**
 	 * Play from the current time to the requested time in frames
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
