@@ -7454,7 +7454,7 @@ bool UDataAssetFactory::ConfigureProperties()
 	// Fill in options
 	FClassViewerInitializationOptions Options;
 	Options.Mode = EClassViewerMode::ClassPicker;
-
+	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
 	Options.ClassFilters.Add(Filter.ToSharedRef());
 
