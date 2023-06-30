@@ -335,6 +335,12 @@ namespace IncludeTool.Support
 			string CompilerVersionString = DetermineClangVersionDir(CompilerFullPath);
 			if (!String.IsNullOrEmpty(CompilerVersionString))
 			{
+				// starting with 16.x clang includes are in a directory named only after its major version
+				int Major = System.Version.Parse(CompilerVersionString).Major;
+				if (Major >= 16)
+				{
+					CompilerVersionString = System.Version.Parse(CompilerVersionString).Major.ToString();
+				}
 				ExtraSystemIncludePaths.Add(DirectoryReference.Combine(SysRootDir, "lib", "clang", CompilerVersionString, "include"));
 			}
 			ExtraSystemIncludePaths.Add(DirectoryReference.Combine(InputDir, "Engine", "Source", "ThirdParty", "Linux", "LibCxx", "include", "c++", "v1"));
