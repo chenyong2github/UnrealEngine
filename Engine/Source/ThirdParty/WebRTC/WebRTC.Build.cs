@@ -15,6 +15,12 @@ public class WebRTC : ModuleRules
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64);
 	}
 
+	//Config switch to use new WebRTC version 5414 (M109)
+	protected virtual bool bShouldUse5414WebRTC
+	{
+		get =>
+			true;
+	}
 
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -36,7 +42,18 @@ public class WebRTC : ModuleRules
 
 		if (bShouldUseWebRTC)
 		{
-			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + Path.Join("WebRTC", "4664");
+			string WebRtcSdkPath;
+			if (bShouldUse5414WebRTC)
+			{
+				WebRtcSdkPath = Target.UEThirdPartySourceDirectory + Path.Join("WebRTC", "5414");
+				PublicDefinitions.Add("WEBRTC_5414=1");
+			}
+			else
+			{
+				WebRtcSdkPath = Target.UEThirdPartySourceDirectory + Path.Join("WebRTC", "4664");
+				PublicDefinitions.Add("WEBRTC_5414=0");
+			}
+
 			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory;
 
 			string PlatformSubdir = Target.Platform.ToString();

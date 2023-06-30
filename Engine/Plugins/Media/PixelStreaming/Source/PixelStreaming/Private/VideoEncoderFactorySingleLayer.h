@@ -28,8 +28,12 @@ namespace UE::PixelStreaming
 
 		virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
 
+#if WEBRTC_5414
 		// Always returns our H264 hardware encoders codec_info for now/
+		virtual CodecSupport QueryCodecSupport(const webrtc::SdpVideoFormat& Format, absl::optional<std::string> scalability_mode) const override;
+#else
 		virtual CodecInfo QueryVideoEncoder(const webrtc::SdpVideoFormat& Format) const override;
+#endif
 
 		// Always returns our H264 hardware encoder for now.
 		virtual std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(const webrtc::SdpVideoFormat& Format) override;

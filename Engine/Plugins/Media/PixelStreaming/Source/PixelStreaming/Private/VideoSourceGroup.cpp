@@ -56,7 +56,11 @@ namespace UE::PixelStreaming
 
 	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FVideoSourceGroup::CreateVideoSource(const TFunction<bool()>& InShouldGenerateFramesCheck)
 	{
+#if WEBRTC_5414
+		rtc::scoped_refptr<FVideoSource> NewVideoSource = rtc::scoped_refptr<FVideoSource>(new FVideoSource(VideoInput, InShouldGenerateFramesCheck));
+#else
 		rtc::scoped_refptr<FVideoSource> NewVideoSource = new FVideoSource(VideoInput, InShouldGenerateFramesCheck);
+#endif
 		{
 			FScopeLock Lock(&CriticalSection);
 			VideoSources.Add(NewVideoSource);

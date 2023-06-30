@@ -32,7 +32,11 @@ namespace UE::PixelStreaming
 
 	rtc::scoped_refptr<FFrameBufferMultiFormat> FFrameBufferMultiFormatLayered::GetLayer(int LayerIndex) const
 	{
+#if WEBRTC_5414
+		return rtc::make_ref_counted<FFrameBufferMultiFormat>(FrameCapturer, StreamId, LayerIndex);
+#else
 		return new rtc::RefCountedObject<FFrameBufferMultiFormat>(FrameCapturer, StreamId, LayerIndex);
+#endif
 	}
 
 	FFrameBufferMultiFormat::FFrameBufferMultiFormat(TSharedPtr<FPixelCaptureCapturerMultiFormat> InFrameCapturer, uint32 InStreamId, int InLayerIndex)

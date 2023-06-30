@@ -482,7 +482,11 @@ namespace UE::PixelStreaming
 					AddNewDataChannel(PlayerId, NewChannel);
 				});
 
+#if WEBRTC_5414
+				NewConnection->SetWebRTCStatsCallback(rtc::scoped_refptr<FRTCStatsCollector>(new FRTCStatsCollector(PlayerId)));
+#else
 				NewConnection->SetWebRTCStatsCallback(new rtc::RefCountedObject<FRTCStatsCollector>(PlayerId));
+#endif
 
 				PlayerContext->PeerConnection = MakeShareable(NewConnection.Release());
 

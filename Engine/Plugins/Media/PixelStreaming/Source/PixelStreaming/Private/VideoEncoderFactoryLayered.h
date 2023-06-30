@@ -18,7 +18,11 @@ namespace UE::PixelStreaming
 		FVideoEncoderFactoryLayered();
 		virtual ~FVideoEncoderFactoryLayered();
 		virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const ;
+#if WEBRTC_5414
+		virtual CodecSupport QueryCodecSupport(const webrtc::SdpVideoFormat& format, absl::optional<std::string> scalability_mode) const override;
+#else
 		virtual CodecInfo QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const override;
+#endif
 		virtual std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(const webrtc::SdpVideoFormat& format);
 
 		FVideoEncoderFactorySingleLayer* GetEncoderFactory(int StreamIndex);

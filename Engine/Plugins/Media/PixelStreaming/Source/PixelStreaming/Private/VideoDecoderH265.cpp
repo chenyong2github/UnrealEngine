@@ -47,7 +47,11 @@ namespace UE::PixelStreaming
 
 			if (DecodeResult.IsSuccess())
 			{
+#if WEBRTC_5414
+				rtc::scoped_refptr<webrtc::VideoFrameBuffer> FrameBuffer = rtc::make_ref_counted<UE::PixelStreaming::FFrameBufferRHI>(DecoderResource);
+#else
 				rtc::scoped_refptr<webrtc::VideoFrameBuffer> FrameBuffer = new rtc::RefCountedObject<UE::PixelStreaming::FFrameBufferRHI>(DecoderResource);
+#endif
 				check(FrameBuffer->width() != 0 && FrameBuffer->height() != 0); // TODO we should probably check that we are getting the frame back that we are expecting
 
 				webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()

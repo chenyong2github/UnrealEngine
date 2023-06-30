@@ -61,7 +61,11 @@ namespace UE::PixelStreaming
 	{
 		webrtc::VideoFrame NewFrame(ExistingFrame);
 		const FPixelCaptureOutputFrameI420& AdaptedLayerI420 = StaticCast<const FPixelCaptureOutputFrameI420&>(AdaptedLayer);
+#if WEBRTC_5414
+		rtc::scoped_refptr<FFrameBufferI420> I420Buffer = rtc::make_ref_counted<FFrameBufferI420>(AdaptedLayerI420.GetI420Buffer());
+#else
 		rtc::scoped_refptr<FFrameBufferI420> I420Buffer = new rtc::RefCountedObject<FFrameBufferI420>(AdaptedLayerI420.GetI420Buffer());
+#endif
 		NewFrame.set_video_frame_buffer(I420Buffer);
 		return NewFrame;
 	}

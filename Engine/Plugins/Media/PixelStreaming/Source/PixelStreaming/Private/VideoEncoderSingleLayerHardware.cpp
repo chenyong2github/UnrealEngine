@@ -132,7 +132,11 @@ namespace UE::PixelStreaming
 		webrtc::VideoFrame NewFrame(ExistingFrame);
 		const FPixelCaptureOutputFrameRHI& RHILayer = StaticCast<const FPixelCaptureOutputFrameRHI&>(AdaptedLayer);
 		// TODO-TE
+#if WEBRTC_5414
+		rtc::scoped_refptr<FFrameBufferRHI> RHIBuffer = rtc::make_ref_counted<FFrameBufferRHI>(MakeShared<FVideoResourceRHI>(HardwareEncoder.Pin()->GetDevice().ToSharedRef(), FVideoResourceRHI::FRawData{ RHILayer.GetFrameTexture(), nullptr, 0 }));
+#else
 		rtc::scoped_refptr<FFrameBufferRHI> RHIBuffer = new rtc::RefCountedObject<FFrameBufferRHI>(MakeShared<FVideoResourceRHI>(HardwareEncoder.Pin()->GetDevice().ToSharedRef(), FVideoResourceRHI::FRawData{ RHILayer.GetFrameTexture(), nullptr, 0 }));
+#endif
 		NewFrame.set_video_frame_buffer(RHIBuffer);
 		return NewFrame;
 	}
@@ -287,7 +291,9 @@ namespace UE::PixelStreaming
 		VideoEncoder::EncoderInfo info;
 		info.supports_native_handle = true;
 		info.is_hardware_accelerated = true;
+#if !WEBRTC_5414
 		info.has_internal_source = false;
+#endif
 		info.supports_simulcast = false;
 		info.implementation_name = TCHAR_TO_UTF8(*FString::Printf(TEXT("PIXEL_STREAMING_HW_ENCODER_%s"), GDynamicRHI->GetName()));
 

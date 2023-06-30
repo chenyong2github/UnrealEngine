@@ -474,7 +474,11 @@ void FPixelStreamingPeerConnection::SetVideoSource(rtc::scoped_refptr<webrtc::Vi
 		if (Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
 		{
 			bHasVideoTransceiver = true;
+#if WEBRTC_5414
+			Sender->SetTrack(VideoTrack.get());
+#else
 			Sender->SetTrack(VideoTrack);
+#endif
 			Sender->SetStreams({ GetVideoStreamID() });
 			SetTransceiverDirection(*Transceiver, webrtc::RtpTransceiverDirection::kSendOnly);
 			webrtc::RtpParameters ExistingParams = Sender->GetParameters();
@@ -525,8 +529,11 @@ void FPixelStreamingPeerConnection::SetAudioSource(rtc::scoped_refptr<webrtc::Au
 		AudioTransceiverDirection = webrtc::RtpTransceiverDirection::kInactive;
 	}
 
+#if WEBRTC_5414
+	rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack = PeerConnectionFactory->CreateAudioTrack(ToString(AudioTrackLabel), InAudioSource.get());
+#else
 	rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack = PeerConnectionFactory->CreateAudioTrack(ToString(AudioTrackLabel), InAudioSource);
-
+#endif
 	bool bHasAudioTransceiver = false;
 	for (auto& Transceiver : PeerConnection->GetTransceivers())
 	{
@@ -534,7 +541,11 @@ void FPixelStreamingPeerConnection::SetAudioSource(rtc::scoped_refptr<webrtc::Au
 		if (Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
 		{
 			bHasAudioTransceiver = true;
+#if WEBRTC_5414
+			Sender->SetTrack(AudioTrack.get());
+#else
 			Sender->SetTrack(AudioTrack);
+#endif
 			Sender->SetStreams({ GetAudioStreamID() });
 			SetTransceiverDirection(*Transceiver, AudioTransceiverDirection);
 		}
@@ -670,11 +681,13 @@ rtc::scoped_refptr<webrtc::AudioSourceInterface> FPixelStreamingPeerConnection::
 		AudioSourceOptions.audio_jitter_buffer_max_packets = 1000;
 		AudioSourceOptions.audio_jitter_buffer_fast_accelerate = false;
 		AudioSourceOptions.audio_jitter_buffer_min_delay_ms = 0;
+#if !WEBRTC_5414
 		AudioSourceOptions.audio_jitter_buffer_enable_rtx_handling = false;
 		AudioSourceOptions.typing_detection = false;
 		AudioSourceOptions.experimental_agc = false;
 		AudioSourceOptions.experimental_ns = false;
 		AudioSourceOptions.residual_echo_detector = false;
+#endif
 		// Create audio source
 		ApplicationAudioSource = PeerConnectionFactory->CreateAudioSource(AudioSourceOptions);
 	}
@@ -893,11 +906,13 @@ void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 		Config.echo_canceller.enabled = false;
 		Config.noise_suppression.enabled = false;
 		Config.transient_suppression.enabled = false;
-		Config.voice_detection.enabled = false;
 		Config.gain_controller1.enabled = false;
 		Config.gain_controller2.enabled = false;
+#if !WEBRTC_5414
+		Config.voice_detection.enabled = false;
 		Config.residual_echo_detector.enabled = false;
 		Config.level_estimation.enabled = false;
+#endif
 
 		// Apply the config.
 		AudioProcessingModule->ApplyConfig(Config);

@@ -234,7 +234,11 @@ public:
 		// Someone may accidentally call this static function without calling FPixelStreamingPeerConnection::Create first
 		if (SignallingThread != nullptr)
 		{
+#if WEBRTC_5414
+			SignallingThread->PostTask(Forward<FunctorT>(InFunc));
+#else
 			SignallingThread->PostTask(RTC_FROM_HERE, Forward<FunctorT>(InFunc));
+#endif
 		}
 	}
 

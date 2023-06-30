@@ -18,7 +18,11 @@ UPixelStreamingPeerComponent::UPixelStreamingPeerComponent(const FObjectInitiali
 void UPixelStreamingPeerComponent::SetConfig(const FPixelStreamingRTCConfigWrapper& Config)
 {
 	PeerConnection = FPixelStreamingPeerConnection::Create(Config.Config);
+#if WEBRTC_5414
+	PeerConnection->SetWebRTCStatsCallback(rtc::scoped_refptr<UE::PixelStreaming::FRTCStatsCollector>(new UE::PixelStreaming::FRTCStatsCollector(TEXT("Streamer"))));
+#else
 	PeerConnection->SetWebRTCStatsCallback(new rtc::RefCountedObject<UE::PixelStreaming::FRTCStatsCollector>(TEXT("Streamer")));
+#endif
 
 	if (PeerConnection)
 	{

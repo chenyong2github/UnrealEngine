@@ -428,7 +428,9 @@ namespace UE::PixelStreaming
 				EncoderInfo.supports_native_handle = EncoderImplInfo.supports_native_handle;
 				EncoderInfo.has_trusted_rate_controller = EncoderImplInfo.has_trusted_rate_controller;
 				EncoderInfo.is_hardware_accelerated = EncoderImplInfo.is_hardware_accelerated;
+#if !WEBRTC_5414
 				EncoderInfo.has_internal_source = EncoderImplInfo.has_internal_source;
+#endif
 			}
 			else
 			{
@@ -448,7 +450,9 @@ namespace UE::PixelStreaming
 				EncoderInfo.is_hardware_accelerated |= EncoderImplInfo.is_hardware_accelerated;
 
 				// Has internal source only if all encoders have it.
+#if !WEBRTC_5414
 				EncoderInfo.has_internal_source &= EncoderImplInfo.has_internal_source;
+#endif
 			}
 
 			// Nasty hack to allow us to manually convert VPX frames to I420 later in the encode block

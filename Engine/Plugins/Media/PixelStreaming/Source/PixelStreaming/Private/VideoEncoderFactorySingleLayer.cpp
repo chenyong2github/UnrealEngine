@@ -145,12 +145,20 @@ namespace UE::PixelStreaming
 		return SupportedFormats;
 	}
 
+#if WEBRTC_5414
+	FVideoEncoderFactorySingleLayer::CodecSupport FVideoEncoderFactorySingleLayer::QueryCodecSupport(const webrtc::SdpVideoFormat& Format, absl::optional<std::string> scalability_mode) const
+	{
+		webrtc::VideoEncoderFactory::CodecSupport CodecSupport;
+		return CodecSupport;
+	}
+#else
 	FVideoEncoderFactorySingleLayer::CodecInfo FVideoEncoderFactorySingleLayer::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
 	{
 		webrtc::VideoEncoderFactory::CodecInfo CodecInfo;
 		CodecInfo.has_internal_source = false;
 		return CodecInfo;
 	}
+#endif
 
 	std::unique_ptr<webrtc::VideoEncoder> FVideoEncoderFactorySingleLayer::CreateVideoEncoder(const webrtc::SdpVideoFormat& format)
 	{

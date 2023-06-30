@@ -48,9 +48,15 @@ namespace UE::PixelStreaming
 	{
 		return PrimaryEncoderFactory->GetSupportedFormats();
 	}
-
+#if WEBRTC_5414
+	FVideoEncoderFactoryLayered::CodecSupport FVideoEncoderFactoryLayered::QueryCodecSupport(const webrtc::SdpVideoFormat& format, absl::optional<std::string> scalability_mode) const
+	{
+		return PrimaryEncoderFactory->QueryCodecSupport(format, scalability_mode);
+	}
+#else
 	FVideoEncoderFactoryLayered::CodecInfo FVideoEncoderFactoryLayered::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
 	{
 		return PrimaryEncoderFactory->QueryVideoEncoder(format);
 	}
+#endif
 } // namespace UE::PixelStreaming
