@@ -108,4 +108,27 @@ TEST_CASE("TelemetryUtils::Router::WeakBinding", "[Smoke]")
     CHECK(!WeakCallee.Pin().IsValid());
 }
 
+TEST_CASE("TelemetryUtils::Router::ProvideWithLambda", "[Smoke]")
+{
+    FTelemetryRouter Router;
+
+    constexpr int32 Increment = 4;
+    FTestTelemetryData DataReceived;
+    FDelegateHandle Handle = Router.OnTelemetry<FTestTelemetryData>(
+        [&DataReceived](const FTestTelemetryData& In) {
+            DataReceived.Count += In.Count;
+        });
+    
+    Router.ProvideTelemetryWith<FTestTelemetryData>([]() -> FTestTelemetryData { 
+        return FTestTelemetryData{ .Count = Increment };
+    });
+    CHECK_EQUAL(DataReceived.Count, Increment);
+    Router.UnregisterTelemetrySink<FTestTelemetryData>(Handle);
+    Router.ProvideTelemetryWith<FTestTelemetryData>([]() -> FTestTelemetryData { 
+        return FTestTelemetryData{ .Count = Increment };
+    });
+    CHECK_EQUAL(DataReceived.Count, Increment);
+}
+
+
 #endif
