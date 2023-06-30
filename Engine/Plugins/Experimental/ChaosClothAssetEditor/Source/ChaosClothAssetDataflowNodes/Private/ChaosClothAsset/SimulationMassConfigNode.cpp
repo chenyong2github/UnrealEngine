@@ -12,7 +12,7 @@ FChaosClothAssetSimulationMassConfigNode::FChaosClothAssetSimulationMassConfigNo
 	RegisterCollectionConnections();
 }
 
-void FChaosClothAssetSimulationMassConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationMassConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	float MassValue;
 	switch (MassMode)

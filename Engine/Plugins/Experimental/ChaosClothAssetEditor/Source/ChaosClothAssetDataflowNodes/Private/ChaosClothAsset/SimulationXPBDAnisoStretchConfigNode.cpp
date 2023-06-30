@@ -10,9 +10,15 @@ FChaosClothAssetSimulationXPBDAnisoStretchConfigNode::FChaosClothAssetSimulation
 	: FChaosClothAssetSimulationBaseConfigNode(InParam, InGuid)
 {
 	RegisterCollectionConnections();
+	RegisterInputConnection(&XPBDAnisoStretchStiffnessWarp.WeightMap);
+	RegisterInputConnection(&XPBDAnisoStretchStiffnessWeft.WeightMap);
+	RegisterInputConnection(&XPBDAnisoStretchStiffnessBias.WeightMap);
+	RegisterInputConnection(&XPBDAnisoStretchDamping.WeightMap);
+	RegisterInputConnection(&XPBDAnisoStretchWarpScale.WeightMap);
+	RegisterInputConnection(&XPBDAnisoStretchWeftScale.WeightMap);
 }
 
-void FChaosClothAssetSimulationXPBDAnisoStretchConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationXPBDAnisoStretchConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYBOOL(XPBDAnisoStretchUse3dRestLengths);
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(

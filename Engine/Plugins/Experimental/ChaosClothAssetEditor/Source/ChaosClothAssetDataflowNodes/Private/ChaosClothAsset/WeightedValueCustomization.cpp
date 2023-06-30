@@ -12,6 +12,24 @@
 
 namespace UE::Chaos::ClothAsset
 {
+	namespace Private
+	{
+		static const FString OverridePrefix = TEXT("_Override");
+
+		static bool IsOverrideProperty(const TSharedPtr<IPropertyHandle>& Property)
+		{
+			const FStringView PropertyPath = Property ? Property->GetPropertyPath() : FStringView();
+			return PropertyPath.EndsWith(OverridePrefix, ESearchCase::CaseSensitive);
+		}
+
+		static bool IsOverridePropertyOf(const TSharedPtr<IPropertyHandle>& OverrideProperty, const TSharedPtr<IPropertyHandle>& Property)
+		{
+			const FStringView OverridePropertyPath = OverrideProperty ? OverrideProperty->GetPropertyPath() : FStringView();
+			const FStringView PropertyPath = Property ? Property->GetPropertyPath() : FStringView();
+			return OverridePropertyPath == FString(PropertyPath) + OverridePrefix;
+		}
+	}
+
 	TSharedRef<IPropertyTypeCustomization> FWeightedValueCustomization::MakeInstance()
 	{
 		return MakeShareable(new FWeightedValueCustomization);
@@ -43,6 +61,11 @@ namespace UE::Chaos::ClothAsset
 		for (int32 ChildIndex = 0; ChildIndex < SortedChildHandles.Num(); ++ChildIndex)
 		{
 			TSharedRef<IPropertyHandle> ChildHandle = SortedChildHandles[ChildIndex];
+
+			if (Private::IsOverrideProperty(ChildHandle))
+			{
+				continue;  // Skip overrides
+			}
 
 			// Propagate metadata to child properties so that it's reflected in the nested, individual spin boxes
 			ChildHandle->SetInstanceMetaData(TEXT("UIMin"), StructPropertyHandle->GetMetaData(TEXT("UIMin")));
@@ -119,20 +142,57 @@ namespace UE::Chaos::ClothAsset
 		}
 		if (PropertyClass == FStrProperty::StaticClass())
 		{
-			TWeakPtr<IPropertyHandle> WeakHandlePtr = PropertyHandle;
+			// Manage override property values (properties ending with _Override)
+			TWeakPtr<IPropertyHandle> OverrideHandleWeakPtr;
+
+			for (int32 ChildIndex = 0; ChildIndex < SortedChildHandles.Num(); ++ChildIndex)
+			{
+				const bool bLastChild = SortedChildHandles.Num() - 1 == ChildIndex;
+				const TSharedRef<IPropertyHandle>& ChildHandle = SortedChildHandles[ChildIndex];
+
+				if (Private::IsOverridePropertyOf(ChildHandle, PropertyHandle))
+				{
+					OverrideHandleWeakPtr = ChildHandle;
+					break;
+				}
+			}
+
+			TWeakPtr<IPropertyHandle> HandleWeakPtr = PropertyHandle;
 			return
 				SNew(SEditableTextBox)
 				.ToolTipText(LOCTEXT("WeightMap", "The name of the weight map for this property."))
-				.Text_Lambda([WeakHandlePtr]() -> FText
+				.Text_Lambda([HandleWeakPtr, OverrideHandleWeakPtr]() -> FText
 					{
 						FString Text;
-						WeakHandlePtr.Pin()->GetValue(Text);
+						if (const TSharedPtr<IPropertyHandle> OverrideHandlePtr = OverrideHandleWeakPtr.Pin())
+						{
+							OverrideHandlePtr->GetValue(Text);
+						}
+						if (Text.IsEmpty())
+						{
+							if (const TSharedPtr<IPropertyHandle> HandlePtr = HandleWeakPtr.Pin())
+							{
+								HandlePtr->GetValue(Text);
+							}
+						}
 						return FText::FromString(Text);
 
 					})
-				.OnTextCommitted_Lambda([WeakHandlePtr](const FText& Text, ETextCommit::Type)
+				.OnTextCommitted_Lambda([HandleWeakPtr](const FText& Text, ETextCommit::Type)
 					{
-						WeakHandlePtr.Pin()->SetValue(Text.ToString(), EPropertyValueSetFlags::DefaultFlags);
+						if (const TSharedPtr<IPropertyHandle> HandlePtr = HandleWeakPtr.Pin())
+						{
+							HandlePtr->SetValue(Text.ToString(), EPropertyValueSetFlags::DefaultFlags);
+						}
+					})
+				.IsEnabled_Lambda([OverrideHandleWeakPtr]() -> bool
+					{
+						FString Text;
+						if (const TSharedPtr<IPropertyHandle> OverrideHandlePtr = OverrideHandleWeakPtr.Pin())
+						{
+							OverrideHandlePtr->GetValue(Text);
+						}
+						return Text.IsEmpty();
 					})
 				.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
 		}

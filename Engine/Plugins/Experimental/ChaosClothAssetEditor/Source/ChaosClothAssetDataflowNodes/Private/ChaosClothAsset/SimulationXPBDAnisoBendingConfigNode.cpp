@@ -10,9 +10,16 @@ FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::FChaosClothAssetSimulation
 	: FChaosClothAssetSimulationBaseConfigNode(InParam, InGuid)
 {
 	RegisterCollectionConnections();
+	RegisterInputConnection(&XPBDAnisoFlatnessRatio.WeightMap);
+	RegisterInputConnection(&XPBDAnisoRestAngle.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBendingStiffnessWarp.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBendingStiffnessWeft.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBendingStiffnessBias.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBendingDamping.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBucklingStiffnessWarp.WeightMap);
 }
 
-void FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYENUMCHECKED2(
 		XPBDAnisoRestAngleType,

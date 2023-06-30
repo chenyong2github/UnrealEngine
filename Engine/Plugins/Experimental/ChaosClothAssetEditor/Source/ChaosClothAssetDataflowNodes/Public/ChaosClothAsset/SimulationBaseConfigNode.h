@@ -31,7 +31,7 @@ public:
 protected:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
-	virtual void AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+	virtual void AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 	PURE_VIRTUAL(FChaosClothAssetSimulationBaseConfigNode::AddProperties, );
 
 	/* Override this to do additional node-specific evaluate on the cloth collection output. AddProperties has already been called when this is called. */

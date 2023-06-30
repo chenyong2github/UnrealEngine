@@ -10,9 +10,11 @@ FChaosClothAssetSimulationXPBDEdgeSpringConfigNode::FChaosClothAssetSimulationXP
 	: FChaosClothAssetSimulationBaseConfigNode(InParam, InGuid)
 {
 	RegisterCollectionConnections();
+	RegisterInputConnection(&XPBDEdgeSpringStiffness.WeightMap);
+	RegisterInputConnection(&XPBDEdgeSpringDamping.WeightMap);
 }
 
-void FChaosClothAssetSimulationXPBDEdgeSpringConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationXPBDEdgeSpringConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(
 		XPBDEdgeSpringStiffness,

@@ -12,7 +12,7 @@ FChaosClothAssetSimulationSolverConfigNode::FChaosClothAssetSimulationSolverConf
 	RegisterCollectionConnections();
 }
 
-void FChaosClothAssetSimulationSolverConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationSolverConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(NumIterations);
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(MaxNumIterations);

@@ -64,13 +64,13 @@ void FChaosClothAssetSimulationBaseConfigNode::Evaluate(Dataflow::FContext& Cont
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
+		FCollectionPropertyMutableFacade Properties(ClothCollection);
+		Properties.DefineSchema();
+
+		AddProperties(Context, Properties);
+
 		if (FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
 		{
-			FCollectionPropertyMutableFacade Properties(ClothCollection);
-			Properties.DefineSchema();
-
-			AddProperties(Properties);
-
 			EvaluateClothCollection(Context, ClothCollection);
 		}
 

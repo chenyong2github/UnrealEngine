@@ -12,7 +12,7 @@ FChaosClothAssetSimulationVelocityScaleConfigNode::FChaosClothAssetSimulationVel
 	RegisterCollectionConnections();
 }
 
-void FChaosClothAssetSimulationVelocityScaleConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationVelocityScaleConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(LinearVelocityScale);
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(AngularVelocityScale);

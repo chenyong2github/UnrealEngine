@@ -10,9 +10,14 @@ FChaosClothAssetSimulationXPBDBendingElementConfigNode::FChaosClothAssetSimulati
 	: FChaosClothAssetSimulationBaseConfigNode(InParam, InGuid)
 {
 	RegisterCollectionConnections();
+	RegisterInputConnection(&XPBDFlatnessRatio.WeightMap);
+	RegisterInputConnection(&XPBDRestAngle.WeightMap);
+	RegisterInputConnection(&XPBDBendingElementStiffness.WeightMap);
+	RegisterInputConnection(&XPBDBendingElementDamping.WeightMap);
+	RegisterInputConnection(&XPBDBucklingStiffness.WeightMap);
 }
 
-void FChaosClothAssetSimulationXPBDBendingElementConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationXPBDBendingElementConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYENUMCHECKED2(
 		XPBDRestAngleType,

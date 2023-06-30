@@ -10,9 +10,13 @@ FChaosClothAssetSimulationPBDBendingElementConfigNode::FChaosClothAssetSimulatio
 	: FChaosClothAssetSimulationBaseConfigNode(InParam, InGuid)
 {
 	RegisterCollectionConnections();
+	RegisterInputConnection(&FlatnessRatio.WeightMap);
+	RegisterInputConnection(&RestAngle.WeightMap);
+	RegisterInputConnection(&BendingElementStiffness.WeightMap);
+	RegisterInputConnection(&BucklingStiffness.WeightMap);
 }
 
-void FChaosClothAssetSimulationPBDBendingElementConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationPBDBendingElementConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYENUMCHECKED2(
 		RestAngleType,

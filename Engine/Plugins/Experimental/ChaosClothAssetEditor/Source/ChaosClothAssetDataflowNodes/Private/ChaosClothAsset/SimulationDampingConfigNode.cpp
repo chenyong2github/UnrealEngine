@@ -12,7 +12,7 @@ FChaosClothAssetSimulationDampingConfigNode::FChaosClothAssetSimulationDampingCo
 	RegisterCollectionConnections();
 }
 
-void FChaosClothAssetSimulationDampingConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationDampingConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(DampingCoefficient);
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(LocalDampingCoefficient);

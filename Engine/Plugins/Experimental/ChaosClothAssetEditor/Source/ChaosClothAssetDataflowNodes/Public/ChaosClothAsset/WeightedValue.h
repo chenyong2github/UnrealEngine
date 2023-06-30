@@ -38,8 +38,13 @@ struct FChaosClothAssetWeightedValue
 	float High = 1.f;
 
 	/** The name of the weight map for this property. */
-	UPROPERTY(EditAnywhere, Category = "Weighted Value")
+	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DataflowInput))
 	FString WeightMap = TEXT("WeightMap");
+
+	/** The weight map override value for when the WeightMap has a connection that replaces the provided weight map value. */
+	UE_DEPRECATED(5.3, "This property is experimental and might be removed without notice.")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Weighted Value")
+	mutable FString WeightMap_Override;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
 };
 
 USTRUCT()
@@ -70,6 +75,11 @@ struct FChaosClothAssetWeightedValueNonAnimatable
 	float High = 1.f;
 
 	/** The name of the weight map for this property. */
-	UPROPERTY(EditAnywhere, Category = "Weighted Value")
+	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DataflowInput))
 	FString WeightMap = TEXT("WeightMap");
+
+	/** The weight map override value for when the WeightMap has a connection that replaces the provided weight map value. */
+	UE_DEPRECATED(5.3, "This property is experimental and might be removed without notice.")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Weighted Value")
+	mutable FString WeightMap_Override;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
 };

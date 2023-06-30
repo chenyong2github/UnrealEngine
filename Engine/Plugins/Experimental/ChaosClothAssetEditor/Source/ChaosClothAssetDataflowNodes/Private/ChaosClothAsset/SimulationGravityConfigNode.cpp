@@ -12,7 +12,7 @@ FChaosClothAssetSimulationGravityConfigNode::FChaosClothAssetSimulationGravityCo
 	RegisterCollectionConnections();
 }
 
-void FChaosClothAssetSimulationGravityConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+void FChaosClothAssetSimulationGravityConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYBOOL(UseGravityOverride);
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTY(GravityScale);
