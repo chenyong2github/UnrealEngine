@@ -254,6 +254,35 @@ void SStateTreeDebuggerView::StopRecording()
 	}
 }
 
+bool SStateTreeDebuggerView::CanToggleDebuggerAnalysis() const
+{
+	return Debugger && Debugger->IsAnalysisSessionActive(); 
+}
+
+void SStateTreeDebuggerView::ToggleDebuggerAnalysis() const
+{
+	if (Debugger)
+	{
+		if (Debugger->IsAnalysisSessionPaused())
+		{
+			Debugger->ResumeSessionAnalysis();
+		}
+		else
+		{
+			Debugger->PauseSessionAnalysis();
+		}
+	}
+}
+
+FSlateIcon SStateTreeDebuggerView::GetDebuggerAnalysisIcon() const
+{
+	if (Debugger && Debugger->IsAnalysisSessionActive() && !Debugger->IsAnalysisSessionPaused())
+	{
+		return FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(), "StateTreeEditor.PauseDebuggerAnalysis");
+	}
+	return FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(), "StateTreeEditor.ResumeDebuggerAnalysis");
+}
+
 void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating)
 {
 	if (UStateTreeEditorSettings::Get().bShouldDebuggerAutoRecordOnPIE)
@@ -331,34 +360,9 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		FIsActionButtonVisible::CreateLambda([this] { return CanAddStateBreakpoint(EStateTreeBreakpointType::OnExit) || CanRemoveStateBreakpoint(EStateTreeBreakpointType::OnExit); }));
 	
 	// Toolbars
-
-	FUIAction AnalysisPauseToggleButtonAction;
-	AnalysisPauseToggleButtonAction.GetActionCheckState.BindLambda([this]
-	{
-		return Debugger && Debugger->IsAnalysisSessionPaused() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	});
-	AnalysisPauseToggleButtonAction.ExecuteAction.BindLambda([this]
-	{
-		if (Debugger)
-		{
-			if (Debugger->IsAnalysisSessionPaused())
-			{
-				Debugger->ResumeSessionAnalysis();
-			}
-			else
-			{
-				Debugger->PauseSessionAnalysis();
-			}
-		}
-	});
-	
 	FSlimHorizontalToolBarBuilder LeftToolbar(InCommandList, FMultiBoxCustomization::None, /*InExtender*/ nullptr, /*InForceSmallIcons*/ true);
 	LeftToolbar.BeginSection(TEXT("Debugging"));
 	{
-		const FStateTreeDebuggerCommands& DebuggerCommands = FStateTreeDebuggerCommands::Get();
-		LeftToolbar.AddToolBarButton(DebuggerCommands.StartRecording);
-		LeftToolbar.AddToolBarButton(DebuggerCommands.StopRecording);
-
 		const FPlayWorldCommands& PlayWorldCommands = FPlayWorldCommands::Get();
 		LeftToolbar.AddToolBarButton(PlayWorldCommands.RepeatLastPlay);
 		LeftToolbar.AddToolBarButton(PlayWorldCommands.PausePlaySession,
@@ -368,17 +372,20 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		LeftToolbar.AddToolBarButton(PlayWorldCommands.StopPlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.StopPlaySession.Small"));
 		LeftToolbar.AddSeparator();
+
+		const FStateTreeDebuggerCommands& DebuggerCommands = FStateTreeDebuggerCommands::Get();
+		LeftToolbar.AddToolBarButton(DebuggerCommands.StartRecording);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.StopRecording);
 		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithStateChange);
 		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithEvents);
 		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithEvents);
 		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithStateChange);
 		LeftToolbar.AddSeparator();
-		LeftToolbar.AddToolBarButton(AnalysisPauseToggleButtonAction,
+		LeftToolbar.AddToolBarButton(DebuggerCommands.ToggleAnalysis,
 			NAME_None,
 			TAttribute<FText>(),
-			LOCTEXT("DebuggerPauseToolTip", "Debugger Paused"),
-			FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(), "StateTreeEditor.ToggleDebuggerPause"),
-			EUserInterfaceActionType::ToggleButton);
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>::CreateSP(this, &SStateTreeDebuggerView::GetDebuggerAnalysisIcon));
 	}
 	LeftToolbar.EndSection();
 
@@ -763,6 +770,11 @@ void SStateTreeDebuggerView::BindDebuggerToolbarCommands(const TSharedRef<FUICom
 		Commands.NextFrameWithStateChange,
 		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::StepForwardToNextStateChange),
 		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanStepForwardToNextStateChange));
+
+	ToolkitCommands->MapAction(
+		Commands.ToggleAnalysis,
+		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::ToggleDebuggerAnalysis),
+		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanToggleDebuggerAnalysis));
 }
 
 bool SStateTreeDebuggerView::CanStepBackToPreviousStateWithEvents() const
@@ -1008,6 +1020,8 @@ void SStateTreeDebuggerView::OnTimeLineScrubPositionChanged(double Time, bool bI
 
 void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebugger::FScrubState& ScrubState)
 {
+	TrackCursor();
+
 	// Rebuild frame details from the events of that frame
 	EventsTreeElements.Reset();
 	ON_SCOPE_EXIT
@@ -1271,15 +1285,15 @@ void SStateTreeDebuggerView::TrackCursor()
 	static constexpr double LeadingMarginFraction = 0.05;
 	static constexpr double TrailingMarginFraction = 0.01;
 
-	if (ScrubTime > CurrentViewRange.GetUpperBoundValue() - ViewRangeDuration * LeadingMarginFraction)
+	if (ScrubTime > (CurrentViewRange.GetUpperBoundValue() - (ViewRangeDuration * LeadingMarginFraction)))
 	{
-		CurrentViewRange.SetUpperBound(ScrubTime + ViewRangeDuration * LeadingMarginFraction);
+		CurrentViewRange.SetUpperBound(ScrubTime + (ViewRangeDuration * LeadingMarginFraction));
 		CurrentViewRange.SetLowerBound(CurrentViewRange.GetUpperBoundValue() - ViewRangeDuration);
 	}
 
-	if (ScrubTime < CurrentViewRange.GetLowerBoundValue() - ViewRangeDuration * TrailingMarginFraction)
+	if (ScrubTime < (CurrentViewRange.GetLowerBoundValue() + (ViewRangeDuration * TrailingMarginFraction)))
 	{
-		CurrentViewRange.SetLowerBound(ScrubTime);
+		CurrentViewRange.SetLowerBound(ScrubTime - (ViewRangeDuration * TrailingMarginFraction));
 		CurrentViewRange.SetUpperBound(CurrentViewRange.GetLowerBoundValue() + ViewRangeDuration);
 	}
 

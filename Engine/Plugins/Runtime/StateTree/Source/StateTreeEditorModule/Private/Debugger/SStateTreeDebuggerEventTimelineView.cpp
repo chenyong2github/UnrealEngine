@@ -4,6 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "SSimpleTimeSlider.h"
+#include "Fonts/FontMeasure.h"
 
 #define LOCTEXT_NAMESPACE "SStateTreeDebuggerEventTimelineView"
 
@@ -64,15 +65,26 @@ int32 SStateTreeDebuggerEventTimelineView::PaintEvents(const FGeometry& Allotted
 
 				if (Window.Description.IsEmpty() == false)
 				{
-					FSlateDrawElement::MakeText
-					(
-						OutDrawElements,
-						LayerId,
-						AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2D(XStart + 8, Y))),
-						Window.Description,
-						FCoreStyle::GetDefaultFontStyle("Regular", 8),
-						ESlateDrawEffect::None,
-						FLinearColor::Black);
+					FString Description = Window.Description.ToString();					
+					FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+					const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+					constexpr int32 TextLeftOffset = 8;
+					const int32 HorizontalOffset = FMath::RoundToInt((XEnd - XStart) - TextLeftOffset);
+					const int32 LastWholeCharacterIndex = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(Description, FontInfo, HorizontalOffset);
+
+					if (LastWholeCharacterIndex >= 0)
+					{
+						Description = Description.Left(LastWholeCharacterIndex + 1);
+
+						FSlateDrawElement::MakeText(
+							OutDrawElements,
+							LayerId,
+							AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2D(XStart + TextLeftOffset, Y))),
+							Description,
+							FontInfo,
+							ESlateDrawEffect::None,
+							FLinearColor::Black);
+					}
 				}
 			}
 		}

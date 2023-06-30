@@ -21,6 +21,7 @@ namespace UE::StateTreeDebugger
 
 enum class EStateTreeBreakpointType : uint8;
 
+struct FSlateIcon;
 struct FStateTreeDebugger;
 struct FStateTreeInstanceDebugId;
 struct FStateTreeDebuggerBreakpoint;
@@ -75,7 +76,11 @@ private:
 
 	bool CanStopRecording() const { return IsRecording(); }	
 	void StopRecording();
-	
+
+	bool CanToggleDebuggerAnalysis() const;
+	void ToggleDebuggerAnalysis() const;
+	FSlateIcon GetDebuggerAnalysisIcon() const;
+
 	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands);
 
 	bool CanStepBackToPreviousStateWithEvents() const;

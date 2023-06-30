@@ -25,6 +25,7 @@ public:
 	TSharedPtr<FUICommandInfo> PreviousFrameWithEvents;
 	TSharedPtr<FUICommandInfo> NextFrameWithEvents;
 	TSharedPtr<FUICommandInfo> NextFrameWithStateChange;
+	TSharedPtr<FUICommandInfo> ToggleAnalysis;
 };
 
 #endif // WITH_STATETREE_DEBUGGER
