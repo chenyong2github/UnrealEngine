@@ -32,13 +32,14 @@ void FDataflowNode::AddInput(FDataflowInput* InPtr)
 			ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Input Failed: Existing Node input already defined with name (%s)"), *InPtr->GetName().ToString());
 		}
 
-		if (!Inputs.Contains(InPtr->Property->GetOffset_ForInternal()))
+		const uint32 PropertyOffset = InPtr->GetOffset();
+		if (!Inputs.Contains(PropertyOffset))
 		{
-			Inputs.Add(InPtr->Property->GetOffset_ForInternal(), InPtr);
+			Inputs.Add(PropertyOffset, InPtr);
 		}
 		else
 		{
-			Inputs[InPtr->Property->GetOffset_ForInternal()] = InPtr;
+			Inputs[PropertyOffset] = InPtr;
 		}
 	}
 }
@@ -116,13 +117,14 @@ void FDataflowNode::AddOutput(FDataflowOutput* InPtr)
 			ensureMsgf(!Out->GetName().IsEqual(InPtr->GetName()), TEXT("Add Output Failed: Existing Node output already defined with name (%s)"), *InPtr->GetName().ToString());
 		}
 
-		if (!Outputs.Contains(InPtr->Property->GetOffset_ForInternal()))
+		const uint32 PropertyOffset = InPtr->GetOffset();
+		if (!Outputs.Contains(PropertyOffset))
 		{
-			Outputs.Add(InPtr->Property->GetOffset_ForInternal(), InPtr);
+			Outputs.Add(PropertyOffset, InPtr);
 		}
 		else
 		{
-			Outputs[InPtr->Property->GetOffset_ForInternal()] = InPtr;
+			Outputs[PropertyOffset] = InPtr;
 		}
 	}
 }
@@ -238,106 +240,191 @@ void FDataflowNode::Invalidate(const Dataflow::FTimestamp& InModifiedTimestamp)
 	}
 }
 
-void FDataflowNode::RegisterInputConnection(const void* InProperty)
+const FProperty* FDataflowNode::FindProperty(const UStruct* Struct, const void* InProperty, const FName& PropertyName, TArray<const FProperty*>* OutPropertyChain) const
+{
+	const FProperty* Property = nullptr;
+	for (FPropertyValueIterator PropertyIt(FProperty::StaticClass(), Struct, this); PropertyIt; ++PropertyIt)
+	{
+		if (InProperty == PropertyIt.Value() && (PropertyName == NAME_None || PropertyName == PropertyIt.Key()->GetName()))
+		{
+			Property = PropertyIt.Key();
+			if (OutPropertyChain)
+			{
+				PropertyIt.GetPropertyChain(*OutPropertyChain);
+			}
+			break;
+		}
+	}
+	return Property;
+}
+
+const FProperty* FDataflowNode::FindProperty(const UStruct* Struct, const FName& PropertyFullName, TArray<const FProperty*>* OutPropertyChain) const
+{
+	const FProperty* Property = nullptr;
+	for (FPropertyValueIterator PropertyIt(FProperty::StaticClass(), Struct, this); PropertyIt; ++PropertyIt)
+	{
+		TArray<const FProperty*> PropertyChain;
+		PropertyIt.GetPropertyChain(PropertyChain);
+		if (GetPropertyFullName(PropertyChain) == PropertyFullName)
+		{
+			Property = PropertyIt.Key();
+			if (OutPropertyChain)
+			{
+				*OutPropertyChain = MoveTemp(PropertyChain);
+			}
+			break;
+		}
+	}
+	return Property;
+}
+
+uint32 FDataflowNode::GetPropertyOffset(const TArray<const FProperty*>& PropertyChain)
+{
+	uint32 Offset = 0;
+	for (const FProperty* const Property : PropertyChain)
+	{
+		Offset += (uint32)Property->GetOffset_ForInternal();
+	}
+	return Offset;
+}
+
+uint32 FDataflowNode::GetPropertyOffset(const FName& PropertyFullName) const
+{
+	uint32 Offset = 0;
+	if (const TUniquePtr<const FStructOnScope> ScriptOnStruct =
+		TUniquePtr<FStructOnScope>(const_cast<FDataflowNode*>(this)->NewStructOnScope()))  // The mutable Struct Memory is not accessed here, allowing for the const_cast and keeping this method const
+	{
+		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
+		{
+			TArray<const FProperty*> PropertyChain;
+			FindProperty(Struct, PropertyFullName, &PropertyChain);
+			Offset = GetPropertyOffset(PropertyChain);
+		}
+	}
+	return Offset;
+}
+
+FName FDataflowNode::GetPropertyFullName(const TArray<const FProperty*>& PropertyChain)
+{
+	FString PropertyFullName;
+	for (const FProperty* const Property : PropertyChain)
+	{
+		const FString PropertyName = Property->GetName();
+		PropertyFullName = PropertyFullName.IsEmpty() ?
+			PropertyName :
+			FString::Format(TEXT("{0}.{1}"), { PropertyName, PropertyFullName });
+	}
+	return FName(*PropertyFullName);
+}
+
+FText FDataflowNode::GetPropertyDisplayNameText(const TArray<const FProperty*>& PropertyChain)
+{
+#if WITH_EDITORONLY_DATA  // GetDisplayNameText() is only available if WITH_EDITORONLY_DATA
+	FText PropertyText;
+	for (const FProperty* const Property : PropertyChain)
+	{
+		static const FTextFormat TextFormat(NSLOCTEXT("DataflowNode", "PropertyDisplayNameTextConcatenator", "{0}.{1}"));
+		PropertyText = PropertyText.IsEmpty() ?
+			Property->GetDisplayNameText() :
+			FText::Format(TextFormat, Property->GetDisplayNameText(), PropertyText);
+	}
+	return PropertyText;
+#else
+	return FText::FromName(GetPropertyFullName(PropertyChain));
+#endif
+}
+
+void FDataflowNode::RegisterInputConnection(const void* InProperty, const FName& PropertyName)
 {
 	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			TArray<const FProperty*> PropertyChain;
+			const FProperty* const Property =
+				FindProperty(Struct, InProperty, PropertyName, &PropertyChain);
+			if (ensure(Property && PropertyChain.Num()))
 			{
-				FProperty* Property = *PropertyIt;
-				size_t RealAddress = (size_t)this + Property->GetOffset_ForInternal();
-				if (RealAddress == (size_t)InProperty)
-				{
-					FName PropName(Property->GetName());
-					FName PropType(Property->GetCPPType());
-					AddInput(new FDataflowInput({ PropType, PropName, this, Property }));
-				}
+				const FName PropName(GetPropertyFullName(PropertyChain));
+				const FName PropType(Property->GetCPPType());
+				AddInput(new FDataflowInput({ PropType, PropName, this, Property }));
 			}
 		}
 	}
 }
 
-void FDataflowNode::UnregisterInputConnection(const void* InProperty)
+void FDataflowNode::UnregisterInputConnection(const void* InProperty, const FName& PropertyName)
 {
 	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			TArray<const FProperty*> PropertyChain;
+			const FProperty* const Property =
+				FindProperty(Struct, InProperty, PropertyName, &PropertyChain);
+			if (ensure(Property && PropertyChain.Num()))
 			{
-				const FProperty* const Property = *PropertyIt;
-				const int32 Offset = Property->GetOffset_ForInternal();
-				const size_t RealAddress = (size_t)this + (size_t)Offset;
-				if (RealAddress == (size_t)InProperty)
+				const uint32 Offset = GetPropertyOffset(PropertyChain);
+				if (FDataflowInput* const* const Input = Inputs.Find(Offset))
 				{
-					if (FDataflowInput* const* const Input = Inputs.Find(Offset))
-					{
-						Inputs.Remove(Offset);
-						delete *Input;
+					Inputs.Remove(Offset);
+					delete *Input;
 
-						// Invalidate graph as this input might have had connections
-						Invalidate();
-					}
-					break;
+					// Invalidate graph as this input might have had connections
+					Invalidate();
 				}
 			}
 		}
 	}
 }
 
-void FDataflowNode::RegisterOutputConnection(const void* InProperty, const void* Passthrough)
+void FDataflowNode::RegisterOutputConnection(const void* InProperty, const void* Passthrough, const FName& PropertyName, const FName& PassthroughName)
 {
 	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
 			FDataflowOutput* OutputConnection = nullptr;
-			size_t PassthroughOffset = INDEX_NONE;
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			TArray<const FProperty*> PropertyChain;
+			const FProperty* const Property =
+				FindProperty(Struct, InProperty, PropertyName, &PropertyChain);
+			if (ensure(Property && PropertyChain.Num()))
 			{
-				FProperty* Property = *PropertyIt;
-				size_t RealAddress = (size_t)this + Property->GetOffset_ForInternal();
-				if (RealAddress == (size_t)InProperty)
+				const FName PropName(GetPropertyFullName(PropertyChain));
+				const FName PropType(Property->GetCPPType());
+				OutputConnection = new FDataflowOutput({ PropType, PropName, this, Property });
+
+				TArray<const FProperty*> PassthroughPropertyChain;
+				if (FindProperty(Struct, Passthrough, PassthroughName, &PassthroughPropertyChain))
 				{
-					FName PropName(Property->GetName());
-					FName PropType(Property->GetCPPType());
-					OutputConnection = new FDataflowOutput({ PropType, PropName, this, Property });
-				}
-				if (RealAddress == (size_t)Passthrough)
-				{
-					PassthroughOffset = (uint32)Property->GetOffset_ForInternal();
-				}
-			}
-			if(OutputConnection != nullptr)
-			{
-				if(PassthroughOffset != INDEX_NONE)
-				{
-					OutputConnection->SetPassthroughOffsetAddress(PassthroughOffset);
+					const uint32 PassthroughOffset = GetPropertyOffset(PassthroughPropertyChain);
+					OutputConnection->SetPassthroughOffset(PassthroughOffset);
 				}
 				AddOutput(OutputConnection);
 			}
-			
 		}
 	}
 }
 
-
 bool FDataflowNode::ValidateConnections()
 {
 	bHasValidConnections = true;
+#if WITH_EDITORONLY_DATA
 	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
-		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			for (FPropertyValueIterator PropertyIt(FProperty::StaticClass(), Struct, ScriptOnStruct->GetStructMemory()); PropertyIt; ++PropertyIt)
 			{
-				const FProperty* Property = *PropertyIt;
-				FName PropName(Property->GetName());
-#if WITH_EDITORONLY_DATA
+				const FProperty* const Property = PropertyIt.Key();
+				check(Property);
+
 				if (Property->HasMetaData(FDataflowNode::DataflowInput))
 				{
+					TArray<const FProperty*> PropertyChain;
+					PropertyIt.GetPropertyChain(PropertyChain);
+					const FName PropName(GetPropertyFullName(PropertyChain));
+
 					if (!FindInput(PropName))
 					{
 						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterInputConnection in constructor for (%s:%s)"), *GetName().ToString(), *PropName.ToString())
@@ -346,7 +433,11 @@ bool FDataflowNode::ValidateConnections()
 				}
 				if (Property->HasMetaData(FDataflowNode::DataflowOutput))
 				{
-					const FDataflowOutput* OutputConnection = FindOutput(PropName);
+					TArray<const FProperty*> PropertyChain;
+					PropertyIt.GetPropertyChain(PropertyChain);
+					const FName PropName(GetPropertyFullName(PropertyChain));
+
+					const FDataflowOutput* const OutputConnection = FindOutput(PropName);
 					if(!OutputConnection)
 					{
 						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterOutputConnection in constructor for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
@@ -389,10 +480,10 @@ bool FDataflowNode::ValidateConnections()
 						bHasValidConnections = false;
 					}
 				}
-#endif
 			}
 		}
 	}
+#endif
 	return bHasValidConnections;
 }
 
@@ -404,14 +495,15 @@ FString FDataflowNode::GetToolTip()
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
 			FString OutStr, InputsStr, OutputsStr;
-			
+
 			FText StructText = Struct->GetToolTipText();
 
 			OutStr.Appendf(TEXT("%s\n\n%s\n"), *GetDisplayName().ToString(), *StructText.ToString());
-			
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+
+			for (FPropertyValueIterator PropertyIt(FProperty::StaticClass(), Struct, ScriptOnStruct->GetStructMemory()); PropertyIt; ++PropertyIt)
 			{
-				const FProperty* Property = *PropertyIt;
+				const FProperty* const Property = PropertyIt.Key();
+				check(Property);
 
 				if (Property->HasMetaData(TEXT("Tooltip")))
 				{
@@ -425,6 +517,12 @@ FString FDataflowNode::GetToolTip()
 						{
 							break;
 						}
+
+						TArray<const FProperty*> PropertyChain;
+						PropertyIt.GetPropertyChain(PropertyChain);
+
+						const FName PropName(GetPropertyFullName(PropertyChain));
+
 						const FString& MainTooltipText = (OutArr.Num() > 1) ? OutArr[1] : OutArr[0];
 
 						if (Property->HasMetaData(FDataflowNode::DataflowInput) &&
@@ -433,29 +531,29 @@ FString FDataflowNode::GetToolTip()
 						{
 							if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
 							{
-								InputsStr.Appendf(TEXT("    %s [Intrinsic] - %s\n"), *Property->GetName(), *MainTooltipText);
+								InputsStr.Appendf(TEXT("    %s [Intrinsic] - %s\n"), *PropName.ToString(), *MainTooltipText);
 							}
 							else
 							{
-								InputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *MainTooltipText);
+								InputsStr.Appendf(TEXT("    %s - %s\n"), *PropName.ToString(), *MainTooltipText);
 							}
 
-							OutputsStr.Appendf(TEXT("    %s [Passthrough] - %s\n"), *Property->GetName(), *MainTooltipText);
+							OutputsStr.Appendf(TEXT("    %s [Passthrough] - %s\n"), *PropName.ToString(), *MainTooltipText);
 						}					
 						else if (Property->HasMetaData(FDataflowNode::DataflowInput))
 						{
 							if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
 							{
-								InputsStr.Appendf(TEXT("    %s [Intrinsic] - %s\n"), *Property->GetName(), *MainTooltipText);
+								InputsStr.Appendf(TEXT("    %s [Intrinsic] - %s\n"), *PropName.ToString(), *MainTooltipText);
 							}
 							else
 							{
-								InputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *MainTooltipText);
+								InputsStr.Appendf(TEXT("    %s - %s\n"), *PropName.ToString(), *MainTooltipText);
 							}
 						}
 						else if (Property->HasMetaData(FDataflowNode::DataflowOutput))
 						{
-							OutputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *MainTooltipText);
+							OutputsStr.Appendf(TEXT("    %s - %s\n"), *PropName.ToString(), *MainTooltipText);
 						}
 					}
 				}
@@ -478,99 +576,82 @@ FString FDataflowNode::GetToolTip()
 	return "";
 }
 
-FText FDataflowNode::GetPinDisplayName(const FName& PropertyName)
+FText FDataflowNode::GetPinDisplayName(const FName& PropertyFullName)
 {
-	// GetDisplayNameText() is only available if WITH_EDITORONLY_DATA
-#if WITH_EDITORONLY_DATA
 	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
-		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			TArray<const FProperty*> PropertyChain;
+			if (FindProperty(Struct, PropertyFullName, &PropertyChain))
 			{
-				const FProperty* Property = *PropertyIt;
-
-				if (Property->GetName() == PropertyName.ToString())
-				{
-					return Property->GetDisplayNameText();
-				}
+				return GetPropertyDisplayNameText(PropertyChain);
 			}
 		}
 	}
-#endif
 
 	return FText();
 }
 
-FString FDataflowNode::GetPinToolTip(const FName& PropertyName)
+FString FDataflowNode::GetPinToolTip(const FName& PropertyFullName)
 {
+#if WITH_EDITORONLY_DATA
 	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
-		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			if (const FProperty* const Property = FindProperty(Struct, PropertyFullName))
 			{
-				const FProperty* Property = *PropertyIt;
-
-#if WITH_EDITORONLY_DATA
-				if (Property->GetName() == PropertyName.ToString())
+				if (Property->HasMetaData(TEXT("Tooltip")))
 				{
-					if (Property->HasMetaData(TEXT("Tooltip")))
+					const FString ToolTipStr = Property->GetToolTipText(true).ToString();
+					if (ToolTipStr.Len() > 0)
 					{
-						FString ToolTipStr = Property->GetToolTipText(true).ToString();
-						if (ToolTipStr.Len() > 0)
-						{
-							TArray<FString> OutArr;
-							int32 NumElems = ToolTipStr.ParseIntoArray(OutArr, TEXT(":\r\n"));
+						TArray<FString> OutArr;
+						const int32 NumElems = ToolTipStr.ParseIntoArray(OutArr, TEXT(":\r\n"));
 
-							if (NumElems == 2)
-							{
-								return OutArr[1];  // Return tooltip meta text
-							}
-							else if (NumElems == 1)
-							{
-								return OutArr[0];  // Return doc comment
-							}
+						if (NumElems == 2)
+						{
+							return OutArr[1];  // Return tooltip meta text
+						}
+						else if (NumElems == 1)
+						{
+							return OutArr[0];  // Return doc comment
 						}
 					}
 				}
-#endif
 			}
 		}
 	}
+#endif
 
 	return "";
 }
 
-TArray<FString> FDataflowNode::GetPinMetaData(const FName& PropertyName)
+TArray<FString> FDataflowNode::GetPinMetaData(const FName& PropertyFullName)
 {
+#if WITH_EDITORONLY_DATA
 	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
-		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		if (const UStruct* const Struct = ScriptOnStruct->GetStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			if (const FProperty* const Property = FindProperty(Struct, PropertyFullName))
 			{
-				const FProperty* Property = *PropertyIt;
-
-#if WITH_EDITORONLY_DATA
-				if (Property->GetName() == PropertyName.ToString())
+				TArray<FString> MetaDataStrArr;
+				if (Property->HasMetaData(FDataflowNode::DataflowPassthrough))
 				{
-					TArray<FString> MetaDataStrArr;
-					if (Property->HasMetaData(FDataflowNode::DataflowPassthrough))
-					{
-						MetaDataStrArr.Add("Passthrough");
-					}
-					if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
-					{
-						MetaDataStrArr.Add("Intrinsic");
-					}
-
-					return MetaDataStrArr;
+					MetaDataStrArr.Add("Passthrough");
 				}
-#endif
+				if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
+				{
+					MetaDataStrArr.Add("Intrinsic");
+				}
+
+				return MetaDataStrArr;
 			}
 		}
 	}
+#endif
 
 	return TArray<FString>();
 }

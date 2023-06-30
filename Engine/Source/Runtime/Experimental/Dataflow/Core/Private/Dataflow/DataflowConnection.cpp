@@ -7,7 +7,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowConnection)
 
-FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection, FName InType, FName InName, FDataflowNode* InOwningNode, FProperty* InProperty, FGuid InGuid)
+FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection, FName InType, FName InName, FDataflowNode* InOwningNode, const FProperty* InProperty, FGuid InGuid)
 	: Direction(InDirection)
 	, Type(InType)
 	, Name(InName)
@@ -16,11 +16,11 @@ FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection,
 	, Guid(InGuid)
 {}
 
-int32 FDataflowConnection::GetOffset() const
+uint32 FDataflowConnection::GetOffset() const
 {
-	if (ensure(Property != nullptr))
+	if (ensure(OwningNode))
 	{
-		return Property->GetOffset_ForInternal();
+		return OwningNode->GetPropertyOffset(Name);
 	}
 	return INDEX_NONE;
 }

@@ -44,7 +44,7 @@ namespace Dataflow
 
 	struct FContextCacheElementBase 
 	{
-		FContextCacheElementBase(FProperty* InProperty = nullptr, FTimestamp InTimestamp = FTimestamp::Invalid)
+		FContextCacheElementBase(const FProperty* InProperty = nullptr, FTimestamp InTimestamp = FTimestamp::Invalid)
 			: Property(InProperty)
 			, Timestamp(InTimestamp)
 		{}
@@ -53,14 +53,14 @@ namespace Dataflow
 		template<typename T>
 		const T& GetTypedData(const FProperty* PropertyIn) const;
 		
-		FProperty* Property = nullptr;
+		const FProperty* Property = nullptr;
 		FTimestamp Timestamp = FTimestamp::Invalid;
 	};
 
 	template<class T>
 	struct FContextCacheElement : public FContextCacheElementBase 
 	{
-		FContextCacheElement(FProperty* InProperty, T&& InData, FTimestamp Timestamp)
+		FContextCacheElement(const FProperty* InProperty, T&& InData, FTimestamp Timestamp)
 			: FContextCacheElementBase(InProperty, Timestamp)
 			, Data(Forward<T>(InData))
 		{}
@@ -121,7 +121,7 @@ namespace Dataflow
 		virtual void SetDataImpl(int64 Key, TUniquePtr<FContextCacheElementBase>&& DataStoreEntry) = 0;
 		
 		template<typename T>
-		void SetData(size_t Key, FProperty* Property, T&& Value)
+		void SetData(size_t Key, const FProperty* Property, T&& Value)
 		{
 			int64 IntKey = (int64)Key;
 			TUniquePtr<FContextCacheElement<T>> DataStoreEntry = MakeUnique<FContextCacheElement<T>>(Property, Forward<T>(Value), FTimestamp::Current());
@@ -133,7 +133,7 @@ namespace Dataflow
 		virtual TUniquePtr<FContextCacheElementBase>* GetDataImpl(int64 Key) = 0;
 
 		template<class T>
-		const T& GetData(size_t Key, FProperty* Property, const T& Default = T())
+		const T& GetData(size_t Key, const FProperty* Property, const T& Default = T())
 		{
 			if (TUniquePtr<FContextCacheElementBase>* Cache = GetDataImpl(Key))
 			{

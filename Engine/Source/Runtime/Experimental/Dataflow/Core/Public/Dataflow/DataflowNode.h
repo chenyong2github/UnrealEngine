@@ -117,6 +117,9 @@ struct FDataflowNode
 	DATAFLOWCORE_API const FDataflowOutput* FindOutput(FName Name) const;
 	DATAFLOWCORE_API const FDataflowOutput* FindOutput(const void* Reference) const;
 
+	/** Return a property's byte offset from the dataflow base node address using the full property name (must includes its parent struct property names). */
+	uint32 GetPropertyOffset(const FName& PropertyFullName) const;
+
 	static DATAFLOWCORE_API const FName DataflowInput;
 	static DATAFLOWCORE_API const FName DataflowOutput;
 	static DATAFLOWCORE_API const FName DataflowPassthrough;
@@ -136,11 +139,15 @@ struct FDataflowNode
 	virtual FStructOnScope* NewStructOnScope() { return nullptr; }
 	virtual const UScriptStruct* TypedScriptStruct() const { return nullptr; }
 
-	/** Register the Input and Outputs after the creation in the factory */
-	DATAFLOWCORE_API void RegisterInputConnection(const void* Property);
-	DATAFLOWCORE_API void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
+	/** Register the Input and Outputs after the creation in the factory. Use PropertyName to disambiguate a struct name from its first property. */
+	DATAFLOWCORE_API void RegisterInputConnection(const void* Property, const FName& PropertyName = NAME_None);
+	DATAFLOWCORE_API void RegisterOutputConnection(
+		const void* Property,
+		const void* Passthrough = nullptr,
+		const FName& PropertyName = NAME_None,
+		const FName& PassthroughName = NAME_None);
 	/** Unregister the input connection if one exists matching this property, and then invalidate the graph. */
-	DATAFLOWCORE_API void UnregisterInputConnection(const void* Property);
+	DATAFLOWCORE_API void UnregisterInputConnection(const void* Property, const FName& PropertyName = NAME_None);
 
 	//
 	// Evaluation
@@ -259,6 +266,20 @@ struct FDataflowNode
 	FOnNodeInvalidated& GetOnNodeInvalidatedDelegate() { return OnNodeInvalidatedDelegate; }
 
 private:
+	static FName GetPropertyFullName(const TArray<const FProperty*>& PropertyChain);
+	static FText GetPropertyDisplayNameText(const TArray<const FProperty*>& PropertyChain);
+	static uint32 GetPropertyOffset(const TArray<const FProperty*>& PropertyChain);
+
+	/**
+	* Find a property using the property address and name (not including its parent struct property names).
+	* If NAME_None is used as the name, and the same address is shared by a parent structure property and
+	* its first child property, then the parent will be returned.
+	*/
+	const FProperty* FindProperty(const UStruct* Struct, const void* Property, const FName& PropertyName, TArray<const FProperty*>* OutPropertyChain = nullptr) const;
+
+	/** Find a property using the property full name (must includes its parent struct property names). */
+	const FProperty* FindProperty(const UStruct* Struct, const FName& PropertyFullName, TArray<const FProperty*>* OutPropertyChain = nullptr) const;
+
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const { return TArray<Dataflow::FRenderingParameter>(); }
 
 

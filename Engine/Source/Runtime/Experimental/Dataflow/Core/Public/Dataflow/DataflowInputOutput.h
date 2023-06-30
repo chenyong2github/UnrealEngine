@@ -21,7 +21,7 @@ struct FDataflowOutput;
 namespace Dataflow
 {
 	struct FInputParameters {
-		FInputParameters(FName InType = FName(""), FName InName = FName(""), FDataflowNode * InOwner = nullptr, FProperty * InProperty = nullptr)
+		FInputParameters(FName InType = FName(""), FName InName = FName(""), FDataflowNode* InOwner = nullptr, const FProperty* InProperty = nullptr)
 			: Type(InType)
 			, Name(InName)
 			, Owner(InOwner)
@@ -29,7 +29,7 @@ namespace Dataflow
 		FName Type;
 		FName Name;
 		FDataflowNode* Owner = nullptr;
-		FProperty* Property = nullptr;
+		const FProperty* Property = nullptr;
 	};
 }
 
@@ -71,7 +71,7 @@ namespace Dataflow
 {
 	struct FOutputParameters
 	{
-		FOutputParameters(FName InType = FName(""), FName InName = FName(""), FDataflowNode* InOwner = nullptr, FProperty* InProperty = nullptr)
+		FOutputParameters(FName InType = FName(""), FName InName = FName(""), FDataflowNode* InOwner = nullptr, const FProperty* InProperty = nullptr)
 			: Type(InType)
 			, Name(InName)
 			, Owner(InOwner)
@@ -80,7 +80,7 @@ namespace Dataflow
 		FName Type;
 		FName Name;
 		FDataflowNode* Owner = nullptr;
-		FProperty* Property = nullptr;
+		const FProperty* Property = nullptr;
 	};
 }
 USTRUCT()
@@ -92,7 +92,7 @@ struct FDataflowOutput : public FDataflowConnection
 	
 	TArray< FDataflowInput* > Connections;
 
-	size_t PassthroughOffsetAddress = INDEX_NONE;
+	uint32 PassthroughOffset = INDEX_NONE;
 
 public:
 	static DATAFLOWCORE_API FDataflowOutput NoOpOutput;
@@ -111,16 +111,16 @@ public:
 
 	DATAFLOWCORE_API virtual bool RemoveConnection(FDataflowConnection* InInput) override;
 
-	virtual FORCEINLINE void SetPassthroughOffsetAddress(const size_t InPassthroughOffsetAddress)
+	virtual FORCEINLINE void SetPassthroughOffset(const uint32 InPassthroughOffset)
 	{
-		PassthroughOffsetAddress = InPassthroughOffsetAddress;
+		PassthroughOffset = InPassthroughOffset;
 	}
 
 	virtual FORCEINLINE void* GetPassthroughRealAddress() const
 	{
-		if(PassthroughOffsetAddress != INDEX_NONE)
+		if(PassthroughOffset != INDEX_NONE)
 		{
-			return (void*)((size_t)OwningNode + PassthroughOffsetAddress);
+			return (void*)((size_t)OwningNode + (size_t)PassthroughOffset);
 		}
 		return nullptr;
 	}

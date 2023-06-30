@@ -48,21 +48,21 @@ protected:
 	FName Type;
 	FName Name;
 	FDataflowNode* OwningNode = nullptr;
-	FProperty* Property = nullptr;
+	const FProperty* Property = nullptr;
 	FGuid  Guid;
 
 	friend struct FDataflowNode;
 
 public:
 	FDataflowConnection() {};
-	DATAFLOWCORE_API FDataflowConnection(Dataflow::FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, FProperty* InProperty = nullptr, FGuid InGuid = FGuid::NewGuid());
+	DATAFLOWCORE_API FDataflowConnection(Dataflow::FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, const FProperty* InProperty = nullptr, FGuid InGuid = FGuid::NewGuid());
 	virtual ~FDataflowConnection() {};
 
 	FDataflowNode* GetOwningNode() { return OwningNode; }
 	const FDataflowNode* GetOwningNode() const { return OwningNode; }
 
 	Dataflow::FPin::EDirection GetDirection() const { return Direction; }
-	DATAFLOWCORE_API int32 GetOffset( ) const;
+	DATAFLOWCORE_API uint32 GetOffset() const;
 
 	FName GetType() const { return Type; }
 
