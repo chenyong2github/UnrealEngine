@@ -88,7 +88,5 @@ namespace UE::PixelStreaming
 
 		// Stream stats are further broken down and stored per RID, as some peers (e.g. an SFU) can have multiple streams.
 		TMap<FString, FStatsSink> StreamStatsSinks;
-
-		FCriticalSection StatsCS;
 	};
 } // namespace UE::PixelStreaming

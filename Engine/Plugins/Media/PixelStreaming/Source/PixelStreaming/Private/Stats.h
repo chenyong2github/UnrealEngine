@@ -147,5 +147,7 @@ namespace UE::PixelStreaming
 
 		TMap<FName, FDebugGraph> Graphs;
 		TMap<FName, FCanvasTileItem> Tiles;
+
+		FCriticalSection StatNotificationCS;
 	};
 } // namespace UE::PixelStreaming

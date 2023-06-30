@@ -267,11 +267,6 @@ namespace UE::PixelStreaming
 			return;
 		}
 
-		// This function can get fired from a bunch of different threads thanks to WebRTC which can cause
-		// race conditions not only here but also in stats changed delegates etc. This makes sure we do this
-		// work all synchronously
-		FScopeLock StatsLock(&StatsCS);
-
 		for (auto&& Stats : *Report)
 		{
 			const FString StatsType = FString(Stats.type());

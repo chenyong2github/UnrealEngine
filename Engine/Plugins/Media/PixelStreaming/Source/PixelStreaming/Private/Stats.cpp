@@ -181,6 +181,8 @@ namespace UE::PixelStreaming
 
 	void FStats::FireStatChanged(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue)
 	{
+		// firing off these delegates is not thread safe so we want to mutex this call.
+		FScopeLock Lock(&StatNotificationCS);
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
 			Delegates->OnStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
