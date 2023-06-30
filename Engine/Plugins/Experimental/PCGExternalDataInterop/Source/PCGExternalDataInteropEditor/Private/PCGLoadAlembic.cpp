@@ -11,6 +11,7 @@ void UPCGLoadAlembicFunctionLibrary::LoadAlembicFileToPCG(const FPCGLoadAlembicB
 	Settings->AlembicFilePath = InSettings.AlembicFilePath;
 	Settings->ConversionScale = InSettings.ConversionSettings.Scale;
 	Settings->ConversionRotation = InSettings.ConversionSettings.Rotation;
+	Settings->bConversionFlipHandedness = InSettings.bConversionFlipHandedness;
 	Settings->AttributeMapping = InSettings.AttributeMapping;
 
 	FPCGLoadAlembicElement Element;
