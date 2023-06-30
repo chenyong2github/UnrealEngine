@@ -301,6 +301,7 @@ private:
 	friend struct FNameHelper;
 	friend class FNameEntryAllocator;
 	friend class FNamePoolShardBase;
+	friend class FNamePool;
 
 	static void Encode(ANSICHAR* Name, uint32 Len);
 	static void Encode(WIDECHAR* Name, uint32 Len);
