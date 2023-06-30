@@ -24,9 +24,7 @@
 	const int32 Property##KeyIndex = AddPropertyHelper(Properties, FName(TEXT(#Property)), Property.bIsAnimatable); \
 	Properties.SetWeightedValue(Property##KeyIndex, Property.Low, Property.High); \
 	Properties.SetStringValue(Property##KeyIndex, GetValue<FString>(Context, &Property.WeightMap)); \
-PRAGMA_DISABLE_DEPRECATION_WARNINGS \
-	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString()); \
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString());
 
 /** Macro for adding and setting weighted value properties from inside AddProperties() and check for a similar property being overriden. */
 #define UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYCHECKED1(Property, SimilarProperty1) \
@@ -52,9 +50,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{ FName(TEXT(#SimilarProperty1)) }); \
 	Properties.SetWeightedValue(Property##KeyIndex, Property.Low, Property.High); \
 	Properties.SetStringValue(Property##KeyIndex, GetValue<FString>(Context, &Property.WeightMap)); \
-PRAGMA_DISABLE_DEPRECATION_WARNINGS \
-	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString()); \
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString());
 
 /** Macro for adding and setting weighted value properties from inside AddProperties() and check for two similar properties being overriden. */
 #define UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(Property, SimilarProperty1, SimilarProperty2) \
@@ -62,9 +58,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{ FName(TEXT(#SimilarProperty1)), FName(TEXT(#SimilarProperty2)) }); \
 	Properties.SetWeightedValue(Property##KeyIndex, Property.Low, Property.High); \
 	Properties.SetStringValue(Property##KeyIndex, GetValue<FString>(Context, &Property.WeightMap)); \
-PRAGMA_DISABLE_DEPRECATION_WARNINGS \
-	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString()); \
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString());
 
 /** Macro for adding and setting weighted value properties from inside AddProperties() and check for three similar properties being overriden. */
 #define UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED3(Property, SimilarProperty1, SimilarProperty2, SimilarProperty3) \
@@ -72,9 +66,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{ FName(TEXT(#SimilarProperty1)), FName(TEXT(#SimilarProperty2)), FName(TEXT(#SimilarProperty3)) }); \
 	Properties.SetWeightedValue(Property##KeyIndex, Property.Low, Property.High); \
 	Properties.SetStringValue(Property##KeyIndex, GetValue<FString>(Context, &Property.WeightMap)); \
-PRAGMA_DISABLE_DEPRECATION_WARNINGS \
-	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString()); \
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString());
 
 /** Macro for adding and setting weighted value properties from inside AddProperties() and check for four similar properties being overriden. */
 #define UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED4(Property, SimilarProperty1, SimilarProperty2, SimilarProperty3, SimilarProperty4) \
@@ -82,6 +74,4 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{ FName(TEXT(#SimilarProperty1)), FName(TEXT(#SimilarProperty2)), FName(TEXT(#SimilarProperty3)), FName(TEXT(#SimilarProperty4)) }); \
 	Properties.SetWeightedValue(Property##KeyIndex, Property.Low, Property.High); \
 	Properties.SetStringValue(Property##KeyIndex, GetValue<FString>(Context, &Property.WeightMap)); \
-PRAGMA_DISABLE_DEPRECATION_WARNINGS \
-	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString()); \
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Property.WeightMap_Override = GetValue<FString>(Context, &Property.WeightMap, FString());

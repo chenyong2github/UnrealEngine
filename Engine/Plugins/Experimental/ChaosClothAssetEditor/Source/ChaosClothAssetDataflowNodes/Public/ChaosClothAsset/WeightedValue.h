@@ -42,7 +42,6 @@ struct FChaosClothAssetWeightedValue
 	FString WeightMap = TEXT("WeightMap");
 
 	/** The weight map override value for when the WeightMap has a connection that replaces the provided weight map value. */
-	UE_DEPRECATED(5.3, "This property is experimental and might be removed without notice.")
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Weighted Value")
 	mutable FString WeightMap_Override;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
 };
@@ -79,7 +78,6 @@ struct FChaosClothAssetWeightedValueNonAnimatable
 	FString WeightMap = TEXT("WeightMap");
 
 	/** The weight map override value for when the WeightMap has a connection that replaces the provided weight map value. */
-	UE_DEPRECATED(5.3, "This property is experimental and might be removed without notice.")
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Weighted Value")
 	mutable FString WeightMap_Override;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
 };
