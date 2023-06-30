@@ -153,6 +153,15 @@ void FToolkitBuilder::GetCommandsForEditablePalette(TSharedRef<FEditablePalette>
 	}
 }
 
+FName FToolkitBuilder::GetActivePaletteName() const
+{
+	if (ActivePalette.IsValid() && ActivePalette->LoadToolPaletteAction.IsValid())
+	{
+		return ActivePalette->LoadToolPaletteAction->GetCommandName();
+	}
+	return NAME_None;
+}
+
 void FToolkitBuilder::AddPalette(TSharedPtr<FEditablePalette> Palette)
 {
 	Palette->OnPaletteEdited.BindSP(this, &FToolkitBuilder::OnEditablePaletteEdited, Palette.ToSharedRef());
@@ -224,6 +233,7 @@ void FToolkitBuilder::UpdateWidget()
 		UpdateEditablePalette(EditablePalette);		
 	}
 	
+	CategoryToolbarVisibility = LoadCommandNameToToolPaletteMap.Num() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void FToolkitBuilder::ToggleCommandInPalette(TSharedRef<FEditablePalette> Palette, FString CommandNameString)
@@ -275,7 +285,8 @@ void FToolkitBuilder::InitCategoryToolbarContainerWidget()
 {
 	if (!CategoryToolbarVBox.IsValid())
 	{
-		CategoryToolbarVBox = SNew(SVerticalBox);		
+		CategoryToolbarVBox = SNew(SVerticalBox)
+			.Visibility(CategoryToolbarVisibility);
 	}
 	else
 	{
@@ -476,11 +487,11 @@ void FToolkitBuilder::SetActivePaletteOnLoad(const FUICommandInfo* Command)
 
 TSharedPtr<SWidget> FToolkitBuilder::GenerateWidget()
 {
-	if (!ToolkitWidgetHBox)
+	if (!ToolkitWidgetContainerVBox)
 	{
 		DefineWidget();
 	}
-	return ToolkitWidgetHBox.ToSharedRef();
+	return ToolkitWidgetContainerVBox.ToSharedRef();
 }
 
 void FToolkitBuilder::SetActiveToolDisplayName(FText InActiveToolDisplayName)
@@ -504,8 +515,10 @@ void FToolkitBuilder::DefineWidget()
 
 	TSharedPtr<SHorizontalBox> ToolNameHeaderBox;
 
+	ToolkitWidgetContainerVBox = SNew(SVerticalBox);
+
 	ToolkitWidgetVBox = SNew(SVerticalBox);
-	ToolkitWidgetHBox = 
+	TSharedPtr<SWidget> MainSplitter = 
 		SNew(SSplitter)
 		+ SSplitter::Slot()
 		.Resizable(false)
@@ -519,6 +532,13 @@ void FToolkitBuilder::DefineWidget()
 			[
 				ToolkitWidgetVBox->AsShared()
 			];
+	
+	ToolkitWidgetContainerVBox->AddSlot()
+	.VAlign(VAlign_Fill)
+	.FillHeight(1)
+	[
+		MainSplitter->AsShared()
+	];
 
 	if (ToolkitSections->ModeWarningArea)
 	{
@@ -556,10 +576,13 @@ void FToolkitBuilder::DefineWidget()
 				[
 					SAssignNew(ToolNameHeaderBox, SHorizontalBox)
 					+SHorizontalBox::Slot()
+					.Padding(0)
+					.VAlign(EVerticalAlignment::VAlign_Center)
 					.HAlign(EHorizontalAlignment::HAlign_Left)
 					[
 						SNew(STextBlock)
 						.Justification(ETextJustify::Left)
+						.Margin(0)
 						.Font(Style.TitleFont)
 						.Text(TAttribute<FText>(SharedThis(this), &FToolkitBuilder::GetActiveToolDisplayName))
 						.ColorAndOpacity(Style.TitleForegroundColor)

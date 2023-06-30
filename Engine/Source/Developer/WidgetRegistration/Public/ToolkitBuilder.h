@@ -147,7 +147,7 @@ public:
 	void InitCategoryToolbarContainerWidget();
 
 	/**
-	 * Sets category button label visibility to Visiblity. It also reinitializes the
+	 * Sets category button label visibility to Visibility. It also reinitializes the
 	 * category toolbar data, as the toolbar's LabelVisibility member is now stale.
 	 *
 	 * @param Visibility If Visibility == EVisibility::Collapsed, the category button labels
@@ -174,12 +174,10 @@ public:
 	 */
 	void SetActivePaletteCommandsVisibility(EVisibility Visibility);
 
-
 	/**
 	 * @return the Visibility state of the active palette command buttons
 	 */
 	EVisibility GetActivePaletteCommandsVisibility() const { return ActivePaletteButtonVisibility; }
-
 
 	/**
 	 * RefreshCategoryToolbarWidget refreshes the UI display of the category toolbar 
@@ -248,12 +246,30 @@ public:
 	 */
 	FSimpleMulticastDelegate OnActivePaletteChanged;
 
-
+	/**
+	 * Sets the display name for the active tool
+	 *
+	 * @param InActiveToolDisplayName an FText that holds the name of the currently active tool
+	 */
 	void SetActiveToolDisplayName(FText InActiveToolDisplayName);
 
+	/**
+	 * @returns the display name for the active tool
+	 */
 	FText GetActiveToolDisplayName() const;
 
+	/**
+	 * Fills the OutCommands TArray with TSharedPtr<const FUICommandInfo> instances that are present in the FEditablePalette
+	 * EditablePalette
+	 *
+	 * @param EditablePalette the FEditablePalette whose FUICommandInfo
+	 */
 	void GetCommandsForEditablePalette(TSharedRef<FEditablePalette> EditablePalette, TArray<TSharedPtr<const FUICommandInfo>>& OutCommands);
+
+	/**
+	 * @returns the name of the Active Palette if one is available, else it returns NAME_NONE
+	 */
+	FName GetActivePaletteName() const;
 	
 private:
 
@@ -357,8 +373,8 @@ private:
 	/** The SVerticalBox which holds all but the vertical toolbar in a Toolkit */
 	TSharedPtr<SVerticalBox> ToolkitWidgetVBox;
 
-	/** The SSplitter which holds the entire Toolkit */
-	TSharedPtr<SSplitter> ToolkitWidgetHBox;
+	/** The SVerticalBox which holds the entire Toolkit */
+	TSharedPtr<SVerticalBox> ToolkitWidgetContainerVBox;
 
 	/** The FToolkitSections which holds the sections defined for this Toolkit */
 	TSharedPtr<FToolkitSections> ToolkitSections;
@@ -380,6 +396,12 @@ private:
 	/** If ActivePaletteButtonVisibility == EVisibility::Visible, the command buttons in the active palette
 	 * are visible, otherwise they are not displayed. By default the state is Visible  */
 	EVisibility ActivePaletteButtonVisibility = EVisibility::Visible;
+
+	/*
+	 * Is the Category toolbar visible? This should be false if the Category toolbar has less than 2 categories,
+	 * because if there is only one showing it is superfluous to actually show it since it will always be selected.
+	 */
+	EVisibility CategoryToolbarVisibility;
 
 	/** Specifies what happens if you click the category button of an already-active catogory */
 	ECategoryReclickBehavior CategoryReclickBehavior = ECategoryReclickBehavior::NoEffect;
