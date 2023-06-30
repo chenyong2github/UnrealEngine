@@ -146,7 +146,7 @@ void AColorCorrectRegion::TransferState()
 #if WITH_EDITOR
 		&& !IsHiddenEd()
 #endif 
-		&& !IsHidden();
+		&& !(GetWorld()->HasBegunPlay() && IsHidden());
 
 	TempCCRStateRenderThread->World = GetWorld();
 	TempCCRStateRenderThread->Priority = Priority;
