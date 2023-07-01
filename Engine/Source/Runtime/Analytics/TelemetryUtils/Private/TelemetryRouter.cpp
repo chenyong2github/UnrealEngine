@@ -17,8 +17,11 @@ FTelemetryRouter& FTelemetryRouter::Get()
     return FTelemetryUtils::GetRouter();
 }
 
-static void CallSinks(TMap<FDelegateHandle, TFunction<bool(const void*)>>* Sinks, const void* Data)
+void FTelemetryRouter::ProvideTelemetryInternal(FGuid Key, const void* Data) 
 {
+    FReadScopeLock Lock(SinkLock);
+    TGuardValue Guard(ReentrancyGuard, FPlatformTLS::GetCurrentThreadId());
+    TMap<FDelegateHandle, TFunction<bool(const void*)>>* Sinks = KeyToSinks.Find(Key);
     if (Sinks)
     {
         for (auto It = Sinks->CreateIterator(); It; ++It)
@@ -29,24 +32,6 @@ static void CallSinks(TMap<FDelegateHandle, TFunction<bool(const void*)>>* Sinks
                 It.RemoveCurrent();
             }
         }
-    }
-}
-
-void FTelemetryRouter::ProvideTelemetryInternal(FGuid Key, const void* Data) 
-{
-    FReadScopeLock Lock(SinkLock);
-    TGuardValue Guard(ReentrancyGuard, FPlatformTLS::GetCurrentThreadId());
-    CallSinks(KeyToSinks.Find(Key), Data);
-}
-
-void FTelemetryRouter::ProvideTelemetryInternal(FGuid Key, TFunctionRef<const void*()> GetData) 
-{
-    FReadScopeLock Lock(SinkLock);
-    TGuardValue Guard(ReentrancyGuard, FPlatformTLS::GetCurrentThreadId());
-    TMap<FDelegateHandle, TFunction<bool(const void*)>>* Sinks = KeyToSinks.Find(Key);
-    if (Sinks)
-    {
-        CallSinks(Sinks, GetData());
     }
 }
 

@@ -78,25 +78,6 @@ public:
         check(ReentrancyGuard != FPlatformTLS::GetCurrentThreadId());
         ProvideTelemetryInternal(UE::Telemetry::Private::GetDataKey<DATA_TYPE>(), reinterpret_cast<const void*>(&Data));
     }
-
-    /**
-     * Sends data in a type-safe manner to consumers expecting this data type. 
-     * This version takes a lambda so that expensive data can only be calculated if a registered callback will consume it.
-     * 
-     * @param Data Strongly typed data to be sent. Type must implement a static method called GetTelemetryID returning an FGuid.
-     */
-    template<typename DATA_TYPE, typename CALLABLE
-        UE_REQUIRES(std::is_same_v<std::invoke_result_t<CALLABLE>, DATA_TYPE>)
-    >
-    inline void ProvideTelemetryWith(CALLABLE&& Callable)
-    {
-        check(ReentrancyGuard != FPlatformTLS::GetCurrentThreadId());
-        TOptional<DATA_TYPE> Value;
-        ProvideTelemetryInternal(UE::Telemetry::Private::GetDataKey<DATA_TYPE>(), [&Value, &Callable](){
-            Value = Callable();
-            return reinterpret_cast<const void*>(&Value.GetValue());
-        });
-    }
     
     /** 
      * Registers a delegate as callback to receive telemetry of a certain type. 
@@ -153,7 +134,6 @@ private:
     TELEMETRYUTILS_API void RegisterTelemetrySinkInternal(FGuid Key, FDelegateHandle InHandle, TFunction<bool(const void*)> Sink);
     TELEMETRYUTILS_API void UnregisterTelemetrySinkInternal(FGuid Key, FDelegateHandle InHandle);
     TELEMETRYUTILS_API void ProvideTelemetryInternal(FGuid Key, const void* Data);
-    TELEMETRYUTILS_API void ProvideTelemetryInternal(FGuid Key, TFunctionRef<const void*()> GetData);
     
     FRWLock SinkLock;
     TMap<FGuid, TMap<FDelegateHandle, TFunction<bool(const void*)>>> KeyToSinks;
