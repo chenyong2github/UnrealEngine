@@ -262,7 +262,7 @@ $ bDisableModuleNumIncludedBytesPerUnityCPPOverride (Boolean): Disables override
 
 $ bStressTestUnity (Boolean): Whether to stress test the C++ unity build robustness by including all C++ files files in a project from a single unified file.
 
-$ bDetailedUnityFiles (Boolean): Whether to add additional information to the unity files, such as '_of_X' in the file name.
+$ bDetailedUnityFiles (Boolean): Whether to add additional information to the unity files, such as '_of_X' in the file name. Not recommended.
 
 $ bForceDebugInfo (Boolean): Whether to force debug info to be generated.
 

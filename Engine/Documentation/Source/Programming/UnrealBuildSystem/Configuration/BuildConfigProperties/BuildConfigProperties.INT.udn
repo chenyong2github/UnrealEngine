@@ -106,7 +106,7 @@ $ bDisableModuleNumIncludedBytesPerUnityCPPOverride : Disables overrides that ar
 
 $ bStressTestUnity : Whether to stress test the C++ unity build robustness by including all C++ files files in a project from a single unified file.
 
-$ bDetailedUnityFiles : Whether to add additional information to the unity files, such as '_of_X' in the file name.
+$ bDetailedUnityFiles : Whether to add additional information to the unity files, such as '_of_X' in the file name. Not recommended.
 
 $ bDisableDebugInfo : Whether to globally disable debug info generation; see DebugInfoHeuristics.cs for per-config and per-platform options.
 
