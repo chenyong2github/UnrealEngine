@@ -158,7 +158,6 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 		];
 
 	bRebuildTreeRequested = true;
-	bSelectFirstRenderer = true;
 
 	GEditor->RegisterForUndo(this);
 
@@ -170,31 +169,9 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 	UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &SDMXPixelMappingHierarchyView::OnComponentRemoved);
 }
 
-void SDMXPixelMappingHierarchyView::SelectFirstAvailableRenderer()
-{
-	bSelectFirstRenderer = true;
-}
-
 void SDMXPixelMappingHierarchyView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	ConditionallyUpdateTree();
-
-	// select the first available renderer, if any is available
-	if (bSelectFirstRenderer && TreeRootWidgets.Num() > 0 && WidgetTreeView->GetNumItemsSelected() == 0)
-	{
-		FDMXPixelMappingHierarchyItemWidgetModelArr RootComponents;
-		TreeRootWidgets[0]->GatherChildren(RootComponents);
-		for (FDMXPixelMappingHierarchyItemWidgetModelPtr ItemWidgetPtr : RootComponents)
-		{
-			if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(ItemWidgetPtr->GetReference().GetComponent()))
-			{
-				WidgetTreeView->SetSelection(ItemWidgetPtr, ESelectInfo::OnMouseClick);
-				bSelectFirstRenderer = false;
-
-				break;
-			}
-		}
-	}
 }
 
 FReply SDMXPixelMappingHierarchyView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)

@@ -245,18 +245,32 @@ void SDMXPixelMappingDMXLibraryView::ForceRefresh()
 	{
 		ViewModel->UpdateFixtureGroupFromSelection(WeakToolkit);
 
+		// Update the details view visibility
 		const UDMXPixelMappingFixtureGroupComponent* EditedFixtureGroup = ViewModel->GetFixtureGroupComponent();
 		const EVisibility DMXLibraryVisibility = EditedFixtureGroup ? EVisibility::Visible : EVisibility::Collapsed;
-
-		FixtureGroupNameTextBlock->SetVisibility(DMXLibraryVisibility);
 		ModelDetailsView->SetVisibility(DMXLibraryVisibility);
 
-		const FText FixtureGroupName = EditedFixtureGroup ? FText::FromString(EditedFixtureGroup->GetUserFriendlyName()) : LOCTEXT("NoFixtureGroupSelectedHint", "No Fixture Group selected");
-		FixtureGroupNameTextBlock->SetText(FixtureGroupName);
+		// Update the displayed fixture group name
+		const FText FixtureGroupNameText = [EditedFixtureGroup, this]()
+		{
+			if (EditedFixtureGroup)
+			{
+				return FText::FromString(EditedFixtureGroup->GetUserFriendlyName());
+			}
+			else if (ViewModel->IsMoreThanOneFixtureGroupSelected())
+			{
+				return LOCTEXT("ManyFixtureGroupsSelectedHint", "More than one Fixture Group selected");
+			}
+			else
+			{
+				return LOCTEXT("NoFixtureGroupSelectedHint", "No Fixture Group selected");
+			}
+		}();
+		FixtureGroupNameTextBlock->SetText(FixtureGroupNameText);
 
+		// Update the fixture patch list
 		UDMXLibrary* DMXLibrary = EditedFixtureGroup ? EditedFixtureGroup->DMXLibrary : nullptr;
 		const EVisibility FixturePatchListVisibility = DMXLibrary ? EVisibility::Visible : EVisibility::Collapsed;
-
 		FixturePatchList->SetDMXLibrary(DMXLibrary);
 
 		// Update the list to only display patches that are not added to pixel mapping
@@ -295,7 +309,6 @@ void SDMXPixelMappingDMXLibraryView::OnComponentSelected()
 	}
 
 	bRenderComponentContainedInSelection = false;
-	bool bSelectionContainsViewModel = false;
 
 	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = Toolkit->GetSelectedComponents();
 	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
@@ -306,20 +319,11 @@ void SDMXPixelMappingDMXLibraryView::OnComponentSelected()
 			// Is renderer component contained in selection?
 			bRenderComponentContainedInSelection |= Component->GetClass() == UDMXPixelMappingRendererComponent::StaticClass();
 
-			if (ViewModel && ViewModel->GetFixtureGroupComponent() == Component)
-			{
-				// Is view model's fixture group contained in selection?
-				bSelectionContainsViewModel = true;
-			}
-
 			Component = Component->GetParent();
 		} while (Component);
 	}
 
-	if (!bSelectionContainsViewModel)
-	{
-		RequestRefresh();
-	}
+	RequestRefresh();
 }
 
 void SDMXPixelMappingDMXLibraryView::OnEntityAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)

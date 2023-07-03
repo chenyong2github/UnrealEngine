@@ -71,31 +71,6 @@ bool UDMXPixelMappingRendererComponent::CanBeMovedTo(const UDMXPixelMappingBaseC
 	return Component && Component->GetClass() == UDMXPixelMappingRootComponent::StaticClass();
 }
 
-void UDMXPixelMappingRendererComponent::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar.UsingCustomVersion(FDMXPixelMappingMainStreamObjectVersion::GUID);
-	if (Ar.IsLoading())
-	{
-		if (Ar.CustomVer(FDMXPixelMappingMainStreamObjectVersion::GUID) < FDMXPixelMappingMainStreamObjectVersion::LockRendererComponentsThatUseTextureInDesigner)
-		{
-			if (RendererType == EDMXPixelMappingRendererType::Texture)
-			{
-				// Refresh the size of the texture if that is used as input
-				if (InputTexture)
-				{
-					if (const FTextureResource* TextureResource = InputTexture->GetResource())
-					{
-						const FVector2D NewSize = FVector2D(TextureResource->GetSizeX(), TextureResource->GetSizeY());
-						SetSize(NewSize);
-					}
-				}
-			}
-		}
-	}
-}
-
 void UDMXPixelMappingRendererComponent::PostInitProperties()
 {
 	Super::PostInitProperties();

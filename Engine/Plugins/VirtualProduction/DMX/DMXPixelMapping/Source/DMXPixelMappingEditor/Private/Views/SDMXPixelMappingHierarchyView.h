@@ -127,8 +127,6 @@ private:
 
 	bool MoveComponentToComponent(UDMXPixelMappingBaseComponent* Source, UDMXPixelMappingBaseComponent* Destination, const bool bRename);
 
-	void SelectFirstAvailableRenderer();
-
 private:
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 
@@ -160,6 +158,4 @@ private:
 	bool bIsUpdatingSelection;
 
 	TreeViewPtr WidgetTreeView;
-
-	bool bSelectFirstRenderer;
 };

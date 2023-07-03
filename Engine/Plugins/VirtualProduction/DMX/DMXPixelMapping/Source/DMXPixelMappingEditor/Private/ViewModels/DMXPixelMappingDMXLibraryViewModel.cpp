@@ -102,11 +102,13 @@ void UDMXPixelMappingDMXLibraryViewModel::UpdateFixtureGroupFromSelection(TWeakP
 	{
 		DMXLibrary = nullptr;
 		WeakFixtureGroupComponent = nullptr;
+		bMoreThanOneFixtureGroupSelected = !FixtureGroupComponents.IsEmpty();
 	}
 	else
 	{
 		DMXLibrary = FixtureGroupComponents[0]->DMXLibrary;
 		WeakFixtureGroupComponent = FixtureGroupComponents[0];
+		bMoreThanOneFixtureGroupSelected = false;
 	}
 }
 

@@ -44,6 +44,9 @@ public:
 	/** Returns the Fixture Group, or nullptr if none or many are selected */
 	UDMXPixelMappingFixtureGroupComponent* GetFixtureGroupComponent() const { return WeakFixtureGroupComponent.Get(); }
 
+	/** Returns true if more than one fixture group is sected. */
+	bool IsMoreThanOneFixtureGroupSelected() const { return bMoreThanOneFixtureGroupSelected; }
+
 	/** Returns the default fixture patch list descriptor */
 	const FDMXReadOnlyFixturePatchListDescriptor& GetFixturePatchListDescriptor() const { return FixturePatchListDescriptor; }
 
@@ -96,6 +99,9 @@ private:
 	/** Default fixture patch list descriptor */
 	UPROPERTY(Config)
 	FDMXReadOnlyFixturePatchListDescriptor FixturePatchListDescriptor;
+
+	/** True if more than one fixture group is selected */
+	bool bMoreThanOneFixtureGroupSelected = false;
 
 	/** True while changing properties */
 	bool bChangingProperties = false;
