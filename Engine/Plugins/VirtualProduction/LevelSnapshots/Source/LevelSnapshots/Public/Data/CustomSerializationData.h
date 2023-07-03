@@ -15,6 +15,10 @@ struct LEVELSNAPSHOTS_API FCustomSubbjectSerializationData : public FObjectSnaps
 	UPROPERTY()
 	int32 ObjectPathIndex = INDEX_NONE;
 
+	/** Valid index to FWorldSnapshotData::ClassData. Use to lookup class and archetype data. */
+	UPROPERTY()
+	int32 ClassIndex = INDEX_NONE;
+
 	/* Additional custom data saved by ICustomSnapshotSerializationData */
 	UPROPERTY()
 	TArray<uint8> SubobjectAnnotationData;

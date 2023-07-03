@@ -18,10 +18,10 @@ class USubSubobject : public UObject
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	int32 IntProperty;
+	int32 IntProperty = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	float FloatProperty;
+	float FloatProperty = 0;
 	
 };
 
@@ -34,10 +34,10 @@ public:
 	USubobject();
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	int32 IntProperty;
+	int32 IntProperty = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	float FloatProperty;
+	float FloatProperty = 0;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
 	TObjectPtr<USubSubobject> NestedChild;
@@ -59,10 +59,10 @@ public:
 	USnapshotTestComponent();
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	int32 IntProperty;
+	int32 IntProperty = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	float FloatProperty;
+	float FloatProperty = 0;
 
 	UPROPERTY(Instanced)
 	TObjectPtr<USubobject> Subobject;
@@ -126,7 +126,7 @@ public:
 	int32 TransientProperty = 200;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	int32 IntProperty;
+	int32 IntProperty = 0;
 
 
 	

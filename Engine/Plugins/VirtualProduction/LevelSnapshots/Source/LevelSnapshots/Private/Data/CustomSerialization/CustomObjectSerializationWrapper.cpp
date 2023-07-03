@@ -115,7 +115,17 @@ namespace UE::LevelSnapshots::Private::Internal
 						[&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return UE::LevelSnapshots::Private::FindCustomSubobjectData(WorldData, OriginalPath);} );
 				
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
-					FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializationData->Subobjects[i], WorldData, Cache, EditorSubobject, SnapshotSubobject, SelectionMap);
+					FCustomSubbjectSerializationData& DataToRestore = SerializationData->Subobjects[i];
+					// ClassIndex is only saved starting 5.3. Previous data will default to INDEX_NONE. We don't want to cause a bunch of warning logs by passing in a set class index.
+					const TOptional<FClassDataIndex> ClassIndex = DataToRestore.ClassIndex == INDEX_NONE ? TOptional<uint32>{} : static_cast<FClassDataIndex>(DataToRestore.ClassIndex);
+					FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(DataToRestore,
+						WorldData,
+						Cache,
+						EditorSubobject,
+						SnapshotSubobject,
+						SelectionMap,
+						ClassIndex
+						);
 					CustomSerializer->OnPostSerializeEditorSubobject(EditorSubobject, *MetaData, SerializationDataReader);
 					continue;
 				}

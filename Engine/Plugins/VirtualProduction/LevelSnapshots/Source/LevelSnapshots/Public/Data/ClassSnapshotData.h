@@ -29,10 +29,7 @@ struct LEVELSNAPSHOTS_API FClassSnapshotData : public FObjectSnapshotData
 {
 	GENERATED_BODY()
 
-	/**
-	 * The class getting saved.
-	 * Note:
-	 */
+	/** The class getting saved. */
 	UPROPERTY()
 	FSoftClassPath ClassPath;
 

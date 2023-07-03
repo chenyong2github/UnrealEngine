@@ -771,7 +771,6 @@ namespace UE::LevelSnapshots::Private::Tests
 	bool FRestoresCustomSubobjectWhenActorRecreated::RunTest(const FString& Parameters)
 	{
 		// Handle registering and unregistering of custom serializer
-		// Handle registering and unregistering of custom serializer
 		const TCustomObjectSerializerContext<FInstancedOnlySubobjectCustomObjectSerializer> Stub =
 			FInstancedOnlySubobjectCustomObjectSerializer::Make();
 
@@ -802,6 +801,37 @@ namespace UE::LevelSnapshots::Private::Tests
 
 				const ASnapshotTestActor* RestoredActor = *ActorIterator;
 				TestEqual(TEXT("Default Subobject was restored"), RestoredActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty, 12345.f);
+			});
+		
+		return true;
+	}
+
+	/** Tests that class archetype data is saved for custom subobjects. That means if a snapshot is taken on an unmodified custom subobject and then changed, it should restore. Fix for UE-168414. */
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreCustomSubobjectPropertiesEqualToArchetypeValue, "VirtualProduction.LevelSnapshots.Snapshot.CustomObjectSerialization.RestorePropertiesEqualToArchetypeValue", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+	bool FRestoreCustomSubobjectPropertiesEqualToArchetypeValue::RunTest(const FString& Parameters)
+	{
+		// Handle registering and unregistering of custom serializer
+		const TCustomObjectSerializerContext<FInstancedOnlySubobjectCustomObjectSerializer> Stub =
+			FInstancedOnlySubobjectCustomObjectSerializer::Make();
+
+		FSnapshotTestRunner()
+			.ModifyWorld([&](UWorld* World)
+			{
+				Stub.GetCustomSerializer()->TestActor = ASnapshotTestActor::Spawn(World, "RecreatedActor");
+			})
+			.TakeSnapshot()
+	
+			.ModifyWorld([&](UWorld* World)
+			{
+				Stub.GetCustomSerializer()->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 5.f;
+			})
+			.ApplySnapshot()
+		
+			.ModifyWorld([&](UWorld* World)
+			{
+				TestEqual(TEXT("Restore property that was equal to archetype value at time of taking snapshot"),
+					Stub.GetCustomSerializer()->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty,
+					0.f);
 			});
 		
 		return true;

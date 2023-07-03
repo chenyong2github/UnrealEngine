@@ -36,7 +36,7 @@ void UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ApplyToExisting
 #endif
 	
 	// 1. Serialize archetype first to handle the case were the archetype has changed properties since the snapshot was taken
-	if (ClassIndex) // Sometimes not available, e.g. for custom subobjects
+	if (ClassIndex)
 	{
 		const FSubobjectArchetypeFallbackInfo ClassFallbackInfo{ InOriginalObject->GetOuter(), InOriginalObject->GetFName(), InOriginalObject->GetFlags() };
 		SerializeSelectedClassDefaultsIntoSubobject(InOriginalObject, InSharedData, *ClassIndex, Cache, ClassFallbackInfo, *Selection);
