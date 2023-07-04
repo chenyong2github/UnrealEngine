@@ -640,7 +640,7 @@ struct FUsdStageActorImpl
 			// Store a path to this very actor on the binding, so that it can find us later and ask how to resolve a particular
 			// prim path
 			FMovieSceneDynamicBindingPayloadVariable& ActorPathVariable = Possessable.DynamicBinding.PayloadVariables.FindOrAdd(
-				TEXT("StageActorNameFilter")
+				TEXT("StageActorIDNameFilter")
 			);
 			ActorPathVariable.Value = DefaultActorFilter;
 

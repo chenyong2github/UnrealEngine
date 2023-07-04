@@ -22,7 +22,7 @@ public:
 	 * should bind to
 	 * @param WorldContextObject - Some UObject that lives in the UWorld that we're talking about
 	 * @param Params - The binding to resolve
-	 * @param StageActorNameFilter - The "ID Name"/FName of a AUsdStageActor to restrict our search for actor and components to. Can be
+	 * @param StageActorIDNameFilter - The "ID Name"/FName of a AUsdStageActor to restrict our search for actor and components to. Can be
 	 * empty.
 	 * @param RootLayerFilter - The root layer file path to restrict our search for actor and components to. This should match what is shown
 	 * on the Stage Actor's RootLayer property. Can be empty.
@@ -34,7 +34,7 @@ public:
 	static FMovieSceneDynamicBindingResolveResult ResolveWithStageActor(
 		UObject* WorldContextObject,
 		const FMovieSceneDynamicBindingResolveParams& Params,
-		const FString& StageActorNameFilter,
+		const FString& StageActorIDNameFilter,
 		const FString& RootLayerFilter,
 		const FString& PrimPath
 	);

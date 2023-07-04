@@ -12,7 +12,7 @@
 FMovieSceneDynamicBindingResolveResult UUsdDynamicBindingResolverLibrary::ResolveWithStageActor(
 	UObject* WorldContextObject,
 	const FMovieSceneDynamicBindingResolveParams& Params,
-	const FString& StageActorNameFilter,
+	const FString& StageActorIDNameFilter,
 	const FString& RootLayerFilter,
 	const FString& PrimPath
 )
@@ -38,7 +38,7 @@ FMovieSceneDynamicBindingResolveResult UUsdDynamicBindingResolverLibrary::Resolv
 			}
 		}
 
-		const bool bNoNameFilter = StageActorNameFilter.IsEmpty();
+		const bool bNoNameFilter = StageActorIDNameFilter.IsEmpty();
 		const bool bNoRootLayerFilter = RootLayerFilter.IsEmpty();
 
 		UWorld* World = WorldContextObject->GetWorld();
@@ -46,7 +46,7 @@ FMovieSceneDynamicBindingResolveResult UUsdDynamicBindingResolverLibrary::Resolv
 		{
 			if (AUsdStageActor* Actor = *ActorIt)
 			{
-				const bool bNameOK = bNoNameFilter || Actor->GetName() == StageActorNameFilter;
+				const bool bNameOK = bNoNameFilter || Actor->GetName() == StageActorIDNameFilter;
 				const bool bRootLayerOK = bNoRootLayerFilter || Actor->RootLayer.FilePath == RootLayerFilter;
 
 				if (bNameOK && bRootLayerOK)
