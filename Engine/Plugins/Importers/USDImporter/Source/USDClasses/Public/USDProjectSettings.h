@@ -80,6 +80,10 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowWarningOnIncompleteDuplication = true;
 
+	// Whether to show the warning dialog when authoring a transforms directly to a camera component
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
+	bool bShowTransformOnCameraComponentWarning = true;
+
 	// Whether to show the warning dialog when authoring a transform track directly to a camera component
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowTransformTrackOnCameraComponentWarning = true;
