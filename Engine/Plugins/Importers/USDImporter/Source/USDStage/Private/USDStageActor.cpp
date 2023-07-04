@@ -2660,15 +2660,9 @@ void AUsdStageActor::UnloadUsdStage()
 	// and could lead to stage changes
 	BlockMonitoringLevelSequenceForThisTransaction();
 
-	if (InfoCache)
-	{
-		InfoCache->Clear();
-	}
-
-	ObjectsToWatch.Reset();
-	BlendShapesByPath.Reset();
-	MaterialToPrimvarToUVIndex.Reset();
-
+	// Close the Sequencer before dropping the info cache, as the Sequencer closing may
+	// trigger one last SetTime call on the stage actor (to revert to the preanimated state),
+	// and if we try animating things and calling UpdateComponents we may need the info cache
 	if (LevelSequence)
 	{
 #if WITH_EDITOR
@@ -2680,6 +2674,10 @@ void AUsdStageActor::UnloadUsdStage()
 		LevelSequence = nullptr;
 	}
 	LevelSequenceHelper.Clear();
+
+	ObjectsToWatch.Reset();
+	BlendShapesByPath.Reset();
+	MaterialToPrimvarToUVIndex.Reset();
 
 	if (RootUsdTwin)
 	{
@@ -2700,6 +2698,11 @@ void AUsdStageActor::UnloadUsdStage()
 	{
 		UsdAssetCache->RemoveAllAssetReferences(this);
 		UsdAssetCache->RefreshStorage();
+	}
+
+	if (InfoCache)
+	{
+		InfoCache->Clear();
 	}
 
 	OnStageUnloaded.Broadcast();
