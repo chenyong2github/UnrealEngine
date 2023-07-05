@@ -4,6 +4,7 @@
 
 #include "DMXProtocolCommon.h"
 
+#include <atomic>
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "Misc/ScopeLock.h"
@@ -73,11 +74,8 @@ private:
 	/** The port that owns this Listener */
 	TWeakPtr<FDMXPort, ESPMode::ThreadSafe> OwnerPort;
 
-	/** Lock used when the buffer is cleared */
-	FCriticalSection ListenerCriticalSection;
-
 	/** The extern universe offset of the port */
-	int32 ExternUniverseOffset;
+	TAtomic<int32> ExternUniverseOffset;
 
 	/** True when stopped */
 	bool bStopped;

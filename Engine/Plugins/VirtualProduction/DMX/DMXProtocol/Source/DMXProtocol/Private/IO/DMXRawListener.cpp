@@ -2,6 +2,8 @@
 
 #include "IO/DMXRawListener.h"
 
+#include "Async/Async.h"
+#include "Async/Future.h"
 #include "IO/DMXPort.h"
 
 
@@ -46,8 +48,6 @@ void FDMXRawListener::Stop()
 	// listener and minimal performance benefits. 
 	if (FDMXPortSharedPtr PinnedOwnerPort = OwnerPort.Pin())
 	{
-		FScopeLock Lock(&ListenerCriticalSection);
-
 		PinnedOwnerPort->RemoveRawListener(AsShared());
 	}
 
@@ -66,8 +66,6 @@ void FDMXRawListener::EnqueueSignal(void* Producer, const FDMXSignalSharedRef& S
 	checkf(PinnedOwnerPort.IsValid() && ProducerObj == PinnedOwnerPort.Get(), TEXT("More than one producer detected in FDMXRawListener::DequeueSignal."));
 #endif // UE_BUILD_DEBUG
 
-	FScopeLock Lock(&ListenerCriticalSection);
-
 	RawBuffer.Enqueue(Signal);
 }
 
@@ -81,8 +79,6 @@ bool FDMXRawListener::DequeueSignal(void* Consumer, FDMXSignalSharedPtr& OutSign
 	}
 	checkf(ConsumerObj == Consumer, TEXT("More than one consumer detected in FDMXRawListener::DequeueSignal."));
 #endif // UE_BUILD_DEBUG
-
-	FScopeLock Lock(&ListenerCriticalSection);
 
 	if (RawBuffer.Dequeue(OutSignal))
 	{
@@ -100,15 +96,27 @@ bool FDMXRawListener::DequeueSignal(void* Consumer, FDMXSignalSharedPtr& OutSign
 
 void FDMXRawListener::ClearBuffer()
 {
-	FScopeLock Lock(&ListenerCriticalSection);
+	if (IsInGameThread())
+	{
+		RawBuffer.Empty();
+	}
+	else
+	{
+		// The buffer has to be cleared on a consumer thread
+		TPromise<bool> Promise;
+		AsyncTask(ENamedThreads::GameThread, [&Promise, this]()
+			{
+				RawBuffer.Empty();
+				Promise.SetValue(true);
+			});
 
-	RawBuffer.Empty();
+		// Lock the calling thread until the promise was fullfilled
+		Promise.GetFuture().Get();
+	}
 }
 
 void FDMXRawListener::OnPortUpdated()
 {
-	FScopeLock Lock(&ListenerCriticalSection);
-
 	if (TSharedPtr<FDMXPort, ESPMode::ThreadSafe> PinnedOwnerPort = OwnerPort.Pin())
 	{
 		ExternUniverseOffset = PinnedOwnerPort->GetExternUniverseOffset();
