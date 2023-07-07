@@ -33,7 +33,7 @@ namespace UE::DMXEditor::FixturePatchEditor
 		/** Constructs this widget */
 		void Construct(const FArguments& InArgs, TWeakPtr<FDMXEditor> InWeakDMXEditor);
 
-		/** Refreshes the mode combo box on the next tick */
+		/** Refreshes the widget on the next tick */
 		void RequestRefresh();
 
 	private:
@@ -58,7 +58,7 @@ namespace UE::DMXEditor::FixturePatchEditor
 		/** Generates an entry in the mode combo box */
 		TSharedRef<SWidget> GenerateModeComboBoxEntry(const TSharedPtr<uint32> InMode) const;
 
-		/** Refreshes the mode combo box */
+		/** Refreshes the widget */
 		void ForceRefresh();
 
 		/** Called when an entity was added or removed from the DMX Library */
@@ -73,8 +73,8 @@ namespace UE::DMXEditor::FixturePatchEditor
 		/** Returns the current universe channel text */
 		FText GetUniverseChannelText() const;
 
-		/** Called to verify the universe channel text */
-		bool OnVerifyUniverseChannelText(const FText& InNewText, FText& OutErrorMessage);
+		/** Called when the universe channel text changed */
+		void OnUniverseChannelTextChanged(const FText& InText);
 
 		/** Called when the universe channel text was committed */
 		void OnUniverseChannelTextCommitted(const FText& Text, ETextCommit::Type CommitType);
@@ -109,8 +109,8 @@ namespace UE::DMXEditor::FixturePatchEditor
 		/** Widget to select the fixture type */
 		TSharedPtr<SDMXEntityPickerButton<UDMXEntityFixtureType>> FixtureTypeSelector;
 
-		/** Text boxt to set the channel where the patch will be spawned*/
-		TSharedPtr<SEditableTextBox> ChannelSelectWidget;
+		/** Text boxt to set the channel where the patch will be spawned */
+		TSharedPtr<SEditableTextBox> UniverseChannelEditableTextBox;
 
 		/** Sources for the mode combo box */
 		TArray<TSharedPtr<uint32>> ModeSources;

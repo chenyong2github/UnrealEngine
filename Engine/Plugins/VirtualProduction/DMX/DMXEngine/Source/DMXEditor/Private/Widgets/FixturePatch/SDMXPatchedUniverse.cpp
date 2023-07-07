@@ -95,6 +95,7 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 			+ SOverlay::Slot()
 			[
 				SAssignNew(UniverseName, SBorder)
+				.Padding(4.f, 2.f)
 				.VAlign(VAlign_Top)
 				.HAlign(HAlign_Fill)
 				.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 0.3f))

@@ -172,16 +172,22 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
 	ToolbarBuilder.BeginSection("UniverseSelection");
 	{
 		ToolbarBuilder.AddWidget(
-			SNew(STextBlock)
-			.MinDesiredWidth(75.0f)
-			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
-			.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
-			.Text(LOCTEXT("UniverseSelectorLabel", "Local Universe"))
+			SNew(SBox)
+			.Padding(4.f, 0.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.MinDesiredWidth(75.0f)
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+				.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
+				.Text(LOCTEXT("UniverseSelectorLabel", "Local Universe"))
+			]
 		);
 
 		ToolbarBuilder.AddWidget(
 			SNew(SBox)
+			.Padding(4.f, 0.f)
 			.MinDesiredWidth(210.0f)
 			.MaxDesiredWidth(420.0f)
 			[
@@ -550,7 +556,7 @@ void SDMXFixturePatcher::OnUniverseSelectionChanged()
 
 void SDMXFixturePatcher::SelectUniverse(int32 NewUniverseID)
 {
-	UniverseToSetNextTick = NewUniverseID;
+	UniverseToSetNextTick = FMath::Clamp(NewUniverseID, 1, DMX_MAX_UNIVERSE);
 }
 
 int32 SDMXFixturePatcher::GetSelectedUniverse() const

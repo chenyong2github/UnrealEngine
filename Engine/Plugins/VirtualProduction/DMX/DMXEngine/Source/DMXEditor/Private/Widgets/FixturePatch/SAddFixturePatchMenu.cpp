@@ -202,14 +202,15 @@ namespace UE::DMXEditor::FixturePatchEditor
 			SNew(SBox)
 			.HAlign(HAlign_Left)
 			[
-				SNew(SEditableTextBox)
+				SAssignNew(UniverseChannelEditableTextBox, SEditableTextBox)
 				.IsEnabled(this, &SAddFixturePatchMenu::HasValidFixtureTypeAndMode)
 				.MinDesiredWidth(60.f)
 				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.SelectAllTextWhenFocused(true)
 				.ClearKeyboardFocusOnCommit(true)
+				.RevertTextOnEscape(true)
 				.Text(this, &SAddFixturePatchMenu::GetUniverseChannelText)
-				.OnVerifyTextChanged(this, &SAddFixturePatchMenu::OnVerifyUniverseChannelText)
+				.OnTextChanged(this, &SAddFixturePatchMenu::OnUniverseChannelTextChanged)
 				.OnTextCommitted(this, &SAddFixturePatchMenu::OnUniverseChannelTextCommitted)
 			];
 	}
@@ -305,7 +306,6 @@ namespace UE::DMXEditor::FixturePatchEditor
 	{
 		RequestRefreshModeComboBoxTimerHandle.Invalidate();
 
-
 		if (!WeakFixtureType.IsValid() && WeakDMXEditor.IsValid())
 		{
 			if (UDMXLibrary* DMXLibrary = WeakDMXEditor.Pin()->GetDMXLibrary())
@@ -361,21 +361,60 @@ namespace UE::DMXEditor::FixturePatchEditor
 		}
 	}
 
-	bool SAddFixturePatchMenu::OnVerifyUniverseChannelText(const FText& InNewText, FText& OutErrorMessage)
-	{
-		const FString String = InNewText.ToString();
-		int32 IndexOfDot = INDEX_NONE;
-		InNewText.ToString().FindChar('.', IndexOfDot);
-		if (IndexOfDot == INDEX_NONE && !String.IsNumeric())
+	void SAddFixturePatchMenu::OnUniverseChannelTextChanged(const FText& Text)
+	{		
+		if (!UniverseChannelEditableTextBox.IsValid())
 		{
-			OutErrorMessage = LOCTEXT("InvalidUniverseInfo", "Universe, for example '3' or Universe.Channel, for example '4.5'");
-			return false;
+			return;
 		}
-		return true;
+
+		static const TCHAR* Delimiter[] = { TEXT("."), TEXT(","), TEXT(":"), TEXT(" ") };
+		TArray<FString> Substrings;
+		constexpr bool bCullEmpty = true;
+		Text.ToString().ParseIntoArray(Substrings, Delimiter, 4, bCullEmpty);
+
+		static const FText InvalidStringErrorMessage = LOCTEXT("InvalidUniverseString", "Must be in the form of 'Universe' or 'Universe.Channel'. E.g. '4', or '4.5'.");
+
+		FText ErrorMessage;
+		int32 ParsedUniverse;
+		if (Substrings.IsValidIndex(0) &&
+			LexTryParseString(ParsedUniverse, *Substrings[0]))
+		{
+			if (ParsedUniverse < 1 || ParsedUniverse > DMX_MAX_UNIVERSE)
+			{
+				ErrorMessage = FText::Format(LOCTEXT("InvalidUniverseValue", "Universe must be between 1 and {0}."), FText::FromString(FString::FromInt((int32)DMX_MAX_UNIVERSE)));
+			}
+		}
+		else if (Substrings.IsValidIndex(0))
+		{
+			ErrorMessage = InvalidStringErrorMessage;
+		}
+
+		// Channel is optional, only test if Substrings[1] was parsed
+		int32 ParsedChannel;
+		if (Substrings.IsValidIndex(1) &&
+			LexTryParseString(ParsedChannel, *Substrings[1]))
+		{
+			if (ParsedChannel < 1 || ParsedChannel > DMX_MAX_ADDRESS)
+			{
+				ErrorMessage = FText::Format(LOCTEXT("InvalidChannelValue", "Channel must be between 1 and {0}."), FText::FromString(FString::FromInt((int32)DMX_MAX_ADDRESS)));
+			}
+		}
+		else if (Substrings.IsValidIndex(1))
+		{
+			ErrorMessage = InvalidStringErrorMessage;
+		}
+
+		UniverseChannelEditableTextBox->SetError(ErrorMessage);
 	}
 
 	void SAddFixturePatchMenu::OnUniverseChannelTextCommitted(const FText& Text, ETextCommit::Type CommitType)
 	{
+		if (!UniverseChannelEditableTextBox.IsValid())
+		{
+			return;
+		}
+
 		static const TCHAR* Delimiter[] = { TEXT("."), TEXT(","), TEXT(":"), TEXT(" ") };
 		TArray<FString> Substrings;
 		constexpr bool bCullEmpty = true;
@@ -385,7 +424,7 @@ namespace UE::DMXEditor::FixturePatchEditor
 		if (Substrings.IsValidIndex(0) &&
 			LexTryParseString(NewUniverse, *Substrings[0]))
 		{
-			Universe = NewUniverse;
+			Universe = FMath::Clamp(NewUniverse, 1, DMX_MAX_UNIVERSE);
 			SharedData->SelectUniverse(NewUniverse);
 		}
 		else
@@ -394,14 +433,20 @@ namespace UE::DMXEditor::FixturePatchEditor
 		}
 
 		int32 NewChannel;
-		if (Substrings.IsValidIndex(1) &&
+		if (Universe.IsSet() && // Only parse the channel if parsing universe was successful
+			Substrings.IsValidIndex(1) &&
 			LexTryParseString(NewChannel, *Substrings[1]))
 		{
-			Channel = NewChannel;
+			Channel = FMath::Clamp(NewChannel, 1, DMX_MAX_ADDRESS);
 		}
 		else
 		{
 			Channel.Reset();
+		}
+
+		if (UniverseChannelEditableTextBox.IsValid())
+		{
+			UniverseChannelEditableTextBox->SetError(FText::GetEmpty());
 		}
 
 		// Add fixture patches if enter is pressed
@@ -409,6 +454,9 @@ namespace UE::DMXEditor::FixturePatchEditor
 		{
 			OnAddFixturePatchButtonClicked();
 		}
+
+		// Never show an error, values are always mended.
+		UniverseChannelEditableTextBox->SetError(FText::GetEmpty());
 	}
 
 	FReply SAddFixturePatchMenu::OnAddFixturePatchButtonClicked()
