@@ -41,17 +41,26 @@ private:
 	/** Generates the customized Communication Type row */
 	void GenerateCommunicationTypeRow(IDetailPropertyRow& PropertyRow);
 
-	/** Generates the customized Auto Complete Device Address row */
-	void GenerateAutoCompleteDeviceAddressRow(IDetailPropertyRow& PropertyRow);
-
 	/** Generates the customized IP Address row */
 	void GenerateDeviceAddressRow(IDetailPropertyRow& PropertyRow);
 
-	/** Generates the customized Delay Seconds row */
-	void GenerateDelayRow(IDetailPropertyRow& PropertyRow);
+	/** Generates the customized Auto Complete Device Address row */
+	void GenerateAutoCompleteDeviceAddressRow(IDetailPropertyRow& PropertyRow);
 
 	/** Updates the Auto Complete Device Address Text Box */
 	void UpdateAutoCompleteDeviceAddressTextBox();
+
+	/** Generates the customized Extern Universe Start row */
+	void GenerateExternUniverseStartRow(IDetailPropertyRow& PropertyRow);
+
+	/** Called when the LocalUniverseStart property changed */
+	void OnLocalUniverseStartChanged();
+
+	/** Called when the bIsExternUniverseStartEditable property changed */
+	void OnIsExternUniverseStartEditableChanged();
+
+	/** Generates the customized Delay Seconds row */
+	void GenerateDelayRow(IDetailPropertyRow& PropertyRow);
 
 	/** Called when a Protocol Name was selected */
 	void OnProtocolNameSelected();
@@ -109,6 +118,15 @@ private:
 
 	/** Property handle to the CommunicationType property */
 	TSharedPtr<IPropertyHandle> CommunicationTypeHandle;
+
+	/** Property handle to the LocalUniverseStart property */
+	TSharedPtr<IPropertyHandle> LocalUniverseStartHandle;
+
+	/** Property handle to the ExternUniverseStart property */
+	TSharedPtr<IPropertyHandle> ExternUniverseStartHandle;
+
+	/** Property handle to the IsExternUniverseStartEditable property */
+	TSharedPtr<IPropertyHandle> IsExternUniverseStartEditableHandle;
 
 	/** Property handle to the Delay property */
 	TSharedPtr<IPropertyHandle> DelayHandle;

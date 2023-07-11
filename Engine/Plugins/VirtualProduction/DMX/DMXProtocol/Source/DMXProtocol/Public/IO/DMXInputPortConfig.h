@@ -79,6 +79,9 @@ public:
 	/** Changes members to result in a valid config */
 	void MakeValid();
 
+	/** Upgrades this config to the latest engine version */
+	void Upgrade();
+
 	FORCEINLINE const FString& GetPortName() const { return PortName; }
 	FORCEINLINE const FName& GetProtocolName() const { return ProtocolName; }
 	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
@@ -102,6 +105,7 @@ public:
 	static FName GetLocalUniverseStartPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, LocalUniverseStart); }
 	static FName GetNumUniversesPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, NumUniverses); }
 	static FName GetExternUniverseStartPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ExternUniverseStart); }
+	static FName GetIsExternUnivereStartEditablePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, bIsExternUnivereStartEditable); }
 	static FName GetPriorityStrategyPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PriorityStrategy); }
 	static FName GetPriorityPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, Priority); }
 	static FName GetPortGuidPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PortGuid); }
@@ -150,11 +154,17 @@ protected:
 	int32 NumUniverses = 10;
 
 	/** 
-	 * The start address this being transposed to. 
-	 * E.g. if LocalUniverseStart is 1 and this is 100, Local Universe 1 is sent/received as Universe 100.
+	 * Remaps the range of local Universes (Num Universes from Local Universe Start) to a different set of Universes at the Protocol level.
+	 * For example, for Art-Net this allows to map local Universe 1 to extern Universe 0. 
 	 */
-	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Protocol Universe Remap"))
 	int32 ExternUniverseStart = 1;
+
+#if WITH_EDITORONLY_DATA
+	/** Edit condition for the ExternUniverseStart property */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Port Config")
+	bool bIsExternUnivereStartEditable = false;
+#endif
 
 	/** How to deal with the priority value */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")

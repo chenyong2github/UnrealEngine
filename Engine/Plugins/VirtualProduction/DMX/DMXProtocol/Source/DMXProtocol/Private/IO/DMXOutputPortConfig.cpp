@@ -144,6 +144,14 @@ void FDMXOutputPortConfig::MakeValid()
 	}
 }
 
+void FDMXOutputPortConfig::Upgrade()
+{
+#if WITH_EDITOR
+	// Initialize the bIsExternUnivereStartEditable property that was added 5.3. Also mends manually edited project ini files.
+	bIsExternUnivereStartEditable = ExternUniverseStart != LocalUniverseStart;
+#endif
+}
+
 FString FDMXOutputPortConfig::GetDeviceAddress() const
 {
 	// Return the Command Line Device Address if it is set

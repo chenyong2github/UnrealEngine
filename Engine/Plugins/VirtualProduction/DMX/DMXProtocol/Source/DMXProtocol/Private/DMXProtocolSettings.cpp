@@ -102,14 +102,9 @@ void UDMXProtocolSettings::PostInitProperties()
 	{
 		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Receive DMX Enabled from command line, set to %s."), bDefaultReceiveDMXEnabled ? TEXT("True") : TEXT("False"));
 	}
-	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);	
-}
+	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);
 
-void UDMXProtocolSettings::PostLoad()
-{
-	Super::PostLoad();
-
-	// Upgrade from single to many destination addresses for ports
+	// Upgrade from single to many destination addresses for ports for projects created before 4.27
 	const int32 CustomVersion = GetLinkerCustomVersion(FDMXProtocolObjectVersion::GUID);
 	if (CustomVersion < FDMXProtocolObjectVersion::OutputPortSupportsManyUnicastAddresses)
 	{
@@ -132,6 +127,17 @@ void UDMXProtocolSettings::PostLoad()
 				OutputPortConfig = FDMXOutputPortConfig(OutputPortConfig.GetPortGuid(), NewPortParams);
 			}
 		}
+	}
+
+	// Allow port configs to take their own upgrade path
+	for (FDMXInputPortConfig& InputPortConfig : InputPortConfigs)
+	{
+		InputPortConfig.Upgrade();
+	}
+
+	for (FDMXOutputPortConfig& OutputPortConfig : OutputPortConfigs)
+	{
+		OutputPortConfig.Upgrade();
 	}
 }
 
@@ -200,45 +206,45 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	{
 		FDMXPortManager::Get().UpdateFromProtocolSettings();
 	}
-	else if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	else if (
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
+		(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
+		(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
 	{
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
-			(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
-			(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
+		// When duplicating configs, the guid will be duplicated, so we have to create unique ones instead
+		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
 		{
-			if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
+			int32 ChangedIndex = PropertyChangedChainEvent.GetArrayIndex(PropertyName.ToString());
+			if (ensureAlways(ChangedIndex != INDEX_NONE))
 			{
-				// When duplicating configs, the guid will be duplicated, so we have to create unique ones instead
-
-				int32 ChangedIndex = PropertyChangedChainEvent.GetArrayIndex(PropertyName.ToString());
-				if (ensureAlways(ChangedIndex != INDEX_NONE))
+				if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs))
 				{
-					if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs))
-					{
-						const int32 IndexOfDuplicate = InputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXInputPortConfig& InputPortConfig) {
-							return InputPortConfigs[ChangedIndex].GetPortGuid() == InputPortConfig.GetPortGuid();
-							});
+					const int32 IndexOfDuplicate = InputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXInputPortConfig& InputPortConfig) {
+						return InputPortConfigs[ChangedIndex].GetPortGuid() == InputPortConfig.GetPortGuid();
+						});
 
-						if (ensureAlways(IndexOfDuplicate != ChangedIndex))
-						{
-							InputPortConfigs[IndexOfDuplicate] = FDMXInputPortConfig(FGuid::NewGuid(), InputPortConfigs[ChangedIndex]);
-						}
+					if (ensureAlways(IndexOfDuplicate != ChangedIndex))
+					{
+						InputPortConfigs[IndexOfDuplicate] = FDMXInputPortConfig(FGuid::NewGuid(), InputPortConfigs[ChangedIndex]);
 					}
-					else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
-					{
-						const int32 IndexOfDuplicate = OutputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXOutputPortConfig& OutputPortConfig) {
-							return OutputPortConfigs[ChangedIndex].GetPortGuid() == OutputPortConfig.GetPortGuid();
-							});
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
+				{
+					const int32 IndexOfDuplicate = OutputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXOutputPortConfig& OutputPortConfig) {
+						return OutputPortConfigs[ChangedIndex].GetPortGuid() == OutputPortConfig.GetPortGuid();
+						});
 
-						if (ensureAlways(IndexOfDuplicate != ChangedIndex))
-						{
-							OutputPortConfigs[IndexOfDuplicate] = FDMXOutputPortConfig(FGuid::NewGuid(), OutputPortConfigs[ChangedIndex]);
-						}
+					if (ensureAlways(IndexOfDuplicate != ChangedIndex))
+					{
+						OutputPortConfigs[IndexOfDuplicate] = FDMXOutputPortConfig(FGuid::NewGuid(), OutputPortConfigs[ChangedIndex]);
 					}
 				}
 			}
+		}
 
+		if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+		{
 			constexpr bool bForceUpdateRegistrationWithProtocol = true;
 			FDMXPortManager::Get().UpdateFromProtocolSettings(bForceUpdateRegistrationWithProtocol);
 		}
@@ -248,28 +254,28 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 }
 #endif // WITH_EDITOR
 
-void UDMXProtocolSettings::OverrideSendDMXEnabled(bool bEnabled) 
+void UDMXProtocolSettings::OverrideSendDMXEnabled(bool bEnabled)
 {
-	bOverrideSendDMXEnabled = bEnabled; 
-	
+	bOverrideSendDMXEnabled = bEnabled;
+
 	OnSetSendDMXEnabledDelegate.Broadcast(bEnabled);
 
 	// OnSetSendDMXEnabled is deprecated 5.1 and can be removed in a future release
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OnSetSendDMXEnabled.Broadcast(bEnabled);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled) 
-{ 
-	bOverrideReceiveDMXEnabled = bEnabled; 
+void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled)
+{
+	bOverrideReceiveDMXEnabled = bEnabled;
 
 	OnSetReceiveDMXEnabledDelegate.Broadcast(bEnabled);
 
 	// OnSetReceiveDMXEnabled is deprecated 5.1 and can be removed in a future release
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FString UDMXProtocolSettings::GetUniqueInputPortName() const

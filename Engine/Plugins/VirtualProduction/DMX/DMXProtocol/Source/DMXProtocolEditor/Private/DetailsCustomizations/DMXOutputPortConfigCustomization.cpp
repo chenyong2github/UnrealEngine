@@ -2,27 +2,27 @@
 
 #include "DMXOutputPortConfigCustomization.h"
 
+#include "DetailWidgetRow.h"
 #include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolUtils.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailPropertyRow.h" 
+#include "IPropertyUtilities.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXOutputPortConfig.h"
 #include "IO/DMXPortManager.h"
+#include "Misc/Guid.h" 
+#include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SDMXCommunicationTypeComboBox.h"
 #include "Widgets/SDMXDelayEditWidget.h"
 #include "Widgets/SDMXIPAddressEditWidget.h"
 #include "Widgets/SDMXProtocolNameComboBox.h"
-
-#include "DetailWidgetRow.h"
-#include "IDetailChildrenBuilder.h"
-#include "IDetailPropertyRow.h" 
-#include "IPropertyUtilities.h"
-#include "ScopedTransaction.h"
-#include "Misc/Guid.h" 
 #include "Widgets/Text/STextBlock.h" 
-#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXOutputPortConfigCustomization"
@@ -65,10 +65,15 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 	DeviceAddressHandle = PropertyHandles.FindChecked(FDMXOutputPortConfig::GetDeviceAddressPropertyNameChecked());
 	DelayHandle = PropertyHandles.FindChecked(FDMXOutputPortConfig::GetDelayPropertyNameChecked());
 	DelayFrameRateHandle = PropertyHandles.FindChecked(FDMXOutputPortConfig::GetDelayFrameRatePropertyNameChecked());
+	LocalUniverseStartHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetLocalUniverseStartPropertyNameChecked());
+	ExternUniverseStartHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetExternUniverseStartPropertyNameChecked());
+	IsExternUniverseStartEditableHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetIsExternUnivereStartEditablePropertyNameChecked());
 	PortGuidHandle = PropertyHandles.FindChecked(FDMXOutputPortConfig::GetPortGuidPropertyNameChecked());
 
 	// Hande property changes
 	AutoCompleteDeviceAddressHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::UpdateAutoCompleteDeviceAddressTextBox));
+	LocalUniverseStartHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::OnLocalUniverseStartChanged));
+	IsExternUniverseStartEditableHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::OnIsExternUniverseStartEditableChanged));
 
 	// Ports always need a valid Guid (cannot be blueprinted)
 	if (!GetPortGuid().IsValid())
@@ -94,7 +99,9 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 		}
 
 		// Don't add the bAutoCompeteDeviceAddressEnabled property
-		if (Iter.Value() == AutoCompleteDeviceAddressEnabledHandle)
+		// Don't add the bIsExternUniverseStartEditable property
+		if (Iter.Value() == AutoCompleteDeviceAddressEnabledHandle ||
+			Iter.Value() == IsExternUniverseStartEditableHandle)
 		{
 			continue;
 		}
@@ -117,6 +124,10 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 		else if (Iter.Value() == DeviceAddressHandle)
 		{
 			GenerateDeviceAddressRow(PropertyRow);
+		}
+		else if (Iter.Value() == ExternUniverseStartHandle)
+		{
+			GenerateExternUniverseStartRow(PropertyRow);
 		}
 		else if (Iter.Key() == FDMXOutputPortConfig::GetDestinationAddressesPropertyNameChecked())
 		{
@@ -209,55 +220,6 @@ void FDMXOutputPortConfigCustomization::GenerateCommunicationTypeRow(IDetailProp
 		];
 }
 
-void FDMXOutputPortConfigCustomization::GenerateAutoCompleteDeviceAddressRow(IDetailPropertyRow& PropertyRow)
-{
-	// Mimic a Inline Edit Condition Toggle - Doing it directly via Meta Specifiers is not possible. -
-	// The Inline Edit Condition Toggle property wouldn't get properly serialized when being a Config property.
-	const TSharedRef<SWidget> AutoCompleteDeviceAddressEnableldPropertyValueWidget = AutoCompleteDeviceAddressEnabledHandle->CreatePropertyValueWidget();
-
-	const TSharedRef<SWidget> AutoCompleteDeviceAddressPropertyNameWidget = AutoCompleteDeviceAddressHandle->CreatePropertyNameWidget();
-	const TSharedRef<SWidget> AutoCompleteDeviceAddressPropertyValueWidget = AutoCompleteDeviceAddressHandle->CreatePropertyValueWidget();
-
-	AutoCompleteDeviceAddressPropertyNameWidget->SetEnabled(TAttribute<bool>::CreateLambda([this]()
-		{
-			return IsAutoCompleteDeviceAddressEnabled();
-		}));
-	AutoCompleteDeviceAddressPropertyValueWidget->SetEnabled(TAttribute<bool>::CreateLambda([this]()
-		{
-			return IsAutoCompleteDeviceAddressEnabled();
-		}));
-
-	PropertyRow.CustomWidget()
-		.NameContent()
-		[
-			SNew(SHorizontalBox)
-
-		// Edit Inline Condition Toggle Checkbox
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Fill)
-		.AutoWidth()
-		[
-			AutoCompleteDeviceAddressEnableldPropertyValueWidget
-		]
-
-	// Property Name
-	+ SHorizontalBox::Slot()
-		.Padding(8.f, 0.f, 0.f, 0.f)
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Fill)
-		.AutoWidth()
-		[
-			AutoCompleteDeviceAddressPropertyNameWidget
-		]
-		]
-	.ValueContent()
-		[
-			// Property Value
-			AutoCompleteDeviceAddressPropertyValueWidget
-		];
-}
-
 void FDMXOutputPortConfigCustomization::GenerateDeviceAddressRow(IDetailPropertyRow& PropertyRow)
 {
 	// Customizate the IPAddress property to show a combo box with available IP addresses
@@ -321,6 +283,187 @@ void FDMXOutputPortConfigCustomization::GenerateDeviceAddressRow(IDetailProperty
 		];
 }	
 
+void FDMXOutputPortConfigCustomization::GenerateAutoCompleteDeviceAddressRow(IDetailPropertyRow& PropertyRow)
+{
+	// Mimic a Inline Edit Condition Toggle - Doing it directly via Meta Specifiers is not possible. -
+	// The Inline Edit Condition Toggle property wouldn't get properly serialized when being a Config property.
+	const TSharedRef<SWidget> AutoCompleteDeviceAddressEnableldPropertyValueWidget = AutoCompleteDeviceAddressEnabledHandle->CreatePropertyValueWidget();
+
+	const TSharedRef<SWidget> AutoCompleteDeviceAddressPropertyNameWidget = AutoCompleteDeviceAddressHandle->CreatePropertyNameWidget();
+	const TSharedRef<SWidget> AutoCompleteDeviceAddressPropertyValueWidget = AutoCompleteDeviceAddressHandle->CreatePropertyValueWidget();
+
+	AutoCompleteDeviceAddressPropertyNameWidget->SetEnabled(TAttribute<bool>::CreateLambda([this]()
+		{
+			return IsAutoCompleteDeviceAddressEnabled();
+		}));
+	AutoCompleteDeviceAddressPropertyValueWidget->SetEnabled(TAttribute<bool>::CreateLambda([this]()
+		{
+			return IsAutoCompleteDeviceAddressEnabled();
+		}));
+
+	PropertyRow.CustomWidget()
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+
+		// Edit Inline Condition Toggle Checkbox
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Fill)
+		.AutoWidth()
+		[
+			AutoCompleteDeviceAddressEnableldPropertyValueWidget
+		]
+
+	// Property Name
+	+ SHorizontalBox::Slot()
+		.Padding(8.f, 0.f, 0.f, 0.f)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Fill)
+		.AutoWidth()
+		[
+			AutoCompleteDeviceAddressPropertyNameWidget
+		]
+		]
+	.ValueContent()
+		[
+			// Property Value
+			AutoCompleteDeviceAddressPropertyValueWidget
+		];
+}
+
+void FDMXOutputPortConfigCustomization::UpdateAutoCompleteDeviceAddressTextBox()
+{
+	// Set text on the AutoCompleteDeviceAddress Text Box depending on what the resulting IP is
+	if (AutoCompletedDeviceAddressTextBlock.IsValid())
+	{
+		FString AutoCompleteDeviceAddress;
+		if (AutoCompleteDeviceAddressHandle->GetValue(AutoCompleteDeviceAddress) == FPropertyAccess::Success)
+		{
+			FString NetworkInterfaceCardIPAddress;
+			if (FDMXProtocolUtils::FindLocalNetworkInterfaceCardIPAddress(AutoCompleteDeviceAddress, NetworkInterfaceCardIPAddress))
+			{
+				const FText IPAddressText = FText::FromString(*NetworkInterfaceCardIPAddress);
+				AutoCompletedDeviceAddressTextBlock->SetText(FText::Format(LOCTEXT("AutoCompletedIPAddressText", "{0} (auto-completed)"), IPAddressText));
+			}
+			else
+			{
+				// Fall back to the manually set one
+				FString DeviceAddress;
+				DeviceAddressHandle->GetValue(DeviceAddress);
+				const FText NoMatchForIPAddressText = FText::Format(LOCTEXT("NoRegexMatchForDeviceAddress", "No match. Using '{0}'"), FText::FromString(DeviceAddress));
+				AutoCompletedDeviceAddressTextBlock->SetText(NoMatchForIPAddressText);
+			}
+		}
+	}
+}
+
+void FDMXOutputPortConfigCustomization::GenerateExternUniverseStartRow(IDetailPropertyRow& PropertyRow)
+{
+	const TAttribute<bool> CanEditExternUniverseAttribute = TAttribute<bool>::CreateLambda([this]()
+		{
+			bool bIsExternUniverseStartEditable;
+			if (IsExternUniverseStartEditableHandle->GetValue(bIsExternUniverseStartEditable) == FPropertyAccess::Success)
+			{
+				return bIsExternUniverseStartEditable ? true : false;
+			}
+			return false;
+		});
+
+	TSharedPtr<SWidget> ExternUniverseStartNameWidget;
+	TSharedPtr<SWidget> ExternUniverseStartValueWidget;
+	FDetailWidgetRow ExternUniverseStartRow;
+	PropertyRow.GetDefaultWidgets(ExternUniverseStartNameWidget, ExternUniverseStartValueWidget, ExternUniverseStartRow);
+
+	const FText IsExternUniverseEnabledTooltip = LOCTEXT("IsExternUniverseEnabledWarningTooltip", "Remaps the range of local Universes (Num Universes from Local Universe Start) to a different set of Universes at the Protocol level.\nFor example, for Art-Net this allows to map local Universe 1 to extern Universe 0.");
+
+	PropertyRow.CustomWidget()
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SCheckBox)
+				.ToolTipText(IsExternUniverseEnabledTooltip)
+				.IsChecked_Lambda([CanEditExternUniverseAttribute]()
+					{
+						return CanEditExternUniverseAttribute.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
+					{
+						const bool bIsExternUniverseStartEditable = NewState == ECheckBoxState::Checked;
+						IsExternUniverseStartEditableHandle->SetValue(bIsExternUniverseStartEditable);
+					})
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.IsEnabled(CanEditExternUniverseAttribute)
+				[
+					ExternUniverseStartNameWidget.ToSharedRef()
+				]
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			.IsEnabled(CanEditExternUniverseAttribute)
+
+			+ SHorizontalBox::Slot()
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				ExternUniverseStartValueWidget.ToSharedRef()
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.f)
+			[
+				SNew(SImage)
+				.Visibility_Lambda([CanEditExternUniverseAttribute]()
+					{
+						return CanEditExternUniverseAttribute.Get() ? EVisibility::Visible : EVisibility::Collapsed;
+					})
+				.Image(FCoreStyle::Get().GetBrush("Icons.Warning"))
+				.ToolTipText(IsExternUniverseEnabledTooltip)
+			]
+		];
+}
+
+void FDMXOutputPortConfigCustomization::OnLocalUniverseStartChanged()
+{
+	bool bCanEditExternUniverse;
+	int32 LocalUniverse;
+	if (IsExternUniverseStartEditableHandle->GetValue(bCanEditExternUniverse) == FPropertyAccess::Success &&
+		!bCanEditExternUniverse &&
+		LocalUniverseStartHandle->GetValue(LocalUniverse) == FPropertyAccess::Success)
+	{
+		ExternUniverseStartHandle->NotifyPreChange();
+		// Change the extern universe interactive only. Rely on the local universe start change completing the transaction.
+		ExternUniverseStartHandle->SetValue(LocalUniverse, EPropertyValueSetFlags::InteractiveChange);
+		ExternUniverseStartHandle->NotifyPostChange(EPropertyChangeType::Interactive);
+	}
+}
+
+void FDMXOutputPortConfigCustomization::OnIsExternUniverseStartEditableChanged()
+{
+	bool bCanEditExternUniverse;
+	int32 LocalUniverse;
+	if (IsExternUniverseStartEditableHandle->GetValue(bCanEditExternUniverse) == FPropertyAccess::Success &&
+		!bCanEditExternUniverse &&
+		LocalUniverseStartHandle->GetValue(LocalUniverse) == FPropertyAccess::Success)
+	{
+		ExternUniverseStartHandle->NotifyPreChange();
+		ExternUniverseStartHandle->SetValue(LocalUniverse);
+		ExternUniverseStartHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+	}
+}
+
 void FDMXOutputPortConfigCustomization::GenerateDelayRow(IDetailPropertyRow& PropertyRow)
 {
 	// Customizate the IPAddress property to show a combo box with available IP addresses
@@ -351,32 +494,6 @@ void FDMXOutputPortConfigCustomization::GenerateDelayRow(IDetailPropertyRow& Pro
 			.OnDelayChanged(this, &FDMXOutputPortConfigCustomization::OnDelayChanged)
 			.OnDelayFrameRateChanged(this, &FDMXOutputPortConfigCustomization::OnDelayFrameRateChanged)
 		];
-}
-
-void FDMXOutputPortConfigCustomization::UpdateAutoCompleteDeviceAddressTextBox()
-{
-	// Set text on the AutoCompleteDeviceAddress Text Box depending on what the resulting IP is
-	if (AutoCompletedDeviceAddressTextBlock.IsValid())
-	{
-		FString AutoCompleteDeviceAddress;
-		if (AutoCompleteDeviceAddressHandle->GetValue(AutoCompleteDeviceAddress) == FPropertyAccess::Success)
-		{
-			FString NetworkInterfaceCardIPAddress;
-			if (FDMXProtocolUtils::FindLocalNetworkInterfaceCardIPAddress(AutoCompleteDeviceAddress, NetworkInterfaceCardIPAddress))
-			{
-				const FText IPAddressText = FText::FromString(*NetworkInterfaceCardIPAddress);
-				AutoCompletedDeviceAddressTextBlock->SetText(FText::Format(LOCTEXT("AutoCompletedIPAddressText", "{0} (auto-completed)"), IPAddressText));
-			}
-			else
-			{
-				// Fall back to the manually set one
-				FString DeviceAddress;
-				DeviceAddressHandle->GetValue(DeviceAddress);
-				const FText NoMatchForIPAddressText = FText::Format(LOCTEXT("NoRegexMatchForDeviceAddress", "No match. Using '{0}'"), FText::FromString(DeviceAddress));
-				AutoCompletedDeviceAddressTextBlock->SetText(NoMatchForIPAddressText);
-			}
-		}
-	}
 }
 
 void FDMXOutputPortConfigCustomization::OnProtocolNameSelected()

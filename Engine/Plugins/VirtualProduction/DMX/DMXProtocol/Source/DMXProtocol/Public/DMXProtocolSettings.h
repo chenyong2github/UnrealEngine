@@ -2,17 +2,15 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "DMXProtocolTypes.h"
 #include "DMXAttribute.h"
 #include "IO/DMXInputPortConfig.h"
 #include "IO/DMXOutputPortConfig.h"
-
-#include "CoreMinimal.h"
 #include "Misc/Optional.h"
 #include "UObject/Object.h"
 
 #include "DMXProtocolSettings.generated.h"
-
 
 
 /**  
@@ -36,7 +34,6 @@ public:
 
 	// ~Begin UObject Interface
 	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
