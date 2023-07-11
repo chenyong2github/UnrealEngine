@@ -22,18 +22,18 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 }
 
 
-/** Enum for DMX Control Console widgets layout modes */
+/** Enum for DMX Control Console control modes */
+enum class EDMXControlConsoleEditorControlMode : uint8
+{
+	Relative,
+	Absolute
+};
+
+/** Enum for DMX Control Console widgets view modes */
 enum class EDMXControlConsoleEditorViewMode : uint8
 {
 	Collapsed,
 	Expanded
-};
-
-/** Enum for DMX Control Console input modes */
-enum class EDMXControlConsoleEditorInputMode : uint8
-{
-	Relative,
-	Absolute
 };
 
 /** Model of the console currently being edited in the control console editor.  */
@@ -56,14 +56,17 @@ public:
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleEditorSelection> GetSelectionHandler();
 
+	/** Gets the current Control Mode for Faders. */
+	EDMXControlConsoleEditorControlMode GetControlMode() const { return ControlMode; }
+
 	/**Gets the current View Mode for Fader Groups. */
 	EDMXControlConsoleEditorViewMode GetFaderGroupsViewMode() const { return FaderGroupsViewMode; }
 
 	/** Gets the current View Mode for Faders. */
 	EDMXControlConsoleEditorViewMode GetFadersViewMode() const { return FadersViewMode; }
 
-	/** Gets the current Input Mode for Faders. */
-	EDMXControlConsoleEditorInputMode GetInputMode() const { return InputMode; }
+	/** Sets the current Input Mode for Faders. */
+	void SetInputMode(EDMXControlConsoleEditorControlMode NewControlMode) { ControlMode = NewControlMode; }
 
 	/** Sets the current View Mode for Fader Groups. */
 	void SetFaderGroupsViewMode(EDMXControlConsoleEditorViewMode ViewMode);
@@ -71,14 +74,17 @@ public:
 	/** Sets the current View Mode for Faders. */
 	void SetFadersViewMode(EDMXControlConsoleEditorViewMode ViewMode);
 
-	/** Sets the current Input Mode for Faders. */
-	void SetInputMode(EDMXControlConsoleEditorInputMode NewInputMode) { InputMode = NewInputMode; }
+	/** Gets the current auto-selection state for activated Fader Groups. */
+	bool GetAutoSelectActivePatches() const { return bAutoSelectActivePatches; }
 
-	/** Gets the current autoselection state. */
-	bool GetAutoSelect() const { return bAutoSelect; }
+	/** Gets the current auto-selection state for filtered Elements. */
+	bool GetAutoSelectFilteredElements() const { return bAutoSelectFilteredElements; }
 
-	/** Toggles autoselection state. */
-	void ToggleAutoSelect();
+	/** Toggles auto-selection state for activated Fader Groups. */
+	void ToggleAutoSelectActivePatches();
+
+	/** Toggles auto-selection state for filtered Elements. */
+	void ToggleAutoSelectFilteredElements();
 
 	/** Sends DMX on the Control Console */
 	void SendDMX();
@@ -229,16 +235,20 @@ private:
 	UPROPERTY(Config)
 	FDMXReadOnlyFixturePatchListDescriptor FixturePatchListDescriptor;
 
+	/** Current control mode for Faders widgets */
+	EDMXControlConsoleEditorControlMode ControlMode = EDMXControlConsoleEditorControlMode::Absolute;
+
 	/** Current view mode for FaderGroupView widgets*/
 	EDMXControlConsoleEditorViewMode FaderGroupsViewMode = EDMXControlConsoleEditorViewMode::Expanded;
 
 	/** Current view mode for Faders widgets */
 	EDMXControlConsoleEditorViewMode FadersViewMode = EDMXControlConsoleEditorViewMode::Collapsed;
-	
-	/** Current input mode for Faders widgets */
-	EDMXControlConsoleEditorInputMode InputMode = EDMXControlConsoleEditorInputMode::Absolute;
 
 	UPROPERTY(Config)
-	/** True if activated Fader Groups must be selected by default */
-	bool bAutoSelect = false;
+	/** True if Fader Groups from activated Fixture Patches must be selected by default */
+	bool bAutoSelectActivePatches = false;
+
+	UPROPERTY(Config)
+	/** True if filtered Elements must be selected by default */
+	bool bAutoSelectFilteredElements = false;
 };

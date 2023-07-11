@@ -7,9 +7,11 @@
 #include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
+enum class ECheckBoxState : uint8;
 enum class EDMXControlConsoleEditorViewMode : uint8;
 class FUICommandList;
 class IDetailsView;
+class SCheckBox;
 class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
 class SDMXControlConsoleEditorPortSelector;
@@ -66,8 +68,8 @@ private:
 	/** Generates the toolbar for this view */
 	TSharedRef<SWidget> GenerateToolbar();
 
-	/** Generates a widget to select the current input mode */
-	TSharedRef<SWidget> GenerateInputModeMenuWidget();
+	/** Generates a widget to select the current control mode */
+	TSharedRef<SWidget> GenerateControlModeMenuWidget();
 
 	/** Generates a widget to select the current view mode */
 	TSharedRef<SWidget> GenerateViewModeMenuWidget();
@@ -104,6 +106,12 @@ private:
 
 	/** Called when the search text changed */
 	void OnSearchTextChanged(const FText& SearchText);
+
+	/** Called to get filtered Elements auto-selection state */
+	ECheckBoxState IsFilteredElementsAutoSelectChecked() const;
+
+	/** Called to set filtered Elements auto-selection state */
+	void OnFilteredElementsAutoSelectStateChanged(ECheckBoxState CheckBoxState);
 
 	/** Called to add first first Fader Group */
 	FReply OnAddFirstFaderGroup();

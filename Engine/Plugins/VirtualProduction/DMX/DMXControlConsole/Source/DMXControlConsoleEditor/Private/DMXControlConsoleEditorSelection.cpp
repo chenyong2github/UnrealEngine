@@ -75,7 +75,7 @@ void FDMXControlConsoleEditorSelection::AddToSelection(const TArray<UObject*> El
 	}
 }
 
-void FDMXControlConsoleEditorSelection::AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyVisible, bool bNotifySelectionChange)
+void FDMXControlConsoleEditorSelection::AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyMatchingFilter, bool bNotifySelectionChange)
 {
 	if (FaderGroup && FaderGroup->IsActive())
 	{
@@ -87,7 +87,7 @@ void FDMXControlConsoleEditorSelection::AddAllFadersFromFaderGroupToSelection(UD
 				continue;
 			}
 
-			if (bOnlyVisible && !Fader->IsMatchingFilter())
+			if (bOnlyMatchingFilter && !Fader->IsMatchingFilter())
 			{
 				continue;
 			}
@@ -331,7 +331,7 @@ bool FDMXControlConsoleEditorSelection::IsSelected(UDMXControlConsoleFaderBase* 
 	return SelectedFaders.Contains(Fader);
 }
 
-void FDMXControlConsoleEditorSelection::SelectAll(bool bOnlyVisible)
+void FDMXControlConsoleEditorSelection::SelectAll(bool bOnlyMatchingFilter)
 {
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 	if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
@@ -344,7 +344,7 @@ void FDMXControlConsoleEditorSelection::SelectAll(bool bOnlyVisible)
 			if (FaderGroup->IsActive())
 			{
 				constexpr bool bNotifyFaderSelectionChange = false;
-				AddAllFadersFromFaderGroupToSelection(FaderGroup, bOnlyVisible, bNotifyFaderSelectionChange);
+				AddAllFadersFromFaderGroupToSelection(FaderGroup, bOnlyMatchingFilter, bNotifyFaderSelectionChange);
 			}
 		}
 

@@ -349,12 +349,13 @@ public:
 			PointerDraggingSliderIndex = MouseEvent.GetPointerIndex();
 			CachedMousePosition = MouseEvent.GetScreenSpacePosition().IntPoint();
 
-			FReply ReturnReply = FReply::Handled().CaptureMouse(SharedThis(this)).UseHighPrecisionMouseMovement(SharedThis(this)).SetUserFocus(SharedThis(this), EFocusCause::Mouse);
+			// Don't handle the change, instead propagonate the event to allow selection in the outer widget, in case this was clicked directly.
+			FReply Reply = FReply::Unhandled().CaptureMouse(SharedThis(this)).UseHighPrecisionMouseMovement(SharedThis(this)).SetUserFocus(SharedThis(this), EFocusCause::Mouse);
 			if (bPreventThrottling) 
 			{
-				ReturnReply.PreventThrottling();
+				Reply.PreventThrottling();
 			}
-			return ReturnReply;
+			return Reply;
 		}
 		else
 		{

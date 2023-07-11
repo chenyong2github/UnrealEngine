@@ -119,7 +119,7 @@ TSharedPtr<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateRowCo
 		(
 			FDMXControlConsoleEditorCommands::Get().Mute,
 			NAME_None,
-			LOCTEXT("MuteContextMenu_Label", "Only Active"),
+			LOCTEXT("MuteContextMenuLabel", "Only Active"),
 			FText::GetEmpty(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Mute")
 		);
@@ -128,7 +128,7 @@ TSharedPtr<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateRowCo
 		(
 			FDMXControlConsoleEditorCommands::Get().MuteAll,
 			NAME_None,
-			LOCTEXT("MuteAllContextMenu_Label", "All"),
+			LOCTEXT("MuteAllContextMenuLabel", "All"),
 			FText::GetEmpty(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Mute")
 		);
@@ -141,7 +141,7 @@ TSharedPtr<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateRowCo
 		(
 			FDMXControlConsoleEditorCommands::Get().Unmute,
 			NAME_None,
-			LOCTEXT("UnmuteContextMenu_Label", "Only Active"),
+			LOCTEXT("UnmuteContextMenuLabel", "Only Active"),
 			FText::GetEmpty(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Unmute")
 		);
@@ -150,7 +150,7 @@ TSharedPtr<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateRowCo
 		(
 			FDMXControlConsoleEditorCommands::Get().UnmuteAll,
 			NAME_None,
-			LOCTEXT("UnmuteAllContextMenu_Label", "All"),
+			LOCTEXT("UnmuteAllContextMenuLabel", "All"),
 			FText::GetEmpty(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Unmute")
 		);
@@ -196,7 +196,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 			FaderGroup->SetIsExpanded(bIsFixturePatchSelected);
 			if (bIsFixturePatchSelected)
 			{
-				const bool bAutoSelect = EditorConsoleModel->GetAutoSelect();
+				const bool bAutoSelect = EditorConsoleModel->GetAutoSelectActivePatches();
 				if (bAutoSelect)
 				{
 					const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();

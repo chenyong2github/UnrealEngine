@@ -26,7 +26,7 @@ public:
 	void AddToSelection(const TArray<UObject*> Elements, bool bNotifySelectionChange = true);
 
 	/** Adds to selection all Faders from the given Fader Group */
-	void AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyVisible = false, bool bNotifySelectionChange = true);
+	void AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyMatchingFilter = false, bool bNotifySelectionChange = true);
 
 	/** Removes the given Fader Group from selection */
 	void RemoveFromSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange = true);
@@ -53,7 +53,7 @@ public:
 	bool IsSelected(UDMXControlConsoleFaderBase* Fader) const;
 
 	/** Selects all Fader Groups and Faders in the current Control Console Data */
-	void SelectAll(bool bOnlyVisible = false);
+	void SelectAll(bool bOnlyMatchingFilter = false);
 
 	/** Cleans selection from array elements which are no longer valid */
 	void RemoveInvalidObjectsFromSelection(bool bNotifySelectionChange = true);

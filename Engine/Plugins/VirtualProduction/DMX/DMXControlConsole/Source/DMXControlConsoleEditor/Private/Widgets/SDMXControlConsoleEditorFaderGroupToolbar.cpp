@@ -622,6 +622,34 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged(const FText&
 		FFilterModel::Get().SetFaderGroupFilter(FaderGroup, SearchText.ToString());
 
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		if (!SearchText.IsEmpty() && EditorConsoleModel->GetAutoSelectFilteredElements())
+		{
+			TArray<UObject*> FadersToSelect;
+			TArray<UObject*> FadersToUnselect;
+			const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
+			for (UDMXControlConsoleFaderBase* Fader : AllFaders)
+			{
+				if (!Fader)
+				{
+					continue;
+				}
+
+				if (Fader->IsMatchingFilter())
+				{
+					FadersToSelect.Add(Fader);
+				}
+				else
+				{
+					FadersToUnselect.Add(Fader);
+				}
+			}
+
+			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+			constexpr bool bNotifySelection = false;
+			SelectionHandler->AddToSelection(FadersToSelect, bNotifySelection);
+			SelectionHandler->RemoveFromSelection(FadersToUnselect, bNotifySelection);
+		}
+		
 		EditorConsoleModel->RequestRefresh();
 	}
 }

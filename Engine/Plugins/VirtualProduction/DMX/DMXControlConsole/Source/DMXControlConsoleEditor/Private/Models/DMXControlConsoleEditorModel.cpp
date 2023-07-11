@@ -48,9 +48,15 @@ void UDMXControlConsoleEditorModel::SetFadersViewMode(EDMXControlConsoleEditorVi
 	OnFadersViewModeChanged.Broadcast();
 }
 
-void UDMXControlConsoleEditorModel::ToggleAutoSelect()
+void UDMXControlConsoleEditorModel::ToggleAutoSelectActivePatches()
 {
-	bAutoSelect = !bAutoSelect;
+	bAutoSelectActivePatches = !bAutoSelectActivePatches;
+	SaveConfig();
+}
+
+void UDMXControlConsoleEditorModel::ToggleAutoSelectFilteredElements()
+{
+	bAutoSelectFilteredElements = !bAutoSelectFilteredElements;
 	SaveConfig();
 }
 

@@ -35,159 +35,162 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 	Fader = InFader;
 
 	ChildSlot
+	[
+		SNew(SBox)
+		.WidthOverride(80.f)
+		.HeightOverride(TAttribute<FOptionalSize>::CreateSP(this, &SDMXControlConsoleEditorFader::GetFaderHeightByViewMode))
+		.Padding(InArgs._Padding)
 		[
-			SNew(SBox)
-			.WidthOverride(80.f)
-			.HeightOverride(TAttribute<FOptionalSize>::CreateSP(this, &SDMXControlConsoleEditorFader::GetFaderHeightByViewMode))
-			.Padding(InArgs._Padding)
+			SNew(SBorder)
+			.BorderImage(this, &SDMXControlConsoleEditorFader::GetBorderImage)
+			.Padding(0.f, 4.f)
 			[
-				SNew(SBorder)
-				.BorderImage(this, &SDMXControlConsoleEditorFader::GetBorderImage)
-				.Padding(0.f, 4.f)
+				SNew(SVerticalBox)
+					
+				// Top section
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Center)
+				.Padding(0.f, 8.f)
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+
+					// Fader Name
+					+ SHorizontalBox::Slot()
+					.MaxWidth(50.f)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(this, &SDMXControlConsoleEditorFader::GetFaderNameText)
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					]
+				]
+
+				// Middle section
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Center)
+				.AutoHeight()
 				[
 					SNew(SVerticalBox)
-					// Top section
+
+					// Max Value
 					+ SVerticalBox::Slot()
 					.HAlign(HAlign_Center)
-					.Padding(0.f, 8.f)
+					.Padding(6.f, 2.f, 6.f, 4.f)
+					.AutoHeight()
+					[
+						SNew(SEditableTextBox)
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
+						.Justification(ETextJustify::Center)
+						.MinDesiredWidth(20.f)
+						.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMaxValueTextCommitted)
+						.Text(this, &SDMXControlConsoleEditorFader::GetMaxValueAsText)
+						.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
+					]
+
+					// Fader Control
+					+ SVerticalBox::Slot()
+					.HAlign(HAlign_Center)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
-						// Fader Name
+
 						+ SHorizontalBox::Slot()
-						.MaxWidth(50.f)
-						.AutoWidth()
+						.MaxWidth(40.f)
 						[
-							SNew(STextBlock)
-							.Text(this, &SDMXControlConsoleEditorFader::GetFaderNameText)
-							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						]
-					]
-
-					// Middle section
-					+ SVerticalBox::Slot()
-					.HAlign(HAlign_Center)
-					.AutoHeight()
-					[
-						SNew(SVerticalBox)
-						// Max Value
-						+ SVerticalBox::Slot()
-						.HAlign(HAlign_Center)
-						.Padding(6.f, 2.f, 6.f, 4.f)
-						.AutoHeight()
-						[
-							SNew(SEditableTextBox)
-							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-							.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
-							.Justification(ETextJustify::Center)
-							.MinDesiredWidth(20.f)
-							.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMaxValueTextCommitted)
-							.Text(this, &SDMXControlConsoleEditorFader::GetMaxValueAsText)
-							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
-						]
-
-						// Fader Control
-						+ SVerticalBox::Slot()
-							.HAlign(HAlign_Center)
-							.AutoHeight()
+							SNew(SOverlay)
+							// Spin Box layer
+							+ SOverlay::Slot()
 							[
-								SNew(SHorizontalBox)
-
-								+ SHorizontalBox::Slot()
-								.MaxWidth(40.f)
+								SNew(SBorder)
+								.BorderImage(this, &SDMXControlConsoleEditorFader::GetSpinBoxBorderImage)
 								[
-									SNew(SOverlay)
-									// Spin Box layer
-									+ SOverlay::Slot()
-									[
-										SNew(SBorder)
-										.BorderImage(this, &SDMXControlConsoleEditorFader::GetSpinBoxBorderImage)
-										[
-											SAssignNew(FaderSpinBox, SDMXControlConsoleEditorSpinBoxVertical<uint32>)
-											.Value(this, &SDMXControlConsoleEditorFader::GetValue)
-											.MinValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
-											.MaxValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
-											.MinSliderValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
-											.MaxSliderValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
-											.OnBeginSliderMovement(this, &SDMXControlConsoleEditorFader::OnBeginValueChange)
-											.OnValueChanged(this, &SDMXControlConsoleEditorFader::HandleValueChanged)
-											.OnValueCommitted(this, &SDMXControlConsoleEditorFader::OnValueCommitted)
-											.IsActive(this, &SDMXControlConsoleEditorFader::IsFaderSpinBoxActive)
-											.Style(FDMXControlConsoleEditorStyle::Get(), "DMXControlConsole.Fader")
-											.ToolTipText(this, &SDMXControlConsoleEditorFader::GetToolTipText)
-											.MinDesiredWidth(40.0f)
-										]
-									]
-
-									// Lock Button layer
-									+ SOverlay::Slot()
-									[
-										SNew(SVerticalBox)
-										+ SVerticalBox::Slot()
-										[
-											SNew(SBox)
-										]
-
-										+ SVerticalBox::Slot()
-										.HAlign(HAlign_Center)
-										.VAlign(VAlign_Center)
-										.Padding(0.f, 4.f)
-										.AutoHeight()
-										[
-											GenerateLockButtonWidget()
-										]
-									]
+									SAssignNew(FaderSpinBox, SDMXControlConsoleEditorSpinBoxVertical<uint32>)
+									.Value(this, &SDMXControlConsoleEditorFader::GetValue)
+									.MinValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
+									.MaxValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
+									.MinSliderValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
+									.MaxSliderValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
+									.OnBeginSliderMovement(this, &SDMXControlConsoleEditorFader::OnBeginValueChange)
+									.OnValueChanged(this, &SDMXControlConsoleEditorFader::HandleValueChanged)
+									.OnValueCommitted(this, &SDMXControlConsoleEditorFader::OnValueCommitted)
+									.IsActive(this, &SDMXControlConsoleEditorFader::IsFaderSpinBoxActive)
+									.Style(FDMXControlConsoleEditorStyle::Get(), "DMXControlConsole.Fader")
+									.ToolTipText(this, &SDMXControlConsoleEditorFader::GetToolTipText)
+									.MinDesiredWidth(40.0f)
 								]
 							]
 
-							// Fader Value
-							+ SVerticalBox::Slot()
-							.HAlign(HAlign_Center)
-							.Padding(6.f, 4.f)
-							.AutoHeight()
+							// Lock Button layer
+							+ SOverlay::Slot()
 							[
-								SNew(SEditableTextBox)
-								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-								.FocusedForegroundColor(FLinearColor::White)
-								.ForegroundColor(FLinearColor::FromSRGBColor(FColor::FromHex("0088f7")))
-								.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
-								.Justification(ETextJustify::Center)
-								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnValueTextCommitted)
-								.MinDesiredWidth(20.f)
-								.Text(this, &SDMXControlConsoleEditorFader::GetValueAsText)
-								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
-							]
+								SNew(SVerticalBox)
+								+ SVerticalBox::Slot()
+								[
+									SNew(SBox)
+								]
 
-							// Fader Min Value
-							+ SVerticalBox::Slot()
-							.HAlign(HAlign_Center)
-							.Padding(6.f, 4.f)
-							.AutoHeight()
-							[
-								SNew(SEditableTextBox)
-								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-								.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
-								.Justification(ETextJustify::Center)
-								.MinDesiredWidth(20.f)
-								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMinValueTextCommitted)
-								.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
-								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
-							]
-
-							// Mute CheckBox section
-							+ SVerticalBox::Slot()
-							.HAlign(HAlign_Center)
-							.Padding(6.f, 10.f)
-							.AutoHeight()
-							[
-								SNew(SCheckBox)
-								.IsChecked(this, &SDMXControlConsoleEditorFader::IsMuteChecked)
-								.OnCheckStateChanged(this, &SDMXControlConsoleEditorFader::OnMuteToggleChanged)
+								+ SVerticalBox::Slot()
+								.HAlign(HAlign_Center)
+								.VAlign(VAlign_Center)
+								.Padding(0.f, 4.f)
+								.AutoHeight()
+								[
+									GenerateLockButtonWidget()
+								]
 							]
 						]
 					]
+
+					// Fader Value
+					+ SVerticalBox::Slot()
+					.HAlign(HAlign_Center)
+					.Padding(6.f, 4.f)
+					.AutoHeight()
+					[
+						SNew(SEditableTextBox)
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.FocusedForegroundColor(FLinearColor::White)
+						.ForegroundColor(FLinearColor::FromSRGBColor(FColor::FromHex("0088f7")))
+						.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
+						.Justification(ETextJustify::Center)
+						.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnValueTextCommitted)
+						.MinDesiredWidth(20.f)
+						.Text(this, &SDMXControlConsoleEditorFader::GetValueAsText)
+						.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
+					]
+
+					// Fader Min Value
+					+ SVerticalBox::Slot()
+					.HAlign(HAlign_Center)
+					.Padding(6.f, 4.f)
+					.AutoHeight()
+					[
+						SNew(SEditableTextBox)
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
+						.Justification(ETextJustify::Center)
+						.MinDesiredWidth(20.f)
+						.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMinValueTextCommitted)
+						.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
+						.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
+					]
+
+					// Mute CheckBox section
+					+ SVerticalBox::Slot()
+					.HAlign(HAlign_Center)
+					.Padding(6.f, 10.f)
+					.AutoHeight()
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &SDMXControlConsoleEditorFader::IsMuteChecked)
+						.OnCheckStateChanged(this, &SDMXControlConsoleEditorFader::OnMuteToggleChanged)
+					]
 				]
-			];
+			]
+		]
+	];
 }
 
 void SDMXControlConsoleEditorFader::SetValueByPercentage(float InNewPercentage)
@@ -203,6 +206,11 @@ void SDMXControlConsoleEditorFader::SetValueByPercentage(float InNewPercentage)
 
 FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	if (!ensureMsgf(FaderSpinBox.IsValid(), TEXT("Invalid fader widget, cannot handle selection correctly.")))
+	{
+		return FReply::Unhandled();
+	}
+
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		if (!Fader.IsValid())
@@ -212,7 +220,7 @@ FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeome
 
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-		
+
 		if (MouseEvent.IsLeftShiftDown())
 		{
 			SelectionHandler->Multiselect(Fader.Get());
@@ -230,9 +238,12 @@ FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeome
 		}
 		else
 		{
-			constexpr bool bNotifySelectionChange = false;
-			SelectionHandler->ClearSelection(bNotifySelectionChange);
-			SelectionHandler->AddToSelection(Fader.Get());
+			if (!IsSelected() || !FaderSpinBox->IsHovered())
+			{
+				constexpr bool bNotifySelectionChange = false;
+				SelectionHandler->ClearSelection(bNotifySelectionChange);
+				SelectionHandler->AddToSelection(Fader.Get());
+			}
 		}
 
 		return FReply::Handled();
@@ -516,56 +527,46 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 	}
 
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorControlMode InputMode = EditorConsoleModel->GetControlMode();
+	const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
+	const float FaderSpinBoxValue = FaderSpinBox->GetValue();
+
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
-	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
+	for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 	{
-		if (!Fader->IsLocked())
+		UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+		if (!SelectedFader || 
+			!SelectedFader->IsMatchingFilter() ||
+			SelectedFader->IsLocked())
 		{
-			Fader->SetValue(NewValue);
+			continue;
 		}
-	}
-	else
-	{
-		const EDMXControlConsoleEditorInputMode InputMode = EditorConsoleModel->GetInputMode();
-		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
-		const float FaderSpinBoxValue = FaderSpinBox->GetValue();
 
-		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
+		const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
+		float SelectedFaderPercentage = 0.f;
+		uint32 SelectedFaderValue = 0;
+
+		switch (InputMode)
 		{
-			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-			if (!SelectedFader || 
-				!SelectedFader->IsMatchingFilter() ||
-				SelectedFader->IsLocked())
-			{
-				continue;
-			}
-
-			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
-			float SelectedFaderPercentage = 0.f;
-			uint32 SelectedFaderValue = 0;
-
-			switch (InputMode)
-			{
-			case EDMXControlConsoleEditorInputMode::Relative:
-			{
-				// Relative percentage
-				SelectedFaderPercentage = (static_cast<float>(NewValue) - FaderSpinBoxValue) / Range;
-				const float SelectedFaderClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * SelectedFaderPercentage, 0.f, MAX_uint32);
-				SelectedFaderValue = static_cast<uint32>(SelectedFaderClampedValue);
-				break;
-			} 
-			case EDMXControlConsoleEditorInputMode::Absolute:
-			{
-				// Absolute percentage
-				SelectedFaderPercentage = (NewValue - Fader->GetMinValue()) / Range;
-				SelectedFaderValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * SelectedFaderPercentage);
-				break;
-			}
-			}
+		case EDMXControlConsoleEditorControlMode::Relative:
+		{
+			// Relative percentage
+			SelectedFaderPercentage = (static_cast<float>(NewValue) - FaderSpinBoxValue) / Range;
+			const float SelectedFaderClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * SelectedFaderPercentage, 0.f, MAX_uint32);
+			SelectedFaderValue = static_cast<uint32>(SelectedFaderClampedValue);
+			break;
+		} 
+		case EDMXControlConsoleEditorControlMode::Absolute:
+		{
+			// Absolute percentage
+			SelectedFaderPercentage = (NewValue - Fader->GetMinValue()) / Range;
+			SelectedFaderValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * SelectedFaderPercentage);
+			break;
+		}
+		}
 			
-			SelectedFader->SetValue(SelectedFaderValue);
-		}
+		SelectedFader->SetValue(SelectedFaderValue);
 	}
 }
 
@@ -574,14 +575,6 @@ void SDMXControlConsoleEditorFader::OnBeginValueChange()
 	if (!ensureMsgf(Fader.IsValid(), TEXT("Invalid fader, cannot set fader value correctly.")))
 	{
 		return;
-	}
-
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-	if (!IsSelected())
-	{
-		SelectionHandler->ClearSelection();
-		SelectionHandler->AddToSelection(Fader.Get());
 	}
 
 	PreCommittedValue = Fader->GetValue();
@@ -601,86 +594,71 @@ void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommi
 
 	const FScopedTransaction FaderValueCommittedTransaction(LOCTEXT("FaderValueCommittedTransaction", "Edit Fader Value"));
 
+	const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
+	const float FaderSpinBoxValue = FaderSpinBox->GetValue();
+	float PreCommittedPercentage = 0.f;
+	float Percentage = 0.f;
+	
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorControlMode ControlMode = EditorConsoleModel->GetControlMode();
+	switch (ControlMode)
+	{
+	case EDMXControlConsoleEditorControlMode::Relative:
+	{
+		// Relative percentages
+		PreCommittedPercentage = (static_cast<float>(PreCommittedValue) - FaderSpinBoxValue) / Range;
+		Percentage = (static_cast<float>(NewValue) - FaderSpinBoxValue) / Range;
+		break;
+	}
+	case EDMXControlConsoleEditorControlMode::Absolute:
+	{
+		// Absolute percentages
+		PreCommittedPercentage = (PreCommittedValue - Fader->GetMinValue()) / Range;
+		Percentage = (NewValue - Fader->GetMinValue()) / Range;
+		break;
+	}
+	}
+
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
-	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
+	for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 	{
-		if (!Fader->IsLocked())
+		UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+		if (!SelectedFader ||
+			!SelectedFader->IsMatchingFilter() ||
+			SelectedFader->IsLocked())
 		{
-			// Reset to PreCommittedValue to handle transactions
-			Fader->SetValue(PreCommittedValue);
-			
-			Fader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetValuePropertyName()));
-			Fader->SetValue(NewValue);
-			Fader->PostEditChange();
+			continue;
 		}
-	}
-	else
-	{
-		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
-		const float FaderSpinBoxValue = FaderSpinBox->GetValue();
-		float PreCommittedPercentage = 0.f;
-		float Percentage = 0.f;
-		
-		const EDMXControlConsoleEditorInputMode InputMode = EditorConsoleModel->GetInputMode();
-		switch (InputMode)
+
+		const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
+		uint32 SelectedFaderPreCommittedValue = 0;
+		uint32 SelectedFaderValue = 0;
+
+		switch (ControlMode)
 		{
-		case EDMXControlConsoleEditorInputMode::Relative:
+		case EDMXControlConsoleEditorControlMode::Relative:
 		{
-			// Relative percentages
-			PreCommittedPercentage = (static_cast<float>(PreCommittedValue) - FaderSpinBoxValue) / Range;
-			Percentage = (static_cast<float>(NewValue) - FaderSpinBoxValue) / Range;
+			const float SelectedFaderPreCommittedClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * PreCommittedPercentage, 0.f, MAX_uint32);
+			SelectedFaderPreCommittedValue = static_cast<uint32>(SelectedFaderPreCommittedClampedValue);
+			const float SelectedFaderClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * Percentage, 0.f, MAX_uint32);
+			SelectedFaderValue = static_cast<uint32>(SelectedFaderClampedValue);
 			break;
 		}
-		case EDMXControlConsoleEditorInputMode::Absolute:
+		case EDMXControlConsoleEditorControlMode::Absolute:
 		{
-			// Absolute percentages
-			PreCommittedPercentage = (PreCommittedValue - Fader->GetMinValue()) / Range;
-			Percentage = (NewValue - Fader->GetMinValue()) / Range;
+			SelectedFaderPreCommittedValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * PreCommittedPercentage);
+			SelectedFaderValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
 			break;
 		}
 		}
 
-		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
-		{
-			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-			if (!SelectedFader ||
-				!SelectedFader->IsMatchingFilter() ||
-				SelectedFader->IsLocked())
-			{
-				continue;
-			}
+		// Reset to PreCommittedValue to handle transactions
+		SelectedFader->SetValue(SelectedFaderPreCommittedValue);
 
-			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
-			uint32 SelectedFaderPreCommittedValue = 0;
-			uint32 SelectedFaderValue = 0;
-
-			switch (InputMode)
-			{
-			case EDMXControlConsoleEditorInputMode::Relative:
-			{
-				const float SelectedFaderPreCommittedClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * PreCommittedPercentage, 0.f, MAX_uint32);
-				SelectedFaderPreCommittedValue = static_cast<uint32>(SelectedFaderPreCommittedClampedValue);
-				const float SelectedFaderClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * Percentage, 0.f, MAX_uint32);
-				SelectedFaderValue = static_cast<uint32>(SelectedFaderClampedValue);
-				break;
-			}
-			case EDMXControlConsoleEditorInputMode::Absolute:
-			{
-				SelectedFaderPreCommittedValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * PreCommittedPercentage);
-				SelectedFaderValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
-				break;
-			}
-			}
-
-			// Reset to PreCommittedValue to handle transactions
-			SelectedFader->SetValue(SelectedFaderPreCommittedValue);
-
-			SelectedFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetValuePropertyName()));
-			SelectedFader->SetValue(SelectedFaderValue);
-			SelectedFader->PostEditChange();
-		}
+		SelectedFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetValuePropertyName()));
+		SelectedFader->SetValue(SelectedFaderValue);
+		SelectedFader->PostEditChange();
 	}
 }
 

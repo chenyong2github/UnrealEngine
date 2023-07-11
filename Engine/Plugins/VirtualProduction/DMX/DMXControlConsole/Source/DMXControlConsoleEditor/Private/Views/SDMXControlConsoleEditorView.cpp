@@ -35,6 +35,7 @@
 #include "Views/SDMXControlConsoleEditorFaderGroupView.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -476,21 +477,22 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 
 	ToolbarBuilder.BeginSection("Modes");
 	{
-		const TSharedRef<SComboButton> InputModeComboButton =
+		// Input Mode
+		const TSharedRef<SComboButton> ControlModeComboButton =
 			SNew(SComboButton)
 			.ContentPadding(0.f)
 			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
-			.OnGetMenuContent(this, &SDMXControlConsoleEditorView::GenerateInputModeMenuWidget)
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorView::GenerateControlModeMenuWidget)
 			.HasDownArrow(true)
 			.ButtonContent()
 			[
 				GenerateButtonContentLambda(
 					FSlateColor::UseForeground(),
 					FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.InputMode"),
-					LOCTEXT("InputModeToolbarButtonText", "Input Mode"))
+					LOCTEXT("ControlModeToolbarButtonText", "Control Mode"))
 			];
 
-		ToolbarBuilder.AddWidget(InputModeComboButton);
+		ToolbarBuilder.AddWidget(ControlModeComboButton);
 	
 		const TSharedRef<SComboButton> ViewModeComboButton =
 			SNew(SComboButton)
@@ -532,14 +534,45 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 
 	ToolbarBuilder.BeginSection("Search");
 	{
-		SAssignNew(GlobalFilterSearchBox, SSearchBox)
-			.DelayChangeNotificationsWhileTyping(true)
-			.DelayChangeNotificationsWhileTypingSeconds(.5f)
-			.MinDesiredWidth(300.f)
-			.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
-			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
+		const TSharedRef<SWidget> SearchBarWidget =
+			SNew(SHorizontalBox)
 
-		ToolbarBuilder.AddWidget(GlobalFilterSearchBox.ToSharedRef());
+			// SearchBox section
+			+ SHorizontalBox::Slot()
+			[
+				SAssignNew(GlobalFilterSearchBox, SSearchBox)
+				.DelayChangeNotificationsWhileTyping(true)
+				.DelayChangeNotificationsWhileTypingSeconds(.5f)
+				.MinDesiredWidth(300.f)
+				.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
+				.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
+			]
+
+			// Autooselection CheckBox section
+			+ SHorizontalBox::Slot()
+			.Padding(4.f, 0.f)
+			.AutoWidth()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &SDMXControlConsoleEditorView::IsFilteredElementsAutoSelectChecked)
+					.OnCheckStateChanged(this, &SDMXControlConsoleEditorView::OnFilteredElementsAutoSelectStateChanged)
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(4.f, 0.f, 2.f, 0.f)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Text(LOCTEXT("SearchBarAutoselectText", "Auto-Select"))
+				]
+			];
+
+		ToolbarBuilder.AddWidget(SearchBarWidget);
 	}
 	ToolbarBuilder.EndSection();
 
@@ -555,35 +588,43 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	return ToolbarBuilder.MakeWidget();
 }
 
-
-TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateInputModeMenuWidget()
+TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateControlModeMenuWidget()
 {
 	constexpr bool bShouldCloseWindowAfterClosing = false;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
 
-	MenuBuilder.BeginSection("Faders", LOCTEXT("FadersInputModeCategory", "Faders"));
+	MenuBuilder.BeginSection("Faders", LOCTEXT("FadersControlModeCategory", "Faders"));
 	{
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-		const auto AddMenuEntryLambda = [&MenuBuilder, EditorConsoleModel, this](const FString& Label, EDMXControlConsoleEditorInputMode InputMode)
-		{
-			MenuBuilder.AddMenuEntry
-			(
-				FText::FromString(Label),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction
+		const auto AddMenuEntryLambda = [&MenuBuilder, EditorConsoleModel, this](const FText& Label, const FText& ToolTip, EDMXControlConsoleEditorControlMode ControlMode)
+			{
+				MenuBuilder.AddMenuEntry
 				(
-					FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SetInputMode, InputMode),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([this, EditorConsoleModel, InputMode]() { return EditorConsoleModel->GetInputMode() == InputMode; })
-				),
-				NAME_None,
-				EUserInterfaceActionType::RadioButton
-			);
-		};
+					Label,
+					ToolTip,
+					FSlateIcon(),
+					FUIAction
+					(
+						FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SetInputMode, ControlMode),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([this, EditorConsoleModel, ControlMode]() { return EditorConsoleModel->GetControlMode() == ControlMode; })
+					),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton
+				);
+			};
 
-		AddMenuEntryLambda(TEXT("Relative"), EDMXControlConsoleEditorInputMode::Relative);
-		AddMenuEntryLambda(TEXT("Absolute"), EDMXControlConsoleEditorInputMode::Absolute);
+		AddMenuEntryLambda
+		(
+			LOCTEXT("RelativeControlModeRadioButtonLabel", "Relative"),
+			LOCTEXT("RelativeControlModeRadioButton_ToolTip", "Values of all selected Faders are increased/decreased by the same percentage."),
+			EDMXControlConsoleEditorControlMode::Relative
+		);
+
+		AddMenuEntryLambda(
+			LOCTEXT("AbsoluteControlModeRadioButtonLabel", "Absolute"),
+			LOCTEXT("AbsoluteControlModeRadioButton_ToolTip", "Values of all selected Faders are set to the same percentage."),
+			EDMXControlConsoleEditorControlMode::Absolute);
 	}
 	MenuBuilder.EndSection();
 
@@ -597,49 +638,49 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 
 	MenuBuilder.BeginSection("Fader Groups", LOCTEXT("FaderGroupsViewModeCategory", "Fader Groups"));
 	{
-		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
+		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FText& Label, EDMXControlConsoleEditorViewMode ViewMode)
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(Label), 
-					FText::GetEmpty(), 
-					FSlateIcon(), 
+					Label,
+					FText::GetEmpty(),
+					FSlateIcon(),
 					FUIAction
 					(
 						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode)
-					), 
-					NAME_None, 
+					),
+					NAME_None,
 					EUserInterfaceActionType::Button
 				);
 			};
 
-		AddMenuEntryLambda(TEXT("Collapse All"), EDMXControlConsoleEditorViewMode::Collapsed);
-		AddMenuEntryLambda(TEXT("Expand All"), EDMXControlConsoleEditorViewMode::Expanded);
+		AddMenuEntryLambda(LOCTEXT("FaderGroupsViewModeCollapseAllButtonLabel", "Collapse All"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryLambda(LOCTEXT("FaderGroupsViewModeExpandAllButtonLabel", "Expand All"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("Faders", LOCTEXT("FadersViewModeCategory", "Faders"));
 	{
-		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
+		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FText& Label, EDMXControlConsoleEditorViewMode ViewMode)
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(Label), 
-					FText::GetEmpty(), 
-					FSlateIcon(), 
+					Label,
+					FText::GetEmpty(),
+					FSlateIcon(),
 					FUIAction
 					(
-						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFadersViewModeSelected, ViewMode), 
-						FCanExecuteAction(), 
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFadersViewModeSelected, ViewMode),
+						FCanExecuteAction(),
 						FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFadersViewMode() == ViewMode; })
-					), 
-					NAME_None, 
+					),
+					NAME_None,
 					EUserInterfaceActionType::RadioButton
 				);
 			};
 
-		AddMenuEntryLambda(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
-		AddMenuEntryLambda(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
+		AddMenuEntryLambda(LOCTEXT("FadersViewModeCollapsedRadioButtonLabel", "Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryLambda(LOCTEXT("FadersViewModeExpandedRadioButtonLabel", "Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 
@@ -659,12 +700,12 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
 				MenuBuilder.AddMenuEntry
 				(
 					Label,
-					FText::GetEmpty(), 
-					FSlateIcon(), 
+					FText::GetEmpty(),
+					FSlateIcon(),
 					FUIAction
 					(
 						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnSelectAll, bOnlyVisible)
-					), 
+					),
 					NAME_None,
 					EUserInterfaceActionType::Button
 				);
@@ -682,9 +723,9 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
 			FSlateIcon(),
 			FUIAction
 			(
-				FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ToggleAutoSelect),
+				FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ToggleAutoSelectActivePatches),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::GetAutoSelect)
+				FIsActionChecked::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::GetAutoSelectActivePatches)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -901,7 +942,31 @@ void SDMXControlConsoleEditorView::OnSearchTextChanged(const FText& SearchText)
 	using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
 	FFilterModel::Get().SetGlobalFilter(SearchString);
 
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	if (!SearchString.IsEmpty() && EditorConsoleModel.GetAutoSelectFilteredElements())
+	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
+		constexpr bool bNotifySelection = false;
+		SelectionHandler->ClearSelection(bNotifySelection);
+
+		constexpr bool bSelectOnlyFiltered = true;
+		SelectionHandler->SelectAll(bSelectOnlyFiltered);
+	}
+
 	RequestUpdateDetailsViews();
+}
+
+ECheckBoxState SDMXControlConsoleEditorView::IsFilteredElementsAutoSelectChecked() const
+{
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	const bool bAutoSelect = EditorConsoleModel.GetAutoSelectFilteredElements();
+	return bAutoSelect ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SDMXControlConsoleEditorView::OnFilteredElementsAutoSelectStateChanged(ECheckBoxState CheckBoxState)
+{
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	EditorConsoleModel.ToggleAutoSelectFilteredElements();
 }
 
 FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
