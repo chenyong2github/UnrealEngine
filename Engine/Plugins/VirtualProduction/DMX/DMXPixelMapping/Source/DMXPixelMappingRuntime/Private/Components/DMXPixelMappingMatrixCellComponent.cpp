@@ -7,11 +7,11 @@
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "DMXConversions.h"
+#include "DMXPixelMappingRenderElement.h"
 #include "DMXPixelMappingTypes.h"
 #include "Engine/Texture.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "PixelMapRenderElement.h"
 #include "TextureResource.h"
 
 #if WITH_EDITOR
@@ -299,7 +299,7 @@ void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 		UV,
 		UVSize,
 		UVCellSize,
-		CellBlendingQuality,
+		MatrixComponent->CellBlendingQuality,
 		bStaticCalculateUV
 	};
 
@@ -311,13 +311,6 @@ void UDMXPixelMappingMatrixCellComponent::SetCellCoordinate(FIntPoint InCellCoor
 {
 	CellCoordinate = InCellCoordinate;
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void UDMXPixelMappingMatrixCellComponent::RenderWithInputAndSendDMX()
-{
-	RenderAndSendDMX();
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UDMXPixelMappingMatrixCellComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* OtherComponent) const
 {
@@ -334,6 +327,12 @@ void UDMXPixelMappingMatrixCellComponent::UpdateRenderElement()
 {
 	using namespace UE::DMXPixelMapping::Rendering;
 	
+	UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent());
+	if (!MatrixComponent)
+	{
+		return;
+	}
+
 	const UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
 	const UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
 	const double InputTextureWidth = InputTexture ? InputTexture->GetSurfaceWidth() : 1.0;
@@ -343,7 +342,7 @@ void UDMXPixelMappingMatrixCellComponent::UpdateRenderElement()
 	Parameters.UV = FVector2D(GetPosition().X / InputTextureWidth, GetPosition().Y / InputTextureHeight);
 	Parameters.UVSize = FVector2D(GetSize().X / InputTextureWidth, GetSize().Y / InputTextureHeight);
 	Parameters.UVCellSize = Parameters.UVSize / 2.f;
-	Parameters.CellBlendingQuality = static_cast<ECellBlendingQuality>(CellBlendingQuality);
+	Parameters.CellBlendingQuality = MatrixComponent->CellBlendingQuality;
 	Parameters.bStaticCalculateUV = true;
 
 	if (!PixelMapRenderElement.IsValid())

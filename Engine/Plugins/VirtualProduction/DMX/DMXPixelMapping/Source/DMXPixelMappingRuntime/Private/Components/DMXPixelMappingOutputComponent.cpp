@@ -13,8 +13,7 @@
 
 
 UDMXPixelMappingOutputComponent::UDMXPixelMappingOutputComponent()
-	: CellBlendingQuality(EDMXPixelBlendingQuality::Low)
-	, PositionX(0.f)
+	: PositionX(0.f)
 	, PositionY(0.f)
 	, SizeX(1.f)
 	, SizeY(1.f)
@@ -53,17 +52,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			}, bSetVisibilityRecursive);
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	// Apply cell belending quality
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, CellBlendingQuality))
-	{
-		// Propagonate to children
-		constexpr bool bSetCellBlendingQualityToChildsRecursive = true;
-		ForEachChildOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* ChildComponent)
-			{
-				ChildComponent->CellBlendingQuality = CellBlendingQuality;
-			}, bSetCellBlendingQualityToChildsRecursive);
-	}
 }
 #endif // WITH_EDITOR
 

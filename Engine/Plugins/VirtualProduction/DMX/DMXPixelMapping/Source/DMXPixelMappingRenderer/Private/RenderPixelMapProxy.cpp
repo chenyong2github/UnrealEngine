@@ -2,8 +2,8 @@
 
 #include "RenderPixelMapProxy.h"
 
+#include "DMXPixelMappingRenderElement.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "PixelMapRenderElement.h"
 #include "PixelShaderUtils.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "RenderingThread.h"
@@ -19,7 +19,7 @@ namespace UE::DMXPixelMapping::Rendering::Private
 
 DECLARE_GPU_STAT_NAMED(DMXPixelMappingShadersStat, UE::DMXPixelMapping::Rendering::Private::RenderPassHint);
 
-class FDMXPixelBlendingQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("PIXELBLENDING_QUALITY", UE::DMXPixelMapping::Rendering::ECellBlendingQuality);
+class FDMXPixelBlendingQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("PIXELBLENDING_QUALITY", EDMXPixelBlendingQuality);
 class FDMXVertexUVDimension : SHADER_PERMUTATION_BOOL("VERTEX_UV_STATIC_CALCULATION");
 
 /**

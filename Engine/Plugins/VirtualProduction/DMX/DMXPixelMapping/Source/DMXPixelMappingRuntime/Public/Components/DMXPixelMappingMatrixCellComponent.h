@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Components/DMXPixelMappingOutputDMXComponent.h"
+#include "Components/DMXPixelMappingOutputComponent.h"
 #include "DMXAttribute.h"
+#include "DMXPixelMappingRenderElement.h"
 #include "DMXTypes.h"
 #include "Library/DMXEntityReference.h"
-#include "PixelMapRenderElement.h"
 
 #include "DMXPixelMappingMatrixCellComponent.generated.h"
 
@@ -23,7 +23,7 @@ class UTextureRenderTarget2D;
  */
 UCLASS()
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixCellComponent
-	: public UDMXPixelMappingOutputDMXComponent
+	: public UDMXPixelMappingOutputComponent
 {
 	GENERATED_BODY()
 
@@ -63,12 +63,6 @@ public:
 	virtual void SetPosition(const FVector2D& NewPosition) override;
 	virtual void SetSize(const FVector2D& NewSize) override;
 	//~ End UDMXPixelMappingOutputComponent implementation
-
-	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void RenderWithInputAndSendDMX() override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	//~ End UDMXPixelMappingOutputDMXComponent implementation
 
 	void SetCellCoordinate(FIntPoint InCellCoordinate);
 	const FIntPoint& GetCellCoordinate() { return CellCoordinate; }

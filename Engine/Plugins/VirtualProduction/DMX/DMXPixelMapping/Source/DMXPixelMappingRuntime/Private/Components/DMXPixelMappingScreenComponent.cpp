@@ -155,7 +155,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 const FName& UDMXPixelMappingScreenComponent::GetNamePrefix()
 {
-	static FName NamePrefix = TEXT("DMX Screen");
+	static FName NamePrefix = TEXT("DEPRECATED DMX Screen");
 	return NamePrefix;
 }
 
@@ -264,8 +264,6 @@ UDMXPixelMappingRendererComponent* UDMXPixelMappingScreenComponent::GetRendererC
 
 void UDMXPixelMappingScreenComponent::ResetDMX()
 {
-	//RenderElement->SetColor(FLinearColor::Black);
-
 	SendDMX();
 }
 

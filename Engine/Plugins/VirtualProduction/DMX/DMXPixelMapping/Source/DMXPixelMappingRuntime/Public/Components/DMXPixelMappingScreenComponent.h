@@ -11,8 +11,8 @@
 
 #include "DMXPixelMappingScreenComponent.generated.h"
 
-
 enum class EDMXCellFormat : uint8;
+enum class EDMXPixelBlendingQuality : uint8;
 class FDMXPixelMappingComponentWidget;
 class FDMXOutputPort;
 class SDMXPixelMappingScreenComponentBox;

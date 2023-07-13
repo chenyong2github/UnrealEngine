@@ -10,22 +10,28 @@
 #include "Math/Color.h"
 #include "Math/Vector2D.h"
 
+#include "DMXPixelMappingRenderElement.generated.h"
+
+
+/** Enum that defines the quality of how pixels are rendered */
+UENUM()
+enum class EDMXPixelBlendingQuality : uint8
+{
+	/** 1 sample */
+	Low,
+
+	/** 5 samples ( 2 x 2 with center) */
+	Medium,
+
+	/** 9 samples ( 3 x 3 ) */
+	High,
+
+	/** Max, for shaders only */
+	MAX UMETA(Hidden)
+};
 
 namespace UE::DMXPixelMapping::Rendering
 {
-	/**
-	 * Used in shader permutation for determining number of samples to use in texture blending.
-	 * If adding to this you must also adjust the public facing option: 'EPixelBlendingQuality' under the runtime module's DMXPixelMappingOutputComponent.h
-	 */
-	enum class DMXPIXELMAPPINGRENDERER_API ECellBlendingQuality : uint8
-	{
-		Low,
-		Medium,
-		High,
-		
-		MAX
-	};
-
 	struct DMXPIXELMAPPINGRENDERER_API FPixelMapRenderElementParameters
 	{
 		/** Position in texels of the top left corner of the quad's UV's */
@@ -38,7 +44,7 @@ namespace UE::DMXPixelMapping::Rendering
 		FVector2D UVCellSize;
 
 		/** The quality of color samples in the pixel shader(number of samples) */
-		ECellBlendingQuality CellBlendingQuality;
+		EDMXPixelBlendingQuality CellBlendingQuality;
 
 		/** Calculates the UV point to sample purely on the UV position/size. Works best for renderers which represent a single pixel */
 		bool bStaticCalculateUV = true;

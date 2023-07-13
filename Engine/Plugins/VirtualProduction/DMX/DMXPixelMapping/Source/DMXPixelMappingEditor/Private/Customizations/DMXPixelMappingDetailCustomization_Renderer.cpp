@@ -50,9 +50,6 @@ void FDMXPixelMappingDetailCustomization_Renderer::CustomizeDetails(IDetailLayou
 	const TSharedRef<IPropertyHandle> IsVisibleInDesignerHandle = DetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetVisibleInDesignerPropertyName(), UDMXPixelMappingOutputComponent::StaticClass());
 	DetailLayout.HideProperty(IsVisibleInDesignerHandle);
 
-	const TSharedRef<IPropertyHandle> PixelBlendingHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, CellBlendingQuality), UDMXPixelMappingOutputComponent::StaticClass());
-	DetailLayout.HideProperty(PixelBlendingHandle);
-
 	// Add properties
 	IDetailCategoryBuilder& RenderSettingsCategory = DetailLayout.EditCategory("Render Settings", FText::GetEmpty(), ECategoryPriority::Important);
 	RenderSettingsCategory.AddProperty(RendererTypeHandle);

@@ -430,16 +430,19 @@ bool UDMXPixelMappingFixtureGroupItemComponent::IsOverParent() const
 	return false;
 }
 
-void UDMXPixelMappingFixtureGroupItemComponent::RenderWithInputAndSendDMX()
-{
-	RenderAndSendDMX();
-}
-
 TSharedRef<UE::DMXPixelMapping::Rendering::FPixelMapRenderElement> UDMXPixelMappingFixtureGroupItemComponent::GetOrCreatePixelMapRenderElement()
 {
 	UpdateRenderElement();
 	return PixelMapRenderElement.ToSharedRef();
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UDMXPixelMappingFixtureGroupItemComponent::RenderWithInputAndSendDMX()
+{
+	// DEPRECATED 5.3
+	RenderAndSendDMX();
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UDMXPixelMappingFixtureGroupItemComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
 {
@@ -467,7 +470,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::UpdateRenderElement()
 	Parameters.UV = FVector2D(GetPosition().X / InputTextureWidth, GetPosition().Y / InputTextureHeight);
 	Parameters.UVSize = FVector2D(GetSize().X / InputTextureWidth, GetSize().Y / InputTextureHeight);
 	Parameters.UVCellSize = Parameters.UVSize / 2.f;
-	Parameters.CellBlendingQuality = static_cast<ECellBlendingQuality>(CellBlendingQuality);
+	Parameters.CellBlendingQuality = CellBlendingQuality;
 	Parameters.bStaticCalculateUV = true;
 
 	if (!PixelMapRenderElement.IsValid())

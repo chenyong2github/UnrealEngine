@@ -23,21 +23,6 @@ class FDMXPixelMappingComponentWidget;
 #endif
 
 
-
-/** Enum that defines the quality of how pixels are rendered */
-UENUM()
-enum class EDMXPixelBlendingQuality : uint8
-{
-	/** 1 sample */
-	Low,
-
-    /** 5 samples ( 2 x 2 with center) */
-    Medium,
-
-	/** 9 samples ( 3 x 3 ) */
-	High
-};
-
 /**
  * Base class for all Designer and configurable components
  */
@@ -192,21 +177,17 @@ public:
 	FORCEINLINE static FName GetSizeYPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY); }
 #endif
 
-	/** The quality level to use when averaging colors during downsampling. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
-	EDMXPixelBlendingQuality CellBlendingQuality;
-
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transform", Meta = (EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float PositionX;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transform", Meta = (EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float PositionY;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 1, UIMin = 1, EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transform", Meta = (ClampMin = 1, UIMin = 1, EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float SizeX;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 1, UIMin = 1, EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Transform", Meta = (ClampMin = 1, UIMin = 1, EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float SizeY;
 
 protected:

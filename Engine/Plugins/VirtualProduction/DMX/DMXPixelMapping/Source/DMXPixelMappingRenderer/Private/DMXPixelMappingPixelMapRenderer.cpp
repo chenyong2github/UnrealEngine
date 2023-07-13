@@ -2,8 +2,8 @@
 
 #include "DMXPixelMappingPixelMapRenderer.h"
 
+#include "DMXPixelMappingRenderElement.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "PixelMapRenderElement.h"
 #include "RenderPixelMapProxy.h"
 #include "RenderingThread.h"
 

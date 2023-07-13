@@ -503,7 +503,7 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 
 	CreateInternalViews();
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PixelMapping_Layout_v9")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PixelMapping_Layout_2.0")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -511,63 +511,60 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 			(
 				FTabManager::NewSplitter()
 				->SetOrientation(Orient_Horizontal)
+				->SetSizeCoefficient(.25f)
 				->Split
 				(
 					FTabManager::NewSplitter()
 					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.25f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->AddTab(DMXLibraryViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.382f)
-					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(HierarchyViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.618)
+						->SetSizeCoefficient(.618f)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->AddTab(DMXLibraryViewTabID, ETabState::OpenedTab)
+						->SetSizeCoefficient(.382f)
 					)
 				)
-				->SetSizeCoefficient(0.25f)
+				->SetSizeCoefficient(.5f)
 				->Split
 				(
 					FTabManager::NewSplitter()
 					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.5f)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(DesignerViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.6f)
+						->SetSizeCoefficient(.618f)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(PreviewViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.4f)
+						->SetSizeCoefficient(.382f)
 					)
 				)
-				->SetSizeCoefficient(0.5f)
+				->SetSizeCoefficient(.25f)
 				->Split
 				(
 					FTabManager::NewSplitter()
 					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.5f)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(DetailsViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.618f)
+						->SetSizeCoefficient(.618f)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(LayoutViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.382f)
+						->SetSizeCoefficient(.382f)
 					)
 				)
-				->SetSizeCoefficient(0.25f)
 			)
 		);
 
@@ -593,6 +590,9 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 			SelectComponents(TSet<FDMXPixelMappingComponentReference>({ ComponentReference }));
 		}
 	}
+
+	FDMXPixelMappingComponentTemplate Template(UDMXPixelMappingScreenComponent::StaticClass());
+	GetActiveRendererComponent()->AddChild(Template.CreateComponent< UDMXPixelMappingScreenComponent>(DMXPixelMapping->GetRootComponent()));
 }
 
 TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_DMXLibraryView(const FSpawnTabArgs& Args)

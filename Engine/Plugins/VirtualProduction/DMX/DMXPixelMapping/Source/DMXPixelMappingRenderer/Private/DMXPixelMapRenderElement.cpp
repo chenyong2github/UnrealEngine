@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PixelMapRenderElement.h"
+#include "DMXPixelMappingRenderElement.h"
 
 
 namespace UE::DMXPixelMapping::Rendering

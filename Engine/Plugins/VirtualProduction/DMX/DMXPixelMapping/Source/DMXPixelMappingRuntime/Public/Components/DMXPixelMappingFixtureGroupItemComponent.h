@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Components/DMXPixelMappingOutputDMXComponent.h"
+#include "DMXPixelMappingOutputDMXComponent.h"
 
-#include "Components/DMXPixelMappingFixtureGroupComponent.h"
-#include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "DMXPixelMappingFixtureGroupComponent.h"
+#include "DMXPixelMappingMatrixCellComponent.h"
 #include "Library/DMXEntityReference.h"
 
 #include "Misc/Attribute.h"
@@ -69,25 +69,6 @@ public:
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Selected Patch")
-	FDMXEntityFixturePatchRef FixturePatchRef;
-
-	/** Sets which color space Pixel Mapping sends */
-	UPROPERTY(Transient, EditAnywhere, NoClear, Category = "Color Space", Meta = (DisplayPriority = 2, DisplayName = "Output Mode", ShowDisplayNames))
-	TSubclassOf<UDMXPixelMappingColorSpace> ColorSpaceClass;
-
-	/** The Color Space currently in use */
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Color Space")
-	TObjectPtr<UDMXPixelMappingColorSpace> ColorSpace;
-
-	/** Modulators applied to the output before sending DMX */
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadOnly, Category = "Output Settings", Meta = (DisplayName = "Output Modulators"))
-	TArray<TSubclassOf<UDMXModulator>> ModulatorClasses;
-
-	/** Modulator instances applied to this component */
-	UPROPERTY()
-	TArray<TObjectPtr<UDMXModulator>> Modulators;
-
 	/** Index of the cell pixel in downsample target buffer */
 	int32 DownsamplePixelIndex;
 
@@ -117,8 +98,7 @@ public:
 	UE_DEPRECATED(5.3, "No longer in use. Please use UDMXPixelMappingPixelMapRenderer to render the pixel map")
 	virtual int32 GetDownsamplePixelIndex() const override { return DownsamplePixelIndex; }
 	//~ End UDMXPixelMappingOutputComponent implementation
-
-
+	
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.3, "Deprecated for performance reasons. Instead use 'Get DMX Pixel Mapping Renderer Component' and Render only once each tick.")

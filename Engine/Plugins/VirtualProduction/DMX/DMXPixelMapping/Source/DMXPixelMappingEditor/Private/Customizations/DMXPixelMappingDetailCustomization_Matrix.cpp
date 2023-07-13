@@ -44,42 +44,67 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 	// Sort categories
 	InDetailLayout.SortCategories([](const TMap<FName, IDetailCategoryBuilder*>& CategoryMap)
 		{
-			int32 MinSortOrder = TNumericLimits<int32>::Max();
-			for (const TPair<FName, IDetailCategoryBuilder*>& Pair : CategoryMap)
+			int32 SortOrder = 0;
+
+			IDetailCategoryBuilder* const* FixturePatchCategoryPtr = CategoryMap.Find("Fixture Patch");
+			if (FixturePatchCategoryPtr)
 			{
-				int32 SortOrder = Pair.Value->GetSortOrder();
-				MinSortOrder = FMath::Min(SortOrder, MinSortOrder);
+				(*FixturePatchCategoryPtr)->SetSortOrder(SortOrder++);
 			}
 
 			IDetailCategoryBuilder* const* ColorSpaceCategoryPtr = CategoryMap.Find("Color Space");
 			if (ColorSpaceCategoryPtr)
 			{
-				(*ColorSpaceCategoryPtr)->SetSortOrder(MinSortOrder - 3);
+				(*ColorSpaceCategoryPtr)->SetSortOrder(SortOrder++);
 			}
 
 			// Either 'RGB' 'XY' or 'XYZ' is displayed
 			IDetailCategoryBuilder* const* RGBCategoryPtr = CategoryMap.Find("RGB");
 			if (RGBCategoryPtr)
 			{
-				(*RGBCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+				(*RGBCategoryPtr)->SetSortOrder(SortOrder++);
 			}
 
 			IDetailCategoryBuilder* const* XYCategoryPtr = CategoryMap.Find("XY");
 			if (XYCategoryPtr)
 			{
-				(*XYCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+				(*XYCategoryPtr)->SetSortOrder(SortOrder++);
 			}
 
 			IDetailCategoryBuilder* const* XYZCategoryPtr = CategoryMap.Find("XYZ");
 			if (XYZCategoryPtr)
 			{
-				(*XYZCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+				(*XYZCategoryPtr)->SetSortOrder(SortOrder++);
 			}
 
 			IDetailCategoryBuilder* const* IntensityCategoryPtr = CategoryMap.Find("Luminance");
 			if (IntensityCategoryPtr)
 			{
-				(*IntensityCategoryPtr)->SetSortOrder(MinSortOrder - 1);
+				(*IntensityCategoryPtr)->SetSortOrder(SortOrder++);
+			}
+
+			IDetailCategoryBuilder* const* QualityCategoryPtr = CategoryMap.Find("Quality");
+			if (QualityCategoryPtr)
+			{
+				(*QualityCategoryPtr)->SetSortOrder(SortOrder++);
+			}
+
+			IDetailCategoryBuilder* const* ModulatorsCategoryPtr = CategoryMap.Find("Output Modulators");
+			if (ModulatorsCategoryPtr)
+			{
+				(*ModulatorsCategoryPtr)->SetSortOrder(SortOrder++);
+			}
+
+			IDetailCategoryBuilder* const* TransformCategoryPtr = CategoryMap.Find("Transform");
+			if (TransformCategoryPtr)
+			{
+				(*TransformCategoryPtr)->SetSortOrder(SortOrder++);
+			}
+
+			IDetailCategoryBuilder* const* EditorSettingsCategoryPtr = CategoryMap.Find("Editor Settings");
+			if (EditorSettingsCategoryPtr)
+			{
+				(*EditorSettingsCategoryPtr)->SetSortOrder(SortOrder++);
 			}
 		});
 }

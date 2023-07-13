@@ -440,6 +440,14 @@ void UDMXPixelMappingMatrixComponent::SetSize(const FVector2D& NewSize)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UDMXPixelMappingMatrixComponent::RenderWithInputAndSendDMX()
+{
+	// DEPRECATED 5.3
+	RenderAndSendDMX();
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 void UDMXPixelMappingMatrixComponent::HandlePositionChanged()
 {
 #if WITH_EDITOR

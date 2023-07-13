@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DMXPixelMappingOutputDMXComponent.h"
+
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -18,7 +20,7 @@ class UDMXPixelMappingLayoutScript;
  */
 UCLASS()
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixComponent
-	: public UDMXPixelMappingOutputComponent
+	: public UDMXPixelMappingOutputDMXComponent
 {
 	GENERATED_BODY()
 
@@ -69,6 +71,13 @@ public:
 	virtual void SetPosition(const FVector2D& NewPosition) override;
 	virtual void SetSize(const FVector2D& NewSize) override;
 	// ~End UDMXPixelMappingOutputComponent interface
+	
+	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Deprecated for performance reasons. Instead use 'Get DMX Pixel Mapping Renderer Component' and Render only once each tick.")
+	virtual void RenderWithInputAndSendDMX() override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	//~ End UDMXPixelMappingOutputDMXComponent implementation
 
 	/** Handles changes in position */
 	void HandlePositionChanged();
@@ -106,25 +115,6 @@ public:
 	UPROPERTY()
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Selected Patch")
-	FDMXEntityFixturePatchRef FixturePatchRef;
-
-	/** Sets which color space Pixel Mapping sends */
-	UPROPERTY(Transient, EditAnywhere, NoClear, Category = "Color Space", Meta = (DisplayPriority = 2, DisplayName = "Output Mode", ShowDisplayNames))
-	TSubclassOf<UDMXPixelMappingColorSpace> ColorSpaceClass;
-
-	/** The Color Space currently in use */
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Color Space")
-	TObjectPtr<UDMXPixelMappingColorSpace> ColorSpace;
-
-	/** Modulators applied to the output before sending DMX */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, Category = "Output Settings", meta = (DisplayName = "Output Modulators"))
-	TArray<TSubclassOf<UDMXModulator>> ModulatorClasses;
-
-	/** The actual modulator instances */
-	UPROPERTY()
-	TArray<TObjectPtr<UDMXModulator>> Modulators;
 
 	UPROPERTY()
 	FIntPoint CoordinateGrid;
