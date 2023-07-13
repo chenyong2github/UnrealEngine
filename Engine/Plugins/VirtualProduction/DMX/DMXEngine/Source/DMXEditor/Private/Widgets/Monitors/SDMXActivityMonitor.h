@@ -61,8 +61,8 @@ private:
 	/** Saves settings of the monitor in config */
 	void SaveMonitorSettings() const;
 
-	/** Returns a buffer view for specified universe ID, creates one if it doesn't exist yet */
-	TSharedRef<SDMXActivityInUniverse> GetOrCreateActivityWidget(uint16 UniverseID);
+	/** Returns a view for specified universe ID, creates one if it doesn't exist yet */
+	TSharedRef<SDMXActivityInUniverse> GetOrCreateActivityWidget(int32 UniverseID);
 
 	/** Called when a Min Universe ID value was commited */
 	void OnMinUniverseIDValueCommitted(const FText& InNewText, ETextCommit::Type CommitType);
@@ -72,6 +72,9 @@ private:
 
 	/** Called when a Source was selected in the Monitor Source Selector */
 	void OnSourceSelected();
+
+	/** Called when ports changed */
+	void OnPortsChanged();
 
 	/** Called when the clear ui values button was clicked */
 	FReply OnClearButtonClicked();
