@@ -590,9 +590,6 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 			SelectComponents(TSet<FDMXPixelMappingComponentReference>({ ComponentReference }));
 		}
 	}
-
-	FDMXPixelMappingComponentTemplate Template(UDMXPixelMappingScreenComponent::StaticClass());
-	GetActiveRendererComponent()->AddChild(Template.CreateComponent< UDMXPixelMappingScreenComponent>(DMXPixelMapping->GetRootComponent()));
 }
 
 TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_DMXLibraryView(const FSpawnTabArgs& Args)
