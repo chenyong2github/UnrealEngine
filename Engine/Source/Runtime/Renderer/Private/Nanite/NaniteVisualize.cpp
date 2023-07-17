@@ -656,10 +656,12 @@ void AddVisualizationPasses(
 						}
 					}
 
+                    FRDGTextureRef DefaultUintVec4 = GSystemTextures.GetDefaultTexture(GraphBuilder, ETextureDimension::Texture2D, PF_R32G32B32A32_UINT, FUintVector4(0.0, 0.0, 0.0, 0.0));
+                    
 					FRDGTextureRef SceneZDecoded = SystemTextures.Black;
-					FRDGTextureRef SceneZLayout = SystemTextures.Black;
+					FRDGTextureRef SceneZLayout = DefaultUintVec4;
 					FRDGTextureRef MaterialZDecoded = SystemTextures.Black;
-					FRDGTextureRef MaterialZLayout = SystemTextures.Black;
+					FRDGTextureRef MaterialZLayout = DefaultUintVec4;
 					if (bRequiresHiZDecode && UseComputeDepthExport())
 					{
 						const uint32 PixelsWide = uint32(ViewSize.X);
@@ -668,19 +670,15 @@ void AddVisualizationPasses(
 
 						FRDGTextureDesc SceneZDecodedDesc = FRDGTextureDesc::Create2D(ViewSize, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 						SceneZDecoded = GraphBuilder.CreateTexture(SceneZDecodedDesc, TEXT("Nanite.SceneZDecoded"));
-						FRDGTextureUAVRef SceneZDecodedUAV = GraphBuilder.CreateUAV(SceneZDecoded);
 
 						FRDGTextureDesc SceneZLayoutDesc = FRDGTextureDesc::Create2D(ViewSize, PF_R32G32B32A32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 						SceneZLayout = GraphBuilder.CreateTexture(SceneZLayoutDesc, TEXT("Nanite.SceneZLayout"));
-						FRDGTextureUAVRef SceneZLayoutUAV = GraphBuilder.CreateUAV(SceneZLayout);
 
 						FRDGTextureDesc MaterialZDecodedDesc = FRDGTextureDesc::Create2D(ViewSize, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 						MaterialZDecoded = GraphBuilder.CreateTexture(MaterialZDecodedDesc, TEXT("Nanite.MaterialZDecoded"));
-						FRDGTextureUAVRef MaterialZDecodedUAV = GraphBuilder.CreateUAV(MaterialZDecoded);
 
 						FRDGTextureDesc MaterialZLayoutDesc = FRDGTextureDesc::Create2D(ViewSize, PF_R32G32B32A32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 						MaterialZLayout = GraphBuilder.CreateTexture(MaterialZLayoutDesc, TEXT("Nanite.MaterialZLayout"));
-						FRDGTextureUAVRef MaterialZLayoutUAV = GraphBuilder.CreateUAV(MaterialZLayout);
 
 						FDepthDecodeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthDecodeCS::FParameters>();
 						PassParameters->View = View.ViewUniformBuffer;

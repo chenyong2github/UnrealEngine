@@ -1494,7 +1494,11 @@ public:
 				FRDGTextureSRVDesc SubresourceDesc = SubresourceRangeDesc;
 				SubresourceDesc.MipLevel = MipLevel;
 				SubresourceDesc.NumMipLevels = 1;
-
+				if(SubresourceRangeDesc.Texture->Desc.IsTextureArray())
+				{
+                	SubresourceDesc.DimensionOverride = ETextureDimension::Texture2D;
+				}
+                
 				AddDumpTextureSubResourcePass(
 					GraphBuilder,
 					InputResourceNames,

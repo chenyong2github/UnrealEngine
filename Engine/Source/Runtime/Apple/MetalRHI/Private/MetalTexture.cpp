@@ -561,9 +561,10 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
             }
         }
 #endif
-        const bool bTextureArrayWithAtomics = NewCreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2DArray && EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible);
+        const bool bAtomicCompatible = EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible) || EnumHasAllFlags(CreateDesc.Flags, ETextureCreateFlags::Atomic64Compatible);
+        const bool bTextureArrayWithAtomics = NewCreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2DArray && bAtomicCompatible;
 
-		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible) || EnumHasAllFlags(CreateDesc.Flags, ETextureCreateFlags::Atomic64Compatible)))
+		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || bAtomicCompatible))
 		{
 			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
 
