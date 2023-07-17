@@ -78,6 +78,8 @@ public:
 	virtual const USkeleton* GetSkeleton() const override						{ return Skeleton; }
 	virtual void SetSkeleton(USkeleton* InSkeleton) override					{ constexpr bool bRebuildModels = true; SetSkeleton(InSkeleton, bRebuildModels); }
 	virtual UMeshDeformer* GetDefaultMeshDeformer() const override				{ return nullptr; }
+	virtual class UMaterialInterface* GetOverlayMaterial() const override		{ return nullptr; }
+	virtual float GetOverlayMaterialMaxDrawDistance() const override			{ return 0.f; }
 	virtual bool IsValidLODIndex(int32 Index) const override					{ return LODInfo.IsValidIndex(Index); }
 	virtual int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const override	{ return 0; }
 	virtual bool NeedCPUData(int32 LODIndex) const override						{ return false; }
