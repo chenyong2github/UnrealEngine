@@ -4,6 +4,7 @@
 #include "Templates/SharedPointer.h"
 
 class UQuartzSubsystem;
+class FQuartzTickableObject;
 struct FQuartzTickableObjectsManager;
 
 class FQuartzSubscriptionToken
