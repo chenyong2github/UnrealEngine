@@ -202,6 +202,7 @@ FFeaturePackContentSource::FFeaturePackContentSource(FString InFeaturePackPath)
 		{
 			LoadFeaturePackImageDataFromPackFile(*PakPlatformFile);			
 		}
+		PakPlatformFile->Unmount(*InFeaturePackPath);
 	}
 	else
 	{
