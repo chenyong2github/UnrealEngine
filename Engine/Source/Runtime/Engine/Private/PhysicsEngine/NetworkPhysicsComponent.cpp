@@ -83,8 +83,9 @@ float DeQuantizeTimeDilation(int8 i)
 void FNetworkPhysicsCallback::ApplyCallbacks_Internal(int32 PhysicsStep, const TArray<Chaos::ISimCallbackObject*>& SimCallbackObjects)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(NetworkPhysicsComponent_ApplyCallbacks_Internal);
+	UpdateNetMode();
 
-	if(World->IsNetMode(NM_ListenServer) || World->IsNetMode(NM_DedicatedServer))
+	if ((NetMode == NM_ListenServer) || (NetMode == NM_DedicatedServer))
 	{
 		if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
 		{
@@ -119,7 +120,7 @@ int32 FNetworkPhysicsCallback::TriggerRewindIfNeeded_Internal(int32 LatestStepCo
 
 	if (RewindData)
 	{
-		if (World->GetNetMode() == NM_Client)
+		if (NetMode == NM_Client)
 		{
 			const int32 ReplicationFrame = RewindData->GetResimFrame();
 
@@ -267,7 +268,7 @@ void FNetworkPhysicsCallback::ProcessInputs_External(int32 PhysicsStep, const TA
 		}
 	}
 
-	if (World->GetNetMode() == NM_Client)
+	if (NetMode == NM_Client)
 	{
 		UpdateClientPlayer_External(PhysicsStep);
 	}

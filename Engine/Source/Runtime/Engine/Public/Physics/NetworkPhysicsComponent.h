@@ -165,7 +165,10 @@ private :
  */
 struct FNetworkPhysicsCallback : public Chaos::IRewindCallback
 {
-	FNetworkPhysicsCallback(UWorld* InWorld) : World(InWorld) { }
+	FNetworkPhysicsCallback(UWorld* InWorld) : World(InWorld) 
+	{
+		UpdateNetMode();
+	}
 
 	// Delegate on the internal inputs process 
 	FOnPreProcessInputsInternal PreProcessInputsInternal;
@@ -199,8 +202,17 @@ struct FNetworkPhysicsCallback : public Chaos::IRewindCallback
 	// Update server player on GT
 	void UpdateServerPlayer_External(int32 PhysicsStep);
 
+	// Cache the current netmode for use in PT
+	void UpdateNetMode()
+	{
+		NetMode = World ? World->GetNetMode() : ENetMode::NM_Client;
+	}
+
 	// World owning that callback
 	UWorld* World = nullptr;
+
+	// Current NetMode
+	ENetMode NetMode;
 
 	// List of rewindable sim callback objects
 	TArray<Chaos::ISimCallbackObject*> RewindableCallbackObjects;
