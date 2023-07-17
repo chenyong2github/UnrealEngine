@@ -491,6 +491,10 @@ UObject* GetConstraintObject(TSharedPtr<ISequencer> InSequencer, const FMovieSce
 
 	if (RuntimeObjects.Num() >= 1 && RuntimeObjects[0].IsValid())
 	{
+		if (AActor* Actor = Cast<AActor>(RuntimeObjects[0].Get()))
+		{
+			return Actor->GetRootComponent();
+		}
 		return RuntimeObjects[0].Get();
 	}
 
