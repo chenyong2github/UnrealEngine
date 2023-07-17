@@ -142,7 +142,7 @@ void FLinkerManager::ResetLoaders(UObject* InPkg)
 								// If these don't go off, then this code, and the back links may be removed.
 								// 
 								// Soaking to see if this code is actually needed.
-								ensureMsgf(false, TEXT("ResetLoaders has a non null SourceLinker! Linker %p, Import.SourceLinker %p, LinkerToReset = %p"), Linker, Import.SourceLinker, LinkerToReset);
+								//ensureMsgf(false, TEXT("ResetLoaders has a non null SourceLinker! Linker %p, Import.SourceLinker %p, LinkerToReset = %p"), Linker, Import.SourceLinker, LinkerToReset);
 								if (Import.SourceLinker == LinkerToReset)
 								{
 									Import.SourceLinker = nullptr;
@@ -222,7 +222,7 @@ void FLinkerManager::ResetLoaders(const TSet<FLinkerLoad*>& InLinkerLoads)
 						// If these don't go off, then this code, and the back links may be removed.
 						// 
 						// Soaking to see if this code is actually needed.
-						ensureMsgf(false, TEXT("ResetLoaders has a non null SourceLinker! Linker %p, Import.SourceLinker %p"), Linker, Import.SourceLinker);
+						//ensureMsgf(false, TEXT("ResetLoaders has a non null SourceLinker! Linker %p, Import.SourceLinker %p"), Linker, Import.SourceLinker);
 
 						if (InLinkerLoads.Contains(Import.SourceLinker))
 						{
