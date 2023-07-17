@@ -114,7 +114,7 @@ void FScopedSequencerPanel::Open()
 void FScopedSequencerPanel::Close()
 {
 	ULevelSequence* LevelSequence = LevelSequenceAttribute.Get();
-	if (LevelSequence)
+	if (IsValid(LevelSequence))
 	{
 		Close(LevelSequence);
 	}
