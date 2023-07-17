@@ -263,6 +263,13 @@ class ONLINESUBSYSTEMUTILS_API UPartyBeaconState : public UObject
 	virtual bool ReconfigureTeamAndPlayerCount(int32 InNumTeams, int32 InNumPlayersPerTeam, int32 InNumReservations);
 
 	/**
+	 * Competitive integrity represents how "fair" we need to keep the game. So no friends on other teams, no cross team chat, etc.
+	 *
+	 * @param bNewCompetitiveIntegrity New value for Competitive integrity
+	 */
+	virtual void SetCompetitiveIntegrity(bool bNewCompetitiveIntegrity);
+
+	/**
 	 * Define the method for assignment new reservations to teams
 	 * 
 	 * @param NewAssignmentMethod name of the assignment method to use (@see ETeamAssignmentMethod for descriptions)
@@ -412,6 +419,13 @@ class ONLINESUBSYSTEMUTILS_API UPartyBeaconState : public UObject
 	 * @return The number of player per team
 	 */
 	virtual int32 GetMaxPlayersPerTeam() const { return NumPlayersPerTeam; }
+
+	/**
+	 * Competitive integrity represents how "fair" we need to keep the game. So no friends on other teams, no cross team chat, etc.
+	 *
+	 * @return Whether we should respect competitive integrity
+	 */
+	virtual bool ShouldRespectCompetitiveIntegrity() const { return bRespectCompetitiveIntegrity; }
 
 	/**
 	 * Determine the maximum team size that can be accommodated based
@@ -578,6 +592,9 @@ protected:
 	/** Process requests from clients to remove players from beacon */
 	UPROPERTY(Transient)
 	bool bEnableRemovalRequests;
+	/** Competitive integrity represents how "fair" we need to keep the game. So no friends on other teams, no cross team chat, etc. */
+	UPROPERTY(Transient)
+	bool bRespectCompetitiveIntegrity;
 
 	/** Current reservations in the system */
 	UPROPERTY(Transient)

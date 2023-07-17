@@ -80,6 +80,11 @@ bool APartyBeaconHost::ReconfigureTeamAndPlayerCount(int32 InNumTeams, int32 InN
 	return bSuccess;
 }
 
+void APartyBeaconHost::SetCompetitiveIntegrity(bool bNewCompetitiveIntegrity)
+{
+	State->SetCompetitiveIntegrity(bNewCompetitiveIntegrity);
+}
+
 void APartyBeaconHost::SetTeamAssignmentMethod(FName NewAssignmentMethod)
 {
 	if (State)
@@ -629,12 +634,15 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 			}	
 			if (TeamIdx != -1)
 			{	
-				// Will the part members not currently on the team fit in it, and fit within the server
-				const int32 NumTeamMembers = GetNumPlayersOnTeam(TeamIdx);
-				const int32 NumAvailableSlotsOnTeam = FMath::Max<int32>(0, (GetMaxPlayersPerTeam() - NumTeamMembers) + NumTeamPlayersWithExistingReservation);
-				if ((NumAvailableSlotsOnTeam < ReservationRequest.PartyMembers.Num()) || (State->GetRemainingReservations() < (ReservationRequest.PartyMembers.Num() - NumTeamPlayersWithExistingReservation)))
+				if (ShouldRespectCompetitiveIntegrity())
 				{
-					bContainsIncompatibleExistingMembers = true;
+					// Will the party members not currently on the team fit in it, and fit within the server
+					const int32 NumTeamMembers = GetNumPlayersOnTeam(TeamIdx);
+					const int32 NumAvailableSlotsOnTeam = FMath::Max<int32>(0, (GetMaxPlayersPerTeam() - NumTeamMembers) + NumTeamPlayersWithExistingReservation);
+					if ((NumAvailableSlotsOnTeam < ReservationRequest.PartyMembers.Num()) || (State->GetRemainingReservations() < (ReservationRequest.PartyMembers.Num() - NumTeamPlayersWithExistingReservation)))
+					{
+						bContainsIncompatibleExistingMembers = true;
+					}
 				}
 			}
 			// if this party reservation included players who already had reservations, but is not incompatible based on teams then remove those players previous reservations
@@ -888,7 +896,7 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 				if ((State->GetRemainingReservations() - NewPlayers.Num()) >= 0)
 				{
 					// Validate that adding the new party members to this reservation entry still fits within the team size
-					if ((NewPlayers.Num() - NumPlayersWithExistingReservation) <= NumAvailableSlotsOnTeam)
+					if (!ShouldRespectCompetitiveIntegrity() || (NewPlayers.Num() - NumPlayersWithExistingReservation) <= NumAvailableSlotsOnTeam)
 					{
 						bool bPlayerRemovedFromReservation = false;
 						if (NewPlayers.Num() > 0)

@@ -120,7 +120,8 @@ UPartyBeaconState::UPartyBeaconState(const FObjectInitializer& ObjectInitializer
 	TeamAssignmentMethod(ETeamAssignmentMethod::Smallest),
 	ReservedHostTeamNum(0),
 	ForceTeamNum(0),
-	bRestrictCrossConsole(false)
+	bRestrictCrossConsole(false),
+	bRespectCompetitiveIntegrity(true)
 {
 }
 
@@ -219,6 +220,11 @@ bool UPartyBeaconState::ReconfigureTeamAndPlayerCount(int32 InNumTeams, int32 In
 	}
 
 	return bSuccess;
+}
+
+void UPartyBeaconState::SetCompetitiveIntegrity(bool bNewCompetitiveIntegrity)
+{
+	bRespectCompetitiveIntegrity = bNewCompetitiveIntegrity;
 }
 
 int32 UPartyBeaconState::GetMaxAvailableTeamSize() const
