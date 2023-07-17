@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "FbxConvert.h"
 #include "FbxInclude.h"
+#include "InterchangeHelper.h"
 
 #define GeneratedLODNameSuffix "_GeneratedLOD_"
 
@@ -101,7 +102,7 @@ namespace UE
 
 			FString FFbxHelper::GetFbxPropertyName(const FbxProperty& Property) const
 			{
-				FString PropertyName = FFbxConvert::MakeName(Property.GetName());
+				FString PropertyName = UE::Interchange::MakeName(FFbxConvert::MakeString(Property.GetName()));
 				if (PropertyName.Equals(TEXT("none"), ESearchCase::IgnoreCase))
 				{
 					//Replace None by Null because None clash with NAME_None and the create asset will instead call the object ClassName_X
@@ -110,13 +111,13 @@ namespace UE
 				return PropertyName;
 			}
 
-			FString FFbxHelper::GetFbxObjectName(const FbxObject* Object) const
+			FString FFbxHelper::GetFbxObjectName(const FbxObject* Object, bool bIsJoint) const
 			{
 				if (!Object)
 				{
 					return FString();
 				}
-				FString ObjName = FFbxConvert::MakeName(Object->GetName());
+				FString ObjName = UE::Interchange::MakeName(FFbxConvert::MakeString(Object->GetName()), bIsJoint);
 				if (ObjName.Equals(TEXT("none"), ESearchCase::IgnoreCase))
 				{
 					//Replace None by Null because None clash with NAME_None and the create asset will instead call the object ClassName_X

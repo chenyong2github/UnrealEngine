@@ -17,13 +17,6 @@ namespace UE::Interchange::Private
 
 	bool FSkeletonHelper::ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, const UInterchangeBaseNodeContainer* NodeContainer, const FString& RootJointNodeId, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary, const bool bUseTimeZeroAsBindPose, bool& bOutDiffPose)
 	{
-		auto FixupBoneName = [](FString BoneName)
-		{
-			BoneName.TrimStartAndEndInline();
-			BoneName.ReplaceInline(TEXT(" "), TEXT("-"), ESearchCase::IgnoreCase);
-			return BoneName;
-		};
-
 		RefBonesBinary.Empty();
 		// Setup skeletal hierarchy + names structure.
 		RefSkeleton.Empty();
@@ -41,7 +34,7 @@ namespace UE::Interchange::Private
 		{
 			const FJointInfo& BinaryBone = JointInfos[b];
 
-			const FString BoneName = FixupBoneName(BinaryBone.Name);
+			const FString BoneName = BinaryBone.Name;
 			const FMeshBoneInfo BoneInfo(FName(*BoneName, FNAME_Add), BinaryBone.Name, BinaryBone.ParentIndex);
 			const FTransform BoneTransform(BinaryBone.LocalTransform);
 			if (RefSkeleton.FindRawBoneIndex(BoneInfo.Name) != INDEX_NONE)

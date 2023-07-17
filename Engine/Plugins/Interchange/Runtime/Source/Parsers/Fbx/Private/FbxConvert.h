@@ -54,12 +54,6 @@ namespace UE
 				/** String Conversion API Begin */
 
 				/**
-				 * Replace all special characters with '_', then remove all namespace
-				 * Special characters are . , / ` %
-				 */
-				static FString MakeName(const ANSICHAR* Name);
-
-				/**
 				 * Convert ANSI char to a FString using ANSI_TO_TCHAR macro
 				 */
 				static FString MakeString(const ANSICHAR* Name);

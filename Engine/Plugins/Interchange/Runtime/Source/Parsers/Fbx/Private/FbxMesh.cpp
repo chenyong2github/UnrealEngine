@@ -1094,7 +1094,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 				if (!SortedJoints.Find(Link, BoneIndex))
 				{
 					BoneIndex = SortedJoints.Add(Link);
-					FString JointNodeUniqueID = Parser.GetFbxHelper()->GetFbxObjectName(Link);
+					FString JointNodeUniqueID = Parser.GetFbxHelper()->GetFbxObjectName(Link, true);
 					OutJointUniqueNames.Add(JointNodeUniqueID);
 				}
 
