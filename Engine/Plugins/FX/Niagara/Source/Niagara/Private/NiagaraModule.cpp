@@ -14,6 +14,7 @@
 #include "NiagaraSettings.h"
 #include "NiagaraDataChannelManager.h"
 #include "NiagaraSimCache.h"
+#include "NiagaraSimulationTaskPriority.h"
 #include "NiagaraUseOpenVDB.h"
 #include "NiagaraSystem.h"
 #include "UObject/Class.h"
@@ -292,6 +293,8 @@ void INiagaraModule::StartupModule()
 #endif
 
 	FNiagaraWorldManager::OnStartup();
+
+	NiagaraSimulationTaskPriority::Initialize();
 
 #if WITH_NIAGARA_DEBUGGER
 	DebuggerClient = MakePimpl<FNiagaraDebuggerClient>();

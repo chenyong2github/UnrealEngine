@@ -5,6 +5,7 @@
 #include "NiagaraModule.h"
 #include "NiagaraTypes.h"
 #include "NiagaraParameterCollection.h"
+#include "NiagaraSimulationTaskPriority.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraConstants.h"
@@ -243,94 +244,6 @@ namespace NiagaraSystemSimulationLocal
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Task priorities for simulation tasks
-
-static FAutoConsoleTaskPriority GNiagaraTaskPriorities[] =
-{
-	//																														Thread Priority (w HiPri Thread)			Task Priority (w HiPri Thread)				Task Priority (w Normal Thread)
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.High"),		TEXT("Task Priority When Set to High"),			ENamedThreads::HighThreadPriority,			ENamedThreads::HighTaskPriority,			ENamedThreads::HighTaskPriority),
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Normal"),		TEXT("Task Priority When Set to Normal"),		ENamedThreads::HighThreadPriority,			ENamedThreads::NormalTaskPriority,			ENamedThreads::NormalTaskPriority),
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Low"),			TEXT("Task Priority When Set to Low"),			ENamedThreads::NormalThreadPriority,		ENamedThreads::HighTaskPriority,			ENamedThreads::NormalTaskPriority),
-	FAutoConsoleTaskPriority(TEXT("fx.Niagara.TaskPriorities.Background"),	TEXT("Task Priority When Set to Background"),	ENamedThreads::BackgroundThreadPriority,	ENamedThreads::NormalTaskPriority,			ENamedThreads::NormalTaskPriority),
-};
-
-static int32 GNiagaraSystemSimulationSpawnPendingTaskPri = 1;
-static FAutoConsoleVariableRef CVarNiagaraSystemSimulationSpawnPendingTaskPri(
-	TEXT("fx.Niagara.TaskPriority.SystemSimulationSpawnPendingTask"),
-	GNiagaraSystemSimulationSpawnPendingTaskPri,
-	TEXT("Task priority to use for Niagara System Simulation Spawning Pending Task"),
-	ECVF_Default
-);
-
-static int32 GNiagaraSystemSimulationTaskPri = 1;
-static FAutoConsoleVariableRef CVarNiagaraSystemSimulationTaskPri(
-	TEXT("fx.Niagara.TaskPriority.SystemSimulationTask"),
-	GNiagaraSystemSimulationTaskPri,
-	TEXT("Task priority to use for Niagara System Simulation Task"),
-	ECVF_Default
-);
-
-static int32 GNiagaraSystemInstanceTaskPri = 1;
-static FAutoConsoleVariableRef CVarNiagaraSystemInstanceTaskPri(
-	TEXT("fx.Niagara.TaskPriority.SystemInstanceTask"),
-	GNiagaraSystemInstanceTaskPri,
-	TEXT("Task priority to use for Niagara System Instance Task"),
-	ECVF_Default
-);
-
-static int32 GNiagaraSystemSimulationWaitAllTaskPri = 1;
-static FAutoConsoleVariableRef CVarNiagaraSystemSimulationWaitAllTaskPri(
-	TEXT("fx.Niagara.TaskPriority.SystemSimulationWaitAll"),
-	GNiagaraSystemSimulationWaitAllTaskPri,
-	TEXT("Task priority to use for Niagara System Simulation Wait All Task"),
-	ECVF_Default
-);
-
-static int32 GAllowHighPriorityForPerfTests = 1;
-static FAutoConsoleVariableRef CVarAllowHighPriorityForPerfTests(
-	TEXT("fx.Niagara.TaskPriority.AllowHighPriPerfTests"),
-	GAllowHighPriorityForPerfTests,
-	TEXT("Allow Niagara to pump up to high task priority when running performance tests. Reduces the context switching of Niagara tasks but can increase overall frame time when Niagara blocks GT work like Physics."),
-	ECVF_Default
-);
-
-ENamedThreads::Type GetNiagaraTaskPriority(int32 Priority)
-{
-#if WITH_PARTICLE_PERF_STATS
-	// If we are profiling particle performance make sure we don't get context switched due to lower priority as that will confuse the results
-	// Leave low pri if we're just gathering world stats but for per system or per component stats we should use high pri.
-	if (GAllowHighPriorityForPerfTests && (FParticlePerfStats::GetGatherSystemStats() || FParticlePerfStats::GetGatherComponentStats()))
-	{
-		return GNiagaraTaskPriorities[1].Get();
-	}
-#endif
-	Priority = FMath::Clamp(Priority, 0, (int32)UE_ARRAY_COUNT(GNiagaraTaskPriorities) - 1);
-	return GNiagaraTaskPriorities[Priority].Get();
-}
-
-static FAutoConsoleCommand CCmdNiagaraDumpPriorities(
-	TEXT("fx.Niagara.TaskPriority.Dump"),
-	TEXT("Dump currently set priorities"),
-	FConsoleCommandDelegate::CreateLambda(
-		[]()
-		{
-			auto DumpPriority =
-				[](int32 Priority, const TCHAR* TaskName)
-				{
-					const ENamedThreads::Type TaskThread = GetNiagaraTaskPriority(Priority);
-					UE_LOG(LogNiagara, Log, TEXT("%s = %d = Thread Priority(%d) Task Priority(%d)"), TaskName, Priority, ENamedThreads::GetThreadPriorityIndex(TaskThread), ENamedThreads::GetTaskPriority(TaskThread));
-				};
-
-			
-			UE_LOG(LogNiagara, Log, TEXT("=== Niagara Task Priorities"));
-			DumpPriority(GNiagaraSystemSimulationTaskPri, TEXT("NiagaraSystemSimulationTask"));
-			DumpPriority(GNiagaraSystemInstanceTaskPri, TEXT("NiagaraSystemInstanceTask"));
-			DumpPriority(GNiagaraSystemSimulationWaitAllTaskPri, TEXT("NiagaraSystemSimulationWaitAllTask"));
-		}
-	)
-);
-
-//////////////////////////////////////////////////////////////////////////
 
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 FORCEINLINE FParticlePerfStats* GetInstancePerfStats(FNiagaraSystemInstance* Inst) { UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Inst->GetAttachComponent()); return NiagaraComponent ? NiagaraComponent->ParticlePerfStats : nullptr; }
@@ -369,12 +282,13 @@ struct FNiagaraSystemSimulationTickConcurrentTask
 	FNiagaraSystemSimulationTickConcurrentTask(FNiagaraSystemSimulationTickContext InContext, FGraphEventRef& CompletionGraphEvent)
 		: Context(InContext)
 	{
+		TaskThread = NiagaraSimulationTaskPriority::GetTickGroupPriority(Context.Owner->GetTickGroup());
 		CompletionTask = TGraphTask<FNiagaraSystemSimulationAllWorkCompleteTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context.CompletionEvents);
 		CompletionGraphEvent = CompletionTask->GetCompletionEvent();
 	}
 
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemSimulationTickConcurrentTask, STATGROUP_TaskGraphTasks); }
-	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationTaskPri); }
+	ENamedThreads::Type GetDesiredThread() { return TaskThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -388,6 +302,7 @@ struct FNiagaraSystemSimulationTickConcurrentTask
 		CompletionTask->Unlock();
 	}
 
+	ENamedThreads::Type TaskThread;
 	FNiagaraSystemSimulationTickContext Context;
 	TGraphTask<FNiagaraSystemSimulationAllWorkCompleteTask>* CompletionTask = nullptr;
 };
@@ -399,12 +314,13 @@ struct FNiagaraSystemSimulationSpawnConcurrentTask
 	FNiagaraSystemSimulationSpawnConcurrentTask(FNiagaraSystemSimulationTickContext InContext, FGraphEventRef& CompletionGraphEvent)
 		: Context(InContext)
 	{
+		TaskThread = NiagaraSimulationTaskPriority::GetPostActorTickPriority();
 		CompletionTask = TGraphTask<FNiagaraSystemSimulationAllWorkCompleteTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context.CompletionEvents);
 		CompletionGraphEvent = CompletionTask->GetCompletionEvent();
 	}
 
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemSimulationSpawnConcurrentTask, STATGROUP_TaskGraphTasks); }
-	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationSpawnPendingTaskPri); }
+	ENamedThreads::Type GetDesiredThread() { return TaskThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -420,6 +336,7 @@ struct FNiagaraSystemSimulationSpawnConcurrentTask
 		CompletionTask->Unlock();
 	}
 
+	ENamedThreads::Type TaskThread;
 	FNiagaraSystemSimulationTickContext Context;
 	TGraphTask<FNiagaraSystemSimulationAllWorkCompleteTask>* CompletionTask = nullptr;
 };
@@ -433,10 +350,11 @@ struct FNiagaraSystemInstanceTickConcurrentTask
 		, Batch(InBatch)
 		, WorldContext(InWorldContext)
 	{
+		TaskThread = NiagaraSimulationTaskPriority::GetTickGroupPriority(SystemSimulation->GetTickGroup());
 	}
 
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemInstanceTickConcurrentTask, STATGROUP_TaskGraphTasks); }
-	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemInstanceTaskPri); }
+	ENamedThreads::Type GetDesiredThread() { return TaskThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -485,6 +403,7 @@ struct FNiagaraSystemInstanceTickConcurrentTask
 		}
 	}
 
+	ENamedThreads::Type TaskThread;
 	FNiagaraSystemSimulation* SystemSimulation = nullptr;
 	FNiagaraSystemTickBatch Batch;
 	UWorld* WorldContext = nullptr;
