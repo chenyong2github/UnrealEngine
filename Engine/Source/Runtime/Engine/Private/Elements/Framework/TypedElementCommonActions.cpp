@@ -321,7 +321,7 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::PasteNormalizedElements(
 	// Paste at implementation
 	if (PasteOptions.bPasteAtLocation)
 	{
-		FBox BoundingBox;
+		FBox BoundingBox(ForceInit);
 
 		TArray<TTypedElement<ITypedElementWorldInterface>> WorldElements;
 		WorldElements.Reserve(PastedHandles.Num());

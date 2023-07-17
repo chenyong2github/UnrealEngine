@@ -3191,7 +3191,7 @@ bool MortonCompare(FUintVector A, FUintVector B)
 
 void FSceneRenderState::BuildMortonSortedLightmapRefList()
 {
-	FBox SceneBounds;
+	FBox SceneBounds(ForceInit);
 
 	for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
 	{

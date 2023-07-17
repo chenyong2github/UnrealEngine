@@ -495,7 +495,7 @@ FBox FKTaperedCapsuleElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 
 FBox FKLevelSetElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const
 {
-	FBox Box;
+	FBox Box(ForceInit);
 
 	if (LevelSet.IsValid())
 	{
@@ -509,7 +509,7 @@ FBox FKLevelSetElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) 
 
 FBox FKLevelSetElem::UntransformedAABB() const
 {
-	FBox Box;
+	FBox Box(ForceInit);
 
 	if (LevelSet.IsValid())
 	{
@@ -608,7 +608,7 @@ void FKLevelSetElem::GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices,
 
 FBox FKSkinnedLevelSetElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const
 {
-	FBox Box;
+	FBox Box(ForceInit);
 
 	if (WeightedLevelSet.IsValid())
 	{

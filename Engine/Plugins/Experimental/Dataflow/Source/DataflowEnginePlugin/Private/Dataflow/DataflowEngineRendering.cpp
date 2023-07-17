@@ -207,7 +207,7 @@ namespace Dataflow
 				{
 					FName PrimaryOutput = State.GetRenderOutputs()[0]; // "Box"
 
-					FBox Default;
+					FBox Default(ForceInit);
 					const FBox& Box = State.GetValue<FBox>(PrimaryOutput, Default);
 
 					const int32 NumVertices = 8;

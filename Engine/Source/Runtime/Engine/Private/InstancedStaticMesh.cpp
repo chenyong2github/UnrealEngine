@@ -4701,7 +4701,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 
 	bool KeepInstanceBufferCPUAccess = UseGPUScene(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel) || GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
 
-	FBox LocalBounds;
+	FBox LocalBounds(ForceInit);
 	if (GetStaticMesh())
 	{
 		FVector BoundsMin, BoundsMax;
