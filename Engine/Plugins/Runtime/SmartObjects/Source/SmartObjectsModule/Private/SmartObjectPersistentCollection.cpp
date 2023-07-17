@@ -462,7 +462,7 @@ ASmartObjectPersistentCollection::ASmartObjectPersistentCollection(const FObject
 			FName ID;
 			FText NAME;
 			FConstructorStatics()
-				: NoteTextureObject(TEXT("/SmartObjects/S_BrainInBox"))
+				: NoteTextureObject(TEXT("/SmartObjects/S_SmartObject"))
 				, ID(TEXT("SmartObjects"))
 				, NAME(NSLOCTEXT("SpriteCategory", "SmartObject", "SmartObject"))
 			{

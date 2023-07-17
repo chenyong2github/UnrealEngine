@@ -37,7 +37,7 @@ AGenericSmartObject::AGenericSmartObject(const FObjectInitializer& ObjectInitial
 			FName NotesID;
 			FText GenericSOName;
 			FConstructorStatics()
-				: NoteTextureObject(TEXT("/SmartObjects/S_BrainInBox"))
+				: NoteTextureObject(TEXT("/SmartObjects/S_SmartObject"))
 				, NotesID(TEXT("SmartObject"))
 				, GenericSOName(NSLOCTEXT("SpriteCategory", "GenericSO", "GenericSO"))
 			{
