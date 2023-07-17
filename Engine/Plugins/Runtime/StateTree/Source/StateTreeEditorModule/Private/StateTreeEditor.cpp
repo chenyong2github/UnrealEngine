@@ -392,7 +392,11 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_Debugger(const FSpawnTabArgs& Ar
 	TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
 	if (StateTree != nullptr)
 	{
-		DebuggerView = SNew(SStateTreeDebuggerView, *StateTree, StateTreeViewModel.ToSharedRef(), TreeViewCommandList);
+		// Reuse existing view if Tab is reopened
+		if (!DebuggerView.IsValid())
+		{
+			DebuggerView = SNew(SStateTreeDebuggerView, *StateTree, StateTreeViewModel.ToSharedRef(), TreeViewCommandList);
+		}
 		Widget = DebuggerView;
 	}
 	
