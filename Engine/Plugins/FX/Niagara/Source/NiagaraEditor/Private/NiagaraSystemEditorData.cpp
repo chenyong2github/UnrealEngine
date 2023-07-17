@@ -12,6 +12,7 @@
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "NiagaraConstants.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraSettings.h"
 #include "EdGraph/EdGraph.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemEditorData)
@@ -71,6 +72,11 @@ UNiagaraSystemEditorData::UNiagaraSystemEditorData(const FObjectInitializer& Obj
 	PlaybackRangeMin = 0;
 	PlaybackRangeMax = 10;
 	bSystemIsPlaceholder = false;
+	
+	if(const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>())
+	{
+		SetUseOrbitMode(Settings->bSystemViewportInOrbitMode);
+	}
 }
 
 void UNiagaraSystemEditorData::PostInitProperties()
@@ -439,4 +445,19 @@ bool UNiagaraSystemEditorData::RemoveUserScriptVariable(FNiagaraVariable Variabl
 		{
 			return ScriptVariable->Variable == Variable;
 		}) > 0;
+}
+
+const FNiagaraPerAssetViewportSettings& UNiagaraSystemEditorData::GetAssetViewportSettings() const
+{
+	return AssetViewportSettings;
+}
+
+void UNiagaraSystemEditorData::SetAssetViewportSettings(FNiagaraPerAssetViewportSettings InSettings)
+{
+	AssetViewportSettings = InSettings;
+}
+
+void UNiagaraSystemEditorData::SetUseOrbitMode(bool bInUseOrbitMode)
+{
+	AssetViewportSettings.bUseOrbitMode = bInUseOrbitMode;
 }

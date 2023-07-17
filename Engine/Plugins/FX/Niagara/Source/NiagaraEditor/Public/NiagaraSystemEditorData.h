@@ -45,6 +45,23 @@ private:
 	TArray<FGuid> ChildEmitterHandleIds;
 };
 
+/** View settings that are saved per asset and aren't shared between different Niagara viewports. */
+USTRUCT()
+struct FNiagaraPerAssetViewportSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	FVector ViewLocation = FVector::ZeroVector;
+
+	UPROPERTY()
+	FRotator ViewRotation = FRotator::ZeroRotator;
+
+	UPROPERTY()
+	bool bUseOrbitMode = true;
+};
+
 /** Editor only data for systems. */
 UCLASS(MinimalAPI)
 class UNiagaraSystemEditorData : public UNiagaraEditorDataBase
@@ -102,12 +119,9 @@ public:
 	NIAGARAEDITOR_API bool RenameUserScriptVariable(FNiagaraVariable OldVariable, FName NewName);
 	NIAGARAEDITOR_API bool RemoveUserScriptVariable(FNiagaraVariable Variable);
 
-	// If true then the preview viewport's orbit setting is saved in the asset data
-	UPROPERTY()
-	bool bSetOrbitModeByAsset = false;
-
-	UPROPERTY()
-	bool bSystemViewportInOrbitMode = true;
+	NIAGARAEDITOR_API const FNiagaraPerAssetViewportSettings& GetAssetViewportSettings() const;
+	NIAGARAEDITOR_API void SetAssetViewportSettings(FNiagaraPerAssetViewportSettings InSettings);
+	NIAGARAEDITOR_API void SetUseOrbitMode(bool bInUseOrbitMode);
 	
 	/** Contains the root ids for organizing user parameters. */
 	UPROPERTY()
@@ -139,6 +153,9 @@ private:
 	UPROPERTY()
 	FNiagaraGraphViewSettings OverviewGraphViewSettings;
 
+	UPROPERTY()
+	FNiagaraPerAssetViewportSettings AssetViewportSettings;
+	
 	UPROPERTY()
 	bool bSystemIsPlaceholder;
 

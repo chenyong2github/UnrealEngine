@@ -483,7 +483,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_Viewport(const FSpa
 
 	if(!Toolkit->Viewport.IsValid())
 	{
-		Toolkit->Viewport = SNew(SNiagaraSystemViewport)
+		Toolkit->Viewport = SNew(SNiagaraSystemViewport, Toolkit->GetSystemViewModel().ToSharedRef())
 			.OnThumbnailCaptured(Toolkit.Get(), &FNiagaraSystemToolkit::OnThumbnailCaptured)
 			.Sequencer(Toolkit->GetSystemViewModel()->GetSequencer());
 	}

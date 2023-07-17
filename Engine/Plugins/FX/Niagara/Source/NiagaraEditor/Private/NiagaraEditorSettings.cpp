@@ -307,84 +307,84 @@ void UNiagaraEditorSettings::BuildCachedPlaybackSpeeds() const
 
 bool UNiagaraEditorSettings::IsShowGridInViewport() const
 {
-	return bShowGridInViewport;
+	return ViewportSettings.bShowGridInViewport;
 }
 
 void UNiagaraEditorSettings::SetShowGridInViewport(bool bInShowGridInViewport)
 {
-	if (this->bShowGridInViewport != bInShowGridInViewport)
+	if (this->ViewportSettings.bShowGridInViewport != bInShowGridInViewport)
 	{
-		this->bShowGridInViewport = bInShowGridInViewport;
+		this->ViewportSettings.bShowGridInViewport = bInShowGridInViewport;
 		SaveConfig();
 	}
 }
 
 bool UNiagaraEditorSettings::IsShowInstructionsCount() const
 {
-	return bShowInstructionsCount;
+	return ViewportSettings.bShowInstructionsCount;
 }
 
 void UNiagaraEditorSettings::SetShowInstructionsCount(bool bInShowInstructionsCount)
 {
-	if (this->bShowInstructionsCount != bInShowInstructionsCount)
+	if (this->ViewportSettings.bShowInstructionsCount != bInShowInstructionsCount)
 	{
-		this->bShowInstructionsCount = bInShowInstructionsCount;
+		this->ViewportSettings.bShowInstructionsCount = bInShowInstructionsCount;
 		SaveConfig();
 	}
 }
 
 bool UNiagaraEditorSettings::IsShowParticleCountsInViewport() const
 {
-	return bShowParticleCountsInViewport;
+	return ViewportSettings.bShowParticleCountsInViewport;
 }
 
 void UNiagaraEditorSettings::SetShowParticleCountsInViewport(bool bInShowParticleCountsInViewport)
 {
-	if (this->bShowParticleCountsInViewport != bInShowParticleCountsInViewport)
+	if (this->ViewportSettings.bShowParticleCountsInViewport != bInShowParticleCountsInViewport)
 	{
-		this->bShowParticleCountsInViewport = bInShowParticleCountsInViewport;
+		this->ViewportSettings.bShowParticleCountsInViewport = bInShowParticleCountsInViewport;
 		SaveConfig();
 	}
 }
 
 bool UNiagaraEditorSettings::IsShowEmitterExecutionOrder() const
 {
-	return bShowEmitterExecutionOrder;
+	return ViewportSettings.bShowEmitterExecutionOrder;
 }
 
 void UNiagaraEditorSettings::SetShowEmitterExecutionOrder(bool bInShowEmitterExecutionOrder)
 {
-	if (this->bShowEmitterExecutionOrder != bInShowEmitterExecutionOrder)
+	if (this->ViewportSettings.bShowEmitterExecutionOrder != bInShowEmitterExecutionOrder)
 	{
-		this->bShowEmitterExecutionOrder = bInShowEmitterExecutionOrder;
+		this->ViewportSettings.bShowEmitterExecutionOrder = bInShowEmitterExecutionOrder;
 		SaveConfig();		
 	}
 }
 
 bool UNiagaraEditorSettings::IsShowGpuTickInformation() const
 {
-	return bShowGpuTickInformation;
+	return ViewportSettings.bShowGpuTickInformation;
 }
 
 void UNiagaraEditorSettings::SetShowGpuTickInformation(bool bInShowGpuTickInformation)
 {
-	if (bShowGpuTickInformation != bInShowGpuTickInformation)
+	if (ViewportSettings.bShowGpuTickInformation != bInShowGpuTickInformation)
 	{
-		bShowGpuTickInformation = bInShowGpuTickInformation;
+		ViewportSettings.bShowGpuTickInformation = bInShowGpuTickInformation;
 		SaveConfig();
 	}
 }
 
 bool UNiagaraEditorSettings::IsShowMemoryInfo() const
 {
-	return bShowMemoryInfo;
+	return ViewportSettings.bShowMemoryInfo;
 }
 
 void UNiagaraEditorSettings::SetShowMemoryInfo(bool bInShowInfo)
 {
-	if (bShowMemoryInfo != bInShowInfo)
+	if (ViewportSettings.bShowMemoryInfo != bInShowInfo)
 	{
-		bShowMemoryInfo = bInShowInfo;
+		ViewportSettings.bShowMemoryInfo = bInShowInfo;
 		SaveConfig();
 	}
 }
@@ -662,6 +662,12 @@ void UNiagaraEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	{
 		SettingsChangedDelegate.Broadcast(PropertyChangedEvent.Property->GetName(), this);
 	}
+}
+
+void UNiagaraEditorSettings::SetViewportSharedSettings(const FNiagaraViewportSharedSettings& InViewportSharedSettings)
+{
+	ViewportSettings = InViewportSharedSettings;
+	SaveConfig();
 }
 
 UNiagaraEditorSettings::FOnNiagaraEditorSettingsChanged& UNiagaraEditorSettings::OnSettingsChanged()

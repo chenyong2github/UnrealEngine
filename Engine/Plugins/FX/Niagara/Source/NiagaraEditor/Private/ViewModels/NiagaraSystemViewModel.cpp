@@ -1054,6 +1054,8 @@ void FNiagaraSystemViewModel::NotifyPreSave()
 		System->RequestCompile(false);
 		System->WaitForCompilationComplete(true);
 	}
+
+	OnPreSaveDelegate.Broadcast();
 }
 
 void FNiagaraSystemViewModel::NotifyPostSave()
@@ -1076,6 +1078,11 @@ void FNiagaraSystemViewModel::NotifyPreClose()
 		GetSystem().WaitForCompilationComplete(true);
 	}
 	OnPreCloseDelegate.Broadcast();
+}
+
+FSimpleMulticastDelegate& FNiagaraSystemViewModel::OnPreSave()
+{
+	return OnPreSaveDelegate;
 }
 
 FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()

@@ -352,6 +352,7 @@ public:
 
 	NIAGARAEDITOR_API void NotifyPreClose();
 
+	NIAGARAEDITOR_API FSimpleMulticastDelegate& OnPreSave();
 	NIAGARAEDITOR_API FOnPreClose& OnPreClose();
 
 	FOnRequestFocusTab& OnRequestFocusTab();
@@ -664,6 +665,9 @@ private:
 	/** A multicast delegate which is called whenever the system has been compiled. */
 	FOnSystemCompiled OnSystemCompiledDelegate;
 
+	/** A multicast delegate which is called before the asset is saved. Useful to notify other systems that need to transfer data into the asset before saving is done.. */
+	FSimpleMulticastDelegate OnPreSaveDelegate;
+	
 	/** A multicast delegate which is called whenever this has been notified it's owner will be closing. */
 	FOnPreClose OnPreCloseDelegate;
 

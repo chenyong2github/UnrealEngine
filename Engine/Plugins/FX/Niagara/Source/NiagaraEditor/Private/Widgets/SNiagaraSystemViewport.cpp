@@ -40,14 +40,17 @@
 class UNiagaraSystemEditorData;
 
 /** Viewport Client for the preview viewport */
-class FNiagaraSystemViewportClient : public FEditorViewportClient
+class FNiagaraSystemViewportClient : public FEditorViewportClient, public TSharedFromThis<FNiagaraSystemViewportClient>
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnScreenShotCaptured, UTexture2D*);
 
 public:
 	FNiagaraSystemViewportClient(FAdvancedPreviewScene& InPreviewScene, const TSharedRef<SNiagaraSystemViewport>& InNiagaraEditorViewport, FOnScreenShotCaptured InOnScreenShotCaptured);
+	virtual ~FNiagaraSystemViewportClient() override;
 
+	void InitDelegates();
+	
 	// FEditorViewportClient interface
 	virtual FLinearColor GetBackgroundColor() const override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -77,6 +80,12 @@ public:
 	FOnScreenShotCaptured OnScreenShotCaptured;
 
 private:
+	void SaveSharedViewportSettingsToConfig() const;
+	void LoadSharedSettingsFromConfig();
+	void SavePerAssetViewportSettings() const;
+	void LoadPerAssetViewportSettings();
+
+private:
 	bool bUpdateViewportFocus = false;
 
 	FNiagaraSystemMemReport	MemReport;
@@ -89,7 +98,7 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	, OnScreenShotCaptured(InOnScreenShotCaptured)
 {
 	NiagaraViewportPtr = InNiagaraEditorViewport;
-
+	
 	// Setup defaults for the common draw helper.
 	DrawHelper.bDrawPivot = false;
 	DrawHelper.bDrawWorldBox = false;
@@ -106,15 +115,35 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	EngineShowFlags.SetSnap(0);
 
 	OverrideNearClipPlane(1.0f);
-	SetOrbitModeFromSettings();
+
 	bCaptureScreenShot = false;
 
 	bDrawAxesGame = true;
 
 	//This seems to be needed to get the correct world time in the preview.
 	FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(true);
+
+	LoadSharedSettingsFromConfig();
+	LoadPerAssetViewportSettings();
 }
 
+FNiagaraSystemViewportClient::~FNiagaraSystemViewportClient()
+{
+	SaveSharedViewportSettingsToConfig();
+
+	if(NiagaraViewportPtr.IsValid() && NiagaraViewportPtr.Pin()->GetSystemViewModel().IsValid())
+	{
+		NiagaraViewportPtr.Pin()->GetSystemViewModel().Pin()->OnPreSave().RemoveAll(this);
+	}
+}
+
+void FNiagaraSystemViewportClient::InitDelegates()
+{
+	if(NiagaraViewportPtr.IsValid() && NiagaraViewportPtr.Pin()->GetSystemViewModel().IsValid())
+	{
+		NiagaraViewportPtr.Pin()->GetSystemViewModel().Pin()->OnPreSave().AddSP(this, &FNiagaraSystemViewportClient::SavePerAssetViewportSettings);
+	}
+}
 
 void FNiagaraSystemViewportClient::Tick(float DeltaSeconds)
 {
@@ -490,9 +519,9 @@ void FNiagaraSystemViewportClient::SetOrbitModeFromSettings()
 	check(Settings);
 
 	UNiagaraSystemEditorData* EditorData = GetSystemEditorData();
-	if (EditorData && EditorData->bSetOrbitModeByAsset)
+	if (EditorData)
 	{
-		bUsingOrbitCamera = EditorData->bSystemViewportInOrbitMode;
+		bUsingOrbitCamera = EditorData->GetAssetViewportSettings().bUseOrbitMode;
 	}
 	else
 	{
@@ -551,10 +580,103 @@ UNiagaraSystemEditorData* FNiagaraSystemViewportClient::GetSystemEditorData() co
 	return nullptr;
 }
 
+void FNiagaraSystemViewportClient::SaveSharedViewportSettingsToConfig() const
+{
+	if(GUnrealEd && GetDefault<UNiagaraEditorSettings>())
+	{
+		const FEngineShowFlags& EditorShowFlagsToSave = IsInGameView() ? LastEngineShowFlags : EngineShowFlags;
+		const FEngineShowFlags& GameShowFlagsToSave = IsInGameView() ? EngineShowFlags : LastEngineShowFlags;
+		
+		FNiagaraViewportSharedSettings ViewportSharedSettings = GetDefault<UNiagaraEditorSettings>()->GetViewportSharedSettings();
+		ViewportSharedSettings.ViewportType = ViewportType;
+		ViewportSharedSettings.PerspViewModeIndex = GetPerspViewMode();
+		ViewportSharedSettings.OrthoViewModeIndex = GetOrthoViewMode();
+		ViewportSharedSettings.EditorShowFlagsString = EditorShowFlagsToSave.ToString();
+		ViewportSharedSettings.GameShowFlagsString = GameShowFlagsToSave.ToString();
+		ViewportSharedSettings.ExposureSettings = ExposureSettings;
+		ViewportSharedSettings.FOVAngle = FOVAngle;
+		ViewportSharedSettings.bShowOnScreenStats = ShouldShowStats();
+		SaveRealtimeStateToConfig(ViewportSharedSettings.bIsRealtime);
+		
+		GetMutableDefault<UNiagaraEditorSettings>()->SetViewportSharedSettings(ViewportSharedSettings);
+	}
+}
+
+void FNiagaraSystemViewportClient::LoadSharedSettingsFromConfig()
+{
+	const FNiagaraViewportSharedSettings& ViewportSharedSettings = GetDefault<UNiagaraEditorSettings>()->GetViewportSharedSettings();
+
+	FEngineShowFlags EditorShowFlags(ESFIM_Editor);
+	FEngineShowFlags GameShowFlags(ESFIM_Game);
+
+	if(!ViewportSharedSettings.EditorShowFlagsString.IsEmpty())
+	{
+		EditorShowFlags.SetFromString(*ViewportSharedSettings.EditorShowFlagsString);
+	}
+
+	if(!ViewportSharedSettings.GameShowFlagsString.IsEmpty())
+	{
+		GameShowFlags.SetFromString(*ViewportSharedSettings.GameShowFlagsString);
+	}
+
+	if(ViewportSharedSettings.ViewportType == LVT_Perspective)
+	{
+		ApplyViewMode(ViewportSharedSettings.PerspViewModeIndex, true, EditorShowFlags);
+		ApplyViewMode(ViewportSharedSettings.PerspViewModeIndex, true, GameShowFlags);
+	}
+	else
+	{
+		ApplyViewMode(ViewportSharedSettings.OrthoViewModeIndex, false, EditorShowFlags);
+		ApplyViewMode(ViewportSharedSettings.OrthoViewModeIndex, false, GameShowFlags);
+	}
+
+	// Disabling some features for orthographic views. 
+	if(ViewportSharedSettings.ViewportType != LVT_Perspective)
+	{
+		EditorShowFlags.MotionBlur = 0;
+		EditorShowFlags.Fog = 0;
+		EditorShowFlags.SetDepthOfField(false);
+		GameShowFlags.MotionBlur = 0;
+		GameShowFlags.Fog = 0;
+		GameShowFlags.SetDepthOfField(false);
+	}
+	
+	ViewportType = ViewportSharedSettings.ViewportType;
+	EngineShowFlags = EditorShowFlags;
+	LastEngineShowFlags = GameShowFlags;
+	ExposureSettings = ViewportSharedSettings.ExposureSettings;
+	SetRealtime(ViewportSharedSettings.bIsRealtime);
+	SetShowStats(ViewportSharedSettings.bShowOnScreenStats);
+	ViewFOV = FOVAngle = ViewportSharedSettings.FOVAngle;
+	SetViewModes(ViewportSharedSettings.PerspViewModeIndex, ViewportSharedSettings.OrthoViewModeIndex );
+}
+
+void FNiagaraSystemViewportClient::SavePerAssetViewportSettings() const
+{
+	if(UNiagaraSystemEditorData* SystemEditorData = GetSystemEditorData())
+	{
+		FNiagaraPerAssetViewportSettings CurrentAssetSettings = SystemEditorData->GetAssetViewportSettings();
+		CurrentAssetSettings.ViewLocation = GetViewLocation();
+		CurrentAssetSettings.ViewRotation = GetViewRotation();
+		SystemEditorData->SetAssetViewportSettings(CurrentAssetSettings);
+	}
+}
+
+void FNiagaraSystemViewportClient::LoadPerAssetViewportSettings()
+{
+	SetOrbitModeFromSettings();
+	
+	const FNiagaraPerAssetViewportSettings& AssetViewportSettings = NiagaraViewportPtr.Pin()->GetSystemViewModel().Pin()->GetEditorData().GetAssetViewportSettings();
+	SetViewLocation(AssetViewportSettings.ViewLocation);
+	SetViewRotation(AssetViewportSettings.ViewRotation);
+}
+
 //////////////////////////////////////////////////////////////////////////
 
-void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
+void SNiagaraSystemViewport::Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
 {
+	SystemViewModel = InSystemViewModel;
+	
 	const UNiagaraEditorSettings* Settings = GetDefault<UNiagaraEditorSettings>();
 	
 	DrawFlags = 0;
@@ -656,8 +778,7 @@ void SNiagaraSystemViewport::ToggleOrbit()
 		UNiagaraSystemEditorData* EditorData = Cast<UNiagaraSystemEditorData>(PreviewComponent->GetAsset()->GetEditorData());
 		if (EditorData)
 		{
-			EditorData->bSystemViewportInOrbitMode = bNewOrbitSetting;
-			EditorData->bSetOrbitModeByAsset = true;
+			EditorData->SetUseOrbitMode(bNewOrbitSetting);
 		}
 	}
 }
@@ -904,14 +1025,16 @@ TSharedRef<FEditorViewportClient> SNiagaraSystemViewport::MakeEditorViewportClie
 	SystemViewportClient = MakeShareable( new FNiagaraSystemViewportClient(*AdvancedPreviewScene.Get(), SharedThis(this),
 		FNiagaraSystemViewportClient::FOnScreenShotCaptured::CreateSP(this, &SNiagaraSystemViewport::OnScreenShotCaptured) ) );
 
-	SystemViewportClient->SetViewLocation( FVector::ZeroVector );
-	SystemViewportClient->SetViewRotation( FRotator::ZeroRotator );
+	SystemViewportClient->InitDelegates();
+	
+	// Settings that aren't kept in the config are 
+	SystemViewportClient->SetAllowCinematicControl(true);
+	// SystemViewportClient->SetViewLocation( FVector::ZeroVector );
+	// SystemViewportClient->SetViewRotation( FRotator::ZeroRotator );
 	SystemViewportClient->SetViewLocationForOrbiting( FVector::ZeroVector );
-	SystemViewportClient->bSetListenerPosition = false;
-
-	SystemViewportClient->SetRealtime( true );
 	SystemViewportClient->VisibilityDelegate.BindSP( this, &SNiagaraSystemViewport::IsVisible );
-
+	SystemViewportClient->bSetListenerPosition = false;
+	
 	return SystemViewportClient.ToSharedRef();
 }
 

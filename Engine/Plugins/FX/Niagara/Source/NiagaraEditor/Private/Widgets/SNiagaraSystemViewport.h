@@ -16,6 +16,7 @@
 #include "Particles/ParticlePerfStatsManager.h"
 #include "NiagaraPerfBaseline.h"
 
+class FNiagaraSystemViewModel;
 class UNiagaraComponent;
 class FNiagaraSystemEditorViewportClient;
 class FNiagaraSystemInstance;
@@ -36,7 +37,7 @@ public:
 		SLATE_ARGUMENT(TWeakPtr<ISequencer>, Sequencer)
 	SLATE_END_ARGS()
 	
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 	~SNiagaraSystemViewport();
 	
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -57,7 +58,8 @@ public:
 	bool bShowBackground;
 
 	TSharedRef<class FAdvancedPreviewScene> GetPreviewScene() { return AdvancedPreviewScene.ToSharedRef(); }
-
+	TWeakPtr<FNiagaraSystemViewModel> GetSystemViewModel() { return SystemViewModel; }
+	
 	/** The material editor has been added to a tab */
 	void OnAddedToTab( const TSharedRef<SDockTab>& OwnerTab );
 	
@@ -101,7 +103,8 @@ public:
 	float GetMotionRadius() const { return MotionRadius; }
 	void SetMotionRadius(float Radius) { MotionRadius = Radius; }
 
-protected:
+
+protected:	
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
@@ -113,7 +116,6 @@ protected:
 
 private:
 	bool IsVisible() const override;
-
 	void OnScreenShotCaptured(UTexture2D* ScreenShot);
 
 private:
@@ -121,6 +123,8 @@ private:
 	TWeakPtr<SDockTab> ParentTab;
 
 	TWeakPtr<ISequencer> Sequencer = nullptr;
+
+	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	
 	/** Preview Scene - uses advanced preview settings */
 	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;

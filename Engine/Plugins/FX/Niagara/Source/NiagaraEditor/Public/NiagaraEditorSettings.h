@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraValidationRuleSet.h"
 #include "Engine/DeveloperSettings.h"
 #include "NiagaraSpawnShortcut.h"
+#include "Editor/UnrealEdTypes.h"
+#include "Viewports.h"
 #include "NiagaraEditorSettings.generated.h"
 
 class UCurveFloat;
@@ -260,6 +263,75 @@ struct FNiagaraParameterPanelSectionStorage
 	TArray<FGuid> ExpandedCategories;
 };
 
+/** Contains all the settings that should be shared across sessions. */
+USTRUCT()
+struct FNiagaraViewportSharedSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraViewportSharedSettings() {}
+
+	/** The viewport type */
+	UPROPERTY(config)
+	TEnumAsByte<ELevelViewportType> ViewportType = LVT_Perspective;
+
+	/* View mode to set when this viewport is of type LVT_Perspective. */
+	UPROPERTY(config)
+	TEnumAsByte<EViewModeIndex> PerspViewModeIndex = VMI_Lit;
+
+	/* View mode to set when this viewport is not of type LVT_Perspective. */
+	UPROPERTY(config)
+	TEnumAsByte<EViewModeIndex> OrthoViewModeIndex = VMI_BrushWireframe;
+
+	/**
+	 * A set of flags that determines visibility for various scene elements (FEngineShowFlags), converted to string form.
+	 * These have to be saved as strings since FEngineShowFlags is too complex for UHT to parse correctly.
+	 */
+	UPROPERTY(config)
+	FString EditorShowFlagsString;
+
+	/**
+	 * A set of flags that determines visibility for various scene elements (FEngineShowFlags), converted to string form.
+	 * These have to be saved as strings since FEngineShowFlags is too complex for UHT to parse correctly.
+	 */
+	UPROPERTY(config)
+	FString GameShowFlagsString;
+
+	/** Setting to allow designers to override the automatic expose. */
+	UPROPERTY(config)
+	FExposureSettings ExposureSettings;
+
+	/* Field of view angle for the viewport. */
+	UPROPERTY(config)
+	float FOVAngle = EditorViewportDefs::DefaultPerspectiveFOVAngle;
+
+	/* Whether this viewport is updating in real-time. */
+	UPROPERTY(config)
+	bool bIsRealtime = true;
+	
+	/* Whether viewport statistics should be shown. */
+	UPROPERTY(config)
+	bool bShowOnScreenStats = true;
+
+	UPROPERTY(config)
+	bool bShowGridInViewport = false;
+
+	UPROPERTY(config)
+	bool bShowInstructionsCount = false;
+	
+	UPROPERTY(config)
+	bool bShowParticleCountsInViewport = false;
+
+	UPROPERTY(config)
+	bool bShowEmitterExecutionOrder = false;
+
+	UPROPERTY(config)
+	bool bShowGpuTickInformation = false;
+
+	UPROPERTY(config)
+	bool bShowMemoryInfo = false;
+};
+
 FORCEINLINE uint32 GetTypeHash(const FNiagaraNamespaceMetadata& NamespaceMetaData)
 {
 	return GetTypeHash(NamespaceMetaData.GetGuid());
@@ -386,8 +458,12 @@ public:
 	// END UDeveloperSettings Interface
 
 	NIAGARAEDITOR_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	
+	const FNiagaraViewportSharedSettings& GetViewportSharedSettings() const { return ViewportSettings; }
+	void SetViewportSharedSettings(const FNiagaraViewportSharedSettings& InViewportSharedSettings);
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNiagaraEditorSettingsChanged, const FString&, const UNiagaraEditorSettings*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNiagaraEditorSettingsChanged, const FString&,
+	                                     const UNiagaraEditorSettings*);
 
 	/** Gets a multicast delegate which is called whenever one of the parameters in this settings object changes. */
 	static NIAGARAEDITOR_API FOnNiagaraEditorSettingsChanged& OnSettingsChanged();
@@ -427,6 +503,12 @@ public:
 
 	NIAGARAEDITOR_API bool GetUpdateStackValuesOnCommitOnly() const;
 
+	NIAGARAEDITOR_API bool GetUseAutoExposure() const;
+	NIAGARAEDITOR_API void SetUseAutoExposure(bool bInUseAutoExposure);
+	
+	NIAGARAEDITOR_API float GetExposureValue() const;
+	NIAGARAEDITOR_API void SetAutoExposureValue(bool bInUseAutoExposure);
+	
 private:
 	NIAGARAEDITOR_API bool IsAllowedObjectByClassUsageInternal(const UObject& InObject, TSet<const UObject*>& CheckedObjects) const;
 	NIAGARAEDITOR_API bool IsAllowedAssetObjectByClassUsageInternal(const UObject& InAssetObject, TSet<const UObject*>& CheckedAssetObjects) const;
@@ -503,27 +585,13 @@ private:
 
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraCurveTemplate> CurveTemplates;
-
-	UPROPERTY(config)
-	bool bShowGridInViewport;
-
-	UPROPERTY(config)
-	bool bShowInstructionsCount;
 	
 	UPROPERTY(config)
-	bool bShowParticleCountsInViewport;
-
-	UPROPERTY(config)
-	bool bShowEmitterExecutionOrder;
-
-	UPROPERTY(config)
-	bool bShowGpuTickInformation;
-
-	UPROPERTY(config)
-	bool bShowMemoryInfo;
-
+	FNiagaraViewportSharedSettings ViewportSettings;
+	
 	UPROPERTY(config)
 	TArray<FNiagaraParameterPanelSectionStorage> SystemParameterPanelSectionData;
+	
 
 	FOnIsClassAllowed OnIsClassAllowedDelegate;
 	FOnIsClassPathAllowed OnIsClassPathAllowedDelegate;
