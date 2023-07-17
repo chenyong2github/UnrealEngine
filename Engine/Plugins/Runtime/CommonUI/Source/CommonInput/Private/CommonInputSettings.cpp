@@ -29,6 +29,7 @@ void UCommonInputSettings::LoadData()
 void UCommonInputSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	bInputDataLoaded = false;
+	bActionDomainTableLoaded = false;
 	LoadData();
 }
 #endif
