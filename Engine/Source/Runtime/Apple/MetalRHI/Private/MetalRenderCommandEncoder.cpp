@@ -600,77 +600,151 @@ bool FMetalRenderCommandEncoderDebugging::ValidateFunctionBindings(EMetalShaderF
 			
 			MTLRenderPipelineReflection* Reflection = ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->RenderPipelineReflection;
 			check(Reflection);
-			
-            NSArray<id<MTLBinding>>* Bindings = nil;
-			switch(Frequency)
-			{
-				case EMetalShaderVertex:
-				{
-                    Bindings = Reflection.vertexBindings;
-					break;
-				}
-				case EMetalShaderFragment:
-				{
-                    Bindings = Reflection.fragmentBindings;
-					break;
-				}
-				default:
-					check(false);
-					break;
-			}
-			
-			for (uint32 i = 0; i < Bindings.count; i++)
-			{
-                id<MTLBinding> Binding = [Bindings objectAtIndex:i];
-				check(Binding);
-				switch(Binding.type)
-				{
-					case MTLBindingTypeBuffer:
-					{
-						checkf(Binding.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
-						if ((((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Frequency].Buffers[Binding.index] == nil && ((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Frequency].Bytes[Binding.index] == nil))
-						{
-							bOK = false;
-							UE_LOG(LogMetal, Warning, TEXT("Unbound buffer at Metal index %u which will crash the driver: %s"), (uint32)Binding.index, *FString([Binding description]));
-						}
-						break;
-					}
-					case MTLBindingTypeThreadgroupMemory:
-					{
-						break;
-					}
-					case MTLBindingTypeTexture:
-					{
-                        id<MTLTextureBinding> TextureBinding = (id<MTLTextureBinding>)[Bindings objectAtIndex:i];
-						checkf(Binding.index < ML_MaxTextures, TEXT("Metal texture index exceeded!"));
-						if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Binding.index] == nil)
-						{
-							bOK = false;
-							UE_LOG(LogMetal, Warning, TEXT("Unbound texture at Metal index %u which will crash the driver: %s"), (uint32)Binding.index, *FString([Binding description]));
-						}
-						else if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Binding.index].textureType != TextureBinding.textureType)
-						{
-							bOK = false;
-							UE_LOG(LogMetal, Warning, TEXT("Incorrect texture type bound at Metal index %u which will crash the driver: %s\n%s"), (uint32)Binding.index, *FString([Binding description]), *FString([((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Binding.index] description]));
-						}
-						break;
-					}
-					case MTLBindingTypeSampler:
-					{
-						checkf(Binding.index < ML_MaxSamplers, TEXT("Metal sampler index exceeded!"));
-						if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderSamplers[Frequency].Samplers[Binding.index] == nil)
-						{
-							bOK = false;
-							UE_LOG(LogMetal, Warning, TEXT("Unbound sampler at Metal index %u which will crash the driver: %s"), (uint32)Binding.index, *FString([Binding description]));
-						}
-						break;
-					}
-					default:
-						check(false);
-						break;
-				}
-			}
-			break;
+            if (@available(macOS 13.0, iOS 16.0, *))
+            {
+                NSArray<id<MTLBinding>>* Bindings = nil;
+                switch(Frequency)
+                {
+                    case EMetalShaderVertex:
+                    {
+                        Bindings = Reflection.vertexBindings;
+                        break;
+                    }
+                    case EMetalShaderFragment:
+                    {
+                        Bindings = Reflection.fragmentBindings;
+                        break;
+                    }
+                    default:
+                        check(false);
+                        break;
+                }
+                
+                for (uint32 i = 0; i < Bindings.count; i++)
+                {
+                    id<MTLBinding> Binding = [Bindings objectAtIndex:i];
+                    check(Binding);
+                    switch(Binding.type)
+                    {
+                        case MTLBindingTypeBuffer:
+                        {
+                            checkf(Binding.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
+                            if ((((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Frequency].Buffers[Binding.index] == nil && ((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Frequency].Bytes[Binding.index] == nil))
+                            {
+                                bOK = false;
+                                UE_LOG(LogMetal, Warning, TEXT("Unbound buffer at Metal index %u which will crash the driver: %s"), (uint32)Binding.index, *FString([Binding description]));
+                            }
+                            break;
+                        }
+                        case MTLBindingTypeThreadgroupMemory:
+                        {
+                            break;
+                        }
+                        case MTLBindingTypeTexture:
+                        {
+                            id<MTLTextureBinding> TextureBinding = (id<MTLTextureBinding>)[Bindings objectAtIndex:i];
+                            checkf(Binding.index < ML_MaxTextures, TEXT("Metal texture index exceeded!"));
+                            if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Binding.index] == nil)
+                            {
+                                bOK = false;
+                                UE_LOG(LogMetal, Warning, TEXT("Unbound texture at Metal index %u which will crash the driver: %s"), (uint32)Binding.index, *FString([Binding description]));
+                            }
+                            else if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Binding.index].textureType != TextureBinding.textureType)
+                            {
+                                bOK = false;
+                                UE_LOG(LogMetal, Warning, TEXT("Incorrect texture type bound at Metal index %u which will crash the driver: %s\n%s"), (uint32)Binding.index, *FString([Binding description]), *FString([((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Binding.index] description]));
+                            }
+                            break;
+                        }
+                        case MTLBindingTypeSampler:
+                        {
+                            checkf(Binding.index < ML_MaxSamplers, TEXT("Metal sampler index exceeded!"));
+                            if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderSamplers[Frequency].Samplers[Binding.index] == nil)
+                            {
+                                bOK = false;
+                                UE_LOG(LogMetal, Warning, TEXT("Unbound sampler at Metal index %u which will crash the driver: %s"), (uint32)Binding.index, *FString([Binding description]));
+                            }
+                            break;
+                        }
+                        default:
+                            check(false);
+                            break;
+                    }
+                }
+                break;
+            }
+            else
+            {
+                NSArray<MTLArgument*>* Arguments = nil;
+                        switch(Frequency)
+                        {
+                            case EMetalShaderVertex:
+                            {
+                                Arguments = Reflection.vertexArguments;
+                                break;
+                            }
+                            case EMetalShaderFragment:
+                            {
+                                Arguments = Reflection.fragmentArguments;
+                                break;
+                            }
+                            default:
+                                check(false);
+                                break;
+                        }
+                        
+                        for (uint32 i = 0; i < Arguments.count; i++)
+                        {
+                            MTLArgument* Arg = [Arguments objectAtIndex:i];
+                            check(Arg);
+                            switch(Arg.type)
+                            {
+                                case MTLArgumentTypeBuffer:
+                                {
+                                    checkf(Arg.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
+                                    if ((((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Frequency].Buffers[Arg.index] == nil && ((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Frequency].Bytes[Arg.index] == nil))
+                                    {
+                                        bOK = false;
+                                        UE_LOG(LogMetal, Warning, TEXT("Unbound buffer at Metal index %u which will crash the driver: %s"), (uint32)Arg.index, *FString([Arg description]));
+                                    }
+                                    break;
+                                }
+                                case MTLArgumentTypeThreadgroupMemory:
+                                {
+                                    break;
+                                }
+                                case MTLArgumentTypeTexture:
+                                {
+                                    checkf(Arg.index < ML_MaxTextures, TEXT("Metal texture index exceeded!"));
+                                    if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Arg.index] == nil)
+                                    {
+                                        bOK = false;
+                                        UE_LOG(LogMetal, Warning, TEXT("Unbound texture at Metal index %u which will crash the driver: %s"), (uint32)Arg.index, *FString([Arg description]));
+                                    }
+                                    else if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Arg.index].textureType != Arg.textureType)
+                                    {
+                                        bOK = false;
+                                        UE_LOG(LogMetal, Warning, TEXT("Incorrect texture type bound at Metal index %u which will crash the driver: %s\n%s"), (uint32)Arg.index, *FString([Arg description]), *FString([((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Frequency].Textures[Arg.index] description]));
+                                    }
+                                    break;
+                                }
+                                case MTLArgumentTypeSampler:
+                                {
+                                    checkf(Arg.index < ML_MaxSamplers, TEXT("Metal sampler index exceeded!"));
+                                    if (((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderSamplers[Frequency].Samplers[Arg.index] == nil)
+                                    {
+                                        bOK = false;
+                                        UE_LOG(LogMetal, Warning, TEXT("Unbound sampler at Metal index %u which will crash the driver: %s"), (uint32)Arg.index, *FString([Arg description]));
+                                    }
+                                    break;
+                                }
+                                default:
+                                    check(false);
+                                    break;
+                            }
+                        }
+                        break;
+            }
 		}
 		default:
 		{
