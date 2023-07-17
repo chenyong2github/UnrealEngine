@@ -298,7 +298,7 @@ void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponen
 	Component->RegisterComponent();
 
 	// initialize from LOD-0 MeshDescription
-	Component->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
+	Component->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target, true));
 	double MaxDimension = Component->GetMesh()->GetBounds(true).MaxDim();
 
 	// bake rotation and scaling into mesh because handling these inside sculpting is a mess
