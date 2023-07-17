@@ -559,7 +559,7 @@ namespace UnrealBuildTool
 			{
 				if (String.Equals(CompilerVersion, Channel.ToString(), StringComparison.OrdinalIgnoreCase))
 				{
-					ToolChain = SelectToolChain(ToolChains.Where(x => x.ReleaseChannel.HasFlag(Channel)), x => x.ThenByDescending(x => x.Version), Architecture);
+					ToolChain = SelectToolChain(ToolChains.Where(x => x.ReleaseChannel.HasFlag(Channel)), x => x.ThenBy(x => x.ReleaseChannel).ThenByDescending(x => x.Version), Architecture);
 					if (ToolChain == null)
 					{
 						DumpToolChains(ToolChains, x => x.ThenBy(x => x.ReleaseChannel).ThenByDescending(x => x.Version), Architecture, Logger);
