@@ -1536,10 +1536,10 @@ protected:
 
 protected:
 	/** Get the default overlay material used by a mesh */
-	virtual UMaterialInterface* GetDefaultOverlayMaterial() const override;
+	ENGINE_API virtual UMaterialInterface* GetDefaultOverlayMaterial() const override;
 
 	/** Get the default overlay material max draw distance */
-	virtual float GetDefaultOverlayMaterialMaxDrawDistance() const override;
+	ENGINE_API virtual float GetDefaultOverlayMaterialMaxDrawDistance() const override;
 
 public:
 	/** 
