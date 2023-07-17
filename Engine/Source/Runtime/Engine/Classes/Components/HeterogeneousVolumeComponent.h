@@ -29,6 +29,12 @@ class UHeterogeneousVolumeComponent : public UMeshComponent
 	uint32 bAnimate : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	float StepFactor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	float ShadowStepFactor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
 	float LightingDownsampleFactor;
 	
 	UPROPERTY(Transient)

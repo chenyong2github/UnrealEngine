@@ -77,6 +77,8 @@ public:
 	static FVector3f GetDefaultVolumeScale() { return FVector3f(1.0f, 1.0f, 1.0f); }
 	static int32 GetDefaultVolumeResolutionMaxAxis() { return 0; }
 	static FVector3f GetDefaultVolumeWorldSpaceSize() { return FVector3f::ZeroVector; }
+	static float GetDefaultStepFactor() { return 1.0f; }
+	static float GetDefaultShadowStepFactor() { return 8.0f; }
 	static float GetDefaultLightingDownsampleFactor() { return 2.0f; }
 
 	/** What material to use for the volume. */
@@ -102,7 +104,13 @@ public:
 	int32 RendererVisibility = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
+	float StepFactor = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
 	float LightingDownsampleFactor = 2.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
+	float ShadowStepFactor = 8.0f;
 
 	/** Position binding for the center of the volume. */
 	//-TODO: Unhind when binding is supported

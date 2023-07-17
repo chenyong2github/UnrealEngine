@@ -26,6 +26,8 @@ public:
 	virtual float GetMinimumVoxelSize() const = 0;
 
 	// Lighting
+	virtual float GetStepFactor() const = 0;
+	virtual float GetShadowStepFactor() const = 0;
 	virtual float GetLightingDownsampleFactor() const = 0;
 };
 
@@ -39,6 +41,8 @@ public:
 		, InstanceToLocal(FMatrix::Identity)
 		, VoxelResolution(FIntVector::ZeroValue)
 		, MinimumVoxelSize(0.1)
+		, StepFactor(1.0)
+		, ShadowStepFactor(8.0)
 		, LightingDownsampleFactor(1.0)
 	{}
 	virtual ~FHeterogeneousVolumeData() {}
@@ -57,11 +61,15 @@ public:
 	virtual float GetMinimumVoxelSize() const { return MinimumVoxelSize; }
 
 	// Lighting
+	virtual float GetStepFactor() const { return StepFactor; }
+	virtual float GetShadowStepFactor() const { return ShadowStepFactor; }
 	virtual float GetLightingDownsampleFactor() const { return LightingDownsampleFactor; }
 
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
 	FMatrix InstanceToLocal;
 	FIntVector VoxelResolution;
 	float MinimumVoxelSize;
+	float StepFactor;
+	float ShadowStepFactor;
 	float LightingDownsampleFactor;
 };

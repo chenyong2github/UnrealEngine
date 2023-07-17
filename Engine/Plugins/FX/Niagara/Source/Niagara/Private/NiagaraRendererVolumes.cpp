@@ -48,6 +48,8 @@ namespace NiagaraRendererVolumesLocal
 
 		int32					VolumeResolutionMaxAxis = UNiagaraVolumeRendererProperties::GetDefaultVolumeResolutionMaxAxis();
 		FVector3f				VolumeWorldSpaceSize = UNiagaraVolumeRendererProperties::GetDefaultVolumeWorldSpaceSize();
+		float					StepFactor = UNiagaraVolumeRendererProperties::GetDefaultStepFactor();
+		float					ShadowStepFactor = UNiagaraVolumeRendererProperties::GetDefaultShadowStepFactor();
 		float					LightingDownsampleFactor = UNiagaraVolumeRendererProperties::GetDefaultLightingDownsampleFactor();
 	};
 
@@ -220,6 +222,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererVolumes::GenerateDynamicData(const FNia
 	const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
 	VolumeDynamicData->VolumeResolutionMaxAxis = ParameterStore.GetParameterValueOrDefault(RendererProperties->VolumeResolutionMaxAxisBinding.GetParamMapBindableVariable(), DefaultVolumeResolutionMaxAxis);
 	VolumeDynamicData->VolumeWorldSpaceSize = ParameterStore.GetParameterValueOrDefault(RendererProperties->VolumeWorldSpaceSizeBinding.GetParamMapBindableVariable(), DefaultVolumeWorldSpaceSize);
+	VolumeDynamicData->StepFactor = RendererProperties->StepFactor;
+	VolumeDynamicData->ShadowStepFactor = RendererProperties->ShadowStepFactor;
 	VolumeDynamicData->LightingDownsampleFactor = RendererProperties->LightingDownsampleFactor;
 
 	return VolumeDynamicData;
@@ -351,8 +355,8 @@ void FNiagaraRendererVolumes::GetDynamicMeshElements(const TArray<const FSceneVi
 				FMath::CeilToInt(VolumeResolutionV3f.Z));
 
 			HeterogeneousVolumeData->VoxelResolution = VolumeResolution;
-
-
+			HeterogeneousVolumeData->StepFactor = VolumeDynamicData->StepFactor;
+			HeterogeneousVolumeData->ShadowStepFactor = VolumeDynamicData->ShadowStepFactor;
 			HeterogeneousVolumeData->LightingDownsampleFactor = VolumeDynamicData->LightingDownsampleFactor;
 			BatchElement.UserData = HeterogeneousVolumeData;
 
