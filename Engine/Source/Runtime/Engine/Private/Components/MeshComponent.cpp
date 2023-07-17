@@ -137,9 +137,10 @@ FMaterialRelevance UMeshComponent::GetMaterialRelevance(ERHIFeatureLevel::Type I
 		Result |= MaterialInterface->GetRelevance_Concurrent(InFeatureLevel);
 	}
 
-	if (OverlayMaterial != nullptr)
+	UMaterialInterface const* OverlayMaterialInterface = GetOverlayMaterial();
+	if (OverlayMaterialInterface != nullptr)
 	{
-		Result |= OverlayMaterial->GetRelevance_Concurrent(InFeatureLevel);
+		Result |= OverlayMaterialInterface->GetRelevance_Concurrent(InFeatureLevel);
 	}
 
 	return Result;
@@ -213,15 +214,23 @@ void UMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials,
 		}
 	}
 
-	if (OverlayMaterial != nullptr)
+	UMaterialInterface* OverlayMaterialInterface = GetOverlayMaterial();
+	if (OverlayMaterialInterface != nullptr)
 	{
-		OutMaterials.Add(OverlayMaterial);
+		OutMaterials.Add(OverlayMaterialInterface);
 	}
 }
 
 UMaterialInterface* UMeshComponent::GetOverlayMaterial() const
 {
-	return OverlayMaterial;
+	if (OverlayMaterial)
+	{ 
+		return OverlayMaterial;
+	}
+	else
+	{
+		return GetDefaultOverlayMaterial();
+	}
 }
 
 void UMeshComponent::SetOverlayMaterial(UMaterialInterface* NewOverlayMaterial)
@@ -232,6 +241,18 @@ void UMeshComponent::SetOverlayMaterial(UMaterialInterface* NewOverlayMaterial)
 		// Precache PSOs again
 		PrecachePSOs();
 		MarkRenderStateDirty();
+	}
+}
+
+float UMeshComponent::GetOverlayMaterialMaxDrawDistance() const
+{
+	if (OverlayMaterialMaxDrawDistance != 0.f)
+	{ 
+		return OverlayMaterialMaxDrawDistance;
+	}
+	else
+	{
+		return GetDefaultOverlayMaterialMaxDrawDistance();
 	}
 }
 

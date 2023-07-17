@@ -66,6 +66,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	ENGINE_API void SetOverlayMaterial(class UMaterialInterface* NewOverlayMaterial);
 
+	/** Get the overlay material used by this instance */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	float GetOverlayMaterialMaxDrawDistance() const;
+	
 	/** Change the overlay material max draw distance used by this instance */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	ENGINE_API void SetOverlayMaterialMaxDrawDistance(float InMaxDrawDistance);
@@ -173,6 +177,12 @@ public:
 		return (ParameterCache ? ParameterCache->ScalarParameterDefaultValue : 0.f);
 	}
 protected:
+	/** Get the default overlay material used by a mesh */
+	virtual UMaterialInterface* GetDefaultOverlayMaterial() const { return nullptr; };
+	
+	/** Get the default overlay material max draw distance */
+	virtual float GetDefaultOverlayMaterialMaxDrawDistance() const { return 0.f; };
+
 	/** Retrieves all the (scalar/vector-)parameters from within the used materials on the SkeletalMesh, and stores material index vs parameter names */
 	ENGINE_API void CacheMaterialParameterNameIndices();
 

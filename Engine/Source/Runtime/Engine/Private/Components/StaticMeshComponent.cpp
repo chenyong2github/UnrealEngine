@@ -1621,12 +1621,13 @@ void UStaticMeshComponent::CollectPSOPrecacheDataImpl(
 		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 	}
 
-	if (OverlayMaterial && VFTypesPerMaterialIndex.Num() != 0)
+	UMaterialInterface* OverlayMaterialInterface = GetOverlayMaterial();
+	if (OverlayMaterialInterface && VFTypesPerMaterialIndex.Num() != 0)
 	{
 		// Overlay is rendered with the same set of VFs
 		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
 		
-		ComponentParams.MaterialInterface = OverlayMaterial;
+		ComponentParams.MaterialInterface = OverlayMaterialInterface;
 		ComponentParams.VertexFactoryDataList = VFTypesPerMaterialIndex[0].VertexFactoryDataList;
 		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 		ComponentParams.PSOPrecacheParams.bCastShadow = false;
@@ -2850,9 +2851,10 @@ void UStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMate
 				OutMaterials.Add(GetMaterial(MaterialIndex));
 			}
 
-			if (OverlayMaterial != nullptr)
+			UMaterialInterface* OverlayMaterialInterface = GetOverlayMaterial();
+			if (OverlayMaterialInterface != nullptr)
 			{
-				OutMaterials.Add(OverlayMaterial);
+				OutMaterials.Add(OverlayMaterialInterface);
 			}
 		}
 	}

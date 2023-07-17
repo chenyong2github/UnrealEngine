@@ -135,6 +135,8 @@ enum class ESkeletalMeshAsyncProperties : uint64
 	RayTracingMinLOD = 1llu << 54,
 	ClothLODBiasMode = 1llu << 55,
 	DefaultMeshDeformer = 1llu << 56,
+	OverlayMaterial = 1llu << 57,
+	OverlayMaterialMaxDrawDistance = 1llu << 58,
 	All = MAX_uint64
 };
 
@@ -2876,6 +2878,57 @@ protected:
 	UE_DEPRECATED(5.1, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer", Meta=(Filter="/Script/Engine.SkinnedMeshComponent"))
 	TObjectPtr<UMeshDeformer> DefaultMeshDeformer;
+
+	/** Default translucent material to blend on top of this mesh. Mesh will be rendered twice - once with a base material and once with overlay material */
+	UE_DEPRECATED(5.3, "This must be protected for async build, always use the accessors even internally.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Rendering)
+	TObjectPtr<class UMaterialInterface> OverlayMaterial;
+
+	/** Default max draw distance for overlay material. A distance of 0 indicates that overlay will be culled using primitive max distance. */
+	UE_DEPRECATED(5.3, "This must be protected for async build, always use the accessors even internally.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Rendering)
+	float OverlayMaterialMaxDrawDistance;
+
+public:
+	/** Get the default overlay material used by this mesh */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	virtual class UMaterialInterface* GetOverlayMaterial() const override
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::OverlayMaterial, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return OverlayMaterial;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Change the default overlay material used by this mesh */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetOverlayMaterial(class UMaterialInterface* NewOverlayMaterial)
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::OverlayMaterial);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		OverlayMaterial = NewOverlayMaterial;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	
+	/** Get the default overlay material max draw distance used by this mesh */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	virtual float GetOverlayMaterialMaxDrawDistance() const override
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::OverlayMaterialMaxDrawDistance, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return OverlayMaterialMaxDrawDistance;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Change the default overlay material max draw distance used by this mesh */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetOverlayMaterialMaxDrawDistance(float InMaxDrawDistance)
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::OverlayMaterialMaxDrawDistance);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		OverlayMaterialMaxDrawDistance = InMaxDrawDistance;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 	/**

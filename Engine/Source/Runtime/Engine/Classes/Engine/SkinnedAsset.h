@@ -176,6 +176,11 @@ public:
 	ENGINE_API virtual UMeshDeformer* GetDefaultMeshDeformer() const
 	PURE_VIRTUAL(USkinnedAsset::GetDefaultMeshDeformer, return nullptr;);
 
+	virtual class UMaterialInterface* GetOverlayMaterial() const
+	PURE_VIRTUAL(USkinnedAsset::GetOverlayMaterial, return nullptr;);
+	virtual float GetOverlayMaterialMaxDrawDistance() const
+	PURE_VIRTUAL(USkinnedAsset::GetOverlayMaterialMaxDrawDistance, return 0.f;);
+	
 	/** Return true if given index's LOD is valid */
 	ENGINE_API virtual bool IsValidLODIndex(int32 Index) const
 	PURE_VIRTUAL(USkinnedAsset::IsValidLODIndex, return false;);

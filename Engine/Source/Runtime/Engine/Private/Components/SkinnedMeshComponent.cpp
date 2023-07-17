@@ -623,12 +623,13 @@ void USkinnedMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Bas
 		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 	}
 
-	if (OverlayMaterial && VFsPerMaterials.Num() != 0)
+	UMaterialInterface* OverlayMaterialInterface = GetOverlayMaterial();
+	if (OverlayMaterialInterface && VFsPerMaterials.Num() != 0)
 	{
 		// Overlay is rendered with the same set of VFs
 		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
 
-		ComponentParams.MaterialInterface = OverlayMaterial;
+		ComponentParams.MaterialInterface = OverlayMaterialInterface;
 		ComponentParams.VertexFactoryDataList = VFsPerMaterials[0].VertexFactoryDataList;
 		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 		ComponentParams.PSOPrecacheParams.bCastShadow = false;
@@ -2527,6 +2528,24 @@ void USkinnedMeshComponent::SetForceWireframe(bool InForceWireframe)
 	}
 }
 
+UMaterialInterface* USkinnedMeshComponent::GetDefaultOverlayMaterial() const
+{
+	if (GetSkinnedAsset())
+	{
+		return GetSkinnedAsset()->GetOverlayMaterial();
+	}
+	return nullptr;
+}
+
+float USkinnedMeshComponent::GetDefaultOverlayMaterialMaxDrawDistance() const
+{
+	if (GetSkinnedAsset())
+	{
+		return GetSkinnedAsset()->GetOverlayMaterialMaxDrawDistance();
+	}
+	return 0.f;
+}
+
 #if WITH_EDITOR
 void USkinnedMeshComponent::SetSectionPreview(int32 InSectionIndexPreview)
 {
@@ -3250,9 +3269,10 @@ void USkinnedMeshComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMa
 			OutMaterials.Add( MaterialInterface );
 		}
 
-		if (OverlayMaterial != nullptr)
+		UMaterialInterface* OverlayMaterialInterface = GetOverlayMaterial();
+		if (OverlayMaterialInterface != nullptr)
 		{
-			OutMaterials.Add(OverlayMaterial);
+			OutMaterials.Add(OverlayMaterialInterface);
 		}
 	}
 

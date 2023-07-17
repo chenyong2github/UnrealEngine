@@ -1534,6 +1534,13 @@ protected:
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use RemoveFollowerPoseComponent instead.")
 	virtual void RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { RemoveFollowerPoseComponent(SkinnedMeshComponent); }
 
+protected:
+	/** Get the default overlay material used by a mesh */
+	virtual UMaterialInterface* GetDefaultOverlayMaterial() const override;
+
+	/** Get the default overlay material max draw distance */
+	virtual float GetDefaultOverlayMaterialMaxDrawDistance() const override;
+
 public:
 	/** 
 	 * Refresh Follower Components if exists

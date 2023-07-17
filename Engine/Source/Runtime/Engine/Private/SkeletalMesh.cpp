@@ -5589,8 +5589,8 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		,	SkeletalMeshRenderData(InSkelMeshRenderData)
 		,	SkeletalMeshForDebug(Component->GetSkinnedAsset())
 		,	PhysicsAssetForDebug(Component->GetPhysicsAsset())
-		,	OverlayMaterial(Component->OverlayMaterial)
-		,	OverlayMaterialMaxDrawDistance(Component->OverlayMaterialMaxDrawDistance)
+		,	OverlayMaterial(Component->GetOverlayMaterial())
+		,	OverlayMaterialMaxDrawDistance(Component->GetOverlayMaterialMaxDrawDistance())
 #if RHI_RAYTRACING
 		,	bAnySegmentUsesWorldPositionOffset(false)
 #endif
