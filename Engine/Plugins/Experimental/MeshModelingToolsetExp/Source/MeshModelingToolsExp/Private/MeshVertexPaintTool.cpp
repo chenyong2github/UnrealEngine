@@ -1049,8 +1049,7 @@ void UMeshVertexPaintTool::ApplyVisibilityFilter(const TArray<int32>& Triangles,
 
 	FViewCameraState StateOut;
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-	FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
-	FVector3d LocalEyePosition(LocalToWorld.InverseTransformPosition(StateOut.Position));
+	FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition(StateOut.Position));
 
 	const FDynamicMesh3* Mesh = GetSculptMesh();
 
