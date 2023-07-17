@@ -48,8 +48,8 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesJitter(
 
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesMaxStepCount(
 	TEXT("r.HeterogeneousVolumes.MaxStepCount"),
-	128,
-	TEXT("The maximum ray-marching step count (Default = 128)"),
+	512,
+	TEXT("The maximum ray-marching step count (Default = 512)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -110,8 +110,8 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingVolumeResol
 
 static TAutoConsoleVariable<float> CVarHeterogeneousVolumesShadowStepSize(
 	TEXT("r.HeterogeneousVolumes.ShadowStepSize"),
-	8.0,
-	TEXT("The ray-marching step-size for shadow rays (Default = 8.0)"),
+	-1.0,
+	TEXT("The ray-marching step-size override for shadow rays (Default = -1.0, disabled)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -145,8 +145,8 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesSparseVoxelRefinement
 
 static TAutoConsoleVariable<float> CVarHeterogeneousVolumesStepSize(
 	TEXT("r.HeterogeneousVolumes.StepSize"),
-	1.0,
-	TEXT("The ray-marching step-size (Default = 1.0)"),
+	-1.0,
+	TEXT("The ray-marching step-size override (Default = -1.0, disabled)"),
 	ECVF_RenderThreadSafe
 );
 

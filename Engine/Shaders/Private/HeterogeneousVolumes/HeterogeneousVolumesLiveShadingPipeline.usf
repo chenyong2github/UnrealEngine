@@ -40,6 +40,9 @@ float3 LocalBoundsOrigin;
 float3 LocalBoundsExtent;
 int PrimitiveId;
 
+// Volume data
+int3 VoxelResolution;
+
 // Lighting
 int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
@@ -50,11 +53,13 @@ float VolumetricScatteringIntensity;
 // Shadowing
 uint VirtualShadowMapId;
 float ShadowStepSize;
+float ShadowStepFactor;
 
 // Ray data
 float MaxTraceDistance;
 float MaxShadowTraceDistance;
 float StepSize;
+float StepFactor;
 int MaxStepCount;
 int bJitter;
 
@@ -118,6 +123,11 @@ float3 GetLocalBoundsExtent()
 	return LocalBoundsExtent;
 }
 
+int3 GetVolumeResolution()
+{
+	return VoxelResolution;
+}
+
 float GetStepSize()
 {
 	return StepSize;
@@ -126,6 +136,16 @@ float GetStepSize()
 float GetShadowStepSize()
 {
 	return ShadowStepSize;
+}
+
+float GetStepFactor()
+{
+	return StepFactor;
+}
+
+float GetShadowStepFactor()
+{
+	return ShadowStepFactor;
 }
 
 float GetMaxTraceDistance()
@@ -285,7 +305,7 @@ void RenderSingleScatteringWithLiveShadingCS(
 	// Intersect ray with bounding volume
 	// TODO: LWC integration..
 	float3 WorldRayOrigin = LWCHackToFloat(LWCSubtract(View.TranslatedWorldCameraOrigin, PrimaryView.PreViewTranslation));
-	float3 WorldRayEnd = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + 0.5, DeviceZ, 1)));
+	float3 WorldRayEnd = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + View.TemporalAAJitter.xy, DeviceZ, 1)));
 	float3 WorldRayDirection = WorldRayEnd - WorldRayOrigin;
 	float WorldRayLength = length(WorldRayDirection);
 	WorldRayDirection /= WorldRayLength;
@@ -299,7 +319,7 @@ void RenderSingleScatteringWithLiveShadingCS(
 	float3 LocalBoundsMin = LocalBoundsOrigin - LocalBoundsExtent;
 	float3 LocalBoundsMax = LocalBoundsOrigin + LocalBoundsExtent;
 
-	// Test bounding volume
+	// Intersect bounding volume
 	float2 HitT = IntersectAABB(LocalRayOrigin, LocalRayDirection, 0.0, LocalRayLength, LocalBoundsMin, LocalBoundsMax);
 	float HitSpan = HitT.y - HitT.x;
 	if (HitSpan > 0.0)
@@ -316,7 +336,7 @@ void RenderSingleScatteringWithLiveShadingCS(
 			WorldRayDirection,
 			// Ray-step attributes
 			Jitter,
-			StepSize,
+			CalcStepSize(LocalRayDirection),
 			MaxStepCount,
 			bApplyEmissionAndTransmittance,
 			bApplyDirectLighting,

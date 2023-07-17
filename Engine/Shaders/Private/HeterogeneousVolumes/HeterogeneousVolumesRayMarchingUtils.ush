@@ -93,6 +93,33 @@ FRayMarchingContext CreateRayMarchingContext(
 	return Context;
 }
 
+float CalcStepSize(float3 LocalRayDirection, float LocalStepSize, float LocalStepFactor)
+{
+	if (LocalStepSize <= 0.0f)
+	{
+		// Intersect aligned voxel to determine candidate t-values and use the minimum distance
+		float3 VoxelSize = GetLocalBoundsExtent() / float3(GetVolumeResolution());
+		float3 tValues = abs(VoxelSize / LocalRayDirection);
+		float VoxelStepSize = min(tValues.x, min(tValues.y, tValues.z));
+		LocalStepSize = VoxelStepSize * LocalStepFactor;
+	}
+	return max(LocalStepSize, 0.01f);
+}
+
+float CalcStepSize(float3 LocalRayDirection)
+{
+	float LocalStepSize = GetStepSize();
+	float LocalStepFactor = GetStepFactor();
+	return CalcStepSize(LocalRayDirection, LocalStepSize, LocalStepFactor);
+}
+
+float CalcShadowStepSize(float3 LocalRayDirection)
+{
+	float LocalStepSize = GetShadowStepSize();
+	float LocalStepFactor = GetShadowStepFactor();
+	return CalcStepSize(LocalRayDirection, LocalStepSize, LocalStepFactor);
+}
+
 float RecalculateStepSize(inout FRayMarchingContext Context)
 {
 	// Recalculate step-size if the bounding-box diagonal is greater than the maximum step-count
@@ -239,7 +266,7 @@ float3 ComputeTransmittance(
 	LocalRayDirection /= LocalRayTMax;
 
 	float ShadowBias = 0.5;
-	float ShadowStepSize = GetShadowStepSize();
+	float ShadowStepSize = CalcShadowStepSize(LocalRayDirection);
 	int bApplyEmissionAndTransmittance = 0;
 	int bApplyDirectLighting = 0;
 	int bApplyShadowTransmittance = 0;

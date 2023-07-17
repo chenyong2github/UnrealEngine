@@ -507,15 +507,15 @@ void RenderSingleScatteringWithPreshadingCS(
 	uint GroupThreadId : SV_GroupThreadID
 )
 {
-	float3 Radiance = 0.0;
-	float3 Transmittance = 1.0;
-
 	// Convert 1D index to pixel coordinate
 	FRayMarchingTile RayMarchingTile = RayMarchingTilesBuffer[GroupId];
 	// TODO: Morton..
 	uint2 TileCoord = uint2(GroupThreadId % THREADGROUP_SIZE_2D, GroupThreadId / THREADGROUP_SIZE_2D);
 	//float2 PixelCoord = View.ViewRectMin.xy + RayMarchingTile.PixelOffset + TileCoord;
 	float2 PixelCoord = RayMarchingTile.PixelOffset + TileCoord;
+
+	float3 Radiance = 0.0;
+	float3 Transmittance = 1.0 - RWLightingTexture[PixelCoord].a;
 
 	// Create screen ray
 	if (any(PixelCoord.xy >= View.ViewSizeAndInvSize.xy))
@@ -539,7 +539,7 @@ void RenderSingleScatteringWithPreshadingCS(
 	// Intersect ray with bounding volume
 	// TODO: LWC integration..
 	float3 WorldRayOrigin = LWCHackToFloat(LWCSubtract(View.TranslatedWorldCameraOrigin, PrimaryView.PreViewTranslation));
-	float3 WorldRayEnd = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + 0.5, DeviceZ, 1)));
+	float3 WorldRayEnd = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + View.TemporalAAJitter.xy, DeviceZ, 1)));
 	float3 WorldRayDirection = WorldRayEnd - WorldRayOrigin;
 	float WorldRayLength = length(WorldRayDirection);
 	WorldRayDirection /= WorldRayLength;
@@ -588,7 +588,7 @@ void RenderSingleScatteringWithPreshadingCS(
 			WorldRayDirection,
 			// Ray-step attributes
 			Jitter,
-			StepSize,
+			CalcStepSize(LocalRayDirection),
 			MaxStepCount,
 			bApplyEmissionAndTransmittance,
 			bApplyDirectLighting,
@@ -622,7 +622,8 @@ void RenderSingleScatteringWithPreshadingCS(
 
 	// Output..
 	float3 Opacity = bApplyEmissionAndTransmittance ? 1.0 - Transmittance : 0.0;
-	RWLightingTexture[PixelCoord] += float4(Radiance * View.PreExposure, Luminance(Opacity));
+	RWLightingTexture[PixelCoord].rgb += Radiance * View.PreExposure;
+	RWLightingTexture[PixelCoord].a = Luminance(Opacity);
 
 #if DIM_DEBUG
 	//if (!all(DispatchThreadId))
