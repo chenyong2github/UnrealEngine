@@ -146,6 +146,13 @@ namespace UE::MLDeformer
 			return;
 		}
 
+		// Add all the names to the OutVertexMisMatchNames ahead of time.  They'll be removed as matches are found.
+		for (int32 TrackIndex = 0; TrackIndex < GeomCache->Tracks.Num(); ++TrackIndex)
+		{
+			UGeometryCacheTrack* Track = GeomCache->Tracks[TrackIndex];
+			OutVertexMisMatchNames.Add(Track->GetName());
+		}
+
 		// For all meshes in the skeletal mesh.
 		const float SampleTime = 0.0f;
 		FString SkelMeshName;
@@ -190,9 +197,11 @@ namespace UE::MLDeformer
 					const int32 NumSkelMeshVerts = MeshInfo.NumVertices;
 					if (NumSkelMeshVerts != NumGeomMeshVerts)
 					{
-						OutVertexMisMatchNames.Add(Track->GetName());
 						continue;
 					}
+
+					// Since it is a match, remove it from the list.
+					OutVertexMisMatchNames.Remove(Track->GetName());
 
 					// Create a new mesh mapping entry.
 					OutMeshMappings.AddDefaulted();
