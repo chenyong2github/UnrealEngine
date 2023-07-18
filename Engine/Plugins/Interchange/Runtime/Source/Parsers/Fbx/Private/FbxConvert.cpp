@@ -184,6 +184,30 @@ namespace UE
 				return LinearColor;
 			}
 
+			FString FFbxConvert::MakeName(const ANSICHAR* Name)
+			{
+				const TCHAR SpecialChars[] = { TEXT('.'), TEXT(','), TEXT('/'), TEXT('`'), TEXT('%') };
+
+				FString TmpName = MakeString(Name);
+
+				// Remove namespaces
+				int32 LastNamespaceTokenIndex = INDEX_NONE;
+				if (TmpName.FindLastChar(TEXT(':'), LastNamespaceTokenIndex))
+				{
+					const bool bAllowShrinking = true;
+					//+1 to remove the ':' character we found
+					TmpName.RightChopInline(LastNamespaceTokenIndex + 1, bAllowShrinking);
+				}
+
+				//Remove the special chars
+				for (int32 i = 0; i < UE_ARRAY_COUNT(SpecialChars); i++)
+				{
+					TmpName.ReplaceCharInline(SpecialChars[i], TEXT('_'), ESearchCase::CaseSensitive);
+				}
+
+				return TmpName;
+			}
+
 			/**
 			 * Convert ANSI char to a FString using ANSI_TO_TCHAR macro
 			 */

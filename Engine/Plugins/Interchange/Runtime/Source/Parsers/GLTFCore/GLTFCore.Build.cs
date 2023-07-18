@@ -23,8 +23,7 @@ namespace UnrealBuildTool.Rules
                     "Json",
                     "RenderCore",
 					"HTTP",
-					"InterchangeCore",
-				}
+                }
                 );
         }
     }

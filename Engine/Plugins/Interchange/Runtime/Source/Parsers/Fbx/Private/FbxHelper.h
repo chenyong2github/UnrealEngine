@@ -37,7 +37,7 @@ namespace UE::Interchange::Private
 		/**
 			* Return the name of an FbxObject, return empty string if the object is null.
 			*/
-		FString GetFbxObjectName(const FbxObject* Object, bool bIsJoint = false) const;
+		FString GetFbxObjectName(const FbxObject* Object) const;
 
 		/**
 			* Return a string with the name of all the parent in the hierarchy separate by a dot( . ) from the fbx root node to the specified node.

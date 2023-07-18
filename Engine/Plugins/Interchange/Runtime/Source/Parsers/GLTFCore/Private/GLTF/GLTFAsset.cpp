@@ -8,7 +8,6 @@
 #include "GLTFMesh.h"
 #include "GLTFNode.h"
 #include "GLTFTexture.h"
-#include "InterchangeHelper.h"
 
 namespace GLTF
 {
@@ -27,8 +26,6 @@ namespace GLTF
 				{
 					Obj.Name = Obj.UniqueId;
 				}
-
-				Obj.Name = UE::Interchange::MakeName(Obj.Name);
 			}
 		}
 
@@ -115,8 +112,6 @@ namespace GLTF
 				{
 					Scene.Name = Scene.UniqueId;
 				}
-
-				Scene.Name = UE::Interchange::MakeName(Scene.Name);
 			}
 		}
 
@@ -136,8 +131,6 @@ namespace GLTF
 				{
 					Node.Name = Node.UniqueId;
 				}
-
-				Node.Name = UE::Interchange::MakeName(Node.Name, bIsJoint);
 			}
 		}
 
@@ -174,7 +167,6 @@ namespace GLTF
 					Tex.Name = Tex.UniqueId;
 				}
 
-				Tex.Name = UE::Interchange::MakeName(Tex.Name);
 			}
 		}
 
@@ -197,8 +189,6 @@ namespace GLTF
 						Camera.Name = Camera.UniqueId;
 					}
 				}
-
-				Camera.Name = UE::Interchange::MakeName(Camera.Name);
 			}
 		}
 
@@ -221,8 +211,6 @@ namespace GLTF
 						Light.Name = Light.UniqueId;
 					}
 				}
-
-				Light.Name = UE::Interchange::MakeName(Light.Name);
 			}
 		}
 
