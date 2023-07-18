@@ -30,27 +30,25 @@
 	#include "Async/TaskGraphFwd.h"
 #endif
 
-
-using EventType = 
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-	UE::Tasks::FTaskEvent;
-#else
-	FGraphEventRef;
-#endif
-
-using TaskType = 
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-	UE::Tasks::FTask;
-#else
-	FGraphEventRef;
-#endif
-
 namespace  mu
 {
 	class Model;
 	class Parameters;
 	class RangeIndex;
 
+	using EventType = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTaskEvent;
+#else
+		FGraphEventRef;
+#endif
+
+	using TaskType = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTask;
+#else
+		FGraphEventRef;
+#endif
 
     /** Code execution of the mutable virtual machine. */
     class CodeRunner
