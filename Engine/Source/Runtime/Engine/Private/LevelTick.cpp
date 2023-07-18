@@ -1302,10 +1302,13 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	FWorldDelegates::OnWorldTickStart.Broadcast(this, TickType, DeltaSeconds);
 
 	//Tick game and other thread trackers.
-	for (int32 Tracker = 0; Tracker < (int32)EInGamePerfTrackers::Num; ++Tracker)
+	if (PerfTrackers)
 	{
-		PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::GameThread).Tick();
-		PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::OtherThread).Tick();
+		for (int32 Tracker = 0; Tracker < (int32)EInGamePerfTrackers::Num; ++Tracker)
+		{
+			PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::GameThread).Tick();
+			PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::OtherThread).Tick();
+		}
 	}
 
 #if LOG_DETAILED_PATHFINDING_STATS
@@ -1783,9 +1786,12 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		[WorldParam](FRHICommandList& RHICmdList)
 		{
 			//Tick game and other thread trackers.
-			for (int32 Tracker = 0; Tracker < (int32)EInGamePerfTrackers::Num; ++Tracker)
+			if (WorldParam->PerfTrackers)
 			{
-				WorldParam->PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::RenderThread).Tick();
+				for (int32 Tracker = 0; Tracker < (int32)EInGamePerfTrackers::Num; ++Tracker)
+				{
+					WorldParam->PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::RenderThread).Tick();
+				}
 			}
 		});
 
