@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SmartObjectTypes.h"
+#include "MassEntityTypes.h"
 #include "MassSmartObjectTypes.generated.h"
 
 namespace UE::Mass::Signals
