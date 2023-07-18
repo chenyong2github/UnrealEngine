@@ -675,7 +675,12 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContextHandle
 	/** Returns actor list, may be empty */
 	const TArray<TWeakObjectPtr<AActor>> GetActors()
 	{
-		return Data->GetActors();
+		if (IsValid())
+		{
+			return Data->GetActors();
+		}
+
+		return {};
 	}
 
 	/** Returns hit result, this can be null */
