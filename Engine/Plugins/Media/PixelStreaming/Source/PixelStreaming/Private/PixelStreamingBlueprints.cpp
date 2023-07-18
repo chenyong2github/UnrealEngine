@@ -195,6 +195,66 @@ void UPixelStreamingBlueprints::StreamerKickPlayer(FString StreamerId, FString P
 	Streamer->KickPlayer(ToPlayerId(PlayerId));
 }
 
+void UPixelStreamingBlueprints::SetPlayerLayerPreference(FString PlayerId, int SpatialLayerId, int TemporalLayerId)
+{
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
+	if (!Module)
+	{
+		return;
+	}
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
+	{
+		return;
+	}
+	Streamer->SetPlayerLayerPreference(ToPlayerId(PlayerId), SpatialLayerId, TemporalLayerId);
+}
+
+void UPixelStreamingBlueprints::StreamerSetPlayerLayerPreference(FString StreamerId, FString PlayerId, int SpatialLayerId, int TemporalLayerId)
+{
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
+	if (!Module)
+	{
+		return;
+	}
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
+	{
+		return;
+	}
+	Streamer->SetPlayerLayerPreference(ToPlayerId(PlayerId), SpatialLayerId, TemporalLayerId);
+}
+
+TArray<FString> UPixelStreamingBlueprints::GetConnectedPlayers()
+{
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
+	if (!Module)
+	{
+		return {};
+	}
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
+	{
+		return {};
+	}
+	return Streamer->GetConnectedPlayers();
+}
+
+TArray<FString> UPixelStreamingBlueprints::StreamerGetConnectedPlayers(FString StreamerId)
+{
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
+	if (!Module)
+	{
+		return {};
+	}
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
+	{
+		return {};
+	}
+	return Streamer->GetConnectedPlayers();
+}
+
 FString UPixelStreamingBlueprints::GetDefaultStreamerID()
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();

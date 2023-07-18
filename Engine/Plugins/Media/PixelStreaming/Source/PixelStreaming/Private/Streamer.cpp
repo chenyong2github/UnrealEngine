@@ -35,6 +35,7 @@
 #include "PixelCaptureOutputFrameRHI.h"
 #include "PixelCaptureInputFrameRHI.h"
 #include "SignallingConnectionObserver.h"
+#include "ToStringExtensions.h"
 
 namespace UE::PixelStreaming
 {
@@ -377,6 +378,26 @@ namespace UE::PixelStreaming
 	{
 		SignallingServerConnection->SendDisconnectPlayer(PlayerId, TEXT("Player was kicked"));
 		// TODO Delete player session?
+	}
+
+	void FStreamer::SetPlayerLayerPreference(FPixelStreamingPlayerId PlayerId, int SpatialLayerId, int TemporalLayerId)
+	{
+		TSharedPtr<FJsonObject> LayerJson = MakeShared<FJsonObject>();
+		LayerJson->SetStringField(TEXT("type"), TEXT("layerPreference"));
+		int32 PlayerIdAsInt = PlayerIdToInt(PlayerId);
+		LayerJson->SetNumberField(TEXT("playerId"), PlayerIdAsInt);
+		LayerJson->SetNumberField(TEXT("spatialLayer"), SpatialLayerId);
+		LayerJson->SetNumberField(TEXT("temporalLayer"), TemporalLayerId);
+		SignallingServerConnection->SendMessage(UE::PixelStreaming::ToString(LayerJson, false));
+	}
+
+	TArray<FPixelStreamingPlayerId> FStreamer::GetConnectedPlayers()
+	{
+		TArray<FPixelStreamingPlayerId> ConnectedPlayerIds;
+		Players.Apply([&ConnectedPlayerIds, this](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
+			ConnectedPlayerIds.Add(PlayerId);
+		});
+		return ConnectedPlayerIds;
 	}
 
 	void FStreamer::SetInputHandlerType(EPixelStreamingInputType InputType)

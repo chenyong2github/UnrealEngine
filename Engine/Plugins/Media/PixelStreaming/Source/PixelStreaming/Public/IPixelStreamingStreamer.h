@@ -212,7 +212,20 @@ public:
 	 */
 	virtual void KickPlayer(FPixelStreamingPlayerId PlayerId) = 0;
 
-	// virtual bool IsQualityController(FPixelStreamingPlayerId PlayerId) = 0;
+	/**
+	 * @brief Set the Layer Preference for a specific player. Only useful if using the SFU
+	 * @param PlayerId The player id
+	 * @param SpatialLayerId The id of the preferred spatial layer (resolution)
+	 * @param TemporalLayerId The id of the preferred temporal layer (frame rate)
+	 */
+	virtual void SetPlayerLayerPreference(FPixelStreamingPlayerId PlayerId, int SpatialLayerId, int TemporalLayerId) = 0;
+
+	/**
+	 * @brief Get the connected players
+	 * 
+	 * @return TArray<FPixelStreamingPlayerId> The connected players
+	 */
+	virtual TArray<FPixelStreamingPlayerId> GetConnectedPlayers() = 0;
 
 	/**
 	 * @brief Set the streamer's input handler

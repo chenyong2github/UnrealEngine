@@ -63,8 +63,10 @@ namespace UE::PixelStreaming
 		virtual void SendPlayerMessage(uint8 Type, const FString& Descriptor) override;
 		virtual void SendFileData(const TArray64<uint8>& ByteData, FString& MimeType, FString& FileExtension) override;
 		virtual void KickPlayer(FPixelStreamingPlayerId PlayerId) override;
+		virtual void SetPlayerLayerPreference(FPixelStreamingPlayerId PlayerId, int SpatialLayerId, int TemporalLayerId) override;
+		virtual TArray<FPixelStreamingPlayerId> GetConnectedPlayers() override;
 
-		virtual void SetInputHandler(TSharedPtr<IPixelStreamingInputHandler> InInputHandler) override { InputHandler = InInputHandler; }
+		virtual void SetInputHandler(TSharedPtr<IPixelStreamingInputHandler> InInputHandler) override {	InputHandler = InInputHandler; }
 		virtual TWeakPtr<IPixelStreamingInputHandler> GetInputHandler() override { return InputHandler; }
 		virtual void SetInputHandlerType(EPixelStreamingInputType InputType) override;
 
