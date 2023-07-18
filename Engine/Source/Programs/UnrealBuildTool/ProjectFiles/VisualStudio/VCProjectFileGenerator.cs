@@ -242,6 +242,19 @@ namespace UnrealBuildTool
 			return String.Empty;
 		}
 
+		public static WindowsCompiler GetCompilerForIntellisense(VCProjectFileFormat ProjectFileFormat)
+		{
+			switch (ProjectFileFormat)
+			{
+				case VCProjectFileFormat.VisualStudio2022:
+					return WindowsCompiler.VisualStudio2022;
+				case VCProjectFileFormat.VisualStudio2019:
+					return WindowsCompiler.VisualStudio2019;
+				default:
+					return WindowsCompiler.VisualStudio2019;
+			}
+		}
+
 		public static void AppendPlatformToolsetProperty(StringBuilder VCProjectFileContent, VCProjectFileFormat ProjectFileFormat)
 		{
 			string ToolVersionString = GetProjectFileToolVersionString(ProjectFileFormat);
@@ -532,7 +545,23 @@ namespace UnrealBuildTool
 					VCCommonTargetFileContent.AppendLine("    <LibraryWPath />");
 					VCCommonTargetFileContent.AppendLine("    <SourcePath />");
 					VCCommonTargetFileContent.AppendLine("    <ExcludePath />");
+
+					// Add all the default system include paths
+					if (OperatingSystem.IsWindows())
+					{
+						if (SupportedPlatforms.Contains(UnrealTargetPlatform.Win64))
+						{
+							VCCommonTargetFileContent.AppendLine("    <DefaultSystemIncludePaths>{0}</DefaultSystemIncludePaths>", VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(Settings.ProjectFileFormat), null, Logger));
+						}
+					}
+					else
+					{
+						Logger.LogInformation("Unable to compute VC include paths on non-Windows host");
+						VCCommonTargetFileContent.AppendLine("    <DefaultSystemIncludePaths />");
+					}
+
 					VCCommonTargetFileContent.AppendLine("  </PropertyGroup>");
+
 				}
 
 				// Write default import group

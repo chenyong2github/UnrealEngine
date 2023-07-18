@@ -559,19 +559,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-		WindowsCompiler GetCompilerForIntellisense()
-		{
-			switch (ProjectFileFormat)
-			{
-				case VCProjectFileFormat.VisualStudio2022:
-					return WindowsCompiler.VisualStudio2022;
-				case VCProjectFileFormat.VisualStudio2019:
-					return WindowsCompiler.VisualStudio2019;
-				default:
-					return WindowsCompiler.VisualStudio2019;
-			}
-		}
-
 		/// <summary>
 		/// Gets highest C++ version which is used in this project
 		/// </summary>
@@ -669,7 +656,7 @@ namespace UnrealBuildTool
 		{
 			if (IntelliSenseEnableCoroutines)
 			{
-				if (GetCompilerForIntellisense().IsMSVC())
+				if (VCProjectFileGenerator.GetCompilerForIntellisense(ProjectFileFormat).IsMSVC())
 				{
 					return "/await:strict";
 				}
@@ -934,18 +921,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Add all the default system include paths
-				if (OperatingSystem.IsWindows())
-				{
-					if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
-					{
-						SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null, Logger) + ";");
-					}
-				}
-				else
-				{
-					Logger.LogInformation("Unable to compute VC include paths on non-Windows host");
-				}
+				SharedIncludeSearchPaths.AppendFormat("$(DefaultSystemIncludePaths);");
 			}
 
 			StringBuilder VCPreprocessorDefinitions = new StringBuilder();
