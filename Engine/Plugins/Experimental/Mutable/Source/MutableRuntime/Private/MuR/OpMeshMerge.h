@@ -878,9 +878,9 @@ namespace mu
 					{
 						// Skip system buffers
 						if (chan.m_semantic == MBS_VERTEXINDEX
-							&&
+							||
 							chan.m_semantic == MBS_LAYOUTBLOCK
-							&&
+							||
 							chan.m_semantic == MBS_CHART)
 						{
 							continue;
