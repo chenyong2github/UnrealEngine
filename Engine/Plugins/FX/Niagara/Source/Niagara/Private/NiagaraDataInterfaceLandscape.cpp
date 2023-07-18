@@ -85,7 +85,7 @@ namespace NiagaraDataInterfaceLandscape
 		SHADER_PARAMETER(FVector4f,					CachedHeightTextureUvScaleBias)
 		SHADER_PARAMETER(FVector2f,					CachedHeightTextureGridSize)
 		SHADER_PARAMETER_SAMPLER(SamplerState,		PointClampedSampler)
-		SHADER_PARAMETER_SRV(Texture2D<int>,		CachedPhysMatTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D<uint>,	CachedPhysMatTexture)
 		SHADER_PARAMETER(FIntPoint,					CachedPhysMatTextureDimension)
 	END_SHADER_PARAMETER_STRUCT()
 }
@@ -112,7 +112,7 @@ public:
 	void ReleaseSourceData();
 
 	FRHIShaderResourceView* GetHeightTexture() const { return HeightTexture.SRV; }
-	FRHIShaderResourceView* GetPhysMatTexture() const { return PhysMatTexture.SRV; }
+	FRHITexture* GetPhysMatTexture() const { return PhysMatTexture.Buffer; }
 	FIntPoint GetDimensions() const { return CellCount; }
 
 	TArray<float>& EditHeightValues(int32 SampleCount);
@@ -526,7 +526,7 @@ struct FNDILandscapeData_RenderThread
 		if (TextureResources)
 		{
 			FRHIShaderResourceView* HeightTextureSrv = TextureResources->GetHeightTexture();
-			FRHIShaderResourceView* PhysMatTextureSrv = TextureResources->GetPhysMatTexture();
+			FRHITexture* PhysMatTextureSrv = TextureResources->GetPhysMatTexture();
 
 			if (HeightTextureSrv || PhysMatTextureSrv)
 			{
@@ -555,7 +555,7 @@ struct FNDILandscapeData_RenderThread
 				else
 				{
 					const FIntPoint PhysMatDimensions(ForceInitToZero);
-					ShaderParameters->CachedPhysMatTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
+					ShaderParameters->CachedPhysMatTexture = GBlackUintTexture->TextureRHI;
 					ShaderParameters->CachedPhysMatTextureDimension = PhysMatDimensions;
 				}
 
@@ -577,7 +577,7 @@ struct FNDILandscapeData_RenderThread
 		ShaderParameters->CachedHeightTextureGridSize = FVector2f::ZeroVector;
 		ShaderParameters->CachedHeightTextureEnabled = 0;
 
-		ShaderParameters->CachedPhysMatTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
+		ShaderParameters->CachedPhysMatTexture = GBlackUintTexture->TextureRHI;
 	}
 };
 

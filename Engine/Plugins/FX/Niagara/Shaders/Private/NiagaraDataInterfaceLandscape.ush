@@ -48,7 +48,7 @@ float4x4			{ParameterName}_CachedHeightTextureUvToWorldTransform;
 float4				{ParameterName}_CachedHeightTextureUvScaleBias;
 float2				{ParameterName}_CachedHeightTextureGridSize;
 SamplerState		{ParameterName}_PointClampedSampler;
-Texture2D<int>		{ParameterName}_CachedPhysMatTexture;
+Texture2D<uint>		{ParameterName}_CachedPhysMatTexture;
 int2				{ParameterName}_CachedPhysMatTextureDimension;
 
 void GetBaseColor_{ParameterName}(float3 InWorldPos, out float3 OutBaseColor, out bool OutIsValid)
@@ -217,7 +217,7 @@ void GetPhysicalMaterialIndex_{ParameterName}(float3 InWorldPos, out int OutInde
 	Uv = Uv * {ParameterName}_CachedHeightTextureUvScaleBias.xy + {ParameterName}_CachedHeightTextureUvScaleBias.zw;
 
 	int3 SampleIndex = int3(Uv * {ParameterName}_CachedPhysMatTextureDimension, 0);
-	OutIndex = {ParameterName}_CachedPhysMatTexture.Load(SampleIndex).x;
+	OutIndex = (int){ParameterName}_CachedPhysMatTexture.Load(SampleIndex).x;
 
 	if (OutIndex >= 255)
 	{
