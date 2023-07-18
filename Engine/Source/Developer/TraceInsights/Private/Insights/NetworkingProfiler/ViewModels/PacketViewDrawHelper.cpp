@@ -302,7 +302,7 @@ void FPacketViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSa
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketViewDrawHelper::DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex) const
+void FPacketViewDrawHelper::DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex, double SelectionTimeSpan) const
 {
 	const float SampleW = Viewport.GetSampleWidth();
 	const int32 PacketsPerSample = Viewport.GetNumPacketsPerSample();
@@ -338,7 +338,7 @@ void FPacketViewDrawHelper::DrawSelection(int32 StartPacketIndex, int32 EndPacke
 
 		if (X1 <= MaxX && X2 >= MinX)
 		{
-			const FString Text = FString::Printf(TEXT("%d packets"), PacketCount);
+			const FString Text = FString::Printf(TEXT("%d packets (%.3f s)"), PacketCount, (float)SelectionTimeSpan);
 			FDrawHelpers::DrawSelection(DrawContext, MinX, MaxX, X1, X2, Y, H, 30.0f, Text, WhiteBrush, SelectionFont);
 		}
 	}

@@ -178,6 +178,8 @@ private:
 	void ZoomHorizontally(const float Delta, const float X);
 
 private:
+	void UpdateSelectedTimeSpan();
+
 	TWeakPtr<SNetworkingProfilerWindow> ProfilerWindowWeakPtr;
 
 	uint32 GameInstanceIndex;
@@ -229,6 +231,7 @@ private:
 	int32 SelectionStartPacketIndex;
 	int32 SelectionEndPacketIndex;
 	int32 LastSelectedPacketIndex;
+	double SelectedTimeSpan;
 
 	FNetworkPacketSampleRef SelectedSample;
 	FNetworkPacketSampleRef HoveredSample;

@@ -1047,7 +1047,10 @@ void SPacketContentView::UpdateState(float FontScale)
 				// Count all events in packet, including split data
 				const uint32 StartPos = 0U;
 				const uint32 EndPos = ~0U;
-				NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
+				uint32 EndNetIdMatchPos = ~0U;
+				uint32 EndEventTypeMatchPos = ~0U;
+
+				NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, NetProfilerProvider, &EndNetIdMatchPos, &EndEventTypeMatchPos](const TraceServices::FNetProfilerContentEvent& Event)
 				{
 					const TCHAR* Name = nullptr;
 
@@ -1069,8 +1072,33 @@ void SPacketContentView::UpdateState(float FontScale)
 
 					Builder.AddEvent(Event, Name, NetId);
 
-					if ((!bFilterByEventType || FilterEventTypeIndex == Event.EventTypeIndex) &&
-						(!bFilterByNetId || (Event.ObjectInstanceIndex != 0 && FilterNetId == NetId)))
+					// Include events and sub-events matching event type
+					if (bFilterByEventType)
+					{
+						if (Event.EndPos > EndEventTypeMatchPos)
+						{
+							EndEventTypeMatchPos = ~0U;
+						}
+						if (EndEventTypeMatchPos == ~0U && FilterEventTypeIndex == Event.EventTypeIndex)
+						{
+							EndEventTypeMatchPos = Event.EndPos;
+						}
+					}
+
+					// Include events and sub-events matching net id
+					if (bFilterByNetId)
+					{
+						if (Event.EndPos > EndNetIdMatchPos)
+						{
+							EndNetIdMatchPos = ~0U;
+						}
+						if (EndNetIdMatchPos == ~0U && (Event.ObjectInstanceIndex != 0 && FilterNetId == NetId))
+						{
+							EndNetIdMatchPos = Event.EndPos;
+						}
+					}
+
+					if ((!bFilterByNetId || EndNetIdMatchPos != ~0U) && (!bFilterByEventType || EndEventTypeMatchPos != ~0U))
 					{
 						FilteredDrawStateBuilder.AddEvent(Event, Name, NetId);
 					}

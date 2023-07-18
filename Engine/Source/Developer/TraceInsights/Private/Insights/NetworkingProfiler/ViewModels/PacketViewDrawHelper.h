@@ -199,7 +199,7 @@ public:
 	void DrawBackground() const;
 	void DrawCached(const FNetworkPacketSeries& Series) const;
 	void DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const;
-	void DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex) const;
+	void DrawSelection(int32 StartPacketIndex, int32 EndPacketIndex, double SelectionTimeSpan) const;
 
 	static FLinearColor GetColorByStatus(TraceServices::ENetProfilerDeliveryStatus Status);
 

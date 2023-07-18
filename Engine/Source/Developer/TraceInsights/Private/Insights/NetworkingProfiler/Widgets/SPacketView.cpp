@@ -90,6 +90,7 @@ void SPacketView::Reset()
 	SelectionStartPacketIndex = 0;
 	SelectionEndPacketIndex = 0;
 	LastSelectedPacketIndex = 0;
+	SelectedTimeSpan = 0.0;
 
 	SelectedSample.Reset();
 	HoveredSample.Reset();
@@ -352,22 +353,35 @@ void SPacketView::UpdateState()
 							if ((!SamplePtr->bAtLeastOnePacketMatchesFilter || Filter.AggregationMode != TraceServices::ENetProfilerAggregationMode::None) && (Filter.bByNetId || Filter.bByEventType))
 							{
 								bool bFilterMatch = false;
+								bool bOldEventMatchesFilter = false;
 								uint32 FilterMatchAggregatedEventSizeInBits = 0U;
 								uint32 FilterMatchMaxEventSizeBits = 0U;
 
 								// Filter all events in packet, including split data
 								const uint32 StartPos = 0;
 								const uint32 EndPos = ~0U;
-								NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, NetProfilerProvider, &FilterMatchAggregatedEventSizeInBits,&FilterMatchMaxEventSizeBits,  &FilterMatchEventTypeIndex](const TraceServices::FNetProfilerContentEvent& Event)
+								uint32 EndNetIdMatchPos = ~0U;
+								uint32 EndEventTypeMatchPos = ~0U;
+
+								NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &bOldEventMatchesFilter, &Filter, NetProfilerProvider, &FilterMatchAggregatedEventSizeInBits,&FilterMatchMaxEventSizeBits,  &FilterMatchEventTypeIndex, &EndNetIdMatchPos, &EndEventTypeMatchPos](const TraceServices::FNetProfilerContentEvent& Event)
 								{
-									bool bEventMatchesFilter = true;
 									if (!bFilterMatch || (Filter.AggregationMode != TraceServices::ENetProfilerAggregationMode::None))
 									{
-										if (Filter.bByEventType && Filter.EventTypeIndex != Event.EventTypeIndex)
+										// Include events and sub-events matching event type
+										if (Filter.bByEventType)
 										{
-											bEventMatchesFilter = false;
+											if (Event.EndPos > EndEventTypeMatchPos)
+											{
+												EndEventTypeMatchPos = ~0U;
+											}
+											if (EndEventTypeMatchPos == ~0U && Filter.EventTypeIndex == Event.EventTypeIndex)
+											{
+												EndEventTypeMatchPos = Event.EndPos;
+											}
 										}
-										if (bEventMatchesFilter && Filter.bByNetId)
+
+										// Include events and sub-events matching net id
+										if (Filter.bByNetId)
 										{
 											uint64 NetId = uint64(-1);
 											if (Event.ObjectInstanceIndex != 0)
@@ -377,13 +391,20 @@ void SPacketView::UpdateState()
 													NetId = ObjectInstance.NetObjectId;
 												});
 											}
-											if (Filter.NetId != NetId)
+
+											if (Event.EndPos > EndNetIdMatchPos)
 											{
-												bEventMatchesFilter = false;
+												EndNetIdMatchPos = ~0U;
+											}
+											if (EndNetIdMatchPos == ~0U && (Event.ObjectInstanceIndex != 0 && Filter.NetId == NetId))
+											{
+												EndNetIdMatchPos = Event.EndPos;
 											}
 										}
 
-										if (bEventMatchesFilter)
+										// Check if all conditions are fulfilled but only aggregate stats for top-level event.
+										const bool bEventMatchesFilter = (!Filter.bByNetId || EndNetIdMatchPos != ~0U) && (!Filter.bByEventType || EndEventTypeMatchPos != ~0U);
+										if (bEventMatchesFilter && !bOldEventMatchesFilter)
 										{
 											const uint32 EventSize = static_cast<uint32>(Event.EndPos - Event.StartPos);
 											FilterMatchAggregatedEventSizeInBits += EventSize;
@@ -395,6 +416,7 @@ void SPacketView::UpdateState()
 												bFilterMatch = true;
 											}
 										}
+										bOldEventMatchesFilter = bEventMatchesFilter;
 									}
 
 								});
@@ -499,6 +521,47 @@ FNetworkPacketSampleRef SPacketView::GetSample(const int32 InPacketIndex)
 	}
 
 	return SampleRef;
+}
+
+void SPacketView::UpdateSelectedTimeSpan()
+{
+	SelectedTimeSpan = 0.0;
+
+	if (SelectionEndPacketIndex == SelectionStartPacketIndex + 1)
+	{		
+		return;
+	}
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider && IsConnectionValid(*NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
+		{
+			double StartTimeStamp = 0.0f;
+			double EndTimeStamp = 0.0f;
+
+			const int32 LastPacketIndex = SelectionEndPacketIndex - 1;
+
+			const uint32 NumPackets = NetProfilerProvider->GetPacketCount(ConnectionIndex, ConnectionMode);
+			if (SelectionStartPacketIndex >= 0 && SelectionStartPacketIndex < static_cast<int32>(NumPackets) && 
+				LastPacketIndex >= 0 && LastPacketIndex < static_cast<int32>(NumPackets))
+			{
+				NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, SelectionStartPacketIndex, SelectionStartPacketIndex, [&StartTimeStamp](const TraceServices::FNetProfilerPacket& Packet)
+				{
+					StartTimeStamp = Packet.TimeStamp;
+				});
+				NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, LastPacketIndex, LastPacketIndex, [&EndTimeStamp](const TraceServices::FNetProfilerPacket& Packet)
+				{
+					EndTimeStamp = Packet.TimeStamp;
+				});
+			
+				SelectedTimeSpan = FMath::Max(0.0, EndTimeStamp - StartTimeStamp);
+			}
+		}
+	}
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -638,6 +701,9 @@ void SPacketView::OnSelectionChanged()
 	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 	if (ProfilerWindow.IsValid())
 	{
+		// Update selected time range
+		UpdateSelectedTimeSpan();
+
 		if (SelectedSample.IsValid())
 		{
 			const uint32 BitSize = SelectedSample.Sample->LargestPacket.TotalSizeInBytes * 8;
@@ -723,7 +789,8 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		}
 		if (SelectionEndPacketIndex > SelectionStartPacketIndex + 1)
 		{
-			Helper.DrawSelection(SelectionStartPacketIndex, SelectionEndPacketIndex);
+			
+			Helper.DrawSelection(SelectionStartPacketIndex, SelectionEndPacketIndex, SelectedTimeSpan);
 		}
 
 		// Draw the vertical axis grid.
