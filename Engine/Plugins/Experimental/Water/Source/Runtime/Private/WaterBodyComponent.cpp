@@ -462,7 +462,9 @@ void UWaterBodyComponent::PostDuplicate(bool bDuplicateForPie)
 
 float UWaterBodyComponent::FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const
 {
-	return GetWaterSpline()->FindInputKeyClosestToWorldLocation(WorldLocation);
+	const UWaterSplineComponent* const WaterSpline = GetWaterSpline();
+
+	return WaterSpline ? WaterSpline->FindInputKeyClosestToWorldLocation(WorldLocation) : 0;
 }
 
 float UWaterBodyComponent::GetConstantSurfaceZ() const
@@ -561,6 +563,7 @@ FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(
 
 	// Lakes and oceans have surfaces aligned with the XY plane
 	const bool bFlatSurface = IsFlatSurface();
+	const UWaterSplineComponent* const WaterSpline = GetWaterSpline();
 
 	// Compute water plane location :
 	if (EnumHasAnyFlags(Result.GetQueryFlags(), EWaterBodyQueryFlags::ComputeLocation))
@@ -571,7 +574,7 @@ FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(
 		//  If the user fails to do so, at least it allows immersion depth to be 0.0f, which means the query location is NOT in water :
 		if (!Result.IsInExclusionVolume())
 		{
-			WaterPlaneLocation.Z = bFlatSurface ? GetComponentLocation().Z : GetWaterSpline()->GetLocationAtSplineInputKey(Result.LazilyComputeSplineKey(*this, InWorldLocation), ESplineCoordinateSpace::World).Z;
+			WaterPlaneLocation.Z = (bFlatSurface || WaterSpline  == nullptr) ? GetComponentLocation().Z : WaterSpline->GetLocationAtSplineInputKey(Result.LazilyComputeSplineKey(*this, InWorldLocation), ESplineCoordinateSpace::World).Z;
 
 			// Apply body height offset if applicable (ocean)
 			if (IsHeightOffsetSupported())
@@ -591,10 +594,10 @@ FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(
 	{
 		SCOPE_CYCLE_COUNTER(STAT_WaterBody_ComputeNormal);
 		// Default to Z up for the normal
-		if (!bFlatSurface)
+		if (!bFlatSurface && WaterSpline != nullptr)
 		{
 			// For rivers default to using spline up vector to account for sloping rivers
-			WaterPlaneNormal = GetWaterSpline()->GetUpVectorAtSplineInputKey(Result.LazilyComputeSplineKey(*this, InWorldLocation), ESplineCoordinateSpace::World);
+			WaterPlaneNormal = WaterSpline->GetUpVectorAtSplineInputKey(Result.LazilyComputeSplineKey(*this, InWorldLocation), ESplineCoordinateSpace::World);
 		}
 
 		Result.SetWaterPlaneNormal(WaterPlaneNormal);

@@ -83,7 +83,10 @@ void AWaterBody::PreRegisterAllComponents()
 	Super::PreRegisterAllComponents();
 
 	SetRootComponent(WaterBodyComponent);
-	SplineComp->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	if (SplineComp)
+	{
+		SplineComp->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	}
 	
 	if (IsValid(WaterInfoMeshComponent))
 	{
