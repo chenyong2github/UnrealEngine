@@ -230,22 +230,28 @@ namespace UE::MLDeformer
 		UAnimSequence* TestAnimSequence = VizSettings->GetTestAnimSequence();
 
 		// Update the training geometry cache.
-		UGeometryCacheComponent* GeometryCacheComponent = FindGeomCacheEditorActor(ActorID_Train_GroundTruth)->GetGeometryCacheComponent();
-		check(GeometryCacheComponent);
-		GeometryCacheComponent->SetGeometryCache(GetGeomCacheModel()->GetGeometryCache());
-		GeometryCacheComponent->SetLooping(false);
-		GeometryCacheComponent->SetManualTick(true);
-		GeometryCacheComponent->SetPlaybackSpeed(TestAnimSpeed);
-		GeometryCacheComponent->Play();
+		const FMLDeformerGeomCacheActor* TrainGroundTruthActor = FindGeomCacheEditorActor(ActorID_Train_GroundTruth);
+		UGeometryCacheComponent* GeometryCacheComponent = TrainGroundTruthActor ? TrainGroundTruthActor->GetGeometryCacheComponent() : nullptr;
+		if (GeometryCacheComponent)
+		{
+			GeometryCacheComponent->SetGeometryCache(GetGeomCacheModel()->GetGeometryCache());
+			GeometryCacheComponent->SetLooping(false);
+			GeometryCacheComponent->SetManualTick(true);
+			GeometryCacheComponent->SetPlaybackSpeed(TestAnimSpeed);
+			GeometryCacheComponent->Play();
+		}
 
 		// Update the test geometry cache (ground truth) component.
-		GeometryCacheComponent = FindGeomCacheEditorActor(ActorID_Test_GroundTruth)->GetGeometryCacheComponent();
-		check(GeometryCacheComponent);
-		GeometryCacheComponent->SetGeometryCache(VizSettings->GetTestGroundTruth());
-		GeometryCacheComponent->SetLooping(true);
-		GeometryCacheComponent->SetManualTick(true);
-		GeometryCacheComponent->SetPlaybackSpeed(TestAnimSpeed);
-		GeometryCacheComponent->Play();
+		const FMLDeformerGeomCacheActor* TestGroundTruthActor = FindGeomCacheEditorActor(ActorID_Test_GroundTruth);
+		GeometryCacheComponent = TestGroundTruthActor ? TestGroundTruthActor->GetGeometryCacheComponent() : nullptr;
+		if (GeometryCacheComponent)
+		{
+			GeometryCacheComponent->SetGeometryCache(VizSettings->GetTestGroundTruth());
+			GeometryCacheComponent->SetLooping(true);
+			GeometryCacheComponent->SetManualTick(true);
+			GeometryCacheComponent->SetPlaybackSpeed(TestAnimSpeed);
+			GeometryCacheComponent->Play();
+		}
 
 		GetGeomCacheModel()->GetGeomCacheMeshMappings().Reset();
 	}
