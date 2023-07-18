@@ -101,7 +101,7 @@ namespace UE::PixelStreaming::Settings
 	TAutoConsoleVariable<FString> CVarPixelStreamingEncoderCodec(
 		TEXT("PixelStreaming.Encoder.Codec"),
 		TEXT("H264"),
-		TEXT("PixelStreaming encoder codec. Supported values are `H264`, 'H265', `VP8`, `VP9`"),
+		TEXT("PixelStreaming encoder codec. Supported values are `H264`, `H265`, `VP8`, `VP9`"),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxSessions(
@@ -195,6 +195,12 @@ namespace UE::PixelStreaming::Settings
 		TEXT("PixelStreaming.WebRTC.AudioGain"),
 		1.0f,
 		TEXT("Sets the amount of gain to apply to audio. Default: 1.0"),
+		ECVF_Default);
+
+	TAutoConsoleVariable<FString> CVarPixelStreamingWebRTCFieldTrials(
+		TEXT("PixelStreaming.WebRTC.FieldTrials"),
+		TEXT(""),
+		TEXT("Sets the WebRTC field trials string. Format:\"TRIAL1/VALUE1/TRIAL2/VALUE2/\""),
 		ECVF_Default);
 
 	// End WebRTC CVars
@@ -643,6 +649,7 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingFreezeFrameQuality"), CVarPixelStreamingFreezeFrameQuality);
 		CommandLineParseValue(TEXT("PixelStreamingInputController="), CVarPixelStreamingInputController);
 		CommandLineParseValue(TEXT("PixelStreamingSignalingReconnectInterval="), CVarPixelStreamingSignalingReconnectInterval);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCFieldTrials="), CVarPixelStreamingWebRTCFieldTrials);
 
 		// Options parse (if these exist they are set to true)
 		CommandLineParseOption(TEXT("PixelStreamingOnScreenStats"), CVarPixelStreamingOnScreenStats);

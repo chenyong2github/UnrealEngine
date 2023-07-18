@@ -920,6 +920,17 @@ void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 
 	std::unique_ptr<FVideoEncoderFactoryLayered> VideoEncoderFactory = std::make_unique<FVideoEncoderFactoryLayered>();
 	GVideoEncoderFactory = VideoEncoderFactory.get();
+	 
+	FString FieldTrials = Settings::CVarPixelStreamingWebRTCFieldTrials.GetValueOnAnyThread();
+	if (!FieldTrials.IsEmpty()) {
+		//Pass the field trials string to WebRTC. String must never be destroyed.
+		TStringConversion<TStringConvert<TCHAR, ANSICHAR>> Str = StringCast<ANSICHAR>(*FieldTrials);
+		int length = Str.Length() + 1;
+		char* WRTCFieldTrials = (char*)FMemory::SystemMalloc(length);
+		FMemory::Memcpy(WRTCFieldTrials, Str.Get(), Str.Length());
+		WRTCFieldTrials[length - 1] = '\0';
+		webrtc::field_trial::InitFieldTrialsFromString(WRTCFieldTrials);
+	}
 
 	PeerConnectionFactory = webrtc::CreatePeerConnectionFactory(
 		nullptr,													   // network_thread

@@ -50,6 +50,7 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableStats;
 	extern TAutoConsoleVariable<float> CVarPixelStreamingWebRTCAudioGain;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCNegotiateCodecs;
+	extern TAutoConsoleVariable<FString> CVarPixelStreamingWebRTCFieldTrials;
 	// End WebRTC CVars
 
 	// Begin Pixel Streaming Plugin CVars
