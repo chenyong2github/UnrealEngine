@@ -2646,7 +2646,7 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 	}
 	else
 	{
-		if (DoAsyncCompile && !Initializer.bFromPSOFileCache && !OutCachedState->IsComplete())
+		if (!Initializer.bFromPSOFileCache && !OutCachedState->IsComplete())
 		{
 			if (OutCachedState->PrecompileTask)
 			{
