@@ -273,6 +273,8 @@ public:
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
 	virtual Insights::FTrackVisibilityChangedDelegate& OnTrackVisibilityChanged() override { return OnTrackVisibilityChangedDelegate; }
+	virtual Insights::FTrackAddedDelegate& OnTrackAdded() override { return OnTrackAddedDelegate; }
+	virtual Insights::FTrackRemovedDelegate& OnTrackRemoved() override { return OnTrackRemovedDelegate; }
 
 	virtual void ResetSelectedEvent() override
 	{
@@ -719,6 +721,8 @@ protected:
 	Insights::FSelectedTrackChangedDelegate OnSelectedTrackChangedDelegate;
 	Insights::FSelectedEventChangedDelegate OnSelectedEventChangedDelegate;
 	Insights::FTrackVisibilityChangedDelegate OnTrackVisibilityChangedDelegate;
+	Insights::FTrackAddedDelegate OnTrackAddedDelegate;
+	Insights::FTrackRemovedDelegate OnTrackRemovedDelegate;
 
 	TSharedPtr<FUICommandList> CommandList;
 

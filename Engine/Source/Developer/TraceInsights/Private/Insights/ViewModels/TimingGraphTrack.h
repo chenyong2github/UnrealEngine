@@ -100,6 +100,8 @@ protected:
 
 private:
 	FDelegateHandle OnTrackVisibilityChangedHandle;
+	FDelegateHandle OnTrackAddedHandle;
+	FDelegateHandle OnTrackRemovedHandle;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

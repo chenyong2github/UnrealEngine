@@ -150,6 +150,8 @@ FTimingGraphTrack::~FTimingGraphTrack()
 			if (TimingView.IsValid())
 			{
 				TimingView->OnTrackVisibilityChanged().Remove(OnTrackVisibilityChangedHandle);
+				TimingView->OnTrackAdded().Remove(OnTrackAddedHandle);
+				TimingView->OnTrackRemoved().Remove(OnTrackRemovedHandle);
 			}
 		}
 	}
@@ -168,6 +170,21 @@ void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 			TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
 			if (TimingView.IsValid())
 			{
+				auto OnTrackAddedRemovedLamda = [this](const TSharedPtr<const FBaseTimingTrack> Track)
+				{
+					if (Track->Is<FThreadTimingTrack>())
+					{
+						// If there are more series than the default frame series.
+						if (this->AllSeries.Num() > ETraceFrameType::TraceFrameType_Count)
+						{
+							this->SetDirtyFlag();
+						}
+					}
+				};
+
+				OnTrackAddedHandle = TimingView->OnTrackAdded().AddLambda(OnTrackAddedRemovedLamda);
+				OnTrackRemovedHandle = TimingView->OnTrackRemoved().AddLambda(OnTrackAddedRemovedLamda);
+
 				OnTrackVisibilityChangedHandle = TimingView->OnTrackVisibilityChanged().AddLambda([this]()
 					{
 						this->SetDirtyFlag();

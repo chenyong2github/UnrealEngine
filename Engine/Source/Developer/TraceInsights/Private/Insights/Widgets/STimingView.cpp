@@ -1775,6 +1775,8 @@ void STimingView::AddTrack(TSharedPtr<FBaseTimingTrack> Track, ETimingTrackLocat
 	{
 		InvalidateScrollableTracksOrder();
 	}
+
+	OnTrackAddedDelegate.Broadcast(Track);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1802,6 +1804,8 @@ bool STimingView::RemoveTrack(TSharedPtr<FBaseTimingTrack> Track)
 		{
 			InvalidateScrollableTracksOrder();
 		}
+
+		OnTrackRemovedDelegate.Broadcast(Track);
 
 #if 0
 		UE_LOG(TimingProfiler, Log, TEXT("Removed %s Track (%d) : %s (\"%s\")"),

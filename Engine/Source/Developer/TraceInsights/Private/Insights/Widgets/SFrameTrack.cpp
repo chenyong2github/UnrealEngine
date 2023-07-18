@@ -57,6 +57,8 @@ SFrameTrack::~SFrameTrack()
 				if (TimingView.Get() == RegisteredTimingView)
 				{
 					TimingView->OnTrackVisibilityChanged().Remove(OnTrackVisibilityChangedHandle);
+					TimingView->OnTrackAdded().Remove(OnTrackAddedHandle);
+					TimingView->OnTrackRemoved().Remove(OnTrackRemovedHandle);
 				}
 			}
 		}
@@ -161,9 +163,25 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			if (!OnTrackVisibilityChangedHandle.IsValid() || TimingView.Get() != RegisteredTimingView)
 			{
 				RegisteredTimingView = TimingView.Get();
-				OnTrackVisibilityChangedHandle = TimingView->OnTrackVisibilityChanged().AddLambda([this]()
+				this->bIsStateDirty = true;
+
+				auto OnTrackAddedRemovedLamda = [this](const TSharedPtr<const FBaseTimingTrack> Track)
+				{
+					if (Track->Is<FThreadTimingTrack>())
 					{
 						// If there are more series than the default frame series.
+						if (this->AllSeries.Num() > ETraceFrameType::TraceFrameType_Count)
+						{
+							this->bIsStateDirty = true;
+						}
+					}
+				};
+
+				OnTrackAddedHandle = TimingView->OnTrackAdded().AddLambda(OnTrackAddedRemovedLamda);
+				OnTrackRemovedHandle = TimingView->OnTrackRemoved().AddLambda(OnTrackAddedRemovedLamda);
+
+				OnTrackVisibilityChangedHandle = TimingView->OnTrackVisibilityChanged().AddLambda([this]()
+					{
 						if (this->AllSeries.Num() > ETraceFrameType::TraceFrameType_Count)
 						{
 							this->bIsStateDirty = true;

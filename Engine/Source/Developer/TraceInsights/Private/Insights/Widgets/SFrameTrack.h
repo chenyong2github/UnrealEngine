@@ -243,6 +243,8 @@ protected:
 
 	STimingView* RegisteredTimingView = nullptr; // For pointer comparison only, do not dereferentiate.
 	FDelegateHandle OnTrackVisibilityChangedHandle;
+	FDelegateHandle OnTrackAddedHandle;
+	FDelegateHandle OnTrackRemovedHandle;
 
 	// Debug stats
 	int32 NumUpdatedFrames;

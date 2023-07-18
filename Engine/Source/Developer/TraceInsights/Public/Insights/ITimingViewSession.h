@@ -61,6 +61,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSelectedEventChangedDelegate, const TShared
 /** The delegate to be invoked when a track visibility has changed */
 DECLARE_MULTICAST_DELEGATE(FTrackVisibilityChangedDelegate);
 
+/** The delegate to be invoked when a track is added. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FTrackAddedDelegate, const TSharedPtr<const FBaseTimingTrack> /*Track*/);
+
+/** The delegate to be invoked when a track is removed. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FTrackRemovedDelegate, const TSharedPtr<const FBaseTimingTrack> /*Track*/);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Hosts a number of timing view visualizers, represents a session of the timing view. */
@@ -132,6 +138,12 @@ public:
 
 	/** Gets the delegate to be invoked when the track visibility has changed. */
 	virtual FTrackVisibilityChangedDelegate& OnTrackVisibilityChanged() = 0;
+
+	/** Gets the delegate to be invoked when a new track is added. */
+	virtual Insights::FTrackAddedDelegate& OnTrackAdded() = 0;
+
+	/** Gets the delegate to be invoked when a track is removed. */
+	virtual Insights::FTrackRemovedDelegate& OnTrackRemoved() = 0;
 
 	//////////////////////////////////////////////////
 
