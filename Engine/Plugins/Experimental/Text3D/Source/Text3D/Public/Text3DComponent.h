@@ -376,6 +376,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "CastsShadow", Setter = "SetCastShadow", Category = "Lighting", meta = (AllowPrivateAccess))
 	bool bCastShadow = true;
 
+	/**
+	 * Returns the Text property, after being formatted by the FormatText virtual function.
+	 * If FormatText is not overriden, the return FText will be the same as the Text property.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Text3D")
+	FText GetFormattedText() const;
+	
 protected:
 	/** Intercept and propagate a change on this component to all children. */
 	virtual void OnVisibilityChanged() override;
@@ -383,8 +390,18 @@ protected:
 	/** Intercept and propagate a change on this component to all children. */
 	virtual void OnHiddenInGameChanged() override;
 
+	/**
+	 * Will be called when text geometry is generated.
+	 * Override it to customize text formatting in the final geometry, without affecting the Text property.
+	 * Use GetFormattedText() to retrieve a FText with the result of this formatting.
+	 */
+	virtual void FormatText(FText& InOutText) const {}
+
 	/** Clears all generated components and meshes from this component. */
 	void ClearTextMesh();
+
+	/** Can be used to force an internal geometry and/or layout rebuild */
+	void TriggerInternalRebuild(const EText3DModifyFlags InModifyFlags);
 
 private:
 	UPROPERTY()

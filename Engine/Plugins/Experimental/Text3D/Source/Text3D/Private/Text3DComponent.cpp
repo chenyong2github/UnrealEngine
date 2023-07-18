@@ -290,7 +290,7 @@ const FText& UText3DComponent::GetText() const
 }
 
 void UText3DComponent::SetText(const FText& Value)
-{
+{	
 	if (!Text.EqualTo(Value))
 	{
 		Text = Value;
@@ -1011,6 +1011,21 @@ void UText3DComponent::ClearTextMesh()
 	}
 }
 
+void UText3DComponent::TriggerInternalRebuild(const EText3DModifyFlags InModifyFlags)
+{
+	if (EnumHasAnyFlags(InModifyFlags, EText3DModifyFlags::Geometry))
+	{
+		MarkForGeometryUpdate();
+	}
+
+	if (EnumHasAnyFlags(ModifyFlags, EText3DModifyFlags::Layout))
+	{
+		MarkForLayoutUpdate();
+	}
+
+	RebuildInternal();
+}
+
 void UText3DComponent::BuildTextMesh(const bool& bCleanCache)
 {
 	// If we're already building, or have a build pending, don't do anything.
@@ -1089,7 +1104,9 @@ void UText3DComponent::BuildTextMeshInternal(const bool& bCleanCache)
 		TextLayoutMarshaller = FPlainTextLayoutMarshaller::Create();
 	}
 
-	FTextShaper::Get()->ShapeBidirectionalText(Style, Text.ToString(), TextLayout, TextLayoutMarshaller, ShapedText->Lines);
+	FText FormattedText = Text;
+	FormatText(FormattedText);
+	FTextShaper::Get()->ShapeBidirectionalText(Style, FormattedText.ToString(), TextLayout, TextLayoutMarshaller, ShapedText->Lines);
 
 	const int32 ApproximateGlyphNum = Algo::TransformAccumulate(ShapedText->Lines,
 		[](const FShapedGlyphLine& InLine)
@@ -1247,6 +1264,14 @@ void UText3DComponent::UpdateMaterial(const EText3DGroupType Type, UMaterialInte
 	{
 		StaticMeshComponent->SetMaterial(Index, Material);
 	}
+}
+
+FText UText3DComponent::GetFormattedText() const
+{
+	FText FormattedText = Text;
+	FormatText(FormattedText);
+
+	return FormattedText;
 }
 
 void UText3DComponent::OnVisibilityChanged()
