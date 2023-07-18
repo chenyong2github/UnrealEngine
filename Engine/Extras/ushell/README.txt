@@ -4,8 +4,8 @@
 # Quick Start Guide
 
 1. Create a shortcut to `ushell.exe`
-2. Set the start up directory to the location of a .uproject file
-3. Start ushell via the shortcut
+2. Set the start up directory to the location of a .uproject
+3. Start ushell.
 4. Run `.help` to see available commands.
 
 The properties of the shortcut should look like this;
