@@ -184,6 +184,7 @@ void UCollisionPrimitivesMechanic::SetWorld(UWorld* World)
 	PreviewGeometry->CreateInWorld(World, FTransform());
 
 	DrawnPrimitiveEdges = PreviewGeometry->AddLineSet("CollisionPrimitives");
+	DrawnPrimitiveEdges->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), false));
 
 }
 
