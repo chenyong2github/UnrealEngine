@@ -1696,20 +1696,6 @@ void FCustomizableObjectEditor::Tick( float InDeltaTime )
             FCoreUObjectDelegates::BroadcastOnObjectModified(PreviewInstance);
         }
 	}
-
-	// Reconstruct marked nodes 
-	if (GraphEditor.IsValid())
-	{
-		for (UEdGraphNode* Node: ReconstructNodes)
-		{
-			GraphEditor->GetCurrentGraph()->Schema.GetDefaultObject()->ReconstructNode(*Node);
-		}
-		if (ReconstructNodes.Num()) 
-		{
-			GraphEditor->NotifyGraphChanged();
-			ReconstructNodes.Empty();
-		}
-	}
 }
 
 
@@ -2763,12 +2749,6 @@ void FCustomizableObjectEditor::GetExternalChildObjects(const UCustomizableObjec
 			}
 		}
 	}
-}
-
-
-void FCustomizableObjectEditor::MarkForReconstruct(UEdGraphNode* Node)
-{
-	ReconstructNodes.Add(Node);
 }
 
 

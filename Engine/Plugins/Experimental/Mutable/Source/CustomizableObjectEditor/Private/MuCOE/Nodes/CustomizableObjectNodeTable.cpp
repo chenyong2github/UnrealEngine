@@ -192,7 +192,7 @@ void UCustomizableObjectNodeTable::PostEditChangeProperty(FPropertyChangedEvent&
 	{
 		if (PropertyThatChanged->GetName() == TEXT("Table"))
 		{
-			MarkForReconstruct();
+			ReconstructNode();
 		}
 		else if (PropertyThatChanged->GetName() == TEXT("DefaultImageMode"))
 		{

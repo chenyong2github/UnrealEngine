@@ -35,7 +35,7 @@ void UCustomizableObjectNodeSkeletalMesh::PostEditChangeProperty(FPropertyChange
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged && PropertyThatChanged->GetName() == TEXT("SkeletalMesh"))
 	{
-		MarkForReconstruct();
+		ReconstructNode();
 	}
 }
 

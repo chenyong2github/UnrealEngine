@@ -15,17 +15,12 @@ class UCustomizableObjectNodeRemapPins;
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-
-UCustomizableObjectNodeMeshMorphStackDefinition::UCustomizableObjectNodeMeshMorphStackDefinition() : Super()
-{
-
-}
-
-
 void UCustomizableObjectNodeMeshMorphStackDefinition::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
+	UpdateMorphList();
+	
 	// Input pins
 	UEdGraphPin* MeshPin = CustomCreatePin(EGPD_Input, Schema->PC_Mesh, FName(TEXT("Mesh")));
 	MeshPin->bDefaultValueIsIgnored = true;
@@ -69,23 +64,13 @@ void UCustomizableObjectNodeMeshMorphStackDefinition::PinConnectionListChanged(U
 
 	if (Pin->Direction == EGPD_Input && Pin->PinName == "Mesh")
 	{
-		UpdateMorphList();
-
-		TSharedPtr<ICustomizableObjectEditor> Editor = GetGraphEditor();
-
-		if (Editor.IsValid())
-		{
-			Editor->UpdateGraphNodeProperties();
-			Super::ReconstructNode();
-		}
+		Super::ReconstructNode();
 	}
 }
 
 
 void UCustomizableObjectNodeMeshMorphStackDefinition::ReconstructNode(UCustomizableObjectNodeRemapPins* RemapPins)
 {
-	UpdateMorphList();
-
 	Super::ReconstructNode(RemapPins);
 }
 
@@ -131,6 +116,18 @@ void UCustomizableObjectNodeMeshMorphStackDefinition::UpdateMorphList()
 			}
 		}
 	}
+}
+
+
+UEdGraphPin* UCustomizableObjectNodeMeshMorphStackDefinition::GetMeshPin() const
+{
+	return FindPin(TEXT("Mesh"), EGPD_Input);
+}
+
+
+UEdGraphPin* UCustomizableObjectNodeMeshMorphStackDefinition::GetStackPin() const
+{
+	return FindPin(TEXT("Stack"), EGPD_Output);
 }
 
 

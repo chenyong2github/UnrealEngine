@@ -124,8 +124,7 @@ void UCustomizableObjectNodeSwitchBase::EnumParameterPostEditChangeProperty(FPos
 	{
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SwitchPin); ConnectedPin && ConnectedPin->GetOwningNode() == Parameters.Node)
 		{
-			// Using MarkForReconstruct instead of Super::ReconstructNode because when we Copy Paste this node, it crashes sometimes due to reconctructing the node while constructing it.
-			MarkForReconstruct();
+			Super::ReconstructNode();
 		}
 		else if (UCustomizableObjectNode* EnumNode = Cast<UCustomizableObjectNode>(Parameters.Node))
 		{
@@ -194,9 +193,9 @@ void UCustomizableObjectNodeSwitchBase::LinkPostEditChangePropertyDelegate(const
 			LastNodeEnumParameterConnected->PostEditChangePropertyDelegate.AddUniqueDynamic(this, &UCustomizableObjectNodeSwitchBase::EnumParameterPostEditChangeProperty);
 		}
 
-		if (UCustomizableObjectNodeEnumParameter* Node = Cast<UCustomizableObjectNodeEnumParameter>(ConnectedPin->GetOwningNode()))
+		if (Cast<UCustomizableObjectNodeEnumParameter>(ConnectedPin->GetOwningNode()))
 		{
-			MarkForReconstruct();
+			Super::ReconstructNode();
 		}
 	}
 }

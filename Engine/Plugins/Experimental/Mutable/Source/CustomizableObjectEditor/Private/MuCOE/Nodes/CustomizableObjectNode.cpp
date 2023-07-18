@@ -408,17 +408,6 @@ bool UCustomizableObjectNode::CanConnect( const UEdGraphPin* InOwnedInputPin, co
 	return bOutArePinsCompatible;
 }
 
-void UCustomizableObjectNode::MarkForReconstruct()
-{
-	TSharedPtr<FCustomizableObjectEditor> Editor = StaticCastSharedPtr<FCustomizableObjectEditor>(GetGraphEditor());
-
-	// This could be called if a skeletal mesh asset in the graph is deleted without the editor being open. 
-	if (Editor)
-	{
-		Editor->MarkForReconstruct(this);
-	}
-}
-
 
 UCustomizableObjectNodeRemapPins* UCustomizableObjectNode::CreateRemapPinsDefault() const
 {

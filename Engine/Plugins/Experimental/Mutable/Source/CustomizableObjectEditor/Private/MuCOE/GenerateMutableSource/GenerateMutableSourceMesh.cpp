@@ -3102,6 +3102,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin* Pin,
 
 	else if (const UCustomizableObjectNodeMeshMorphStackApplication* TypedNodeMeshMorphStackApp = Cast< UCustomizableObjectNodeMeshMorphStackApplication >(Node))
 	{
+		const TArray<FString> MorphNames = TypedNodeMeshMorphStackApp->GetMorphList();
+		
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeMeshMorphStackApp->GetStackPin()))
 		{
 			UEdGraphNode* OwningNode = ConnectedPin->GetOwningNode();
@@ -3136,7 +3138,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin* Pin,
 
 					// Cheking if the morph exists in the application node
 					FString MorphName = MorphPin->PinFriendlyName.ToString();
-					if (!TypedNodeMeshMorphStackApp->MorphNames.Contains(MorphName))
+					if (!MorphNames.Contains(MorphName))
 					{
 						continue;
 					}

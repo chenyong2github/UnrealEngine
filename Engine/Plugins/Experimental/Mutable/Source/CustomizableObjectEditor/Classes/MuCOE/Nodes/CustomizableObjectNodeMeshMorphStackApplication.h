@@ -17,37 +17,21 @@ class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshMorphStackApplicat
 public:
 	GENERATED_BODY()
 
-	UCustomizableObjectNodeMeshMorphStackApplication();
-
-	// Begin EdGraphNode interface
-	FText GetNodeTitle(ENodeTitleType::Type TittleType)const override;
-	FLinearColor GetNodeTitleColor() const override;
-	FText GetTooltipText() const override;
+	// EdGraphNode interface
+	virtual FText GetNodeTitle(ENodeTitleType::Type TittleType)const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
 
 	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	void PinConnectionListChanged(UEdGraphPin* Pin) override;
-	void ReconstructNode(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	bool IsNodeOutDatedAndNeedsRefresh() override;
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
 
-	// Fills the list with all the morphs
-	void UpdateMorphList();
-
-	// Returns the mesh pin
-	UEdGraphPin* GetMeshPin() const
-	{
-		return FindPin(TEXT("InMesh"), EGPD_Input);
-	}
+	// Own interface
+	/** Fills the list with all the morphs */
+	TArray<FString> GetMorphList() const;
 	
-	// Returns the stack pin
-	UEdGraphPin* GetStackPin() const
-	{
-		return FindPin(TEXT("Stack"), EGPD_Input);
-	}
+	/** Returns the mesh pin. */
+	UEdGraphPin* GetMeshPin() const;
 
-public:
-
-	// List with all the morphs of the linked skeletal mesh
-	UPROPERTY()
-	TArray<FString> MorphNames;
+	/** Returns the stack pin. */
+	UEdGraphPin* GetStackPin() const;
 };

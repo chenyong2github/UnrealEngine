@@ -192,10 +192,6 @@ public:
 
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-
-	// Use this function to reconstruct the graph in the next tick
-	void MarkForReconstruct();
-
 	/** Custom post duplicate function. Called at the beginning of duplication, before the nodes have their Guid updated. */
 	virtual void BeginPostDuplicate(bool bDuplicateForPIE) {};
 	

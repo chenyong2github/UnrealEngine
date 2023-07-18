@@ -17,44 +17,35 @@ class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshMorphStackDefiniti
 public:
 	GENERATED_BODY()
 
-	UCustomizableObjectNodeMeshMorphStackDefinition();
-
-	// Begin EdGraphNode interface
-	FText GetNodeTitle(ENodeTitleType::Type TittleType)const override;
-	FLinearColor GetNodeTitleColor() const override;
-	FText GetTooltipText() const override;
-	void PinConnectionListChanged(UEdGraphPin* Pin) override;
-	bool IsNodeOutDatedAndNeedsRefresh() override;
+	// EdGraphNode interface
+	virtual FText GetNodeTitle(ENodeTitleType::Type TittleType)const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
+	virtual bool IsNodeOutDatedAndNeedsRefresh() override;
 
 	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	void ReconstructNode(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual void ReconstructNode(UCustomizableObjectNodeRemapPins* RemapPins) override;
 
-	// Fills the list with all the morphs
-	void UpdateMorphList();
+	// Own interface
+	/** Returns the mesh pin of the node. */
+	UEdGraphPin* GetMeshPin() const;
 
-	// Returns the mesh pin of the node
-	UEdGraphPin* GetMeshPin() const
-	{
-		return FindPin(TEXT("Mesh"), EGPD_Input);
-	}
+	/** Returns the stack pin of the node. */
+	UEdGraphPin* GetStackPin() const;
 
-	// Returns the stack pin of the node
-	UEdGraphPin* GetStackPin() const
-	{
-		return FindPin(TEXT("Stack"), EGPD_Output);
-	}
-
-	// Returns the morph pin at Index
+	/** Returns the morph pin at Index. */
 	UEdGraphPin* GetMorphPin(int32 Index) const;
 	
-	// Returns the index of the next connected stack node. Returns -1 if there is none.
+	/** Returns the index of the next connected stack node. Returns -1 if there is none. */
 	int32 NextConnectedPin(int32 Index, TArray<FString> AvailableMorphs)const;
 
-public:
+private:
+	/** Fills the list with all the morphs. */
+	void UpdateMorphList();
 
-	// List with all the morphs of the linked skeletal mesh
+	/** List with all the morphs of the linked skeletal mesh. */
 	UPROPERTY()
 	TArray<FString> MorphNames;
-
 };
