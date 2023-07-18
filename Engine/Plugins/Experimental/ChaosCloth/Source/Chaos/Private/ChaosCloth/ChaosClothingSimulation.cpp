@@ -655,6 +655,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Get the reference transform used in the current animation pose
 		FTransform ReferenceBoneTransform = ComponentSpaceTransforms[ReferenceBoneIndex];
 		ReferenceBoneTransform *= OwnerTransform;
+		const bool bIsMirrored = (ReferenceBoneTransform.GetDeterminant() < 0);
 		ReferenceBoneTransform.SetScale3D(FVector(1.0f));  // Scale is already baked in the cloth mesh
 
 		// Set the world space transform to be this cloth's reference bone
@@ -695,6 +696,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				using FNormalsType = decltype(Data.Normals)::ElementType;
 				Data.Positions[Index] = FPositionsType(ReferenceSpaceTransform.InverseTransformPosition(FVec3(Data.Positions[Index]) + LocalSpaceLocation));  // Move into world space first
 				Data.Normals[Index] = FNormalsType(ReferenceSpaceTransform.InverseTransformVector(FVec3(-Data.Normals[Index])));  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+			}
+		}
+
+		// Invert normals in mirrored setups
+		if (bIsMirrored)
+		{
+			using FNormalsType = decltype(Data.Normals)::ElementType;
+			for (FNormalsType& Normal : Data.Normals)
+			{
+				Normal = -Normal;
 			}
 		}
 
