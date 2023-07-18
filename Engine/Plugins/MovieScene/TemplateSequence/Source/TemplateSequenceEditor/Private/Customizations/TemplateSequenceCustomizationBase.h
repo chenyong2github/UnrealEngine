@@ -29,6 +29,7 @@ protected:
 private:
 	ESequencerPasteSupport OnPaste();
 	void OnMovieSceneDataChanged(EMovieSceneDataChangeType ChangeType);
+	void OnSequencerClosed(TSharedRef<ISequencer> InSequencer);
 
 	ISequencer* Sequencer;
 	UTemplateSequence* TemplateSequence;

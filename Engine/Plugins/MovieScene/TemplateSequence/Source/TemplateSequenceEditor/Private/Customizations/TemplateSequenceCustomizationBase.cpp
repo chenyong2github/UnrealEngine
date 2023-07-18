@@ -15,6 +15,7 @@ void FTemplateSequenceCustomizationBase::RegisterSequencerCustomization(FSequenc
 	Sequencer = &Builder.GetSequencer();
 	TemplateSequence = Cast<UTemplateSequence>(&Builder.GetFocusedSequence());
 
+	Sequencer->OnCloseEvent().AddRaw(this, &FTemplateSequenceCustomizationBase::OnSequencerClosed);
 	Sequencer->OnMovieSceneDataChanged().AddRaw(this, &FTemplateSequenceCustomizationBase::OnMovieSceneDataChanged);
 
 	FSequencerCustomizationInfo BaseInfo;
@@ -24,7 +25,11 @@ void FTemplateSequenceCustomizationBase::RegisterSequencerCustomization(FSequenc
 
 void FTemplateSequenceCustomizationBase::UnregisterSequencerCustomization()
 {
-	Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
+	if (Sequencer)
+	{
+		Sequencer->OnCloseEvent().RemoveAll(this);
+		Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
+	}
 
 	Sequencer = nullptr;
 	TemplateSequence = nullptr;
@@ -93,6 +98,17 @@ void FTemplateSequenceCustomizationBase::OnMovieSceneDataChanged(EMovieSceneData
 
 		FPropertyChangedEvent PropertyEvent(BoundActorClassProperty, EPropertyChangeType::ValueSet);
 		TemplateSequence->PostEditChangeProperty(PropertyEvent);
+	}
+}
+
+void FTemplateSequenceCustomizationBase::OnSequencerClosed(TSharedRef<ISequencer> InSequencer)
+{
+	if (&InSequencer.Get() == Sequencer)
+	{
+		Sequencer->OnCloseEvent().RemoveAll(this);
+		Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
+
+		Sequencer = nullptr;
 	}
 }
 
