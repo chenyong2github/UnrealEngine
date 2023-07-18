@@ -405,6 +405,11 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetData_LocationInfo : public FG
 		return TargetLocation.GetTargetingTransform().GetLocation();
 	}
 
+	virtual FTransform GetEndPointTransform() const override
+	{
+		return TargetLocation.GetTargetingTransform();
+	}
+
 	// -------------------------------------
 
 	virtual UScriptStruct* GetScriptStruct() const override
