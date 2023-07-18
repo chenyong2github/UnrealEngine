@@ -389,9 +389,7 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
     int NumInfluences = 0;
 	float SumWeights = 0.0;
 	float ClothWeight = 0.0;
-
-	const float3 WorldScaleAbs = abs(WorldScale);  // World scale can't be used mirrored to calculate the clothing positions and tangents since the cloth normals are then reversed
-
+	
 	UNROLL_N(NUM_INFLUENCES_PER_VERTEX)
     for (int i = 0; i < ClothNumInfluencesPerVertex; ++i )
     {
@@ -425,21 +423,21 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
                 SumWeights = 1.0f;	   
 			}
 
-			NormalPosition += Weight * (Influence.NormalBaryCoordsAndDist.x * (A + NA * Influence.NormalBaryCoordsAndDist.w * WorldScaleAbs.x)
-								      + Influence.NormalBaryCoordsAndDist.y * (B + NB * Influence.NormalBaryCoordsAndDist.w * WorldScaleAbs.y)
-								      + Influence.NormalBaryCoordsAndDist.z * (C + NC * Influence.NormalBaryCoordsAndDist.w * WorldScaleAbs.z));
+			NormalPosition += Weight * (Influence.NormalBaryCoordsAndDist.x * (A + NA * Influence.NormalBaryCoordsAndDist.w * WorldScale.x)
+								      + Influence.NormalBaryCoordsAndDist.y * (B + NB * Influence.NormalBaryCoordsAndDist.w * WorldScale.y)
+								      + Influence.NormalBaryCoordsAndDist.z * (C + NC * Influence.NormalBaryCoordsAndDist.w * WorldScale.z));
 
-		    TangentPosition += Weight * (Influence.TangentBaryCoordsAndDist.x * (A + NA * Influence.TangentBaryCoordsAndDist.w * WorldScaleAbs.x)
-								       + Influence.TangentBaryCoordsAndDist.y * (B + NB * Influence.TangentBaryCoordsAndDist.w * WorldScaleAbs.y)
-								       + Influence.TangentBaryCoordsAndDist.z * (C + NC * Influence.TangentBaryCoordsAndDist.w * WorldScaleAbs.z));
+		    TangentPosition += Weight * (Influence.TangentBaryCoordsAndDist.x * (A + NA * Influence.TangentBaryCoordsAndDist.w * WorldScale.x)
+								       + Influence.TangentBaryCoordsAndDist.y * (B + NB * Influence.TangentBaryCoordsAndDist.w * WorldScale.y)
+								       + Influence.TangentBaryCoordsAndDist.z * (C + NC * Influence.TangentBaryCoordsAndDist.w * WorldScale.z));
 
 			float3 TriangleBary = float3(Influence.PositionBaryCoordsAndDist.x,
                                          Influence.PositionBaryCoordsAndDist.y,
 										 1.0f - Influence.PositionBaryCoordsAndDist.x - Influence.PositionBaryCoordsAndDist.y);
 
-            float3 SimPosition = TriangleBary.x*(A+NA*Influence.PositionBaryCoordsAndDist.w * WorldScaleAbs.x)
-					           + TriangleBary.y*(B+NB*Influence.PositionBaryCoordsAndDist.w * WorldScaleAbs.y)
-					           + TriangleBary.z*(C+NC*Influence.PositionBaryCoordsAndDist.w * WorldScaleAbs.z);
+            float3 SimPosition = TriangleBary.x*(A+NA*Influence.PositionBaryCoordsAndDist.w * WorldScale.x)
+					           + TriangleBary.y*(B+NB*Influence.PositionBaryCoordsAndDist.w * WorldScale.y)
+					           + TriangleBary.z*(C+NC*Influence.PositionBaryCoordsAndDist.w * WorldScale.z);
 
 	        Intermediates.SimulatedPosition += Weight * SimPosition;
 	    }
