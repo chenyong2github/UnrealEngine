@@ -393,38 +393,6 @@ public:
 		return (!IsPointPInsideSectorABC(GetPreviousNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Get2DPoint(EGridSpace::UniformScaled, Grid), GetNextNode().Get2DPoint(EGridSpace::UniformScaled, Grid), EndSegmentCoordinate, FlatAngle));
 	}
 
-	void SetAsIsoU()
-	{
-		States |= EIsoNodeStates::NearlyIsoU;
-	}
-
-	bool IsIsoU() const
-	{
-		return (States & EIsoNodeStates::NearlyIsoU) == EIsoNodeStates::NearlyIsoU;
-	}
-
-	void SetAsIsoV()
-	{
-		States |= EIsoNodeStates::NearlyIsoV;
-	}
-
-	bool IsIsoV() const
-	{
-		return (States & EIsoNodeStates::NearlyIsoV) == EIsoNodeStates::NearlyIsoV;
-	}
-
-	constexpr bool IsIso(EIso Axe) const
-	{
-		if (Axe == IsoV)
-		{
-			return IsIsoV();
-		}
-		else
-		{
-			return IsIsoU();
-		}
-	}
-
 	virtual uint32 GetTypeHash() const override
 	{
 		return HashCombine(GetIndex(), GetLoopIndex() + 1);

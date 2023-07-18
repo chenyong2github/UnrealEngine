@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADOptions.h"
 #include "DatasmithDispatcherTask.h"
 #include "DatasmithWorkerHandler.h"
 
@@ -28,6 +29,11 @@ public:
 	void LinkCTFileToUnrealCacheFile(const CADLibrary::FFileDescriptor& CTFileDescription, const FString& UnrealSceneGraphFile, const FString& UnrealGeomFile);
 
 	void LogMessages(const TArray<TPair<uint8, FString>>& Warnings) const;
+
+	void SetWorkerCount(const int32 InNumberOfWorkers)
+	{
+		CADLibrary::GMaxImportThreads = InNumberOfWorkers;
+	}
 
 private:
 	void SpawnHandlers();

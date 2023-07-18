@@ -25,7 +25,7 @@ FCycleTriangulator::FCycleTriangulator(FIsoTriangulator& IsoTriangulator, const 
 	, InnerToOuterIsoSegmentsIntersectionTool(IsoTriangulator.InnerToOuterIsoSegmentsIntersectionTool)
 	, Mesh(IsoTriangulator.Mesh)
 	, IsoSegmentFactory(IsoTriangulator.IsoSegmentFactory)
-	, CycleIntersectionTool(Grid)
+	, CycleIntersectionTool(Grid, IsoTriangulator.Tolerances.GeometricTolerance)
 {
 }
 
@@ -33,11 +33,11 @@ bool FCycleTriangulator::MeshCycle()
 {
 #ifdef ADD_TRIANGLE_2D
 	static int32 CycleId = 0;
-	F3DDebugSession _(Grid.bDisplay, FString::Printf(TEXT("Mesh cycle %d"), CycleId++));
+	F3DDebugSession _(Grid.bDisplay, FString::Printf(TEXT("Mesh cycle %d"), ++CycleId));
 	if (Grid.bDisplay)
 	{
 		Grid.DisplayIsoSegments(TEXT("Cycle"), EGridSpace::UniformScaled, Cycle);
-		Wait(CycleId == 2);
+		Wait(CycleId == 60);
 	}
 #endif
 
@@ -123,10 +123,6 @@ bool FCycleTriangulator::FindTheCycleToMesh(FIsoSegment* Segment, bool bOrientat
 	{
 		F3DDebugSession W(FString::Printf(TEXT("Start Segment")));
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, 1, EVisuProperty::BlueCurve);
-		if (CycleToMeshIndex == CycleToMeshIndexToTest)
-		{
-			Wait();
-		}
 	}
 #endif
 
@@ -185,6 +181,13 @@ bool FCycleTriangulator::FindTheCycleToMesh(FIsoSegment* Segment, bool bOrientat
 
 	MeanSquareLength = SquareLengthSum / Index;
 
+#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
+	if (Grid.bDisplay && CycleToMeshIndex == CycleToMeshIndexToTest)
+	{
+		Wait();
+	}
+#endif
+
 	SubCycleNodeCount = SubCycleNodes.Num();
 	if (SubCycleNodeCount < 3)
 	{
@@ -205,6 +208,25 @@ bool IsCycleInsideCandidate(const FPoint2D& Candidate, const FPoint2D& Start, co
 
 	return (NewSlop > NextSlop);
 };
+
+bool FCycleTriangulator::ConfirmIntersection(const FIsoNode* Start, const FIsoNode* End, const FIsoNode* Candidate, const FIsoSegment* IntersectedSegment) const
+{
+	const FIsoSegment* StartCandidateSegment = Start->GetSegmentConnectedTo(Candidate);
+	const FIsoSegment* EndCandidateSegment = End->GetSegmentConnectedTo(Candidate);
+	if (StartCandidateSegment == IntersectedSegment || EndCandidateSegment == IntersectedSegment)
+	{
+		const int32 IntersectionCount = CycleIntersectionTool.CountIntersections(Start, End);
+		if (IntersectionCount > 1)
+		{
+			return true;
+		}
+	}
+	else
+	{
+		return true;
+	}
+	return false;
+}
 
 bool FCycleTriangulator::FindTheBestAcuteTriangle()
 {
@@ -312,13 +334,16 @@ bool FCycleTriangulator::FindTheBestAcuteTriangle()
 			continue;
 		}
 
-		FIsoSegment* Segment;
-		if (CycleIntersectionTool.DoesIntersect(NewSegmentStart, NewSegmentEnd, &Segment))
+		if (const FIsoSegment* Intersection = CycleIntersectionTool.FindIntersectingSegment(NewSegmentStart, NewSegmentEnd))
 		{
-			continue;
+			if (ConfirmIntersection(NewSegmentStart, NewSegmentEnd, CandidateNode, Intersection))
+			{
+				continue;
+			}
 		}
 
-		if (InnerToOuterIsoSegmentsIntersectionTool.DoesIntersect(*NewSegmentStart, *NewSegmentEnd))
+		const int32 NewSegmentIntersectionCount = InnerToOuterIsoSegmentsIntersectionTool.CountIntersections(*NewSegmentStart, *NewSegmentEnd);
+		if (NewSegmentIntersectionCount > IntersectionCountAllowed)
 		{
 			continue;
 		}
@@ -334,67 +359,67 @@ bool FCycleTriangulator::FindTheBestAcuteTriangle()
 	int32 AcuteNodeIndex = -1;
 	constexpr double MaxSlopeToBeSelected = Slope::ThreeQuaterPiSlope;
 
-	for (; false && NIndex < SubCycleNodeCount; ++NIndex)
-	{
-		const TPair<int, double>& Candidate = VertexIndexToSlopes[NIndex];
-
-		if (Candidate.Value > MaxSlopeToBeSelected)
-		{
-			break;
-		}
-
-		GetCandidateTriangleNodes(Candidate.Key);
-
-		// Check that the cycle is not inside the selected triangle
-		if (IsCycleInsideCandidate(*CandidatePoint, *StartPoint, *EndPoint, *NextPoint, TransformIntoCounterClockwise)
-			|| IsCycleInsideCandidate(*CandidatePoint, *EndPoint, *StartPoint, *PrevPoint, TransformIntoClockwise))
-		{
-			continue;
-		}
-
-		FIsoSegment* Segment;
-		if (!CycleIntersectionTool.DoesIntersect(NewSegmentStart, NewSegmentEnd, &Segment))
-		{
-			double IsoscelesCriteria = IsoTriangulatorImpl::IsoscelesCriteriaMin(*StartPoint, *EndPoint, *CandidatePoint);
-
-			if (BestIsoscelesCriteria < IsoscelesCriteria)
-			{
-				double Length1 = StartPoint->SquareDistance(*CandidatePoint);
-
-				if (Length1 > MaxEdgeSquareLength)
-				{
-#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
-					if (Grid.bDisplay)
-					{
-						F3DDebugSession W(FString::Printf(TEXT("cancel due to Seg Length %f vs %f"), sqrt(Length1), sqrt(MaxEdgeSquareLength)));
-						Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NewSegmentStart, *CandidateNode, 0, EVisuProperty::YellowCurve);
-						Wait();
-					}
-#endif
-					continue;
-				}
-
-				double Length2 = EndPoint->SquareDistance(*CandidatePoint);
-
-				if (Length2 > MaxEdgeSquareLength)
-				{
-#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
-					if (Grid.bDisplay)
-					{
-						F3DDebugSession W(FString::Printf(TEXT("cancel due to Seg Length %f vs %f"), sqrt(Length2), sqrt(MaxEdgeSquareLength)));
-						Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NewSegmentEnd, *CandidateNode, 0, EVisuProperty::YellowCurve);
-						Wait();
-					}
-#endif
-					continue;
-				}
-
-				BestIsoscelesCriteria = IsoscelesCriteria;
-				AcuteNodeIndex = Index;
-				bAcuteTriangle = true;
-			}
-		}
-	}
+//	for (; false && NIndex < SubCycleNodeCount; ++NIndex)
+//	{
+//		const TPair<int, double>& Candidate = VertexIndexToSlopes[NIndex];
+//
+//		if (Candidate.Value > MaxSlopeToBeSelected)
+//		{
+//			break;
+//		}
+//
+//		GetCandidateTriangleNodes(Candidate.Key);
+//
+//		// Check that the cycle is not inside the selected triangle
+//		if (IsCycleInsideCandidate(*CandidatePoint, *StartPoint, *EndPoint, *NextPoint, TransformIntoCounterClockwise)
+//			|| IsCycleInsideCandidate(*CandidatePoint, *EndPoint, *StartPoint, *PrevPoint, TransformIntoClockwise))
+//		{
+//			continue;
+//		}
+//
+//		//FIsoSegment* Segment;
+//		if (!CycleIntersectionTool.DoesIntersect(NewSegmentStart, NewSegmentEnd/*, &Segment*/))
+//		{
+//			double IsoscelesCriteria = IsoTriangulatorImpl::IsoscelesCriteriaMin(*StartPoint, *EndPoint, *CandidatePoint);
+//
+//			if (BestIsoscelesCriteria < IsoscelesCriteria)
+//			{
+//				double Length1 = StartPoint->SquareDistance(*CandidatePoint);
+//
+//				if (Length1 > MaxEdgeSquareLength)
+//				{
+//#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
+//					if (Grid.bDisplay)
+//					{
+//						F3DDebugSession W(FString::Printf(TEXT("cancel due to Seg Length %f vs %f"), sqrt(Length1), sqrt(MaxEdgeSquareLength)));
+//						Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NewSegmentStart, *CandidateNode, 0, EVisuProperty::YellowCurve);
+//						Wait();
+//					}
+//#endif
+//					continue;
+//				}
+//
+//				double Length2 = EndPoint->SquareDistance(*CandidatePoint);
+//
+//				if (Length2 > MaxEdgeSquareLength)
+//				{
+//#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
+//					if (Grid.bDisplay)
+//					{
+//						F3DDebugSession W(FString::Printf(TEXT("cancel due to Seg Length %f vs %f"), sqrt(Length2), sqrt(MaxEdgeSquareLength)));
+//						Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NewSegmentEnd, *CandidateNode, 0, EVisuProperty::YellowCurve);
+//						Wait();
+//					}
+//#endif
+//					continue;
+//				}
+//
+//				BestIsoscelesCriteria = IsoscelesCriteria;
+//				AcuteNodeIndex = Index;
+//				bAcuteTriangle = true;
+//			}
+//		}
+//	}
 
 	if (bAcuteTriangle)
 	{
@@ -454,15 +479,15 @@ bool FCycleTriangulator::FindCandidateNodes(int32 StartIndex)
 #endif
 
 	constexpr double MaxSlope = Slope::PiSlope - Slope::OneDegree;
-	const double StartMaxSlope = FMath::Min(CandidateNodes.Last().SlopeAtStartNode + Slope::OneDegree, MaxSlope);
-	const double EndMaxSlope = FMath::Min(CandidateNodes[0].SlopeAtEndNode + Slope::OneDegree, MaxSlope);
+	const double StartMaxSlope = FMath::Min(CandidateNodes.Last().SlopeAtStartNode, MaxSlope);
+	const double EndMaxSlope = FMath::Min(CandidateNodes[0].SlopeAtEndNode, MaxSlope);
 
-	if (CandidateNodes.Last().SlopeAtStartNode < StartMaxSlope)
+	if (CandidateNodes.Last().SlopeAtStartNode - Slope::Epsilon < StartMaxSlope && CandidateNodes.Last().SlopeAtEndNode < EndMaxSlope)
 	{
 		CandidateNodes.Last().bIsValid = true;
 		ExtremityCandidateNodes[0] = &CandidateNodes.Last();
 	}
-	if (CandidateNodes[0].SlopeAtEndNode < EndMaxSlope)
+	if (CandidateNodes[0].SlopeAtEndNode - Slope::Epsilon < EndMaxSlope && CandidateNodes[0].SlopeAtStartNode < StartMaxSlope)
 	{
 		CandidateNodes[0].bIsValid = true;
 		ExtremityCandidateNodes[1] = &CandidateNodes[0];
@@ -521,17 +546,19 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 {
 	constexpr double MinSlopeToNotBeAligned = Slope::Epsilon;
 
-	IntersectionCountAllowed = 0;
-
 	double MinCriteria = HUGE_VALUE;
 	double CandidateSlopeAtStartNode = Slope::PiSlope - MinSlopeToNotBeAligned;
 	double CandidateSlopeAtEndNode = Slope::PiSlope - MinSlopeToNotBeAligned;
 	FCandidateNode* CandidateNode = nullptr;
 	double CandidateEndSquareDistance = HUGE_VALUE;
 	double CandidateStartSquareDistance = HUGE_VALUE;
+	bool bIsDegeneratedDueSlope = false;
+	bool bIsDegeneratedDueToLength = false;
+	int32 CandidateIntersectionCount = 0;
 
 	const FPoint2D& StartPoint2D = FirstSideStartNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FPoint2D& EndPoint2D = FirstSideEndNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	double NewSegmentSquareLength2500 = StartPoint2D.SquareDistance(EndPoint2D) * 2500; // need to check if the length of the sides are not disproportionate
 
 #ifdef DEBUG_FIND_THE_BEST_CANDIDATE_NODE
 	static int32 BestCandidateNode = 0;
@@ -545,6 +572,26 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 	}
 #endif
 
+	TFunction<bool(const double, const double)> IsDegeneratedDueToSlope = [](const double SlopeAtStartNode, const double SlopeAtEndNode) -> bool
+	{
+		// check if the angle of the candidate triangle are not degenerated
+		double MinSlope;
+		double MaxSlope;
+		GetMinMax(SlopeAtStartNode, SlopeAtEndNode, MinSlope, MaxSlope);
+		constexpr double PiMinus5 = Slope::PiSlope - Slope::FiveDegree;
+		return MinSlope < Slope::FiveDegree&& MaxSlope > PiMinus5;
+	};
+
+	TFunction<bool(const double, const double)> IsDegeneratedDueToLength = [&NewSegmentSquareLength2500](const double CandidateEndSquareDistance, const double CandidateStartSquareDistance)
+	{
+		// check if the length of the sides are not disproportionate min side minus than 50 times max length 
+		const double MinSquareLenth = FMath::Min(CandidateEndSquareDistance, CandidateStartSquareDistance);
+		return NewSegmentSquareLength2500 < MinSquareLenth;
+	};
+
+	const bool bCheckIntersectionWithIso = true;
+	IntersectionCountAllowed = InnerToOuterIsoSegmentsIntersectionTool.CountIntersections(*FirstSideStartNode, *FirstSideEndNode);
+
 	for (FNodeIntersectionCount& NodeIntersection : NodeToIntersection)
 	{
 		if (NodeIntersection.Value > IntersectionCountAllowed)
@@ -552,19 +599,8 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 			if (CandidateNode)
 			{
 				// if the candidate triangle is degenerated, allow intersection with iso to find a better candidate
-
-				// check if the angle of the candidate triangle are not degenerated
-				double MinSlope;
-				double MaxSlope;
-				GetMinMax(CandidateSlopeAtStartNode, CandidateSlopeAtEndNode, MinSlope, MaxSlope);
-				constexpr double PiMinus5 = Slope::PiSlope - Slope::FiveDegree;
-				const bool bIsDegeneratedDueSlope = MinSlope < Slope::FiveDegree && MaxSlope > PiMinus5;
-
-				// check if the length of the sides are not disproportionate min side minus than 50 times max length 
-				const double MinSquareLenth = FMath::Min(CandidateEndSquareDistance, CandidateStartSquareDistance);
-				const double SegmentSquareLength2500 = StartPoint2D.SquareDistance(EndPoint2D) * 2500;
-				const bool bIsDegeneratedDueToLength = SegmentSquareLength2500 < MinSquareLenth;
-
+				bIsDegeneratedDueSlope = IsDegeneratedDueToSlope(CandidateSlopeAtStartNode, CandidateSlopeAtEndNode);
+				bIsDegeneratedDueToLength = IsDegeneratedDueToLength(CandidateEndSquareDistance, CandidateStartSquareDistance);
 				const bool bIsDegenerated = bIsDegeneratedDueSlope || bIsDegeneratedDueToLength;
 
 				if (!bIsDegenerated)
@@ -588,12 +624,24 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 			F3DDebugSession _(TEXT("Candidate triangle"));
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *Node, 1, EVisuProperty::RedCurve);
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideEndNode, *Node, 2, EVisuProperty::RedCurve);
-			//Wait();
+			Wait();
 		}
 #endif
 
 		double CEndSquareDistance = StartPoint2D.SquareDistance(NodePoint2D);
 		double CStartSquareDistance = EndPoint2D.SquareDistance(NodePoint2D);
+
+		// if the previous candidate and the current candidate is Degenerated Due To Length, the previous is preferred
+		if (bIsDegeneratedDueToLength && IsDegeneratedDueToLength(CEndSquareDistance, CStartSquareDistance))
+		{
+			continue;
+		}
+
+		// if the previous candidate and the current candidate is degenerated Due to slope, the previous is preferred
+		if (bIsDegeneratedDueSlope && IsDegeneratedDueToSlope(CNode->SlopeAtStartNode, CNode->SlopeAtEndNode))
+		{
+			continue;
+		}
 
 		// the candidate triangle is inside the current candidate triangle
 		// Angle is not accurate enough to define if a triangle is inside or not an other triangle (especially with acute triangle).
@@ -610,32 +658,26 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 		{
 			// Check if the candidate segment is not in intersection with existing segments
 			// if the segment exist, it has already been tested
-			FIsoSegment* StartSegment = nullptr;
-			FIsoSegment* EndSegment = nullptr;
-			if (CycleIntersectionTool.DoesIntersect(FirstSideStartNode, Node, &StartSegment))
 			{
-#ifdef DEBUG_FIND_THE_BEST_CANDIDATE_NODE_
-				if (Grid.bDisplay)
+				const FIsoSegment* StartSegment = FirstSideStartNode->GetSegmentConnectedTo(Node);
+				if (!StartSegment && CycleIntersectionTool.DoesIntersect(FirstSideStartNode, Node))
 				{
-					F3DDebugSession _(TEXT("Candidate triangle"));
-					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *Node, 1, EVisuProperty::RedCurve);
-					Wait();
+					if (ConfirmIntersection(FirstSideStartNode, Node, FirstSideEndNode, StartSegment))
+					{
+						continue;
+					}
 				}
-#endif
-				continue;
 			}
 
-			if (CycleIntersectionTool.DoesIntersect(FirstSideEndNode, Node, &EndSegment))
 			{
-#ifdef DEBUG_FIND_THE_BEST_CANDIDATE_NODE_
-				if (Grid.bDisplay)
+				const FIsoSegment* EndSegment = FirstSideEndNode->GetSegmentConnectedTo(Node);
+				if (CycleIntersectionTool.DoesIntersect(FirstSideEndNode, Node))
 				{
-					F3DDebugSession _(TEXT("Candidate triangle"));
-					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideEndNode, *Node, 2, EVisuProperty::RedCurve);
-					Wait();
+					if (ConfirmIntersection(FirstSideEndNode, Node, FirstSideStartNode, EndSegment))
+					{
+						continue;
+					}
 				}
-#endif
-				continue;
 			}
 
 			MinCriteria = PointCriteria;
@@ -644,6 +686,7 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 			CandidateSlopeAtEndNode = CNode->SlopeAtEndNode;
 			CandidateEndSquareDistance = CEndSquareDistance;
 			CandidateStartSquareDistance = CStartSquareDistance;
+			CandidateIntersectionCount = NodeIntersection.Value;
 		}
 	}
 
@@ -694,20 +737,21 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 	};
 #endif
 
-	TFunction<void(FCandidateNode*, const double, const FPoint2D&, double, double) > CompareCandidateAtSegmentNode = [&CandidateNode, &Grid = Grid](FCandidateNode* CandidatePoint, const double CloseLimit, const FPoint2D& SegmentPoint2D, double CandidateToSegmentSquareDistance, double SlopeDiffAtSegmentExtremity)
+	TFunction<void(FCandidateNode*, const double, const FPoint2D&, double, double) > CompareCandidateAtSegmentNode = [&CandidateNode, &Grid = Grid](FCandidateNode* NewCandidate, const double CloseLimit, const FPoint2D& SegmentPoint2D, double CandidateToSegmentSquareDistance, double SlopeDiffAtSegmentExtremity)
 	{
-		const FPoint2D& NodePoint2D = CandidatePoint->Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		const FPoint2D& NodePoint2D = NewCandidate->Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
 		const double CFirstSquareDistance = SegmentPoint2D.SquareDistance(NodePoint2D) * 2.;
 
 		if (SlopeDiffAtSegmentExtremity < CloseLimit && CFirstSquareDistance < CandidateToSegmentSquareDistance)
 		{
-			CandidateNode = CandidatePoint;
+			CandidateNode = NewCandidate;
 		}
 	};
 
 	// Optimize selection step: if the selected triangle is close to one of the next segment, check if a triangle from it is not better 
 	if (ExtremityCandidateNodes[0] != CandidateNode && ExtremityCandidateNodes[1] != CandidateNode)
 	{
+		const int32 NewCandidateIntersectionCountAllowed = FMath::Max(CandidateIntersectionCount - 1, 0);
 		if (ExtremityCandidateNodes[0] && ExtremityCandidateNodes[1])
 		{
 			const double SlopeDiffAtStart = ExtremityCandidateNodes[0]->SlopeAtStartNode - CandidateNode->SlopeAtStartNode;
@@ -716,32 +760,29 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 			if (SlopeDiffAtStart < SlopeDiffAtEnd)
 			{
 				const FNodeIntersectionCount* ExtremityIntersectionCount = NodeToIntersection.FindByPredicate([Extremity = ExtremityCandidateNodes[0]](const FNodeIntersectionCount& Node) { return Node.Key == Extremity; });
-				if (IntersectionCountAllowed >= ExtremityIntersectionCount->Value)
+				if (NewCandidateIntersectionCountAllowed >= ExtremityIntersectionCount->Value)
 				{
 					CompareCandidateAtSegmentNode(ExtremityCandidateNodes[0], ExtremityCandidateNodes[0]->SlopeAtStartNode * AThird, StartPoint2D, CandidateStartSquareDistance, SlopeDiffAtStart);
-					printf("");
 				}
 			}
 			else
 			{
 				const FNodeIntersectionCount* ExtremityIntersectionCount = NodeToIntersection.FindByPredicate([Extremity = ExtremityCandidateNodes[1]](const FNodeIntersectionCount& Node) { return Node.Key == Extremity; });
-				if (IntersectionCountAllowed >= ExtremityIntersectionCount->Value)
+				if (NewCandidateIntersectionCountAllowed >= ExtremityIntersectionCount->Value)
 				{
 					CompareCandidateAtSegmentNode(ExtremityCandidateNodes[1], ExtremityCandidateNodes[1]->SlopeAtEndNode * AThird, EndPoint2D, CandidateEndSquareDistance, SlopeDiffAtEnd);
 				}
-				printf("");
 			}
 		}
 		else if (ExtremityCandidateNodes[0])
 		{
 			const FNodeIntersectionCount* ExtremityIntersectionCount = NodeToIntersection.FindByPredicate([Extremity = ExtremityCandidateNodes[0]](const FNodeIntersectionCount& Node) { return Node.Key == Extremity; });
-			if (IntersectionCountAllowed >= ExtremityIntersectionCount->Value)
+			if (NewCandidateIntersectionCountAllowed >= ExtremityIntersectionCount->Value)
 			{
 				const double SlopeDiffAtStart = ExtremityCandidateNodes[0]->SlopeAtStartNode - CandidateNode->SlopeAtStartNode;
 				if (SlopeDiffAtStart < Slope::FifteenDegree)
 				{
 					CompareCandidateAtSegmentNode(ExtremityCandidateNodes[0], ExtremityCandidateNodes[0]->SlopeAtStartNode * AThird, StartPoint2D, CandidateStartSquareDistance, SlopeDiffAtStart);
-					printf("");
 				}
 			}
 		}
@@ -749,13 +790,12 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 		{
 			//FLoopNode const* const* StartNode = NodesOfLoop.FindByPredicate([](const FLoopNode* Node) { return !Node->IsDelete(); });
 			const FNodeIntersectionCount* ExtremityIntersectionCount = NodeToIntersection.FindByPredicate([Extremity = ExtremityCandidateNodes[1]](const FNodeIntersectionCount& Node) { return Node.Key == Extremity; });
-			if (IntersectionCountAllowed >= ExtremityIntersectionCount->Value)
+			if (NewCandidateIntersectionCountAllowed >= ExtremityIntersectionCount->Value)
 			{
 				const double SlopeDiffAtEnd = ExtremityCandidateNodes[1]->SlopeAtEndNode - CandidateNode->SlopeAtEndNode;
 				if (SlopeDiffAtEnd < Slope::FifteenDegree)
 				{
 					CompareCandidateAtSegmentNode(ExtremityCandidateNodes[1], ExtremityCandidateNodes[1]->SlopeAtEndNode * AThird, EndPoint2D, CandidateEndSquareDistance, SlopeDiffAtEnd);
-					printf("");
 				}
 			}
 		}
@@ -1033,8 +1073,8 @@ bool FCycleTriangulator::ValidComplementaryNodeOrDeleteIt(FAdditionalIso& Side, 
 	double Slope = ComputeOrientedSlope(OppositePoint, CandidatePoint, TestPoint);
 	if ((Slope > 0) == (CandidateIndex == 0))
 	{
-		FIsoSegment* Segment;
-		if (!CycleIntersectionTool.DoesIntersect(Candidate, OppositeNode, &Segment))
+		const FIsoSegment* Segment = Candidate->GetSegmentConnectedTo(OppositeNode);
+		if (Segment || !CycleIntersectionTool.DoesIntersect(Candidate, OppositeNode))
 		{
 			// The new segment is fully inside the cycle 
 			return true;
@@ -1159,8 +1199,8 @@ void FCycleTriangulator::ValidateComplementaryNodesWithInsideAndIntersectionsCri
 		}
 #endif
 		// Check if [Side.Nodes[0] - Side.Nodes[1]] intersect cycle
-		FIsoSegment* Segment = nullptr;
-		if (CycleIntersectionTool.DoesIntersect(Side.Nodes[0], Side.Nodes[1], &Segment) || !IsInnerSideSegmentInsideCycle(Side))
+		const FIsoSegment* Segment = Side.Nodes[0]->GetSegmentConnectedTo(Side.Nodes[1]);
+		if (!Segment && (CycleIntersectionTool.DoesIntersect(Side.Nodes[0], Side.Nodes[1]) || !IsInnerSideSegmentInsideCycle(Side)))
 		{
 			// intersect => choose between NextFinalNode and LastPotentialNode
 #ifdef DEBUG_VALID_COMPLEMENTARY_NODE

@@ -1156,7 +1156,7 @@ void FGrid::GetMeshOfThinZone(const FThinZone2D& ThinZone)
 			constexpr double Tolerance = DOUBLE_SMALL_NUMBER;
 			for (int32 Index = ThinZoneMesh.Num() - 1; Index > 0; --Index)
 			{
-				double SquareDist = ThinZoneMesh[Index-1].SquareDistance(ThinZoneMesh[Index]);
+				double SquareDist = ThinZoneMesh[Index - 1].SquareDistance(ThinZoneMesh[Index]);
 				if (SquareDist < Tolerance)
 				{
 					ThinZoneMesh.RemoveAt(Index);
@@ -1167,7 +1167,7 @@ void FGrid::GetMeshOfThinZone(const FThinZone2D& ThinZone)
 				double SquareDist = ThinZoneMesh[0].SquareDistance(ThinZoneMesh.Last());
 				if (SquareDist < Tolerance)
 				{
-					ThinZoneMesh.RemoveAt(ThinZoneMesh.Num()-1);
+					ThinZoneMesh.RemoveAt(ThinZoneMesh.Num() - 1);
 				}
 			}
 		}

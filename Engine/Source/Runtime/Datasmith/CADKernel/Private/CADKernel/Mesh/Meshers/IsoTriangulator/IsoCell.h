@@ -15,17 +15,18 @@ namespace UE::CADKernel
 class FGrid;
 class FIsoTriangulator;
 
-struct FLoopCell
+struct FCellLoop
 {
 	int32 Id;
 	FPoint2D Barycenter;
 	TArray<FLoopNode*> Nodes;
-	TArray<FLoopConnexion*> Connexions;
+	TArray<FCellConnexion*> Connexions;
 	bool bIsOuterLoop = false;
+	bool bIsConnected = false;
 
-	FLoopCell(const int32 InIndex, TArray<FLoopNode*>& InNodes, const FGrid& Grid)
+	FCellLoop(const int32 InIndex, TArray<FLoopNode*>& InNodes, const FGrid& Grid)
 		: Id(InIndex)
-		, Barycenter(FPoint::ZeroPoint)
+		, Barycenter(FPoint2D::ZeroPoint)
 		, Nodes(InNodes)
 		, bIsOuterLoop(Nodes[0]->GetLoopIndex() == 0)
 	{
@@ -35,50 +36,94 @@ struct FLoopCell
 		}
 		Barycenter /= (double)Nodes.Num();
 	}
+
+	FCellLoop(const int32 InIndex)
+		: Id(InIndex)
+		, Barycenter(FPoint::ZeroPoint)
+	{
+	}
+
+	virtual ~FCellLoop() = default;
+
+	virtual bool IsCellCorner() const 
+	{
+		return false;
+	}
+
+	virtual bool IsCellCornerOrOuterLoop() const
+	{
+		return bIsOuterLoop;
+	}
+
+	void SpreadAsConnected();
 };
 
-struct FLoopConnexion
+struct FCellCorner : public FCellLoop
 {
-	bool bIsConnexionWithBorder = false;
-	FLoopCell& Loop1;
-	FLoopCell& Loop2;
+	FIsoInnerNode& CornerNode;
+
+	FCellCorner(const int32 InIndex, FIsoInnerNode& InNode, const FGrid& Grid)
+		: FCellLoop(InIndex)
+		, CornerNode(InNode)
+	{
+		Barycenter = CornerNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
+	}
+
+	virtual bool IsCellCorner() const override
+	{
+		return true;
+	}
+
+	virtual bool IsCellCornerOrOuterLoop() const
+	{
+		return true;
+	}
+
+};
+
+struct FCellConnexion
+{
+	bool bIsConnexionWithOuter = false;
+	FCellLoop& Loop1;
+	FCellLoop& Loop2;
 
 	double MinDistance = HUGE_VALUE_SQUARE;
 
 	FLoopNode* NodeA = nullptr;
-	FLoopNode* NodeB = nullptr;
+	FIsoNode* NodeB = nullptr;
 
 	FIsoSegment* Segment = nullptr;
 
-	FLoopConnexion(FLoopCell& InLoop1, FLoopCell& InLoop2, bool bIsConnectingBoder = false)
-		: bIsConnexionWithBorder(bIsConnectingBoder)
-		, Loop1(InLoop1)
+	FCellConnexion(FCellLoop& InLoop1, FCellLoop& InLoop2)
+		: Loop1(InLoop1)
 		, Loop2(InLoop2)
 	{
-	}
-
-	void LinkToLoop()
-	{
+		bIsConnexionWithOuter = Loop1.bIsOuterLoop || (!Loop2.IsCellCorner() && Loop2.bIsOuterLoop);
 		Loop1.Connexions.Add(this);
 		Loop2.Connexions.Add(this);
 	}
 
-	const FLoopCell* GetOtherLoop(const FLoopCell* Loop)
+	const FCellLoop* GetOtherLoop(const FCellLoop* Loop) const
+	{
+		return (Loop == &Loop1) ? &Loop2 : &Loop1;
+	}
+
+	FCellLoop* GetOtherLoop(const FCellLoop* Loop)
 	{
 		return (Loop == &Loop1) ? &Loop2 : &Loop1;
 	}
 
 	bool IsShortestPath(const int32 MaxLoopCount)
 	{
-		TMap<const FLoopCell*, double> DistanceToLoops;
+		TMap<const FCellLoop*, double> DistanceToLoops;
 		DistanceToLoops.Reserve(MaxLoopCount);
-		DistanceToLoops.Add(&Loop1, 0.);
+		DistanceToLoops.Add(&Loop2, 0.);
 		double MinPathDistance = HUGE_VALUE;
 		while (true)
 		{
 			double DistanceToCurrent = HUGE_VALUE;
-			TPair<const FLoopCell*, double>* CurrentLoop = nullptr;
-			for (TPair<const FLoopCell*, double>& DistanceToLoop : DistanceToLoops)
+			TPair<const FCellLoop*, double>* CurrentLoop = nullptr;
+			for (TPair<const FCellLoop*, double>& DistanceToLoop : DistanceToLoops)
 			{
 				if (DistanceToLoop.Value >= 0. && DistanceToLoop.Value < DistanceToCurrent)
 				{
@@ -92,19 +137,29 @@ struct FLoopConnexion
 				return true;
 			}
 
-			if (CurrentLoop->Key == &Loop2)
+			if (CurrentLoop->Key == &Loop1)
 			{
 				return (CurrentLoop->Value > MinDistance);
 			}
 
-			for (FLoopConnexion* Connexion : CurrentLoop->Key->Connexions)
+			for (FCellConnexion* Connexion : CurrentLoop->Key->Connexions)
 			{
-				if (Connexion == this || Connexion->bIsConnexionWithBorder)
+				if (Connexion == this)
 				{
 					continue;
 				}
 
-				const FLoopCell* NextLoop = Connexion->GetOtherLoop(CurrentLoop->Key);
+				const FCellLoop* NextLoop = Connexion->GetOtherLoop(CurrentLoop->Key);
+				if (NextLoop->IsCellCorner())
+				{
+					continue;
+				}
+
+				if (NextLoop->bIsOuterLoop)
+				{
+					continue;
+				}
+
 				const double DistanceToNextByCurrent = CurrentLoop->Value + Connexion->MinDistance;
 
 				double* DistanceToNextLoop = DistanceToLoops.Find(NextLoop);
@@ -126,13 +181,155 @@ struct FLoopConnexion
 
 		return true;
 	}
+
+	bool IsShortestPathToOuterLoop(const int32 MaxLoopCount)
+	{
+		TMap<const FCellLoop*, double> DistanceToLoops;
+		DistanceToLoops.Reserve(MaxLoopCount);
+		DistanceToLoops.Add(&Loop2, 0.);
+		double MinPathDistance = HUGE_VALUE;
+
+		while (true)
+		{
+			double DistanceToCurrent = HUGE_VALUE;
+			TPair<const FCellLoop*, double>* CurrentLoopPair = nullptr;
+			for (TPair<const FCellLoop*, double>& DistanceToLoop : DistanceToLoops)
+			{
+				if (DistanceToLoop.Value >= 0. && DistanceToLoop.Value < DistanceToCurrent)
+				{
+					DistanceToCurrent = DistanceToLoop.Value;
+					CurrentLoopPair = &DistanceToLoop;
+				}
+			}
+
+			if (!CurrentLoopPair || CurrentLoopPair->Value > MinDistance)
+			{
+				return true;
+			}
+
+			const FCellLoop* CurrentLoop = CurrentLoopPair->Key;
+			double& CurrentLoopDistance = CurrentLoopPair->Value;
+
+			for (FCellConnexion* Connexion : CurrentLoop->Connexions)
+			{
+				if (Connexion == this)
+				{
+					continue;
+				}
+
+				const FCellLoop* NextLoop = Connexion->GetOtherLoop(CurrentLoop);
+				if (NextLoop->IsCellCorner())
+				{
+					continue;
+				}
+
+				const double DistanceToNextByCurrent = CurrentLoopDistance + Connexion->MinDistance;
+				if (NextLoop->bIsOuterLoop)
+				{
+					if (DistanceToNextByCurrent < MinDistance)
+					{
+						return false;
+					}
+					continue;
+				}
+
+				double* DistanceToNextLoop = DistanceToLoops.Find(NextLoop);
+				if (DistanceToNextLoop)
+				{
+					if (*DistanceToNextLoop > DistanceToNextByCurrent)
+					{
+						*DistanceToNextLoop = DistanceToNextByCurrent;
+					}
+				}
+				else
+				{
+					DistanceToLoops.Add(NextLoop, DistanceToNextByCurrent);
+				}
+			}
+
+			CurrentLoopDistance = -HUGE_VALUE;
+		}
+
+		return true;
+	}
+
+	bool IsShortestPathToCorner(const int32 MaxLoopCount)
+	{
+		TMap<const FCellLoop*, double> DistanceToLoops;
+		DistanceToLoops.Reserve(MaxLoopCount);
+		DistanceToLoops.Add(&Loop2, 0.);
+		double MinPathDistance = HUGE_VALUE;
+
+		while (true)
+		{
+			double DistanceToCurrent = HUGE_VALUE;
+			TPair<const FCellLoop*, double>* CurrentLoopPair = nullptr;
+			for (TPair<const FCellLoop*, double>& DistanceToLoop : DistanceToLoops)
+			{
+				if (DistanceToLoop.Value >= 0. && DistanceToLoop.Value < DistanceToCurrent)
+				{
+					DistanceToCurrent = DistanceToLoop.Value;
+					CurrentLoopPair = &DistanceToLoop;
+				}
+			}
+
+			if (!CurrentLoopPair || CurrentLoopPair->Value > MinDistance)
+			{
+				return true;
+			}
+
+			const FCellLoop* CurrentLoop = CurrentLoopPair->Key;
+			double& CurrentLoopDistance = CurrentLoopPair->Value;
+
+			for (FCellConnexion* Connexion : CurrentLoop->Connexions)
+			{
+				if (Connexion == this)
+				{
+					continue;
+				}
+
+				const FCellLoop* NextLoop = Connexion->GetOtherLoop(CurrentLoop);
+				if (NextLoop->bIsOuterLoop)
+				{
+					continue;
+				}
+
+				const double DistanceToNextByCurrent = CurrentLoopDistance + Connexion->MinDistance;
+				if (NextLoop->IsCellCorner())
+				{
+					if ((NextLoop == &Loop1) && (DistanceToNextByCurrent < MinDistance))
+					{
+						return false;
+					}
+					continue;
+				}
+
+				double* DistanceToNextLoop = DistanceToLoops.Find(NextLoop);
+				if (DistanceToNextLoop)
+				{
+					if (*DistanceToNextLoop > DistanceToNextByCurrent)
+					{
+						*DistanceToNextLoop = DistanceToNextByCurrent;
+					}
+				}
+				else
+				{
+					DistanceToLoops.Add(NextLoop, DistanceToNextByCurrent);
+				}
+			}
+
+			CurrentLoopDistance = -HUGE_VALUE;
+		}
+
+		return true;
+	}
 };
 
 struct FCellPath
 {
 	double Length = 0;
-	FLoopCell* CurrentLoop;
-	TArray<FLoopCell> Path;
+	FCellLoop* CurrentLoop;
+	TArray<FCellLoop> Path;
 };
 
 struct FCell
@@ -149,15 +346,16 @@ struct FCell
 
 	FIntersectionSegmentTool IntersectionTool;
 
-	TArray<FLoopCell> LoopCells;
-	TArray<FLoopConnexion> LoopConnexions;
+	TArray<FCellLoop> CellLoops;
+	TArray<FCellCorner> CellCorners;
+	TArray<FCellConnexion> LoopConnexions;
 	TArray<int32> LoopCellBorderIndices;
 
 	FCell(const int32 InLoopIndex, TArray<FLoopNode*>& InNodes, FIsoTriangulator& InTriangulator)
 		: Triangulator(InTriangulator)
 		, Grid(Triangulator.GetGrid())
 		, Id(InLoopIndex)
-		, IntersectionTool(Triangulator.GetGrid())
+		, IntersectionTool(Triangulator.GetGrid(), Triangulator.Tolerances.GeometricTolerance)
 	{
 		const int32 NodeCount = InNodes.Num();
 		ensureCADKernel(NodeCount > 0);
@@ -179,16 +377,16 @@ struct FCell
 			PreviousNode = Node;
 		}
 
-		LoopCells.Reserve(LoopCount);
+		CellLoops.Reserve(LoopCount);
 
 		LoopCount = 0;
 		TArray<FLoopNode*> LoopNodes;
 		LoopNodes.Reserve(NodeCount);
 
 		int32 LoopIndex = -1;
-		FLoopCell* FirstLoopCell = nullptr;
+		FCellLoop* FirstLoopCell = nullptr;
 
-		TFunction<void(TArray<FLoopNode*>&)> MakeLoopCell = [&FirstLoopCell, &LoopCells = LoopCells, &LoopIndex, &Grid = Grid](TArray<FLoopNode*>& LoopNodes)
+		TFunction<void(TArray<FLoopNode*>&)> MakeLoopCell = [&FirstLoopCell, &CellLoops = CellLoops, &LoopIndex, &Grid = Grid](TArray<FLoopNode*>& LoopNodes)
 		{
 			if (LoopNodes.Num())
 			{
@@ -199,13 +397,13 @@ struct FCell
 				}
 				else
 				{
-					LoopCells.Emplace(LoopCells.Num(), LoopNodes, Grid);
+					CellLoops.Emplace(CellLoops.Num(), LoopNodes, Grid);
 				}
 
 				if (LoopIndex != LoopNodes[0]->GetLoopIndex())
 				{
 					LoopIndex = LoopNodes[0]->GetLoopIndex();
-					FirstLoopCell = &LoopCells.Last();
+					FirstLoopCell = &CellLoops.Last();
 				}
 			}
 		};
@@ -228,7 +426,7 @@ struct FCell
 		}
 		MakeLoopCell(LoopNodes);
 
-		for(const FLoopCell& LoopCell : LoopCells)
+		for(const FCellLoop& LoopCell : CellLoops)
 		{
 			if (LoopCell.bIsOuterLoop)
 			{
@@ -246,8 +444,8 @@ struct FCell
 	TArray<TPair<int32, FPoint2D>> GetLoopBarycenters()
 	{
 		TArray<TPair<int32, FPoint2D>> LoopBarycenters;
-		LoopBarycenters.Reserve(LoopCells.Num());
-		for (const FLoopCell& LoopCell : LoopCells)
+		LoopBarycenters.Reserve(CellLoops.Num());
+		for (const FCellLoop& LoopCell : CellLoops)
 		{
 			if(!LoopCell.bIsOuterLoop)
 			{
@@ -257,7 +455,14 @@ struct FCell
 		return MoveTemp(LoopBarycenters);
 	}
 
-	void ConnectLoopsByNeighborhood();
+	void FindCandidateToConnectLoopsByNeighborhood();
+	void FindCandidateToConnectCellCornerToLoops();
+
+	void SelectSegmentToConnectLoops(TFactory<FIsoSegment>& SegmentFactory);
+	void SelectSegmentToConnectLoopToCorner(TFactory<FIsoSegment>& SegmentFactory);
+	void CheckAllLoopsConnectedTogetherAndConnect();
+
+	//void ConnectLoopsByNeighborhood2();
 
 	/**
 	 *  SubLoopA                  SubLoopB
@@ -271,85 +476,9 @@ struct FCell
 	 *
 	 *     ======= ShortestSegment
 	 */
-	void TryToConnectTwoSubLoopsWithShortestSegment(FLoopConnexion& LoopConnexion);
+	void TryToConnectTwoSubLoopsWithShortestSegment(FCellConnexion& LoopConnexion);
 
-	void TryToCreateSegment(FLoopConnexion& LoopConnexion);
-
-	void SelectSegmentInCandidateSegments(TFactory<FIsoSegment>& SegmentFactory, bool bSelectWithCellSizeCriteria)
-	{
-#ifdef DEBUG_SELECT_SEGMENT
-		F3DDebugSession _(Grid.bDisplay, TEXT("SelectSegmentInCandidateSegments "));
-		if(Grid.bDisplay)
-		{
-			IntersectionTool.Display(Grid.bDisplay, TEXT("Cell.IntersectionTool at SelectSegmentInCandidateSegments start"));
-			Wait();
-		}
-#endif
-
-		double CellSquareLength = HUGE_VALUE;
-		if(bSelectWithCellSizeCriteria)
-		{
-			int32 IndexU;
-			int32 IndexV;
-			Grid.UVIndexFromGlobalIndex(Id, IndexU, IndexV);
-
-			CellSquareLength = Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV).SquareDistance(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1));
-			const double CellLength2 = Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV).SquareDistance(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV));
-			CellSquareLength = FMath::Min(CellSquareLength, CellLength2);
-		}
-
-		TArray<TPair<double, FIsoSegment*>> LengthOfCandidateSegments;
-		LengthOfCandidateSegments.Reserve(CandidateSegments.Num());
-		for (FIsoSegment* Segment : CandidateSegments)
-		{
-			LengthOfCandidateSegments.Emplace(Segment->Get2DLengthSquare(EGridSpace::UniformScaled, Grid), Segment);
-		}
-
-		Algo::Sort(LengthOfCandidateSegments, [&](const TPair<double, FIsoSegment*>& P1, const TPair < double, FIsoSegment*>& P2) { return P1.Key < P2.Key; });
-
-		// Validate the first candidate segments
-		for (const TPair<double, FIsoSegment*>& Candidate : LengthOfCandidateSegments)
-		{
-			if (Candidate.Key > CellSquareLength)
-			{
-				break;
-			}
-
-			FIsoSegment* Segment = Candidate.Value;
-#ifdef DEBUG_SELECT_SEGMENT
-			F3DDebugSession _(Grid.bDisplay, TEXT("Segment"));
-#endif
-			if (IntersectionTool.DoesIntersect(*Segment))
-			{
-#ifdef DEBUG_SELECT_SEGMENT
-				F3DDebugSession _(Grid.bDisplay, TEXT("SelectSegmentInCandidateSegments "));
-				Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, YellowCurve);
-#endif
-				SegmentFactory.DeleteEntity(Segment);
-				continue;
-			}
-
-			if (FIsoSegment::IsItAlreadyDefined(&Segment->GetFirstNode(), &Segment->GetSecondNode()))
-			{
-#ifdef DEBUG_SELECT_SEGMENT
-				Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, GreenCurve);
-#endif
-				SegmentFactory.DeleteEntity(Segment);
-				continue;
-			}
-
-#ifdef DEBUG_SELECT_SEGMENT
-			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment, BlueCurve);
-#endif
-
-			FinalSegments.Add(Segment);
-			IntersectionTool.AddSegment(*Segment);
-			Segment->SetSelected();
-			Segment->ConnectToNode();
-		}
-		CandidateSegments.Empty();
-	}
-
+	void TryToCreateSegment(FCellConnexion& LoopConnexion);
 };
 
 } // namespace UE::CADKernel

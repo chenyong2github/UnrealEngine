@@ -49,10 +49,7 @@ namespace TopomakerTools
  */
 void MergeCoincidentVertices(TArray<FTopologicalVertex*>& VerticesToMerge, double Tolerance)
 {
-	double SquareTolerance = FMath::Square(Tolerance);
-
-	FTimePoint StartTime = FChrono::Now();
-
+	const double SquareTolerance = FMath::Square(Tolerance);
 	const double WeigthTolerance = 3 * Tolerance;
 
 	int32 VertexNum = (int32)VerticesToMerge.Num();
@@ -147,10 +144,6 @@ void MergeCoincidentVertices(TArray<FTopologicalVertex*>& VerticesToMerge, doubl
 	}
 
 	Swap(ActiveVertices, VerticesToMerge);
-
-	FDuration StepDuration = FChrono::Elapse(StartTime);
-	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT("    "), TEXT("Merge Coincident vertices"), StepDuration);
-
 }
 
 FTopologicalVertex* SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEdge& EdgeToLink, FTopologicalEdge& EdgeToSplit, double SquareSewTolerance, double SquareMinEdgeLength)
@@ -386,6 +379,20 @@ void MergeCoincidentEdges(FTopologicalEdge* Edge, double MinEdgeLength)
 {
 	const FTopologicalVertex& StartVertex = *Edge->GetStartVertex()->GetLinkActiveEntity();
 	const FTopologicalVertex& EndVertex = *Edge->GetEndVertex()->GetLinkActiveEntity();
+	if (&StartVertex == &EndVertex && Edge->Length() < MinEdgeLength)
+	{
+		if (Edge->GetTwinEntityCount() > 1)
+		{
+			FMessage::Printf(Debug, TEXT("Face %d Edge %d was self connected\n"), Edge->GetFace()->GetId(), Edge->GetId());
+			Edge->GetStartVertex()->UnlinkTo(*Edge->GetEndVertex());
+		}
+		else
+		{
+			Edge->SetAsDegenerated();
+			FMessage::Printf(Debug, TEXT("Face %d Edge %d is set as degenerated\n"), Edge->GetFace()->GetId(), Edge->GetId());
+		}
+		return;
+	}
 
 	TArray<FTopologicalEdge*> ConnectedEdges;
 	StartVertex.GetConnectedEdges(EndVertex, ConnectedEdges);
@@ -421,8 +428,6 @@ void MergeCoincidentEdges(FTopologicalEdge* Edge, double MinEdgeLength)
 
 void MergeCoincidentEdges(TArray<FTopologicalEdge*>& EdgesToProcess, double MinEdgeLength)
 {
-	FTimePoint StartTime = FChrono::Now();
-
 	for (FTopologicalEdge* Edge : EdgesToProcess)
 	{
 		if (Edge->IsDegenerated() || !Edge->IsBorder())
@@ -431,9 +436,6 @@ void MergeCoincidentEdges(TArray<FTopologicalEdge*>& EdgesToProcess, double MinE
 		}
 		MergeCoincidentEdges(Edge, MinEdgeLength);
 	}
-
-	FDuration StepDuration = FChrono::Elapse(StartTime);
-	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT("    "), TEXT("Merge coincident edges"), StepDuration);
 }
 
 void MergeCoincidentEdges(TArray<FTopologicalVertex*>& VerticesToProcess, double MinEdgeLength)
@@ -643,6 +645,8 @@ void FTopomaker::Sew()
 	{
 		RemoveDuplicatedFaces();
 	}
+
+	ResetMarkersOfFaces();
 
 #ifdef CADKERNEL_DEV
 	Report.SewDuration = FChrono::Elapse(StartJoinTime);

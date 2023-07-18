@@ -294,6 +294,10 @@ private:
 		return Max;
 	}
 
+	/**
+	 * In case of intersection with the loop, confirm that it was a real intersection and not a nearly parallel segment
+	 */
+	bool ConfirmIntersection(const FIsoNode* Start, const FIsoNode* End, const FIsoNode* Candidate, const FIsoSegment* IntersectedSegment) const;
 };
 
 namespace Polygon

@@ -26,7 +26,7 @@ enum class EIsoSegmentStates : uint8
 {
 	None = 0x00u,	// No flags.
 
-	CandidateFlag = 0x01u,
+	Candidate = 0x01u,
 
 	LeftCycle = 0x02u,
 	RightCycle = 0x04u,
@@ -37,10 +37,9 @@ enum class EIsoSegmentStates : uint8
 	RightTriangle = 0x20u,
 	SegmentComplete = 0x30u,
 
-	StatusIsoU = 0x40u,
-	StatusIsoV = 0x80u,
+	Final = 0x40u,
+	Delete = 0x80u,
 
-	Delete = 0xFFu,
 	All = 0xFFu
 };
 
@@ -140,17 +139,27 @@ public:
 
 	void SetSelected()
 	{
-		States &= ~EIsoSegmentStates::CandidateFlag;
+		States &= ~EIsoSegmentStates::Candidate;
 	}
 
 	void SetCandidate()
 	{
-		States |= EIsoSegmentStates::CandidateFlag;
+		States |= EIsoSegmentStates::Candidate;
 	}
 
-	bool IsACandidate() const // [0 Pi/2]
+	bool IsACandidate() const 
 	{
-		return (States & EIsoSegmentStates::CandidateFlag) == EIsoSegmentStates::CandidateFlag;
+		return (States & EIsoSegmentStates::Candidate) == EIsoSegmentStates::Candidate;
+	}
+
+	void SetFinalMarker()
+	{
+		States |= EIsoSegmentStates::Final;
+	}
+
+	bool IsAFinalSegment() const
+	{
+		return (States & EIsoSegmentStates::Final) == EIsoSegmentStates::Final;
 	}
 
 	bool HasCycleOnLeft()
@@ -230,26 +239,6 @@ public:
 	void ResetHasTriangle()
 	{
 		States &= ~EIsoSegmentStates::SegmentComplete;
-	}
-
-	void SetAsIsoU()
-	{
-		States |= EIsoSegmentStates::StatusIsoU;
-	}
-
-	bool IsIsoU() const
-	{
-		return (States & EIsoSegmentStates::StatusIsoU) == EIsoSegmentStates::StatusIsoU;
-	}
-
-	void SetAsIsoV()
-	{
-		States |= EIsoSegmentStates::StatusIsoV;
-	}
-
-	bool IsIsoV() const
-	{
-		return (States & EIsoSegmentStates::StatusIsoV) == EIsoSegmentStates::StatusIsoV;
 	}
 
 	void SetAsDegenerated()

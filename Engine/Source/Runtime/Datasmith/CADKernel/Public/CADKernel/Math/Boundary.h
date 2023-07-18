@@ -35,9 +35,21 @@ struct CADKERNEL_API FLinearBoundary
 	{
 	}
 
-	FLinearBoundary(double UMin, double UMax)
+	FLinearBoundary(const double UMin, const double UMax)
 	{
 		Set(UMin, UMax);
+	}
+
+	FLinearBoundary(const FLinearBoundary& Boundary, const double OffsetTolerance)
+		: Min(Boundary.Min - OffsetTolerance)
+		, Max(Boundary.Max + OffsetTolerance)
+	{
+	}
+
+	FLinearBoundary(const double UMin, const double UMax, const double OffsetTolerance)
+	{
+		Set(UMin, UMax);
+		Offset(OffsetTolerance);
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FLinearBoundary& Boundary)
@@ -56,7 +68,7 @@ struct CADKERNEL_API FLinearBoundary
 		return Max;
 	}
 
-	constexpr double GetAt(double Coordinate) const
+	constexpr double GetAt(const double Coordinate) const
 	{
 		return Min + (Max - Min) * Coordinate;
 	}
@@ -68,17 +80,17 @@ struct CADKERNEL_API FLinearBoundary
 
 	double Size() const { return Max - Min; }
 
-	void SetMin(double Coordinates)
+	void SetMin(const double Coordinates)
 	{
 		GetMinMax(Coordinates, Max, Min, Max);
 	}
 
-	void SetMax(double Coordinates)
+	void SetMax(const double Coordinates)
 	{
 		GetMinMax(Min, Coordinates, Min, Max);
 	}
 
-	void Set(double InUMin = 0., double InUMax = 1.)
+	void Set(const double InUMin = 0., const double InUMax = 1.)
 	{
 		GetMinMax(InUMin, InUMax, Min, Max);
 	}
@@ -101,7 +113,7 @@ struct CADKERNEL_API FLinearBoundary
 		return Min <= Max;
 	}
 
-	bool Contains(double Coordinate) const
+	bool Contains(const double Coordinate) const
 	{
 		return RealCompare(Coordinate, Min) >= 0 && RealCompare(Coordinate, Max) <= 0;
 	}
@@ -134,7 +146,7 @@ struct CADKERNEL_API FLinearBoundary
 	/**
 	 * If a coordinate is outside the bounds, set the coordinate at the closed limit
 	 */
-	void MoveInsideIfNot(double& Coordinate, double Tolerance = DOUBLE_SMALL_NUMBER) const
+	void MoveInsideIfNot(double& Coordinate, const double Tolerance = DOUBLE_SMALL_NUMBER) const
 	{
 		if (Coordinate <= Min)
 		{
@@ -144,6 +156,12 @@ struct CADKERNEL_API FLinearBoundary
 		{
 			Coordinate = Max - Tolerance;
 		}
+	}
+
+	void Offset(const double Tolerance = DOUBLE_SMALL_NUMBER)
+	{
+		Min -= Tolerance;
+		Max += Tolerance;
 	}
 
 	/**
@@ -180,7 +198,7 @@ struct CADKERNEL_API FLinearBoundary
 		Max = FMath::Max(Max, MaxBound.Max);
 	}
 
-	void ExtendTo(double Coordinate)
+	void ExtendTo(const double Coordinate)
 	{
 		if (Coordinate < Min)
 		{
@@ -237,15 +255,28 @@ public:
 
 	FSurfacicBoundary() = default;
 
-	FSurfacicBoundary(double InUMin, double InUMax, double InVMin, double InVMax)
+	FSurfacicBoundary(const double InUMin, const double InUMax, const double InVMin, const double InVMax)
 	{
 		UVBoundaries[EIso::IsoU].Set(InUMin, InUMax);
 		UVBoundaries[EIso::IsoV].Set(InVMin, InVMax);
 	}
 
+	FSurfacicBoundary(const double InUMin, const double InUMax, const double InVMin, const double InVMax, const double OffsetTolerance)
+	{
+		UVBoundaries[EIso::IsoU].Set(InUMin, InUMax);
+		UVBoundaries[EIso::IsoV].Set(InVMin, InVMax);
+		Offset(OffsetTolerance);
+	}
+
 	FSurfacicBoundary(const FPoint2D& Point1, const FPoint2D& Point2)
 	{
 		Set(Point1, Point2);
+	}
+
+	FSurfacicBoundary(const FPoint2D& Point1, const FPoint2D& Point2, const double OffsetTolerance)
+	{
+		Set(Point1, Point2);
+		Offset(OffsetTolerance);
 	}
 
 	void Set(const FPoint2D& Point1, const FPoint2D& Point2)
@@ -267,7 +298,7 @@ public:
 		UVBoundaries[EIso::IsoV] = BoundV;
 	}
 
-	void Set(double InUMin, double InUMax, double InVMin, double InVMax)
+	void Set(const double InUMin, const double InUMax, const double InVMin, const double InVMax)
 	{
 		UVBoundaries[EIso::IsoU].Set(InUMin, InUMax);
 		UVBoundaries[EIso::IsoV].Set(InVMin, InVMax);
@@ -350,25 +381,25 @@ public:
 		UVBoundaries[EIso::IsoV].Init();
 	}
 
-	void TrimAt(const FSurfacicBoundary MaxLimit)
+	void TrimAt(const FSurfacicBoundary& MaxLimit)
 	{
 		UVBoundaries[EIso::IsoU].TrimAt(MaxLimit[EIso::IsoU]);
 		UVBoundaries[EIso::IsoV].TrimAt(MaxLimit[EIso::IsoV]);
 	}
 
-	void ExtendTo(const FSurfacicBoundary MaxLimit)
+	void ExtendTo(const FSurfacicBoundary& MaxLimit)
 	{
 		UVBoundaries[EIso::IsoU].ExtendTo(MaxLimit[EIso::IsoU]);
 		UVBoundaries[EIso::IsoV].ExtendTo(MaxLimit[EIso::IsoV]);
 	}
 
-	void ExtendTo(FPoint2D Point)
+	void ExtendTo(const FPoint2D& Point)
 	{
 		UVBoundaries[EIso::IsoU].ExtendTo(Point.U);
 		UVBoundaries[EIso::IsoV].ExtendTo(Point.V);
 	}
 
-	void ExtendTo(FPoint Point)
+	void ExtendTo(const FPoint& Point)
 	{
 		UVBoundaries[EIso::IsoU].ExtendTo(Point.X);
 		UVBoundaries[EIso::IsoV].ExtendTo(Point.Y);
@@ -392,7 +423,7 @@ public:
 	/**
 	 * If a point is outside the bounds, set the coordinate to insert the point inside the bounds
 	 */
-	void MoveInsideIfNot(FPoint& Point, double Tolerance = DOUBLE_SMALL_NUMBER) const
+	void MoveInsideIfNot(FPoint& Point, const double Tolerance = DOUBLE_SMALL_NUMBER) const
 	{
 		UVBoundaries[EIso::IsoU].MoveInsideIfNot(Point.X, Tolerance);
 		UVBoundaries[EIso::IsoV].MoveInsideIfNot(Point.Y, Tolerance);
@@ -401,7 +432,7 @@ public:
 	/**
 	 * If a point is outside the bounds, set the coordinate to insert the point inside the bounds
 	 */
-	void MoveInsideIfNot(FPoint2D& Point, double Tolerance = DOUBLE_SMALL_NUMBER) const
+	void MoveInsideIfNot(FPoint2D& Point, const double Tolerance = DOUBLE_SMALL_NUMBER) const
 	{
 		UVBoundaries[EIso::IsoU].MoveInsideIfNot(Point.U, Tolerance);
 		UVBoundaries[EIso::IsoV].MoveInsideIfNot(Point.V, Tolerance);
@@ -420,6 +451,12 @@ public:
 	constexpr FLinearBoundary& operator[](const EIso& Iso)
 	{
 		return UVBoundaries[Iso];
+	}
+
+	void Offset(const double Tolerance = DOUBLE_SMALL_NUMBER)
+	{
+		UVBoundaries[EIso::IsoU].Offset(Tolerance);
+		UVBoundaries[EIso::IsoV].Offset(Tolerance);
 	}
 
 };

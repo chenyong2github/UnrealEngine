@@ -66,6 +66,7 @@ void FParametricMesher::MeshEntities(TArray<FTopologicalShapeEntity*>& InEntitie
 			continue;
 		}
 		FaceCount += TopologicalEntity->FaceCount();
+		TopologicalEntity->ResetMarkersRecursively();
 	}
 	Faces.Reserve(Faces.Num() + FaceCount);
 

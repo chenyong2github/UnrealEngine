@@ -167,7 +167,7 @@ void FShell::UpdateShellOrientation()
 	const bool bIsOuter = IsOuter();
 	for (FOrientedFace& Face : TopologicalFaces)
 	{
-		if (bIsOuter != Face.Entity->IsBackOriented())
+		if (bIsOuter == Face.Entity->IsBackOriented())
 		{
 			Face.Direction = EOrientation::Back;
 		}
@@ -499,8 +499,6 @@ int32 FShell::Orient()
 			ShellSwappedFaceCount += SubshellSwappedFaceCount;
 		}
 	};
-
-	SpreadBodyOrientation();
 
 	for (FOrientedFace& Face : GetFaces())
 	{

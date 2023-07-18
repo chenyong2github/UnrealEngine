@@ -44,9 +44,9 @@ struct FSegment
 	/**
 	 * WARNING StartPoint, EndPoint must be defined in EGridSpace::UniformScaled
 	 */
-	FSegment(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
+	FSegment(const double Tolerance, const FPoint2D& StartPoint, const FPoint2D& EndPoint)
 		: Segment2D(StartPoint, EndPoint)
-		, Boundary(StartPoint, EndPoint)
+		, Boundary(StartPoint, EndPoint, Tolerance)
 	{
 		AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;
 		AxisMax = Boundary[EIso::IsoU].Max + Boundary[EIso::IsoV].Max;
@@ -59,7 +59,7 @@ struct FSegment
 	virtual const FIsoNode* GetFirstNode() const = 0;
 	virtual const FIsoNode* GetSecondNode() const = 0;
 
-	virtual const FIsoSegment* GetIsoSegment() const 
+	virtual const FIsoSegment* GetIsoSegment() const
 	{
 		return nullptr;
 	}
@@ -117,7 +117,7 @@ struct FSegment
 			return IsSuperimposed(Segment2D, InSegment, true);
 		}
 
-		if (GetFirstNode() == EndNode )
+		if (GetFirstNode() == EndNode)
 		{
 			if (GetSecondNode() == StartNode)
 			{
@@ -182,11 +182,11 @@ struct FSegment : public IntersectionToolBase::FSegment
 {
 	const FIsoSegment* IsoSegment;
 
-	FSegment(const FGrid& Grid, const FIsoSegment& InSegment);
-	FSegment(const FGrid& Grid, const FIsoNode& StartNode, const FIsoNode& EndNode);
-	FSegment(const FGrid& Grid, const FIsoNode& StartNode, const FPoint2D& EndPoint);
-	FSegment(const FGrid& Grid, const FPoint2D& StartPoint, const FPoint2D& EndPoint)
-		: IntersectionToolBase::FSegment(StartPoint, EndPoint)
+	FSegment(const FGrid& Grid, const double Tolerance, const FIsoSegment& InSegment);
+	FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& StartNode, const FIsoNode& EndNode);
+	FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& StartNode, const FPoint2D& EndPoint);
+	FSegment(const FGrid& Grid, const double Tolerance, const FPoint2D& StartPoint, const FPoint2D& EndPoint)
+		: IntersectionToolBase::FSegment(Tolerance, StartPoint, EndPoint)
 		, IsoSegment(nullptr)
 	{
 	}
@@ -213,8 +213,8 @@ struct FSegment : public IntersectionToolBase::FSegment
 	const FIsoNode* StartNode;
 	const FIsoNode* EndNode;
 
-	FSegment(const FIsoNode* StartNode, const FIsoNode* EndNode, const FPoint2D& StartPoint, const FPoint2D& EndPoint);
-	FSegment(const FGrid& Grid, const FIsoNode& StartNode, const FIsoNode& EndNode);
+	FSegment(const double Tolerance, const FIsoNode* StartNode, const FIsoNode* EndNode, const FPoint2D& StartPoint, const FPoint2D& EndPoint);
+	FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& StartNode, const FIsoNode& EndNode);
 
 	virtual bool IsValid() const override
 	{
@@ -253,12 +253,19 @@ protected:
 
 	TArray<SegmentType> Segments;
 	bool bSegmentsAreSorted;
+
+	const double Tolerance;
+
+	// Allow a candidate segment to be parallel with and overlap an existing segment.
+	// This is used by InnerToOuterIsoSegmentsIntersectionTool, which existing segment are Isolines. 
+	// So this allow candidate segment to overlap iso segment. Otherwise, the candidate segment has one intersection with an isoline when we just want that is parallel with.
 	const bool bAllowOverlapping;
 
 public:
-	TIntersectionSegmentTool(const FGrid& InGrid, bool bInAllowOverlapping = false)
+	TIntersectionSegmentTool(const FGrid& InGrid, const double InTolerance, const bool bInAllowOverlapping = false)
 		: Grid(InGrid)
 		, bSegmentsAreSorted(false)
+		, Tolerance(InTolerance)
 		, bAllowOverlapping(bInAllowOverlapping)
 	{
 	}
@@ -307,7 +314,7 @@ public:
 	const SegmentType* FindIntersectingSegment(const ExtremityType1* StartExtremity, const ExtremityType2* EndExtremity) const
 	{
 		using namespace IntersectionSegmentTool;
-		const SegmentType InSegment(Grid, *StartExtremity, *EndExtremity);
+		const SegmentType InSegment(Grid, Tolerance, *StartExtremity, *EndExtremity);
 
 		for (const SegmentType& Segment : Segments)
 		{
@@ -327,6 +334,11 @@ public:
 				{
 					break;
 				}
+			}
+
+			if (Segment.IsParallelWith(InSegment))
+			{
+				printf("");
 			}
 
 			if (bAllowOverlapping && Segment.IsParallelWith(InSegment))
@@ -358,8 +370,8 @@ public:
 	template<typename ExtremityType1, typename ExtremityType2>
 	int32 FindIntersectingSegments(const ExtremityType1* StartExtremity, const ExtremityType2* EndExtremity, TArray<const FIsoSegment*>* OutIntersectedSegments) const
 	{
-		SegmentType InSegment(Grid, *StartExtremity, *EndExtremity);
-		if(OutIntersectedSegments)
+		SegmentType InSegment(Grid, Tolerance, *StartExtremity, *EndExtremity);
+		if (OutIntersectedSegments)
 		{
 			OutIntersectedSegments->Empty(10);
 		}
@@ -445,8 +457,8 @@ public:
 class FIntersectionSegmentTool : public TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>
 {
 public:
-	FIntersectionSegmentTool(const FGrid& InGrid)
-		: TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>(InGrid)
+	FIntersectionSegmentTool(const FGrid& InGrid, const double Tolerance)
+		: TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>(InGrid, Tolerance)
 	{
 	}
 
@@ -460,7 +472,7 @@ public:
 		if (SegmentIndex != INDEX_NONE)
 		{
 			Segments.RemoveAt(SegmentIndex);
-			Segments.EmplaceAt(SegmentIndex, Grid, *Segment);
+			Segments.EmplaceAt(SegmentIndex, Grid, Tolerance, *Segment);
 			bSegmentsAreSorted = false;
 			return true;
 		}
@@ -491,13 +503,13 @@ public:
 	void AddSegment(const FIsoSegment& Segment)
 	{
 		bSegmentsAreSorted = false;
-		Segments.Emplace(Grid, Segment);
+		Segments.Emplace(Grid, Tolerance, Segment);
 	}
 
 	void AddSegment(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
 	{
 		bSegmentsAreSorted = false;
-		Segments.Emplace(Grid, StartPoint, EndPoint);
+		Segments.Emplace(Grid, Tolerance, StartPoint, EndPoint);
 	}
 
 	/**
@@ -534,7 +546,6 @@ public:
 		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&StartPoint, &EndPoint) != nullptr;
 	}
 
-	
 	/**
 	 * Allow StartNode to be connected to one segment
 	 * WARNING EndPoint must be defined in EGridSpace::UniformScaled
@@ -543,11 +554,6 @@ public:
 	{
 		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&StartNode, &EndPoint) != nullptr;
 	}
-
-	/**
-	 * Find if a Segment already exists, if return false with the segment
-	 */
-	bool DoesIntersect(const FIsoNode* StartNode, const FIsoNode* EndNode, FIsoSegment** Segment) const;
 
 	bool DoesIntersect(const FIsoNode* StartNode, const FIsoNode* EndNode) const
 	{
@@ -572,32 +578,51 @@ public:
 		return nullptr;
 	}
 
+	const FIsoSegment* FindIntersectingSegment(const FIsoNode* StartNode, const FIsoNode* EndNode) const
+	{
+		const IntersectionSegmentTool::FSegment* IntersectingSegment = TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(StartNode, EndNode);
+		if (IntersectingSegment)
+		{
+			return IntersectingSegment->IsoSegment;
+		}
+		return nullptr;
+	}
+
+	bool FindIntersectingSegments(const FIsoNode* StartNode, const FIsoNode* EndNode, TArray<const FIsoSegment*>& OutIntersections) const
+	{
+		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegments(StartNode, EndNode, &OutIntersections) > 0;
+	}
+
 	bool FindIntersectingSegments(const FIsoNode& StartNode, const FIsoNode& EndNode, TArray<const FIsoSegment*>& OutIntersections) const
 	{
 		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegments(&StartNode, &EndNode, &OutIntersections) > 0;
 	}
 
+	int32 CountIntersections(const FIsoNode* StartNode, const FIsoNode* EndNode) const
+	{
+		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegments(StartNode, EndNode, nullptr);
+	}
 };
 
 class FIntersectionNodePairTool : public TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>
 {
 
 public:
-	FIntersectionNodePairTool(const FGrid& InGrid, bool bInAllowOverlaping)
-		: TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>(InGrid, bInAllowOverlaping)
+	FIntersectionNodePairTool(const FGrid& InGrid, const double Tolerance, bool bInAllowOverlaping)
+		: TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>(InGrid, Tolerance, bInAllowOverlaping)
 	{
 	}
 
 	void AddSegment(const FIsoNode& StartNode, const FIsoNode& EndNode)
 	{
 		bSegmentsAreSorted = false;
-		Segments.Emplace(Grid, StartNode, EndNode);
+		Segments.Emplace(Grid, Tolerance, StartNode, EndNode);
 	}
 
 	void AddSegment(const FIsoNode* StartNode, const FIsoNode* EndNode, const FPoint2D& StartPoint, const FPoint2D& EndPoint)
 	{
 		bSegmentsAreSorted = false;
-		Segments.Emplace(StartNode, EndNode, StartPoint, EndPoint);
+		Segments.Emplace(Tolerance, StartNode, EndNode, StartPoint, EndPoint);
 	}
 
 	int32 CountIntersections(const FIsoNode& StartNode, const FIsoNode& EndNode) const

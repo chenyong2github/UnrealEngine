@@ -26,7 +26,7 @@ struct FCell;
 
 using FMeshPolygonFunc = TFunction<void(const FGrid&, FIsoNode*[], FFaceMesh&)>;
 
-struct FLoopConnexion;
+struct FCellConnexion;
 
 struct CADKERNEL_API FIsoTriangulatorChronos
 {
@@ -109,6 +109,10 @@ protected:
 	TArray<FIsoSegment*> FinalInnerSegments;
 	TArray<FIsoSegment*> InnerToOuterSegments;
 
+	/** 
+	 * Waiting list for SelectSegmentsToLinkInnerToLoop
+	 * Segments are identified in each cell but not directly processed 
+	 */
 	TArray<FIsoSegment*> InnerToLoopCandidateSegments;
 
 	/**
@@ -117,10 +121,15 @@ protected:
 	 * Checks intersection with loop.
 	 */
 	FIntersectionSegmentTool LoopSegmentsIntersectionTool;
-	FIntersectionSegmentTool InnerSegmentsIntersectionTool;
-	FIntersectionNodePairTool InnerToOuterIsoSegmentsIntersectionTool;
-	FIntersectionSegmentTool ThinZoneIntersectionTool;
 
+	/** Boundary of the inner grid */
+	FIntersectionSegmentTool InnerSegmentsIntersectionTool;
+	
+	/** To check if the candidate segment intersect a iso line */
+	FIntersectionNodePairTool InnerToOuterIsoSegmentsIntersectionTool;
+	
+	/** To check if a candidate segment intersect a thin zone that is already meshed */
+	FIntersectionSegmentTool ThinZoneIntersectionTool;
 
 	/**
 	 * Define all the lower left index of grid node that the upper cell is surrounding a loop
@@ -209,9 +218,11 @@ public:
 	void ConnectCellLoops();
 	void FindCellContainingBoundaryNodes(TArray<FCell>& Cells);
 
-	void ConnectCellCornerToLoops(FCell& Cell);
+	void FindCandidateToConnectCellCornerToLoops(FCell& Cell);
 
-	void AddCandidateSegmentsToLinkInnerAndLoop();
+	void SelectSegmentsToLinkInnerToLoop();
+
+	void InitCellCorners(FCell& Cell);
 
 	/**
 	 * Finalize the tessellation between inner grid boundary and loops.
@@ -306,7 +317,7 @@ private:
 	 *
 	 */
 	void TryToConnectVertexSubLoopWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& SubLoop);
-	bool TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle);
+	FIsoSegment* GetOrTryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle);
 
 public:
 #ifdef CADKERNEL_DEV
@@ -327,6 +338,9 @@ public:
 	void DisplayCells(const TArray<FCell>& Cells) const;
 	void DisplayCell(const FCell& Cell) const;
 	void DrawCellBoundary(int32 Index, EVisuProperty Property) const;
+
+	void DisplayCellConnexion(const FCellConnexion& LoopConnexion, EVisuProperty Property) const;
+	void DisplayCellConnexions(const FString& Message, const TArray<FCellConnexion>& LoopConnexions, EVisuProperty Property) const;
 #endif
 
 };

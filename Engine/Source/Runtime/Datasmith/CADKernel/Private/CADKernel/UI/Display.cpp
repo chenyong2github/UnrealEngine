@@ -514,6 +514,10 @@ void Display(const FShell& Shell)
 	FProgress Progress(Shell.GetFaces().Num(), TEXT("Display Shell"));
 	for (const FOrientedFace& Face : Shell.GetFaces())
 	{
+		if (Face.Entity->IsDeleted())
+		{
+			continue;
+		}
 		Display(*Face.Entity);
 	}
 #endif
@@ -525,6 +529,10 @@ void Draw(const FShell& Shell)
 	FProgress Progress(Shell.GetFaces().Num(), TEXT("Display Shell"));
 	for (const FOrientedFace& Face : Shell.GetFaces())
 	{
+		if (Face.Entity->IsDeleted())
+		{
+			continue;
+		}
 		F3DDebugSegment _(Face.Entity->GetId());
 		Draw(*Face.Entity);
 	}
@@ -539,7 +547,7 @@ void Display(const FBody& Body)
 	F3DDebugSegment GraphicSegment(Body.GetId());
 	for (const TSharedPtr<FShell>& Shell : Body.GetShells())
 	{
-		if (!Shell.IsValid())
+		if (!Shell.IsValid() || Shell->IsDeleted())
 		{
 			continue;
 		}

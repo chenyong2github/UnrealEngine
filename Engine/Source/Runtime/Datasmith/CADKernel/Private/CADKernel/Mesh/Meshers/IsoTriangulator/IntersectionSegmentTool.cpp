@@ -23,49 +23,33 @@ FIsoSegment* FIntersectionSegmentTool::FindIntersectingSegment(const FIsoSegment
 	return const_cast<FIsoSegment*> (static_cast<const FIntersectionSegmentTool*>(this)->FindIntersectingSegment(Segment));
 }
 
-bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode* StartNode, const FIsoNode* EndNode, FIsoSegment** Segment) const
-{
-	if (!StartNode || !EndNode)
-	{
-		return false;
-	}
-
-	*Segment = StartNode->GetSegmentConnectedTo(EndNode);
-	if (*Segment)
-	{
-		return false;
-	}
-	return DoesIntersect(StartNode, EndNode);
-}
-
-
-IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const FIsoNode& StartNode, const FIsoNode& EndNode)
-	: IntersectionToolBase::FSegment(StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndNode.Get2DPoint(EGridSpace::UniformScaled, Grid))
+IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& StartNode, const FIsoNode& EndNode)
+	: IntersectionToolBase::FSegment(Tolerance, StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndNode.Get2DPoint(EGridSpace::UniformScaled, Grid))
 	, IsoSegment(nullptr)
 {
 }
 
-IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const FIsoNode& StartNode, const FPoint2D& EndPoint)
-	: IntersectionToolBase::FSegment(StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndPoint)
+IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& StartNode, const FPoint2D& EndPoint)
+	: IntersectionToolBase::FSegment(Tolerance, StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndPoint)
 	, IsoSegment(nullptr)
 {
 }
 
-IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const FIsoSegment& InSegment)
-	: IntersectionToolBase::FSegment(InSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid))
+IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const double Tolerance, const FIsoSegment& InSegment)
+	: IntersectionToolBase::FSegment(Tolerance, InSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid))
 	, IsoSegment(&InSegment)
 {
 }
 
-IntersectionNodePairTool::FSegment::FSegment(const FIsoNode* InStartNode, const FIsoNode* InEndNode, const FPoint2D& InStartPoint, const FPoint2D& InEndPoint)
-	: IntersectionToolBase::FSegment(InStartPoint, InEndPoint)
+IntersectionNodePairTool::FSegment::FSegment(const double Tolerance, const FIsoNode* InStartNode, const FIsoNode* InEndNode, const FPoint2D& InStartPoint, const FPoint2D& InEndPoint)
+	: IntersectionToolBase::FSegment(Tolerance, InStartPoint, InEndPoint)
 	, StartNode(InStartNode)
 	, EndNode(InEndNode)
 {
 }
 
-IntersectionNodePairTool::FSegment::FSegment(const FGrid& Grid, const FIsoNode& InStartNode, const FIsoNode& InEndNode)
-	: IntersectionToolBase::FSegment(InStartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), InEndNode.Get2DPoint(EGridSpace::UniformScaled, Grid))
+IntersectionNodePairTool::FSegment::FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& InStartNode, const FIsoNode& InEndNode)
+	: IntersectionToolBase::FSegment(Tolerance, InStartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), InEndNode.Get2DPoint(EGridSpace::UniformScaled, Grid))
 	, StartNode(&InStartNode)
 	, EndNode(&InEndNode)
 {
