@@ -1,8 +1,8 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, DeviceWidgetUnreal
-from switchboard.config import (CONFIG, FilePathSetting, StringSetting, IntSetting)
-from switchboard.switchboard_utils import get_game_launch_level_path
+from switchboard.config import (CONFIG, FilePathSetting, StringSetting,
+                                IntSetting, get_game_launch_level_path)
 
 
 class DeviceMultiplayerServer(DeviceUnreal):

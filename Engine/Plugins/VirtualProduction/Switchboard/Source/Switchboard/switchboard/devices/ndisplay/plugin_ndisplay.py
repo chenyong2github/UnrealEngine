@@ -19,7 +19,8 @@ from switchboard import switchboard_widgets as sb_widgets
 from switchboard import switchboard_dialog as sb_dialog
 from switchboard.config import CONFIG, BoolSetting, IntSetting, FilePathSetting, \
     LoggingSetting, OptionSetting, Setting, StringSetting, SETTINGS, \
-    StringListSetting, AddressSetting, migrate_comma_separated_string_to_list
+    StringListSetting, AddressSetting, migrate_comma_separated_string_to_list, \
+    map_name_is_valid, get_game_launch_level_path
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, \
     DeviceWidgetUnreal, LiveLinkPresetSetting, MediaProfileSetting
@@ -28,7 +29,6 @@ from switchboard.switchboard_logging import LOGGER
 
 from .ndisplay_monitor_ui import nDisplayMonitorUI
 from .ndisplay_monitor import nDisplayMonitor
-from ...switchboard_utils import map_name_is_valid, get_game_launch_level_path
 
 
 class AddnDisplayDialog(AddDeviceDialog):

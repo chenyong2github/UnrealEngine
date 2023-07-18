@@ -8,6 +8,8 @@ import pathlib
 import subprocess
 from typing import Optional
 
+# NOTE: This file should not depend on Qt, directly or indirectly.
+
 from . import switchboard_utils as sb_utils
 from .devices.unreal.version_helpers import LISTENER_COMPATIBLE_VERSION
 

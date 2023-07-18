@@ -20,7 +20,8 @@ from switchboard import switchboard_widgets as sb_widgets
 from switchboard.switchboard_logging import LOGGER
 from switchboard.switchboard_widgets import (
     DropDownMenuComboBox, NonScrollableComboBox)
-from switchboard import ue_plugin_utils
+from switchboard import ue_plugin_utils, ugs_utils
+
 
 ROOT_CONFIGS_PATH = pathlib.Path(__file__).parent.with_name('configs')
 CONFIG_SUFFIX = '.json'
@@ -33,6 +34,48 @@ USER_SETTINGS_BACKUP_FILE_PATH = ROOT_CONFIGS_PATH.joinpath(USER_SETTINGS_BACKUP
 DEFAULT_MAP_TEXT = '-- Default Map --'
 
 ENABLE_UGS_SUPPORT = False
+
+
+def map_name_is_valid(map_name: str) -> bool:
+    """
+    Check if map is specified
+    """
+    return (map_name != ''
+            and map_name is not None
+            and map_name != DEFAULT_MAP_TEXT
+            and map_name != 'Default level'
+            and map_name != 'None')
+
+
+def get_game_launch_level_path() -> str:
+    level = CONFIG.CURRENT_LEVEL
+
+    # check if map name is valid. If not - get map name from DefaultEngine.ini
+    if not map_name_is_valid(level):
+        level = ''
+
+        # check if DefaultEngine.ini exists
+        engine_ini = os.path.join(pathlib.Path(CONFIG.UPROJECT_PATH.get_value()).parent, 'Config', 'DefaultEngine.ini')
+        if not os.path.exists(engine_ini):
+            LOGGER.warning("DefaultEngine.ini not found")
+            return ''
+
+        parser = ugs_utils.IniParser()
+
+        try:
+            engine_ini_file = open(engine_ini, "r", encoding="utf-8")
+            parser.read_file(engine_ini_file)
+
+            levels = parser.try_get('/Script/EngineSettings.GameMapsSettings', 'GameDefaultMap')
+
+            if len(levels) == 0:
+                raise Exception('Default map is not set in DefaultEngine.ini')
+            
+            level = levels[0]
+        except:
+            LOGGER.warning("Map is not set. Please select 'Level' to run dedicated server.")
+
+    return str(level)
 
 
 def migrate_comma_separated_string_to_list(value) -> list[str]:
@@ -2848,4 +2891,3 @@ def list_config_paths() -> list[pathlib.Path]:
 # Get the user settings and load their config
 SETTINGS = UserSettings()
 CONFIG = Config()
-    
