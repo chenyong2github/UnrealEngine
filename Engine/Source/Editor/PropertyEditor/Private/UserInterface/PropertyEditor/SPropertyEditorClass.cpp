@@ -289,7 +289,7 @@ void SPropertyEditorClass::CreateClassFilter(const TArray<TSharedRef<IClassViewe
 
 TSharedRef<SWidget> SPropertyEditorClass::GenerateClassPicker()
 {
-	FOnClassPicked OnPicked(FOnClassPicked::CreateRaw(this, &SPropertyEditorClass::OnClassPicked));
+	FOnClassPicked OnPicked(FOnClassPicked::CreateSP(this, &SPropertyEditorClass::OnClassPicked));
 
 	return SNew(SBox)
 		.WidthOverride(280)
