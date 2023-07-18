@@ -75,9 +75,17 @@ FColorSpace::FColorSpace(const FVector2d& InRed, const FVector2d& InGreen, const
 }
 
 FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
-	: Chromaticities(InPlace, FVector2d::Zero())
+	: Chromaticities(MakeChromaticities(ColorSpaceType))
 	, bIsSRGB(ColorSpaceType == EColorSpace::sRGB)
 {
+	RgbToXYZ = CalcRgbToXYZ();
+	XYZToRgb = RgbToXYZ.Inverse();
+}
+
+TStaticArray<FVector2d, 4> FColorSpace::MakeChromaticities(UE::Color::EColorSpace ColorSpaceType)
+{
+	TStaticArray<FVector2d, 4> Chromaticities(InPlace, FVector2d::Zero());
+
 	switch (ColorSpaceType)
 	{
 	case EColorSpace::None:
@@ -172,8 +180,7 @@ FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
 		break;
 	}
 
-	RgbToXYZ = CalcRgbToXYZ();
-	XYZToRgb = RgbToXYZ.Inverse();
+	return Chromaticities;
 }
 
 FMatrix44d FColorSpace::CalcRgbToXYZ() const

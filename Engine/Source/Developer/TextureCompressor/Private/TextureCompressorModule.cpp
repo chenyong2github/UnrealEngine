@@ -3211,6 +3211,11 @@ void FTextureBuildSettings::GetEncodedTextureDescriptionWithPixelFormat(FEncoded
 	}
 }
 
+uint32 FTextureBuildSettings::GetOpenColorIOVersion()
+{
+	return OpenColorIOWrapper::GetVersionHex();
+}
+
 void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount, bool bInImageHasAlphaChannel) const
 {
 	EPixelFormat EncodedPixelFormat = InTextureFormat->GetEncodedPixelFormat(*this, bInImageHasAlphaChannel);

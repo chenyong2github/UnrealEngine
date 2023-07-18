@@ -166,6 +166,11 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempByte = Settings.ChromaticAdaptationMethod; Ar << TempByte;
 	}
 
+	if (Settings.SourceEncodingOverride != 0 || Settings.bHasColorSpaceDefinition)
+	{
+		TempUint32 = FTextureBuildSettings::GetOpenColorIOVersion(); Ar << TempUint32;
+	}
+
 	TempByte = Settings.bPreserveBorder; Ar << TempByte;
 
 	// bDitherMipMapAlpha was removed from Texture

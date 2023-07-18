@@ -170,6 +170,13 @@ public:
 	FColorSpace& operator=(const FColorSpace&) = default;
 
 	/**
+	* Make the chromaticities of the color space type.
+	* 
+	* @return TStaticArray of four chromaticities
+	*/
+	COLORMANAGEMENT_API static TStaticArray<FVector2d, 4> MakeChromaticities(UE::Color::EColorSpace ColorSpaceType);
+
+	/**
 	* Getter for the color space chromaticity coordinates.
 	* 
 	* @param OutRed FVector2d for the red color chromaticity coordinate.
