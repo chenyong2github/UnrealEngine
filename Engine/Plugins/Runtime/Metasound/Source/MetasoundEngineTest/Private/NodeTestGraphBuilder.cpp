@@ -115,7 +115,7 @@ namespace Metasound::Test
 				true // bBuildSynchronous, so we don't have to do latent tasks
 			};
 
-			return MakeUnique<FMetasoundGenerator>(MoveTemp(GeneratorInitParams));
+			return MakeUnique<FMetasoundConstGraphGenerator>(MoveTemp(GeneratorInitParams));
 		}
 
 		return nullptr;

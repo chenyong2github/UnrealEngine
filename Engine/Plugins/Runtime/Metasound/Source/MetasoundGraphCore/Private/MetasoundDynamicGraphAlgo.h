@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "MetasoundDynamicOperatorTransactor.h"
 #include "MetasoundGraphAlgoPrivate.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundVertexData.h"
@@ -70,7 +71,16 @@ namespace Metasound
 		/** Collection of data needed to support a dynamic operator*/
 		struct FDynamicGraphOperatorData : DirectedGraphAlgo::FGraphOperatorData
 		{
+			FDynamicGraphOperatorData(const FOperatorSettings& InSettings);
 			FDynamicGraphOperatorData(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData);
+			FDynamicGraphOperatorData(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData, const FDynamicOperatorUpdateCallbacks& InCallbacks);
+
+			// Initialize the Execute/PostExecute/Reset tables.
+			void InitTables();
+
+			// A collection of optional callbacks which can be invoked when various
+			// updates are made to this collection of data.
+			FDynamicOperatorUpdateCallbacks OperatorUpdateCallbacks;
 
 			TArray<FExecuteEntry> ExecuteTable;
 			TArray<FPostExecuteEntry> PostExecuteTable;

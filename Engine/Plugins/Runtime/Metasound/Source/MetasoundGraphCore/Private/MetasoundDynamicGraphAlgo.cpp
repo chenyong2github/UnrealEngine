@@ -153,8 +153,25 @@ namespace Metasound
 		{
 		}
 
+		FDynamicGraphOperatorData::FDynamicGraphOperatorData(const FOperatorSettings& InSettings)
+		: DirectedGraphAlgo::FGraphOperatorData(InSettings)
+		{
+		}
+
 		FDynamicGraphOperatorData::FDynamicGraphOperatorData(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData)
 		: DirectedGraphAlgo::FGraphOperatorData(MoveTemp(InGraphOperatorData))
+		{
+			InitTables();
+		}
+
+		FDynamicGraphOperatorData::FDynamicGraphOperatorData(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData, const FDynamicOperatorUpdateCallbacks& InCallbacks)
+		: DirectedGraphAlgo::FGraphOperatorData(MoveTemp(InGraphOperatorData))
+		, OperatorUpdateCallbacks(InCallbacks)
+		{
+			InitTables();
+		}
+
+		void FDynamicGraphOperatorData::InitTables()
 		{
 			// Populate execute/postexecute/reset stacks
 			for (const FOperatorID& OperatorID : OperatorOrder)
@@ -198,6 +215,11 @@ namespace Metasound
 					if (const FAnyDataReference* Ref = OperatorInfo->VertexData.GetOutputs().FindDataReference(OutputVertexInfo.Get<0>()))
 					{
 						InOutGraphOperatorData.VertexData.GetOutputs().SetVertex(VertexName, *Ref);
+
+						if (InOutGraphOperatorData.OperatorUpdateCallbacks.OnOutputUpdated)
+						{
+							InOutGraphOperatorData.OperatorUpdateCallbacks.OnOutputUpdated(VertexName, InOutGraphOperatorData.VertexData.GetOutputs());
+						}
 					}
 					else if (InOutGraphOperatorData.VertexData.GetOutputs().IsVertexBound(VertexName))
 					{

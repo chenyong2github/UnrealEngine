@@ -8,6 +8,7 @@
 #include "MetasoundGraph.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
+#include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 
@@ -24,7 +25,30 @@ namespace Metasound
 
 		using FLiteralAssignmentFunction = void(*)(const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef);
 		using FReferenceCreationFunction = TOptional<FAnyDataReference>(*)(const FOperatorSettings& InSettings, const FLiteral& InLiteral, EDataReferenceAccessType InAccessType);
+		using FOnInputVertexUpdated = TFunction<void(const FVertexName&, const FInputVertexInterfaceData&)>;
+		using FOnOutputVertexUpdated = TFunction<void(const FVertexName&, const FOutputVertexInterfaceData&)>;
 
+		/** A collection of callbacks for handling updates to MetaSound dynamic operators.
+		 * 
+		 * Callbacks are invoked on the same thread which executes the dynamic operator. 
+		 */
+		struct FDynamicOperatorUpdateCallbacks
+		{
+			FOnInputVertexUpdated OnInputAdded;
+			FOnInputVertexUpdated OnInputRemoved;
+			FOnOutputVertexUpdated OnOutputAdded;
+			FOnOutputVertexUpdated OnOutputUpdated;
+			FOnOutputVertexUpdated OnOutputRemoved;
+		};
+
+		/** The FDynamicOperatorTransactor is used for communicating with a dynamic
+		 * MetaSound operator.
+		 *
+		 * Graph manipulations performed on the transactor are forwarded to dynamic
+		 * operators using the transform queue. Each modification is converted into
+		 * IDynamicOperatorTransforms which are consumed by dynamic operators during
+		 * their execution.
+		 */
 		class METASOUNDGRAPHCORE_API FDynamicOperatorTransactor
 		{
 		public:
@@ -82,7 +106,7 @@ namespace Metasound
 			void RemoveOutputDataSource(const FVertexName& InVertexName);
 
 			/** Return internal version of graph. */
-			const IGraph& GetGraph() const;
+			const FGraph& GetGraph() const;
 
 		private:
 

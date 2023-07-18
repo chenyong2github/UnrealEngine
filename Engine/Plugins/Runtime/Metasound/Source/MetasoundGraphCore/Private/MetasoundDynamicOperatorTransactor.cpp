@@ -361,7 +361,7 @@ namespace Metasound
 			EnqueueTransformOnOperatorQueues(CreateRemoveOutputTransform);
 		}
 
-		const IGraph& FDynamicOperatorTransactor::GetGraph() const
+		const FGraph& FDynamicOperatorTransactor::GetGraph() const
 		{
 			return Graph;
 		}

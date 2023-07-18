@@ -89,7 +89,7 @@ namespace Metasound
 		return TUniquePtr<IOperator>(nullptr);
 	}
 
-	TUniquePtr<IOperator> FOperatorBuilder::BuildDynamicGraphOperator(const FBuildGraphOperatorParams& InParams, DynamicGraph::FDynamicOperatorTransactor& InTransactor, FBuildResults& OutResults)
+	TUniquePtr<IOperator> FOperatorBuilder::BuildDynamicGraphOperator(const FBuildDynamicGraphOperatorParams& InParams, FBuildResults& OutResults)
 	{
 		using namespace DynamicGraph;
 
@@ -97,9 +97,7 @@ namespace Metasound
 
 		if (GraphData.IsValid())
 		{
-			TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> TransformQueue = InTransactor.CreateTransformQueue(InParams.OperatorSettings, InParams.Environment);
-
-			return MakeUnique<FDynamicOperator>(MoveTemp(*GraphData), TransformQueue);
+			return MakeUnique<FDynamicOperator>(MoveTemp(*GraphData), InParams.TransformQueue, InParams.OperatorUpdateCallbacks);
 		}
 
 		return TUniquePtr<IOperator>(nullptr);

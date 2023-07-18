@@ -583,34 +583,78 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	FParameterRouter& Router = GetParameterRouter();
 	TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> DataChannel = Router.FindOrCreateDataChannelForReader(InParams.AudioDeviceID, InParams.InstanceID);
 
-	TSharedPtr<const IGraph, ESPMode::ThreadSafe> MetasoundGraph = GetRuntimeData().Graph;
-	if (!MetasoundGraph.IsValid())
-	{
-		return ISoundGeneratorPtr(nullptr);
-	}
-
 	FOperatorBuilderSettings BuilderSettings = FOperatorBuilderSettings::GetDefaultSettings();
-
 	// Graph analyzer currently only enabled for preview sounds (but can theoretically be supported for all sounds)
 	BuilderSettings.bPopulateInternalDataReferences = InParams.bIsPreviewSound;
 
 	constexpr bool bBuildSynchronous = false;
-	FMetasoundGeneratorInitParams InitParams =
-	{
-		InSettings,
-		MoveTemp(BuilderSettings),
-		MetasoundGraph,
-		Environment,
-		GetName(),
-		GetOutputAudioChannelOrder(),
-		MoveTemp(InDefaultParameters),
-		bBuildSynchronous,
-		DataChannel,
-		DynamicTransactor
-	};
 
-	TSharedPtr<FMetasoundGenerator> Generator = MakeShared<FMetasoundGenerator>(MoveTemp(InitParams));
-	TrackGenerator(InParams.AudioComponentId, Generator);
+	const bool bIsDynamic = DynamicTransactor.IsValid();
+	TSharedPtr<FMetasoundGenerator> Generator;
+
+	if (bIsDynamic)
+	{
+		// In order to ensure synchronization and avoid race conditions the current state
+		// of the graph is copied and transform queue created here. This ensures that:
+		//
+		// 1. Modifications to the underlying FGraph in the FDynamicOperatorTransactor can continue 
+		// while the generator is being constructed on an async task.  If this were not ensured, 
+		// a race condition would be introduced wherein the FGraph could be manipulated while the
+		// graph is being read while building the generator.
+		//
+		// 2. The state of the FGraph and TransformQueue are synchronized so that any additional
+		// changes applied to the FDynamicOperatorTransactor will be placed in the TransformQueue.
+		// The dynamic operator & generator will then consume these transforms after it has finished 
+		// being built.
+
+		FMetasoundDynamicGraphGeneratorInitParams InitParams
+		{
+			{
+				InSettings,
+				MoveTemp(BuilderSettings),
+				MakeShared<FGraph>(DynamicTransactor->GetGraph()), // Make a copy of the graph.
+				Environment,
+				GetName(),
+				GetOutputAudioChannelOrder(),
+				MoveTemp(InDefaultParameters),
+				bBuildSynchronous,
+				DataChannel
+			},
+			DynamicTransactor->CreateTransformQueue(InSettings, Environment) // Create transaction queue
+		};
+		TSharedPtr<FMetasoundDynamicGraphGenerator> DynamicGenerator = MakeShared<FMetasoundDynamicGraphGenerator>(InSettings);
+		DynamicGenerator->Init(MoveTemp(InitParams));
+
+		Generator = MoveTemp(DynamicGenerator);
+	}
+	else
+	{
+		TSharedPtr<const IGraph, ESPMode::ThreadSafe> MetasoundGraph = GetRuntimeData().Graph;
+		if (!MetasoundGraph.IsValid())
+		{
+			return ISoundGeneratorPtr(nullptr);
+		}
+
+		FMetasoundGeneratorInitParams InitParams
+		{
+			InSettings,
+			MoveTemp(BuilderSettings),
+			MetasoundGraph,
+			Environment,
+			GetName(),
+			GetOutputAudioChannelOrder(),
+			MoveTemp(InDefaultParameters),
+			bBuildSynchronous,
+			DataChannel
+		};
+
+		Generator = MakeShared<FMetasoundConstGraphGenerator>(MoveTemp(InitParams));
+	}
+
+	if (Generator.IsValid())
+	{
+		TrackGenerator(InParams.AudioComponentId, Generator);
+	}
 
 	return ISoundGeneratorPtr(Generator);
 }

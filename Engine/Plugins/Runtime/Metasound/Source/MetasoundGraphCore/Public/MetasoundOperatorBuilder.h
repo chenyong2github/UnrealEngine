@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/SpscQueue.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundGraphOperator.h"
@@ -12,6 +13,7 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundVertexData.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/SharedPointer.h"
 
 namespace Metasound
 {
@@ -22,14 +24,23 @@ namespace Metasound
 
 	namespace OperatorBuilder
 	{
-		// Forward Declare
 		struct FBuildContext;
 	}
 
 	namespace DynamicGraph
 	{
-		class FDynamicOperatorTransactor;
+		class IDynamicOperatorTransform;
+		struct FDynamicOperatorUpdateCallbacks;
 	}
+
+	// Parameters for building a dynamic graph operator consist of the parameters
+	// needed to build a standard graph operator as well as a transform queue and
+	// set of callbacks in order to communicate and react to changes in the dynamic operator. 
+	struct FBuildDynamicGraphOperatorParams : FBuildGraphOperatorParams
+	{
+		TSharedPtr<TSpscQueue<TUniquePtr<DynamicGraph::IDynamicOperatorTransform>>> TransformQueue; 
+		const DynamicGraph::FDynamicOperatorUpdateCallbacks& OperatorUpdateCallbacks;
+	};
 
 	/** FOperatorBuilder builds an IOperator from an IGraph. */
 	class METASOUNDGRAPHCORE_API FOperatorBuilder : public IOperatorBuilder
@@ -56,14 +67,13 @@ namespace Metasound
 
 			/** Create an dynamic IOperator from an IGraph.
 			 *
-			 * @param InParams     - Params of the current build
-			 * @param InTransactor - A dynamic operator transactor for communicating to the operator.
-			 * @param OutResults   - Results data pertaining to the given build operator result.
+			 * @param InParams                  - Params of the current build
+			 * @param OutResults                - Results data pertaining to the given build operator result.
 			 *
 			 * @return A TUniquePtr to an IOperator. If the processes was unsuccessful, 
 			 *         the returned pointer will contain a nullptr and be invalid.
 			 */
-			TUniquePtr<IOperator> BuildDynamicGraphOperator(const FBuildGraphOperatorParams& InParams, DynamicGraph::FDynamicOperatorTransactor& InTransactor, FBuildResults& OutResults);
+			TUniquePtr<IOperator> BuildDynamicGraphOperator(const FBuildDynamicGraphOperatorParams& InParams,  FBuildResults& OutResults);
 
 		private:
 

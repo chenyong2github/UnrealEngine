@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/SpscQueue.h"
 #include "MetasoundDynamicGraphAlgo.h"
+#include "MetasoundDynamicOperatorTransactor.h"
 #include "MetasoundGraphAlgoPrivate.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
@@ -42,10 +43,7 @@ namespace Metasound
 		public:
 
 			FDynamicOperator(const FOperatorSettings& InSettings);
-			FDynamicOperator(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData, TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> TransformQueue);
-
-			virtual FDataReferenceCollection GetInputs() const override;
-			virtual FDataReferenceCollection GetOutputs() const override;
+			FDynamicOperator(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData, TSharedPtr<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> TransformQueue, const FDynamicOperatorUpdateCallbacks& InOperatorUpdateCallbacks);
 
 			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
 			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
@@ -71,7 +69,7 @@ namespace Metasound
 
 			FDynamicGraphOperatorData DynamicOperatorData;
 
-			TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> TransformQueue;
+			TSharedPtr<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> TransformQueue;
 			bool bExecuteFenceIsSet = false;
 		};
 

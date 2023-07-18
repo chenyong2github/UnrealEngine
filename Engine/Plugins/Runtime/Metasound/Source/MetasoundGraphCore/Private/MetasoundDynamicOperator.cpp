@@ -87,24 +87,22 @@ namespace Metasound
 		FDynamicOperator::FDynamicOperator(const FOperatorSettings& InSettings)
 		: DynamicOperatorData(InSettings)
 		{
+			// Ensure that a transform queue exists. 
+			if (!TransformQueue.IsValid())
+			{
+				TransformQueue = MakeShared<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>>();
+			}
 		}
 
-		FDynamicOperator::FDynamicOperator(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData, TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> InTransformQueue)
-		: DynamicOperatorData(MoveTemp(InGraphOperatorData))
+		FDynamicOperator::FDynamicOperator(DirectedGraphAlgo::FGraphOperatorData&& InGraphOperatorData, TSharedPtr<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> InTransformQueue, const FDynamicOperatorUpdateCallbacks& InOperatorUpdateCallbacks)
+		: DynamicOperatorData(MoveTemp(InGraphOperatorData), InOperatorUpdateCallbacks)
 		, TransformQueue(InTransformQueue)
 		{
-		}
-
-		FDataReferenceCollection FDynamicOperator::GetInputs() const
-		{
-			checkNoEntry();
-			return FDataReferenceCollection{};
-		}
-
-		FDataReferenceCollection FDynamicOperator::GetOutputs() const
-		{
-			checkNoEntry();
-			return FDataReferenceCollection{};
+			// Ensure that a transform queue exists. 
+			if (!TransformQueue.IsValid())
+			{
+				TransformQueue = MakeShared<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>>();
+			}
 		}
 
 		void FDynamicOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
@@ -332,6 +330,12 @@ namespace Metasound
 
 			InGraphOperatorData.InputVertexMap.Add(VertexName, OperatorID);
 
+			// Update listeners that an input has been added.
+			if (InGraphOperatorData.OperatorUpdateCallbacks.OnInputAdded)
+			{
+				InGraphOperatorData.OperatorUpdateCallbacks.OnInputAdded(VertexName, InGraphOperatorData.VertexData.GetInputs());
+			}
+
 			// Propagate the data reference update through the graph
 			PropagateBindUpdate(OperatorID, VertexName, DataReference, InGraphOperatorData);
 
@@ -357,6 +361,12 @@ namespace Metasound
 				// Unfreeze vertex data so vertex can be removed
 				DynamicOperatorPrivate::TScopeUnfreeze Unfreeze(InGraphOperatorData.VertexData.GetInputs());
 				InGraphOperatorData.VertexData.GetInputs().RemoveVertex(VertexName);
+			}
+
+			// Update listeners that an input has been removed.
+			if (InGraphOperatorData.OperatorUpdateCallbacks.OnInputRemoved)
+			{
+				InGraphOperatorData.OperatorUpdateCallbacks.OnInputRemoved(VertexName, InGraphOperatorData.VertexData.GetInputs());
 			}
 
 			return EDynamicOperatorTransformQueueAction::Continue;
@@ -389,7 +399,6 @@ namespace Metasound
 				return EDynamicOperatorTransformQueueAction::Continue;
 			}
 
-
 			FOutputVertexInterfaceData& GraphOutputData = InGraphOperatorData.VertexData.GetOutputs();
 			{
 				// Unfreeze interface so a new vertex can be added. 
@@ -401,6 +410,12 @@ namespace Metasound
 			GraphOutputData.SetVertex(VertexName, *Ref);
 
 			InGraphOperatorData.OutputVertexMap.Add(VertexName, OperatorID);
+
+			// Update listeners that an input has been added.
+			if (InGraphOperatorData.OperatorUpdateCallbacks.OnOutputAdded)
+			{
+				InGraphOperatorData.OperatorUpdateCallbacks.OnOutputAdded(VertexName, InGraphOperatorData.VertexData.GetOutputs());
+			}
 
 			return EDynamicOperatorTransformQueueAction::Continue;
 		}
@@ -421,6 +436,13 @@ namespace Metasound
 				DynamicOperatorPrivate::TScopeUnfreeze Unfreeze(InGraphOperatorData.VertexData.GetOutputs());
 				InGraphOperatorData.VertexData.GetOutputs().RemoveVertex(VertexName);
 			}
+
+			// Update listeners that an output has been removed.
+			if (InGraphOperatorData.OperatorUpdateCallbacks.OnOutputRemoved)
+			{
+				InGraphOperatorData.OperatorUpdateCallbacks.OnOutputRemoved(VertexName, InGraphOperatorData.VertexData.GetOutputs());
+			}
+
 			return EDynamicOperatorTransformQueueAction::Continue;
 		}
 
@@ -495,7 +517,8 @@ namespace Metasound
 
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::DynamicOperator::DisconnectOperators)
 
-			// Make new connection.
+			// Make new connection. We can skip propagating updates and updating callbacks
+			// here because those are handled in the FConnectOperators transform.
 			EDynamicOperatorTransformQueueAction NextAction = ConnectTransform.Transform(InGraphOperatorData);
 			check(NextAction == EDynamicOperatorTransformQueueAction::Continue); // this should always be continue since next step must be performed. 
 
