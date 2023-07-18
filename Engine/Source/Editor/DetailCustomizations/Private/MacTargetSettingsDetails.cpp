@@ -138,7 +138,7 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 		FriendlyRHIName = LOCTEXT("MetalSM5", "Mac Metal Desktop Renderer (SM5, Metal 2.4+, macOS Monterey 12.0 or later)");
 		break;
     case SP_METAL_SM6:
-        FriendlyRHIName = LOCTEXT("MetalSM6", "Mac Metal Desktop Renderer (SM6, Metal 2.4+, macOS Monterey 12.0 or later)");
+        FriendlyRHIName = LOCTEXT("MetalSM6", "Mac Metal Desktop Renderer Experimental (SM6, Metal 2.4+, macOS 14.0 or later, M2+)");
         break;
 	case SP_METAL_MACES3_1:
 		FriendlyRHIName = LOCTEXT("MetalMobile", "Mac Metal High-End Mobile Preview (Mobile Preview)");
