@@ -1952,6 +1952,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 					ReadbackVolumetricLightmapDataLayerFromGPU(RHICmdList, SubLevelData.BrickData.SHCoefficients[i], SubLevelData.BrickDataDimensions);
 				}
 				ReadbackVolumetricLightmapDataLayerFromGPU(RHICmdList, SubLevelData.BrickData.DirectionalLightShadowing, SubLevelData.BrickDataDimensions);
+				ReadbackVolumetricLightmapDataLayerFromGPU(RHICmdList, SubLevelData.BrickData.SkyBentNormal, SubLevelData.BrickDataDimensions);
 			});
 		}
 
