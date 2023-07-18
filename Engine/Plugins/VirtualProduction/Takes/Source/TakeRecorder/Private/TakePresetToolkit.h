@@ -32,6 +32,10 @@ public:
 		return GetDefaultTabIcon();
 	}
 
+	/** Called when the tab manager is changed */
+	DECLARE_EVENT(FTakePresetToolkit, FTakePresetToolkitClosed);
+	FTakePresetToolkitClosed& OnClosed() { return OnClosedEvent; }
+
 private:
 
 	virtual FText GetBaseToolkitName() const override;
@@ -40,6 +44,7 @@ private:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override {}
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override {}
+	virtual void OnClose() override;
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
@@ -53,4 +58,7 @@ private:
 	TObjectPtr<UTakePreset> TakePreset;
 
 	static const FName TabId;
+
+	/** Event that is called when this toolkit is closed */
+	FTakePresetToolkitClosed OnClosedEvent;
 };

@@ -58,5 +58,9 @@ FString FTakePresetToolkit::GetWorldCentricTabPrefix() const
 	return LOCTEXT("WorldCentricTabPrefix", "Take ").ToString();
 }
 
+void FTakePresetToolkit::OnClose()
+{
+	OnClosedEvent.Broadcast();
+}
 
 #undef LOCTEXT_NAMESPACE

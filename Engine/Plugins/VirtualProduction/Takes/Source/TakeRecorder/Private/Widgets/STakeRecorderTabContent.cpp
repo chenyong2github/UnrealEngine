@@ -153,12 +153,23 @@ void STakeRecorderTabContent::SetupForRecordingInto(ULevelSequence* LevelSequenc
 	}
 }
 
+void STakeRecorderTabContent::OnPresetClosed()
+{
+	WeakPanel = nullptr;
+	WeakAssetEditor = nullptr;
+
+	TitleAttribute = ITakeRecorderModule::TakeRecorderTabLabel;
+	IconAttribute = FTakeRecorderStyle::Get().GetBrush("TakeRecorder.TabIcon");
+}
+
 void STakeRecorderTabContent::SetupForEditing(TSharedPtr<FTakePresetToolkit> InToolkit)
 {
 	WeakPanel = nullptr;
 
 	TitleAttribute = MakeAttributeSP(InToolkit.Get(), &FTakePresetToolkit::GetToolkitName);
 	IconAttribute  = MakeAttributeSP(InToolkit.Get(), &FTakePresetToolkit::GetTabIcon);
+
+	InToolkit->OnClosed().AddRaw(this, &STakeRecorderTabContent::OnPresetClosed);
 
 	// Null out the tab content to ensure that all references have been cleaned up before constructing the new one
 	ChildSlot [ SNullWidget::NullWidget ];

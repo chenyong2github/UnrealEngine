@@ -69,6 +69,8 @@ private:
 
 	EActiveTimerReturnType OnActiveTimer(double InCurrentTime, float InDeltaTime);
 
+	void OnPresetClosed();
+
 private:
 
 	TAttribute<FText> TitleAttribute;
