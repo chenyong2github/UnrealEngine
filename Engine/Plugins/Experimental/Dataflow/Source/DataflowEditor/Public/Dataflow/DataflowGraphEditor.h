@@ -117,6 +117,9 @@ public:
 	/** */
 	void DuplicateSelectedNodes();
 
+	/** */
+	void ZoomToFitGraph();
+
 	SGraphEditor* GetGraphEditor() { return (SGraphEditor*)this; }
 
 private:

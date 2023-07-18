@@ -46,6 +46,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleVertexSelection;
 	TSharedPtr< FUICommandInfo > AddOptionPin;
 	TSharedPtr< FUICommandInfo > RemoveOptionPin;
+	TSharedPtr< FUICommandInfo > ZoomToFitGraph;
 
 	TMap< FName, TSharedPtr<FUICommandInfo> > CreateNodesMap;
 };

@@ -102,6 +102,10 @@ void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetO
 				FGenericCommands::Get().Duplicate,
 				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::DuplicateSelectedNodes)
 			);
+			GraphEditorCommands->MapAction(
+				FDataflowEditorCommands::Get().ZoomToFitGraph,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::ZoomToFitGraph)
+			);
 		}
 	}
 
@@ -489,6 +493,12 @@ void SDataflowGraphEditor::DuplicateSelectedNodes()
 			FDataflowEditorCommands::DuplicateNodes(Graph, DataflowGraphEditor, SelectedNodes);
 		}
 	}
+}
+
+void SDataflowGraphEditor::ZoomToFitGraph()
+{
+	constexpr bool bOnlySelection = true;	// This will focus on the selected nodes, if any. If no nodes are selected, it will focus the whole graph.
+	ZoomToFit(bOnlySelection);
 }
 
 #undef LOCTEXT_NAMESPACE
