@@ -150,7 +150,7 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			FStringBuilderBase Builder;
 			FString ProjectDirOverride;
-			if (bFirstItemIsUproject) {
+			if (bFirstArgument && bFirstItemIsUproject) {
 				Builder.Append(Arg);
 				ProjectDirOverride = FPaths::GetPath(*Builder);
 			}
