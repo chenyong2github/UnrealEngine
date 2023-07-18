@@ -86,7 +86,12 @@ namespace UE::PixelStreaming
 		Streamer.AddNewDataChannel(PlayerId, NewChannel);
 	}
 
-	// Player-only
+	// These are player only and will only be relevant when on the receiving side of pixel streaming, such as the player plugin.
+	void FPixelStreamingSignallingConnectionObserver::OnSignallingStreamerList(const TArray<FString>& StreamerList)
+	{
+		unimplemented();
+	}
+
 	void FPixelStreamingSignallingConnectionObserver::OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp)
 	{
 		unimplemented();

@@ -51,6 +51,7 @@ namespace
 		}
 		virtual void OnSignallingPlayerCount(uint32 Count) override {}
 		virtual void OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override {}
+		virtual void OnSignallingStreamerList(const TArray<FString>& StreamerList) override {}
 
 		void Reset()
 		{
@@ -536,6 +537,40 @@ namespace
 			UE_LOG(LogMockPixelStreamingSS, Verbose, TEXT("Sending player=%s \"disconnectPlayer\" to SS %s"), *PlayerId, *Url);
 
 			SendMessage(Msg);
+		}
+
+		virtual void RequestStreamerList() override
+		{
+			FJsonObjectPtr Json = MakeShared<FJsonObject>();
+			Json->SetStringField(TEXT("type"), TEXT("streamerList"));
+
+			const FString JsonStr = UE::PixelStreaming::ToString(Json, false);
+			UE_LOG(LogMockPixelStreamingSS, Verbose, TEXT("-> SS: streamerList\n%s"), *JsonStr);
+
+			SendMessage(JsonStr);
+		}
+
+		virtual void SendSubscribe(const FString& ToStreamerId) override
+		{
+			FJsonObjectPtr SubscribeJson = MakeShared<FJsonObject>();
+			SubscribeJson->SetStringField(TEXT("type"), TEXT("subscribe"));
+			SubscribeJson->SetStringField(TEXT("streamerId"), ToStreamerId);
+
+			const FString SubscribeJsonStr = UE::PixelStreaming::ToString(SubscribeJson, false);
+			UE_LOG(LogMockPixelStreamingSS, Verbose, TEXT("-> SS: subscribe\n%s"), *SubscribeJsonStr);
+
+			SendMessage(SubscribeJsonStr);
+		}
+
+		virtual void SendUnsubscribe() override
+		{
+			FJsonObjectPtr SubscribeJson = MakeShared<FJsonObject>();
+			SubscribeJson->SetStringField(TEXT("type"), TEXT("unsubscribe"));
+
+			const FString SubscribeJsonStr = UE::PixelStreaming::ToString(SubscribeJson, false);
+			UE_LOG(LogMockPixelStreamingSS, Verbose, TEXT("-> SS: subscribe\n%s"), *SubscribeJsonStr);
+
+			SendMessage(SubscribeJsonStr);
 		}
 
 		virtual void SendOffer(const webrtc::SessionDescriptionInterface& SDP) override

@@ -63,19 +63,35 @@ public:
 	virtual void SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason) = 0;
 
 	/**
-	 * [Player only] Sends an offer to the streamer.
+	 * Request a list of active streamers from the signalling server. This is a request to the signalling server so can be used by anyone.
+	 */
+	virtual void RequestStreamerList() = 0;
+	
+	/**
+	 * [Stream receiver only] Send a subscription request to the signalling server.
+	 * @param StreamerId The ID of the streamer to subscribe to.
+	 */
+	virtual void SendSubscribe(const FString& StreamerId) = 0;
+
+	/**
+	 * [Stream receiver only] Send an unsubscribe request to the signalling server.
+	 */
+	virtual void SendUnsubscribe() = 0;
+
+	/**
+	 * [Stream receiver only] Sends an offer to the streamer.
 	 * @param SDP The local description offer.
 	 */
 	virtual void SendOffer(const webrtc::SessionDescriptionInterface& SDP) = 0;
 
 	/**
-	 * [Player only] Sends an answer back to the streamer after receiving an offer.
+	 * [Stream receiver only] Sends an answer back to the streamer after receiving an offer.
 	 * @param SDP The local description answer.
 	 */
 	virtual void SendAnswer(const webrtc::SessionDescriptionInterface& SDP) = 0;
 
 	/**
-	 * [Player only] Sends ICE candidate information to the streamer.
+	 * [Stream receiver only] Sends ICE candidate information to the streamer.
 	 * @param IceCandidate The ICE candidate information.
 	 */
 	virtual void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate) = 0;

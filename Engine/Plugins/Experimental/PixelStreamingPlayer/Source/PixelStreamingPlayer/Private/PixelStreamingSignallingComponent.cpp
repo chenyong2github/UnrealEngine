@@ -11,7 +11,7 @@
 UPixelStreamingSignallingComponent::UPixelStreamingSignallingComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SignallingServerConnectionObserver = MakeShared<FPixelStreamingSignallingConnectionObserver>(this);
+	SignallingServerConnectionObserver = MakeShared<FSignallingObserver>(this);
 	SignallingConnection = MakeUnique<FPixelStreamingSignallingConnection>(SignallingServerConnectionObserver);
 	// I dont disable keep alive here because it causes a deadlock.
 	// This is because the game thread is waiting to load this component but the timer must be set
@@ -35,6 +35,16 @@ void UPixelStreamingSignallingComponent::Connect(const FString& Url)
 void UPixelStreamingSignallingComponent::Disconnect()
 {
 	SignallingConnection->Disconnect();
+}
+
+void UPixelStreamingSignallingComponent::Subscribe(const FString& StreamerId)
+{
+	SignallingConnection->SendSubscribe(StreamerId);
+}
+
+void UPixelStreamingSignallingComponent::Unsubscribe()
+{
+	SignallingConnection->SendUnsubscribe();
 }
 
 void UPixelStreamingSignallingComponent::SendOffer(const FPixelStreamingSessionDescriptionWrapper& Offer)
@@ -66,29 +76,29 @@ void UPixelStreamingSignallingComponent::SendIceCandidate(const FPixelStreamingI
 	SignallingConnection->SendIceCandidate(*CandidateWrapper.ToWebRTC());
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingConnected()
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingConnected()
 {
 	Parent->OnConnected.Broadcast();
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean)
 {
 	Parent->OnDisconnected.Broadcast(StatusCode, Reason, bWasClean);
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingError(const FString& ErrorMsg)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingError(const FString& ErrorMsg)
 {
 	Parent->OnConnectionError.Broadcast(ErrorMsg);
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
 {
 	FPixelStreamingRTCConfigWrapper Wrapper;
 	Wrapper.Config = Config;
 	Parent->OnConfig.Broadcast(Wrapper);
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp)
 {
 	if (Type == webrtc::SdpType::kOffer)
 	{
@@ -100,35 +110,46 @@ void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObse
 	}
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
 {
 	FPixelStreamingIceCandidateWrapper CandidateWrapper(SdpMid, SdpMLineIndex, Sdp);
 	Parent->OnIceCandidate.Broadcast(CandidateWrapper);
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId)
 {
 	// TODO (Matthew.Cotton): What to do with data channels?
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingPlayerCount(uint32 Count)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingPlayerCount(uint32 Count)
 {
 	// no-op player count is not interesting to us here
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer)
 {
 	// no-op our player receiving other players is possible but not a case we are interested in
 	UE_LOG(LogPixelStreamingPlayer, Warning, TEXT("Warning: Received message about player connected from SS, this very likely means you have misconfigured the Pixel Streaming player connection and entered the streamer port. Please check your connect node and ensure it using the player port, e.g. 80 (or no port)."));
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId)
 {
 	// no-op our player knowing when other players disconnect is not interesting for now
 	UE_LOG(LogPixelStreamingPlayer, Warning, TEXT("Warning: Received message about player disconnected from SS, this very likely means you have misconfigured the Pixel Streaming player connection and entered the streamer port. Please check your connect node and ensure it using the player port, e.g. 80 (or no port)."));
 }
 
-void UPixelStreamingSignallingComponent::FPixelStreamingSignallingConnectionObserver::OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId)
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId)
 {
 	// TODO (Matthew.Cotton): What to do with data channels?
+}
+
+void UPixelStreamingSignallingComponent::FSignallingObserver::OnSignallingStreamerList(const TArray<FString>& StreamerList)
+{
+	Parent->OnStreamerListCallback(StreamerList);
+}
+
+void UPixelStreamingSignallingComponent::AsyncRequestStreamerList(const TFunction<void(const TArray<FString>&)>& Callback)
+{
+	OnStreamerListCallback = Callback;
+	SignallingConnection->RequestStreamerList();
 }

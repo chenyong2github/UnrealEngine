@@ -32,6 +32,7 @@ FPixelStreamingSignallingConnection::FPixelStreamingSignallingConnection(TShared
 	RegisterHandler("playerDisconnected", [this](FJsonObjectPtr JsonMsg) { OnPlayerDisconnected(JsonMsg); });
 	RegisterHandler("streamerDataChannels", [this](FJsonObjectPtr JsonMsg) { OnSFUPeerDataChannels(JsonMsg); });
 	RegisterHandler("peerDataChannels", [this](FJsonObjectPtr JsonMsg) { OnPeerDataChannels(JsonMsg); });
+	RegisterHandler("streamerList", [this](FJsonObjectPtr JsonMsg) { OnStreamerList(JsonMsg); });
 }
 
 FPixelStreamingSignallingConnection::~FPixelStreamingSignallingConnection()
@@ -204,6 +205,40 @@ void FPixelStreamingSignallingConnection::SendDisconnectPlayer(FPixelStreamingPl
 	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("Sending player=%s \"disconnectPlayer\" to SS %s"), *PlayerId, *Url);
 
 	SendMessage(Msg);
+}
+
+void FPixelStreamingSignallingConnection::RequestStreamerList()
+{
+	FJsonObjectPtr Json = MakeShared<FJsonObject>();
+	Json->SetStringField(TEXT("type"), TEXT("listStreamers"));
+
+	const FString JsonStr = UE::PixelStreaming::ToString(Json, false);
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: listStreamers\n%s"), *JsonStr);
+
+	SendMessage(JsonStr);
+}
+
+void FPixelStreamingSignallingConnection::SendSubscribe(const FString& ToStreamerId)
+{
+	FJsonObjectPtr SubscribeJson = MakeShared<FJsonObject>();
+	SubscribeJson->SetStringField(TEXT("type"), TEXT("subscribe"));
+	SubscribeJson->SetStringField(TEXT("streamerId"), ToStreamerId);
+
+	const FString SubscribeJsonStr = UE::PixelStreaming::ToString(SubscribeJson, false);
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: subscribe\n%s"), *SubscribeJsonStr);
+
+	SendMessage(SubscribeJsonStr);
+}
+
+void FPixelStreamingSignallingConnection::SendUnsubscribe()
+{
+	FJsonObjectPtr UnsubscribeJson = MakeShared<FJsonObject>();
+	UnsubscribeJson->SetStringField(TEXT("type"), TEXT("unsubscribe"));
+
+	const FString UnsubscribeJsonStr = UE::PixelStreaming::ToString(UnsubscribeJson, false);
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: unsubscribe\n%s"), *UnsubscribeJsonStr);
+
+	SendMessage(UnsubscribeJsonStr);
 }
 
 void FPixelStreamingSignallingConnection::SendOffer(const webrtc::SessionDescriptionInterface& SDP)
@@ -653,6 +688,20 @@ void FPixelStreamingSignallingConnection::OnPeerDataChannels(const FJsonObjectPt
 		return;
 	}
 	Observer->OnSignallingPeerDataChannels(SendStreamId, RecvStreamId);
+}
+
+void FPixelStreamingSignallingConnection::OnStreamerList(const FJsonObjectPtr& Json)
+{
+	TArray<FString> ResultList;
+	const TArray<TSharedPtr<FJsonValue>>* JsonStreamerIds = nullptr;
+	if (Json->TryGetArrayField("ids", JsonStreamerIds))
+	{
+		for (auto& JsonId : *JsonStreamerIds)
+		{
+			ResultList.Add(JsonId->AsString());
+		}
+	}
+	Observer->OnSignallingStreamerList(ResultList);
 }
 
 void FPixelStreamingSignallingConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId)

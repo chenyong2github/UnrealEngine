@@ -26,6 +26,7 @@ namespace UE::PixelStreaming
 		virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) override;
 
 		// Player-only
+		virtual void OnSignallingStreamerList(const TArray<FString>& StreamerList) override;
 		virtual void OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp) override;
 		virtual void OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override;
 		virtual void OnSignallingPlayerCount(uint32 Count) override;

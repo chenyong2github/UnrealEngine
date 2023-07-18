@@ -28,6 +28,9 @@ public:
 	virtual void SendAnswer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP) override;
 	virtual void SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate) override;
 	virtual void SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason) override;
+	virtual void RequestStreamerList() override;
+	virtual void SendSubscribe(const FString& StreamerId) override;
+	virtual void SendUnsubscribe() override;
 	virtual void SendOffer(const webrtc::SessionDescriptionInterface& SDP) override;
 	virtual void SendAnswer(const webrtc::SessionDescriptionInterface& SDP) override;
 	virtual void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate) override;
@@ -58,6 +61,7 @@ private:
 	void OnPlayerDisconnected(const FJsonObjectPtr& Json);
 	void OnSFUPeerDataChannels(const FJsonObjectPtr& Json);
 	void OnPeerDataChannels(const FJsonObjectPtr& Json);
+	void OnStreamerList(const FJsonObjectPtr& Json);
 	void SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId);
 	bool GetPlayerIdJson(const FJsonObjectPtr& Json, FPixelStreamingPlayerId& OutPlayerId, const FString& FieldId = TEXT("playerId"));
 
