@@ -727,7 +727,7 @@ namespace UE::PixelStreaming
 	void FStreamer::DeleteAllPlayerSessions()
 	{
 		VideoSourceGroup->RemoveAllVideoSources();
-		Players.Clear();
+		Players.Empty();
 		SFUPlayerId = INVALID_PLAYER_ID;
 		QualityControllingId = INVALID_PLAYER_ID;
 		InputControllingId = INVALID_PLAYER_ID;
