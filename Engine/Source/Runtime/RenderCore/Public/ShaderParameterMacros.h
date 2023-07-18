@@ -1322,7 +1322,7 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 			static constexpr int32 NumElements = 0; \
 			static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT; \
 			static constexpr bool bIsStoredInConstantBuffer = true; \
-			static constexpr const ANSICHAR* const FileName = UE_LOG_SOURCE_FILE(__FILE__); \
+			static constexpr const ANSICHAR* const FileName = UE_LOG_SOURCE_FILE(__builtin_FILE()); \
 			static constexpr int32 FileLine = __builtin_LINE(); \
 			using TAlignedType = StructTypeName; \
 			static const FShaderParametersMetadata* GetStructMetadata() GetStructMetadataScope \
