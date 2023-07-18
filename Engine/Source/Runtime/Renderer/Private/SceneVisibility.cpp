@@ -1320,7 +1320,7 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 				{
 					// Overlay mesh can have its own cull distance that is shorter than primitive cull distance
 					float OverlayMaterialMaxDrawDistance = StaticMeshRelevance.ScreenSize;
-					if (OverlayMaterialMaxDrawDistance > 1.f && OverlayMaterialMaxDrawDistance != FLT_MAX)
+					if (OverlayMaterialMaxDrawDistance > 0.f && OverlayMaterialMaxDrawDistance != FLT_MAX)
 					{
 						if (DistanceSquared > FMath::Square(OverlayMaterialMaxDrawDistance * MaxDrawDistanceScale))
 						{

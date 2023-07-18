@@ -1366,7 +1366,8 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								PDI->DrawMesh(MeshBatch, ScreenSize);
 							}
 
-							if (OverlayMaterial != nullptr)
+							// negative cull distance disables overlay rendering
+							if (OverlayMaterial != nullptr && OverlayMaterialMaxDrawDistance >= 0.f)
 							{
 								FMeshBatch OverlayMeshBatch(BaseMeshBatch);
 								OverlayMeshBatch.bOverlayMaterial = true;

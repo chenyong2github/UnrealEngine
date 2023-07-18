@@ -6377,10 +6377,11 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			INC_DWORD_STAT_BY(STAT_SkelMeshTriangles,Mesh.GetNumPrimitives());
 			INC_DWORD_STAT(STAT_SkelMeshDrawCalls);
 
-			if (OverlayMaterial != nullptr)
+			// negative cull distance disables overlay rendering
+			if (OverlayMaterial != nullptr && OverlayMaterialMaxDrawDistance >= 0.f)
 			{
 				const bool bHasOverlayCullDistance = 
-					OverlayMaterialMaxDrawDistance > 1.f && 
+					OverlayMaterialMaxDrawDistance > 0.f && 
 					OverlayMaterialMaxDrawDistance != FLT_MAX && 
 					!ViewFamily.EngineShowFlags.DistanceCulledPrimitives;
 				
