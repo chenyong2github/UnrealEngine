@@ -2178,6 +2178,11 @@ void URemoteControlPreset::OnPieEvent(bool)
 		{
 			for (TSharedPtr<FRemoteControlEntity> Entity : PresetPtr->Registry->GetExposedEntities<FRemoteControlEntity>())
 			{
+				if (Entity->GetStruct() == FRemoteControlProperty::StaticStruct())
+				{
+					StaticCastSharedPtr<FRemoteControlProperty>(Entity)->FieldPathInfo.Resolve(Entity->GetBoundObject());
+				}
+
 				PresetPtr->PerFrameUpdatedEntities.Add(Entity->GetId());
 			}
 		}
