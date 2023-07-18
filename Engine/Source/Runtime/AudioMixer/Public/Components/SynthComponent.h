@@ -200,7 +200,7 @@ public:
 	* @return The set of of Modulators applied to this component for the given Destination.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Audio|Components|Audio", DisplayName = "Get Modulators")
-	UPARAM(DisplayName = "ModAUDIOMIXER_API ulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
+	AUDIOMIXER_API UPARAM(DisplayName = "Modulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
 
 	/** Auto destroy this component on completion */
 	UPROPERTY()

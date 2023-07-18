@@ -745,7 +745,7 @@ public:
 	* @return The set of of Modulators applied to this component for the given Destination.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Audio|Components|Audio", DisplayName = "Get Modulators")
-	ENGINE_API UPARAM(DisplayName = "ModENGINE_API ulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
+	ENGINE_API UPARAM(DisplayName = "Modulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
 
 	static ENGINE_API void PlaybackCompleted(uint64 AudioComponentID, bool bFailedToStart);
 
