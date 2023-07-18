@@ -49,14 +49,28 @@ namespace UE::PixelStreaming
 	bool FSendDataChannelMessageToStreamer::Update()
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("SendDataChannelMessageToStreamer: %d, %s"), Id, *Body);
-		Player->DataChannel->SendMessage(Id, Body);
+		if (!Player->DataChannel)
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("No DataChannel on player."));
+		}
+		else
+		{
+			Player->DataChannel->SendMessage(Id, Body);
+		}
 		return true;
 	}
 
 	bool FSendCustomMessageToStreamer::Update()
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("SendDataChannelMessageToStreamer: %d, %d"), Id, Body);
-		Player->DataChannel->SendMessage(Id, Body);
+		if (!Player->DataChannel)
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("No DataChannel on player."));
+		}
+		else
+		{
+			Player->DataChannel->SendMessage(Id, Body);
+		}
 		return true;
 	}
 
