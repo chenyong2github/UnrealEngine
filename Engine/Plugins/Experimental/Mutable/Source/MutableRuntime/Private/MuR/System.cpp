@@ -915,12 +915,7 @@ namespace mu
 
 		if (CurrentRunner)
 		{
-			// Data reserved for ongoing streaming operations
-			for ( const CodeRunner::FRomLoadOp& Op : CurrentRunner->m_romLoadOps )
-			{
-				StreamingBufferBytes += Op.m_streamBuffer.GetAllocatedSize();
-			}
-
+			StreamingBufferBytes += CurrentRunner->GetStreamingMemoryBytes();
 			InternalBytes += CurrentRunner->GetInternalMemoryBytes();
 		}
 
@@ -1034,7 +1029,8 @@ namespace mu
 		FModelCacheEntry n;
         n.Model = TWeakPtr<const Model>(InModel);
 		n.PendingOpsPerRom.SetNum(InModel->GetPrivate()->m_program.m_roms.Num());
-        CachePerModel.Add(n);
+    	n.RomWeights.SetNum(InModel->GetPrivate()->m_program.m_roms.Num());
+    	CachePerModel.Add(n);
         return CachePerModel.Last();
     }
 
@@ -1465,8 +1461,6 @@ namespace mu
     {
         check(pModel);
 
-        FProgram& Program = pModel->GetPrivate()->m_program;
-
         // If budget is zero, we don't unload anything here, and we assume it is managed somewhere else.
         if (!BudgetBytes)
         {
@@ -1478,12 +1472,7 @@ namespace mu
         // Update current cache
         {
 			FModelCacheEntry* ModelCache = FindModelCache(pModel.Get());
-
-            if (ModelCache->RomWeights.Num()<Program.m_roms.Num())
-            {
-				ModelCache->RomWeights.SetNumZeroed(Program.m_roms.Num());
-            }
-
+        	
             ModelCache->RomWeights[romIndex].Key++;
             ModelCache->RomWeights[romIndex].Value = RomTick;
         }

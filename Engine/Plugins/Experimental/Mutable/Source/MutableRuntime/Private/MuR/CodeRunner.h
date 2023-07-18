@@ -30,6 +30,20 @@
 #endif
 
 
+using EventType = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	UE::Tasks::FTaskEvent;
+#else
+	FGraphEventRef;
+#endif
+
+using TaskType = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+	UE::Tasks::FTask;
+#else
+	FGraphEventRef;
+#endif
+
 namespace  mu
 {
 	class Model;
@@ -205,6 +219,13 @@ namespace  mu
 			}
 		};
 
+		struct FRomLoadOp
+		{
+			ModelReader::OPERATION_ID m_streamID = -1;
+			TArray<uint8> m_streamBuffer;
+			TaskType Event;
+		};
+
 		class FLoadMeshRomTask : public CodeRunner::FIssuedTask
 		{
 		public:
@@ -217,7 +238,6 @@ namespace  mu
 			// FIssuedTask interface
 			bool Prepare(CodeRunner*, bool& bOutFailed) override;
 			void Complete(CodeRunner*) override;
-			bool IsComplete(CodeRunner*) override;
 
 		private:
 			int32 RomIndex = -1;
@@ -261,11 +281,12 @@ namespace  mu
 			// FIssuedTask interface
 			bool Prepare(CodeRunner*, bool& bOutFailed) override;
 			void Complete(CodeRunner*) override;
-			bool IsComplete(CodeRunner*) override;
 
 		private:
  			int32 LODIndexIndex = -1;
 			int32 LODIndexCount = -1;
+
+			TArray<int32> RomIndices;
 		};
 
 		void AddOp(const FScheduledOp& op)
@@ -355,6 +376,19 @@ namespace  mu
 			}
 		}
 
+    	/** Calculate an approximation of memory used by streaming buffers in this class. */
+		int32 GetStreamingMemoryBytes() const
+    	{
+			int32 Result = RomLoadOps.GetAllocatedSize();
+			
+			for (const TTuple<int32, TSharedPtr<FRomLoadOp>>& RomLoadOp : RomLoadOps)
+			{
+				Result += RomLoadOp.Value->m_streamBuffer.GetAllocatedSize();
+			}
+			
+			return Result;
+    	}
+    	
 		/** Calculate an approximation of memory used by manging structures in this class. */
 		int32 GetInternalMemoryBytes() const
 		{
@@ -567,16 +601,9 @@ namespace  mu
 		const Parameters* m_pParams = nullptr;
 		uint32 m_lodMask = 0;
 
-		// Async rom loading control
-		struct FRomLoadOp
-		{
-			int32 m_romIndex = 0;
-			DATATYPE ConstantType = DT_NONE;
-			ModelReader::OPERATION_ID m_streamID;
-			TArray<uint8> m_streamBuffer;
-		};
-		TArray<FRomLoadOp> m_romLoadOps;
-
+    	/** Rom read operations already in progress. Key is the rom index. */
+    	TMap<int32, TSharedPtr<FRomLoadOp>> RomLoadOps;
+    	
 	private:
 
 		inline void AddChildren(const FScheduledOp& dep)
@@ -603,9 +630,6 @@ namespace  mu
 		/** Calculate an heuristic to select op execution based on memory usage. */
 		int32 GetOpEstimatedMemoryDelta(const FScheduledOp& Candidate, const FProgram& Program);
 
-		/** */
-		void CompleteRomLoadOp(FRomLoadOp& o);
-		
 		/** Update debug stats. */
 		void UpdateTraces();
 

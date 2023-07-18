@@ -57,54 +57,6 @@ static FAutoConsoleVariableRef CVarCoreRunnerTaskPriority(
 namespace mu
 {
 
-	void CodeRunner::CompleteRomLoadOp( FRomLoadOp& o )
-	{
-		if (DebugRom && (DebugRomAll || o.m_romIndex == DebugRomIndex))
-			UE_LOG(LogMutableCore, Log, TEXT("CodeRunner::CompleteRomLoadOp for rom %d."), o.m_romIndex);
-
-		m_pSystem->StreamInterface->EndRead(o.m_streamID);
-
-		FProgram& program = m_pModel->GetPrivate()->m_program;
-		{
-			MUTABLE_CPUPROFILER_SCOPE(Unserialise);
-
-			InputMemoryStream stream(o.m_streamBuffer.GetData(), o.m_streamBuffer.Num());
-			InputArchive arch(&stream);
-
-			int32 ResIndex = program.m_roms[o.m_romIndex].ResourceIndex;
-			switch (o.ConstantType)
-			{
-			case DATATYPE::DT_MESH:
-			{
-				check(!program.m_constantMeshes[ResIndex].Value);
-				Ptr<Mesh> Value = Mesh::StaticUnserialise(arch);
-				program.m_constantMeshes[ResIndex].Value = Value;
-				check(program.m_constantMeshes[ResIndex].Value);
-				m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
-				break;
-			}
-			case DATATYPE::DT_IMAGE:
-			{
-				check(!program.m_constantImageLODs[ResIndex].Value);
-				// TODO: Try to reuse buffer from PooledImages.
-				Ptr<Image> Value = Image::StaticUnserialise(arch);
-				program.m_constantImageLODs[ResIndex].Value = Value;
-				check(program.m_constantImageLODs[ResIndex].Value);
-				m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
-				break;
-			}
-			default:
-				check(false);
-				break;
-			}
-
-			m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream -= o.m_streamBuffer.GetAllocatedSize();
-
-			o.m_romIndex = -1;
-			o.m_streamBuffer.Empty();
-		}
-	}
-
 	//---------------------------------------------------------------------------------------------
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_OpenTask, TEXT("MutableRuntime/OpenTask"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_ClosedTasks, TEXT("MutableRuntime/ClosedTasks"));
@@ -529,15 +481,6 @@ namespace mu
 				}
 			}
 
-			// Look for completed streaming ops and complete the rom loading
-			for (FRomLoadOp& o : m_romLoadOps)
-			{
-				if (o.m_romIndex>=0 && m_pSystem->StreamInterface->IsReadCompleted(o.m_streamID))
-				{
-					CompleteRomLoadOp(o);
-				}
-			}
-
 			// Look for a closed task with dependencies satisfied and move them to the open task list.
 			bool bSomeWasReady = false;
 			for (int Index = 0; Index<ClosedTasks.Num(); )
@@ -613,19 +556,6 @@ namespace mu
 					}
 				}
 
-				// If we reached here it means we didn't find an op to wait for. Try to wait for a loading op.
-				// \todo: unify loading ops with normal ones?
-				for (FRomLoadOp& o : m_romLoadOps)
-				{
-					if (o.m_romIndex >= 0)
-					{
-						CompleteRomLoadOp(o);
-						break;
-					}
-
-					// We should never reach this, since it would mean we deadlocked.
-					//check(false);
-				}
 			}
 		}
 
@@ -662,6 +592,7 @@ namespace mu
 		}
     }
 
+	
 	//---------------------------------------------------------------------------------------------
 	void CodeRunner::GetImageDescResult(FImageDesc& OutDesc)
 	{
@@ -2038,91 +1969,120 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	bool CodeRunner::FLoadMeshRomTask::Prepare(CodeRunner* Runner, bool& bOutFailed )
+	bool CodeRunner::FLoadMeshRomTask::Prepare(CodeRunner* Runner, bool& bOutFailed)
 	{
+		// This runs in the mutable Runner thread
+		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Prepare);
+
 		if (!Runner || !Runner->m_pSystem)
 		{
 			return false;
 		}
 
-		// This runs in the mutable Runner thread
-		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Prepare);
 		bOutFailed = false;
 
-		FProgram& program = Runner->m_pModel->GetPrivate()->m_program;
+		const FProgram& Program = Runner->m_pModel->GetPrivate()->m_program;
 
-		check(RomIndex < program.m_roms.Num());
-		bool bRomIsLoaded = program.IsRomLoaded(RomIndex);
-
+		check(RomIndex < Program.m_roms.Num());
+		
 		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
-		bool bRomHasPendingOps = ModelCache->PendingOpsPerRom[RomIndex]!=0;
-		if (!bRomIsLoaded && !bRomHasPendingOps)
-		{
-			check(Runner->m_pSystem->StreamInterface);
-
-			uint32 RomSize = program.m_roms[RomIndex].Size;
-			check(RomSize > 0);
-
-			// Free roms if necessary
-			{
-				MUTABLE_CPUPROFILER_SCOPE(FreeingRoms);
-
-				Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
-				Runner->m_pSystem->WorkingMemoryManager.EnsureBudgetBelow(RomSize);
-			}
-
-			CodeRunner::FRomLoadOp* op = nullptr;
-			for (FRomLoadOp& o : Runner->m_romLoadOps)
-			{
-				if (o.m_romIndex < 0)
-				{
-					op = &o;
-				}
-			}
-
-			if (!op)
-			{
-				Runner->m_romLoadOps.Add(CodeRunner::FRomLoadOp());
-				op = &Runner->m_romLoadOps.Last();
-			}
-
-			op->m_romIndex = RomIndex;
-			op->ConstantType = DT_MESH;
-
-			if (uint32(op->m_streamBuffer.Num()) < RomSize)
-			{
-				op->m_streamBuffer.SetNum((size_t)RomSize);
-				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream += op->m_streamBuffer.GetAllocatedSize();
-			}
-
-			uint32 RomId = program.m_roms[RomIndex].Id;
-			op->m_streamID = Runner->m_pSystem->StreamInterface->BeginReadBlock(Runner->m_pModel.Get(), RomId, op->m_streamBuffer.GetData(), RomSize);
-			if (op->m_streamID < 0)
-			{
-				bOutFailed = true;
-				return false;
-			}
-		}
 		++ModelCache->PendingOpsPerRom[RomIndex];
 
-		//UE_LOG(LogMutableCore, Log, TEXT("FLoadMeshRomTask::Prepare romindex %d pending %d."), RomAt.m_rom, Runner->m_romPendingOps[RomAt.m_rom]);
+		if (Program.IsRomLoaded(RomIndex))
+		{
+			return false;
+		}
 
-		// No worker thread work
-		return false;
+		if (const TSharedPtr<FRomLoadOp>* Result = Runner->RomLoadOps.Find(RomIndex))
+		{
+			Event = (*Result)->Event;  // Wait for the read operation started by other task
+			return false;
+		}
+
+		const TSharedPtr<FRomLoadOp> RomLoadOp = MakeShared<FRomLoadOp>();
+		Runner->RomLoadOps.Add(RomIndex, RomLoadOp);
+		
+		check(Runner->m_pSystem->StreamInterface);
+
+		const uint32 RomSize = Program.m_roms[RomIndex].Size;
+		check(RomSize > 0);
+
+		// Free roms if necessary
+		{
+			MUTABLE_CPUPROFILER_SCOPE(FreeingRoms);
+
+			Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
+			Runner->m_pSystem->WorkingMemoryManager.EnsureBudgetBelow(RomSize);
+		}
+
+		RomLoadOp->m_streamBuffer.SetNum(RomSize);
+
+		EventType EventTyped =
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+			UE::Tasks::FTaskEvent(TEXT("FLoadMeshRomTask"));
+#else
+			FGraphEvent::CreateGraphEvent();		
+#endif
+		
+		RomLoadOp->Event = EventTyped;
+		
+		TFunction<void(bool)> Callback = [EventTyped](bool bSuccess) mutable
+		{
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+			EventTyped.Trigger();
+#else
+			EventTyped->DispatchSubsequents();
+#endif				
+		};
+		
+		const uint32 RomId = Program.m_roms[RomIndex].Id;
+		RomLoadOp->m_streamID = Runner->m_pSystem->StreamInterface->BeginReadBlock(Runner->m_pModel.Get(), RomId, RomLoadOp->m_streamBuffer.GetData(), RomSize, &Callback);
+		if (RomLoadOp->m_streamID < 0)
+		{
+			bOutFailed = true;
+			return false;
+		}
+
+		Event = EventTyped; // Wait for read operation to end
+		return false; // No worker thread work
 	}
-
+	
 
 	//---------------------------------------------------------------------------------------------
 	void CodeRunner::FLoadMeshRomTask::Complete(CodeRunner* Runner)
 	{
+		// This runs in the Runner thread
+		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Complete);
+
 		if (!Runner || !Runner->m_pSystem)
 		{
 			return;
 		}
 
-		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Complete);
+		FProgram& Program = Runner->m_pModel->GetPrivate()->m_program;
 
-		// This runs in the Runner thread
+		// Since task could be reordered, we need to make sure we end the rom read before continuing
+		if (const TSharedPtr<FRomLoadOp>* Result = Runner->RomLoadOps.Find(RomIndex))
+		{
+			const TSharedPtr<FRomLoadOp>& RomLoadOp = *Result;
+
+			Runner->m_pSystem->StreamInterface->EndRead(RomLoadOp->m_streamID);									
+
+			const int32 ResIndex = Program.m_roms[RomIndex].ResourceIndex;
+			check(!Program.m_constantMeshes[ResIndex].Value)
+			MUTABLE_CPUPROFILER_SCOPE(Unserialise);
+
+			InputMemoryStream stream(RomLoadOp->m_streamBuffer.GetData(), RomLoadOp->m_streamBuffer.Num());
+			InputArchive arch(&stream);
+
+			check(!Program.m_constantMeshes[ResIndex].Value);
+			Ptr<Mesh> Value = Mesh::StaticUnserialise(arch);
+			Program.m_constantMeshes[ResIndex].Value = Value;
+			check(Program.m_constantMeshes[ResIndex].Value);
+			Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
+
+			Runner->RomLoadOps.Remove(RomIndex);
+		}
 
 		// Process the constant op normally, now that the rom is loaded.
 		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
@@ -2131,14 +2091,6 @@ namespace mu
 
 		Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
 		--ModelCache->PendingOpsPerRom[RomIndex];
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	bool CodeRunner::FLoadMeshRomTask::IsComplete(CodeRunner* Runner)
-	{ 
-		FProgram& program = Runner->m_pModel->GetPrivate()->m_program;
-		return program.IsRomLoaded(RomIndex);
 	}
 
 
@@ -2242,10 +2194,18 @@ namespace mu
 
 		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
 
-		for (int32 i = 0; i<LODIndexCount; ++i )
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		TArray<UE::Tasks::FTask> ReadCompleteEvents;
+#else
+		FGraphEventArray ReadCompleteEvents;
+#endif
+
+		ReadCompleteEvents.Reserve(LODIndexCount); 
+
+		for (int32 LODIndex = 0; LODIndex < LODIndexCount; ++LODIndex)
 		{
-			int32 CurrentIndexIndex = LODIndexIndex + i;
-			int32 CurrentIndex = program.m_constantImageLODIndices[CurrentIndexIndex];
+			const int32 CurrentIndexIndex = LODIndexIndex + LODIndex;
+			const int32 CurrentIndex = program.m_constantImageLODIndices[CurrentIndexIndex];
 
 			if (program.m_constantImageLODs[CurrentIndex].Key<0)
 			{
@@ -2256,21 +2216,30 @@ namespace mu
 			int32 RomIndex = program.m_constantImageLODs[CurrentIndex].Key;
 			check(RomIndex < program.m_roms.Num());
 
-			bool bRomIsLoaded = program.IsRomLoaded(RomIndex);
-			bool bRomHasAlreadyBeenRequested = ModelCache->PendingOpsPerRom[RomIndex] != 0;
 			++ModelCache->PendingOpsPerRom[RomIndex];
 
 			if (DebugRom && (DebugRomAll || RomIndex == DebugRomIndex))
 				UE_LOG(LogMutableCore, Log, TEXT("Preparing rom %d, now peding ops is %d."), RomIndex, ModelCache->PendingOpsPerRom[RomIndex]);
 
-			if (bRomIsLoaded || bRomHasAlreadyBeenRequested)
+			if (program.IsRomLoaded(RomIndex))
 			{
 				continue;
 			}
 
+			RomIndices.Add(RomIndex);
+
+			if (const TSharedPtr<FRomLoadOp>* Result = Runner->RomLoadOps.Find(RomIndex))
+			{
+				ReadCompleteEvents.Add((*Result)->Event); // Wait for the read operation started by other task
+				continue;
+			}
+
+			TSharedPtr<FRomLoadOp> RomLoadOp = MakeShared<FRomLoadOp>();
+			Runner->RomLoadOps.Add(RomIndex, RomLoadOp);
+			
 			check(Runner->m_pSystem->StreamInterface);
 
-			uint32 RomSize = program.m_roms[RomIndex].Size;
+			const uint32 RomSize = program.m_roms[RomIndex].Size;
 			check(RomSize > 0);
 
 			// Free roms if necessary
@@ -2279,78 +2248,102 @@ namespace mu
 				Runner->m_pSystem->WorkingMemoryManager.EnsureBudgetBelow(RomSize);
 			}
 
-			CodeRunner::FRomLoadOp* op = nullptr;
-			for (FRomLoadOp& o : Runner->m_romLoadOps)
+			RomLoadOp->m_streamBuffer.SetNum(RomSize);
+
+			EventType EventTyped = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+				UE::Tasks::FTaskEvent(TEXT("FLoadImageRomsTaskRom"));
+#else
+				FGraphEvent::CreateGraphEvent();
+#endif
+
+			RomLoadOp->Event = EventTyped;
+			ReadCompleteEvents.Add(EventTyped);
+
+			TFunction<void(bool)> Callback = [EventTyped](bool bSuccess) mutable // Mutable due Trigger not being const
 			{
-				if (o.m_romIndex < 0)
-				{
-					op = &o;
-				}
-			}
-
-			if (!op)
-			{
-				Runner->m_romLoadOps.Add(CodeRunner::FRomLoadOp());
-				op = &Runner->m_romLoadOps.Last();
-			}
-
-			op->m_romIndex = RomIndex;
-			op->ConstantType = DT_IMAGE;
-
-			if (uint32(op->m_streamBuffer.Num()) < RomSize)
-			{
-				op->m_streamBuffer.SetNum(RomSize);
-				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream += op->m_streamBuffer.GetAllocatedSize();
-			}
-
-			uint32 RomId = program.m_roms[RomIndex].Id;
-			op->m_streamID = Runner->m_pSystem->StreamInterface->BeginReadBlock(Runner->m_pModel.Get(), RomId, op->m_streamBuffer.GetData(), RomSize);
-			if (op->m_streamID < 0)
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+				EventTyped.Trigger();
+#else
+				EventTyped->DispatchSubsequents();
+#endif				
+			};
+			
+			const uint32 RomId = program.m_roms[RomIndex].Id;
+			RomLoadOp->m_streamID = Runner->m_pSystem->StreamInterface->BeginReadBlock(Runner->m_pModel.Get(), RomId, RomLoadOp->m_streamBuffer.GetData(), RomSize, &Callback);
+			if (RomLoadOp->m_streamID < 0)
 			{
 				bOutFailed = true;
 				return false;
 			}
 		}
 
-		//UE_LOG(LogMutableCore, Log, TEXT("FLoadImageRomsTask::Prepare romindex %d pending %d."), RomAt.m_rom, Runner->m_romPendingOps[RomAt.m_rom]);
-
-		// No worker thread work
-		return false;
+		// Wait for all read operations to end
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTaskEvent EventTyped(TEXT("FLoadImageRomsTask"));
+		EventTyped.AddPrerequisites(ReadCompleteEvents);
+		EventTyped.Trigger();
+		Event = EventTyped;
+#else
+		Event = FGraphEvent::CreateGraphEvent();
+		for (const FGraphEventRef& ReadCompleteEvent : ReadCompleteEvents)
+		{
+			Event->DontCompleteUntil(ReadCompleteEvent);
+		}
+		Event->DispatchSubsequents();
+#endif
+			
+		return false; // No worker thread work
 	}
-
-
+	
+	
 	//---------------------------------------------------------------------------------------------
 	void CodeRunner::FLoadImageRomsTask::Complete(CodeRunner* Runner)
 	{
+		// This runs in the Runner thread
+		MUTABLE_CPUPROFILER_SCOPE(FLoadImageRomsTask_Complete);
+
 		if (!Runner || !Runner->m_pSystem)
 		{
 			return;
 		}
 
-		MUTABLE_CPUPROFILER_SCOPE(FLoadImageRomsTask_Complete);
-
-		// This runs in the Runner thread
-
+		FProgram& program = Runner->m_pModel->GetPrivate()->m_program;
+		
 		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
 
-		// Process the constant op normally, now that the rom is loaded.
+		for (const int32 RomIndex : RomIndices)
+		{
+			// Since task could be reordered, we need to make sure we end the rom read before continuing
+			if (const TSharedPtr<FRomLoadOp>* Result = Runner->RomLoadOps.Find(RomIndex))
+			{
+				const TSharedPtr<FRomLoadOp>& RomLoadOp = *Result;
+				
+				Runner->m_pSystem->StreamInterface->EndRead(RomLoadOp->m_streamID);
+
+				MUTABLE_CPUPROFILER_SCOPE(Unserialise);
+
+				InputMemoryStream stream(RomLoadOp->m_streamBuffer.GetData(), RomLoadOp->m_streamBuffer.Num());
+				InputArchive arch(&stream);
+
+				const int32 ResIndex = program.m_roms[RomIndex].ResourceIndex;
+
+				// TODO: Try to reuse buffer from PooledImages.
+				check(!program.m_constantImageLODs[ResIndex].Value);
+				Ptr<Image> Value = Image::StaticUnserialise(arch);
+				program.m_constantImageLODs[ResIndex].Value = Value;
+				check(program.m_constantImageLODs[ResIndex].Value);
+				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
+				
+				Runner->RomLoadOps.Remove(RomIndex);
+			}
+		}
+		
+		// Process the constant op normally, now that the rom is loaded.	
 		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
 
-		FProgram& program = Runner->m_pModel->GetPrivate()->m_program;
-		for (int32 i = 0; i < LODIndexCount; ++i)
+		for (const int32 RomIndex : RomIndices)
 		{
-			int32 CurrentIndexIndex = LODIndexIndex + i;
-			int32 CurrentIndex = program.m_constantImageLODIndices[CurrentIndexIndex];
-
-			if (program.m_constantImageLODs[CurrentIndex].Key < 0)
-			{
-				// This data is always resident.
-				continue;
-			}
-
-			int32 RomIndex = program.m_constantImageLODs[CurrentIndex].Key;
-			check(RomIndex < program.m_roms.Num());
-
 			Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
 			--ModelCache->PendingOpsPerRom[RomIndex];
 
@@ -2359,33 +2352,6 @@ namespace mu
 				UE_LOG(LogMutableCore, Log, TEXT("FLoadImageRomsTask::Complete rom %d, now peding ops is %d."), RomIndex, ModelCache->PendingOpsPerRom[RomIndex]);
 			}
 		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	bool CodeRunner::FLoadImageRomsTask::IsComplete(CodeRunner* Runner)
-	{
-		FProgram& program = Runner->m_pModel->GetPrivate()->m_program;
-		for (int32 i = 0; i < LODIndexCount; ++i)
-		{
-			int32 CurrentIndexIndex = LODIndexIndex + i;
-			int32 CurrentIndex = program.m_constantImageLODIndices[CurrentIndexIndex];
-
-			if (program.m_constantImageLODs[CurrentIndex].Key < 0)
-			{
-				// This data is always resident.
-				continue;
-			}
-
-			int32 RomIndex = program.m_constantImageLODs[CurrentIndex].Key;
-			check(RomIndex < program.m_roms.Num());
-			if (!program.IsRomLoaded(RomIndex))
-			{
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 
