@@ -18,6 +18,8 @@
 #include "Changes/MeshChange.h"
 #include "DynamicMesh/MeshTransforms.h"
 
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
+
 // default proxy for this component
 #include "Components/DynamicMeshSceneProxy.h"
 
@@ -80,10 +82,25 @@ UDynamicMeshComponent::UDynamicMeshComponent(const FObjectInitializer& ObjectIni
 	ResetProxy();
 }
 
+void UDynamicMeshComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+}
 
 void UDynamicMeshComponent::PostLoad()
 {
 	Super::PostLoad();
+
+	const int32 UE5ReleaseStreamObjectVersion = GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	if (UE5ReleaseStreamObjectVersion < FUE5ReleaseStreamObjectVersion::DynamicMeshComponentsDefaultUseExternalTangents)
+	{
+		// Set the old default value
+		if (TangentsType == EDynamicMeshComponentTangentsMode::Default)
+		{
+			TangentsType = EDynamicMeshComponentTangentsMode::NoTangents;
+		}
+	}
 
 	// The intention here is that MeshObject is never nullptr, however we cannot guarantee this as a subclass
 	// may have set it to null, and/or some type of serialization issue has caused it to fail to save/load.
@@ -115,7 +132,11 @@ void UDynamicMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropName = PropertyChangedEvent.GetPropertyName();
-	if ( (PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, bEnableComplexCollision)) ||
+	if (PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, TangentsType))
+	{
+		InvalidateAutoCalculatedTangents();
+	}
+	else if ( (PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, bEnableComplexCollision)) ||
 		(PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, CollisionType)) ||
 		(PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, bDeferCollisionUpdates))  )
 	{
@@ -278,7 +299,7 @@ void UDynamicMeshComponent::InvalidateAutoCalculatedTangents()
 
 const UE::Geometry::FMeshTangentsf* UDynamicMeshComponent::GetAutoCalculatedTangents() 
 { 
-	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated && GetDynamicMesh()->GetMeshRef().HasAttributes())
+	if (GetTangentsType() == EDynamicMeshComponentTangentsMode::AutoCalculated && GetDynamicMesh()->GetMeshRef().HasAttributes())
 	{
 		UpdateAutoCalculatedTangents();
 		return (bAutoCalculatedTangentsValid) ? &AutoCalculatedTangents : nullptr;
@@ -288,7 +309,7 @@ const UE::Geometry::FMeshTangentsf* UDynamicMeshComponent::GetAutoCalculatedTang
 
 void UDynamicMeshComponent::UpdateAutoCalculatedTangents()
 {
-	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated && bAutoCalculatedTangentsValid == false)
+	if (GetTangentsType() == EDynamicMeshComponentTangentsMode::AutoCalculated && bAutoCalculatedTangentsValid == false)
 	{
 		GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh)
 		{

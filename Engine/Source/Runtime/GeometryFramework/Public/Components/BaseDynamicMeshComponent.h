@@ -51,7 +51,9 @@ enum class EDynamicMeshComponentTangentsMode : uint8
 	/** Tangents will be automatically calculated on demand. Note that mesh changes due to tangents calculation will *not* be broadcast via MeshChange events! */
 	AutoCalculated,
 	/** Tangents are externally provided via the FDynamicMesh3 AttributeSet */
-	ExternallyProvided
+	ExternallyProvided UMETA(DisplayName = "From Dynamic Mesh"),
+	/** Tangents mode will be set to the most commonly-useful default -- currently "From Dynamic Mesh" */
+	Default = 255
 };
 
 

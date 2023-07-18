@@ -469,21 +469,39 @@ public:
 
 
 	//===============================================================================================================
-	// Triangle-Vertex Tangents support. The default behavior is to not use Tangents, this will lead to incorrect
-	// rendering for any material with Normal Maps and some other shaders.
+	// Triangle-Vertex Tangents support. The default behavior is to use the provided external Tangents.
 	// If TangentsType == EDynamicMeshComponentTangentsMode::ExternallyProvided, the Tangent and Bitangent attributes of
 	//   the FDynamicMesh3 AttributeSet are used at the SceneProxy level, the Component is not involved
 	// If TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated, the Tangents are computed internally using
 	//   a fast MikkT approximation via FMeshTangentsf. They will be recomputed when the mesh is modified, however
 	//   they are *not* recomputed when using the Fast Update functions above (in that case InvalidateAutoCalculatedTangents() 
 	//   can be used to force recomputation)
+	// If TangentsType == EDynamicMeshComponentTangentsMode::NoTangents, the Component will not use Tangents, which will
+	//   lead to incorrect rendering for any material with Normal Maps and some other shaders.
 	//
+private:
+	// Default what the 'Default' tangent type should map to
+	static constexpr EDynamicMeshComponentTangentsMode UseDefaultTangentsType = EDynamicMeshComponentTangentsMode::ExternallyProvided;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	GEOMETRYFRAMEWORK_API void SetTangentsType(EDynamicMeshComponentTangentsMode NewTangentsType);
 
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	EDynamicMeshComponentTangentsMode GetTangentsType() const { return TangentsType; }
+	EDynamicMeshComponentTangentsMode GetTangentsType() const
+	{
+		return TangentsType == EDynamicMeshComponentTangentsMode::Default ? UseDefaultTangentsType : TangentsType;
+	}
+
+private:
+	// pure version of GetTangentsType, so it can be used as a getter below (getters must be BlueprintPure)
+	UFUNCTION(BlueprintCallable, BlueprintPure, BlueprintInternalUseOnly, Category = "Dynamic Mesh Component")
+	EDynamicMeshComponentTangentsMode GetTangentsTypePure() const
+	{
+		return GetTangentsType();
+	}
+
+public:
 
 	/** This function marks the auto tangents as dirty, they will be recomputed before they are used again */
 	GEOMETRYFRAMEWORK_API virtual void InvalidateAutoCalculatedTangents();
@@ -492,9 +510,9 @@ public:
 	GEOMETRYFRAMEWORK_API const UE::Geometry::FMeshTangentsf* GetAutoCalculatedTangents();
 
 protected:
-	/** How should Tangents be calculated/handled */
-	UPROPERTY()
-	EDynamicMeshComponentTangentsMode TangentsType = EDynamicMeshComponentTangentsMode::NoTangents;
+	/** Tangent source defines whether we use the provided tangents on the Dynamic Mesh, autogenerate tangents, or do not use tangents */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetTangentsType, BlueprintGetter=GetTangentsTypePure, Category = "Dynamic Mesh Component|Rendering")
+	EDynamicMeshComponentTangentsMode TangentsType = EDynamicMeshComponentTangentsMode::Default;
 
 	/** true if AutoCalculatedTangents has been computed for current mesh */
 	bool bAutoCalculatedTangentsValid = false;
@@ -685,6 +703,7 @@ protected:
 	GEOMETRYFRAMEWORK_API virtual void OnChildDetached(USceneComponent* ChildComponent) override;
 
 	//~ UObject Interface.
+	GEOMETRYFRAMEWORK_API virtual void Serialize(FArchive& Ar) override;
 	GEOMETRYFRAMEWORK_API virtual void PostLoad() override;
 	GEOMETRYFRAMEWORK_API virtual void BeginDestroy() override;
 #if WITH_EDITOR

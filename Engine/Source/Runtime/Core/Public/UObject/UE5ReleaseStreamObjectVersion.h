@@ -135,6 +135,9 @@ struct FUE5ReleaseStreamObjectVersion
 
 		// Added member reference to linked anim graphs
 		LinkedAnimGraphMemberReference,
+
+		// Changed default tangent behavior for new dynamic mesh components
+		DynamicMeshComponentsDefaultUseExternalTangents,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
