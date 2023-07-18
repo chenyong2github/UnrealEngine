@@ -1611,7 +1611,7 @@ void FAnimNode_RigidBody::UpdateClothColliderObjects(const FTransform& SpaceTran
 			CompSpaceTransform.SetScale3D(FVector::OneVector);	// TODO - sort out scale for world objects in local sim
 
 			// Update the sim's copy of the world object
-			ClothCollider.ActorHandle->SetWorldTransform(CompSpaceTransform);
+			ClothCollider.ActorHandle->SetKinematicTarget(CompSpaceTransform);
 		}
 	}
 }
@@ -1725,7 +1725,7 @@ void FAnimNode_RigidBody::UpdateWorldObjects(const FTransform& SpaceTransform)
 				CompSpaceTransform.SetScale3D(FVector::OneVector);	// TODO - sort out scale for world objects in local sim
 
 				// Update the sim's copy of the world object
-				ActorHandle->SetWorldTransform(CompSpaceTransform);
+				ActorHandle->SetKinematicTarget(CompSpaceTransform);
 			}
 		}
 	}
