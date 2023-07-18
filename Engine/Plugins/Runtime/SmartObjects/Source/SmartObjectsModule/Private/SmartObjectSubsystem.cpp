@@ -1904,11 +1904,10 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectHandle Handle, const FSm
 		{
 			continue;
 		}
-
-		const FSmartObjectSlotHandle SlotHandle = SmartObjectRuntime.SlotHandles[SlotIndex];
+		const FSmartObjectSlotHandle SlotHandle(Handle, SlotIndex);
 		
 		// Check slot conditions.
-		if (Filter.bShouldEvaluateConditions && !EvaluateSlotConditions(ConditionContextData, SlotHandle, RuntimeSlot))
+		if (Filter.bShouldEvaluateConditions && !EvaluateSlotConditions(ConditionContextData, SmartObjectRuntime, SlotHandle))
 		{
 			continue;
 		}
