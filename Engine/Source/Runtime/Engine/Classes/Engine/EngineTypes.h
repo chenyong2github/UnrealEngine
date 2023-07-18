@@ -2822,6 +2822,7 @@ struct FMeshNaniteSettings
 	uint8 bPreserveArea : 1;
 
 	/** Whether to store explicit tangents instead of using the implicitly derived ones. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	uint8 bExplicitTangents : 1;
 
 	/** Position Precision. Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto. */
