@@ -224,7 +224,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Version of the toolchain to use on Windows platform when a non-msvc Compiler is in use, to locate include paths etc.
 		/// </summary>
-		public WindowsCompiler ToolChain => Compiler.IsMSVC() ? Compiler : WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture, Target.Logger);
+		[CommandLine("-VCToolchain=")]
+		public WindowsCompiler ToolChain
+		{
+			get => ToolChainPrivate ?? (Compiler.IsMSVC() ? Compiler : WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture, Target.Logger));
+			set => ToolChainPrivate = value;
+		}
+		private WindowsCompiler? ToolChainPrivate = null;
 
 		/// <summary>
 		/// Architecture of Target.
@@ -237,7 +243,7 @@ namespace UnrealBuildTool
 		= UnrealArch.X64;
 
 		/// <summary>
-		/// The specific toolchain version to use. This may be a specific version number (for example, "14.13.26128"), the string "Latest" to select the newest available version, or
+		/// The specific compiler version to use. This may be a specific version number (for example, "14.13.26128"), the string "Latest" to select the newest available version, or
 		/// the string "Preview" to select the newest available preview version. By default, and if it is available, we use the toolchain version indicated by
 		/// WindowsPlatform.DefaultToolChainVersion (otherwise, we use the latest version).
 		/// </summary>
@@ -245,6 +251,16 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-CompilerVersion")]
 		public string? CompilerVersion = null;
+
+		/// <summary>
+		/// The specific msvc toolchain version to use if the compiler is not msvc. This may be a specific version number (for example, "14.13.26128"), the string "Latest" to select the newest available version, or
+		/// the string "Preview" to select the newest available preview version. By default, and if it is available, we use the toolchain version indicated by
+		/// WindowsPlatform.DefaultToolChainVersion (otherwise, we use the latest version).
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "ToolchainVersion")]
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-VCToolchainVersion")]
+		public string? ToolchainVersion = null;
 
 		/// <summary>
 		/// True if /fastfail should be passed to the msvc compiler and linker
@@ -518,21 +534,6 @@ namespace UnrealBuildTool
 		internal VCEnvironment? Environment;
 
 		/// <summary>
-		/// Directory containing the toolchain
-		/// </summary>
-		public string? ToolChainDir => (Environment == null) ? null : Environment.ToolChainDir.FullName;
-
-		/// <summary>
-		/// The version number of the toolchain
-		/// </summary>
-		public string? ToolChainVersion => (Environment == null) ? null : Environment.ToolChainVersion.ToString();
-
-		/// <summary>
-		/// Root directory containing the Windows Sdk
-		/// </summary>
-		public string? WindowsSdkDir => (Environment == null) ? null : Environment.WindowsSdkDir.FullName;
-
-		/// <summary>
 		/// Directory containing the NETFXSDK
 		/// </summary>
 		[SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "Manually checked")]
@@ -643,9 +644,13 @@ namespace UnrealBuildTool
 
 		public WindowsCompiler Compiler => Inner.Compiler;
 
+		public WindowsCompiler ToolChain => Inner.ToolChain;
+
 		public UnrealArch Architecture => Inner.Architecture;
 
 		public string? CompilerVersion => Inner.CompilerVersion;
+
+		public string? ToolchainVerison => Inner.ToolchainVersion;
 
 		public string? WindowsSdkVersion => Inner.WindowsSdkVersion;
 
@@ -735,13 +740,12 @@ namespace UnrealBuildTool
 
 		internal VCEnvironment? Environment => Inner.Environment;
 
-		public WindowsCompiler ToolChain => Inner.ToolChain;
 
-		public string? ToolChainDir => Inner.ToolChainDir;
+		public string? ToolChainDir => Inner.Environment?.ToolChainDir.FullName ?? null;
 
-		public string? ToolChainVersion => Inner.ToolChainVersion;
+		public string? ToolChainVersion => Inner.Environment?.ToolChainVersion.ToString() ?? null;
 
-		public string? WindowsSdkDir => Inner.WindowsSdkDir;
+		public string? WindowsSdkDir => Inner.Environment?.WindowsSdkDir.ToString() ?? null;
 
 		public string? NetFxSdkDir => Inner.NetFxSdkDir;
 
@@ -861,7 +865,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		protected virtual VCEnvironment CreateVCEnvironment(TargetRules Target)
 		{
-			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.ToolChain, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Target.WindowsPlatform.bAllowClangLinker, Logger);
+			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.ToolChain, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.ToolchainVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Target.WindowsPlatform.bAllowClangLinker, Logger);
 		}
 
 		/// <summary>
@@ -977,6 +981,8 @@ namespace UnrealBuildTool
 			// pull some things from it
 			Target.WindowsPlatform.Compiler = Target.WindowsPlatform.Environment.Compiler;
 			Target.WindowsPlatform.CompilerVersion = Target.WindowsPlatform.Environment.CompilerVersion.ToString();
+			Target.WindowsPlatform.ToolChain = Target.WindowsPlatform.Environment.ToolChain;
+			Target.WindowsPlatform.ToolchainVersion = Target.WindowsPlatform.Environment.ToolChainVersion.ToString();
 			Target.WindowsPlatform.WindowsSdkVersion = Target.WindowsPlatform.Environment.WindowsSdkVersion.ToString();
 
 			// If we're enabling support for C++ modules, make sure the compiler supports it. VS 16.8 changed which command line arguments are used to enable modules support.
@@ -995,6 +1001,17 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.bEnableLibFuzzer && Target.WindowsPlatform.Environment.ToolChainVersion < new VersionNumber(14, 30, 0))
 			{
 				throw new BuildException("LibFuzzer MSVC support requires Visual Studio 2022 17.0 (MSVC 14.30.x) or later. The current compiler version was detected as: {0}", Target.WindowsPlatform.Environment.ToolChainVersion);
+			}
+
+			// Ensure we're using a recent enough version of Clang given the MSVC version
+			if (Target.WindowsPlatform.Compiler.IsClang())
+			{
+				VersionNumber ClangVersion = Target.WindowsPlatform.Compiler == WindowsCompiler.Intel ? MicrosoftPlatformSDK.GetClangVersionForIntelCompiler(Target.WindowsPlatform.Environment.CompilerPath) : Target.WindowsPlatform.Environment.CompilerVersion;
+				VersionNumber MinimumClang = MicrosoftPlatformSDK.GetMinimumClangVersionForVcVersion(Target.WindowsPlatform.Environment.ToolChainVersion);
+				if (ClangVersion < MinimumClang)
+				{
+					throw new BuildException("MSVC toolchain version {0} requires Clang compiler version {1} or later. The current Clang compiler version was detected as: {2}", Target.WindowsPlatform.Environment.ToolChainVersion, MinimumClang, ClangVersion);
+				}
 			}
 
 			// Ensure we're using VS2022 when compiling for the installed engine.

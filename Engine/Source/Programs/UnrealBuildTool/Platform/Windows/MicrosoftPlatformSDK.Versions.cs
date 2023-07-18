@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Linq;
+using System.Collections.Generic;
+using System.Diagnostics;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -35,6 +36,9 @@ namespace UnrealBuildTool
 			VersionNumberRange.Parse("13.0.0", "13.999"), // VS2019 16.11 runtime requires Clang 13
 		};
 
+		/// <summary>
+		/// The minimum supported Clang compiler
+		/// </summary>
 		static readonly VersionNumber MinimumClangVersion = new VersionNumber(13, 0, 0);
 
 		/// <summary>
@@ -50,6 +54,18 @@ namespace UnrealBuildTool
 		};
 
 		/// <summary>
+		/// Minimum Clang version required for MSVC toolchain versions
+		/// </summary>
+		static readonly IReadOnlyDictionary<VersionNumber, VersionNumber> MinimumRequiredClangVersion = new Dictionary<VersionNumber, VersionNumber>()
+		{
+			{ new VersionNumber(14, 37), new VersionNumber(16) }, // VS2022 17.7.x
+			{ new VersionNumber(14, 35), new VersionNumber(15) }, // VS2022 17.5.x - 17.6.x
+			{ new VersionNumber(14, 34), new VersionNumber(14) }, // VS2022 17.4.x
+			{ new VersionNumber(14, 29), new VersionNumber(13) }, // VS2019 16.11.x
+
+		};
+
+		/// <summary>
 		/// Tested compiler toolchains that should not be allowed.
 		/// </summary>
 		static readonly VersionNumberRange[] BannedVisualCppVersions = new VersionNumberRange[]
@@ -57,6 +73,9 @@ namespace UnrealBuildTool
 			VersionNumberRange.Parse("14.30.0", "14.33.99999"), // VS2022 17.0.x - 17.3.x
 		};
 
+		/// <summary>
+		/// The minimum supported MSVC compiler
+		/// </summary>
 		static readonly VersionNumber MinimumVisualCppVersion = new VersionNumber(14, 29, 30133);
 
 		/// <summary>
@@ -68,6 +87,9 @@ namespace UnrealBuildTool
 			VersionNumberRange.Parse("2023.1.0", "2023.9999"),
 		};
 
+		/// <summary>
+		/// The minimum supported Intel compiler
+		/// </summary>
 		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2023, 0, 0);
 
 		/// <inheritdoc/>
@@ -89,6 +111,41 @@ namespace UnrealBuildTool
 		{
 			MinVersion = MinimumWindowsSDKVersion?.ToString();
 			MaxVersion = MaximumWindowsSDKVersion?.ToString();
+		}
+
+		/// <summary>
+		/// The minimum supported Clang version for a given MSVC toolchain
+		/// </summary>
+		/// <param name="VcVersion"></param>
+		/// <returns></returns>
+		public static VersionNumber GetMinimumClangVersionForVcVersion(VersionNumber VcVersion)
+		{
+			foreach (KeyValuePair<VersionNumber, VersionNumber> Item in MinimumRequiredClangVersion)
+			{
+				if (VcVersion >= Item.Key)
+				{
+					return Item.Value;
+				}
+			}
+			return MinimumClangVersion;
+		}
+
+		/// <summary>
+		/// The base Clang version for a given Intel toolchain
+		/// </summary>
+		/// <param name="IntelCompilerPath"></param>
+		/// <returns></returns>
+		public static VersionNumber GetClangVersionForIntelCompiler(FileReference IntelCompilerPath)
+		{
+			FileReference LdLLdPath = FileReference.Combine(IntelCompilerPath.Directory, "..", "bin-llvm", "ld.lld.exe");
+			if (FileReference.Exists(LdLLdPath))
+			{
+				FileVersionInfo VersionInfo = FileVersionInfo.GetVersionInfo(LdLLdPath.FullName);
+				VersionNumber Version = new VersionNumber(VersionInfo.FileMajorPart, VersionInfo.FileMinorPart, VersionInfo.FileBuildPart);
+				return Version;
+			}
+
+			return MinimumClangVersion;
 		}
 
 		/// <summary>

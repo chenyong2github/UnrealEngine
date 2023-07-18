@@ -851,6 +851,7 @@ namespace UnrealBuildTool
 						Platform: UnrealTargetPlatform.Win64,
 						Architecture: UnrealArch.X64,
 						CompilerVersion: String.IsNullOrEmpty(CompilerVersion) ? null : CompilerVersion,
+						ToolchainVersion: null,
 						WindowsSdkVersion: null,
 						SuppliedSdkDirectoryForVersion: null,
 						bUseCPPWinRT: false,

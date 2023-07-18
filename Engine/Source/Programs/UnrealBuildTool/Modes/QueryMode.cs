@@ -309,7 +309,7 @@ namespace UnrealBuildTool
 							if (CurrentTarget.Platform == UnrealTargetPlatform.Win64)
 							{
 								// TODO: Correct compiler
-								Settings.IncludePaths.AddRange(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, WindowsCompiler.VisualStudio2022, null, Logger).Split(";"));
+								Settings.IncludePaths.AddRange(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, WindowsCompiler.VisualStudio2022, null, null, Logger).Split(";"));
 							}
 						}
 						Settings.IncludePaths.AddRange(ModuleCompileEnvironment.SystemIncludePaths.Select(x => x.ToString()));
