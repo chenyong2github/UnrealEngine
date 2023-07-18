@@ -2,14 +2,11 @@
 
 #include "SmartObjectComponent.h"
 
+#include "Engine/World.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectComponent)
-
-#if WITH_EDITOR
-#include "Engine/World.h"
-#endif
 
 #if WITH_EDITORONLY_DATA
 USmartObjectComponent::FOnSmartObjectChanged USmartObjectComponent::OnSmartObjectChanged;
