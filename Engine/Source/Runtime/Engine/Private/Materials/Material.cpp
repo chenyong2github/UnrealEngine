@@ -6658,6 +6658,11 @@ float UMaterial::GetMaxWorldPositionOffsetDisplacement() const
 	return MaxWorldPositionOffsetDisplacement;
 }
 
+bool UMaterial::ShouldAlwaysEvaluateWorldPositionOffset() const
+{
+	return bAlwaysEvaluateWorldPositionOffset;
+}
+
 void UMaterial::SetShadingModel(EMaterialShadingModel NewModel)
 {
 	ensure(ShadingModel < MSM_NUM);

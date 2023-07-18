@@ -1285,6 +1285,11 @@ float UMaterialInterface::GetMaxWorldPositionOffsetDisplacement() const
 	return 0.0f;
 }
 
+bool UMaterialInterface::ShouldAlwaysEvaluateWorldPositionOffset() const
+{
+	return false;
+}
+
 bool UMaterialInterface::IsDeferredDecal() const
 {
 	return false;

@@ -1943,6 +1943,7 @@ public:
 	virtual float GetRefractionDepthBiasValue() const { return 0.0f; }
 	virtual bool ShouldApplyFogging() const { return false; }
 	virtual bool ShouldApplyCloudFogging() const { return false; }
+	virtual bool ShouldAlwaysEvaluateWorldPositionOffset() const { return false; }
 	virtual bool ComputeFogPerPixel() const { return false; }
 	virtual bool IsSky() const { return false; }
 	virtual FString GetFriendlyName() const = 0;
@@ -2701,6 +2702,7 @@ public:
 	ENGINE_API virtual float GetRefractionDepthBiasValue() const override;
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
 	ENGINE_API virtual bool ShouldApplyCloudFogging() const override;
+	ENGINE_API virtual bool ShouldAlwaysEvaluateWorldPositionOffset() const override;
 	ENGINE_API virtual bool IsSky() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasPerInstanceCustomData() const override;
@@ -3061,6 +3063,7 @@ struct FMaterialShaderParameters
 			uint64 bIsUsedWithVolumetricCloud : 1;
 			uint64 bIsUsedWithHeterogeneousVolumes : 1;
 			uint64 bIsMobileSeparateTranslucencyEnabled : 1;
+			uint64 bAlwaysEvaluateWorldPositionOffset : 1;
 		};
 	};
 

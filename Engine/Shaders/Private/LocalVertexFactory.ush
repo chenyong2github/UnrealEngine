@@ -831,8 +831,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	FInstanceSceneData InstanceData = GetInstanceData(Intermediates);
 
 #if USES_WORLD_POSITION_OFFSET
-	// Initialize this flag with culling results when applicable.
-	Intermediates.bEvaluateWorldPositionOffset = (Intermediates.Common.SceneData.CullingFlags & INSTANCE_CULLING_FLAG_EVALUATE_WPO) != 0;
+	#if ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
+		Intermediates.bEvaluateWorldPositionOffset = true;
+	#else
+		// Initialize this flag with culling results when applicable.
+		Intermediates.bEvaluateWorldPositionOffset = (Intermediates.Common.SceneData.CullingFlags & INSTANCE_CULLING_FLAG_EVALUATE_WPO) != 0;
+	#endif
 #endif
 
 	Intermediates.IsVisible = 1.0f;
@@ -946,7 +950,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	const float InstanceViewDistSq = length2(LWCToFloat(LWCAdd(PrimitiveData.ObjectWorldPosition, ResolvedView.PreViewTranslation)));
 #endif // USE_INSTANCING
 
-#if !USE_INSTANCE_CULLING && USES_WORLD_POSITION_OFFSET
+#if !USE_INSTANCE_CULLING && USES_WORLD_POSITION_OFFSET && !ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
 	// In this case, we have to do the WPO disable distance check in the VS because it wasn't done in instance culling
 	if (Intermediates.bEvaluateWorldPositionOffset)
 	{

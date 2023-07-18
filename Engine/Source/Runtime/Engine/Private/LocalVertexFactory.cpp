@@ -292,6 +292,8 @@ bool FLocalVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPer
 
 void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
+	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
 	// Don't override e.g. SplineMesh's opt-out
 	OutEnvironment.SetDefineIfUnset(TEXT("VF_SUPPORTS_SPEEDTREE_WIND"), TEXT("1"));
 
@@ -311,6 +313,9 @@ void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShade
 	{
 		OutEnvironment.SetDefine(TEXT("SUPPORT_GPUSKIN_PASSTHROUGH"), IsGPUSkinPassThroughSupported(Parameters.Platform));
 	}
+
+	OutEnvironment.SetDefine(TEXT("ALWAYS_EVALUATE_WORLD_POSITION_OFFSET"),
+		Parameters.MaterialParameters.bAlwaysEvaluateWorldPositionOffset ? 1 : 0);
 }
 
 void FLocalVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)

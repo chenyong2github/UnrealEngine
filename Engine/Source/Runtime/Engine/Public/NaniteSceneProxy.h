@@ -171,6 +171,7 @@ public:
 		uint8 bHasPerInstanceRandomID : 1;
 		uint8 bHasPerInstanceCustomData : 1;
 		uint8 bHidden : 1;
+		uint8 bAlwaysEvaluateWPO : 1;
 	#if WITH_EDITORONLY_DATA
 		uint8 bSelected : 1;
 	#endif

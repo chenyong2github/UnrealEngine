@@ -755,9 +755,11 @@ public:
 
 	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
 	inline bool AnyMaterialHasWorldPositionOffset() const { return bAnyMaterialHasWorldPositionOffset; }
+	inline bool AnyMaterialAlwaysEvaluatesWorldPositionOffset() const { return bAnyMaterialAlwaysEvaluatesWorldPositionOffset; }
 	inline float GetMaxWorldPositionOffsetExtent() const
 	{
-		if (EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
+		if ((EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
+			|| AnyMaterialAlwaysEvaluatesWorldPositionOffset())
 		{
 			return MaxWPOExtent;
 		}
@@ -1359,6 +1361,9 @@ protected:
 
 	/** Whether the primitive has any materials with World Position Offset. */
 	uint8 bAnyMaterialHasWorldPositionOffset : 1;
+
+	/** Whether the primitive has any materials that must ALWAYS evaluate World Position Offset. */
+	uint8 bAnyMaterialAlwaysEvaluatesWorldPositionOffset : 1;
 
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;

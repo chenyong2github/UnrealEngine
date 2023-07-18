@@ -397,8 +397,13 @@ FNaniteTransformedTri TransformNaniteTriangle(FPrimitiveSceneData PrimitiveData,
 	FNaniteTransformedTri Tri = (FNaniteTransformedTri)0;
 
 #if USES_WORLD_POSITION_OFFSET
+	#if ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
+		bEvaluateWPO = true;
+	#else
+		bEvaluateWPO &= (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+	#endif
 	BRANCH
-	if (bEvaluateWPO && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	if (bEvaluateWPO)
 	{
 		UNROLL_N(3)
 		for (int i = 0; i < 3; ++i)
@@ -477,8 +482,13 @@ FNaniteTransformedVert TransformNaniteVertex(FPrimitiveSceneData PrimitiveData, 
 	Vert.SplineDist = InVert.SplineDist;
 
 #if USES_WORLD_POSITION_OFFSET
+	#if ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
+		bEvaluateWPO = true;
+	#else
+		bEvaluateWPO &= (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+	#endif
 	BRANCH
-	if (bEvaluateWPO && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	if (bEvaluateWPO)
 	{
 		FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
 		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
@@ -783,7 +793,10 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		}
 
 		// Don't evaluate WPO for imposter pixels or for clusters that don't have WPO enabled
-		const bool bEvaluateWPO = !bIsImposter && (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+		bool bEvaluateWPO = !bIsImposter;
+	#if !ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
+		bEvaluateWPO &= (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+	#endif
 		const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
 		const FNaniteTransformedTri Tri = FetchTransformedNaniteTriangle(PrimitiveData, InstanceData, Transforms, Cluster, TriIndices, bEvaluateWPO);
 

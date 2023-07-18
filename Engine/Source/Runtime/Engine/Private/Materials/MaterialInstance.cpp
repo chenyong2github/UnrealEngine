@@ -4596,6 +4596,11 @@ float UMaterialInstance::GetMaxWorldPositionOffsetDisplacement() const
 	return MaxWorldPositionOffsetDisplacement;
 }
 
+bool UMaterialInstance::ShouldAlwaysEvaluateWorldPositionOffset() const
+{
+	return Parent ? Parent->ShouldAlwaysEvaluateWorldPositionOffset() : false;
+}
+
 bool UMaterialInstance::IsMasked() const
 {
 	return IsMaskedBlendMode(GetBlendMode()) || (IsTranslucentOnlyBlendMode(GetBlendMode()) && GetCastDynamicShadowAsMasked());

@@ -53,6 +53,7 @@ public:
 		bHasNaniteImposter							= false;
 		bHasInstanceDrawDistanceCull				= false;
 		bHasWPODisableDistance						= false;
+		bHasAlwaysEvaluateWPOMaterials				= false;
 		bWritesCustomDepthStencil					= false;
 		bReverseCulling								= false;
 		bHoldout									= false;
@@ -123,6 +124,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			Holdout);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			DisableMaterialInvalidations);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			SplineMesh);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasAlwaysEvaluateWPOMaterials);
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
@@ -383,6 +385,7 @@ public:
 		Parameters.Flags |= bCastContactShadow ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW : 0u;
 		Parameters.Flags |= bHasInstanceDrawDistanceCull ? PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL : 0u;
 		Parameters.Flags |= bHasWPODisableDistance ? PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE : 0u;
+		Parameters.Flags |= bHasAlwaysEvaluateWPOMaterials ? PRIMITIVE_SCENE_DATA_FLAG_HAS_ALWAYS_EVALUATE_WPO_MATERIALS : 0u;
 		Parameters.Flags |= bWritesCustomDepthStencil ? PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL : 0u;
 #if SUPPORT_REVERSE_CULLING_IN_NANITE
 		Parameters.Flags |= bReverseCulling ? PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING : 0u;
@@ -446,6 +449,7 @@ private:
 	uint32 bHasNaniteImposter : 1;
 	uint32 bHasInstanceDrawDistanceCull : 1;
 	uint32 bHasWPODisableDistance : 1;
+	uint32 bHasAlwaysEvaluateWPOMaterials : 1;
 	uint32 bWritesCustomDepthStencil : 1;
 	uint32 bReverseCulling: 1;
 	uint32 bHoldout : 1;

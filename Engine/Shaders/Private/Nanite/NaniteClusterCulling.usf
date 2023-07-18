@@ -41,6 +41,7 @@
 #include "../ComputeShaderUtils.ush"
 #if VIRTUAL_TEXTURE_TARGET
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapPageCacheCommon.ush"
 #endif
 #include "NaniteCullingCommon.ush"
 #include "NaniteDataDecode.ush"
@@ -156,8 +157,9 @@ void TransformNodeCullingBounds(
 #endif
 
 	// Extend the bounds for WPO or displacement
-	const float3 LocalWPOExtent = (CullingFlags & NANITE_CULLING_FLAG_ENABLE_WPO) ?
-			abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
+	// NOTE: always extend the bounds if any material ignores the Enable WPO flag
+	const bool bEnableWPO = (CullingFlags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+	const float3 LocalWPOExtent = GetLocalMaxWPOExtent(PrimitiveData, InstanceData, bEnableWPO);
 	Bounds.BoxExtent += LocalWPOExtent + GetAbsMaxMaterialDisplacement(PrimitiveData);
 }
 
@@ -344,7 +346,8 @@ struct FNaniteTraversalClusterCullCallback
 			if (Cull.bIsVisible)
 			{
 			#if VIRTUAL_TEXTURE_TARGET
-				const bool bMaterialInvalidates = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
+				const bool bEnableWPO = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+				const bool bMaterialInvalidates = ShouldMaterialInvalidateShadowCache(PrimitiveData, bEnableWPO);
 				const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
 				Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 			#endif
@@ -523,7 +526,8 @@ struct FNaniteTraversalClusterCullCallback
 		}
 
 #if VIRTUAL_TEXTURE_TARGET
-		const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
+		const bool bEnableWPO = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+		const bool bMaterialInvalidates = ShouldMaterialInvalidateShadowCache(PrimitiveData, bEnableWPO);
 		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates || bInvalidateFromSteamingLODDelta;
 		const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, Cull.bIsViewUncached);
 

@@ -45,6 +45,12 @@ float GetAbsMaxMaterialDisplacement(FPrimitiveSceneData PrimitiveData)
 #endif
 }
 
+float3 GetLocalMaxWPOExtent(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, bool bEnableWPO = true)
+{
+	const bool bHasAlwaysEvalWPOMaterial = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_ALWAYS_EVALUATE_WPO_MATERIALS) != 0;
+	return (bEnableWPO || bHasAlwaysEvalWPOMaterial) ? abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
+}
+
 float GetGlobalClipPlaneDistance(FNaniteView NaniteView, float3 TranslatedWorldPosition)
 {
 	return dot(NaniteView.TranslatedGlobalClipPlane, float4(TranslatedWorldPosition, 1.0f));

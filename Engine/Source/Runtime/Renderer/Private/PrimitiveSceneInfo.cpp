@@ -664,6 +664,7 @@ void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneI
 						float WPODisableDistance;
 						RasterPipeline.bWPODisableDistance =
 							MaterialSection.MaterialRelevance.bUsesWorldPositionOffset &&
+							!MaterialSection.bAlwaysEvaluateWPO &&
 							NaniteProxy->GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
 
 						if (bAllowComputeMaterials)

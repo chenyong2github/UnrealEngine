@@ -275,7 +275,11 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+#if ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
+	const bool bEvaluateWPO = true;
+#else
 	const bool bEvaluateWPO = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+#endif
 	const bool bReverseWindingOrder = ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData);
 
 #if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
@@ -581,7 +585,11 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData( InstanceData.PrimitiveId );
 		FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+	#if ALWAYS_EVALUATE_WORLD_POSITION_OFFSET
+		const bool bEvaluateWPO = true;
+	#else
 		const bool bEvaluateWPO = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+	#endif
 		const bool bReverseWindingOrder = ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData);
 	
 	#if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE

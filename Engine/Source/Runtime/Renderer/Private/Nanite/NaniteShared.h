@@ -464,6 +464,9 @@ public:
 
 		// Force definitions of GetObjectWorldPosition(), etc..
 		OutEnvironment.SetDefine(TEXT("HAS_PRIMITIVE_UNIFORM_BUFFER"), 1);
+
+		OutEnvironment.SetDefine(TEXT("ALWAYS_EVALUATE_WORLD_POSITION_OFFSET"),
+			Parameters.MaterialParameters.bAlwaysEvaluateWorldPositionOffset ? 1 : 0);
 	}
 };
 

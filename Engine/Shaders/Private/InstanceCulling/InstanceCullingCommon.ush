@@ -15,6 +15,7 @@
 struct FDrawCommandDesc
 {
 	bool bMaterialUsesWorldPositionOffset;
+	bool bMaterialAlwaysEvaluatesWorldPositionOffset;
 	uint MeshLODIndex;
 };
 
@@ -22,7 +23,8 @@ FDrawCommandDesc UnpackDrawCommandDesc(uint PackedData)
 {
 	FDrawCommandDesc Desc;
 	Desc.bMaterialUsesWorldPositionOffset = (PackedData & 1U) != 0;
-	Desc.MeshLODIndex = (PackedData >> 1U) & 0x000000FFU;
+	Desc.bMaterialAlwaysEvaluatesWorldPositionOffset = ((PackedData >> 1U) & 1U) != 0;
+	Desc.MeshLODIndex = (PackedData >> 2U) & 0xFU;
 	return Desc;
 }
 

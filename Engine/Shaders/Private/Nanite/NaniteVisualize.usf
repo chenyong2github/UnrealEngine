@@ -382,8 +382,13 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET)
 		{
+			const bool bAlwaysEvaluateWPO = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_ALWAYS_EVALUATE_WPO_MATERIALS) != 0u;
 			const bool bEvaluateWPO = !bIsImposter && bWPOEnabled;
-			if (bEvaluateWPO)
+			if (bAlwaysEvaluateWPO)
+			{
+				Result = float3(1, 1, 0);
+			}
+			else if (bEvaluateWPO)
 			{
 				Result = float3(0, 1, 0);
 			}
@@ -530,7 +535,7 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FPrimitiveSceneData PrimitiveData			= GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;		
 		const bool bSecondaryRasterBin = !bWPOEnabled;
 
 		FeedbackResults.PrimitiveId			= InstanceData.PrimitiveId;
@@ -559,7 +564,7 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FShaderPrintContext ShaderPrint = InitShaderPrintContext();
 		const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 
-		const float3 WPOExtent = bWPOEnabled ? abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
+		const float3 WPOExtent = GetLocalMaxWPOExtent(PrimitiveData, InstanceData, bWPOEnabled);
 	#if ACCURATE_DISPLACEMENT_BOUNDS
 		const float AbsMaxMaterialDisplacement = GetAbsMaxMaterialDisplacement(RasterBinMeta, FeedbackResults.RasterBin);
 	#else

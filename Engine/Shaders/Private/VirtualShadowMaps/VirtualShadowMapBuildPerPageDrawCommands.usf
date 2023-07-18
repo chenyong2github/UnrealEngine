@@ -254,6 +254,8 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 				DynamicData.LocalToTranslatedWorld,
 				DynamicData.PrevLocalToTranslatedWorld );
 
+			Cull.bSkipWPODisableDistance |= DrawCommandDesc.bMaterialAlwaysEvaluatesWorldPositionOffset;
+
 			bEnableWPO = Cull.Distance( PrimitiveData ) && bEnableWPO;
 			if (!bEnableWPO)
 			{

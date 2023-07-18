@@ -200,7 +200,7 @@ bool ShouldRenderInstance(FPrimitiveSceneData PrimitiveData, FInstanceSceneData 
 	return true;
 }
 
-bool IsInstanceVisible(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, uint ViewIdIndex, inout uint CullingFlags)
+bool IsInstanceVisible(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, uint ViewIdIndex, FDrawCommandDesc DrawCommandDesc, inout uint CullingFlags)
 {
 	CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
 
@@ -252,7 +252,9 @@ bool IsInstanceVisible(FPrimitiveSceneData PrimitiveData, FInstanceSceneData Ins
 		Cull.bSkipCullGlobalClipPlane	= true;
 #endif
 
-#if !ALLOW_WPO_DISABLE
+#if ALLOW_WPO_DISABLE
+		Cull.bSkipWPODisableDistance	|= DrawCommandDesc.bMaterialAlwaysEvaluatesWorldPositionOffset;
+#else
 		Cull.bSkipWPODisableDistance	= true;
 #endif
 
@@ -375,8 +377,8 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 #if STEREO_CULLING_MODE
 	uint CullingFlags0 = 0;
 	uint CullingFlags1 = 0;
-	const bool bVisible = IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + 0U, CullingFlags0) ||
-						  IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + 1U, CullingFlags1);
+	const bool bVisible = IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + 0U, DrawCommandDesc, CullingFlags0) ||
+						  IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + 1U, DrawCommandDesc, CullingFlags1);
 	const uint CullingFlags = CullingFlags0 | CullingFlags1;
 	NumVisibleInstances += bVisible ? 2 : 0;
 	
@@ -400,7 +402,7 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 	{
 		// Culling is disabled for multi-view
 		uint CullingFlags = 0;
-		const bool bVisible = IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex, CullingFlags);
+		const bool bVisible = IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex, DrawCommandDesc, CullingFlags);
 		NumVisibleInstances += bVisible ? 1 : 0;
 		
 		BRANCH

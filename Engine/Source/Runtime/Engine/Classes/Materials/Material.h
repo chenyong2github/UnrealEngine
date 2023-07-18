@@ -1016,6 +1016,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPositionOffset, meta = (ClampMin = 0.0f))
 	float MaxWorldPositionOffsetDisplacement;
 
+	/**
+	 * Forces World Position Offset to always be evaluated for this material, even if the primitive it's applied to has disabled it
+	 * via "Evaluate World Position Offset" or "World Position Offset Disable Distance".
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPositionOffset)
+	bool bAlwaysEvaluateWorldPositionOffset;
+
 	/** Not a UPROPERTY, used to propagate editor only strata material simplification options for preview. */
 	FStrataCompilationConfig StrataCompilationConfig;
 
@@ -1131,6 +1138,7 @@ public:
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const override;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const override;
+	ENGINE_API virtual bool ShouldAlwaysEvaluateWorldPositionOffset() const override;
 	ENGINE_API virtual bool WritesToRuntimeVirtualTexture() const override;
 
 	ENGINE_API virtual FGraphEventArray PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) override;

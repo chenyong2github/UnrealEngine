@@ -914,6 +914,7 @@ public:
 	ENGINE_API virtual bool WritesToRuntimeVirtualTexture() const;
 	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const;
+	ENGINE_API virtual bool ShouldAlwaysEvaluateWorldPositionOffset() const;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const;
 	ENGINE_API virtual uint32 NumSpecularProfile_Internal() const;
 	ENGINE_API virtual USpecularProfile* GetSpecularProfile_Internal(uint32 Index) const;

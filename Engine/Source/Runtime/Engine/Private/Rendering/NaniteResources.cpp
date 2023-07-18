@@ -453,6 +453,8 @@ void FVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPerm
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() != SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_RAYTRACING_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() == SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
+	OutEnvironment.SetDefine(TEXT("ALWAYS_EVALUATE_WORLD_POSITION_OFFSET"),
+		Parameters.MaterialParameters.bAlwaysEvaluateWorldPositionOffset ? 1 : 0);
 
 	if (NaniteSplineMeshesSupported())
 	{
@@ -570,6 +572,7 @@ void FSceneProxyBase::OnMaterialsUpdated()
 	MaxWPOExtent = 0.0f;
 	MinMaxMaterialDisplacement = FVector2f::Zero();
 	bHasProgrammableRaster = false;
+	bAnyMaterialAlwaysEvaluatesWorldPositionOffset = false;
 
 	static const auto TessellationEnabledVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.Tessellation"));
 	const bool bTessellationEnabled = (TessellationEnabledVar && TessellationEnabledVar->GetValueOnAnyThread() != 0);
@@ -601,11 +604,15 @@ void FSceneProxyBase::OnMaterialsUpdated()
 			MaterialSection.RasterMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 		}
 
+		// Determine if we need to always evaluate WPO for this material slot.
+		const bool bHasWPO = MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+		MaterialSection.bAlwaysEvaluateWPO = bHasWPO && ShadingMaterial->ShouldAlwaysEvaluateWorldPositionOffset();
+		bAnyMaterialAlwaysEvaluatesWorldPositionOffset |= MaterialSection.bAlwaysEvaluateWPO;
+
 		// Determine max extent of WPO
-		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
+		if (MaterialSection.bAlwaysEvaluateWPO || (bEvaluateWorldPositionOffset && bHasWPO))
 		{
 			MaterialSection.MaxWPOExtent = ShadingMaterial->GetMaxWorldPositionOffsetDisplacement();
-
 			MaxWPOExtent = FMath::Max(MaxWPOExtent, MaterialSection.MaxWPOExtent);
 		}
 		else
@@ -2432,6 +2439,8 @@ void FNaniteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShad
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 	OutEnvironment.SetDefine(TEXT("NANITE_COMPUTE_SHADE"), 1);
+	OutEnvironment.SetDefine(TEXT("ALWAYS_EVALUATE_WORLD_POSITION_OFFSET"),
+		Parameters.MaterialParameters.bAlwaysEvaluateWorldPositionOffset ? 1 : 0);
 
 	if (NaniteSplineMeshesSupported())
 	{

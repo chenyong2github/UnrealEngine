@@ -66,6 +66,11 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	if (MaterialResource.MaterialUsesWorldPositionOffset_RenderThread())
 	{
 		SharedFlags |= EFVisibleMeshDrawCommandFlags::MaterialUsesWorldPositionOffset;
+
+		if (MaterialResource.ShouldAlwaysEvaluateWorldPositionOffset())
+		{
+			SharedFlags |= EFVisibleMeshDrawCommandFlags::MaterialAlwaysEvaluatesWorldPositionOffset;
+		}
 	}
 
 	SharedMeshDrawCommand.SetStencilRef(DrawRenderState.GetStencilRef());

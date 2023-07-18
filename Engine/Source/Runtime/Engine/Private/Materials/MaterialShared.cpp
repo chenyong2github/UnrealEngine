@@ -1918,6 +1918,7 @@ float FMaterialResource::GetTranslucentShadowStartOffset() const { return Materi
 float FMaterialResource::GetRefractionDepthBiasValue() const { return Material->RefractionDepthBias; }
 bool FMaterialResource::ShouldApplyFogging() const { return Material->bUseTranslucencyVertexFog; }
 bool FMaterialResource::ShouldApplyCloudFogging() const { return Material->bApplyCloudFogging; }
+bool FMaterialResource::ShouldAlwaysEvaluateWorldPositionOffset() const { return Material->bAlwaysEvaluateWorldPositionOffset; }
 bool FMaterialResource::IsSky() const { return Material->bIsSky; }
 bool FMaterialResource::ComputeFogPerPixel() const {return Material->bComputeFogPerPixel;}
 FString FMaterialResource::GetFriendlyName() const { return GetNameSafe(Material); } //avoid using the material instance name here, we want materials that share a shadermap to also share a friendly name.
@@ -5224,6 +5225,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bIsUsedWithVolumetricCloud = InMaterial->IsUsedWithVolumetricCloud();
 	bIsUsedWithHeterogeneousVolumes = InMaterial->IsUsedWithHeterogeneousVolumes();
 	bIsMobileSeparateTranslucencyEnabled = InMaterial->IsMobileSeparateTranslucencyEnabled();
+	bAlwaysEvaluateWorldPositionOffset = InMaterial->ShouldAlwaysEvaluateWorldPositionOffset();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -54,10 +54,11 @@ static bool IsInstanceOrderPreservationAllowed(ERHIFeatureLevel::Type FeatureLev
 	return GInstanceCullingAllowOrderPreservation && FeatureLevel > ERHIFeatureLevel::ES3_1;
 }
 
-static uint32 PackDrawCommandDesc(bool bMaterialUsesWorldPositionOffset, uint32 MeshLODIndex)
+static uint32 PackDrawCommandDesc(bool bMaterialUsesWorldPositionOffset, bool bMaterialAlwaysEvaluatesWorldPositionOffset, uint32 MeshLODIndex)
 {
 	uint32 PackedData = bMaterialUsesWorldPositionOffset ? 1U : 0U;
-	PackedData |= ((MeshLODIndex & 0x000000FFU) << 1U);
+	PackedData |= bMaterialAlwaysEvaluatesWorldPositionOffset ? 2U : 0U;
+	PackedData |= ((MeshLODIndex & 0x000000FFU) << 2U);
 	return PackedData;
 }
 
@@ -1299,6 +1300,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 
 		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
 		const bool bMaterialUsesWorldPositionOffset = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialUsesWorldPositionOffset);
+		const bool bMaterialAlwaysEvaluatesWorldPositionOffset = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialAlwaysEvaluatesWorldPositionOffset);
 		const bool bForceInstanceCulling = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::ForceInstanceCulling);
 		const bool bPreserveInstanceOrder = bOrderPreservationEnabled && EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::PreserveInstanceOrder);
 		const bool bUseIndirectDraw = bAlwaysUseIndirectDraws || bForceInstanceCulling || (VisibleMeshDrawCommand.NumRuns > 0 || MeshDrawCommand->NumInstances > 1);
@@ -1339,7 +1341,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 				{
 					MeshLODIndex = StateBucketsAuxData[VisibleMeshDrawCommand.StateBucketId].MeshLODIndex;
 				}
-				DrawCommandDescs.Add(PackDrawCommandDesc(bMaterialUsesWorldPositionOffset, MeshLODIndex));
+				DrawCommandDescs.Add(PackDrawCommandDesc(bMaterialUsesWorldPositionOffset, bMaterialAlwaysEvaluatesWorldPositionOffset, MeshLODIndex));
 				
 				if (bUseIndirectDraw)
 				{

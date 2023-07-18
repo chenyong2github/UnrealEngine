@@ -1333,17 +1333,23 @@ enum class EFVisibleMeshDrawCommandFlags : uint8
 	/** If set, the FMaterial::MaterialUsesWorldPositionOffset_RenderThread() indicates that WPO is active for the given material. */
 	MaterialUsesWorldPositionOffset = 1U << 0U,
 
+	/**
+	 * If set, the FMaterial::ShouldAlwaysEvaluateWorldPositionOffset() indicates that WPO is ALWAYS active for the given material.
+	 * NOTE: This flag is only set if MaterialUsesWorldPositionOffset is also set.
+	 */
+	MaterialAlwaysEvaluatesWorldPositionOffset = 1U << 1U,
+
 	/** If set, the mesh draw command supports primitive ID steam (required for dynamic instancing and GPU-Scene instance culling). */
-	HasPrimitiveIdStreamIndex = 1U << 1U,
+	HasPrimitiveIdStreamIndex = 1U << 2U,
 
 	/** If set, forces individual instances to always be culled independently from the primitive */
-	ForceInstanceCulling = 1U << 2U,
+	ForceInstanceCulling = 1U << 3U,
 
 	/** If set, requires that instances preserve their original draw order in the draw command */
-	PreserveInstanceOrder = 1U << 3U,
+	PreserveInstanceOrder = 1U << 4U,
 
 	All = MaterialUsesWorldPositionOffset | HasPrimitiveIdStreamIndex | ForceInstanceCulling | PreserveInstanceOrder,
-	NumBits = 4U
+	NumBits = 5U
 };
 ENUM_CLASS_FLAGS(EFVisibleMeshDrawCommandFlags);
 static_assert(uint32(EFVisibleMeshDrawCommandFlags::All) < (1U << uint32(EFVisibleMeshDrawCommandFlags::NumBits)), "EFVisibleMeshDrawCommandFlags::NumBits too small to represent all flags in EFVisibleMeshDrawCommandFlags.");

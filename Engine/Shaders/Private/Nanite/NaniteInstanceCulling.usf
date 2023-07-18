@@ -410,7 +410,7 @@ void InstanceCull(
 			if( Cull.bIsVisible )
 			{
 #if VIRTUAL_TEXTURE_TARGET
-				const bool bMaterialInvalidates = bEnableWPO && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
+				const bool bMaterialInvalidates = ShouldMaterialInvalidateShadowCache(PrimitiveData, bEnableWPO);
 				bAnyMaterialInvalidates |= bMaterialInvalidates;
 				const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
 				Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
@@ -619,10 +619,8 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 		Cull.bSkipCullGlobalClipPlane = true;
 	}
 	
-	bool bEnableWPO = Cull.Distance( PrimitiveData );
-
-	const bool bMaterialInvalidates = bEnableWPO && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
-
+	const bool bEnableWPO = Cull.Distance( PrimitiveData );
+	const bool bMaterialInvalidates = ShouldMaterialInvalidateShadowCache(PrimitiveData, bEnableWPO);
 	bOutAnyMaterialInvalidates |= bMaterialInvalidates;
 
 	Cull.GlobalClipPlane();
