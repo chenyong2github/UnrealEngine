@@ -663,7 +663,15 @@ public:
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return True if the handle is valid and its associated slot is accessible; false otherwise.
 	 */
-	bool IsSmartObjectSlotValid(const FSmartObjectSlotHandle SlotHandle) const { return SlotHandle.IsValid() && RuntimeSlots.Find(SlotHandle) != nullptr; }
+	bool IsSmartObjectSlotValid(const FSmartObjectSlotHandle SlotHandle) const
+	{
+		if (!SlotHandle.IsValid())
+		{
+			return false;
+		}
+		const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SlotHandle.SmartObjectHandle);
+		return SmartObjectRuntime != nullptr && SmartObjectRuntime->Slots.IsValidIndex(SlotHandle.GetSlotIndex());
+	}
 
 	/**
 	 * Start using a claimed smart object slot.
@@ -779,13 +787,16 @@ public:
 	
 	ESmartObjectSlotState GetSlotState(const FSmartObjectSlotHandle SlotHandle) const;
 
+	UE_DEPRECATED(5.3, "Data is now added synchronously, use AddSlotData instead.")
+	void AddSlotDataDeferred(const FSmartObjectClaimHandle& ClaimHandle, FConstStructView InData) { AddSlotData(ClaimHandle, InData); }
+	
 	/**
-	 * Adds state data (through a deferred command) to a slot instance. Data must be a struct that inherits
+	 * Adds state data to a slot instance. Data must be a struct that inherits
 	 * from FSmartObjectSlotStateData and passed as a struct view (e.g. FConstStructView::Make(FSomeStruct))
 	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
 	 * @param InData A view on the struct to add.
 	 */
-	void AddSlotDataDeferred(const FSmartObjectClaimHandle& ClaimHandle, FConstStructView InData) const;
+	void AddSlotData(const FSmartObjectClaimHandle& ClaimHandle, FConstStructView InData);
 
 	/**
 	 * Creates and returns a view to the data associated to a slot handle.
@@ -869,7 +880,7 @@ public:
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return Transform (in world space) of the slot associated to SlotHandle.
 	 */
-	const FTransform& GetSlotTransformChecked(const FSmartObjectSlotHandle SlotHandle) const;
+	FTransform GetSlotTransformChecked(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Returns the list of tags associated to the smart object instance represented by the provided handle.
@@ -1017,7 +1028,11 @@ protected:
 
 	/** Creates all runtime data using main collection */
 	void InitializeRuntime();
-	void InitializeRuntime(const TSharedPtr<FMassEntityManager>& InEntityManager);
+
+	UE_DEPRECATED(5.3, "Use InitializeRuntime() without Mass entity manager.")
+	void InitializeRuntime(const TSharedPtr<FMassEntityManager>& InEntityManager)
+	{
+	}
 
 	/** Removes all runtime data */
 	virtual void CleanupRuntime();
@@ -1036,25 +1051,37 @@ protected:
 	 * @return True if the handle is valid and its associated slot is accessible; false otherwise.
 	 */
 	bool IsSlotValidVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext) const;
+
+	/**
+	 * Returns the const runtime instance associated to the provided handle.
+	 * Method produces log messages with provided context if provided handle is not set or associated instance can't be found.
+	 */
+	bool GetValidatedRuntimeAndSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectRuntime*& OutSmartObjectRuntime, const FSmartObjectRuntimeSlot*& OutSlot, const TCHAR* Context) const;
+
+	/**
+	 * Returns the mutable runtime instance associated to the provided handle
+	 * Method produces log messages with provided context if provided handle is not set or associated instance can't be found.
+	 */
+	bool GetValidatedMutableRuntimeAndSlot(const FSmartObjectSlotHandle SlotHandle, FSmartObjectRuntime*& OutSmartObjectRuntime, FSmartObjectRuntimeSlot*& OutSlot, const TCHAR* Context);
+
+	UE_DEPRECATED(5.3, "Use GetValidatedRuntimeAndSlot() instead.")
+	const FSmartObjectRuntimeSlot* GetSlotVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext) const
+	{
+		return nullptr;
+	}
+
+	UE_DEPRECATED(5.3, "Use GetValidatedMutableRuntimeAndSlot() instead.")
+	FSmartObjectRuntimeSlot* GetMutableSlotVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext)
+	{
+		return nullptr;
+	}
+
+	UE_DEPRECATED(5.3, "Use GetValidatedMutableRuntimeAndSlot() instead.")
+	FSmartObjectRuntimeSlot* GetMutableSlot(const FSmartObjectClaimHandle& ClaimHandle)
+	{
+		return nullptr;
+	}
 	
-	/**
-	 * Returns pointer to the specified slot if it exists. 
-	 * Log is produced for any failing condition using provided LogContext.
-	 * @param SlotHandle Handle to a smart object slot.
-	 * @param LogContext String describing the context in which the method is called (e.g. caller function name)
-	 * @return Pointer to the slot state if the handle is valid and its associated slot is accessible; nullptr otherwise.
-	 */
-	FSmartObjectRuntimeSlot* GetMutableSlotVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext);
-
-	/**
-	 * Returns pointer to the specified slot if it exists. 
-	 * Log is produced for any failing condition using provided LogContext.
-	 * @param SlotHandle Handle to a smart object slot.
-	 * @param LogContext String describing the context in which the method is called (e.g. caller function name)
-	 * @return Pointer to the slot state if the handle is valid and its associated slot is accessible; nullptr otherwise.
-	 */
-	const FSmartObjectRuntimeSlot* GetSlotVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext) const;
-
 	/**
 	 * Returns the const runtime instance associated to the provided handle.
 	 * Method produces log messages with provided context if provided handle is not set or associated instance can't be found.
@@ -1080,10 +1107,20 @@ protected:
 
 	/** Goes through all defined slots of smart object represented by SmartObjectRuntime and finds the ones matching the filter. */
 	void FindSlots(
+		const FSmartObjectHandle Handle,
 		const FSmartObjectRuntime& SmartObjectRuntime,
 		const FSmartObjectRequestFilter& Filter,
 		 TArray<FSmartObjectSlotHandle>& OutResults,
 		 const FConstStructView UserData) const;
+
+	UE_DEPRECATED(5.3, "FindSlots() was changed to require object handle as parameter too.")
+	void FindSlots(
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectRequestFilter& Filter,
+		 TArray<FSmartObjectSlotHandle>& OutResults,
+		 const FConstStructView UserData) const
+	{
+	}
 
 	/** Applies filter on provided definition and fills OutValidIndices with indices of all valid slots. */
 	static void FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices);
@@ -1095,15 +1132,28 @@ protected:
 		);
 
 	const USmartObjectBehaviorDefinition* MarkSlotAsOccupied(
-		const FSmartObjectRuntime& SmartObjectRuntime,
+		FSmartObjectRuntime& SmartObjectRuntime,
 		const FSmartObjectClaimHandle& ClaimHandle,
 		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 		);
 
-	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime);
+	UE_DEPRECATED(5.3, "MarkSlotAsOccupied() was changed to require SmartObjectRuntime to be passed as mutable.")
+	const USmartObjectBehaviorDefinition* MarkSlotAsOccupied(
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectClaimHandle& ClaimHandle,
+		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
+		)
+	{
+		return nullptr;
+	}
 
-	FSmartObjectRuntimeSlot* GetMutableSlot(const FSmartObjectClaimHandle& ClaimHandle);
+	void AbortAll(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime) const;
 
+	UE_DEPRECATED(5.3, "AbortAll() was changed to require object handle as parameter too.")
+	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime)
+	{
+	}
+	
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
@@ -1115,9 +1165,18 @@ protected:
 	FSmartObjectRuntime* AddCollectionEntryToSimulation(
 		const FSmartObjectCollectionEntry& Entry,
 		const USmartObjectDefinition& Definition,
-		USmartObjectComponent* OwnerComponent,
-		const bool bCommitChanges = true
+		USmartObjectComponent* OwnerComponent
 		);
+
+	UE_DEPRECATED(5.3, "bCommitChanges is not used anymore, use the version without.")
+	FSmartObjectRuntime* AddCollectionEntryToSimulation(
+		const FSmartObjectCollectionEntry& Entry,
+		const USmartObjectDefinition& Definition,
+		USmartObjectComponent* OwnerComponent,
+		const bool bCommitChanges)
+	{
+		return nullptr;
+	}
 
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
@@ -1127,9 +1186,18 @@ protected:
 	 */
 	FSmartObjectRuntime* AddComponentToSimulation(
 		USmartObjectComponent& SmartObjectComponent,
-		const FSmartObjectCollectionEntry& CollectionEntry,
-		const bool bCommitChanges = true
+		const FSmartObjectCollectionEntry& CollectionEntry
 		);
+
+	UE_DEPRECATED(5.3, "bCommitChanges is not used anymore, use the version without.")
+	FSmartObjectRuntime* AddComponentToSimulation(
+		USmartObjectComponent& SmartObjectComponent,
+		const FSmartObjectCollectionEntry& CollectionEntry,
+		const bool bCommitChanges
+		)
+	{
+		return nullptr;
+	}
 
 	/** Notifies SmartObjectComponent that it has been bound to a runtime instance, and sets SmartObjectComponent-related properties of SmartObjectRuntime */
 	void BindComponentToSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
@@ -1154,8 +1222,13 @@ protected:
 	void RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
 
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
-	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, const FMassEntityManager& EntityManagerRef);
+	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime);
 
+	UE_DEPRECATED(5.3, "EntityManagerRef is not used anymore, use the version without.")
+	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, const FMassEntityManager& EntityManagerRef)
+	{
+	}
+	
 	/**
 	 * Fills the provided context data with the smartobject actor and handle associated to 'SmartObjectRuntime' and the subsystem. 
 	 * @param ContextData The context data to fill
@@ -1174,16 +1247,26 @@ protected:
 	 * Use the provided context data that is expected to be already filled by calling 'SetupConditionContextCommonData'
 	 * and adds the slot related part. It then evaluates all conditions associated to the specified slot.  
 	 * @param ConditionContextData The context data to fill and use for conditions evaluation
+	 * @param SmartObjectRuntime Runtime struct associated to the smart object slot
 	 * @param SlotHandle Handle to the smart object slot
-	 * @param Slot Runtime struct associated to the smart object slot
 	 * @return True if all conditions are met; false otherwise
 	 * @see SetupDefaultConditionsContext
 	 */
 	[[nodiscard]] bool EvaluateSlotConditions(
 		FWorldConditionContextData& ConditionContextData,
+		const FSmartObjectRuntime& SmartObjectRuntime,
+		const FSmartObjectSlotHandle SlotHandle
+		) const;
+
+	UE_DEPRECATED(5.3, "Use the version that takes smart object runtime and slot handle.")
+	[[nodiscard]] bool EvaluateSlotConditions(
+		FWorldConditionContextData& ConditionContextData,
 		const FSmartObjectSlotHandle SlotHandle,
 		const FSmartObjectRuntimeSlot& Slot
-		) const;
+		) const
+	{
+		return false;
+	}
 
 	/**
 	 * Use the provided context data that is expected to be already filled by calling 'SetupConditionContextCommonData'
@@ -1199,11 +1282,23 @@ protected:
 	 * by reusing context data and schema as much as possible.
 	 */
 	[[nodiscard]] bool EvaluateConditionsForFiltering(
+		const FSmartObjectRuntime& SmartObjectRuntime,
 		const FSmartObjectSlotHandle SlotHandle,
 		FWorldConditionContextData& ContextData,
 		const FConstStructView UserData,
 		TPair<const FSmartObjectRuntime*, bool>& LastEvaluatedRuntime
 		) const;	
+
+	UE_DEPRECATED(5.3, "EvaluateConditionsForFiltering() was changed to rewuire smart object runtime as parameter.")
+	[[nodiscard]] bool EvaluateConditionsForFiltering(
+		const FSmartObjectSlotHandle SlotHandle,
+		FWorldConditionContextData& ContextData,
+		const FConstStructView UserData,
+		TPair<const FSmartObjectRuntime*, bool>& LastEvaluatedRuntime
+		) const
+	{
+		return false;
+	}
 
 	/**
 	 * Finds entrance location for a specific slot. Each slot can be annotated with multiple entrance locations, and the request can be configured to also consider the slot location as one entry.
@@ -1244,14 +1339,9 @@ protected:
 
 	TArray<TWeakObjectPtr<ASmartObjectPersistentCollection>> RegisteredCollections;
 
-	TSharedPtr<FMassEntityManager> EntityManager;
-
 	UPROPERTY(Transient)
 	TMap<FSmartObjectHandle, FSmartObjectRuntime> RuntimeSmartObjects;
 	
-	UPROPERTY(Transient)
-	TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot> RuntimeSlots;
-
 	/** List of registered components. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USmartObjectComponent>> RegisteredSOComponents;
@@ -1292,8 +1382,14 @@ protected:
 public:
 	uint32 DebugGetNumRuntimeObjects() const { return RuntimeSmartObjects.Num(); }
 	const TMap<FSmartObjectHandle, FSmartObjectRuntime>& DebugGetRuntimeObjects() const { return RuntimeSmartObjects; }
-	const TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot>& DebugGetRuntimeSlots() const { return RuntimeSlots; }
 	uint32 DebugGetNumRegisteredComponents() const { return RegisteredSOComponents.Num(); }
+
+	UE_DEPRECATED(5.3, "DebugGetRuntimeSlots() is not supported anymore, slots are accessed via object runtime instead.")
+	const TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot>& DebugGetRuntimeSlots() const
+	{
+		static TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot> Dummy;
+		return Dummy;
+	}
 
 	/** Debugging helper to remove all registered smart objects from the simulation */
 	void DebugUnregisterAllSmartObjects();

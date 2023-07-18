@@ -3,7 +3,7 @@
 #include "SmartObjectTypes.h"
 #include "AI/Navigation/NavAgentInterface.h"
 #include "NavigationSystem.h"
-#include "NavigationData.h"
+#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectTypes)
 
@@ -13,6 +13,9 @@ const FSmartObjectUserHandle FSmartObjectUserHandle::Invalid;
 const FSmartObjectHandle FSmartObjectHandle::Invalid;
 
 
+//----------------------------------------------------------------------//
+// FSmartObjectUserCapsuleParams
+//----------------------------------------------------------------------//
 FSmartObjectAnnotationCollider FSmartObjectUserCapsuleParams::GetAsCollider(const FVector& Location, const FQuat& Rotation) const
 {
 	const float ConstrainedRadius = Radius;
@@ -29,6 +32,9 @@ FSmartObjectAnnotationCollider FSmartObjectUserCapsuleParams::GetAsCollider(cons
 	return Collider;
 }
 
+//----------------------------------------------------------------------//
+// FSmartObjectSlotValidationParams
+//----------------------------------------------------------------------//
 const FSmartObjectUserCapsuleParams& FSmartObjectSlotValidationParams::GetUserCapsule(const FSmartObjectUserCapsuleParams& NavigationCapsule) const
 {
 	if (bUseNavigationCapsuleSize)
@@ -95,4 +101,12 @@ bool FSmartObjectSlotValidationParams::GetPreviewUserCapsule(const UWorld& World
 	}
 
 	return true;
+}
+
+//----------------------------------------------------------------------//
+// FSmartObjectActorUserData
+//----------------------------------------------------------------------//
+FSmartObjectActorUserData::FSmartObjectActorUserData(const AActor* InUserActor)
+	: UserActor(InUserActor)
+{
 }

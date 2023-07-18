@@ -21,7 +21,6 @@ namespace UnrealBuildTool.Rules
 				"Engine",
 				"InputCore",
 				"InteractiveToolsFramework",
-				"MassEntity",
 				"PropertyEditor",
 				"SlateCore",
 				"Slate",

@@ -37,14 +37,20 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotAnnotation : public FSmartObjectSl
 	 **/
 	virtual void AdjustWorldTransform(const FTransform& SlotTransform, const FVector& DeltaTranslation, const FRotator& DeltaRotation) {}
 #endif // WITH_EDITOR
+
+	/** @return true if the the annotation has transform. Annotations with transforms can be selected and edited in the editor viewport. */
+	virtual bool HasTransform() const { return false; }
 	
 	/**
 	 * Returns the world space transform of the annotation.
 	 * @param SlotTransform World space transform of the slot.
-	 * @return world transform of the annotation, or empty if annotation does not have transform.
+	 * @return World space transform of the annotation.
 	 */
-	virtual TOptional<FTransform> GetWorldTransform(const FTransform& SlotTransform) const { return TOptional<FTransform>(); }
-	
+	virtual FTransform GetAnnotationWorldTransform(const FTransform& SlotTransform) const { return FTransform(); };
+
+	UE_DEPRECATED(5.3, "Use HasTransform() and GetWorldTransform() instead.")
+	virtual TOptional<FTransform> GetWorldTransform(const FTransform& SlotTransform) const final { return TOptional<FTransform>(); }
+
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual void CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const {}
 #endif // WITH_GAMEPLAY_DEBUGGER	

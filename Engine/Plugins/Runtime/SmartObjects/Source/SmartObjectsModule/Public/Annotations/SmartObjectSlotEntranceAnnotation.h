@@ -11,6 +11,7 @@
 class ANavigationData;
 class USmartObjectDefinition;
 struct FNavLocation;
+struct FCollisionQueryParams;
 enum class ESmartObjectSlotNavigationLocationType : uint8;
 
 /**
@@ -64,7 +65,8 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceAnnotation : public FSmart
 	virtual void AdjustWorldTransform(const FTransform& SlotTransform, const FVector& DeltaTranslation, const FRotator& DeltaRotation) override;
 #endif
 	
-	virtual TOptional<FTransform> GetWorldTransform(const FTransform& SlotTransform) const override;
+	virtual bool HasTransform() const override { return true; }
+	virtual FTransform GetAnnotationWorldTransform(const FTransform& SlotTransform) const override;
 	virtual FVector GetWorldLocation(const FTransform& SlotTransform) const;
 	virtual FRotator GetWorldRotation(const FTransform& SlotTransform) const;
 

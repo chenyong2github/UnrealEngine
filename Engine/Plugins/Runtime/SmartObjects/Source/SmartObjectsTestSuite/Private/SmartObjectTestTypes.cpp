@@ -11,18 +11,13 @@ USmartObjectTestSubsystem::USmartObjectTestSubsystem(const FObjectInitializer& O
 	bAutoInitializeEditorInstances = false;
 }
 
-void USmartObjectTestSubsystem::RebuildAndInitializeForTesting(const TSharedPtr<FMassEntityManager>& InEntityManager)
+void USmartObjectTestSubsystem::RebuildAndInitializeForTesting()
 {
 	UWorld& World = GetWorldRef();
 	// note that the following call won't result in InitializeRuntime call, even in the editor - due to bAutoInitializeEditorInstances
 	OnWorldComponentsUpdated(World);
 
-	InitializeRuntime(InEntityManager);
-}
-
-FMassEntityManager* USmartObjectTestSubsystem::GetEntityManagerForTesting()
-{
-	return EntityManager.Get();
+	InitializeRuntime();
 }
 
 //----------------------------------------------------------------------//

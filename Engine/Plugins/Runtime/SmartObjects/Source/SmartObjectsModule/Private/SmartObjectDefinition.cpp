@@ -161,13 +161,13 @@ FBox USmartObjectDefinition::GetBounds() const
 	FBox BoundingBox(ForceInitToZero);
 	for (const FSmartObjectSlotDefinition& Slot : GetSlots())
 	{
-		BoundingBox += Slot.Offset + UE::SmartObject::DefaultSlotSize;
-		BoundingBox += Slot.Offset - UE::SmartObject::DefaultSlotSize;
+		BoundingBox += FVector(Slot.Offset) + UE::SmartObject::DefaultSlotSize;
+		BoundingBox += FVector(Slot.Offset) - UE::SmartObject::DefaultSlotSize;
 	}
 	return BoundingBox;
 }
 
-void USmartObjectDefinition::GetSlotActivityTags(const FSmartObjectSlotIndex& SlotIndex, FGameplayTagContainer& OutActivityTags) const
+void USmartObjectDefinition::GetSlotActivityTags(const int32 SlotIndex, FGameplayTagContainer& OutActivityTags) const
 {
 	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting activity tags for an out of range slot index: %s"), *LexToString(SlotIndex)))
 	{
@@ -189,6 +189,7 @@ void USmartObjectDefinition::GetSlotActivityTags(const FSmartObjectSlotDefinitio
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TOptional<FTransform> USmartObjectDefinition::GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const
 {
 	TOptional<FTransform> Transform;
@@ -196,14 +197,24 @@ TOptional<FTransform> USmartObjectDefinition::GetSlotTransform(const FTransform&
 	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *LexToString(SlotIndex)))
 	{
 		const FSmartObjectSlotDefinition& Slot = Slots[SlotIndex];
-		Transform = FTransform(Slot.Rotation, Slot.Offset) * OwnerTransform;
+		Transform = FTransform(FRotator(Slot.Rotation), FVector(Slot.Offset)) * OwnerTransform;
 	}
 
 	return Transform;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+FTransform USmartObjectDefinition::GetSlotWorldTransform(const int32 SlotIndex, const FTransform& OwnerTransform) const
+{
+	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *LexToString(SlotIndex)))
+	{
+		const FSmartObjectSlotDefinition& Slot = Slots[SlotIndex];
+		return FTransform(FRotator(Slot.Rotation), FVector(Slot.Offset)) * OwnerTransform;
+	}
+	return OwnerTransform;
+}
 
-const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex,
+const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinition(const int32 SlotIndex,
 																					const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const
 {
 	const USmartObjectBehaviorDefinition* Definition = nullptr;

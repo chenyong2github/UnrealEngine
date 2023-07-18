@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AITestsCommon.h"
+#include "Engine/World.h"
 #include "GameplayTagsManager.h"
-#include "MassExecutor.h"
-#include "MassEntityManager.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectTestTypes.h"
 #include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
@@ -46,14 +45,7 @@ struct FSmartObjectTestBase : FAITestBase
 	USmartObjectDefinition* Definition = nullptr;
 	USmartObjectTestSubsystem* Subsystem = nullptr;
 	TArray<USmartObjectComponent*> SOList;
-	TSharedPtr<FMassEntityManager> EntityManager;
 	int32 NumCreatedSlots = 0;
-
-	FMassEntityManager& GetEntityManagerRef()
-	{
-		check(EntityManager);
-		return *EntityManager.Get();
-	}
 
 	/** Callback that derived classes can override to tweak the SmartObjectDefinition before the runtime gets initialized */
 	virtual bool SetupDefinition() { return true; }
@@ -61,10 +53,6 @@ struct FSmartObjectTestBase : FAITestBase
 	virtual bool SetUp() override
 	{
 		UWorld* World = FAITestHelpers::GetWorld();
-
-		EntityManager = MakeShareable(new FMassEntityManager);
-		EntityManager->SetDebugName(TEXT("MassEntityTestSuite"));
-		EntityManager->Initialize();
 
 		Subsystem = NewAutoDestroyObject<USmartObjectTestSubsystem>(World);
 		if (Subsystem == nullptr)
@@ -122,10 +110,7 @@ struct FSmartObjectTestBase : FAITestBase
 			}
 		}
 
-		Subsystem->RebuildAndInitializeForTesting(EntityManager);
-
-		FMassProcessingContext ProcessingContext(GetEntityManagerRef(), /* DeltaSeconds */ 0.f);
-		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
+		Subsystem->RebuildAndInitializeForTesting();
 
 		return true;
 	}
@@ -368,11 +353,7 @@ struct FSlotCustomData : FSmartObjectTestBase
 		FSmartObjectSlotTestRuntimeData NewRuntimeData;
 		constexpr float SomeFloatConstant = 654.321f;
 		NewRuntimeData.SomePerInstanceSharedFloat = SomeFloatConstant;
-		Subsystem->AddSlotDataDeferred(ClaimHandle, FConstStructView::Make(NewRuntimeData));
-
-		// We need to run Mass to flush deferred commands
-		FMassProcessingContext ProcessingContext(GetEntityManagerRef(), /* DeltaSeconds */ 0.f);
-		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
+		Subsystem->AddSlotData(ClaimHandle, FConstStructView::Make(NewRuntimeData));
 
 		// Fetch a fresh slot view
 		const FSmartObjectSlotView SlotViewAfter = Subsystem->GetSlotView(ClaimHandle.SlotHandle);

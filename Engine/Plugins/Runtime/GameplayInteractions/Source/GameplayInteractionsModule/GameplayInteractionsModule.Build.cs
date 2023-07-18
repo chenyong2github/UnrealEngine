@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"GameplayTags",
 					"GameplayTasks",
-					"MassEntity",
 					"NavCorridor",
 					"NavigationSystem",
 					"SmartObjectsModule",

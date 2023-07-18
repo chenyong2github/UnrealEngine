@@ -71,7 +71,7 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 		}
 		else
 		{
-			SmartObjectSubsystem->AddSlotDataDeferred(ClaimedHandle, FConstStructView::Make(FGameplayInteractionSlotUserData(ContextActor)));
+			SmartObjectSubsystem->AddSlotData(ClaimedHandle, FConstStructView::Make(FGameplayInteractionSlotUserData(ContextActor)));
 		}
 	}
 

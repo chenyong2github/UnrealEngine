@@ -32,13 +32,7 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualization(FSmartObjectVis
 	constexpr float DepthBias = 2.0f;
 	constexpr bool ScreenSpace = true;
 	
-	const FSmartObjectSlotIndex SlotIndex(VisContext.SlotIndex);
-	const TOptional<FTransform> SlotTransform = VisContext.Definition.GetSlotTransform(VisContext.OwnerLocalToWorld, SlotIndex);
-
-	if (!SlotTransform.IsSet())
-	{
-		return;
-	}
+	const FTransform SlotTransform = VisContext.Definition.GetSlotWorldTransform(VisContext.SlotIndex, VisContext.OwnerLocalToWorld);
 
 	const USmartObjectSlotValidationFilter* PreviewValidationFilter = VisContext.PreviewValidationFilterClass.GetDefaultObject();
 	check(PreviewValidationFilter);
@@ -60,7 +54,7 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualization(FSmartObjectVis
 	}
 
 	TArray<FSmartObjectAnnotationCollider> Colliders;
-	GetColliders(CapsuleValue, *SlotTransform, Colliders);
+	GetColliders(CapsuleValue, SlotTransform, Colliders);
 
 	const FSmartObjectTraceParams& OverlapParameters = ValidationParams.GetTransitionTraceParameters();
 	FCollisionQueryParams OverlapQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), OverlapParameters.bTraceComplex);
@@ -99,7 +93,7 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualization(FSmartObjectVis
 	}
 
 	// Ground level
-	DrawCircle(VisContext.PDI, SlotTransform->GetLocation(), SlotTransform->GetUnitAxis(EAxis::X), SlotTransform->GetUnitAxis(EAxis::Y), UE::SmartObject::Annotations::CapsuleFloorColor, CapsuleValue.Radius, 12, SDPG_World, 1.0f, DepthBias, ScreenSpace);
+	DrawCircle(VisContext.PDI, SlotTransform.GetLocation(), SlotTransform.GetUnitAxis(EAxis::X), SlotTransform.GetUnitAxis(EAxis::Y), UE::SmartObject::Annotations::CapsuleFloorColor, CapsuleValue.Radius, 12, SDPG_World, 1.0f, DepthBias, ScreenSpace);
 }
 
 void FSmartObjectAnnotation_SlotUserCollision::DrawVisualizationHUD(FSmartObjectVisualizationContext& VisContext) const

@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "MassEntityTypes.h"
 #include "EngineDefines.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/CollisionProfile.h"
+#include "CollisionShape.h"
 #include "GameplayTagContainer.h"
 #include "Math/Box.h"
+#include "InstancedStruct.h"
+#include "StructView.h"
+#include "Containers/ArrayView.h"
 #include "SmartObjectTypes.generated.h"
 
 class FDebugRenderSceneProxy;
@@ -121,6 +126,9 @@ public:
 	bool operator==(const FSmartObjectHandle Other) const { return ID == Other.ID; }
 	bool operator!=(const FSmartObjectHandle Other) const { return !(*this == Other); }
 
+	/** Has meaning only for sorting purposes */
+	bool operator<(const FSmartObjectHandle Other) const { return ID < Other.ID; }
+
 	friend uint32 GetTypeHash(const FSmartObjectHandle Handle)
 	{
 		return CityHash32(reinterpret_cast<const char*>(&Handle.ID), sizeof Handle.ID);
@@ -161,40 +169,52 @@ public:
 	 * Indicates that the handle was properly assigned but doesn't guarantee that the associated slot is still accessible.
 	 * This information requires a call to `USmartObjectSubsystem::IsSlotValid` using the handle.
 	 */
-	bool IsValid() const { return EntityHandle.IsValid(); }
-	void Invalidate() { EntityHandle.Reset(); }
+	bool IsValid() const { return SmartObjectHandle.IsValid(); }
+	void Invalidate()
+	{
+		SmartObjectHandle = {};
+		SlotIndex = INDEX_NONE;
+	}
 
-	bool operator==(const FSmartObjectSlotHandle Other) const { return EntityHandle == Other.EntityHandle; }
+	bool operator==(const FSmartObjectSlotHandle Other) const { return SmartObjectHandle == Other.SmartObjectHandle && SlotIndex == Other.SlotIndex; }
 	bool operator!=(const FSmartObjectSlotHandle Other) const { return !(*this == Other); }
+	
 	/** Has meaning only for sorting purposes */
-	bool operator<(const FSmartObjectSlotHandle Other) const { return EntityHandle < Other.EntityHandle; }
+	bool operator<(const FSmartObjectSlotHandle Other) const
+	{
+		if (SmartObjectHandle == Other.SmartObjectHandle)
+		{
+			return SlotIndex < Other.SlotIndex;
+		}
+		return SmartObjectHandle < Other.SmartObjectHandle;
+	}
 
 	friend uint32 GetTypeHash(const FSmartObjectSlotHandle SlotHandle)
 	{
-		return GetTypeHash(SlotHandle.EntityHandle);
+		return HashCombineFast(GetTypeHash(SlotHandle.SmartObjectHandle), GetTypeHash(SlotHandle.SlotIndex));
 	}
 
 	friend FString LexToString(const FSmartObjectSlotHandle SlotHandle)
 	{
-		return LexToString(SlotHandle.EntityHandle.Index);
+		return LexToString(SlotHandle.SmartObjectHandle) + TEXT(":") + LexToString(SlotHandle.SlotIndex);
 	}
 
+	FSmartObjectHandle GetSmartObjectHandle() const { return SmartObjectHandle; }
+	int32 GetSlotIndex() const { return SlotIndex; }
+	
 protected:
 	/** Do not expose the EntityHandle anywhere else than SlotView or the Subsystem. */
 	friend class USmartObjectSubsystem;
 	friend struct FSmartObjectSlotView;
 
-	FSmartObjectSlotHandle(const FMassEntityHandle InEntityHandle) : EntityHandle(InEntityHandle)
+	FSmartObjectSlotHandle(const FSmartObjectHandle InSmartObjectHandle, const int32 SlotIndex)
+		: SmartObjectHandle(InSmartObjectHandle)
+		, SlotIndex(SlotIndex)
 	{
 	}
 
-	operator FMassEntityHandle() const
-	{
-		return EntityHandle;
-	}
-
-	/** The MassEntity associated to the slot */
-	FMassEntityHandle EntityHandle;
+	FSmartObjectHandle SmartObjectHandle;
+	int32 SlotIndex = INDEX_NONE;
 };
 
 
@@ -212,7 +232,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionData
  * This is the base struct to inherit from to store custom state data associated to a slot
  */
 USTRUCT(meta=(Hidden))
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotStateData : public FMassFragment
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotStateData
 {
 	GENERATED_BODY()
 };
@@ -250,7 +270,7 @@ public:
  * Helper struct to wrap basic functionalities to store the index of a slot in a SmartObject definition
  */
 USTRUCT(BlueprintType)
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
+struct UE_DEPRECATED(5.3, "This type is deprecated and no longer being used.") SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
 {
 	GENERATED_BODY()
 
@@ -625,12 +645,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectEventData
  *		e.g. Claim(SlotHandle, FConstStructView::Make(FSmartObjectActorUserData(Pawn)));
  */
 USTRUCT()
-struct FSmartObjectActorUserData
+struct SMARTOBJECTSMODULE_API FSmartObjectActorUserData
 {
 	GENERATED_BODY()
 
 	FSmartObjectActorUserData() = default;
-	explicit FSmartObjectActorUserData(const AActor* InUserActor) : UserActor(InUserActor) {}
+	explicit FSmartObjectActorUserData(const AActor* InUserActor);
 
 	UPROPERTY()
 	TWeakObjectPtr<const AActor> UserActor = nullptr;

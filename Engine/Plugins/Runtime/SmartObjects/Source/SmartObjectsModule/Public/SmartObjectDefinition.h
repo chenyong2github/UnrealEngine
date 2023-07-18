@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "GameplayTagContainer.h"
-#include "MassEntityTypes.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "Math/Box.h"
 #include "WorldConditionQuery.h"
 #include "WorldConditions/SmartObjectWorldConditionSchema.h"
@@ -85,11 +84,11 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 
 	/** Offset relative to the parent object where the slot is located. */
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
-	FVector Offset = FVector::ZeroVector;
+	FVector3f Offset = FVector3f::ZeroVector;
 
 	/** Rotation relative to the parent object. */
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
-	FRotator Rotation = FRotator::ZeroRotator;
+	FRotator3f Rotation = FRotator3f::ZeroRotator;
 
 	/** Custom data (struct inheriting from SmartObjectSlotDefinitionData) that can be added to the slot definition and accessed through a FSmartObjectSlotView */
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "/Script/SmartObjectsModule.SmartObjectSlotDefinitionData", ExcludeBaseStruct))
@@ -150,7 +149,7 @@ public:
 	 * @param DefinitionClass	Type of the requested behavior definition
 	 * @return The behavior definition found or null if none are available for the requested type.
 	 */
-	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const;
+	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const int32 SlotIndex, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const;
 
 	/** @return Preconditions that must pass for the object to be found/used. */
 	const FWorldConditionQueryDefinition& GetPreconditions() const { return Preconditions; }
@@ -192,14 +191,26 @@ public:
 	 * @return Transform (in world space) of the slot associated to SlotIndex.
 	 * @note Method will ensure on invalid invalid index.
 	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Please use GetSlotWorldTransform() instead.")
 	TOptional<FTransform> GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/**
+	 * Returns the transform (in world space) of the given slot index.
+	 * @param OwnerTransform Transform (in world space) of the slot owner.
+	 * @param SlotIndex Index within the list of slots.
+	 * @return Transform (in world space) of the slot associated to SlotIndex, or OwnerTransform if index is invalid.
+	 * @note Method will ensure on invalid invalid index.
+	 */
+	FTransform GetSlotWorldTransform(const int32 SlotIndex, const FTransform& OwnerTransform) const;
 
 	/**
 	 * Fills the provided GameplayTagContainer with the activity tags associated to the slot according to the tag merging policy.
 	 * @param SlotIndex	Index of the slot for which the tags are requested
 	 * @param OutActivityTags Tag container to fill with the activity tags associated to the slot
 	 */
-	void GetSlotActivityTags(const FSmartObjectSlotIndex& SlotIndex, FGameplayTagContainer& OutActivityTags) const;
+	void GetSlotActivityTags(const int32 SlotIndex, FGameplayTagContainer& OutActivityTags) const;
 
 	/**
 	 * Fills the provided GameplayTagContainer with the activity tags associated to the slot according to the tag merging policy.
@@ -346,26 +357,6 @@ private:
 	mutable TOptional<bool> bValid;
 
 	friend class FSmartObjectSlotReferenceDetails;
-};
-
-/**
- * Mass Fragment used to share slot definition between slot instances.
- */
-USTRUCT()
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionFragment : public FMassSharedFragment
-{
-	GENERATED_BODY()
-
-	FSmartObjectSlotDefinitionFragment() = default;
-	explicit FSmartObjectSlotDefinitionFragment(const USmartObjectDefinition& InObjectDefinition, const FSmartObjectSlotDefinition& InSlotDefinition)
-		: SmartObjectDefinition(&InObjectDefinition), SlotDefinition(&InSlotDefinition) {}
-
-	/** Pointer to the parent object definition to preserve slot definition pointer validity. */
-	UPROPERTY(Transient)
-	TObjectPtr<const USmartObjectDefinition> SmartObjectDefinition = nullptr;
-
-	/** Pointer to the slot definition contained by the SmartObject definition. */
-	const FSmartObjectSlotDefinition* SlotDefinition = nullptr;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

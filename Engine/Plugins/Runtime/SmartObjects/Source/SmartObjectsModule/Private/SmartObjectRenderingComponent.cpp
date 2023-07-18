@@ -23,16 +23,16 @@ public:
 	}
 
 	/** Initialization constructor. */
-	FSORenderingSceneProxy(const USmartObjectRenderingComponent& InComponent)
+	explicit FSORenderingSceneProxy(const USmartObjectRenderingComponent& InComponent)
 		: FDebugRenderSceneProxy(&InComponent)
 	{
-		AActor* Owner = InComponent.GetOwner();
+		const AActor* Owner = InComponent.GetOwner();
 		if (Owner == nullptr)
 		{
 			return;
 		}
 
-		USmartObjectComponent* SOComp = Owner->FindComponentByClass<USmartObjectComponent>();
+		const USmartObjectComponent* SOComp = Owner->FindComponentByClass<USmartObjectComponent>();
 		if (SOComp == nullptr || SOComp->GetDefinition() == nullptr)
 		{
 			return;
@@ -56,28 +56,28 @@ public:
 		float SlotSize = DebugCylinderRadius;
 
 		const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
-		for (int32 i = 0; i < Definition->GetSlots().Num(); ++i)
+
+		const TConstArrayView<FSmartObjectSlotDefinition> Slots(Definition->GetSlots());
+		for (int32 Index = 0; Index < Slots.Num(); Index++)
 		{
-			TOptional<FTransform> Transform = Definition->GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(i));
-			if (!Transform.IsSet())
-			{
-				continue;
-			}
+			const FSmartObjectSlotDefinition& SlotDefinition = Slots[Index]; 
+			const FTransform Transform = Definition->GetSlotWorldTransform(Index, OwnerLocalToWorld);
+			
 #if WITH_EDITORONLY_DATA
-			DebugColor = Definition->GetSlots()[i].DEBUG_DrawColor;
-			SlotShape = Definition->GetSlots()[i].DEBUG_DrawShape;
-			SlotSize = Definition->GetSlots()[i].DEBUG_DrawSize;
+			DebugColor = SlotDefinition.DEBUG_DrawColor;
+			SlotShape = SlotDefinition.DEBUG_DrawShape;
+			SlotSize = SlotDefinition.DEBUG_DrawSize;
 #endif
 			// @todo: these are not in par with the other Smart Object debug rendering.
-			const FVector DebugPosition = Transform.GetValue().GetLocation();
-			const FVector Direction = Transform.GetValue().GetRotation().GetForwardVector();
+			const FVector DebugPosition = Transform.GetLocation();
+			const FVector Direction = Transform.GetRotation().GetForwardVector();
 			if (SlotShape == ESmartObjectSlotShape::Circle)
 			{
 				Cylinders.Emplace(DebugPosition, SlotSize, DebugCylinderHalfHeight, DebugColor);
 			}
 			else if (SlotShape == ESmartObjectSlotShape::Rectangle)
 			{
-				Boxes.Emplace(FBox(FVector(-SlotSize,-SlotSize,0), FVector(SlotSize,SlotSize,DebugCylinderHalfHeight)), DebugColor, *Transform);
+				Boxes.Emplace(FBox(FVector(-SlotSize,-SlotSize,0), FVector(SlotSize,SlotSize,DebugCylinderHalfHeight)), DebugColor, Transform);
 			}
 			
 			ArrowLines.Emplace(DebugPosition, DebugPosition + Direction * 2.0f * SlotSize, DebugColor);
@@ -124,7 +124,7 @@ FBoxSphereBounds USmartObjectRenderingComponent::CalcBounds(const FTransform& Lo
 
 	if (HasAnyFlags(RF_BeginDestroyed) == false && GetAttachParent() != nullptr)
 	{
-		USmartObjectComponent* SOComp = nullptr;
+		const USmartObjectComponent* SOComp = nullptr;
 
 		const AActor* Owner = GetOwner();
 		if (Owner)

@@ -242,21 +242,11 @@ void FSmartObjectSlotEntranceAnnotation::DrawVisualization(FSmartObjectVisualiza
 	constexpr float DepthBias = 2.0f;
 	constexpr bool ScreenSpace = true;
 	
-	const FSmartObjectSlotIndex SlotIndex(VisContext.SlotIndex);
-	const TOptional<FTransform> SlotTransform = VisContext.Definition.GetSlotTransform(VisContext.OwnerLocalToWorld, SlotIndex);
-
-	if (!SlotTransform.IsSet())
-	{
-		return;
-	}
-	const TOptional<FTransform> AnnotationTransform = GetWorldTransform(*SlotTransform);
-	if (!AnnotationTransform.IsSet())
-	{
-		return;
-	}
+	const FTransform SlotTransform = VisContext.Definition.GetSlotWorldTransform(VisContext.SlotIndex, VisContext.OwnerLocalToWorld);
+	const FTransform AnnotationTransform = GetAnnotationWorldTransform(SlotTransform);
 
 	UE::SmartObject::Annotations::FVisualizationData Data;
-	UE::SmartObject::Annotations::UpdateVisualizationLogic(VisContext.World, *this, *SlotTransform, *AnnotationTransform,
+	UE::SmartObject::Annotations::UpdateVisualizationLogic(VisContext.World, *this, SlotTransform, AnnotationTransform,
 		VisContext.PreviewActor, nullptr, VisContext.PreviewValidationFilterClass, Data);
 
 	// Draw validated location in relation to the marker locations.
@@ -335,35 +325,27 @@ void FSmartObjectSlotEntranceAnnotation::DrawVisualizationHUD(FSmartObjectVisual
 	constexpr FVector::FReal MaxDrawDistance = 1500.0;
 	constexpr FVector::FReal FadeDrawDistance = MaxDrawDistance * 0.75;
 
-	const FSmartObjectSlotIndex SlotIndex(VisContext.SlotIndex);
-	const TOptional<FTransform> SlotTransform = VisContext.Definition.GetSlotTransform(VisContext.OwnerLocalToWorld, SlotIndex);
-	
-	if (SlotTransform.IsSet())
-	{
-		TOptional<FTransform> AnnotationTransform = GetWorldTransform(*SlotTransform);
-		if (AnnotationTransform.IsSet())
-		{
-			const FVector AnnotationWorldLocation = AnnotationTransform->GetTranslation();
+	const FTransform SlotTransform = VisContext.Definition.GetSlotWorldTransform(VisContext.SlotIndex, VisContext.OwnerLocalToWorld);
+	const FTransform AnnotationTransform = GetAnnotationWorldTransform(SlotTransform);
+	const FVector AnnotationWorldLocation = AnnotationTransform.GetTranslation();
 
-			const FVector::FReal Distance = VisContext.GetDistanceToCamera(AnnotationWorldLocation);
-			if (Distance < MaxDrawDistance)
-			{
-				FString Text = FString::Printf(TEXT("S%d NAV%d \n"), VisContext.SlotIndex, VisContext.AnnotationIndex);
-				if (SelectionPriority != ESmartObjectEntrancePriority::Normal)
-				{
-					Text += UEnum::GetDisplayValueAsText(SelectionPriority).ToString();
-				}
-				if (Tags.IsValid())
-				{
-					Text += Tags.ToString();
-				}
-				
-				FLinearColor Color = FLinearColor::White;
-				Color.A = FMath::Clamp(1.0 - (Distance - FadeDrawDistance) / (MaxDrawDistance - FadeDrawDistance), 0.0, 1.0);
-				
-				VisContext.DrawString(AnnotationWorldLocation, *Text, Color);
-			}
+	const FVector::FReal Distance = VisContext.GetDistanceToCamera(AnnotationWorldLocation);
+	if (Distance < MaxDrawDistance)
+	{
+		FString Text = FString::Printf(TEXT("S%d NAV%d \n"), VisContext.SlotIndex, VisContext.AnnotationIndex);
+		if (SelectionPriority != ESmartObjectEntrancePriority::Normal)
+		{
+			Text += UEnum::GetDisplayValueAsText(SelectionPriority).ToString();
 		}
+		if (Tags.IsValid())
+		{
+			Text += Tags.ToString();
+		}
+		
+		FLinearColor Color = FLinearColor::White;
+		Color.A = FMath::Clamp(1.0 - (Distance - FadeDrawDistance) / (MaxDrawDistance - FadeDrawDistance), 0.0, 1.0);
+		
+		VisContext.DrawString(AnnotationWorldLocation, *Text, Color);
 	}
 }
 
@@ -405,10 +387,10 @@ void FSmartObjectSlotEntranceAnnotation::GetTrajectoryColliders(const FTransform
 	Collider.CollisionShape = FCollisionShape::MakeCapsule(TransitionCheckRadius, Length * 0.5f + TransitionCheckRadius);
 }
 
-TOptional<FTransform> FSmartObjectSlotEntranceAnnotation::GetWorldTransform(const FTransform& SlotTransform) const
+FTransform FSmartObjectSlotEntranceAnnotation::GetAnnotationWorldTransform(const FTransform& SlotTransform) const
 {
 	const FTransform LocalTransform = FTransform(FRotator(Rotation), FVector(Offset));
-	return TOptional(LocalTransform * SlotTransform);
+	return LocalTransform * SlotTransform;
 }
 
 FVector FSmartObjectSlotEntranceAnnotation::GetWorldLocation(const FTransform& SlotTransform) const
@@ -448,11 +430,7 @@ void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FSmartOb
 		return;
 	}
 	
-	const TOptional<FTransform> AnnotationTransform = GetWorldTransform(DebugContext.SlotTransform);
-	if (!AnnotationTransform.IsSet())
-	{
-		return;
-	}
+	const FTransform AnnotationTransform = GetAnnotationWorldTransform(DebugContext.SlotTransform);
 
 	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilterClass;
 	if (DebugContext.DebugActor)
@@ -471,7 +449,7 @@ void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FSmartOb
 	}
 
 	UE::SmartObject::Annotations::FVisualizationData Data;
-	UE::SmartObject::Annotations::UpdateVisualizationLogic(*World, *this, DebugContext.SlotTransform, *AnnotationTransform,
+	UE::SmartObject::Annotations::UpdateVisualizationLogic(*World, *this, DebugContext.SlotTransform, AnnotationTransform,
 		DebugContext.SmartObjectOwnerActor, DebugContext.DebugActor, ValidationFilterClass, Data);
 
 	// Draw validated location in relation to the marker locations.
