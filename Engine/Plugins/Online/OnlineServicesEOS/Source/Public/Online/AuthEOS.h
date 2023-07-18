@@ -49,4 +49,6 @@ protected:
 	EOS_HUserInfo UserInfoHandle = nullptr;
 };
 
+using FAuthEOSPtr = TSharedPtr<FAuthEOS>;
+
 /* UE::Online */ }

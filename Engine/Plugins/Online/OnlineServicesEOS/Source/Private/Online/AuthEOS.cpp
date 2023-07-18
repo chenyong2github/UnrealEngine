@@ -384,6 +384,7 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 	}
 
 	// If we failed to find all the handles, we need to query, which requires a valid LocalAccountId
+	// Note this is unavailable on Dedicated Servers as well, unlike EOS_Connect_QueryProductUserIdMappings
 	if (!ValidateOnlineId(LocalAccountId))
 	{
 		checkNoEntry();
@@ -487,7 +488,7 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 	}
 
 	// If we failed to find all the handles, we need to query, which requires a valid LocalAccountId
-	if (!ValidateOnlineId(LocalAccountId))
+	if (!(IsRunningDedicatedServer() || ValidateOnlineId(LocalAccountId)))
 	{
 		checkNoEntry();
 		return MakeFulfilledPromise<TArray<FAccountId>>().GetFuture();
@@ -499,7 +500,7 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 	EOS_Connect_QueryProductUserIdMappingsOptions Options = {};
 	Options.ApiVersion = 2;
 	UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST, 2);
-	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
+	Options.LocalUserId = IsRunningDedicatedServer() ? nullptr : GetProductUserIdChecked(LocalAccountId);
 	Options.ProductUserIds = MissingProductUserIds.GetData();
 	Options.ProductUserIdCount = MissingProductUserIds.Num();
 	
