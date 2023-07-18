@@ -950,6 +950,10 @@ public:
 	// FBaseDynamicMeshSceneProxy implementation
 	//
 
+	/**
+	 * If EngineShowFlags request vertex color rendering, returns the appropriate vertex color override material's render proxy.  Otherwise returns nullptr.
+	 */
+	GEOMETRYFRAMEWORK_API static FMaterialRenderProxy* GetEngineVertexColorMaterialProxy(FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags, bool bProxyIsSelected, bool bIsHovered);
 
 	/**
 	 * Render set of active RenderBuffers returned by GetActiveRenderBufferSets
