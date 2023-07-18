@@ -1491,6 +1491,7 @@ ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Confi
 		FPaths::NormalizeDirectoryName(AutoLaunchSettings.DataPath);
 		AutoLaunchSettings.DataPath += TEXT("_");
 		AutoLaunchSettings.DataPath += Sandbox;
+		AutoLaunchSettings.bIsDefaultSharedRunContext = false;
 
 		// The unique local instances will always limit process lifetime for now to avoid accumulating many of them
 		AutoLaunchSettings.bLimitProcessLifetime = true;

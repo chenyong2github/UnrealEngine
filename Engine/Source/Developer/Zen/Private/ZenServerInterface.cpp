@@ -354,7 +354,7 @@ PromptUserToSyncInTreeVersion(const FString& ServerFilePath)
 
 	FText ZenSyncSourcePromptTitle = NSLOCTEXT("Zen", "Zen_SyncSourcePromptTitle", "Failed to launch");
 	FText ZenSyncSourcePromptText = FText::Format(NSLOCTEXT("Zen", "Zen_SyncSourcePromptText", "ZenServer can not verify installation. Please make sure your source installation in properly synced at '{0}'"), FText::FromString(FPaths::GetPath(ServerFilePath)));
-	FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ZenSyncSourcePromptTitle.ToString(), *ZenSyncSourcePromptText.ToString());
+	FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ZenSyncSourcePromptText.ToString(), *ZenSyncSourcePromptTitle.ToString());
 }
 
 static bool
@@ -578,7 +578,7 @@ DetermineDataPath(const TCHAR* ConfigSection, FString& DataPath, bool& HasInvali
 		FString ZenLocalDataCachePath = FPaths::Combine(LocalDataCachePath, TEXT("Zen"));
 		if (FString Path = ValidateDataPath(ZenLocalDataCachePath); !Path.IsEmpty())
 		{
-			DataPath = ZenLocalDataCachePath;
+			DataPath = Path;
 			UE_LOG(LogZenServiceInstance, Log, TEXT("Found local data cache path=%s"), *LocalDataCachePath);
 			return true;
 		}
@@ -742,6 +742,7 @@ FServiceSettings::ReadFromCompactBinary(FCbFieldView Field)
 				AutoLaunchSettings.bLimitProcessLifetime = AutoLaunchSettingsObject["LimitProcessLifetime"].AsBool();
 				ApplyProcessLifetimeOverride(AutoLaunchSettings.bLimitProcessLifetime);
 				AutoLaunchSettings.bSendUnattendedBugReports = AutoLaunchSettingsObject["SendUnattendedBugReports"].AsBool();
+				AutoLaunchSettings.bIsDefaultSharedRunContext = AutoLaunchSettingsObject["IsDefaultSharedRunContext"].AsBool(AutoLaunchSettings.bIsDefaultSharedRunContext);
 			}
 		}
 	}
@@ -798,6 +799,7 @@ FServiceSettings::WriteToCompactBinary(FCbWriter& Writer) const
 		Writer << "ShowConsole" << AutoLaunchSettings.bShowConsole;
 		Writer << "LimitProcessLifetime" << AutoLaunchSettings.bLimitProcessLifetime;
 		Writer << "SendUnattendedBugReports" << AutoLaunchSettings.bSendUnattendedBugReports;
+		Writer << "IsDefaultSharedRunContext" << AutoLaunchSettings.bIsDefaultSharedRunContext;
 		Writer.EndObject();
 	}
 	else
@@ -1847,6 +1849,7 @@ FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FS
 			break;
 		}
 		FPlatformProcess::Sleep(0.1f);
+		LockFileState = LockFileData();
 	}
 
 	uint16 ShutdownEffectivePort = 0;
@@ -1862,23 +1865,30 @@ FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FS
 			return false;
 		}
 
-		FZenLocalServiceRunContext DesiredRunContext;
-		DesiredRunContext.Executable = ExecutablePath;
-		DesiredRunContext.CommandlineArguments = DetermineCmdLineWithoutTransientComponents(InSettings, InSettings.DesiredPort);
-		DesiredRunContext.WorkingDirectory = WorkingDirectory;
-		DesiredRunContext.DataPath = InSettings.DataPath;
-		DesiredRunContext.bShowConsole = InSettings.bShowConsole;
-
-		FZenLocalServiceRunContext CurrentRunContext;
-		if (CurrentRunContext.ReadFromJsonFile(*ExecutionContextFilePath) && (DesiredRunContext == CurrentRunContext))
+		if (InSettings.bIsDefaultSharedRunContext)
 		{
-			UE_LOG(LogZenServiceInstance, Log, TEXT("Found existing instance running on port %u matching our settings"), InSettings.DesiredPort);
-			bLaunchNewInstance = false;
+			FZenLocalServiceRunContext DesiredRunContext;
+			DesiredRunContext.Executable = ExecutablePath;
+			DesiredRunContext.CommandlineArguments = DetermineCmdLineWithoutTransientComponents(InSettings, InSettings.DesiredPort);
+			DesiredRunContext.WorkingDirectory = WorkingDirectory;
+			DesiredRunContext.DataPath = InSettings.DataPath;
+			DesiredRunContext.bShowConsole = InSettings.bShowConsole;
+
+			FZenLocalServiceRunContext CurrentRunContext;
+			if (CurrentRunContext.ReadFromJsonFile(*ExecutionContextFilePath) && (DesiredRunContext == CurrentRunContext))
+			{
+				UE_LOG(LogZenServiceInstance, Log, TEXT("Found existing instance running on port %u matching our settings"), InSettings.DesiredPort);
+				bLaunchNewInstance = false;
+			}
+			else
+			{
+				UE_LOG(LogZenServiceInstance, Log, TEXT("Found existing instance running on port %u with different run context, will attempt shut down"), InSettings.DesiredPort);
+				ShutdownEffectivePort = LockFileState.EffectivePort;
+			}
 		}
 		else
 		{
-			UE_LOG(LogZenServiceInstance, Log, TEXT("Found existing instance running on port %u with different run context, will attempt shut down"), InSettings.DesiredPort);
-			ShutdownEffectivePort = LockFileState.EffectivePort;
+			UE_LOG(LogZenServiceInstance, Log, TEXT("Found existing instance running on port %u when not using shared context, will use it"), InSettings.DesiredPort);
 		}
 	}
 	else
@@ -1931,8 +1941,8 @@ FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FS
 
 		FProcHandle Proc = StartLocalService(EffectiveRunContext, TransientParms.IsEmpty() ? nullptr : *TransientParms);
 
-		// Don't write run context unless we actually started a new instance
-		if (bLaunchNewInstance)
+		// Only write run context if we're using the default shared run context
+		if (InSettings.bIsDefaultSharedRunContext)
 		{
 			EffectiveRunContext.WriteToJsonFile(*ExecutionContextFilePath);
 		}

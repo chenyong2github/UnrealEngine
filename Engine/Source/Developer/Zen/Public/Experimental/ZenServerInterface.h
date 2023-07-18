@@ -43,6 +43,7 @@ struct FServiceAutoLaunchSettings
 	bool bShowConsole = false;
 	bool bLimitProcessLifetime = false;
 	bool bSendUnattendedBugReports = false;
+	bool bIsDefaultSharedRunContext = true;
 };
 
 struct FServiceSettings
