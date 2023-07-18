@@ -204,27 +204,6 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt4Buffer()
 	return DummyUInt4Buffer.SRV;
 }
 
-FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2D()
-{
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2D"), ETextureDimension::Texture2D);
-	return DummyTextureReadBuffer2D.SRV;
-}
-
-FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer2DArray()
-{
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer2DArray(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer2DArray"), ETextureDimension::Texture2DArray);
-	return DummyTextureReadBuffer2DArray.SRV;
-}
-
-FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer3D()
-{
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyTextureSRV> DummyTextureReadBuffer3D(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyTextureReadBuffer3D"), ETextureDimension::Texture3D);
-	return DummyTextureReadBuffer3D.SRV;
-}
-
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyHalfBuffer()
 {
 	return DummyHalfBuffer.SRV;

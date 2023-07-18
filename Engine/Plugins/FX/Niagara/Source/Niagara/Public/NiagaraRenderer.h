@@ -131,9 +131,6 @@ public:
 	static NIAGARA_API FRHIShaderResourceView* GetDummyUIntBuffer();
 	static NIAGARA_API FRHIShaderResourceView* GetDummyUInt2Buffer();
 	static NIAGARA_API FRHIShaderResourceView* GetDummyUInt4Buffer();
-	static NIAGARA_API FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
-	static NIAGARA_API FRHIShaderResourceView* GetDummyTextureReadBuffer2DArray();
-	static NIAGARA_API FRHIShaderResourceView* GetDummyTextureReadBuffer3D();
 	static NIAGARA_API FRHIShaderResourceView* GetDummyHalfBuffer();
 
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
