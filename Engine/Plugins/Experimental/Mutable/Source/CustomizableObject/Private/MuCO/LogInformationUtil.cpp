@@ -43,7 +43,7 @@ void LogInformationUtil::PrintGeneratedTextures(const TArray<struct FGeneratedTe
 	for (i = 0; i < Max; ++i)
 	{
 		Log += FString::Printf(TEXT("Texture name=%s, "), *GeneratedTextures[i].Name);
-		Log += FString::Printf(TEXT("id=%d, "), GeneratedTextures[i].Id);
+		Log += FString::Printf(TEXT("id=%d, "), GeneratedTextures[i].Key.Resource);
 		Log += "\n\t\t\t";
 		PrintTextureData(Cast<UTexture2D>(GeneratedTextures[i].Texture), Log, false);
 		if (i < (Max - 1))

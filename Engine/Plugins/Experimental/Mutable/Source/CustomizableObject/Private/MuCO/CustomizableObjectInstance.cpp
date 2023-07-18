@@ -351,13 +351,13 @@ void UCustomizableObjectInstance::ReleaseMutableResources(bool bCalledFromBeginD
 
 		for (FGeneratedTexture& Texture : PrivateData->GeneratedTextures)
 		{
-			if (CustomizableObjectSystem->RemoveTextureReference(Texture.Id))
+			if (CustomizableObjectSystem->RemoveTextureReference(Texture.Key))
 			{
 				// Do not release textures when called from BeginDestroy, it would produce a texture artifact in the
 				// instance's remaining sk meshes and GC is being performed anyway so it will free the textures if needed
 				if (!bCalledFromBeginDestroy && CustomizableObjectSystem->bReleaseTexturesImmediately)
 				{
-					UCustomizableInstancePrivateData::ReleaseMutableTexture(Texture.Id, Cast<UTexture2D>(Texture.Texture), Cache);
+					UCustomizableInstancePrivateData::ReleaseMutableTexture(Texture.Key, Cast<UTexture2D>(Texture.Texture), Cache);
 				}
 			}
 		}
@@ -508,7 +508,7 @@ bool UCustomizableObjectInstance::IsParamMultidimensional(const FString& ParamNa
 
 
 // Only safe to call if the Mutable texture ref count system returns 0 and absolutely sure nobody holds a reference to the texture
-void UCustomizableInstancePrivateData::ReleaseMutableTexture(int32 MutableTextureId, UTexture2D* Texture, FMutableResourceCache& Cache)
+void UCustomizableInstancePrivateData::ReleaseMutableTexture(const FMutableImageCacheKey& MutableTextureKey, UTexture2D* Texture, FMutableResourceCache& Cache)
 {
 	if (ensure(Texture) && Texture->IsValidLowLevel())
 	{
@@ -521,14 +521,7 @@ void UCustomizableInstancePrivateData::ReleaseMutableTexture(int32 MutableTextur
 	}
 
 	// Must remove texture from cache since it has been released
-	for (TPair<FMutableImageCacheKey, TWeakObjectPtr<UTexture2D> >& CachedTexture : Cache.Images)
-	{
-		if (CachedTexture.Key.Resource == MutableTextureId)
-		{
-			Cache.Images.Remove(CachedTexture.Key);
-			break;
-		}
-	}
+	Cache.Images.Remove(MutableTextureKey);
 }
 
 
@@ -5885,7 +5878,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 							}
 
 							FGeneratedTexture TextureData;
-							TextureData.Id = Image.ImageID;
+							TextureData.Key = ImageCacheKey;
 							TextureData.Name = Props.TextureParameterName;
 							TextureData.Texture = MutableTexture ? MutableTexture : PassThroughTexture;
 							
@@ -6076,24 +6069,19 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 		FCustomizableObjectSystemPrivate* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance()->GetPrivate();
 		TexturesToRelease.Empty();
 
-		for (FGeneratedTexture& Texture : GeneratedTextures)
+		for (const FGeneratedTexture& Texture : NewGeneratedTextures)
 		{
-			if (CustomizableObjectSystem->RemoveTextureReference(Texture.Id))
+			CustomizableObjectSystem->AddTextureReference(Texture.Key);
+		}
+
+		for (const FGeneratedTexture& Texture : GeneratedTextures)
+		{
+			if (CustomizableObjectSystem->RemoveTextureReference(Texture.Key))
 			{
 				if (CustomizableObjectSystem->bReleaseTexturesImmediately)
 				{
-					TexturesToRelease.Add(Texture.Id, Texture); // Texture count is zero, so prepare to release it
+					TexturesToRelease.Add(Texture); // Texture count is zero, so prepare to release it
 				}
-			}
-		}
-
-		for (FGeneratedTexture& Texture : NewGeneratedTextures)
-		{
-			CustomizableObjectSystem->AddTextureReference(Texture.Id);
-
-			if (CustomizableObjectSystem->bReleaseTexturesImmediately)
-			{
-				TexturesToRelease.Remove(Texture.Id); // Texture count in the end is not zero, so do not release it
 			}
 		}
 

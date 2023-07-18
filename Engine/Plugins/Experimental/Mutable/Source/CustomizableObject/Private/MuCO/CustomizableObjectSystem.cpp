@@ -795,6 +795,8 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance,
 {
 	MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh);
 
+	check(IsInGameThread());
+
 	for (int32 ComponentIndex = 0; ComponentIndex < CustomizableObjectInstance.SkeletalMeshes.Num(); ++ComponentIndex)
 	{
 		if (TObjectPtr<USkeletalMesh> SkeletalMesh = CustomizableObjectInstance.SkeletalMeshes[ComponentIndex])
@@ -836,21 +838,6 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance,
 	CustomizableObjectInstancePrivateData->ClearCOInstanceFlags(CreatingSkeletalMesh);
 
 	CustomizableObjectInstance.bEditorPropertyChanged = false;
-
-	check(UCustomizableObjectSystem::GetInstance() != nullptr);
-	FCustomizableObjectSystemPrivate* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance()->GetPrivate();
-	check(CustomizableObjectSystem != nullptr);
-	if (CustomizableObjectSystem->bReleaseTexturesImmediately)
-	{
-		FMutableResourceCache& Cache = CustomizableObjectSystem->GetObjectCache(CustomizableObjectInstance.GetCustomizableObject());
-
-		for (TPair<uint32, FGeneratedTexture>& Item : CustomizableObjectInstancePrivateData->TexturesToRelease)
-		{
-			UCustomizableInstancePrivateData::ReleaseMutableTexture(Item.Value.Id, Cast<UTexture2D>(Item.Value.Texture), Cache);
-		}
-
-		CustomizableObjectInstancePrivateData->TexturesToRelease.Empty();
-	}
 
 	FinishUpdateGlobal(&CustomizableObjectInstance, UpdateResult, UpdateCallback, Parameters, UpdatedDescriptorRuntimeHash);
 }
@@ -1891,6 +1878,20 @@ namespace impl
 		// TODO MTBL-391: Review This hotfix
 		UpdateSkeletalMesh(*CustomizableObjectInstance, CustomizableObjectSystemPrivateData->CurrentMutableOperation->InstanceDescriptorRuntimeHash, OperationData->UpdateResult, &OperationData->UpdateCallback, OperationData->MutableParameters);
 
+		// All work is done, release unused textures.
+		if (CustomizableObjectSystemPrivateData->bReleaseTexturesImmediately)
+		{
+			FMutableResourceCache& Cache = CustomizableObjectSystemPrivateData->GetObjectCache(CustomizableObjectInstance->GetCustomizableObject());
+
+			UCustomizableInstancePrivateData* CustomizableObjectInstancePrivateData = CustomizableObjectInstance->GetPrivate();
+			for (FGeneratedTexture& GeneratedTexture : CustomizableObjectInstancePrivateData->TexturesToRelease)
+			{
+				UCustomizableInstancePrivateData::ReleaseMutableTexture(GeneratedTexture.Key, Cast<UTexture2D>(GeneratedTexture.Texture), Cache);
+			}
+
+			CustomizableObjectInstancePrivateData->TexturesToRelease.Empty();
+		}
+
 		// TODO: T2927
 		if (LogBenchmarkUtil::isLoggingActive())
 		{
@@ -2158,7 +2159,7 @@ namespace impl
 			FMutableImageCacheKey Key(Image.ImageID, OperationData->MipsToSkip);
 			TWeakObjectPtr<UTexture2D>* TexturePtr = Cache.Images.Find(Key);
 
-			if (TexturePtr && TexturePtr->Get() && SystemPrivateData->TextureHasReferences(Image.ImageID))
+			if (TexturePtr && TexturePtr->Get() && SystemPrivateData->TextureHasReferences(Key))
 			{
 				System->ProtectedCachedTextures.Add(TexturePtr->Get());
 				SystemPrivateData->ProtectedObjectCachedImages.Add(Image.ImageID);

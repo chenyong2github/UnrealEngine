@@ -15,6 +15,7 @@
 namespace mu { class PhysicsBody; }
 struct FMutableModelImageProperties;
 struct FMutableRefSkeletalMeshData;
+struct FMutableImageCacheKey;
 struct FStreamableHandle;
 
 /** CustomizableObject Instance flags for internal use  */
@@ -54,13 +55,12 @@ struct FGeneratedTexture
 {
 	GENERATED_USTRUCT_BODY();
 
-	UPROPERTY(Category = CustomizableObjectInstance, EditAnywhere)
-	int32 Id = 0;
+	FMutableImageCacheKey Key;
 
-	UPROPERTY(Category = CustomizableObjectInstance, EditAnywhere) 
+	UPROPERTY(Category = CustomizableObjectInstance, VisibleAnywhere)
 	FString Name;
 
-	UPROPERTY(Category = CustomizableObjectInstance, EditAnywhere) 
+	UPROPERTY(Category = CustomizableObjectInstance, VisibleAnywhere)
 	TObjectPtr<UTexture> Texture = nullptr;
 };
 
@@ -233,7 +233,7 @@ public:
 	// Returns true if success (?)
 	bool UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData);
 
-	static void ReleaseMutableTexture(int32 MutableTextureId, UTexture2D* Texture, struct FMutableResourceCache& Cache);
+	static void ReleaseMutableTexture(const FMutableImageCacheKey& MutableTextureKey, UTexture2D* Texture, struct FMutableResourceCache& Cache);
 
 	// Parameter decoration generation: game thread step
 	void UpdateParameterDecorationsEngineResources(const TSharedPtr<FMutableOperationData>& OperationData);
@@ -322,7 +322,7 @@ public:
 	// Converts a ReferencedMaterials index from the CustomizableObject to an index in the ReferencedMaterials in the Instance
 	TMap<uint32, uint32> ObjectToInstanceIndexMap;
 
-	TMap<uint32, FGeneratedTexture> TexturesToRelease;
+	TArray<FGeneratedTexture> TexturesToRelease;
 
 	UPROPERTY(Transient)
 	TArray< TObjectPtr<UPhysicsAsset> > ClothingPhysicsAssets;

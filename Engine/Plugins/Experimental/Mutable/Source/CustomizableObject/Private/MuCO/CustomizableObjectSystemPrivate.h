@@ -272,6 +272,8 @@ struct FMutableImageCacheKey
 	mu::FResourceID Resource = 0;
 	int32 SkippedMips = 0;
 
+	FMutableImageCacheKey() {};
+
 	FMutableImageCacheKey(mu::FResourceID InResource, int32 InSkippedMips)
 		: Resource(InResource), SkippedMips(InSkippedMips) {}
 
@@ -708,7 +710,7 @@ public:
 	}
 
 
-	void AddTextureReference(uint32 TextureId)
+	void AddTextureReference(const FMutableImageCacheKey& TextureId)
 	{
 		uint32& CountRef = TextureReferenceCount.FindOrAdd(TextureId);
 
@@ -717,7 +719,7 @@ public:
 
 	
 	// Returns true if the texture's references become zero
-	bool RemoveTextureReference(uint32 TextureId)
+	bool RemoveTextureReference(const FMutableImageCacheKey& TextureId)
 	{
 		uint32* CountPtr = TextureReferenceCount.Find(TextureId);
 
@@ -742,7 +744,7 @@ public:
 	}
 
 
-	bool TextureHasReferences(uint32 TextureId) const
+	bool TextureHasReferences(const FMutableImageCacheKey& TextureId) const
 	{
 		const uint32* CountPtr = TextureReferenceCount.Find(TextureId);
 
@@ -802,7 +804,7 @@ public:
 
 	// \TODO: Remove this array if we are not gathering stats!
 	TArray<TWeakObjectPtr<class UTexture2D>> TextureTrackerArray;
-	TMap<uint32, uint32> TextureReferenceCount; // Keeps a count of texture usage to decide if they have to be blocked from GC during an update
+	TMap<FMutableImageCacheKey, uint32> TextureReferenceCount; // Keeps a count of texture usage to decide if they have to be blocked from GC during an update
 
 	// This is protected from GC by AddReferencedObjects
 	TObjectPtr<UCustomizableObjectInstance> CurrentInstanceBeingUpdated = nullptr;
