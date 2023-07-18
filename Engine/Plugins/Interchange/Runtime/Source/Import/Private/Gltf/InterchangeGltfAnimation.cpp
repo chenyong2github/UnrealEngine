@@ -462,7 +462,8 @@ namespace UE::Interchange::Gltf::Private
 		
 		const double BakeInterval = 1.0 / PayloadData.BakeFrequency;
 		const double SequenceLength = FMath::Max<double>(PayloadData.RangeEndTime - PayloadData.RangeStartTime, MINIMUM_ANIMATION_LENGTH);
-		int32 BakeKeyCount = (SequenceLength / BakeInterval) + 1;
+		int32 FrameCount = FMath::RoundToInt32(SequenceLength * PayloadData.BakeFrequency);
+		int32 BakeKeyCount = FrameCount + 1;
 
 		//buffers to use for final Transform:
 		TArray<FVector3f> TranslationData;
