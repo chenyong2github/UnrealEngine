@@ -27,6 +27,7 @@
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
 	#include "Tasks/Task.h"
 #else
+	#include "Async/TaskGraphFwd.h"
 #endif
 
 
