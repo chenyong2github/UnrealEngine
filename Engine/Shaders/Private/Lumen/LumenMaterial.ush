@@ -536,7 +536,7 @@ float3x3 GetTangentBasis(FLumenMaterialData In)
 		return GetTangentBasis(In.WorldNormal);
 	}
 #else
-#if !FRONT_LAYER_TRANSLUCENCY
+	#if !FRONT_LAYER_TRANSLUCENCY
 	if (HasAnisotropy(In)) 
 	{ 
 		float3x3 TangentBasis;
@@ -546,7 +546,7 @@ float3x3 GetTangentBasis(FLumenMaterialData In)
 		return TangentBasis; 
 	} 
 	else 
-#endif
+	#endif
 	{ 
 		return GetTangentBasis(In.WorldNormal);
 	}
@@ -560,7 +560,7 @@ float3x3 GetTangentBasis(FLumenMaterialData In)
 FBxDFSample SampleStrataBxDF(const uint TermMask, FLumenMaterialData InMaterial, float3 V, float4 E)
 {
 	// Temporary place holder while converting lumen
-	return SampleDefaultLitBxDF(TermMask, InMaterial.WorldNormal, GetTangentBasis(InMaterial), InMaterial.Roughness, V, E);
+	return SampleDefaultLitBxDF(TermMask, InMaterial.WorldNormal, GetTangentBasis(InMaterial), InMaterial.Anisotropy, InMaterial.Roughness, V, E);
 }
 #endif
 
