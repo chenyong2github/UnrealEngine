@@ -23,6 +23,8 @@ void SCachedViewBindingPropertyPath::Construct(const FArguments& InArgs, const U
 
 	const FMVVMBlueprintPropertyPath PropertyPath = OnGetPropertyPath.Execute();
 	CachedPropertyPath = PropertyPath.GetFields(InWidgetBlueprint->SkeletonGeneratedClass);
+	CachedWidgetName = PropertyPath.GetWidgetName();
+	CachedContextId = PropertyPath.GetViewModelId();
 
 	ChildSlot
 	[
@@ -38,12 +40,14 @@ void SCachedViewBindingPropertyPath::Tick(const FGeometry& AllottedGeometry, con
 {
 	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
-	const FMVVMBlueprintPropertyPath PropertyPath = OnGetPropertyPath.Execute();
-	TArray<FMVVMConstFieldVariant> NewCachedPropertyPath = PropertyPath.GetFields(WidgetBlueprint.Get()->SkeletonGeneratedClass);
-	if (NewCachedPropertyPath != CachedPropertyPath)
+	const FMVVMBlueprintPropertyPath NewPropertyPath = OnGetPropertyPath.Execute();
+	TArray<FMVVMConstFieldVariant> NewCachedPropertyPath = NewPropertyPath.GetFields(WidgetBlueprint.Get()->SkeletonGeneratedClass);
+	if (NewCachedPropertyPath != CachedPropertyPath || NewPropertyPath.GetWidgetName() != CachedWidgetName || NewPropertyPath.GetViewModelId() != CachedContextId)
 	{
 		CachedPropertyPath = MoveTemp(NewCachedPropertyPath);
-		PropertyPathWidget->SetPropertyPath(PropertyPath);
+		CachedWidgetName = NewPropertyPath.GetWidgetName();
+		CachedContextId = NewPropertyPath.GetViewModelId();
+		PropertyPathWidget->SetPropertyPath(NewPropertyPath);
 	}
 }
 

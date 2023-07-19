@@ -210,7 +210,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledB
 
 	if (FieldId.IsNone())
 	{
-		return MakeError(LOCTEXT("FieldNotDefined", "The Field is not defined. Is it missing the FieldNotify flag?."));
+		return MakeError(LOCTEXT("FieldNotDefined", "The Field does not have the specifier FieldNotify and cannot be used as a binding source. You may want to use the 'One Time' binding mode."));
 	}
 
 	if (!SourceClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))

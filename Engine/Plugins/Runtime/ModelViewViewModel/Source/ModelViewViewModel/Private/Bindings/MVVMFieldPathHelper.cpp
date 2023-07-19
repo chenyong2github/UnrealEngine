@@ -254,7 +254,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArra
 		
 		if (Field.IsProperty())
 		{
-			TValueOrError<FMVVMConstFieldVariant, FText> TransformedField = Private::TransformWithAccessor(CurrentContainer, Field, (bForSourceBinding || !bLastField));
+			TValueOrError<FMVVMConstFieldVariant, FText> TransformedField = Private::TransformWithAccessor(Field.GetOwner(), Field, (bForSourceBinding || !bLastField));
 			if (TransformedField.HasError())
 			{
 				return MakeError(TransformedField.StealError());

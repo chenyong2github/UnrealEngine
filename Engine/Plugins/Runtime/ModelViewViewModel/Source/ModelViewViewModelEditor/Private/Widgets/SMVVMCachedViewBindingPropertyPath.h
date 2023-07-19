@@ -40,6 +40,8 @@ private:
 	TSharedPtr<SPropertyPath> PropertyPathWidget;
 	FOnGetPropertyPath OnGetPropertyPath;
 	TArray<FMVVMConstFieldVariant> CachedPropertyPath;
+	FName CachedWidgetName;
+	FGuid CachedContextId;
 };
 
 } // namespace UE::MVVM
