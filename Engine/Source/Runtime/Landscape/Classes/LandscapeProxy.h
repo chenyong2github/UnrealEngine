@@ -617,12 +617,8 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FoliageComponents;
 
-	UE_DEPRECATED(5.3, "NaniteComponent has been deprecated, use NaniteComponents instead.")
-	UPROPERTY()
-	TObjectPtr<ULandscapeNaniteComponent> NaniteComponent_DEPRECATED;
-
 	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
-	TArray<TObjectPtr<ULandscapeNaniteComponent>> NaniteComponents;
+	TObjectPtr<ULandscapeNaniteComponent> NaniteComponent;
 
 	/** A transient data structure for tracking the grass */
 	FCachedLandscapeFoliage FoliageCache;
@@ -908,21 +904,7 @@ public:
 	virtual bool IsNaniteSkirtEnabled() const { return bNaniteSkirtEnabled; }
 	virtual float GetNaniteSkirtDepth() const { return NaniteSkirtDepth;  }
 	virtual UE::Landscape::EOutdatedDataFlags GetOutdatedDataFlags() const;
-
-	void UpdateNaniteSharedPropertiesFromActor();
-	void RemoveNaniteComponents();
-	void ClearNaniteTransactional();
-	static constexpr int32 NaniteComponentMaxSide = 8;
-	static constexpr int32 NaniteMaxComponents = NaniteComponentMaxSide * NaniteComponentMaxSide;
-	int32 NumNaniteRequiredComponents() const { return FMath::DivideAndRoundUp(LandscapeComponents.Num(), NaniteMaxComponents); }
 #endif	//WITH_EDITOR
-
-	bool AreNaniteComponentsValid(const FGuid& InProxyContentId) const;
-	bool HasNaniteComponents() const { return !NaniteComponents.IsEmpty(); }
-	LANDSCAPE_API TSet<FPrimitiveComponentId> GetNanitePrimitiveComponentIds() const;
-	FGuid GetNaniteComponentContentId() const;
-	bool AuditNaniteMaterials() const;
-	void EnableNaniteComponents(bool bInNaniteActive);
 
 	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;
 
@@ -1341,7 +1323,7 @@ public:
 	*/
 	LANDSCAPE_API bool ExportToRawMesh(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh) const;
 
-	LANDSCAPE_API TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> MakeAsyncNaniteBuildData(int32 InLODToExport, const TArrayView<ULandscapeComponent*>& ComponentsToExport) const;
+	LANDSCAPE_API TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> MakeAsyncNaniteBuildData(int32 InLODToExport) const;
 
 	bool ExportToRawMeshDataCopy(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const;
 
@@ -1504,7 +1486,7 @@ private:
 	void UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>* OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag, int32* OutOutdatedGrassMaps = nullptr) const;
 
 	/** Create Blank Nanite Component */
-	void CreateNaniteComponents(int32 NumComponents);
+	void CreateNaniteComponent();
 
 #endif
 

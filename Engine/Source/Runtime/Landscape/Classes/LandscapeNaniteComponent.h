@@ -112,9 +112,9 @@ public:
 	 * 
 	 * @return true if the Nanite mesh creation was successful
 	 */
-	LANDSCAPE_API bool InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, const TArrayView<ULandscapeComponent*>& InComponentsToExport, int32 InNaniteComponentIndex);
+	LANDSCAPE_API bool InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId);
 
-	LANDSCAPE_API FGraphEventRef InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool bInIsAsync, const TArrayView<ULandscapeComponent*>& InComponentsToExport, int32 InNaniteComponentIndex);
+	LANDSCAPE_API FGraphEventRef InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool bInIsAsync);
 
 	/**
 	 * Ensures the cooked cached platform data of the Nanite static mesh is finished. It is necessary to ensure that StreamablePages are loaded from DDC
