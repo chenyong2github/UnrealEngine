@@ -152,6 +152,12 @@ void UDataLayerManager::Initialize()
 	UWorld* OuterWorld = GetTypedOuter<UWorld>();
 	UWorldPartition* OuterWorldPartition = GetOuterUWorldPartition();
 	UActorDescContainer* ActorDescContainer = OuterWorldPartition->GetActorDescContainer();
+
+	// Partitioned Level Instance's DataLayerManager will never resolve DataLayers (it's up to its owning WorldPartition DataLayerManager to do the job.
+	ULevelInstanceSubsystem* LevelInstanceSubsystem = !GetWorld()->IsGameWorld() ? UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld()) : nullptr;
+	ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetOwningLevelInstance(OuterWorld->PersistentLevel) : nullptr;
+	bCanResolveDataLayers = (LevelInstance == nullptr);
+
 	// In PIE, main world partition doesn't have an ActorDescContainer and doesn't need it, but instanced world partitions do have one.
 	check(!ActorDescContainer || ActorDescContainer->IsInitialized());
 	AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
@@ -191,11 +197,6 @@ void UDataLayerManager::Initialize()
 		WorldDataLayerLevel->Actors.Add(WorldDataLayers);
 		WorldDataLayerLevel->ActorsForGC.Add(WorldDataLayers);
 	}
-
-	// Partitioned Level Instance's DataLayerManager will never resolve DataLayers (it's up to its owning WorldPartition DataLayerManager to do the job.
-	ULevelInstanceSubsystem* LevelInstanceSubsystem = !GetWorld()->IsGameWorld() ? UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld()) : nullptr;
-	ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetOwningLevelInstance(OuterWorld->PersistentLevel) : nullptr;
-	bCanResolveDataLayers = (LevelInstance == nullptr);
 
 	DataLayerLoadingPolicy = NewObject<UDataLayerLoadingPolicy>(this, GetDataLayerLoadingPolicyClass());
 
