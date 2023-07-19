@@ -84,6 +84,29 @@ namespace UE::VCamCore::Private
 			&& IsInValidWorld
 			&& !IsRunningCommandlet();
 	}
+
+	template<typename TObjectType>
+	static void ReparentSubobjectToVCam(UVCamComponent* NewOuter, TObjectType* Subobject)
+	{
+		if (!Subobject)
+		{
+			return;
+		}
+		
+		TObjectType* ExistingOutputProvider = FindObject<TObjectType>(NewOuter, *Subobject->GetName());
+		if (ExistingOutputProvider && ExistingOutputProvider != Subobject)
+		{
+			UClass* Class = ExistingOutputProvider->GetClass();
+			const FString BaseName = FString::Printf(TEXT("TRASH_%s_%s"), *Class->GetName(), *ExistingOutputProvider->GetName());
+			const FName NewTrashName = MakeUniqueObjectName(NewOuter, Class, *BaseName);
+			ExistingOutputProvider->Rename(*NewTrashName.ToString());
+		}
+
+		if (Subobject->GetOuter() != NewOuter)
+		{
+			Subobject->Rename(nullptr, NewOuter);
+		}
+	}
 }
 
 UVCamComponent::UVCamComponent()
@@ -125,9 +148,8 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	const bool bIsBlueprintCreatedComponent = CreationMethod == EComponentCreationMethod::SimpleConstructionScript || CreationMethod == EComponentCreationMethod::UserConstructionScript;
 	if (bIsBlueprintCreatedComponent && GIsReconstructingBlueprintInstances)
 	{
-		// GetComponentInstanceData has saved our internal state and ApplyComponentInstanceData will steal it later. For safety, let's not reference the to be stolen output providers anymore.
+		// GetComponentInstanceData has saved our internal state and ApplyComponentInstanceData will steal it later. For safety, let's not reference the to be stolen objects anymore.
 		OutputProviders.Empty();
-		Deinitialize(EVCamInitializationFlags::ReapplyInstanceData);
 	}
 	else
 	{
@@ -157,31 +179,21 @@ void UVCamComponent::ApplyComponentInstanceData(FVCamComponentInstanceData& Comp
 		return;
 	}
 	
-	// Steal output providers from previous source and reapply it to this component
-	// OnComponentDestroyed makes sure that the old component, which has just been destroyed by the construction script, no longer references the output providers.
+	// Steal output providers & modifiers from previous source and reapply it to this component
+	// OnComponentDestroyed makes sure that the old component, which has just been destroyed by the construction script, no longer references the output providers & modifiers.
 	for (UVCamOutputProviderBase* StoredOutputProvider : ComponentInstanceData.StolenOutputProviders)
 	{
-		if (!StoredOutputProvider)
-		{
-			continue;
-		}
-		
-		UVCamOutputProviderBase* ExistingOutputProvider = FindObject<UVCamOutputProviderBase>(this, *StoredOutputProvider->GetName());
-		if (ExistingOutputProvider && ExistingOutputProvider != StoredOutputProvider)
-		{
-			const FName NewTrashName = MakeUniqueObjectName(this, ExistingOutputProvider->GetClass(), TEXT("TRASH_"));
-			ExistingOutputProvider->Rename(*NewTrashName.ToString());
-		}
-
-		if (StoredOutputProvider->GetOuter() != this)
-		{
-			StoredOutputProvider->Rename(nullptr, this);
-		}
+		UE::VCamCore::Private::ReparentSubobjectToVCam(this, StoredOutputProvider);
 	}
 	
 	OutputProviders = ComponentInstanceData.StolenOutputProviders;
 	LiveLinkSubject = ComponentInstanceData.LiveLinkSubject;
-	Initialize(EVCamInitializationFlags::ReapplyInstanceData);
+	
+	// All modifiers were duplicated by the standard component cache system. Some modifiers references components, such as the cine camera component: the component cache system
+	// replaced the old referenced with reconstructed components (except for those properties marked as transient!).
+	// However, input must be manually re-initialized because since the modifiers were duplicated and the input system is still pointing at the old modifier instances.
+	// AppliedInputContext was nulled be the cache because is marked Transient, so we have to restore it manually.
+	ReinitializeInput(ComponentInstanceData.AppliedInputContexts);
 }
 
 bool UVCamComponent::CanUpdate() const
@@ -1171,8 +1183,9 @@ void UVCamComponent::ApplyInputProfile()
 				Args.MappingName = MappingName;
             	Args.NewKey = NewKey;
 				Args.Slot = EPlayerMappableKeySlot::First;
-            		
-				Settings->MapPlayerKey(Args, FailureReason);
+
+				// NewKey is allowed to be None, in which case the key mapping should be unmapped
+				NewKey.IsValid() ? Settings->MapPlayerKey(Args, FailureReason) : Settings->UnMapPlayerKey(Args, FailureReason);
 			}
 		}
 	}
@@ -1263,7 +1276,7 @@ bool UVCamComponent::IsInitialized() const
 	return SubsystemCollection.IsInitialized();
 }
 
-void UVCamComponent::Initialize(const EVCamInitializationFlags Flags)
+void UVCamComponent::Initialize()
 {
 	if (!UE::VCamCore::Private::CanInitVCamInstance(this))
 	{
@@ -1271,15 +1284,12 @@ void UVCamComponent::Initialize(const EVCamInitializationFlags Flags)
 	}
 
 	// 1. Input
-	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::InputSystem))
-	{
-		SubsystemCollection.Initialize(this);
-		RegisterInputComponent();
-	}
+	SubsystemCollection.Initialize(this);
+	RegisterInputComponent();
 	
 
 	// 2. Output provider overlay widgets will access the modifiers, so let's init them first
-	const bool bInitModifiers = EnumHasAnyFlags(Flags, EVCamInitializationFlags::Modifiers) && ShouldEvaluateModifierStack() && CanUpdate(); 
+	const bool bInitModifiers = ShouldEvaluateModifierStack() && CanUpdate(); 
 	if (bInitModifiers)
 	{
 		for (FModifierStackEntry& ModifierStackEntry : ModifierStack)
@@ -1297,7 +1307,7 @@ void UVCamComponent::Initialize(const EVCamInitializationFlags Flags)
 	ApplyInputProfile();
 
 	// 4. Output providers
-	const bool bInitOutputProviders = EnumHasAnyFlags(Flags, EVCamInitializationFlags::OutputProviders) && bInitModifiers && ShouldUpdateOutputProviders();
+	const bool bInitOutputProviders = bInitModifiers && ShouldUpdateOutputProviders();
 	if (bInitOutputProviders)
 	{
 		for (UVCamOutputProviderBase* Provider : OutputProviders)
@@ -1310,43 +1320,46 @@ void UVCamComponent::Initialize(const EVCamInitializationFlags Flags)
 	}
 }
 
-void UVCamComponent::Deinitialize(const EVCamInitializationFlags Flags)
+void UVCamComponent::Deinitialize()
 {
 	if (!IsInitialized())
 	{
 		return;
 	}
 
-	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::OutputProviders))
+	for (UVCamOutputProviderBase* Provider : OutputProviders)
 	{
-		for (UVCamOutputProviderBase* Provider : OutputProviders)
+		if (IsValid(Provider))
 		{
-			if (IsValid(Provider))
-			{
-				Provider->Deinitialize();
-			}
+			Provider->Deinitialize();
 		}
 	}
 
-	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::Modifiers))
+	for (FModifierStackEntry& ModifierEntry : ModifierStack)
 	{
-		for (FModifierStackEntry& ModifierEntry : ModifierStack)
+		if (IsValid(ModifierEntry.GeneratedModifier))
 		{
-			if (IsValid(ModifierEntry.GeneratedModifier))
-			{
-				ModifierEntry.GeneratedModifier->Deinitialize();
-			}
+			ModifierEntry.GeneratedModifier->Deinitialize();
 		}
 	}
 
 	// Viewports may be manipulated by output providers or modifiers
 	UnlockAllViewports();
 	
-	if (EnumHasAnyFlags(Flags, EVCamInitializationFlags::InputSystem))
-	{
-		UnregisterInputComponent();
-		SubsystemCollection.Deinitialize();
-	}
+	UnregisterInputComponent();
+	SubsystemCollection.Deinitialize();
+}
+
+void UVCamComponent::ReinitializeInput(TArray<TObjectPtr<UInputMappingContext>> InputContextsToReapply)
+{
+	// There is no technical reason for this check other than validating assumptions
+	checkfSlow(GIsReconstructingBlueprintInstances, TEXT("This function was designed to be run for re-applying component instance data!"));
+	SubsystemCollection.Initialize(this);
+	RegisterInputComponent();
+
+	// AppliedInputContexts will have been nulled RegisterInputComponent. Now we can apply the contexts we received from the component instance data.
+	AppliedInputContexts = MoveTemp(InputContextsToReapply);
+	ApplyInputProfile();
 }
 
 void UVCamComponent::SyncInputSettings()

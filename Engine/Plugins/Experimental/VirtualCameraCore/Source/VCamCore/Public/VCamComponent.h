@@ -44,19 +44,6 @@ struct FMultiUserVCamCameraComponentEvent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComponentReplaced, UVCamComponent*, NewComponent);
 
-enum class EVCamInitializationFlags
-{
-	None = 0,
-	InputSystem = 1 << 0,
-	Modifiers = 1 << 1,
-	OutputProviders = 1 << 2,
-	
-	All = InputSystem | Modifiers | OutputProviders,
-	// When re-applying component instance data, any references to the replaced output providers should be reinitialized.
-	ReapplyInstanceData = InputSystem | Modifiers
-};
-ENUM_CLASS_FLAGS(EVCamInitializationFlags);
-
 /**
  * Provides a modular system for editing a UCineCameraComponent using user widgets.
  * This component must be attached as a direct child of UCineCameraComponent.
@@ -81,6 +68,7 @@ class VCAMCORE_API UVCamComponent : public USceneComponent
 {
 	GENERATED_BODY()
 	friend class UVCamModifier;
+	friend struct FVCamComponentInstanceData;
 public:
 
 	/**
@@ -507,8 +495,11 @@ private:
 	
 	void EnsureInitializedIfAllowed();
 	bool IsInitialized() const;
-	virtual void Initialize(const EVCamInitializationFlags Flags = EVCamInitializationFlags::All);
-	virtual void Deinitialize(const EVCamInitializationFlags Flags = EVCamInitializationFlags::All);
+	virtual void Initialize();
+	virtual void Deinitialize();
+
+	/** Called as part of applying component instance data */
+	void ReinitializeInput(TArray<TObjectPtr<UInputMappingContext>> InputContextsToReapply);
 
 	void SyncInputSettings();
 	
