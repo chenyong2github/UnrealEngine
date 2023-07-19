@@ -402,6 +402,11 @@ public:
 	static uint64 GetGameUsageMask()	{ return GameUsageMask;}
 	
 	RHI_API static void PreCompileComplete();
+
+	/*
+	 * Enable or disable the logging of new PSOs (PSOs that were needed but not found in the file cache) to console and CSV.
+	 */
+	RHI_API static void SetNewPSOConsoleAndCSVLogging(bool bEnabled) { LogNewPSOsToConsoleAndCSV = bEnabled; }
 private:
 	
 	static void RegisterPSOUsageDataUpdateForNextSave(FPSOUsageData& UsageData);
@@ -410,6 +415,10 @@ private:
 	
 	static bool IsBSSEquivalentPSOEntryCached(FPipelineCacheFileFormatPSO const& NewEntry);
 	static bool IsPSOEntryCached(FPipelineCacheFileFormatPSO const& NewEntry, FPSOUsageData* EntryData = nullptr);
+
+	static void LogNewGraphicsPSOToConsoleAndCSV(FPipelineCacheFileFormatPSO& PSO, uint32 PSOHash, bool bWasPSOPrecached);
+	static void LogNewComputePSOToConsoleAndCSV(FPipelineCacheFileFormatPSO& PSO, uint32 PSOHash);
+	static void LogNewRaytracingPSOToConsole(FPipelineCacheFileFormatPSO& PSO, uint32 PSOHash, bool bIsNonBlockingPSO);
 private:
 	static FRWLock FileCacheLock;
 
@@ -438,5 +447,7 @@ private:
 	static bool FileCacheEnabled;
 	static FPipelineStateLoggedEvent PSOLoggedEvent;
 	RHI_API static uint64 GameUsageMask;
-	static FPSOMaskComparisonFn MaskComparisonFn;
+	static FPSOMaskComparisonFn MaskComparisonFn;	
+
+	RHI_API static bool LogNewPSOsToConsoleAndCSV; // Whether to log new PSOs to the log file and CSV.
 };

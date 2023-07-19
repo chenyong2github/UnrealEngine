@@ -185,6 +185,7 @@ FPipelineFileCacheManager::PSOOrder FPipelineFileCacheManager::RequestedOrder = 
 bool FPipelineFileCacheManager::FileCacheEnabled = false;
 FPipelineFileCacheManager::FPipelineStateLoggedEvent FPipelineFileCacheManager::PSOLoggedEvent;
 uint64 FPipelineFileCacheManager::GameUsageMask = 0;
+bool FPipelineFileCacheManager::LogNewPSOsToConsoleAndCSV = true;
 
 static int64 GetCurrentUnixTime()
 {
@@ -3374,6 +3375,64 @@ void FPipelineFileCacheManager::RegisterPSOUsageDataUpdateForNextSave(FPSOUsageD
 	CurrentEntry.EngineFlags |= UsageData.EngineFlags;
 }  
 
+void FPipelineFileCacheManager::LogNewGraphicsPSOToConsoleAndCSV(FPipelineCacheFileFormatPSO& PSO, uint32 PSOHash, bool bWasPSOPrecached)
+{
+	if (!LogNewPSOsToConsoleAndCSV)
+	{
+		return;
+	}
+
+	if (!bWasPSOPrecached)
+	{
+		CSV_EVENT(PSO, TEXT("Encountered new graphics PSO"));
+		UE_LOG(LogRHI, Display, TEXT("Encountered a new graphics PSO: %u"), PSOHash);
+		int32 LogDetailLevel = LogPSODetails() ? 2 : GPSOFileCachePrintNewPSODescriptors;
+		if (LogDetailLevel > 0)
+		{
+			UE_LOG(LogRHI, Display, TEXT("New Graphics PSO (%u)"), PSOHash);
+			if (LogDetailLevel > 1)
+			{
+				UE_LOG(LogRHI, Display, TEXT("%s"), *PSO.ToStringReadable());
+			}
+		}
+
+	}
+	else
+	{
+		UE_LOG(LogRHI, Log, TEXT("Encountered a new graphics PSO for the file cache but it was already precached at runtime: %u"), PSOHash);
+	}
+}
+
+void FPipelineFileCacheManager::LogNewComputePSOToConsoleAndCSV(FPipelineCacheFileFormatPSO& PSO, uint32 PSOHash)
+{
+	if (!LogNewPSOsToConsoleAndCSV)
+	{
+		return;
+	}
+
+	CSV_EVENT(PSO, TEXT("Encountered new compute PSO"));
+	UE_LOG(LogRHI, Display, TEXT("Encountered a new compute PSO: %u"), PSOHash);
+	if (GPSOFileCachePrintNewPSODescriptors > 0)
+	{
+		UE_LOG(LogRHI, Display, TEXT("New compute PSO (%u) Description: %s"), PSOHash, *PSO.ComputeDesc.ComputeShader.ToString());
+	}
+}
+
+void FPipelineFileCacheManager::LogNewRaytracingPSOToConsole(FPipelineCacheFileFormatPSO& PSO, uint32 PSOHash, bool bIsNonBlockingPSO)
+{
+	// When non-blocking creation is used, encountering a non-cached RTPSO is not likely to cause a hitch and so the logging is not useful/actionable.
+	if (!LogNewPSOsToConsoleAndCSV || bIsNonBlockingPSO)
+	{
+		return;
+	}
+
+	UE_LOG(LogRHI, Display, TEXT("Encountered a new ray tracing PSO: %u"), PSOHash);
+	if (GPSOFileCachePrintNewPSODescriptors > 0)
+	{
+		UE_LOG(LogRHI, Display, TEXT("New ray tracing PSO (%u) Description: %s"), PSOHash, *PSO.RayTracingDesc.ToString());
+	}
+}
+
 void FPipelineFileCacheManager::CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer, bool bWasPSOPrecached)
 {
 	if(IsPipelineFileCacheEnabled() && (LogPSOtoFileCache() || ReportNewPSOs()))
@@ -3412,23 +3471,10 @@ void FPipelineFileCacheManager::CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPi
 
 					if (bActuallyNewPSO)
 					{
-						if (!bWasPSOPrecached)
+						LogNewGraphicsPSOToConsoleAndCSV(NewEntry, PSOHash, bWasPSOPrecached);
+
+						if (bWasPSOPrecached)
 						{
-							CSV_EVENT(PSO, TEXT("Encountered new graphics PSO"));
-							UE_LOG(LogRHI, Display, TEXT("Encountered a new graphics PSO: %u"), PSOHash);
-							int32 LogDetailLevel = LogPSODetails() ? 2 : GPSOFileCachePrintNewPSODescriptors;
-							if (LogDetailLevel > 0)
-							{
-								UE_LOG(LogRHI, Display, TEXT("New Graphics PSO (%u)"), PSOHash);
-								if (LogDetailLevel > 1)
-								{
-									UE_LOG(LogRHI, Display, TEXT("%s"), *NewEntry.ToStringReadable());
-								}
-							}
-						}
-						else
-						{
-							UE_LOG(LogRHI, Log, TEXT("Encountered a new graphics PSO for the file cache but it was already precached at runtime: %u"), PSOHash);
 							bActuallyNewPSO = !GPSOExcludePrecachePSOsInFileCache;
 						}
 					}
@@ -3499,12 +3545,7 @@ void FPipelineFileCacheManager::CacheComputePSO(uint32 RunTimeHash, FRHIComputeS
 						bool bActuallyNewPSO = !NewPSOHashes.Contains(PSOHash);
 						if (bActuallyNewPSO)
 						{
-							CSV_EVENT(PSO, TEXT("Encountered new compute PSO"));
-							UE_LOG(LogRHI, Display, TEXT("Encountered a new compute PSO: %u"), PSOHash);
-							if (GPSOFileCachePrintNewPSODescriptors > 0)
-							{
-								UE_LOG(LogRHI, Display, TEXT("New compute PSO (%u) Description: %s"), PSOHash, *NewEntry.ComputeDesc.ComputeShader.ToString());
-							}
+							LogNewComputePSOToConsoleAndCSV(NewEntry, PSOHash);
 							
 							if (LogPSOtoFileCache())
 							{
@@ -3560,8 +3601,7 @@ void FPipelineFileCacheManager::CacheRayTracingPSO(const FRayTracingPipelineStat
 		Initializer.GetCallableTable()
 	};
 
-	// When non-blocking creation is used, encountering a non-cached RTPSO is not likely to cause a hitch and so the logging is not useful/actionable.
-	const bool bShouldReportNewRTPSOToLog = !EnumHasAnyFlags(Flags, ERayTracingPipelineCacheFlags::NonBlocking);
+	const bool bIsNonBlocking = !EnumHasAnyFlags(Flags, ERayTracingPipelineCacheFlags::NonBlocking);
 
 	FRWScopeLock Lock(FileCacheLock, SLT_ReadOnly);
 
@@ -3588,15 +3628,7 @@ void FPipelineFileCacheManager::CacheRayTracingPSO(const FRayTracingPipelineStat
 
 					if (!FPipelineFileCacheManager::IsPSOEntryCached(NewEntry, &CurrentUsageData))
 					{
-						//CSV_EVENT(PSO, TEXT("Encountered new ray tracing PSO"));
-						if (bShouldReportNewRTPSOToLog)
-						{
-							UE_LOG(LogRHI, Display, TEXT("Encountered a new ray tracing PSO: %u"), PSOHash);
-							if (GPSOFileCachePrintNewPSODescriptors > 0)
-							{
-								UE_LOG(LogRHI, Display, TEXT("New ray tracing PSO (%u) Description: %s"), PSOHash, *NewEntry.RayTracingDesc.ToString());
-							}
-						}
+						LogNewRaytracingPSOToConsole(NewEntry, PSOHash, bIsNonBlocking);
 
 						if (LogPSOtoFileCache())
 						{

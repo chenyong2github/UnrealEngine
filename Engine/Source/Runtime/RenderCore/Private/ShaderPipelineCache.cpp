@@ -163,6 +163,13 @@ static TAutoConsoleVariable<int32> CVarPSOGlobalShadersOnlyWhenPSOPrecaching(
                                                                 ECVF_Default | ECVF_RenderThreadSafe
                                                                 );
 
+static TAutoConsoleVariable<int32> CVarPSOFileCacheOnlyOpenUserCache(
+																TEXT("r.ShaderPipelineCache.OnlyOpenUserCache"),
+																0,
+																TEXT("If > 0, only the user cache file will be opened, and the static file cache will not be opened. Defaults to 0."),
+																ECVF_ReadOnly
+                                                                );
+
 static bool GetShaderPipelineCacheSaveBoundPSOLog()
 {
 	static bool bOnce = false;
@@ -823,6 +830,12 @@ uint32 FShaderPipelineCache::NumPrecompilesRemaining()
 
 bool FShaderPipelineCache::OpenPipelineFileCache(EShaderPlatform Platform)
 {
+	if (CVarPSOFileCacheOnlyOpenUserCache.GetValueOnAnyThread())
+	{
+		UE_LOG(LogRHI, Log, TEXT("Ignoring request to open static pipeline file cache because r.ShaderPipelineCache.OnlyOpenUserCache is set."));
+		return false;
+	}
+
 	bool bFileOpen = false;
 	if (ShaderPipelineCache)
 	{
@@ -930,20 +943,29 @@ void FShaderPipelineCache::ShaderLibraryStateChanged(ELibraryState State, EShade
 		const FString& PSOCacheKey = PSOCacheName;
 
 		FScopeLock Lock(&ShaderPipelineCache->Mutex);
-		if (TUniquePtr<class FShaderPipelineCacheTask>* Found = ShaderPipelineCache->ShaderCacheTasks.Find(PSOCacheKey))
+		if (!CVarPSOFileCacheOnlyOpenUserCache.GetValueOnAnyThread())
 		{
-			(*Found)->OnShaderLibraryStateChanged(State, Platform, PSOCacheName, ComponentID);
+			if (TUniquePtr<class FShaderPipelineCacheTask>* Found = ShaderPipelineCache->ShaderCacheTasks.Find(PSOCacheKey))
+			{
+				(*Found)->OnShaderLibraryStateChanged(State, Platform, PSOCacheName, ComponentID);
+			}
+			else
+			{
+				bool bSuccess = ShaderPipelineCache->OpenPipelineFileCacheInternal(false, PSOCacheKey, PSOCacheName, Platform);
+
+				const FString& PSOCacheBaseKey = PSOCacheBaseName;
+				// for some reason we're not always able to find the base PSO cache when the shader libs loads.
+				if( !bSuccess && !ShaderPipelineCache->ShaderCacheTasks.Contains(PSOCacheBaseKey))
+				{
+					ShaderPipelineCache->OpenPipelineFileCacheInternal(false, PSOCacheBaseKey, PSOCacheBaseName, Platform);
+				}
+			}
 		}
 		else
 		{
-			bool bSuccess = ShaderPipelineCache->OpenPipelineFileCacheInternal(false, PSOCacheKey, PSOCacheName, Platform);
-
-			const FString& PSOCacheBaseKey = PSOCacheBaseName;
-			// for some reason we're not always able to find the base PSO cache when the shader libs loads.
-			if( !bSuccess && !ShaderPipelineCache->ShaderCacheTasks.Contains(PSOCacheBaseKey))
-			{
-				ShaderPipelineCache->OpenPipelineFileCacheInternal(false, PSOCacheBaseKey, PSOCacheBaseName, Platform);
-			}
+			// If we're only opening the user cache, disable logging new PSOs
+			// as it can get noisy.
+			FPipelineFileCacheManager::SetNewPSOConsoleAndCSVLogging(false);
 		}
 
 		// An opportunity to open the user cache
