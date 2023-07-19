@@ -121,7 +121,8 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 	ImportAssetParameters.bIsAutomated = true;
 	if (InterchangeAssetImportData)
 	{
-		for (TObjectPtr<UObject> SelectedPipeline : InterchangeAssetImportData->Pipelines)
+		TArray<UObject*> Pipelines = InterchangeAssetImportData->GetPipelines();
+		for (UObject* SelectedPipeline : Pipelines)
 		{
 			UInterchangePipelineBase* GeneratedPipeline = nullptr;
 			if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(SelectedPipeline))
@@ -134,6 +135,7 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 			}
 			if (ensure(GeneratedPipeline))
 			{
+				GeneratedPipeline->UpdateWeakObjectPtrs();
 				GeneratedPipeline->AdjustSettingsForContext(ImportType, nullptr);
 				ImportAssetParameters.OverridePipelines.Add(GeneratedPipeline);
 			}

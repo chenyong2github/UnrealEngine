@@ -49,7 +49,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeManager)
 
-static bool GInterchangeImportEnable = true;
+static bool GInterchangeImportEnable = false;
 static FAutoConsoleVariableRef CCvarInterchangeImportEnable(
 	TEXT("Interchange.FeatureFlags.Import.Enable"),
 	GInterchangeImportEnable,
@@ -859,7 +859,10 @@ UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 
 		InterchangeManager->GCEndDelegate = FCoreUObjectDelegates::GetPostGarbageCollect().AddLambda([]()
 			{
-				InterchangeManager->StartQueuedTasks(InterchangeManager->bGCEndDelegateCancellAllTask);
+				if (IsInterchangeImportEnabled())
+				{
+					InterchangeManager->StartQueuedTasks(InterchangeManager->bGCEndDelegateCancellAllTask);
+				}
 			});
 
 		//We cancel any running task when we pre exit the engine
@@ -1416,7 +1419,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	}
 #endif
 	
-	const bool bIsReimport = OriginalAssetImportData && OriginalAssetImportData->Pipelines.Num() > 0;
+	const bool bIsReimport = OriginalAssetImportData && OriginalAssetImportData->GetNumberOfPipelines() > 0;
 	auto AdjustPipelineSettingForContext = [bImportScene, bIsReimport, ImportAssetParameters](UInterchangePipelineBase* Pipeline)
 	{
 		EInterchangePipelineContext Context;
@@ -1472,12 +1475,14 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		{
 			FInterchangeStackInfo& StackInfo = PipelineStacks.AddDefaulted_GetRef();
 			StackInfo.StackName = ReimportPipelineName;
-			for (int32 PipelineIndex = 0; PipelineIndex < OriginalAssetImportData->Pipelines.Num(); ++PipelineIndex)
+
+			TArray<UObject*> Pipelines = OriginalAssetImportData->GetPipelines();
+			for (UObject* CurrentPipeline : Pipelines)
 			{
-				UInterchangePipelineBase* SourcePipeline = Cast<UInterchangePipelineBase>(OriginalAssetImportData->Pipelines[PipelineIndex]);
+				UInterchangePipelineBase* SourcePipeline = Cast<UInterchangePipelineBase>(CurrentPipeline);
 				if (!SourcePipeline)
 				{
-					if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(OriginalAssetImportData->Pipelines[PipelineIndex]))
+					if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(CurrentPipeline))
 					{
 						SourcePipeline = PythonPipelineAsset->GeneratedPipeline;
 					}
@@ -1486,6 +1491,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					//Duplicate the pipeline saved in the asset import data
 					UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SourcePipeline, PipelineInstancesPackage));
+					GeneratedPipeline->UpdateWeakObjectPtrs();
 					// Make sure that the instance does not carry over standalone and public flags as they are not actual assets to be persisted
 					GeneratedPipeline->ClearFlags(EObjectFlags::RF_Standalone | EObjectFlags::RF_Public);
 					AdjustPipelineSettingForContext(GeneratedPipeline);
@@ -1706,6 +1712,11 @@ bool UInterchangeManager::IsObjectBeingImported(UObject* Object) const
 bool UInterchangeManager::IsInterchangeImportEnabled()
 {
 	return CCvarInterchangeImportEnable->GetBool();
+}
+
+void UInterchangeManager::SetInterchangeImportEnabled(bool bEnabled)
+{
+	CCvarInterchangeImportEnable->Set(bEnabled);
 }
 
 bool UInterchangeManager::ExportAsset(const UObject* Asset, bool bIsAutomated)

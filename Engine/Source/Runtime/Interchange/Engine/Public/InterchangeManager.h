@@ -395,6 +395,8 @@ public:
 
 	/** Return the CVar which make interchange enable or not.*/
 	static INTERCHANGEENGINE_API bool IsInterchangeImportEnabled();
+	/** Set the CVar which make interchange enable or not.*/
+	static INTERCHANGEENGINE_API void SetInterchangeImportEnabled(bool bEnabled);
 
 	/** delegate type fired when new assets have been imported. Note: InCreatedObject can be NULL if import failed. Params: UFactory* InFactory, UObject* InCreatedObject */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FInterchangeOnAssetPostImport, UObject*);

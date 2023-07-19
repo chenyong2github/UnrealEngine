@@ -323,6 +323,12 @@ public:
 		return this == GetMostPipelineOuter();
 	};
 
+	/*
+	* Update/Re-set the TWeakObjectPtrs to point to their original TObjectPtr
+	* Works based on Variable naming.
+	*/
+	INTERCHANGECORE_API void UpdateWeakObjectPtrs();
+
 protected:
 
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")

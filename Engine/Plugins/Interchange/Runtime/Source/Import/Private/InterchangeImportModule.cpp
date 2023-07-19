@@ -100,11 +100,15 @@ void FInterchangeImportModule::StartupModule()
 	{
 		FCoreDelegates::OnPostEngineInit.AddLambda(RegisterItems);
 	}
+
+	UInterchangeManager::SetInterchangeImportEnabled(true);
 }
 
 
 void FInterchangeImportModule::ShutdownModule()
-{}
+{
+	UInterchangeManager::SetInterchangeImportEnabled(false);
+}
 
 
 

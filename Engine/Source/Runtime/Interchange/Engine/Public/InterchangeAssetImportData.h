@@ -19,6 +19,11 @@ class UInterchangeAssetImportData : public UAssetImportData
 {
 	GENERATED_BODY()
 public:
+	// Begin UObject interface
+	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
+	// End UObject interface
+
 
 	/**
 	 * Return the first filename stored in this data. The resulting filename will be absolute (ie, not relative to the asset).
@@ -69,9 +74,9 @@ public:
 	 */
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) override
 	{
-		if (NodeContainer->IsNodeUidValid(NodeUniqueID))
+		if (GetNodeContainer()->IsNodeUidValid(NodeUniqueID))
 		{
-			if (const UInterchangeBaseNode* Node = NodeContainer->GetNode(NodeUniqueID))
+			if (const UInterchangeBaseNode* Node = GetStoredNode(NodeUniqueID))
 			{
 				Node->AppendAssetRegistryTags(OutTags);
 			}
@@ -81,15 +86,48 @@ public:
 #endif
 #endif
 
-	/** The graph that was use to create this asset */
-	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
-	TObjectPtr<UInterchangeBaseNodeContainer> NodeContainer;
-
 	/** The Node UID pass to the factory that exist in the graph that was use to create this asset */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
 	FString NodeUniqueID;
 
-	/** List of pipelines use to import an asset */
-	UPROPERTY(EditAnywhere, Category = "Interchange | AssetImportData")
-	TArray<TObjectPtr<UObject>> Pipelines;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API UInterchangeBaseNodeContainer* GetNodeContainer() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API void SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer);
+
+
+	/**
+	* Returns Array of non-null pipelines
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API TArray<UObject*> GetPipelines() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API int32 GetNumberOfPipelines() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API void SetPipelines(const TArray<UObject*>& InPipelines);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API const UInterchangeBaseNode* GetStoredNode(const FString& InNodeUniqueId) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
+	INTERCHANGEENGINE_API UInterchangeFactoryBaseNode* GetStoredFactoryNode(const FString& InNodeUniqueId) const;
+
+private:
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use GetNodeContainer/SetNodeContainer instead."))
+	TObjectPtr<UInterchangeBaseNodeContainer> NodeContainer_DEPRECATED;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use GetPipelines/SetPipelines instead."))
+	TArray<TObjectPtr<UObject>> Pipelines_DEPRECATED;
+
+	mutable TObjectPtr<UInterchangeBaseNodeContainer> TransientNodeContainer;
+	mutable TArray<TObjectPtr<UObject>> TransientPipelines;
+
+	void ProcessContainerCache() const;
+	void ProcessPipelinesCache() const;
+	TArray64<uint8> CachedNodeContainer;
+	TArray<TPair<FString, FString>> CachedPipelines; //Class, Data(serialized JSON) pair
 };

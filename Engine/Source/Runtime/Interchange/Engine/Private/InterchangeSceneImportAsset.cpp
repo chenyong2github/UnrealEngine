@@ -94,7 +94,7 @@ void UInterchangeSceneImportAsset::OnPostWorldRename(UWorld* World)
 		FString UniqueID;
 		SceneObjects.RemoveAndCopyValue(EntryToRemove, UniqueID);
 
-		UInterchangeFactoryBaseNode* FactoryNode = AssetImportData->NodeContainer->GetFactoryNode(UniqueID);
+		UInterchangeFactoryBaseNode* FactoryNode = AssetImportData->GetStoredFactoryNode(UniqueID);
 		if(ensure(FactoryNode))
 		{
 			const FString DisplayName = FactoryNode->GetDisplayLabel();
@@ -176,7 +176,7 @@ void UInterchangeSceneImportAsset::UpdateSceneObjects()
 
 	SceneObjects.Reset();
 
-	AssetImportData->NodeContainer->IterateNodesOfType<UInterchangeFactoryBaseNode>(
+	AssetImportData->GetNodeContainer()->IterateNodesOfType<UInterchangeFactoryBaseNode>(
 		[this](const FString& NodeUid, UInterchangeFactoryBaseNode* FactoryNode)
 		{
 			if (FactoryNode)
@@ -244,7 +244,7 @@ const UInterchangeFactoryBaseNode* UInterchangeSceneImportAsset::GetFactoryNode(
 
 	if (const FString* UniqueIDPtr = SceneObjects.Find(ObjectPath))
 	{
-		return Cast<UInterchangeFactoryBaseNode>(AssetImportData->NodeContainer->GetNode(*UniqueIDPtr));
+		return Cast<UInterchangeFactoryBaseNode>(AssetImportData->GetStoredNode(*UniqueIDPtr));
 	}
 #endif
 

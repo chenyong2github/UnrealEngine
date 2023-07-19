@@ -45,6 +45,11 @@ namespace UE::Interchange
 
 		void RecursivelyDuplicateFactoryNodeDependencies(UInterchangeBaseNodeContainer* SourceContainer, UInterchangeBaseNodeContainer* DestinationContainer, TArray<FString>& FactoryDependencies)
 		{
+			if (!DestinationContainer)
+			{
+				return;
+			}
+
 			for (const FString& DependencyUid : FactoryDependencies)
 			{
 				if (UInterchangeFactoryBaseNode* FactoryNode = Cast<UInterchangeFactoryBaseNode>(SourceContainer->GetFactoryNode(DependencyUid)))
@@ -62,7 +67,7 @@ namespace UE::Interchange
 		void EndSetupAssetData(FFactoryCommon::FUpdateImportAssetDataParameters& Parameters, UInterchangeAssetImportData* AssetImportData)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::Private::ImportCommon::EndSetupAssetData")
-			AssetImportData->NodeContainer = NewObject<UInterchangeBaseNodeContainer>(AssetImportData);
+			AssetImportData->SetNodeContainer(NewObject<UInterchangeBaseNodeContainer>(AssetImportData));
 			//We copy only the factory node dependencies, we use this only 
 			if (UInterchangeFactoryBaseNode* FactoryNode = Cast<UInterchangeFactoryBaseNode>(Parameters.NodeContainer->GetFactoryNode(Parameters.NodeUniqueID)))
 			{
@@ -70,17 +75,19 @@ namespace UE::Interchange
 				AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
 				TArray<FString> FactoryDependencies;
 				FactoryDependencies.Add(AssetImportData->NodeUniqueID);
-				RecursivelyDuplicateFactoryNodeDependencies(Parameters.NodeContainer, AssetImportData->NodeContainer, FactoryDependencies);
+				RecursivelyDuplicateFactoryNodeDependencies(Parameters.NodeContainer, AssetImportData->GetNodeContainer(), FactoryDependencies);
 			}
-			AssetImportData->Pipelines.Reset();
+			
+			TArray<UObject*> NewPipelines;
 			for (const UObject* Pipeline : Parameters.Pipelines)
 			{
 				UObject* DupPipeline = Cast<UObject>(StaticDuplicateObject(Pipeline, AssetImportData));
 				if (DupPipeline)
 				{
-					AssetImportData->Pipelines.Add(DupPipeline);
+					NewPipelines.Add(DupPipeline);
 				}
 			}
+			AssetImportData->SetPipelines(NewPipelines);
 		}
 	}
 
@@ -250,7 +257,8 @@ namespace UE::Interchange
 			return false;
 		}
 
-		for (UObject* PipelineObject : InterchangeAssetImportData->Pipelines)
+		TArray<UObject*> Pipelines = InterchangeAssetImportData->GetPipelines();
+		for (UObject* PipelineObject : Pipelines)
 		{
 			if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(PipelineObject))
 			{

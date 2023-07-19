@@ -87,7 +87,7 @@ namespace UE::Interchange::Private
 		{
 			if(UInterchangeAssetImportData* OriginalAssetImportData = Cast<UInterchangeAssetImportData>(SubObject))
 			{
-				if (UInterchangeBaseNodeContainer* OriginalNodeContainer = OriginalAssetImportData->NodeContainer)
+				if (UInterchangeBaseNodeContainer* OriginalNodeContainer = OriginalAssetImportData->GetNodeContainer())
 				{
 					//Find the original factory node used by the last ReimportObject import
 					if (UInterchangeFactoryBaseNode* OriginalFactoryNode = OriginalNodeContainer->GetFactoryNode(OriginalAssetImportData->NodeUniqueID))
