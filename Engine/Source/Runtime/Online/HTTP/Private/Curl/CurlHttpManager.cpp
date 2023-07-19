@@ -15,6 +15,7 @@
 
 #include "Curl/CurlHttpThread.h"
 #include "Curl/CurlMultiPollEventLoopHttpThread.h"
+#include "Curl/CurlMultiWaitEventLoopHttpThread.h"
 #include "Curl/CurlSocketEventLoopHttpThread.h"
 #include "Curl/CurlHttp.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -457,12 +458,17 @@ FHttpThreadBase* FCurlHttpManager::CreateHttpThread()
 #if WITH_CURL_MULTIPOLL
 		UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlMultiPollEventLoopHttpThread"));
 		return new FCurlMultiPollEventLoopHttpThread();
-#elif WITH_CURL_MULTISOCKET
-#if 0 // Disabled for now, requires further testing. FORT-616601
+#endif // WITH_CURL_MULTIPOLL
+
+#if WITH_CURL_MULTISOCKET
 		UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlSocketEventLoopHttpThread"));
 		return new FCurlSocketEventLoopHttpThread();
-#endif
-#endif // WITH_CURL_MULTIPOLL
+#endif // WITH_CURL_MULTISOCKET
+
+#if WITH_CURL_MULTIWAIT
+		UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlMultiWaitEventLoopHttpThread"));
+		return new FCurlMultiWaitEventLoopHttpThread();
+#endif // WITH_CURL_MULTIWAIT
 	}
 
 	UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlHttpThread"));
