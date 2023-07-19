@@ -179,6 +179,18 @@ public:
 	}
 
 	/**
+	 * Returns the total number of timers. Includes active timers and timers waiting to be rescheduled.
+	 *
+	 * NOT thread safe.
+	 * 
+	 * @return the total number of timers.
+	 */
+	FORCEINLINE uint32 GetNumTimers() const
+	{
+		return Storage.Num();
+	}
+
+	/**
 	 * Set a new timer. The timer callback will be triggered from within the call to Tick,
 	 * which may occur on a different thread from the one which set the timer.
 	 * 
@@ -398,6 +410,11 @@ void TTimerManager<Traits>::Tick(FTimespan DeltaTime)
 				{
 					TimerData->Status = ETimerStatus::PendingReschedule;
 					PendingRepeatTimers.Add(TimerHandle);
+				}
+				else
+				{
+					// Timer has been fired and is non-repeating. Remove the timer.
+					Storage.Remove(TopHandle);
 				}
 			}
 			else

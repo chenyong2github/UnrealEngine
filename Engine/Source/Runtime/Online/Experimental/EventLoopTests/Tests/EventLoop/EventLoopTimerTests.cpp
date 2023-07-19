@@ -270,6 +270,23 @@ namespace UE::EventLoop
 					// Check that no timer is pending reschedule.
 					CHECK(!TimerManager.HasPendingRepeatTimer());
 				}
+
+				SECTION("Timer storage")
+				{
+					FMockEventLoopTimerHandle Handle = TimerManager.SetTimer(MoveTemp(TimerFunc1), FTimespan::FromSeconds(1));
+					REQUIRE(Handle.IsValid());
+
+					// Tick to add the timer.
+					TimerManager.Tick(FTimespan::Zero());
+					CHECK(TimerRunCount1 == 0);
+					CHECK(TimerManager.GetNumTimers() == 1);
+
+					// Tick to fire the timer.
+					TimerRunCount1 = 0;
+					TimerManager.Tick(FTimespan::FromSeconds(10));
+					CHECK(TimerRunCount1 == 1);
+					CHECK(TimerManager.GetNumTimers() == 0);
+				}
 			}
 
 			SECTION("Repeating")
@@ -414,6 +431,50 @@ namespace UE::EventLoop
 
 					// Check that timer is pending reschedule.
 					CHECK(TimerManager.HasPendingRepeatTimer());
+				}
+
+				SECTION("Timer storage")
+				{
+					FMockEventLoopTimerHandle Handle = TimerManager.SetTimer(MoveTemp(TimerFunc1), FTimespan::FromSeconds(1), true);
+					REQUIRE(Handle.IsValid());
+
+					// Tick to add the timer.
+					TimerRunCount1 = 0;
+					TimerManager.Tick(FTimespan::Zero());
+					CHECK(TimerRunCount1 == 0);
+					CHECK(TimerManager.GetNumTimers() == 1);
+
+					// Tick to fire the timer.
+					TimerRunCount1 = 0;
+					TimerManager.Tick(FTimespan::FromSeconds(2));
+					CHECK(TimerRunCount1 == 1);
+					CHECK(TimerManager.GetNumTimers() == 1);
+
+					SECTION("Remove before reschedule")
+					{
+						// Tick to clear the timer.
+						TimerRunCount1 = 0;
+						TimerManager.ClearTimer(Handle);
+						TimerManager.Tick(FTimespan::FromSeconds(2));
+						CHECK(TimerRunCount1 == 0);
+						CHECK(TimerManager.GetNumTimers() == 0);
+					}
+
+					SECTION("Remove after reschedule")
+					{
+						// Tick to reschedule the timer.
+						TimerRunCount1 = 0;
+						TimerManager.Tick(FTimespan::Zero());
+						CHECK(TimerRunCount1 == 0);
+						CHECK(TimerManager.GetNumTimers() == 1);
+
+						// Tick to clear the timer.
+						TimerRunCount1 = 0;
+						TimerManager.ClearTimer(Handle);
+						TimerManager.Tick(FTimespan::FromSeconds(2));
+						CHECK(TimerRunCount1 == 0);
+						CHECK(TimerManager.GetNumTimers() == 0);
+					}
 				}
 			}
 

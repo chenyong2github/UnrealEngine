@@ -322,6 +322,18 @@ public:
 		RemoveRequests.Enqueue({Handle, MoveTemp(OnRemoveComplete)});
 	}
 
+	/**
+	 * Removes a resource directly using its internal handle.
+	 * 
+	 * NOT thread safe.
+	 *
+	 * @param Handle The handle for the resource to be removed.
+	 */
+	void Remove(const FInternalHandle Handle)
+	{
+		RemoveImpl(Handle.GetExternalHandle(), nullptr);
+	}
+
 public:
 	/*
 	 * STORAGE ACCESS
