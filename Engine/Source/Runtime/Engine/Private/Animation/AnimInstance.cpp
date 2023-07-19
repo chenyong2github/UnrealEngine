@@ -3385,26 +3385,31 @@ UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByGroup(FName InGroup) c
 		{
 			const FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
 
-			UClass* ClassForGroups;
+			TArray<UClass*, TInlineAllocator<4>> ClassesForGroups;
+			if (UAnimInstance* LayerInstance = Layer->GetTargetInstance<UAnimInstance>())
+			{
+				ClassesForGroups.Add(LayerInstance->GetClass());
+			}
 			if (UClass* InstanceClass = Layer->InstanceClass.Get())
 			{
-				ClassForGroups = InstanceClass;
+				ClassesForGroups.Add(InstanceClass);
 			}
-			else if(UClass* InterfaceClass = Layer->Interface.Get())
+			if(UClass* InterfaceClass = Layer->Interface.Get())
 			{
-				ClassForGroups = InterfaceClass;
-			}
-			else
-			{
-				ClassForGroups = GetClass();
+				ClassesForGroups.Add(InterfaceClass);
 			}
 
-			IAnimClassInterface* AnimClassInterfaceForGroups = IAnimClassInterface::GetFromClass(ClassForGroups);
-			if(const FAnimBlueprintFunction* FoundFunction = IAnimClassInterface::FindAnimBlueprintFunction(AnimClassInterfaceForGroups, Layer->Layer))
+			ClassesForGroups.Add(GetClass());
+
+			for(UClass* ClassForGroups : ClassesForGroups)
 			{
-				if(InGroup == FoundFunction->Group)
+				IAnimClassInterface* AnimClassInterfaceForGroups = IAnimClassInterface::GetFromClass(ClassForGroups);
+				if(const FAnimBlueprintFunction* FoundFunction = IAnimClassInterface::FindAnimBlueprintFunction(AnimClassInterfaceForGroups, Layer->Layer))
 				{
-					return Layer->GetTargetInstance<UAnimInstance>();
+					if(InGroup == FoundFunction->Group)
+					{
+						return Layer->GetTargetInstance<UAnimInstance>();
+					}
 				}
 			}
 		}
@@ -3421,23 +3426,32 @@ void UAnimInstance::GetLinkedAnimLayerInstancesByGroup(FName InGroup, TArray<UAn
 		{
 			const FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
 
-			UClass* ClassForGroups;
+			TArray<UClass*, TInlineAllocator<4>> ClassesForGroups;
+			if (UAnimInstance* LayerInstance = Layer->GetTargetInstance<UAnimInstance>())
+			{
+				ClassesForGroups.Add(LayerInstance->GetClass());
+			}
+			if (UClass* InstanceClass = Layer->InstanceClass.Get())
+			{
+				ClassesForGroups.Add(InstanceClass);
+			}
 			if (UClass* InterfaceClass = Layer->Interface.Get())
 			{
-				ClassForGroups = InterfaceClass;
-			}
-			else
-			{
-				ClassForGroups = GetClass();
+				ClassesForGroups.Add(InterfaceClass);
 			}
 
-			IAnimClassInterface* AnimClassInterfaceForGroups = IAnimClassInterface::GetFromClass(ClassForGroups);
-			if (const FAnimBlueprintFunction* FoundFunction = IAnimClassInterface::FindAnimBlueprintFunction(AnimClassInterfaceForGroups, Layer->Layer))
+			ClassesForGroups.Add(GetClass());
+
+			for (UClass* ClassForGroups : ClassesForGroups)
 			{
-				UAnimInstance* TargetInstance = Layer->GetTargetInstance<UAnimInstance>();
-				if (InGroup == FoundFunction->Group && !OutLinkedInstances.Contains(TargetInstance))
+				IAnimClassInterface* AnimClassInterfaceForGroups = IAnimClassInterface::GetFromClass(ClassForGroups);
+				if (const FAnimBlueprintFunction* FoundFunction = IAnimClassInterface::FindAnimBlueprintFunction(AnimClassInterfaceForGroups, Layer->Layer))
 				{
-					OutLinkedInstances.Add(TargetInstance);
+					UAnimInstance* TargetInstance = Layer->GetTargetInstance<UAnimInstance>();
+					if (InGroup == FoundFunction->Group && !OutLinkedInstances.Contains(TargetInstance))
+					{
+						OutLinkedInstances.Add(TargetInstance);
+					}
 				}
 			}
 		}
