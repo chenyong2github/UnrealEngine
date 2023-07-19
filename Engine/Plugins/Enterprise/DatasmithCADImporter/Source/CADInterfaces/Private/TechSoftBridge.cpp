@@ -215,18 +215,19 @@ UE::CADKernel::FBody* FTechSoftBridge::GetBody(A3DRiBrepModel* A3DBRepModel)
 	return nullptr;
 }
 
-UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FString, FString> MetaData, const double InBodyScale)
+UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, FArchiveCADObject& ArchiveBody)
 {
 #ifdef CADKERNEL_DEV
 	UE::CADKernel::FCADFileReport::Get().BodyCount++;
 #endif
 
 	//UE::CADKernel working unit is mm
-	BodyScale = InBodyScale * 10.;
+	BodyScale = ArchiveBody.Unit * 10.;
 
 	FArchiveCADObject BRepMetaData;
 	Parser.ExtractMetaData(A3DBRepModel, BRepMetaData);
-	FString* Name = MetaData.Find(TEXT("Name"));
+
+	FString* Name = ArchiveBody.MetaData.Find(TEXT("Name"));
 	if (Name != nullptr)
 	{
 		BRepMetaData.MetaData.FindOrAdd(TEXT("Name")) = *Name;
@@ -239,6 +240,8 @@ UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMa
 
 	TSharedRef<UE::CADKernel::FBody> Body = UE::CADKernel::FEntity::MakeShared<UE::CADKernel::FBody>();
 	AddMetadata(BRepMetaData, *Body);
+
+	Body->SetDisplayData(ArchiveBody.ColorUId, ArchiveBody.MaterialUId);
 
 	TUniqueTSObj<A3DRiBrepModelData> BRepModelData(A3DBRepModel);
 	if (BRepModelData.IsValid())
@@ -325,6 +328,8 @@ void FTechSoftBridge::TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<UE:
 #ifdef CADKERNEL_DEV
 	UE::CADKernel::FCADFileReport::Get().ShellCount++;
 #endif
+
+	Shell->SetDisplayData(*Body);
 	AddMetadata(MetaData, *Shell);
 
 	TUniqueTSObj<A3DTopoShellData> ShellData(A3DShell);
@@ -932,6 +937,8 @@ void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, UE::CADKernel::EOrient
 	}
 
 	AddMetadata(MetaData, *Face);
+	Face->SetDisplayDataIfUndefined(*Shell);
+
 	Face->SetHostId(ShellIndex);
 	Shell->Add(Face, Orientation);
 }
@@ -1415,8 +1422,7 @@ void FTechSoftBridge::AddMetadata(FArchiveCADObject& MetaData, UE::CADKernel::FT
 	{
 		Entity.SetName(*Name);
 	}
-	Entity.SetColorId(MetaData.ColorUId);
-	Entity.SetMaterialId(MetaData.MaterialUId);
+	Entity.SetDisplayData(MetaData.ColorUId, MetaData.MaterialUId);
 }
 
 }

@@ -111,8 +111,8 @@ bool FillMesh(FMeshConversionContext& Context, UE::CADKernel::FModelMesh& ModelM
 	for (const FFaceMesh* FaceMesh : ModelMesh.GetFaceMeshes())
 	{
 		const FTopologicalFace& Face = (const FTopologicalFace&) FaceMesh->GetGeometricEntity();
-		// we assume that face has only color
-		MaterialToPolygonGroupMapping.Add(Face.GetColorId(), INDEX_NONE);
+		uint32 MaterialId = Face.GetMaterialId() ? Face.GetMaterialId() : Face.GetColorId();
+		MaterialToPolygonGroupMapping.Add(MaterialId, INDEX_NONE);
 	}
 
 	// Add to the mesh, a polygon groups per material

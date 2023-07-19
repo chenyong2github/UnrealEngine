@@ -183,7 +183,7 @@ private:
 
 public:
 	FTechSoftBridge(FTechSoftFileParser& InParser, UE::CADKernel::FSession& InSession);
-	UE::CADKernel::FBody* AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FString, FString> MetaData, const double InBodyScale);
+	UE::CADKernel::FBody* AddBody(A3DRiBrepModel* A3DBRepModel, FArchiveCADObject& ArchiveBody);
 	UE::CADKernel::FBody* GetBody(A3DRiBrepModel* A3DBRepModel);
 	const A3DRiBrepModel* GetA3DBody(UE::CADKernel::FBody* BRepModel);
 

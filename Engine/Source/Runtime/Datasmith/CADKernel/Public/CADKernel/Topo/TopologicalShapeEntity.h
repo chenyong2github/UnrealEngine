@@ -136,6 +136,35 @@ public:
 		return Dictionary.GetMaterialId();
 	}
 
+	void SetDisplayData(const uint32& InColorId, const uint32& InMaterialId)
+	{
+		if (InColorId)
+		{
+			Dictionary.SetColorId(InColorId);
+		}
+		if(InMaterialId)
+		{
+			Dictionary.SetMaterialId(InMaterialId);
+		}
+	}
+
+	void SetDisplayData(const FTopologicalShapeEntity& DisplayData)
+	{
+		SetDisplayData(DisplayData.GetColorId(), DisplayData.GetMaterialId());
+	}
+
+	void SetDisplayDataIfUndefined(const FTopologicalShapeEntity& DefaultDisplayData)
+	{
+		if (Dictionary.GetColorId() == 0 && DefaultDisplayData.GetColorId())
+		{
+			Dictionary.SetColorId(DefaultDisplayData.GetColorId());
+		}
+		if (Dictionary.GetMaterialId() == 0 && DefaultDisplayData.GetMaterialId())
+		{
+			Dictionary.SetMaterialId(DefaultDisplayData.GetMaterialId());
+		}
+	}
+
 	void SetPatchId(int32 InPatchId)
 	{
 		Dictionary.SetPatchId(InPatchId);

@@ -111,7 +111,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 		}
 		FArchiveBody& Body = SceneGraph.GetBody(*BodyIndex);
 
-		FBody* CADKernelBody = TechSoftBridge.AddBody(Representation, Body.MetaData, Body.Unit);
+		FBody* CADKernelBody = TechSoftBridge.AddBody(Representation, Body);
 		if (CADKernelBody == nullptr)
 		{
 			const EFailureReason FailureReason = TechSoftBridge.GetFailureReason();
@@ -252,7 +252,7 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 
 	FTechSoftBridge TechSoftBridge(*this, CADKernelSession);
 
-	FBody* CADKernelBody = TechSoftBridge.AddBody(Representation, ArchiveBody.MetaData, ArchiveBody.Unit);
+	FBody* CADKernelBody = TechSoftBridge.AddBody(Representation, ArchiveBody);
 	if (CADKernelBody == nullptr)
 	{
 		ArchiveBody.Delete();
@@ -263,6 +263,8 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 		}
 		return;
 	}
+
+	CADKernelBody->SetDisplayData(ArchiveBody.ColorUId, ArchiveBody.MaterialUId);
 
 	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingHeal)
 	{
@@ -282,8 +284,6 @@ void FTechSoftFileParserCADKernelTessellator::MeshAndGetTessellation(UE::CADKern
 	using namespace UE::CADKernel;
 
 	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(ArchiveBody.Id, ArchiveBody);
-	ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
-	ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
 
 	// Save Body in CADKernelArchive file for re-tessellation
 	if (CADFileData.IsCacheDefined())
