@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 
 namespace EpicGames.Core
 {
@@ -113,6 +114,20 @@ namespace EpicGames.Core
 				}
 
 				return new DirectoryReference(FullName.Substring(0, parentLength), Sanitize.None);
+			}
+		}
+
+		/// <summary>
+		/// Add a directory to the PATH environment variable
+		/// </summary>
+		/// <param name="path">The path to add</param>
+		public static void AddDirectoryToPath(DirectoryReference path)
+		{
+			string pathEnvironmentVariable = Environment.GetEnvironmentVariable("PATH") ?? "";
+			if (!pathEnvironmentVariable.Split(Path.PathSeparator).Any(x => String.Equals(x, path.FullName, StringComparison.Ordinal)))
+			{
+				pathEnvironmentVariable = $"{path.FullName}{Path.PathSeparator}{pathEnvironmentVariable}";
+				Environment.SetEnvironmentVariable("PATH", pathEnvironmentVariable);
 			}
 		}
 

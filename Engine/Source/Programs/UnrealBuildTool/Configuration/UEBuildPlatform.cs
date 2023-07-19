@@ -765,19 +765,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns the delimiter used to separate paths in the PATH environment variable for the platform we are executing on.
 		/// </summary>
-		public static String GetPathVarDelimiter()
+		[Obsolete("Replace with System.IO.Path.PathSeparator")]
+		public static string GetPathVarDelimiter()
 		{
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.LinuxArm64 ||
-				BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
-			{
-				return ":";
-			}
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
-			{
-				return ";";
-			}
-
-			throw new InvalidOperationException($"PATH variable delimiter unknown for platform {BuildHostPlatform.Current.Platform}");
+			return Path.PathSeparator.ToString();
 		}
 
 		/// <summary>

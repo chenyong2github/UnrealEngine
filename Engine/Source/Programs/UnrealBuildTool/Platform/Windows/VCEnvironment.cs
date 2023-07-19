@@ -153,12 +153,12 @@ namespace UnrealBuildTool
 			Environment.SetEnvironmentVariable("VC_COMPILER_PATH", CompilerPath.FullName, EnvironmentVariableTarget.Process);
 			Environment.SetEnvironmentVariable("VC_COMPILER_DIR", CompilerPath.Directory.FullName, EnvironmentVariableTarget.Process);
 
-			AddDirectoryToPath(GetVCToolPath(ToolChainDir, Architecture));
+			DirectoryReference.AddDirectoryToPath(GetVCToolPath(ToolChainDir, Architecture));
 			if (Architecture == UnrealArch.Arm64)
 			{
 				// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
 				// needs to run (eg. mspdbcore.dll).
-				AddDirectoryToPath(GetVCToolPath(ToolChainDir, UnrealArch.X64));
+				DirectoryReference.AddDirectoryToPath(GetVCToolPath(ToolChainDir, UnrealArch.X64));
 			}
 
 			// Add the Windows SDK directory to the path too, for mt.exe.
@@ -170,22 +170,8 @@ namespace UnrealBuildTool
 					Debug.Assert(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64);
 					BuildHostArch = "x64";
 				}
-				AddDirectoryToPath(DirectoryReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), BuildHostArch));
+				DirectoryReference.AddDirectoryToPath(DirectoryReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), BuildHostArch));
 
-			}
-		}
-
-		/// <summary>
-		/// Add a directory to the PATH environment variable
-		/// </summary>
-		/// <param name="ToolPath">The path to add</param>
-		static void AddDirectoryToPath(DirectoryReference ToolPath)
-		{
-			string PathEnvironmentVariable = Environment.GetEnvironmentVariable("PATH") ?? "";
-			if (!PathEnvironmentVariable.Split(';').Any(x => String.Compare(x, ToolPath.FullName, true) == 0))
-			{
-				PathEnvironmentVariable = ToolPath.FullName + ";" + PathEnvironmentVariable;
-				Environment.SetEnvironmentVariable("PATH", PathEnvironmentVariable);
 			}
 		}
 
