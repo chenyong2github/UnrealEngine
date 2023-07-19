@@ -454,8 +454,7 @@ bool ULevelSequenceEditorSubsystem::PasteBindings(const FString& InTextToImport,
 	}
 
 	TArray<FNotificationInfo> PasteErrors;
-	TArray<FMovieSceneBindingProxy> OutBindings;
-	if (!FSequencerUtilities::PasteBindings(TextToImport, Sequencer.ToSharedRef(), PasteBindingsParams, OutBindings, PasteErrors))
+	if (!FSequencerUtilities::PasteBindings(TextToImport, Sequencer.ToSharedRef(), PasteBindingsParams, OutObjectBindings, PasteErrors))
 	{
 		for (FNotificationInfo PasteError : PasteErrors)
 		{
