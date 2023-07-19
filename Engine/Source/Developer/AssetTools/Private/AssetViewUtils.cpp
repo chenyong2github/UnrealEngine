@@ -1763,23 +1763,40 @@ bool AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 		const TArray<FString> PackageFilenames = SourceControlHelpers::PackageFilenames(PackageNamesToSync);
 
 		// Form a list of loaded packages to reload...
+		TArray<UObject*> LoadedObjects;
 		TArray<UPackage*> LoadedPackages;
+		TArray<UPackage*> PendingPackages;
+		LoadedObjects.Reserve(PackageNamesToSync.Num());
 		LoadedPackages.Reserve(PackageNamesToSync.Num());
+		PendingPackages.Reserve(PackageNamesToSync.Num());
 		for (const FString& PackageName : PackageNamesToSync)
 		{
 			UPackage* Package = FindPackage(nullptr, *PackageName);
 			if (Package)
 			{
+				LoadedObjects.Emplace(Package);
 				LoadedPackages.Emplace(Package);
 
-				// Detach the linkers of any loaded packages so that SCC can overwrite the files...
 				if (!Package->IsFullyLoaded())
 				{
-					FlushAsyncLoading();
-					Package->FullyLoad();
+					PendingPackages.Emplace(Package);
 				}
-				ResetLoaders(Package);
 			}
+		}
+
+		// Detach the linkers of any loaded packages so that SCC can overwrite the files...
+		if (PendingPackages.Num() > 0)
+		{
+			FlushAsyncLoading();
+
+			for (UPackage* Package : PendingPackages)
+			{
+				Package->FullyLoad();
+			}
+		}
+		if (LoadedObjects.Num() > 0)
+		{
+			ResetLoaders(LoadedObjects);
 		}
 
 		// Sync everything...
@@ -1933,23 +1950,40 @@ static bool SyncPathsFromSourceControl(const TArray<FString>& Paths, bool bCheck
 		}
 
 		// Form a list of loaded packages to reload...
+		TArray<UObject*> LoadedObjects;
 		TArray<UPackage*> LoadedPackages;
+		TArray<UPackage*> PendingPackages;
+		LoadedObjects.Reserve(PackageNamesToSync.Num());
 		LoadedPackages.Reserve(PackageNamesToSync.Num());
+		PendingPackages.Reserve(PackageNamesToSync.Num());
 		for (const FString& PackageName : PackageNamesToSync)
 		{
 			UPackage* Package = FindPackage(nullptr, *PackageName);
 			if (Package)
 			{
+				LoadedObjects.Emplace(Package);
 				LoadedPackages.Emplace(Package);
 
-				// Detach the linkers of any loaded packages so that SCC can overwrite the files...
 				if (!Package->IsFullyLoaded())
 				{
-					FlushAsyncLoading();
-					Package->FullyLoad();
+					PendingPackages.Emplace(Package);
 				}
-				ResetLoaders(Package);
 			}
+		}
+
+		// Detach the linkers of any loaded packages so that SCC can overwrite the files...
+		if (PendingPackages.Num() > 0)
+		{
+			FlushAsyncLoading();
+
+			for (UPackage* Package : PendingPackages)
+			{
+				Package->FullyLoad();
+			}
+		}
+		if (LoadedObjects.Num() > 0)
+		{
+			ResetLoaders(LoadedObjects);
 		}
 
 		// Group everything...
