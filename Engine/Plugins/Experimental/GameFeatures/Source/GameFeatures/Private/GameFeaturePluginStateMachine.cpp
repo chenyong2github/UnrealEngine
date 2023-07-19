@@ -2213,10 +2213,21 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 			return nullptr;
 		};
 
-		StateProperties.GameFeatureData = LoadGameFeatureData(PreferredGameFeatureDataPath);
-		if (!StateProperties.GameFeatureData)
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName);
+		ensure(Plugin.IsValid());
+		
+		// If the plugin contains content then load the GameFeatureData otherwise procedurally create one that is transient.
+		if (Plugin->GetDescriptor().bCanContainContent)
 		{
-			StateProperties.GameFeatureData = LoadGameFeatureData(BackupGameFeatureDataPath);
+			StateProperties.GameFeatureData = LoadGameFeatureData(PreferredGameFeatureDataPath);
+			if (!StateProperties.GameFeatureData)
+			{
+				StateProperties.GameFeatureData = LoadGameFeatureData(BackupGameFeatureDataPath);
+			}
+		}
+		else
+		{
+			StateProperties.GameFeatureData = NewObject<UGameFeatureData>(GetTransientPackage(), FName(*StateProperties.PluginName), RF_Transient);
 		}
 
 		if (StateProperties.GameFeatureData)
