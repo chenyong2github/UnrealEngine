@@ -1100,10 +1100,10 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 }
 #endif
 
-void FNiagaraRendererRibbons::GenerateShapeStateMultiPlane(FNiagaraRibbonShapeGeometryData& State, int32 MultiPlaneCount, int32 WidthSegmentationCount, bool bEnableAccurateGeometry)
+void FNiagaraRendererRibbons::GenerateShapeStateMultiPlane(FNiagaraRibbonShapeGeometryData& State, int32 MultiPlaneCount, int32 WidthSegmentationCount, bool bEnableAccurateGeometry, bool bUseMaterialBackfaceCulling)
 {
 	State.Shape = ENiagaraRibbonShapeMode::MultiPlane;
-	State.bDisableBackfaceCulling = !bEnableAccurateGeometry;
+	State.bDisableBackfaceCulling = !bEnableAccurateGeometry && !bUseMaterialBackfaceCulling;
 	State.bShouldFlipNormalToView = !bEnableAccurateGeometry;
 	State.TrianglesPerSegment = 2 * MultiPlaneCount * WidthSegmentationCount * (bEnableAccurateGeometry? 2 : 1);
 	State.NumVerticesInSlice = MultiPlaneCount * (WidthSegmentationCount + 1) * (bEnableAccurateGeometry ? 2 : 1);
@@ -1166,10 +1166,10 @@ void FNiagaraRendererRibbons::GenerateShapeStateMultiPlane(FNiagaraRibbonShapeGe
 	}
 }
 
-void FNiagaraRendererRibbons::GenerateShapeStateTube(FNiagaraRibbonShapeGeometryData& State, int32 TubeSubdivisions)
+void FNiagaraRendererRibbons::GenerateShapeStateTube(FNiagaraRibbonShapeGeometryData& State, int32 TubeSubdivisions, bool bUseMaterialBackfaceCulling)
 {
 	State.Shape = ENiagaraRibbonShapeMode::Tube;
-	State.bDisableBackfaceCulling = true;
+	State.bDisableBackfaceCulling = !bUseMaterialBackfaceCulling;
 	State.bShouldFlipNormalToView = false;
 	State.TrianglesPerSegment = 2 * TubeSubdivisions;
 	State.NumVerticesInSlice = TubeSubdivisions + 1;
@@ -1195,10 +1195,10 @@ void FNiagaraRendererRibbons::GenerateShapeStateTube(FNiagaraRibbonShapeGeometry
 	}
 }
 
-void FNiagaraRendererRibbons::GenerateShapeStateCustom(FNiagaraRibbonShapeGeometryData& State, const TArray<FNiagaraRibbonShapeCustomVertex>& CustomVertices)
+void FNiagaraRendererRibbons::GenerateShapeStateCustom(FNiagaraRibbonShapeGeometryData& State, const TArray<FNiagaraRibbonShapeCustomVertex>& CustomVertices, bool bUseMaterialBackfaceCulling)
 {
 	State.Shape = ENiagaraRibbonShapeMode::Custom;
-	State.bDisableBackfaceCulling = true;
+	State.bDisableBackfaceCulling = !bUseMaterialBackfaceCulling;
 	State.bShouldFlipNormalToView = false;
 	State.TrianglesPerSegment = 2 * CustomVertices.Num();
 	State.NumVerticesInSlice = CustomVertices.Num() + 1;
@@ -1234,10 +1234,10 @@ void FNiagaraRendererRibbons::GenerateShapeStateCustom(FNiagaraRibbonShapeGeomet
 	}
 }
 
-void FNiagaraRendererRibbons::GenerateShapeStatePlane(FNiagaraRibbonShapeGeometryData& State, int32 WidthSegmentationCount)
+void FNiagaraRendererRibbons::GenerateShapeStatePlane(FNiagaraRibbonShapeGeometryData& State, int32 WidthSegmentationCount, bool bUseMaterialBackfaceCulling)
 {
 	State.Shape = ENiagaraRibbonShapeMode::Plane;
-	State.bDisableBackfaceCulling = true;
+	State.bDisableBackfaceCulling = !bUseMaterialBackfaceCulling;
 	State.bShouldFlipNormalToView = false;
 	State.TrianglesPerSegment = 2 * WidthSegmentationCount;
 	State.NumVerticesInSlice = WidthSegmentationCount + 1;
@@ -1266,19 +1266,19 @@ void FNiagaraRendererRibbons::InitializeShape(const UNiagaraRibbonRendererProper
 {
 	if (Properties->Shape == ENiagaraRibbonShapeMode::Custom && Properties->CustomVertices.Num() > 2)
 	{
-		GenerateShapeStateCustom(ShapeState, Properties->CustomVertices);
+		GenerateShapeStateCustom(ShapeState, Properties->CustomVertices, Properties->bUseMaterialBackfaceCulling);
 	}
 	else if (Properties->Shape == ENiagaraRibbonShapeMode::Tube && Properties->TubeSubdivisions > 2 && Properties->TubeSubdivisions <= 16)
 	{
-		GenerateShapeStateTube(ShapeState, Properties->TubeSubdivisions);
+		GenerateShapeStateTube(ShapeState, Properties->TubeSubdivisions, Properties->bUseMaterialBackfaceCulling);
 	}
 	else if (Properties->Shape == ENiagaraRibbonShapeMode::MultiPlane && Properties->MultiPlaneCount > 1 && Properties->MultiPlaneCount <= 16)
 	{
-		GenerateShapeStateMultiPlane(ShapeState, Properties->MultiPlaneCount, Properties->WidthSegmentationCount, Properties->bEnableAccurateGeometry);
+		GenerateShapeStateMultiPlane(ShapeState, Properties->MultiPlaneCount, Properties->WidthSegmentationCount, Properties->bEnableAccurateGeometry, Properties->bUseMaterialBackfaceCulling);
 	}
 	else
 	{
-		GenerateShapeStatePlane(ShapeState, Properties->WidthSegmentationCount);
+		GenerateShapeStatePlane(ShapeState, Properties->WidthSegmentationCount, Properties->bUseMaterialBackfaceCulling);
 	}	
 }
 

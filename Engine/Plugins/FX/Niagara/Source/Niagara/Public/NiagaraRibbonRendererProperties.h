@@ -305,6 +305,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape != ENiagaraRibbonShapeMode::Plane", EditConditionHides))
 	uint8 bEnableAccurateGeometry : 1;
 
+	/** When enabled the ribbons renderer will not override how backface culling works depending on shape type, but instad use the material culling mode */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape")
+	uint8 bUseMaterialBackfaceCulling : 1;
+
 	/**
 	*	Whether we use the CPU or GPU to generate ribbon geometry for CPU systems.
 	*	GPU systems will always use a fully GPU initialization pipeline,
