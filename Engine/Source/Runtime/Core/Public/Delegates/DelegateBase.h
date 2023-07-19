@@ -112,6 +112,9 @@ private:
 	template <bool, class, ESPMode, typename, typename, typename...>
 	friend class TBaseSPMethodDelegateInstance;
 
+	template <typename, ESPMode, typename, typename, typename, typename...>
+	friend class TBaseSPLambdaDelegateInstance;
+
 	template <bool, class, typename, typename, typename...>
 	friend class TBaseRawMethodDelegateInstance;
 

@@ -217,6 +217,12 @@ struct FNullConsoleVariableDelegate
 	}
 
 	template<typename UserClass, typename FunctorType, typename... VarTypes>
+	inline static DerivedType CreateSPLambda(UserClass*, FunctorType&&, VarTypes...)
+	{
+		return {};
+	}
+
+	template<typename UserClass, typename FunctorType, typename... VarTypes>
 	inline static DerivedType CreateWeakLambda(UserClass*, FunctorType&&, VarTypes...)
 	{
 		return {};

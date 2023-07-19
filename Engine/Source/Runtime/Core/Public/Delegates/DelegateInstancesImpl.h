@@ -313,6 +313,106 @@ protected:
 };
 
 
+template <typename UserClass, ESPMode SPMode, typename RetValType, typename... ParamTypes, typename UserPolicy, typename FunctorType, typename... VarTypes>
+	class TBaseSPLambdaDelegateInstance<UserClass, SPMode, RetValType(ParamTypes...), UserPolicy, FunctorType, VarTypes...> : public TCommonDelegateInstanceState<RetValType(ParamTypes...), UserPolicy, VarTypes...>
+{
+private:
+	static_assert(std::is_same_v<FunctorType, typename TRemoveReference<FunctorType>::Type>, "FunctorType cannot be a reference");
+
+	using Super = TCommonDelegateInstanceState<RetValType(ParamTypes...), UserPolicy, VarTypes...>;
+	using DelegateBaseType = typename UserPolicy::FDelegateExtras;
+
+public:
+	template <typename InFunctorType, typename... InVarTypes>
+	explicit TBaseSPLambdaDelegateInstance(const TSharedPtr<UserClass, SPMode>& InContextObject, InFunctorType&& InFunctor, InVarTypes&&... Vars)
+		: Super(Forward<InVarTypes>(Vars)...)
+		, ContextObject(InContextObject)
+		, Functor(Forward<InFunctorType>(InFunctor))
+	{
+	}
+
+	// IDelegateInstance interface
+
+#if USE_DELEGATE_TRYGETBOUNDFUNCTIONNAME
+
+	FName TryGetBoundFunctionName() const final
+	{
+		return NAME_None;
+	}
+
+#endif
+
+	UObject* GetUObject() const final
+	{
+		return nullptr;
+	}
+
+	const void* GetObjectForTimerManager() const final
+	{
+		return ContextObject.Pin().Get();
+	}
+
+	uint64 GetBoundProgramCounterForTimerManager() const final
+	{
+		return 0;
+	}
+
+	// Deprecated
+	bool HasSameObject(const void* InContextObject) const final
+	{
+		return ContextObject.Pin().Get() == InContextObject;
+	}
+
+	bool IsSafeToExecute() const final
+	{
+		return ContextObject.IsValid();
+	}
+
+public:
+
+public:
+	// IBaseDelegateInstance interface
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseSPLambdaDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseSPLambdaDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseSPLambdaDelegateInstance>(*this);
+	}
+
+	RetValType Execute(ParamTypes... Params) const final
+	{
+		return this->Payload.ApplyAfter(Functor, Forward<ParamTypes>(Params)...);
+	}
+
+	bool ExecuteIfSafe(ParamTypes... Params) const final
+	{
+		if (ContextObject.IsValid())
+		{
+			(void)this->Payload.ApplyAfter(Functor, Forward<ParamTypes>(Params)...);
+			return true;
+		}
+
+		return false;
+	}
+
+private:
+
+	// Weak reference to an instance of the user's class that controls the validity of the lambda.
+	TWeakPtr<UserClass, SPMode> ContextObject;
+
+	// We make this mutable to allow mutable lambdas to be bound and executed.
+	mutable std::remove_const_t<FunctorType> Functor;
+};
+
+
 template <bool bConst, class UserClass, typename RetValType, typename... ParamTypes, typename UserPolicy, typename... VarTypes>
 class TBaseRawMethodDelegateInstance<bConst, UserClass, RetValType(ParamTypes...), UserPolicy, VarTypes...> : public TCommonDelegateInstanceState<RetValType(ParamTypes...), UserPolicy, VarTypes...>
 {
