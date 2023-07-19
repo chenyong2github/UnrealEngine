@@ -1326,6 +1326,8 @@ void UClothingAssetCommon::PostLoad()
 		ClothingCachedDataFlags |= EClothingCachedDataFlagsCommon::Tethers;
 
 		// ReferenceBoneIndex is only required when rebinding the cloth.
+		USkeletalMesh* const OwnerMesh = CastChecked<USkeletalMesh>(GetOuter());
+		RefreshBoneMapping(OwnerMesh);
 		CalculateReferenceBoneIndex();
 	}
 
