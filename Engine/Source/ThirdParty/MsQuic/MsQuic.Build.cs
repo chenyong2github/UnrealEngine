@@ -72,6 +72,7 @@ public class MsQuic : ModuleRules
 				PublicAdditionalLibraries.Add(MsQuicLibrary);
                 PublicDelayLoadDLLs.Add(MsQuicLibrary);
 				RuntimeDependencies.Add(MsQuicLibrary);
+				RuntimeDependencies.Add(Path.Combine(LibraryPath, "libmsquic.so.2"));
 			}
             else if (Target.Platform == UnrealTargetPlatform.Mac)
             {
