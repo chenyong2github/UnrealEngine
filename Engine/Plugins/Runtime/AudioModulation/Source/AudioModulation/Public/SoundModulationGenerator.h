@@ -86,7 +86,7 @@ public:
 	}
 
 	/* USoundModulatorBase Implementation */
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const override;
 
 #if WITH_EDITOR

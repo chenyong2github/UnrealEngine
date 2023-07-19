@@ -46,10 +46,10 @@ void USoundModulationGenerator::PostEditChangeProperty(FPropertyChangedEvent& In
 }
 #endif // WITH_EDITOR
 
-TUniquePtr<Audio::IProxyData> USoundModulationGenerator::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> USoundModulationGenerator::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	using namespace AudioModulation;
-	return MakeUnique<FSoundModulatorAssetProxy>(*this);
+	return MakeShared<FSoundModulatorAssetProxy>(*this);
 }
 
 TUniquePtr<Audio::IModulatorSettings> USoundModulationGenerator::CreateProxySettings() const
