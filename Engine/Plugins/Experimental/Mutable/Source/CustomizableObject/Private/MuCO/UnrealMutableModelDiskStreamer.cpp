@@ -67,9 +67,15 @@ bool FUnrealMutableModelBulkReader::PrepareStreamingForObject(UCustomizableObjec
 		if (!Objects[ObjectIndex].Model.Pin())
 		{
 			// The CustomizableObject is gone, so we won't be streaming for it anymore.
-			for (TPair<OPERATION_ID, FReadRequest>& it : Objects[ObjectIndex].CurrentReadRequests)
+			for (TPair<OPERATION_ID, IAsyncReadRequest*>& it : Objects[ObjectIndex].CurrentReadRequests)
 			{
-				it.Value.ReadRequest->WaitCompletion();
+				it.Value->WaitCompletion();
+				delete it.Value;
+			}
+
+			for (IAsyncReadFileHandle* ReadFileHandle : Objects[ObjectIndex].ReadFileHandles)
+			{
+				delete ReadFileHandle;
 			}
 
 			Objects.RemoveAtSwap(ObjectIndex);
@@ -96,7 +102,7 @@ bool FUnrealMutableModelBulkReader::PrepareStreamingForObject(UCustomizableObjec
 		FString FolderPath = CustomizableObject->GetCompiledDataFolderPath(true);
 		FString FullFileName = FolderPath + CustomizableObject->GetCompiledDataFileName(false, nullptr, true);
 
-		const TSharedPtr<IAsyncReadFileHandle> ReadFileHandle = MakeShareable(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FullFileName));
+		IAsyncReadFileHandle* ReadFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FullFileName);
 		if (!ReadFileHandle)
 		{
 			UE_LOG(LogMutable, Warning, TEXT("Streaming: Customizable Object %s is missing the Editor BulkData."), *CustomizableObject->GetName());
@@ -158,9 +164,15 @@ void FUnrealMutableModelBulkReader::CancelStreamingForObject(const UCustomizable
 	{
 		if (Objects[ObjectIndex].Model.Pin() == CustomizableObject->GetModel())
 		{
-			for (TPair<OPERATION_ID, FReadRequest>& it : Objects[ObjectIndex].CurrentReadRequests)
+			for (TPair<OPERATION_ID, IAsyncReadRequest*>& it : Objects[ObjectIndex].CurrentReadRequests)
 			{
-				it.Value.ReadRequest->WaitCompletion();
+				it.Value->WaitCompletion();
+				delete it.Value;
+			}
+
+			for (IAsyncReadFileHandle* ReadFileHandle : Objects[ObjectIndex].ReadFileHandles)
+			{
+				delete ReadFileHandle;
 			}
 
 			Objects.RemoveAtSwap(ObjectIndex);
@@ -202,9 +214,15 @@ void FUnrealMutableModelBulkReader::EndStreaming()
 {
 	for (FObjectData& o : Objects)
 	{
-		for (TPair<OPERATION_ID, FReadRequest>& it : o.CurrentReadRequests)
+		for (TPair<OPERATION_ID, IAsyncReadRequest*>& it : o.CurrentReadRequests)
 		{
-			it.Value.ReadRequest->WaitCompletion();
+			it.Value->WaitCompletion();
+			delete it.Value;
+		}
+
+		for (IAsyncReadFileHandle* ReadFileHandle : o.ReadFileHandles)
+		{
+			delete ReadFileHandle;
 		}
 	}
 	Objects.Empty();
@@ -218,11 +236,11 @@ FAutoConsoleVariableRef CVarStreamPriority(
 	TEXT(""));
 
 
-mu::ModelReader::OPERATION_ID FUnrealMutableModelBulkReader::BeginReadBlock(const mu::Model* Model, uint64 Key, void* pBuffer, uint64 size, TFunction<void(bool bSuccess)>* CompletionCallback)
+mu::ModelReader::OPERATION_ID FUnrealMutableModelBulkReader::BeginReadBlock(const mu::Model* Model, uint64 Key, void* pBuffer, uint64 size)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableModelBulkStreamer::OpenReadFile);
 
-	UE_LOG(LogMutable, VeryVerbose, TEXT("Streaming: reading data %08llu."), Key);
+	UE_LOG(LogMutable, VeryVerbose, TEXT("Streaming: reading data %08lx."), Key);
 
 	// Find the object we are streaming for
 	FObjectData* ObjectData = Objects.FindByPredicate(
@@ -233,55 +251,34 @@ mu::ModelReader::OPERATION_ID FUnrealMutableModelBulkReader::BeginReadBlock(cons
 		// The object has been unloaded. Streaming is not possible. 
 		// This may happen in the editor if we are recompiling an object but we still have instances from the old
 		// object that have progressive mip generation.
-		if (CompletionCallback)
-		{
-			(*CompletionCallback)(false);    		
-		}
 		return -1;
 	}
 
+	mu::ModelReader::OPERATION_ID Result = 0;
+
+	check(!ObjectData->ReadFileHandles.IsEmpty());
+
 	// this generally cannot fail because it is async
-	if (!ObjectData->StreamableBlocks.Contains(Key))
+	if (ObjectData->StreamableBlocks.Contains(Key))
+	{
+		Result = ++LastOperationID;
+
+		const FMutableStreamableBlock& Block = ObjectData->StreamableBlocks[Key];
+
+		int32 BulkDataOffsetInFile = 0;
+#if WITH_EDITOR
+		BulkDataOffsetInFile = sizeof(MutableCompiledDataStreamHeader);
+#endif
+
+		IAsyncReadRequest* ReadRequest = ObjectData->ReadFileHandles[Block.FileIndex]->ReadRequest(BulkDataOffsetInFile + Block.Offset, size, (EAsyncIOPriorityAndFlags)StreamPriority, nullptr, reinterpret_cast<uint8*>(pBuffer));
+		ObjectData->CurrentReadRequests.Add(Result, ReadRequest);
+	}
+	else
 	{
 		// File Handle not found! This shouldn't really happen.
 		UE_LOG(LogMutable, Error, TEXT("Streaming Block not found!"));
 		check(false);
-
-		if (CompletionCallback)
-		{
-			(*CompletionCallback)(false);    		
-		}
-		return -1;
 	}
-
-	OPERATION_ID Result = ++LastOperationID;
-
-	const FMutableStreamableBlock& Block = ObjectData->StreamableBlocks[Key];
-
-	int32 BulkDataOffsetInFile = 0;
-#if WITH_EDITOR
-	BulkDataOffsetInFile = sizeof(MutableCompiledDataStreamHeader);
-#endif
-
-	FReadRequest ReadRequest;
-
-	if (CompletionCallback)
-	{
-		ReadRequest.FileCallback = MakeShared<TFunction<void(bool, IAsyncReadRequest*)>>([CompletionCallbackCapture = *CompletionCallback](bool bWasCancelled, IAsyncReadRequest*) -> void
-		{
-			CompletionCallbackCapture(!bWasCancelled);			
-		});		
-	}
-	
-	check(!ObjectData->ReadFileHandles.IsEmpty());
-	ReadRequest.ReadRequest = MakeShareable(ObjectData->ReadFileHandles[Block.FileIndex]->ReadRequest(
-		BulkDataOffsetInFile + Block.Offset,
-		size,
-		(EAsyncIOPriorityAndFlags)StreamPriority,
-		ReadRequest.FileCallback.Get(),
-		reinterpret_cast<uint8*>(pBuffer)));
-
-	ObjectData->CurrentReadRequests.Add(Result, ReadRequest);
 
 	INC_DWORD_STAT(STAT_MutableStreamingOps);
 
@@ -295,9 +292,9 @@ bool FUnrealMutableModelBulkReader::IsReadCompleted(mu::ModelReader::OPERATION_I
 
 	for (FObjectData& o : Objects)
 	{
-		if (FReadRequest* ReadRequest = o.CurrentReadRequests.Find(OperationId))
+		if (IAsyncReadRequest** ReadRequest = o.CurrentReadRequests.Find(OperationId))
 		{
-			return ReadRequest->ReadRequest->PollCompletion();
+			return (*ReadRequest)->PollCompletion();
 		}
 	}
 
@@ -314,17 +311,19 @@ void FUnrealMutableModelBulkReader::EndRead(mu::ModelReader::OPERATION_ID Operat
 	bool bFound = false;
 	for (FObjectData& o : Objects)
 	{
-		FReadRequest* ReadRequest = o.CurrentReadRequests.Find(OperationId);
+		IAsyncReadRequest** ReadRequest = o.CurrentReadRequests.Find(OperationId);
 		if (ReadRequest)
 		{
-			if (ReadRequest->ReadRequest)
+			if (*ReadRequest)
 			{
-				bool bCompleted = ReadRequest->ReadRequest->WaitCompletion();
+				bool bCompleted = (*ReadRequest)->WaitCompletion();
 				if (!bCompleted)
 				{
 					UE_LOG(LogMutable, Error, TEXT("Operation failed to complete in EndRead."));
 					check(false);
 				}
+
+				delete* ReadRequest;
 			}
 			o.CurrentReadRequests.Remove(OperationId);
 			bFound = true;

@@ -57,24 +57,18 @@ public:
 	void EndStreaming();
 
 	// mu::ModelReader interface
-	OPERATION_ID BeginReadBlock(const mu::Model*, uint64 key0, void* pBuffer, uint64 size, TFunction<void(bool bSuccess)>* CompletionCallback) override;
+	OPERATION_ID BeginReadBlock(const mu::Model*, uint64 key0, void* pBuffer, uint64 size) override;
 	bool IsReadCompleted(OPERATION_ID) override;
 	void EndRead(OPERATION_ID) override;
 
 protected:
 
-	struct FReadRequest
-	{
-		TSharedPtr<IAsyncReadRequest> ReadRequest = nullptr;
-		TSharedPtr<FAsyncFileCallBack> FileCallback;
-	};
-	
 	/** Streaming data for one object. */
 	struct FObjectData
 	{
 		TWeakPtr<const mu::Model> Model;
-		TArray<TSharedPtr<IAsyncReadFileHandle>> ReadFileHandles;
-		TMap<OPERATION_ID, FReadRequest> CurrentReadRequests;
+		TArray<IAsyncReadFileHandle*> ReadFileHandles;
+		TMap<OPERATION_ID, IAsyncReadRequest*> CurrentReadRequests;
 		TMap<uint64, FMutableStreamableBlock> StreamableBlocks;
 	};
 

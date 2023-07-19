@@ -1834,14 +1834,14 @@ void UCustomizableObjectBulk::PostLoad()
 }
 
 
-TArray<TSharedPtr<IAsyncReadFileHandle>> UCustomizableObjectBulk::GetAsyncReadFileHandles() const
+TArray<IAsyncReadFileHandle*> UCustomizableObjectBulk::GetAsyncReadFileHandles() const
 {
-	TArray<TSharedPtr<IAsyncReadFileHandle>> ReadFileHandles;
+	TArray<IAsyncReadFileHandle*> ReadFileHandles;
 	ReadFileHandles.Reserve(BulkDataFileNames.Num());
 
 	for (const FString& FilePath : BulkDataFileNames)
 	{
-		TSharedPtr<IAsyncReadFileHandle> ReadFileHandle = MakeShareable(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FilePath));
+		IAsyncReadFileHandle* ReadFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FilePath);
 		
 		if (!ReadFileHandle)
 		{
@@ -1854,6 +1854,11 @@ TArray<TSharedPtr<IAsyncReadFileHandle>> UCustomizableObjectBulk::GetAsyncReadFi
 
 	if (ReadFileHandles.Num() != BulkDataFileNames.Num())
 	{
+		for (IAsyncReadFileHandle* ReadFileHandle : ReadFileHandles)
+		{
+			delete ReadFileHandle;
+		}
+
 		ReadFileHandles.Empty();
 	}
 

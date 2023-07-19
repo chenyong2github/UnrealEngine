@@ -1045,7 +1045,7 @@ public:
 
 	/** Creates and returns an array with IAsyncReadFileHandles for each BulkData file.
 	 * Used by Mutable to stream in resources when generating instances. Must be deleted by the caller. */
-	TArray<TSharedPtr<IAsyncReadFileHandle>> GetAsyncReadFileHandles() const;
+	TArray<IAsyncReadFileHandle*> GetAsyncReadFileHandles() const;
 
 #if WITH_EDITOR
 
