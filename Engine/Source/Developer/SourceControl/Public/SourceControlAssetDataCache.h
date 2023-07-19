@@ -103,12 +103,16 @@ private:
 	/** Wait for the currently running tasks to finish and clears all queues. */
 	void ClearPendingTasks();
 
+	/** Clears the asset data associated with it */
+	void ClearAssetData(const FString& Filename);
+
 private:
 	FAssetDataCache										AssetDataCache;
 	TArray<FString>										FileHistoryToUpdate;
 	TQueue<FSourceControlStatePtr, EQueueMode::Spsc>	AssetDataToFetch;
 	TQueue<FAssetDataToLoad, EQueueMode::Mpsc>			AssetDataToLoad;
 	FDelegateHandle										ProviderChangedDelegateHandle;
+	FDelegateHandle										ActorLabelChangedDelegateHandle;
 	std::atomic<uint32>									CurrentAsyncTask = 0;
 	bool												bIsSourceControlDialogShown;
 };

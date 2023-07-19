@@ -5,11 +5,16 @@
 #include "Async/Async.h"
 #include "AssetRegistry/AssetData.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/CoreDelegates.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlState.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
+
+#if WITH_EDITOR
+#include "GameFramework/Actor.h"
+#endif
 
 static TAutoConsoleVariable<int32> CVarSourceControlAssetDataCacheMaxAsyncTask(
 	TEXT("SourceControlAssetDataCache.MaxAsyncTask"),
@@ -26,11 +31,29 @@ void FSourceControlAssetDataCache::Startup()
 		ISourceControlModule::Get().GetAssetDataCache().OnSourceControlProviderChanged(OldProvider, NewProvider);
 	}));
 
+#if WITH_EDITOR
+	ActorLabelChangedDelegateHandle = FCoreDelegates::OnActorLabelChanged.AddLambda([](AActor* ChangedActor)
+	{
+		if (ensure(ChangedActor))
+		{
+			if (UPackage* Package = ChangedActor->GetPackage())
+			{
+				FString Filename = USourceControlHelpers::PackageFilename(Package);
+				ISourceControlModule::Get().GetAssetDataCache().ClearAssetData(Filename);
+			}
+		}
+	});
+#endif
+
 	bIsSourceControlDialogShown = false;
 }
 
 void FSourceControlAssetDataCache::Shutdown()
 {
+#if WITH_EDITOR
+	FCoreDelegates::OnActorLabelChanged.Remove(ActorLabelChangedDelegateHandle);
+#endif
+
 	ISourceControlModule& SCCModule = ISourceControlModule::Get();
 	SCCModule.UnregisterProviderChanged(ProviderChangedDelegateHandle);
 
@@ -175,6 +198,17 @@ void FSourceControlAssetDataCache::OnUpdateHistoryComplete(const TArray<FString>
 			{
 				AssetDataEntry->bInitialized = true;
 			}
+		}
+	}
+}
+
+void FSourceControlAssetDataCache::ClearAssetData(const FString& Filename)
+{
+	if (FSourceControlAssetDataEntry* AssetDataEntry = AssetDataCache.Find(Filename))
+	{
+		if (AssetDataEntry->bInitialized)
+		{
+			AssetDataCache.Remove(Filename);
 		}
 	}
 }
