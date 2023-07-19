@@ -145,7 +145,7 @@ FPrimitiveViewRelevance FHeterogeneousVolumeSceneProxy::GetViewRelevance(const F
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
 	}
 
-	Result.bDrawRelevance = IsShown(View);
+	Result.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.HeterogeneousVolumes;
 	Result.bOpaque = false;
 	Result.bStaticRelevance = false;
 	Result.bDynamicRelevance = true;
@@ -194,6 +194,18 @@ void FHeterogeneousVolumeSceneProxy::GetDynamicMeshElements(
 		Mesh.bUseWireframeSelectionColoring = IsSelected();
 
 		Collector.AddMesh(0, Mesh);
+	}
+
+	// Draw bounds 
+	if (ViewFamily.EngineShowFlags.HeterogeneousVolumes)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			if (VisibilityMap & (1 << ViewIndex))
+			{
+				RenderBounds(Collector.GetPDI(ViewIndex), ViewFamily.EngineShowFlags, GetBounds(), IsSelected());
+			}
+		}
 	}
 }
 
@@ -353,13 +365,15 @@ AHeterogeneousVolume::AHeterogeneousVolume(const FObjectInitializer& ObjectIniti
 			}
 		};
 		static FConstructorStatics ConstructorStatics;
-
 		if (GetSpriteComponent())
 		{
 			GetSpriteComponent()->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
+			GetSpriteComponent()->bHiddenInGame = true;
+			GetSpriteComponent()->bIsScreenSizeScaled = true;
 			GetSpriteComponent()->SpriteInfo.Category = ConstructorStatics.ID_HeterogeneousVolume;
 			GetSpriteComponent()->SpriteInfo.DisplayName = ConstructorStatics.NAME_HeterogeneousVolume;
 			GetSpriteComponent()->SetupAttachment(HeterogeneousVolumeComponent);
+			GetSpriteComponent()->bReceivesDecals = false;
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
