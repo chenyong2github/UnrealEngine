@@ -1193,37 +1193,45 @@ void FClothConstraints::Update(
 	Softs::FSolverReal MeshScale,
 	Softs::FSolverReal MaxDistancesScale)
 {
+	if (EdgeConstraints)
+	{
+		EdgeConstraints->SetProperties(ConfigProperties, WeightMaps);
+	}
 	if (XEdgeConstraints)
 	{
 		XEdgeConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
-	else if (EdgeConstraints)
+	if (XStretchBiasConstraints)
 	{
-		EdgeConstraints->SetProperties(ConfigProperties, WeightMaps);
+		XStretchBiasConstraints->SetProperties(ConfigProperties, WeightMaps);
+	}
+	if (BendingConstraints)
+	{
+		BendingConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (XBendingConstraints)
 	{
 		XBendingConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
-	else if (BendingConstraints)
+	if (BendingElementConstraints)
 	{
-		BendingConstraints->SetProperties(ConfigProperties, WeightMaps);
+		BendingElementConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (XBendingElementConstraints)
 	{
 		XBendingElementConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
-	else if (BendingElementConstraints)
+	if (XAnisoBendingElementConstraints)
 	{
-		BendingElementConstraints->SetProperties(ConfigProperties, WeightMaps);
+		XAnisoBendingElementConstraints->SetProperties(ConfigProperties, WeightMaps);
+	}
+	if (AreaConstraints)
+	{
+		AreaConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (XAreaConstraints)
 	{
 		XAreaConstraints->SetProperties(ConfigProperties, WeightMaps);
-	}
-	else if (AreaConstraints)
-	{
-		AreaConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (LongRangeConstraints)
 	{
@@ -1233,6 +1241,10 @@ void FClothConstraints::Update(
 	{
 		MaximumDistanceConstraints->SetProperties(ConfigProperties, WeightMaps, MeshScale * MaxDistancesScale);
 	}
+	if (BackstopConstraints)
+	{
+		BackstopConstraints->SetProperties(ConfigProperties, WeightMaps, MeshScale);
+	}
 	if (AnimDriveConstraints)
 	{
 		AnimDriveConstraints->SetProperties(ConfigProperties, WeightMaps);
@@ -1240,10 +1252,6 @@ void FClothConstraints::Update(
 	if (SelfCollisionConstraints)
 	{
 		SelfCollisionConstraints->SetProperties(ConfigProperties);
-	}
-	if (BackstopConstraints)
-	{
-		BackstopConstraints->SetProperties(ConfigProperties, WeightMaps, MeshScale);
 	}
 }
 

@@ -17,6 +17,8 @@ FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::FChaosClothAssetSimulation
 	RegisterInputConnection(&XPBDAnisoBendingStiffnessBias.WeightMap);
 	RegisterInputConnection(&XPBDAnisoBendingDamping.WeightMap);
 	RegisterInputConnection(&XPBDAnisoBucklingStiffnessWarp.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBucklingStiffnessWeft.WeightMap);
+	RegisterInputConnection(&XPBDAnisoBucklingStiffnessBias.WeightMap);
 }
 
 void FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::AddProperties(Dataflow::FContext& Context, ::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
@@ -53,4 +55,6 @@ void FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::AddProperties(Dataflo
 		XPBDAnisoBucklingStiffnessWarp,
 		BucklingStiffness,       // Existing properties to warn against
 		XPBDBucklingStiffness);  //
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTED(XPBDAnisoBucklingStiffnessWeft);
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTED(XPBDAnisoBucklingStiffnessBias);
 }
