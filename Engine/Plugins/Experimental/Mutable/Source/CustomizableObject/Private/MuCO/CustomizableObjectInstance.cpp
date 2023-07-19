@@ -547,24 +547,6 @@ void UCustomizableInstancePrivateData::InstanceUpdateFlags(const UCustomizableOb
 }
 
 
-mu::ParametersPtr UCustomizableInstancePrivateData::GetParameters(UCustomizableObjectInstance* Public) 
-{
-	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
-	if (!CustomizableObject)
-	{
-		// May happen when deleting assets in editor, while they are still open.
-		return nullptr;
-	}
-
-	if (!CustomizableObject->IsCompiled())
-	{	
-		return nullptr;
-	}
-		
-	return Public->GetDescriptor().GetParameters();
-}
-
-
 void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInstance* Public, bool bInvalidatePreviousData)
 {
 	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
@@ -869,32 +851,35 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 	check(IsInGameThread());
 	check(!OptionalUpdateRequired || *OptionalUpdateRequired != EUpdateRequired::NoUpdate); // If no update is required this functions must not be called.
 
-	if (!CanUpdateInstance())
-	{
-		return;
-	}
-
 	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 
+	const mu::ParametersPtr Parameters = Descriptor.GetParameters();
+	
+	// Cache Texture Parameters being used during the update:
+	System->GetPrivate()->GetImageProviderChecked()->CacheImages(*Parameters);
+
+	if (!CanUpdateInstance())
+	{
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback, Parameters);
+		return;
+	}
+	
 	const EUpdateRequired UpdateRequired = OptionalUpdateRequired ? *OptionalUpdateRequired : IsUpdateRequired(bIsCloseDistTick, bOnlyUpdateIfNotGenerated, bIgnoreCloseDist);
 	switch (UpdateRequired)
 	{
 	case EUpdateRequired::NoUpdate:
 	{	
-		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback, Parameters);
 		break;
 	}		
 	case EUpdateRequired::Update:
 	{
 		EQueuePriorityType Priority = GetUpdatePriority(bIsCloseDistTick, bOnlyUpdateIfNotGenerated, bIgnoreCloseDist, bForceHighPriority);
-		const bool bShouldUpdateLODs = GetPrivate()->HasCOInstanceFlags(PendingLODsUpdate);
 
-		{
-			const uint32 InstanceId = GetUniqueID();
-			const float Distance = FMath::Sqrt(GetPrivate()->LastMinSquareDistFromComponentToPlayer);
-			const bool bIsPlayerOrNearIt = GetPrivate()->HasCOInstanceFlags(UsedByPlayerOrNearIt);
-			UE_LOG(LogMutable, Verbose, TEXT("Started UpdateSkeletalMesh Async. of Instance %d with priority %d at dist %f bIsPlayerOrNearIt=%d, frame=%d"), InstanceId, static_cast<int32>(Priority), Distance, bIsPlayerOrNearIt, GFrameNumber);				
-		}
+		const uint32 InstanceId = GetUniqueID();
+		const float Distance = FMath::Sqrt(GetPrivate()->LastMinSquareDistFromComponentToPlayer);
+		const bool bIsPlayerOrNearIt = GetPrivate()->HasCOInstanceFlags(UsedByPlayerOrNearIt);
+		UE_LOG(LogMutable, Verbose, TEXT("Started UpdateSkeletalMesh Async. of Instance %d with priority %d at dist %f bIsPlayerOrNearIt=%d, frame=%d"), InstanceId, static_cast<int32>(Priority), Distance, bIsPlayerOrNearIt, GFrameNumber);				
 
 		UpdateDescriptorRuntimeHash = FDescriptorRuntimeHash(Descriptor);
 
@@ -907,8 +892,8 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 			}
 		}
 #endif
-		
-		if (bShouldUpdateLODs)
+
+		if (GetPrivate()->HasCOInstanceFlags(PendingLODsUpdate))
 		{
 			UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), GetCurrentMinLOD(), GetCurrentMaxLOD(), GetMinLODToLoad(), GetMinLODToLoad());
 		}
@@ -924,7 +909,7 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 	{
 		System->GetPrivate()->InitDiscardResourcesSkeletalMesh(this);
 		
-		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback, Parameters);
 		break;
 	}
 
@@ -934,7 +919,7 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 }
 
 
-void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public, const bool bOnlyUpdatePrioForUpdates, FMutableInstanceUpdateMap& InOutRequestedUpdates)
+void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public, FMutableInstanceUpdateMap& InOutRequestedUpdates)
 {
 	if (!Public.CanUpdateInstance())
 	{
@@ -944,7 +929,7 @@ void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects(UCusto
 	const EUpdateRequired UpdateRequired = Public.IsUpdateRequired(true, true, false);
 	if (UpdateRequired != EUpdateRequired::NoUpdate) // Since this is done in the tick, avoid starting an update that we know for sure that would not be performed. Once started it has some performance implications that we want to avoid.
 	{
-		if (!bOnlyUpdatePrioForUpdates || UpdateRequired == EUpdateRequired::Discard)
+		if (UpdateRequired == EUpdateRequired::Discard)
 		{
 			Public.DoUpdateSkeletalMesh(true, true, false, false, &UpdateRequired, nullptr);
 			InOutRequestedUpdates.Remove(&Public);

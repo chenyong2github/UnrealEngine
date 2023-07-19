@@ -570,7 +570,8 @@ void FUnrealMutableImageProvider::UnCacheImage(const FExternalImageID& Id, bool 
 		}
 		else
 		{
-			--Result->ReferencesSystem;							
+			--Result->ReferencesSystem;
+			check(Result->ReferencesSystem >= 0); // Something went wrong. The image has been uncached more times than it has been cached.
 		}
 		
 		if (Result->ReferencesUser + Result->ReferencesSystem == 0)

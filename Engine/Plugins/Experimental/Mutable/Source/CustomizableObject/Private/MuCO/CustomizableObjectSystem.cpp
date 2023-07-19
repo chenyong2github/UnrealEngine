@@ -133,7 +133,7 @@ void FMutablePendingInstanceWork::AddUpdate(const FMutablePendingInstanceUpdate&
 		FMutablePendingInstanceUpdate TaskToEnqueue = UpdateToAdd;
 
 		FInstanceUpdateDelegate* Callback = ExistingUpdate->Callback;
-		FinishUpdateGlobal(ExistingUpdate->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, Callback, &ExistingUpdate->InstanceDescriptor);
+		FinishUpdateGlobal(ExistingUpdate->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, Callback,ExistingUpdate->CustomizableObjectInstance.Get()->GetDescriptor().GetParameters());
 
 		TaskToEnqueue.PriorityType = FMath::Min(ExistingUpdate->PriorityType, UpdateToAdd.PriorityType);
 		TaskToEnqueue.SecondsAtUpdate = FMath::Min(ExistingUpdate->SecondsAtUpdate, UpdateToAdd.SecondsAtUpdate);
@@ -148,7 +148,7 @@ void FMutablePendingInstanceWork::AddUpdate(const FMutablePendingInstanceUpdate&
 
 	if (FMutablePendingInstanceDiscard* ExistingDiscard = PendingInstanceDiscards.Find(UpdateToAdd.CustomizableObjectInstance))
 	{
-		FinishUpdateGlobal(ExistingDiscard->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, nullptr, nullptr);
+		FinishUpdateGlobal(ExistingDiscard->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, nullptr, ExistingDiscard->CustomizableObjectInstance.Get()->GetDescriptor().GetParameters());
 
 		PendingInstanceDiscards.Remove(ExistingDiscard->CustomizableObjectInstance);
 	}
@@ -171,7 +171,7 @@ void FMutablePendingInstanceWork::AddDiscard(const FMutablePendingInstanceDiscar
 {
 	if (FMutablePendingInstanceUpdate* ExistingUpdate = PendingInstanceUpdates.Find(TaskToEnqueue.CustomizableObjectInstance.Get()))
 	{
-		FinishUpdateGlobal(ExistingUpdate->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, ExistingUpdate->Callback, &ExistingUpdate->InstanceDescriptor);
+		FinishUpdateGlobal(ExistingUpdate->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, ExistingUpdate->Callback, ExistingUpdate->CustomizableObjectInstance.Get()->GetDescriptor().GetParameters());
 		PendingInstanceUpdates.Remove(ExistingUpdate->CustomizableObjectInstance);
 	}
 
@@ -783,13 +783,6 @@ void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult Upd
 }
 
 
-void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FCustomizableObjectInstanceDescriptor* InstanceDescriptor, const FDescriptorRuntimeHash InUpdatedHash)
-{
-	FinishUpdateGlobal(Instance, UpdateResult, UpdateCallback, InstanceDescriptor ? InstanceDescriptor->GetParameters() : nullptr, 
-		InUpdatedHash);
-}
-
-
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
 void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, mu::ParametersPtrConst Parameters = nullptr)
 {
@@ -886,15 +879,16 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	{
 		if (UpdateDescriptorHash.IsSubset(FDescriptorRuntimeHash(QueueElem->InstanceDescriptor)))
 		{
-			FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback);			
+			FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback, Instance.GetDescriptor().GetParameters());			
 			return; // The the requested update is equal to the last enqueued update.
 		}
-	}
+	}	
 
 	if (CurrentMutableOperation &&
+		&Instance == CurrentMutableOperation->CustomizableObjectInstance &&
 		UpdateDescriptorHash.IsSubset(CurrentMutableOperation->InstanceDescriptorRuntimeHash))
 	{
-		FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback);			
+		FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback, Instance.GetDescriptor().GetParameters());			
 		return; // The requested update is equal to the running update.
 	}
 	
@@ -910,9 +904,6 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	else
 	{	
 		Instance.SkeletalMeshStatus = ESkeletalMeshState::AsyncUpdatePending;
-
-		// Cache Texture Parameters being used during the update:
-		GetImageProviderChecked()->CacheImages(*Instance.GetPrivate()->GetParameters(&Instance));
 
 		if (!bIsCloseDistTick) // When called from bIsCloseDistTick, the update operation is directly processed without going to a queue first
 		{
@@ -2112,23 +2103,32 @@ namespace impl
 
 		// Cache Texture Parameters
 		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
+
+		// Cache new Texture Parameters
+		for (const FCustomizableObjectTextureParameterValue& TextureParameters : ObjectInstance->GetDescriptor().GetTextureParameters())
+		{
+			ImageProvider->CacheImage(TextureParameters.ParameterValue, false);				
+		
+			for (const FString& TextureParameter: TextureParameters.ParameterRangeValues)
+			{
+				ImageProvider->CacheImage(TextureParameter, false);
+			}
+		}
 		
 		// Uncache old Texture Parameters
 		for (const FString& TextureParameter : ObjectInstancePrivateData->UpdateTextureParameters)
 		{
 			ImageProvider->UnCacheImage(TextureParameter, false);
 		}
-		ObjectInstancePrivateData->UpdateTextureParameters.Reset();
 
-		// Cache new Texture Parameters and update which ones are currently are being used
+		// Update which ones are currently are being used
+		ObjectInstancePrivateData->UpdateTextureParameters.Reset();
 		for (const FCustomizableObjectTextureParameterValue& TextureParameters : ObjectInstance->GetDescriptor().GetTextureParameters())
 		{
-			ImageProvider->CacheImage(TextureParameters.ParameterValue, false);				
 			ObjectInstancePrivateData->UpdateTextureParameters.Add(TextureParameters.ParameterValue);
 		
 			for (const FString& TextureParameter: TextureParameters.ParameterRangeValues)
 			{
-				ImageProvider->CacheImage(TextureParameter, false);
 				ObjectInstancePrivateData->UpdateTextureParameters.Add(TextureParameter);
 			}
 		}
@@ -2572,7 +2572,7 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 
 				if (ObjectInstancePrivateData->HasCOInstanceFlags(UsedByComponentInPlay))
 				{
-					ObjectInstancePrivateData->TickUpdateCloseCustomizableObjects(**CustomizableObjectInstance, true, RequestedLODUpdates);
+					ObjectInstancePrivateData->TickUpdateCloseCustomizableObjects(**CustomizableObjectInstance, RequestedLODUpdates);
 				}
 				else if (ObjectInstancePrivateData->HasCOInstanceFlags(UsedByComponent))
 				{
@@ -2701,9 +2701,9 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 				// previous if statements
 
 				// LOD updates are detected automatically and have never had a DoUpdateSkeletalMesh, so call it without enqueing a new update
-				UCustomizableInstancePrivateData* ObjectInstancePrivateData = LODUpdateCandidateFound->CustomizableObjectInstance->GetPrivate();
-				ObjectInstancePrivateData->TickUpdateCloseCustomizableObjects(*LODUpdateCandidateFound->CustomizableObjectInstance, false, RequestedLODUpdates);
-
+				const EUpdateRequired Required = EUpdateRequired::Update;
+				LODUpdateCandidateFound->CustomizableObjectInstance->DoUpdateSkeletalMesh(true, false, false, false, &Required, nullptr);
+				
 				bool bNeverStream = false;
 				int32 MipsToSkip = 0;
 
@@ -2921,7 +2921,7 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.InstanceDescriptorRuntimeHash = InCustomizableObjectInstance->GetUpdateDescriptorRuntimeHash();
 	Op.bStarted = false;
 	Op.bBuildParameterRelevancy = InCustomizableObjectInstance->GetBuildParameterRelevancy();
-	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->GetParameters(InCustomizableObjectInstance);
+	Op.Parameters = InCustomizableObjectInstance->GetDescriptor().GetParameters();
 
 	if (UpdateCallback)
 	{
