@@ -477,6 +477,7 @@ private:
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
 	XrInstanceProperties    InstanceProperties;
+	XrSystemHandTrackingPropertiesEXT SystemHandTrackingProperties;
 	XrSystemProperties      SystemProperties;
 
 	FPipelinedFrameState	PipelinedFrameStateGame;
