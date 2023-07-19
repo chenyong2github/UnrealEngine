@@ -23,6 +23,12 @@ template <bool bConst, class UserClass, ESPMode SPMode, typename FuncType, typen
 class TBaseSPMethodDelegateInstance;
 
 /**
+ * Implements a delegate binding for shared pointer functors, e.g. lambdas.
+ */
+template <typename UserClass, ESPMode SPMode, typename FuncType, typename UserPolicy, typename FunctorType, typename... VarTypes>
+class TBaseSPLambdaDelegateInstance;
+
+/**
  * Implements a delegate binding for C++ member functions.
  */
 template <bool bConst, class UserClass, typename FuncType, typename UserPolicy, typename... VarTypes>
