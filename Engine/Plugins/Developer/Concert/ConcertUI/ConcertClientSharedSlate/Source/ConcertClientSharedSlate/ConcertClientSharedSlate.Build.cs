@@ -18,6 +18,8 @@ namespace UnrealBuildTool.Rules
 					"ConcertSyncClient",
 				}
 			);
+
+			ShortName = "ConClShrSlt";
 		}
 	}
 }

@@ -30,5 +30,7 @@ public class RemoteControlProtocolMIDIEditor : ModuleRules
 				"SlateCore",
 			}
 		);
+
+		ShortName = "RCPMidiEd";
 	}
 }

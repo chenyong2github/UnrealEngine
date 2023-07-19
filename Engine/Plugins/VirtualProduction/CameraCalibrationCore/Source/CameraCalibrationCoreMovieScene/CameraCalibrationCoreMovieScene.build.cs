@@ -36,5 +36,7 @@ public class CameraCalibrationCoreMovieScene : ModuleRules
  				"MovieScene",
 			}
 		);
+
+		ShortName = "CamCalCMovSC";
 	}
 }

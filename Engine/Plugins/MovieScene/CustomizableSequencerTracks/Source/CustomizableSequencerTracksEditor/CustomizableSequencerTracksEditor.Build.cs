@@ -23,5 +23,7 @@ public class CustomizableSequencerTracksEditor : ModuleRules
 				"UnrealEd",
 			}
 		);
+
+		ShortName = "CustomSeqTrEd";
 	}
 }

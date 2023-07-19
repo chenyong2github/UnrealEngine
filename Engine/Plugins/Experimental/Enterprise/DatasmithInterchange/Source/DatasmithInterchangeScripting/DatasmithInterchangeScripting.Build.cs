@@ -29,6 +29,8 @@ namespace UnrealBuildTool.Rules
 					"InterchangeCore",
 				}
 			);
+
+			ShortName = "DSInterScript";
 		}
 	}
 }

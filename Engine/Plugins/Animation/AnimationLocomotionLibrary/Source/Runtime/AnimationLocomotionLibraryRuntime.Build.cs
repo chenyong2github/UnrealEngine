@@ -20,6 +20,8 @@ namespace UnrealBuildTool.Rules
 			new string[]
 			{
             });
+
+			ShortName = "AnimLLRun";
 		}
 	}
 }

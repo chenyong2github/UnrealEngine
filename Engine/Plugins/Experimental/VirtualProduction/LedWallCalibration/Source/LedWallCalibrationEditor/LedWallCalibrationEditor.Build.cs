@@ -33,5 +33,7 @@ public class LedWallCalibrationEditor : ModuleRules
 				"UnrealEd",
 			}
 		);
+
+		ShortName = "LedWCalEd";
 	}
 }

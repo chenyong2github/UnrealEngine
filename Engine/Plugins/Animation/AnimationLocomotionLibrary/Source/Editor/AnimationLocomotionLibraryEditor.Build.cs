@@ -26,6 +26,8 @@ namespace UnrealBuildTool.Rules
 			new string[]
 			{
 			});
+
+			ShortName = "AnimLLEd";
 		}
 	}
 }
