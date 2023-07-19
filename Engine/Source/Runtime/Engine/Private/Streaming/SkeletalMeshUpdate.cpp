@@ -153,15 +153,6 @@ void FSkeletalMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 		{
 			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 
-#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
-			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.StaticVertexBuffers.StaticMeshVertexBuffer;
-			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData())
-			{
-				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
-				Breadcrumb->SetDebugData(Mesh->GetPathName(), LODIndex, TangentTexCoordBuffers.GetNumVertices(), false);
-				*(uint32*)3 = 0xed000001;
-			}
-#endif
 			if (bRenderThread)
 			{
 				IntermediateBuffersArray[LODIndex].CreateFromCPUData_RenderThread(LODResource);
@@ -541,15 +532,32 @@ void FSkeletalMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 			constexpr uint8 DummyStripFlags = 0;
 			LODResource.SerializeStreamedData(Ar, const_cast<USkeletalMesh*>(Mesh), LODIndex + Context.AssetLODBias, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
 
-#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
-			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.StaticVertexBuffers.StaticMeshVertexBuffer;
-			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData())
+			// Attempt to recover from possibly corrupted data
+			if (Ar.IsError())
 			{
-				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
-				Breadcrumb->SetDebugData(Mesh->GetPathName(), LODIndex, TangentTexCoordBuffers.GetNumVertices(), Ar.GetError());
-				*(uint32*)3 = 0xed000001;
-			}
+				UE_LOG(LogContentStreaming, Error,
+					TEXT("[%s] SkeletalMesh stream in failed due to possibly corrupted data. LOD %d %d-%d. BulkData %#x offset %lld size %lld flags %#x. bForceKeepCPUResources %d. bNeedsCPUAccess %d."),
+					*Mesh->GetPathName(),
+					LODIndex,
+					PendingFirstLODIdx,
+					CurrentFirstLODIdx - 1,
+					LODResource.StreamingBulkData.GetIoFilenameHash(),
+					LODResource.StreamingBulkData.GetBulkDataOffsetInFile(),
+					LODResource.StreamingBulkData.GetBulkDataSize(),
+					LODResource.StreamingBulkData.GetBulkDataFlags(),
+					bForceKeepCPUResources,
+					bNeedsCPUAccess);
+
+#if STREAMING_RETRY_ON_DESERIALIZATION_ERROR
+				bFailedOnIOError = true;
+				MarkAsCancelled();
+				break;
+#else
+				GLog->FlushThreadedLogs();
+				GLog->Flush();
+				UE_LOG(LogContentStreaming, Fatal, TEXT("Possibly corrupted skeletal mesh LOD data detected."));
 #endif
+			}
 		}
 
 		BulkData = FIoBuffer();

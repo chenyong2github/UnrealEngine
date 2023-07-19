@@ -505,14 +505,6 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 		}
 	}
 
-	bHasRayTracingGeometry = false;
-	bHasWireframeIndices = false;
-	bHasDepthOnlyIndices = false;
-	bHasReversedIndices = false;
-	bHasReversedDepthOnlyIndices = false;
-	bHasColorVertexData = false;
-	DepthOnlyNumTriangles = 0;
-
 	FStripDataFlags StripFlags(Ar, InStripFlags);
 
 	VertexBuffers.PositionVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
@@ -576,7 +568,6 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 	{
 		SerializedAdditionalIndexBuffers->WireframeIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
 		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->WireframeIndexBuffer, OutBuffersSize.SerializedBuffersSize);
-		bHasWireframeIndices = AdditionalIndexBuffers && SerializedAdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() != 0;
 	}
 
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemovingTessellation && !StripFlags.IsClassDataStripped(CDSF_AdjacencyData_DEPRECATED))
@@ -594,15 +585,7 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 			// Immediately release serialized offline BLAS data if it won't be used anyway due to rendering settings.
 			RayTracingGeometry.RawData.Discard();
 		}
-		bHasRayTracingGeometry = RayTracingGeometry.RawData.Num() != 0;
 	}
-
-	// Needs to be done now because on cooked platform, indices are discarded after RHIInit.
-	bHasDepthOnlyIndices = DepthOnlyIndexBuffer.GetNumIndices() != 0;
-	bHasReversedIndices = AdditionalIndexBuffers && bSerializeReversedIndexBuffer && SerializedAdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices() != 0;
-	bHasReversedDepthOnlyIndices = AdditionalIndexBuffers && bSerializeReversedIndexBuffer && SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices() != 0;
-	bHasColorVertexData = VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0;
-	DepthOnlyNumTriangles = DepthOnlyIndexBuffer.GetNumIndices() / 3;
 
 	AreaWeightedSectionSamplers.SetNum(Sections.Num());
 	for (FStaticMeshSectionAreaWeightedTriangleSampler& Sampler : AreaWeightedSectionSamplers)
@@ -610,6 +593,18 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 		Sampler.Serialize(Ar);
 	}
 	AreaWeightedSampler.Serialize(Ar);
+
+	// Update metadata but only if serialization was successful. This needs to be done now because on cooked platform, indices are discarded after RHIInit.
+	if (!Ar.IsError())
+	{
+		bHasRayTracingGeometry = bSerializeRayTracingGeometry && RayTracingGeometry.RawData.Num() != 0;
+		bHasWireframeIndices = AdditionalIndexBuffers && bSerializeWireframeIndexBuffer && SerializedAdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() != 0;
+		bHasDepthOnlyIndices = DepthOnlyIndexBuffer.GetNumIndices() != 0;
+		bHasReversedIndices = AdditionalIndexBuffers && bSerializeReversedIndexBuffer && SerializedAdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices() != 0;
+		bHasReversedDepthOnlyIndices = AdditionalIndexBuffers && bSerializeReversedIndexBuffer && SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices() != 0;
+		bHasColorVertexData = VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0;
+		DepthOnlyNumTriangles = DepthOnlyIndexBuffer.GetNumIndices() / 3;
+	}
 }
 
 void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)

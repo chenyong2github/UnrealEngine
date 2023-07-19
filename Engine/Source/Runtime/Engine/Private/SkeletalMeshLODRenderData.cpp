@@ -738,7 +738,7 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkinnedAss
 	Ar << SkinWeightProfilesData;
 	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
 
-	if (Ar.IsLoading() && Owner)
+	if (Ar.IsLoading() && !Ar.IsError() && Owner)
 	{
 		Owner->SetSkinWeightProfilesData(LODIdx, SkinWeightProfilesData);
 	}

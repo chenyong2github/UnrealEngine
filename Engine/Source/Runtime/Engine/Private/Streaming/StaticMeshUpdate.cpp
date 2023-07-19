@@ -169,15 +169,6 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 		{
 			FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 
-#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
-			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.VertexBuffers.StaticMeshVertexBuffer;
-			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData() && Context.Mesh)
-			{
-				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
-				Breadcrumb->SetDebugData(Context.Mesh->GetPathName(), LODIdx, TangentTexCoordBuffers.GetNumVertices(), false);
-				*(uint32*)3 = 0xed000002;
-			}
-#endif
 			if (bRenderThread)
 			{
 				IntermediateBuffersArray[LODIdx].CreateFromCPUData_RenderThread(LODResource);
@@ -580,17 +571,31 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 			constexpr uint8 DummyStripFlags = 0;
 			typename FStaticMeshLODResources::FStaticMeshBuffersSize DummyBuffersSize;
 			LODResource.SerializeBuffers(Ar, const_cast<UStaticMesh*>(Mesh), DummyStripFlags, DummyBuffersSize);
-			check(DummyBuffersSize.CalcBuffersSize() == LODResource.BuffersSize);
 
-#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
-			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.VertexBuffers.StaticMeshVertexBuffer;
-			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData())
+			// Attempt to recover from possibly corrupted data if allowed
+			if (Ar.IsError())
 			{
-				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
-				Breadcrumb->SetDebugData(Mesh->GetPathName(), LODIdx, TangentTexCoordBuffers.GetNumVertices(), Ar.GetError());
-				*(uint32*)3 = 0xed000002;
-			}
+				UE_LOG(LogContentStreaming, Error,
+					TEXT("[%s] StaticMesh stream in failed due to possibly corrupted data. LOD %d %d-%d. BulkData %#x offset %lld size %lld flags %#x."),
+					*Mesh->GetPathName(),
+					LODIdx,
+					PendingFirstLODIdx,
+					CurrentFirstLODIdx - 1,
+					LODResource.StreamingBulkData.GetIoFilenameHash(),
+					LODResource.StreamingBulkData.GetBulkDataOffsetInFile(),
+					LODResource.StreamingBulkData.GetBulkDataSize(),
+					LODResource.StreamingBulkData.GetBulkDataFlags());
+
+#if STREAMING_RETRY_ON_DESERIALIZATION_ERROR
+				bFailedOnIOError = true;
+				MarkAsCancelled();
+				break;
+#else
+				GLog->FlushThreadedLogs();
+				GLog->Flush();
+				UE_LOG(LogContentStreaming, Fatal, TEXT("Possibly corrupted static mesh LOD data detected."));
 #endif
+			}
 		}
 
 		BulkData = FIoBuffer();
