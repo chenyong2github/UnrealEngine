@@ -341,7 +341,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 				if (NumProxiesUpdated < NumMeshesToUpdate && Proxy->GetAsyncWorkMonitor().CheckIfUpdateTriggeredAndClear(FAsyncWorkMonitor::EAsyncWorkType::BuildNaniteMeshes))
 				{
 					NumProxiesUpdated++;
-					Proxy->UpdateNaniteRepresentation(nullptr);
+					Proxy->UpdateNaniteRepresentation(/* const ITargetPlatform* = */nullptr);
 				}
 			}
 #endif //WITH_EDITOR

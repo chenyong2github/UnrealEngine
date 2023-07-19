@@ -3774,16 +3774,20 @@ namespace UE::Landscape
 } // namespace  UE::Landscape
 
 
-TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNaniteBuildData(int32 InLODToExport) const
+TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNaniteBuildData(int32 InLODToExport, const TArrayView<ULandscapeComponent*>& InComponentsToExport) const
 {
 	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeShared<UE::Landscape::Nanite::FAsyncBuildData>();
 
-	AsyncBuildData->LOD = InLODToExport;
+	// Make sure the requested LOD is valid
+	int32 FinalLODToExport = FMath::Clamp<int32>(InLODToExport, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
+
+	AsyncBuildData->LOD = FinalLODToExport;
 	AsyncBuildData->LandscapeWeakRef = MakeWeakObjectPtr(const_cast<ALandscapeProxy*>(this));
 	AsyncBuildData->LandscapeSubSystemWeakRef = MakeWeakObjectPtr(GetWorld()->GetSubsystem<ULandscapeSubsystem>());
 
-	for (ULandscapeComponent* Component : LandscapeComponents)
+	for (ULandscapeComponent* Component : InComponentsToExport)
 	{
+		check(LandscapeComponents.Contains(Component)); // component we're requesting to export has to be in the proxy.
 		UMaterialInterface* Material = nullptr;
 		if (Component)
 		{
@@ -3804,28 +3808,24 @@ TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNan
 		UE_LOG(LogLandscape, Warning, TEXT("%s : Nanite landscape mesh would have more than %i materials, which is currently not supported. Please reduce the number of components in this landscape actor to enable Nanite."), *GetActorNameOrLabel(), NANITE_MAX_CLUSTER_MATERIALS)
 	}
 
-	// take a copy of the height and visility data for each component.
-	// Add an sync version of ForEachComponent?  
-	ForEachComponent<ULandscapeComponent>(true, [AsyncBuildData, InLODToExport](ULandscapeComponent* LandscapeComponent)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::MakeAsyncBuildData-CopyHeightAndVisibility);
-			FLandscapeComponentDataInterface DataInterface(LandscapeComponent, InLODToExport, false);
+	for (ULandscapeComponent* LandscapeComponent : InComponentsToExport)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::MakeAsyncBuildData-CopyHeightAndVisibility);
+		FLandscapeComponentDataInterface DataInterface(LandscapeComponent, FinalLODToExport, false);
 
-			UE::Landscape::Nanite::FAsyncComponentData AsyncComponentData;
+		UE::Landscape::Nanite::FAsyncComponentData AsyncComponentData;
 
-			DataInterface.GetHeightmapTextureData(AsyncComponentData.HeightAndNormalData, false);
-			DataInterface.GetWeightmapTextureData(LandscapeComponent->GetVisibilityLayer(), AsyncComponentData.Visibility);
+		DataInterface.GetHeightmapTextureData(AsyncComponentData.HeightAndNormalData, false);
+		DataInterface.GetWeightmapTextureData(LandscapeComponent->GetVisibilityLayer(), AsyncComponentData.Visibility);
 
-		
-			AsyncComponentData.ComponentDataInterface = MakeShared<FLandscapeComponentDataInterfaceBase>(LandscapeComponent, InLODToExport, false);
-			int32 HeightmapSize = ((LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections) >> InLODToExport;
-			AsyncComponentData.ComponentDataInterface->HeightmapStride = HeightmapSize;
-			AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetX = 0;
-			AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetY = 0;
-			AsyncBuildData->ComponentData.Add(LandscapeComponent, AsyncComponentData);
-		}
-	);
-
+		AsyncComponentData.ComponentDataInterface = MakeShared<FLandscapeComponentDataInterfaceBase>(LandscapeComponent, FinalLODToExport, false);
+		int32 HeightmapSize = ((LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections) >> FinalLODToExport;
+		AsyncComponentData.ComponentDataInterface->HeightmapStride = HeightmapSize;
+		AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetX = 0;
+		AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetY = 0;
+		AsyncBuildData->ComponentData.Add(LandscapeComponent, AsyncComponentData);
+	}
+	
 	return AsyncBuildData;
 }
 
@@ -3837,7 +3837,9 @@ bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams
 		ExportParams.ExportLOD = FMath::Clamp<int32>(InExportParams.ExportLOD, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 	}
 
-	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeAsyncNaniteBuildData(ExportParams.ExportLOD);
+	TArray<ULandscapeComponent*> ComponentsToExport = ObjectPtrDecay(LandscapeComponents);
+
+	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeAsyncNaniteBuildData(ExportParams.ExportLOD, TArrayView<ULandscapeComponent*>(ComponentsToExport));
 	return ExportToRawMeshDataCopy(ExportParams, OutRawMesh, AsyncBuildData.Get());
 }
 
@@ -5292,7 +5294,7 @@ void ALandscape::PostEditImport()
 	}
 
 	// Even if the component's UPROPERTY is TextExportTransient/NonPIEDuplicate, it still gets duplicated and added to the OwnedComponents so we need to remove it after duplicating the actor : 
-	check(NaniteComponent == nullptr);
+	check(!HasNaniteComponents());
 	TInlineComponentArray<ULandscapeNaniteComponent*> OwnedNaniteComponents;
 	GetComponents<ULandscapeNaniteComponent>(OwnedNaniteComponents, /*bIncludeFromChildActors = */false);
 	for (ULandscapeNaniteComponent* OwnedNaniteComponent : OwnedNaniteComponents)
@@ -6222,10 +6224,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			}
 		}
 
-		if (NaniteComponent)
-		{
-			NaniteComponent->UpdatedSharedPropertiesFromActor();
-		}
+		UpdateNaniteSharedPropertiesFromActor();
 	}
 
 	if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bEnableNanite))
