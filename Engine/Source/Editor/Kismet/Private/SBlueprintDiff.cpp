@@ -737,7 +737,10 @@ bool FDiffPanel::CanCopyNodes() const
 
 void FDiffPanel::FocusDiff(UEdGraphPin& Pin)
 {
-	GraphEditor.Pin()->JumpToPin(&Pin);
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor.Pin()->JumpToPin(&Pin);
+	}
 }
 
 void FDiffPanel::FocusDiff(UEdGraphNode& Node)
