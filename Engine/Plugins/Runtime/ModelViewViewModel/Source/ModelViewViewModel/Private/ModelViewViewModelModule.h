@@ -3,8 +3,12 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
+#include "Stats/Stats2.h"
 
 class IConsoleVariable;
+
+/** */
+DECLARE_STATS_GROUP(TEXT("UMG Viewmodel"), STATGROUP_UMG_Viewmodel, STATCAT_Advanced);
 
 /**
  *

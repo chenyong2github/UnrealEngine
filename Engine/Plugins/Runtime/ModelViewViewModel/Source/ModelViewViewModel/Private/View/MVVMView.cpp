@@ -10,11 +10,18 @@
 #include "Debugging/MVVMDebugging.h"
 #include "Engine/Engine.h"
 #include "MVVMMessageLog.h"
+#include "ModelViewViewModelModule.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMView)
 
+DECLARE_CYCLE_STAT(TEXT("InitializeBindings"), STAT_UMG_Viewmodel_InitializeBindings, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("DeinitializeBindings"), STAT_UMG_Viewmodel_DeinitializeBindings, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("SetSource"), STAT_UMG_Viewmodel_SetSource, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("ExecuteBinding ValueChanged"), STAT_UMG_Viewmodel_ExecuteBinding_ValueChanged, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("ExecuteBinding Delayed"), STAT_UMG_Viewmodel_ExecuteBinding_Delayed, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("ExecuteBinding Tick"), STAT_UMG_Viewmodel_ExecuteBinding_Tick, STATGROUP_UMG_Viewmodel);
 
 #define LOCTEXT_NAMESPACE "MVVMView"
 
@@ -53,6 +60,8 @@ void UMVVMView::Construct()
 
 void UMVVMView::InitializeBindings()
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_InitializeBindings);
+
 	check(bInitialized == false);
 
 	// Init ViewModel instances
@@ -132,6 +141,8 @@ void UMVVMView::Destruct()
 
 void UMVVMView::DeinitializeBindings()
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_DeinitializeBindings);
+
 	check(bInitialized == true);
 	bInitialized = false;
 
@@ -258,6 +269,8 @@ bool UMVVMView::EvaluateSourceCreator(int32 SourceCreatorIndex)
 
 bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> NewValue, bool bForDynamicSource)
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_SetSource);
+
 	if (ViewModelName.IsNone())
 	{
 		UE::MVVM::FMessageLog Log(GetUserWidget());
@@ -410,6 +423,8 @@ namespace UE::MVVM::Private
 
 void UMVVMView::HandledLibraryBindingValueChanged(UObject* InViewModelOrWidget, UE::FieldNotification::FFieldId InFieldId, int32 InCompiledBindingIndex) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_ExecuteBinding_ValueChanged);
+
 	check(InViewModelOrWidget);
 	check(InFieldId.IsValid());
 
@@ -457,6 +472,8 @@ void UMVVMView::HandledLibraryBindingValueChanged(UObject* InViewModelOrWidget, 
 
 void UMVVMView::ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBinding) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_ExecuteBinding_Delayed);
+
 	if (ensure(ClassExtension) && bInitialized)
 	{
 		if (ensure(ClassExtension->GetCompiledBindings().IsValidIndex(DelayedBinding.GetCompiledBindingIndex())))
@@ -495,6 +512,8 @@ void UMVVMView::ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBind
 
 void UMVVMView::ExecuteEveryTickBindings() const
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_ExecuteBinding_Tick);
+
 	ensure(bHasEveryTickBinding);
 	ensure(bInitialized);
 

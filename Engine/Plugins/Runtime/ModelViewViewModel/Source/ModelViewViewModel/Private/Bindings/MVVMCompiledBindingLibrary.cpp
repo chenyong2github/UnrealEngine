@@ -5,6 +5,7 @@
 #include "Bindings/MVVMBindingHelper.h"
 #include "IFieldNotificationClassDescriptor.h"
 #include "INotifyFieldValueChanged.h"
+#include "ModelViewViewModelModule.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldContext.h"
 #include "Types/MVVMFunctionContext.h"
@@ -13,6 +14,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMCompiledBindingLibrary)
 
+DECLARE_CYCLE_STAT(TEXT("Load Library"), STAT_UMG_Viewmodel_LoadLibrary, STATGROUP_UMG_Viewmodel);
 
 #define LOCTEXT_NAMESPACE "MVVMCompiledBindingLibrary"
 
@@ -71,6 +73,8 @@ FText FMVVMCompiledBindingLibrary::LexToText(EExecutionFailingReason Reason)
 
 void FMVVMCompiledBindingLibrary::Load()
 {
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_LoadLibrary);
+
 	ensureAlwaysMsgf(LoadedProperties.Num() == 0, TEXT("The binding library was loaded more than once."));
 	ensureAlwaysMsgf(LoadedFunctions.Num() == 0, TEXT("The binding library was loaded more than once."));
 	ensureAlwaysMsgf(LoadedFieldIds.Num() == 0, TEXT("The binding library was loaded more than once."));
