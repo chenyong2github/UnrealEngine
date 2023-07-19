@@ -288,11 +288,8 @@ public:
 private:
 	/** Perform all the checks required to see if the update should begin. */
 	EUpdateRequired IsUpdateRequired(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist) const;
-
-public:
-	/** Private API.
-	 *
-	 * Update Skeletal Mesh asynchronously. Immersive function.
+	
+	/** Update Skeletal Mesh asynchronously. Immersive function. Not exposed to the API.
 	 * Once the update reaches this function, the update has been considered started and must complete all the update flow.
 	 * Starting at this function, all Update code paths must end up in FinishUpdateGlobal!
 	 *
@@ -300,6 +297,7 @@ public:
 	 */
 	void DoUpdateSkeletalMesh(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist, bool bForceHighPriority, const EUpdateRequired* OptionalUpdateRequired, FInstanceUpdateDelegate* UpdateCallback);
 
+public:	
 	// Clones the instance creating a new identical transient instance.
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	UCustomizableObjectInstance* Clone();
