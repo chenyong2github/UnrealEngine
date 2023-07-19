@@ -612,7 +612,7 @@ void PSOCollectorStats::FPrecacheUsageData::UpdateStats(uint32 MeshPassType, con
 		if (VFType != nullptr)
 		{
 			uint32* Value = PerVertexFactoryCount.FindOrAdd(VFType, 0);
-			Value++;
+			(*Value)++;
 		}
 	}
 }
