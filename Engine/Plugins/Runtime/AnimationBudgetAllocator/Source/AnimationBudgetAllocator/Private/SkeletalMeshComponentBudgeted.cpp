@@ -103,9 +103,9 @@ void USkeletalMeshComponentBudgeted::TickComponent(float DeltaTime, enum ELevelT
 
 			const FVector WorldLocation = GetComponentTransform().GetLocation();
 			const UWorld* ComponentWorld = GetWorld();
-			for (FConstControllerIterator It = ComponentWorld->GetControllerIterator(); It; ++It)
+			for (FConstPlayerControllerIterator It = ComponentWorld->GetPlayerControllerIterator(); It; ++It)
 			{
-				if(const AController* PlayerController = It->Get())
+				if(const APlayerController* PlayerController = It->Get())
 				{
 					FVector PlayerViewLocation = FVector::ZeroVector;
 					FRotator PlayerViewRotation = FRotator::ZeroRotator;
