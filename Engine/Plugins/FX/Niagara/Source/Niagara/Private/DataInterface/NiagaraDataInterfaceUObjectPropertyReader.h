@@ -8,6 +8,18 @@
 
 struct FNiagaraDataInterfaceGeneratedFunction;
 
+UENUM()
+enum class ENDIObjectPropertyReaderSourceMode : uint8
+{
+	/** Source object is found in the order of object binding, source actor. */
+	Binding,
+	/** Source object is found use the attached parent actor. */
+	AttachParentActor,
+	/** Source object is found in the order of object binding, source actor, then attached parent actor. */
+	BindingThenAttachParentActor,
+};
+
+
 USTRUCT()
 struct FNiagaraUObjectPropertyReaderRemap
 {
@@ -49,15 +61,19 @@ class UNiagaraDataInterfaceUObjectPropertyReader : public UNiagaraDataInterface
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	/** User parameter Object binding to read properties from. */
+	/** Determines how we should select the source object we read from. */
 	UPROPERTY(EditAnywhere, Category = "UObjectPropertyReader")
+	ENDIObjectPropertyReaderSourceMode SourceMode = ENDIObjectPropertyReaderSourceMode::Binding;
+
+	/** User parameter Object binding to read properties from. */
+	UPROPERTY(EditAnywhere, Category = "UObjectPropertyReader", meta = (EditCondition = "SourceMode != ENDIObjectPropertyReaderSourceMode::AttachParentActor", EditConditionHides))
 	FNiagaraUserParameterBinding UObjectParameterBinding;
 
 	UPROPERTY(EditAnywhere, Category = "UObjectPropertyReader")
 	TArray<FNiagaraUObjectPropertyReaderRemap> PropertyRemap;
 
 	/** Optional source actor to use, if the user parameter binding is valid this will be ignored. */
-	UPROPERTY(EditAnywhere, Category = "UObjectPropertyReader")
+	UPROPERTY(EditAnywhere, Category = "UObjectPropertyReader", meta = (EditCondition = "SourceMode != ENDIObjectPropertyReaderSourceMode::AttachParentActor", EditConditionHides))
 	TSoftObjectPtr<AActor> SourceActor;
 
 	/**
