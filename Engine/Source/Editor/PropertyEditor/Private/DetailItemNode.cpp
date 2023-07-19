@@ -7,6 +7,7 @@
 #include "DetailPropertyRow.h"
 #include "IDetailKeyframeHandler.h"
 #include "ObjectPropertyNode.h"
+#include "PropertyHandleImpl.h"
 #include "SConstrainedBox.h"
 #include "PropertyPermissionList.h"
 #include "SDetailCategoryTableRow.h"
@@ -876,6 +877,29 @@ bool FDetailItemNode::IsPropertyEditingEnabledImpl() const
 TSharedPtr<FPropertyNode> FDetailItemNode::GetPropertyNode() const
 {
 	return Customization.GetPropertyNode();
+}
+
+void FDetailItemNode::GetAllPropertyNodes(TArray<TSharedRef<FPropertyNode>>& OutNodes) const
+{
+	TSet<TSharedRef<FPropertyNode>> SeenNodes; // make's sure there aren't duplicates
+	if (const TSharedPtr<FPropertyNode> Node = GetPropertyNode())
+	{
+		SeenNodes.Add(Node.ToSharedRef());
+		OutNodes.Add(Node.ToSharedRef());
+	}
+
+	for (const TSharedPtr<IPropertyHandle>& CurPropertyHandle : Customization.GetWidgetRow().PropertyHandles)
+	{
+		const TSharedPtr<FPropertyHandleBase>& Handle = StaticCastSharedPtr<FPropertyHandleBase>(CurPropertyHandle);
+		if (const TSharedPtr<FPropertyNode> Node = Handle->GetPropertyNode())
+		{
+			if (!SeenNodes.Contains(Node.ToSharedRef()))
+			{
+				SeenNodes.Add(Node.ToSharedRef());
+				OutNodes.Add(Node.ToSharedRef());
+			}
+		}
+	}
 }
 
 TSharedPtr<IDetailPropertyRow> FDetailItemNode::GetRow() const

@@ -84,6 +84,7 @@ public:
 	virtual bool IsLeaf() override { return Children.Num() == 0;  }
 	virtual TAttribute<bool> IsPropertyEditingEnabled() const override;
 	virtual TSharedPtr<FPropertyNode> GetPropertyNode() const override;
+	virtual void GetAllPropertyNodes(TArray<TSharedRef<FPropertyNode>>& OutNodes) const override;
 	virtual TSharedPtr<FComplexPropertyNode> GetExternalRootPropertyNode() const override;
 	virtual TSharedPtr<IDetailPropertyRow> GetRow() const override;
 

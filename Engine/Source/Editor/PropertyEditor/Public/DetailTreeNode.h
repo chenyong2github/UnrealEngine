@@ -166,6 +166,11 @@ public:
 	 * Gets the property node associated with this node.  Not all nodes have properties so this will fail for anything other than a property row or for property rows that have complex customizations that ignore the property
 	 */
 	virtual TSharedPtr<FPropertyNode> GetPropertyNode() const { return nullptr; }
+	
+	/** 
+	 * In certain circumstances a single DetailTreeNode can have multiple property nodes. This will get all of them.
+	 */
+	virtual void GetAllPropertyNodes(TArray<TSharedRef<FPropertyNode>>& OutNodes) const {}
 
 	/**
 	 * Gets the external property node associated with this node.  This will return nullptr for all rows expect property rows which were generated from an external root.
