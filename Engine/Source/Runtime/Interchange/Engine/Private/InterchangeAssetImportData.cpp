@@ -10,6 +10,7 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeAssetImportData)
 
