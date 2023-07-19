@@ -671,6 +671,33 @@ UE_NET_TEST(FNetBitArrayView, TestFindLastZero)
 
 		UE_NET_ASSERT_EQ(BitArray.FindLastZero(), 49U);
 	}
+
+	// All bits zero, with unaligned bitcount
+	{
+		uint32 WordBuffer[] = { 0x0 };
+		FNetBitArrayView BitArray(WordBuffer, 31);
+
+		// Verify that we do not get an out of bounds value
+		UE_NET_ASSERT_LT(BitArray.FindLastZero(), 31U);
+		UE_NET_ASSERT_EQ(BitArray.FindLastZero(), 30U);
+	}
+
+	// Set last bit, unaligned bitcount
+	{
+		uint32 WordBuffer[] = { 0x40000000 };
+		FNetBitArrayView BitArray(WordBuffer, 31);
+
+		UE_NET_ASSERT_EQ(BitArray.FindLastZero(), 29U);
+	}
+
+	// All bits set, unaligned bitcount
+	{
+		uint32 WordBuffer[] = { 0x7fffffff };
+		FNetBitArrayView BitArray(WordBuffer, 31);
+
+		UE_NET_ASSERT_EQ(BitArray.FindLastZero(), BitArray.InvalidIndex);
+	}
+
 }
 
 UE_NET_TEST(FNetBitArrayView, TestFindLastOne)

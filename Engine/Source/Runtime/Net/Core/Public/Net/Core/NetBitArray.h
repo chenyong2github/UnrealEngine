@@ -668,8 +668,9 @@ private:
 			if (Word != WordMask)
 			{
 				const uint32 BitOffset = WordIt*WordBitCount;
-				const uint32 Index = BitOffset + WordBitCount - 1U - FPlatformMath::CountLeadingZeros(~Word);
-				return Index;
+				const uint32 Index = BitOffset + WordBitCount - 1U - FPlatformMath::CountLeadingZeros(~Word & WordMask);
+				// Need to make sure the index is not out of bounds
+				return (Index < BitCount ? Index : FNetBitArrayBase::InvalidIndex);
 			}
 
 			WordMask = StorageWordType(~StorageWordType(0));
