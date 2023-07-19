@@ -6,6 +6,8 @@ public class NNERuntimeORTCpu : ModuleRules
 {
 	public NNERuntimeORTCpu( ReadOnlyTargetRules Target ) : base( Target )
 	{
+		bDisableStaticAnalysis = true;
+
 		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac);
 		
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;

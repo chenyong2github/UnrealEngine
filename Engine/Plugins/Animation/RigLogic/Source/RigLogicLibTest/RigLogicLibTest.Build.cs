@@ -10,6 +10,7 @@ namespace UnrealBuildTool.Rules
 		public RigLogicLibTest(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bUseUnity = false; // A windows include is preprocessing some method names causing compile failures.
+			bDisableStaticAnalysis = true;
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
