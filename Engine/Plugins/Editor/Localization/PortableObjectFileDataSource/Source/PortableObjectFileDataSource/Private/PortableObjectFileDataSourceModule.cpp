@@ -2,6 +2,7 @@
 
 #include "ContentBrowserFileDataCore.h"
 #include "ContentBrowserFileDataSource.h"
+#include "LocalizationDelegates.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -89,6 +90,7 @@ public:
 			// Listen for new paths that may contain localization data
 			FPackageName::OnContentPathMounted().AddRaw(this, &FPortableObjectFileDataSourceModule::OnContentPathMounted);
 			FPackageName::OnContentPathDismounted().AddRaw(this, &FPortableObjectFileDataSourceModule::OnContentPathDismounted);
+			LocalizationDelegates::OnLocalizationTargetDataUpdated.AddRaw(this, &FPortableObjectFileDataSourceModule::OnLocalizationTargetDataUpdated);
 		}
 	}
 
@@ -96,6 +98,7 @@ public:
 	{
 		FPackageName::OnContentPathMounted().RemoveAll(this);
 		FPackageName::OnContentPathDismounted().RemoveAll(this);
+		LocalizationDelegates::OnLocalizationTargetDataUpdated.RemoveAll(this);
 			
 		PoFileDataSource.Reset();
 	}
@@ -118,6 +121,26 @@ private:
 		if (PoFileDataSource)
 		{
 			PoFileDataSource->RemoveFileMount(*(InAssetPath / TEXT("Localization")));
+		}
+	}
+
+	void OnLocalizationTargetDataUpdated(const FString& InLocalizationTargetPath)
+	{
+		if (PoFileDataSource)
+		{
+			// Trim the target name from the path so that we're querying for the outer "Localization" folder that hosts the target(s)
+			const FString LocalizationTargetFolder = FPaths::GetPath(InLocalizationTargetPath);
+
+			FString LocalizationTargetAssetPath;
+			if (FPaths::DirectoryExists(LocalizationTargetFolder) && FPackageName::TryConvertFilenameToLongPackageName(LocalizationTargetFolder, LocalizationTargetAssetPath))
+			{
+				// Updating this target may have added a "Localization" folder that we're not currently monitoring
+				// If so, add that mount now (any existing mounts will be updated via the directory watcher)
+				if (!PoFileDataSource->HasFileMount(*LocalizationTargetAssetPath))
+				{
+					PoFileDataSource->AddFileMount(*LocalizationTargetAssetPath, LocalizationTargetFolder);
+				}
+			}
 		}
 	}
 

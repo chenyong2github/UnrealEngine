@@ -41,6 +41,8 @@ public:
 
 	void RemoveFileMount(const FName InFileMountPath);
 
+	bool HasFileMount(const FName InFileMountPath) const;
+
 	virtual void Tick(const float InDeltaTime);
 
 	virtual void CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter) override;

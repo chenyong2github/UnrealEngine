@@ -15,6 +15,7 @@
 #include "Internationalization/TextLocalizationManager.h"
 #include "TextLocalizationResourceGenerator.h"
 #include "LocalizationConfigurationScript.h"
+#include "LocalizationDelegates.h"
 #include "LocTextHelper.h"
 #include "PortableObjectFormatDOM.h"
 #include "SourceControlHelpers.h"
@@ -497,6 +498,8 @@ bool ExportLocalization(TArrayView<const TSharedRef<IPlugin>> Plugins, const FEx
 				}
 			}
 		}
+
+		LocalizationDelegates::OnLocalizationTargetDataUpdated.Broadcast(PluginLocalizationTargetDirectory);
 	}
 
 	return true;
@@ -546,6 +549,8 @@ bool CompileLocalizationTarget(const FString& LocalizationTargetDirectory, const
 			return false;
 		}
 	}
+
+	LocalizationDelegates::OnLocalizationTargetDataUpdated.Broadcast(LocalizationTargetDirectory);
 
 	return true;
 }

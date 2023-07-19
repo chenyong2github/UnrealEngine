@@ -9,10 +9,45 @@
 #include "Sound/DialogueWave.h"
 #include "LocalizationCommandletExecution.h"
 #include "LocalizationConfigurationScript.h"
+#include "LocalizationDelegates.h"
 #include "LocalizationTargetTypes.h"
 #include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "LocalizationCommandletTasks"
+
+namespace LocalizationCommandletTasks
+{
+
+void BroadcastLocalizationTargetsDataUpdated(TArrayView<ULocalizationTarget* const> Targets)
+{
+	for (ULocalizationTarget* Target : Targets)
+	{
+		const FString TargetContentPath = FPaths::Combine(Target->IsMemberOfEngineTargetSet() ? FPaths::EngineContentDir() : FPaths::ProjectContentDir(), TEXT("Localization"), Target->Settings.Name);
+		LocalizationDelegates::OnLocalizationTargetDataUpdated.Broadcast(TargetContentPath);
+	}
+}
+
+bool ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(const TSharedRef<SWindow>& ParentWindow, const FText& Title, const TArray<LocalizationCommandletExecution::FTask>& Tasks, TArrayView<ULocalizationTarget* const> Targets)
+{
+	if (LocalizationCommandletExecution::Execute(ParentWindow, Title, Tasks))
+	{
+		BroadcastLocalizationTargetsDataUpdated(Targets);
+		return true;
+	}
+	return false;
+}
+
+bool ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(const TSharedRef<SWindow>& ParentWindow, const FText& Title, const TArray<LocalizationCommandletExecution::FTask>& Tasks, ULocalizationTarget* const Target)
+{
+	if (LocalizationCommandletExecution::Execute(ParentWindow, Title, Tasks))
+	{
+		BroadcastLocalizationTargetsDataUpdated(MakeArrayView(&Target, 1));
+		return true;
+	}
+	return false;
+}
+
+}
 
 bool LocalizationCommandletTasks::GatherTextForTargets(const TSharedRef<SWindow>& ParentWindow, const TArray<ULocalizationTarget*>& Targets)
 {
@@ -31,7 +66,7 @@ bool LocalizationCommandletTasks::GatherTextForTargets(const TSharedRef<SWindow>
 		Tasks.Add(LocalizationCommandletExecution::FTask(GatherTaskName, GatherScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("GatherAllTargetsWindowTitle", "Gather Text for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("GatherAllTargetsWindowTitle", "Gather Text for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::GatherTextForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target)
@@ -47,7 +82,7 @@ bool LocalizationCommandletTasks::GatherTextForTarget(const TSharedRef<SWindow>&
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("GatherTargetWindowTitle", "Gather Text for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 
@@ -74,7 +109,7 @@ bool LocalizationCommandletTasks::ImportTextForTargets(const TSharedRef<SWindow>
 		Tasks.Add(LocalizationCommandletExecution::FTask(ReportTaskName, ReportScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("ImportForAllTargetsWindowTitle", "Import Translations for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("ImportForAllTargetsWindowTitle", "Import Translations for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::ImportTextForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const TOptional<FString> DirectoryPath)
@@ -94,7 +129,7 @@ bool LocalizationCommandletTasks::ImportTextForTarget(const TSharedRef<SWindow>&
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ImportForTargetWindowTitle", "Import Translations for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::ImportTextForCulture(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const FString& CultureName, const TOptional<FString> FilePath)
@@ -123,7 +158,7 @@ bool LocalizationCommandletTasks::ImportTextForCulture(const TSharedRef<SWindow>
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ImportCultureForTargetWindowTitle", "Import {CultureName} Translations for Target {TargetName}"), Arguments);
 
-	bool HasSucceeeded = LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	bool HasSucceeeded = ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 	IFileManager::Get().Delete(*ImportScriptPath); // Don't clutter up the loc config directory with scripts for individual cultures.
 	return HasSucceeeded;
 }
@@ -146,7 +181,7 @@ bool LocalizationCommandletTasks::ExportTextForTargets(const TSharedRef<SWindow>
 		Tasks.Add(LocalizationCommandletExecution::FTask(ExportTaskName, ExportScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("ExportForAllTargetsWindowTitle", "Export Translations for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("ExportForAllTargetsWindowTitle", "Export Translations for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::ExportTextForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const TOptional<FString> DirectoryPath)
@@ -162,7 +197,7 @@ bool LocalizationCommandletTasks::ExportTextForTarget(const TSharedRef<SWindow>&
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ExportForTargetWindowTitle", "Export Translations for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::ExportTextForCulture(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const FString& CultureName, const TOptional<FString> FilePath)
@@ -187,7 +222,7 @@ bool LocalizationCommandletTasks::ExportTextForCulture(const TSharedRef<SWindow>
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ExportCultureForTargetWindowTitle", "Export {CultureName} Translations for Target {TargetName}"), Arguments);
 
-	bool HasSucceeeded = LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	bool HasSucceeeded = ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 	IFileManager::Get().Delete(*ExportScriptPath); // Don't clutter up the loc config directory with scripts for individual cultures.
 	return HasSucceeeded;
 }
@@ -215,7 +250,7 @@ bool LocalizationCommandletTasks::ImportDialogueScriptForTargets(const TSharedRe
 		Tasks.Add(LocalizationCommandletExecution::FTask(ReportTaskName, ReportScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("ImportDialogueScriptsForAllTargetsWindowTitle", "Import Dialogue Scripts for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("ImportDialogueScriptsForAllTargetsWindowTitle", "Import Dialogue Scripts for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::ImportDialogueScriptForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const TOptional<FString> DirectoryPath)
@@ -235,7 +270,7 @@ bool LocalizationCommandletTasks::ImportDialogueScriptForTarget(const TSharedRef
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ImportDialogueScriptsForTargetWindowTitle", "Import Dialogue Scripts for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::ImportDialogueScriptForCulture(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const FString& CultureName, const TOptional<FString> FilePath)
@@ -264,7 +299,7 @@ bool LocalizationCommandletTasks::ImportDialogueScriptForCulture(const TSharedRe
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ImportDialogueScriptsForCultureForTargetWindowTitle", "Import {CultureName} Dialogue Scripts for Target {TargetName}"), Arguments);
 
-	bool HasSucceeeded = LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	bool HasSucceeeded = ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 	IFileManager::Get().Delete(*ImportScriptPath); // Don't clutter up the loc config directory with scripts for individual cultures.
 	return HasSucceeeded;
 }
@@ -287,7 +322,7 @@ bool LocalizationCommandletTasks::ExportDialogueScriptForTargets(const TSharedRe
 		Tasks.Add(LocalizationCommandletExecution::FTask(ExportTaskName, ExportScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("ExportDialogueScriptsForAllTargetsWindowTitle", "Export Dialogue Scripts for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("ExportDialogueScriptsForAllTargetsWindowTitle", "Export Dialogue Scripts for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::ExportDialogueScriptForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const TOptional<FString> DirectoryPath)
@@ -303,7 +338,7 @@ bool LocalizationCommandletTasks::ExportDialogueScriptForTarget(const TSharedRef
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ExportDialogueScriptsForTargetWindowTitle", "Export Dialogue Scripts for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::ExportDialogueScriptForCulture(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const FString& CultureName, const TOptional<FString> FilePath)
@@ -328,7 +363,7 @@ bool LocalizationCommandletTasks::ExportDialogueScriptForCulture(const TSharedRe
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ExportDialogueScriptsForCultureForTargetWindowTitle", "Export {CultureName} Dialogue Scripts for Target {TargetName}"), Arguments);
 
-	bool HasSucceeeded = LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	bool HasSucceeeded = ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 	IFileManager::Get().Delete(*ExportScriptPath); // Don't clutter up the loc config directory with scripts for individual cultures.
 	return HasSucceeeded;
 }
@@ -350,7 +385,7 @@ bool LocalizationCommandletTasks::ImportDialogueForTargets(const TSharedRef<SWin
 		Tasks.Add(LocalizationCommandletExecution::FTask(ImportDialogueTaskName, ImportDialogueScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("ImportDialogueForAllTargetsWindowTitle", "Import Dialogue for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("ImportDialogueForAllTargetsWindowTitle", "Import Dialogue for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::ImportDialogueForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target)
@@ -366,7 +401,7 @@ bool LocalizationCommandletTasks::ImportDialogueForTarget(const TSharedRef<SWind
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ImportDialogueForTargetWindowTitle", "Import Dialogue for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::ImportDialogueForCulture(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const FString& CultureName)
@@ -391,7 +426,7 @@ bool LocalizationCommandletTasks::ImportDialogueForCulture(const TSharedRef<SWin
 
 	const FText WindowTitle = FText::Format(LOCTEXT("ImportCultureDialogueForTargetWindowTitle", "Import {CultureName} Dialogue for Target {TargetName}"), Arguments);
 
-	bool HasSucceeeded = LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	bool HasSucceeeded = ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 	IFileManager::Get().Delete(*ImportDialogueScriptPath); // Don't clutter up the loc config directory with scripts for individual cultures.
 	return HasSucceeeded;
 }
@@ -413,7 +448,7 @@ bool LocalizationCommandletTasks::GenerateWordCountReportsForTargets(const TShar
 		Tasks.Add(LocalizationCommandletExecution::FTask(ReportTaskName, ReportScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("GenerateReportsForAllTargetsWindowTitle", "Generate Word Count Reports for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("GenerateReportsForAllTargetsWindowTitle", "Generate Word Count Reports for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::GenerateWordCountReportForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target)
@@ -429,7 +464,7 @@ bool LocalizationCommandletTasks::GenerateWordCountReportForTarget(const TShared
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("GenerateReportForTargetWindowTitle", "Generate Word Count Report for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::CompileTextForTargets(const TSharedRef<SWindow>& ParentWindow, const TArray<ULocalizationTarget*>& Targets)
@@ -449,7 +484,7 @@ bool LocalizationCommandletTasks::CompileTextForTargets(const TSharedRef<SWindow
 		Tasks.Add(LocalizationCommandletExecution::FTask(CompileTaskName, CompileScriptPath, ShouldUseProjectFile));
 	}
 
-	return LocalizationCommandletExecution::Execute(ParentWindow, LOCTEXT("GenerateLocResForAllTargetsWindowTitle", "Compile Translations for All Targets"), Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetsDataUpdated(ParentWindow, LOCTEXT("GenerateLocResForAllTargetsWindowTitle", "Compile Translations for All Targets"), Tasks, Targets);
 }
 
 bool LocalizationCommandletTasks::CompileTextForTarget(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target)
@@ -465,7 +500,7 @@ bool LocalizationCommandletTasks::CompileTextForTarget(const TSharedRef<SWindow>
 	Arguments.Add(TEXT("TargetName"), FText::FromString(Target->Settings.Name));
 
 	const FText WindowTitle = FText::Format(LOCTEXT("GenerateLocResForTargetWindowTitle", "Compile Translations for Target {TargetName}"), Arguments);
-	return LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	return ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 }
 
 bool LocalizationCommandletTasks::CompileTextForCulture(const TSharedRef<SWindow>& ParentWindow, ULocalizationTarget* const Target, const FString& CultureName)
@@ -490,7 +525,7 @@ bool LocalizationCommandletTasks::CompileTextForCulture(const TSharedRef<SWindow
 
 	const FText WindowTitle = FText::Format(LOCTEXT("CompileCultureForTargetWindowTitle", "Compile {CultureName} Translations for Target {TargetName}"), Arguments);
 
-	bool HasSucceeeded = LocalizationCommandletExecution::Execute(ParentWindow, WindowTitle, Tasks);
+	bool HasSucceeeded = ExecuteTasksAndBroadcastLocalizationTargetDataUpdated(ParentWindow, WindowTitle, Tasks, Target);
 	IFileManager::Get().Delete(*CompileScriptPath); // Don't clutter up the loc config directory with scripts for individual cultures.
 	return HasSucceeeded;
 }

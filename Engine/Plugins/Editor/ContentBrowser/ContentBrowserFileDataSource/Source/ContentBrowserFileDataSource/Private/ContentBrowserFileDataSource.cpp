@@ -533,6 +533,11 @@ void UContentBrowserFileDataSource::RemoveFileMount(const FName InFileMountPath)
 	}
 }
 
+bool UContentBrowserFileDataSource::HasFileMount(const FName InFileMountPath) const
+{
+	return RegisteredFileMounts.Contains(InFileMountPath);
+}
+
 void UContentBrowserFileDataSource::Tick(const float InDeltaTime)
 {
 	Super::Tick(InDeltaTime);
