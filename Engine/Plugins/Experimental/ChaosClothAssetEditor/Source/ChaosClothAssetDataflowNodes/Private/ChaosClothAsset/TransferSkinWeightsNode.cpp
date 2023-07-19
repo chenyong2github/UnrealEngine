@@ -66,10 +66,12 @@ namespace UE::Chaos::ClothAsset::Private
 		return true;
 	}
 
-	static void TransferInpaintWeights(
+	static bool TransferInpaintWeights(
 		const FReferenceSkeleton& TargetRefSkeleton,
 		const double NormalThreshold,
 		const double RadiusPercentage,
+		const int32 NumSmoothingIterations,
+		const double SmoothingStrength,
 		bool bUseParallel,
 		const TSharedRef<FManagedArrayCollection>& ClothCollection,
 		UE::Geometry::FTransferBoneWeights& TransferBoneWeights)
@@ -87,7 +89,7 @@ namespace UE::Chaos::ClothAsset::Private
 		if (!ensure(SimClothToDynamicMesh(ClothCollection, TargetRefSkeleton, WeldedSimMesh)))
 		{
 			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Failed to weld the simulation mesh for LOD."));
-			return;
+			return false;
 		}
 
 		//
@@ -95,18 +97,25 @@ namespace UE::Chaos::ClothAsset::Private
 		//
 		TransferBoneWeights.NormalThreshold = FMathd::DegToRad * NormalThreshold;
 		TransferBoneWeights.SearchRadius = RadiusPercentage * WeldedSimMesh.GetBounds().DiagonalLength();
+		TransferBoneWeights.NumSmoothingIterations = NumSmoothingIterations;
+		TransferBoneWeights.SmoothingStrength = SmoothingStrength;
+		TransferBoneWeights.LayeredMeshSupport = true; // multilayerd clothing
+
 		if (!ensure(TransferBoneWeights.Validate() == EOperationValidationResult::Ok))
 		{
 			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Transfer method parameters are invalid."));
-			return;
+			return false;
 		}
 		if (!ensure(TransferBoneWeights.TransferWeightsToMesh(WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName)))
 		{
 			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Transferring skin weights failed."));
-			return;
+			return false;
 		}
 
 		UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+		const FName InpaintWeightMaskName = TEXT("_InpaintWeightMask");
+		ClothFacade.AddWeightMap(InpaintWeightMaskName);
+		TArrayView<float> InpaintWeightMask = ClothFacade.GetWeightMap(InpaintWeightMaskName);
 
 		//
 		// Copy the new bone weight data from the welded sim mesh back to the cloth patterns.
@@ -122,7 +131,7 @@ namespace UE::Chaos::ClothAsset::Private
 				SimMeshToDynamicMesh[NonManifoldMapping.GetOriginalNonManifoldVertexID(DynamicMeshVert)].Add(DynamicMeshVert);
 			}
 
-			ParallelFor(ClothFacade.GetNumSimVertices3D(), [&ClothFacade, &WeldedSimMesh, &SimMeshToDynamicMesh](int32 SimVertexID)
+			ParallelFor(ClothFacade.GetNumSimVertices3D(), [&ClothFacade, &WeldedSimMesh, &SimMeshToDynamicMesh, &TransferBoneWeights, &InpaintWeightMask](int32 SimVertexID)
 			{
 				const FDynamicMeshVertexSkinWeightsAttribute* const OutAttribute = WeldedSimMesh.Attributes()->GetSkinWeightsAttribute(FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
 				checkSlow(OutAttribute);
@@ -139,9 +148,13 @@ namespace UE::Chaos::ClothAsset::Private
 					checkSlow(WeldedSimMesh.IsVertex(WeldedID));
 					OutAttribute->GetValue(WeldedID, ClothFacade.GetSimBoneIndices()[SimVertexID],
 						ClothFacade.GetSimBoneWeights()[SimVertexID]);
+					InpaintWeightMask[SimVertexID] = TransferBoneWeights.MatchedVertices[WeldedID] ? 1.0f : 0.0f;
 				}
 				else
 				{
+					// TODO: The logic below should be moved to BoneWeights.h and implemented as Merge method which takes
+					// an array of bone weights and computes their average.
+					
 					// Need to merge data because dynamic mesh split the original vertex
 					TMap<int32, TPair<float, int32>> CombinedData;
 					for (const int32 WeldedID : SimMeshToDynamicMesh[SimVertexID])
@@ -199,12 +212,16 @@ namespace UE::Chaos::ClothAsset::Private
 					{
 						Weight *= WeightsSumRecip;
 					}
+
+					const int32 WeldedID = SimMeshToDynamicMesh[SimVertexID][0]; // Any welded id can be used here
+					InpaintWeightMask[SimVertexID] = TransferBoneWeights.MatchedVertices[WeldedID] ? 1.0f : 0.0f;
 				}
 			}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 		}
 		else
 		{
-			ParallelFor(WeldedSimMesh.MaxVertexID(), [&ClothFacade, &WeldedSimMesh, &NonManifoldMapping](int32 WeldedID)
+
+			ParallelFor(WeldedSimMesh.MaxVertexID(), [&ClothFacade, &WeldedSimMesh, &NonManifoldMapping, &InpaintWeightMask, &TransferBoneWeights](int32 WeldedID)
 			{
 				const FDynamicMeshVertexSkinWeightsAttribute* OutAttribute = WeldedSimMesh.Attributes()->GetSkinWeightsAttribute(FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
 
@@ -213,6 +230,7 @@ namespace UE::Chaos::ClothAsset::Private
 				checkSlow(WeldedID < ClothFacade.GetNumSimVertices3D());
 				OutAttribute->GetValue(WeldedID, ClothFacade.GetSimBoneIndices()[WeldedID],
 					ClothFacade.GetSimBoneWeights()[WeldedID]);
+				InpaintWeightMask[WeldedID] = TransferBoneWeights.MatchedVertices[WeldedID] ? 1.0f : 0.0f;
 			}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 		}
 
@@ -231,9 +249,11 @@ namespace UE::Chaos::ClothAsset::Private
 				ClothFacade.GetRenderPosition()[VertexID]);
 
 		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+		return true;
 	}
 
-	static void TransferClosestPointOnSurface(
+	static bool TransferClosestPointOnSurface(
 		const FReferenceSkeleton& TargetRefSkeleton,
 		const bool bUseParallel,
 		UE::Chaos::ClothAsset::FCollectionClothFacade& ClothFacade,
@@ -254,7 +274,7 @@ namespace UE::Chaos::ClothAsset::Private
 		if (!ensure(TransferBoneWeights.Validate() == EOperationValidationResult::Ok))
 		{
 			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Transfer method parameters are invalid."));
-			return;
+			return false;
 		}
 
 		//
@@ -280,6 +300,8 @@ namespace UE::Chaos::ClothAsset::Private
 				&TargetBoneToIndex);
 
 		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+		return true;
 	}
 }
 
@@ -340,18 +362,29 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			FCollectionClothFacade ClothFacade(ClothCollection);
 			ClothFacade.SetSkeletonAssetPathName(SkeletalMesh->GetSkeleton()->GetPathName());
 
+			bool bTransferResult = false;
 			if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights)
 			{
-				TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, bUseParallel, ClothCollection, TransferBoneWeights);
+				bTransferResult = TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, TransferBoneWeights);
 			}
 			else if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::ClosestPointOnSurface)
 			{
-				TransferClosestPointOnSurface(TargetRefSkeleton, bUseParallel, ClothFacade, TransferBoneWeights);
+				bTransferResult = TransferClosestPointOnSurface(TargetRefSkeleton, bUseParallel, ClothFacade, TransferBoneWeights);
 			}
 			else
 			{
 				checkNoEntry();
 			}
+
+			if (!bTransferResult)
+			{
+				FClothDataflowTools::LogAndToastWarning(*this,
+					LOCTEXT("TransferWeightsFailedHeadline", "Transfer Weights Failed."),
+					LOCTEXT("TransferWeightsDetails", "Failed to transfer skinning weights from the source."));
+				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
+				return;
+			}
+
 		}
 
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);

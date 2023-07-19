@@ -15,9 +15,9 @@ enum class EChaosClothAssetTransferSkinWeightsMethod : uint8
 	ClosestPointOnSurface,
 	
 	/**
-	 * For every vertex on the target mesh, find the closest vertex on the surface of the source mesh.
-	 * If that vertex position is within the search radius, and their normals differ by less than the specified normal threshold,
-	 * then the vertex weights are directly copied from the source vertex to the target mesh vertex.
+	 * For every vertex on the target mesh, find the closest point on the surface of the source mesh.
+	 * If that point position is within the search radius, and their normals differ by less than the specified normal threshold,
+	 * then the vertex weights are directly copied from the source point to the target mesh vertex.
 	 * For all other vertices whose weights didn't get transferred, smoothed weight values are automatically computed.
 	 */
 	InpaintWeights
@@ -64,6 +64,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = -1, UIMax = 180, ClampMin = -1, ClampMax = 180, EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
 	double NormalThreshold = 30;
+
+	/** The number of smoothing iterations applied to the vertices whose weights were automatically computed. */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = 0, UIMax = 100, ClampMin = 0, ClampMax = 100, DisplayName = "Smoothing Iterations", EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
+	int32 NumSmoothingIterations = 10;
+
+	/** The smoothing strength of each smoothing iteration. */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = 0, UIMax = 1, ClampMin = 0, ClampMax = 1, DisplayName = "Smoothing Strength", EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
+	float SmoothingStrength = 0.1;
 
 	FChaosClothAssetTransferSkinWeightsNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
