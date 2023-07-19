@@ -1823,14 +1823,28 @@ void FPCGEditor::PasteNodesHere(const FVector2D& Location)
 
 		PastedNode->CreateNewGuid();
 
-		if (UPCGEditorGraphNodeBase* PastedPCGGraphNode = Cast<UPCGEditorGraphNodeBase>(PastedNode))
+		UPCGEditorGraphNodeBase* PastedPCGGraphNode = Cast<UPCGEditorGraphNodeBase>(PastedNode);
+		if (UPCGNode* PastedPCGNode = PastedPCGGraphNode ? PastedPCGGraphNode->GetPCGNode() : nullptr)
 		{
-			if (UPCGNode* PastedPCGNode = PastedPCGGraphNode->GetPCGNode())
-			{
-				PCGGraphBeingEdited->AddNode(PastedPCGNode);
+			PCGGraphBeingEdited->AddNode(PastedPCGNode);
+		}
+	}
 
-				PastedPCGGraphNode->PostPaste();
-			}
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		UPCGEditorGraphNodeBase* PastedPCGGraphNode = Cast<UPCGEditorGraphNodeBase>(PastedNode);
+		if (UPCGNode* PastedPCGNode = PastedPCGGraphNode ? PastedPCGGraphNode->GetPCGNode() : nullptr)
+		{
+			PastedPCGGraphNode->RebuildAfterPaste();
+		}
+	}
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		UPCGEditorGraphNodeBase* PastedPCGGraphNode = Cast<UPCGEditorGraphNodeBase>(PastedNode);
+		if (UPCGNode* PastedPCGNode = PastedPCGGraphNode ? PastedPCGGraphNode->GetPCGNode() : nullptr)
+		{
+			PastedPCGGraphNode->PostPaste();
 		}
 	}
 

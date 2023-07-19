@@ -46,6 +46,7 @@ public:
 	UPCGNode* GetPCGNode() { return PCGNode; }
 	const UPCGNode* GetPCGNode() const { return PCGNode; }
 	void PostCopy();
+	void RebuildAfterPaste();
 	void PostPaste();
 	void SetInspected(bool InIsInspecting) { bIsInspected = InIsInspecting; }
 	bool GetInspected() const { return bIsInspected; }
@@ -74,6 +75,7 @@ public:
 protected:
 	static FEdGraphPinType GetPinType(const UPCGPin* InPin);
 
+	/** Create PCG-side edges from editor pins/edges. */
 	void RebuildEdgesFromPins();
 
 	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);

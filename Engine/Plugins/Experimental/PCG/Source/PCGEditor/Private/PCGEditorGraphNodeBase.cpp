@@ -192,7 +192,7 @@ void UPCGEditorGraphNodeBase::PostPasteNode()
 	bDisableReconstructFromNode = true;
 }
 
-void UPCGEditorGraphNodeBase::PostPaste()
+void UPCGEditorGraphNodeBase::RebuildAfterPaste()
 {
 	if (PCGNode)
 	{
@@ -211,7 +211,10 @@ void UPCGEditorGraphNodeBase::PostPaste()
 			}
 		}
 	}
+}
 
+void UPCGEditorGraphNodeBase::PostPaste()
+{
 	bDisableReconstructFromNode = false;
 }
 
@@ -341,9 +344,8 @@ EPCGChangeType UPCGEditorGraphNodeBase::UpdateGridSizeVisualisation(UPCGComponen
 	}
 
 	EPCGChangeType ChangeType = EPCGChangeType::None;
-	const uint32 InspectingGridSize = (InComponentBeingDebugged && InComponentBeingDebugged->IsLocalComponent()) ?
-		InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
 
+	const uint32 InspectingGridSize = InComponentBeingDebugged ? InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
 	if (InspectingGridSize == PCGHiGenGrid::UninitializedGridSize())
 	{
 		if (IsDisplayAsDisabledForced())
