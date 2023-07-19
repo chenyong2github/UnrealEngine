@@ -17,6 +17,8 @@ THIRD_PARTY_INCLUDES_START
 	#pragma warning(disable : 6319 6323)
 #endif // PLATFORM_WINDOWS
 
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
 #include "api/rtc_error.h"
 
 #include "api/data_channel_interface.h"
@@ -27,6 +29,9 @@ THIRD_PARTY_INCLUDES_START
 #include "api/video_codecs/video_encoder_factory.h"
 #include "modules/audio_device/include/audio_device_defines.h"
 #include "rtc_base/copy_on_write_buffer.h"
+
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 #if PLATFORM_WINDOWS
 	#pragma warning(pop)

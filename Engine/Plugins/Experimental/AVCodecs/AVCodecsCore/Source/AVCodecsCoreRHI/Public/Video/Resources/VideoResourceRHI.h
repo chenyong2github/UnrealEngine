@@ -9,6 +9,7 @@
 
 #if PLATFORM_WINDOWS
 THIRD_PARTY_INCLUDES_START
+#include "Windows/MinWindows.h"
 #include "d3d12.h"
 THIRD_PARTY_INCLUDES_END
 #endif

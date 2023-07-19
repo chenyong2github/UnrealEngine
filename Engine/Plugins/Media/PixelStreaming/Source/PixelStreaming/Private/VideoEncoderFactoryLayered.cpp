@@ -2,10 +2,15 @@
 
 #include "VideoEncoderFactoryLayered.h"
 #include "Settings.h"
-#include "absl/strings/match.h"
 #include "WebRTCIncludes.h"
 #include "VideoEncoderLayered.h"
 #include "VideoEncoderFactorySingleLayer.h"
+
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
+#include "absl/strings/match.h"
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 namespace UE::PixelStreaming
 {

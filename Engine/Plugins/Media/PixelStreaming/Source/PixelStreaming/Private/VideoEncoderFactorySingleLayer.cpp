@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoEncoderFactorySingleLayer.h"
-#include "absl/strings/match.h"
 #include "VideoEncoderSingleLayerHardware.h"
 #include "VideoEncoderSingleLayerVPX.h"
 #include "Settings.h"
@@ -11,6 +10,12 @@
 #include "PixelStreamingDelegates.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "NvmlEncoder.h"
+
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
+#include "absl/strings/match.h"
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 namespace UE::PixelStreaming
 {

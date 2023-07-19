@@ -19,7 +19,7 @@ public class WebRTC : ModuleRules
 	protected virtual bool bShouldUse5414WebRTC
 	{
 		get =>
-			false;
+			true;
 	}
 
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
@@ -60,6 +60,9 @@ public class WebRTC : ModuleRules
 
 			string IncludePath = Path.Combine(WebRtcSdkPath, "Include");
 			PublicSystemIncludePaths.Add(IncludePath);
+
+			// Include our compatiblity headers
+			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "WebRTC", "CompatInclude"));
 
 			string AbslthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "abseil-cpp");
 			PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);

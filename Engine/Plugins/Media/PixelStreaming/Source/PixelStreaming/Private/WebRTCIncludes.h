@@ -20,6 +20,9 @@ THIRD_PARTY_INCLUDES_START
 
 #endif // PLATFORM_WINDOWS
 
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
+
 #include "api/rtp_receiver_interface.h"
 #include "api/media_types.h"
 
@@ -74,6 +77,9 @@ THIRD_PARTY_INCLUDES_START
 #include "media/base/video_broadcaster.h"
 
 #include "system_wrappers/include/field_trial.h"
+
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 // because WebRTC uses STL
 #include <string>

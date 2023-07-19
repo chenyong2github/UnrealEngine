@@ -2,11 +2,16 @@
 #include "VideoDecoderFactory.h"
 #include "Utils.h"
 #include "VideoDecoderStub.h"
-#include "absl/strings/match.h"
 #include "VideoDecoderVPX.h"
 #include "VideoDecoderH265.h"
 #include "PixelStreamingPrivate.h"
 #include "Settings.h"
+
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
+#include "absl/strings/match.h"
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 namespace UE::PixelStreaming
 {

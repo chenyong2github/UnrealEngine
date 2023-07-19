@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "VideoEncoderLayered.h"
 #include "FrameBufferMultiFormat.h"
-#include "modules/video_coding/codecs/vp8/include/vp8.h"
-#include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "VideoEncoderFactorySingleLayer.h"
 #include "Settings.h"
 #include "PixelStreamingTrace.h"
+
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
+#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "modules/video_coding/codecs/vp9/include/vp9.h"
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 namespace
 {

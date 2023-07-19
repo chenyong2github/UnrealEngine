@@ -12,7 +12,12 @@
 #include "PixelStreamingDataChannel.h"
 #include "Stats.h"
 #include "AudioInputMixer.h"
+
+// Start WebRTC Includes
+#include "PreWebRTCApi.h"
 #include "absl/strings/match.h"
+#include "PostWebRTCApi.h"
+// End WebRTC Includes
 
 namespace
 {
