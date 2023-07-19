@@ -38,6 +38,8 @@
 #include "Widgets/SDataprepProducersWidget.h"
 #include "Widgets/SDataprepStats.h"
 
+#include "Materials/MaterialInstanceConstant.h"
+
 #define LOCTEXT_NAMESPACE "DataprepEditor"
 
 extern const FName DataprepEditorAppIdentifier;
@@ -790,6 +792,12 @@ void FDataprepEditor::CleanPreviewWorld()
 			UPackage* Package = Cast<UPackage>(PackagePath.ResolveObject());
 
 			UObject* ObjectToDelete = StaticFindObjectFast(nullptr, Package, *SoftObjectPath.GetAssetName());
+
+			if (UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(ObjectToDelete))
+			{
+				MaterialInstanceConstant->SetParentEditorOnly(nullptr);
+				MaterialInstanceConstant->PostEditChange();
+			}
 
 			FDataprepCoreUtils::MoveToTransientPackage( ObjectToDelete );
 			ObjectsToDelete.Add( ObjectToDelete );

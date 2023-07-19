@@ -201,6 +201,8 @@ void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> InObjects)
 	// if we have object to purge but the map isn't one of them collect garbage (if we purged the map it has already been done)
 	if ( ObjectsToPurge.Num() > 0 )
 	{
+		FlushRenderingCommands();
+
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
 }

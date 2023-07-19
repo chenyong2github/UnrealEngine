@@ -290,17 +290,29 @@ void SDataprepEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDa
 void SDataprepEditorViewport::ClearScene()
 {
 	const int32 PreviousCount = PreviewMeshComponents.Num();
+	
+	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepRelative, true);
+
+	StaticActor->UnregisterAllComponents();
+	MovableActor->UnregisterAllComponents();
+	
 	TArray<UObject*> ObjectsToDelete;
-	ObjectsToDelete.Reserve( PreviousCount );
+	ObjectsToDelete.Reserve(PreviousCount);
 
 	for( const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponent : PreviewMeshComponents )
 	{
 		if(UStaticMeshComponent* MeshComponent = PreviewMeshComponent.Get())
 		{
+			MeshComponent->DetachFromComponent(DetachmentRules);
+			MeshComponent->SetStaticMesh(nullptr);
+
 			MeshComponent->EmptyOverrideMaterials();
 			ObjectsToDelete.Add( MeshComponent );
 		}
 	}
+
+	StaticActor->RegisterAllComponents();
+	MovableActor->RegisterAllComponents();
 
 	FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 
