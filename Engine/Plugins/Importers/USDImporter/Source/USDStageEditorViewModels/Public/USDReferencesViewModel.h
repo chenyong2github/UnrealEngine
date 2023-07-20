@@ -10,6 +10,7 @@ class USDSTAGEEDITORVIEWMODELS_API FUsdReference : public TSharedFromThis< FUsdR
 {
 public:
 	FString AssetPath;
+	FString PrimPath;
 };
 
 class USDSTAGEEDITORVIEWMODELS_API FUsdReferencesViewModel

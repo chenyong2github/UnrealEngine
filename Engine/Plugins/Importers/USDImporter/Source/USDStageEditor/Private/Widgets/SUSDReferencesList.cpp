@@ -15,6 +15,8 @@
 
 #if USE_USD_SDK
 
+#define LOCTEXT_NAMESPACE "USDReferencesList"
+
 namespace UsdReferencesListConstants
 {
 	const FMargin RowPadding( 6.0f, 2.5f, 2.0f, 2.5f );
@@ -35,9 +37,16 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 
 	if ( ColumnName == TEXT("AssetPath") )
 	{
-		SAssignNew( ColumnWidget, STextBlock )
-		.Text( FText::FromString( Reference->AssetPath ) )
-		.Font( FAppStyle::GetFontStyle( UsdReferencesListConstants::NormalFont ) );
+		SAssignNew(ColumnWidget, STextBlock)
+		.Text(FText::FromString(Reference->AssetPath.IsEmpty() ? TEXT("(internal reference)") : Reference->AssetPath))
+		.Font(FAppStyle::GetFontStyle(UsdReferencesListConstants::NormalFont));
+	}
+
+	if ( ColumnName == TEXT("PrimPath") )
+	{
+		SAssignNew(ColumnWidget, STextBlock)
+		.Text(FText::FromString(Reference->PrimPath.IsEmpty() ? TEXT("(default prim)") : Reference->PrimPath))
+		.Font(FAppStyle::GetFontStyle(UsdReferencesListConstants::NormalFont));
 	}
 
 	return SNew( SBox )
@@ -57,11 +66,15 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 
 void SUsdReferencesList::Construct( const FArguments& InArgs )
 {
-	SAssignNew( HeaderRowWidget, SHeaderRow )
+	SAssignNew(HeaderRowWidget, SHeaderRow)
 
-	+SHeaderRow::Column( FName( TEXT("AssetPath") ) )
-	.DefaultLabel( NSLOCTEXT( "USDReferencesList", "References", "References" ) )
-	.FillWidth( 100.f );
+	+SHeaderRow::Column(FName(TEXT("AssetPath")))
+	.DefaultLabel(LOCTEXT("ReferencedPath", "Referenced layers"))
+	.FillWidth(100.f)
+
+	+SHeaderRow::Column(FName(TEXT("PrimPath")))
+	.DefaultLabel(LOCTEXT("ReferencedPrim", "Referenced prims"))
+	.FillWidth(100.f);
 
 	SListView::Construct
 	(
@@ -87,5 +100,7 @@ void SUsdReferencesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const T
 
 	RequestListRefresh();
 }
+
+#undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

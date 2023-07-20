@@ -46,6 +46,7 @@ void FUsdReferencesViewModel::UpdateReferences( const UE::FUsdStageWeak& UsdStag
 				{
 					FUsdReference Reference;
 					Reference.AssetPath = UsdToUnreal::ConvertString( UsdReference.GetAssetPath() );
+					Reference.PrimPath = UsdToUnreal::ConvertPath( UsdReference.GetPrimPath() );
 
 					References.Add( MakeSharedUnreal< FUsdReference >( MoveTemp( Reference ) ) );
 				}
