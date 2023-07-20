@@ -23,7 +23,11 @@ public class PLCrashReporter : ModuleRules
 		{
 			PublicSystemIncludePaths.Add(PLSourcePath);
 
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			if (Target.Platform == UnrealTargetPlatform.IOS && Target.Architecture == UnrealArch.IOSSimulator)
+			{
+				LibConfig = "Simulator";
+			}
+			else if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
 				LibConfig = "Debug";
 			}

@@ -223,6 +223,12 @@ xcodebuild -project CrashReporter.xcodeproj -target "CrashReporter iOS" -configu
 
 cp ${CLCRASH_GIT_ROOT}/build/Release-iphoneos/*.a ${LIB_OUTPUT_DIR}/iOS/Release
 
+mkdir -p ${LIB_OUTPUT_DIR}/iOS/Simulator > /dev/null 2>&1
+
+xcodebuild -project CrashReporter.xcodeproj -target "CrashReporter iOS" -configuration Release -sdk iphonesimulator -arch arm64 clean
+xcodebuild -project CrashReporter.xcodeproj -target "CrashReporter iOS" -configuration Release -sdk iphonesimulator -arch arm64
+
+cp ${CLCRASH_GIT_ROOT}/build/Release-iphonesimulator/*.a ${LIB_OUTPUT_DIR}/iOS/Simulator
 
 popd > /dev/null
 
