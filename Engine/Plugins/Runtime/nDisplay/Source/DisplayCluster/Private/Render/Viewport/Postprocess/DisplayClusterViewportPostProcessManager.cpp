@@ -143,6 +143,19 @@ const TArray<FString> FDisplayClusterViewportPostProcessManager::GetPostprocess(
 	return ExistPostProcess;
 }
 
+bool FDisplayClusterViewportPostProcessManager::CanBeCreated(const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess) const
+{
+	check(IsInGameThread());
+	check(InConfigurationPostprocess != nullptr);
+
+	IDisplayClusterRenderManager* const DCRenderManager = IDisplayCluster::Get().GetRenderMgr();
+	check(DCRenderManager);
+
+	const TSharedPtr<IDisplayClusterPostProcessFactory> PostProcessFactory = DCRenderManager->GetPostProcessFactory(InConfigurationPostprocess->Type);
+
+	return PostProcessFactory.IsValid() && PostProcessFactory->CanBeCreated(InConfigurationPostprocess);
+}
+
 bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString& InPostprocessId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
 {
 	check(IsInGameThread());

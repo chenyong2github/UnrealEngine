@@ -13,7 +13,24 @@ TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> FTextureSharePostpro
 {
 	check(InConfigurationPostProcess != nullptr);
 
-	UE_LOG(LogTextureShareDisplayClusterPostProcess, Verbose, TEXT("Instantiating postprocess <%s> id='%s'"), *InConfigurationPostProcess->Type, *InPostProcessId);
+	if (ExistsTextureSharePostprocess.IsValid())
+	{
+		UE_LOG(LogTextureShareDisplayClusterPostProcess, Error, TEXT("Can't Instantiating postprocess <%s> id='%s' : There can only be one TextureShare postprocess per application. "), *InConfigurationPostProcess->Type, *InPostProcessId);
 
-	return  MakeShared<FTextureSharePostprocess, ESPMode::ThreadSafe>(InPostProcessId, InConfigurationPostProcess);
+		return nullptr;
+	}
+
+	UE_LOG(LogTextureShareDisplayClusterPostProcess, Verbose, TEXT("Instantiating postprocess <%s> id='%s'"), *InConfigurationPostProcess->Type, *InPostProcessId);
+	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> Result = MakeShared<FTextureSharePostprocess, ESPMode::ThreadSafe>(InPostProcessId, InConfigurationPostProcess);
+
+	// Save weak ref to TS postprocess instance
+	ExistsTextureSharePostprocess = Result;
+
+	return Result;
+}
+
+bool FTextureSharePostprocessFactory::CanBeCreated(const FDisplayClusterConfigurationPostprocess* InConfigurationPostProcess) const
+{
+	// This postprocess used as a singletone
+	return !ExistsTextureSharePostprocess.IsValid();
 }

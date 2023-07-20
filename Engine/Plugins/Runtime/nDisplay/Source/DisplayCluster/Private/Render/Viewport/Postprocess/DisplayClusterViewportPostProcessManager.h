@@ -59,6 +59,20 @@ public:
 	{ return OutputRemap; }
 
 public:
+	/** Special rules for creating a PP instance.
+	* Note: This function must be called before Create() on the nDisplay side.
+	* (useful to avoid unnecessary nDisplay log messages).
+	*
+	* For example, some postprocess types may use an instance as a singleton.
+	* In this case, Create() returns nullptr if the PP instance already exists,
+	* and as a result nDisplay issues an error message to the log, and then avoids creating this PP in the future.
+	*
+	* @param InConfigurationPostProcess - postprocess configuration
+	*
+	* @return true if a postprocess with this type can be created at this time.
+	*/
+	bool CanBeCreated(const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess) const;
+
 	bool CreatePostprocess(const FString& InPostprocessId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
 	bool RemovePostprocess(const FString& InPostprocessId);
 	bool UpdatePostprocess(const FString& InPostprocessId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
