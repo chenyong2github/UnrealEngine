@@ -88,7 +88,7 @@ bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 	{
 		return false;
 	}
-	Module.OnPreTakeSnapshot().Broadcast({this});
+	Module.OnPreTakeSnapshot().Broadcast({ this, TargetWorld });
 
 	MapPath = TargetWorld;
 	CaptureTime = FDateTime::UtcNow();
@@ -99,7 +99,7 @@ bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 	Cache.InitFor(SerializedData);
 	// Should we delete preexisting actors from the snapshot world?
 
-	Module.OnPostTakeSnapshot().Broadcast({ this });
+	Module.OnPostTakeSnapshot().Broadcast({ this, TargetWorld });
 
 	return true;
 }

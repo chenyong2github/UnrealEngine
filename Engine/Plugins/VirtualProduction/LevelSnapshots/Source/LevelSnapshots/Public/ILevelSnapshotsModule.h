@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/IRestorationListener.h"
 #include "Interfaces/ISnapshotLoader.h"
 #include "Interfaces/IPropertyComparer.h"
@@ -10,6 +9,7 @@
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
 #include "Interfaces/IActorSnapshotFilter.h"
 #include "Interfaces/ISnapshotFilterExtender.h"
+#include "Interfaces/ITakeSnapshotListener.h"
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -21,11 +21,13 @@ namespace UE::LevelSnapshots
 	struct LEVELSNAPSHOTS_API FPreTakeSnapshotEventData
 	{
 		ULevelSnapshot* Snapshot;
+		UWorld* World;
 	};
 
 	struct LEVELSNAPSHOTS_API FPostTakeSnapshotEventData
 	{
 		ULevelSnapshot* Snapshot;
+		UWorld* World;
 	};
 
 	class LEVELSNAPSHOTS_API ILevelSnapshotsModule : public IModuleInterface
@@ -105,11 +107,16 @@ namespace UE::LevelSnapshots
 		virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
 		virtual void UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener) = 0;
 
+		
+		/** Registers an object that listens for when objects are snapshot. */
+		virtual void RegisterTakeSnapshotListener(TSharedRef<ITakeSnapshotListener> Extender) = 0;
+		virtual void UnregisterTakeSnapshotListener(const TSharedRef<ITakeSnapshotListener>& Listener) = 0;
+		
 
 		/** Registers an object that can decide to display additional properties to the user that default snapshot behaviour does not display. */
 		virtual void RegisterSnapshotFilterExtender(TSharedRef<ISnapshotFilterExtender> Extender) = 0;
 		virtual void UnregisterSnapshotFilterExtender(const TSharedRef<ISnapshotFilterExtender>& Listener) = 0;
-		
+
 		
 		/**
 		 * Adds properties that snapshots will capture and restore from now on. This allows support for properties that are skipped by default.

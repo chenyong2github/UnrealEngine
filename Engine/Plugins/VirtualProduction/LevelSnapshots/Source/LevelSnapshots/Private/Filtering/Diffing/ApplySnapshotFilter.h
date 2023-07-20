@@ -17,17 +17,6 @@ namespace UE::LevelSnapshots::Private
 
 		static FApplySnapshotFilter Make(ULevelSnapshot* Snapshot, AActor* DeserializedSnapshotActor, AActor* WorldActor, const ULevelSnapshotFilter* Filter);
 		
-		FApplySnapshotFilter& AllowUnchangedProperties(bool bNewValue)
-		{
-			bAllowUnchangedProperties = bNewValue;
-			return *this;
-		}
-		FApplySnapshotFilter& AllowNonEditableProperties(bool bNewValue)
-		{
-			bAllowNonEditableProperties = bNewValue;
-			return *this;
-		}
-		
 		void ApplyFilterToFindSelectedProperties(FPropertySelectionMap& MapToAddTo);
 
 	private:
@@ -71,35 +60,36 @@ namespace UE::LevelSnapshots::Private
 		FApplySnapshotFilter(ULevelSnapshot* Snapshot, AActor* DeserializedSnapshotActor, AActor* WorldActor, const ULevelSnapshotFilter* Filter);
 		bool EnsureParametersAreValid() const;
 		
-		void AnalyseComponentProperties(FPropertySelectionMap& MapToAddTo);
+		void AnalyseComponentRestoration(FPropertySelectionMap& MapToAddTo);
 
+		// Container types: actors, subobjects, structs, custom subobjects 
 		void FilterActorPair(FPropertySelectionMap& MapToAddTo);
 		EPropertySearchResult FilterSubobjectPair(FPropertySelectionMap& MapToAddTo, UObject* SnapshotSubobject, UObject* WorldSubobject);
 		EPropertySearchResult FilterStructPair(FPropertyContainerContext& Parent, FStructProperty* StructProperty);
 		EFilterObjectPropertiesResult FindAndFilterCustomSubobjectPairs(FPropertySelectionMap& MapToAddTo, UObject* SnapshotOwner, UObject* WorldOwner);
 
-		void AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
+		// Start property recursion
+		void TrackChangedRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
+		TOptional<EPropertySearchResult> HandlePossibleStructProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle);
+		EPropertySearchResult TrackChangedPropertiesInStruct(FPropertyContainerContext& ContainerContext);
+
+		// Registered callbacks for ILevelSnapshotsModule
+		void PreApplyFilter(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
+		void PostApplyFilter(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
 		void ExtendAnalysedProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
-		TOptional<EPropertySearchResult> HandlePossibleStructProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle);
-		EPropertySearchResult AnalyseStructProperties(FPropertyContainerContext& ContainerContext);
 
-		
+		// Subobject analysis
 		TOptional<EPropertySearchResult> HandlePossibleSubobjectProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle);
-		
-		TOptional<EPropertySearchResult> AnalysePossibleArraySubobjectProperties(FPropertyContainerContext& ContainerContext, FArrayProperty* PropertyToHandle);
-		TOptional<EPropertySearchResult> AnalysePossibleSetSubobjectProperties(FPropertyContainerContext& ContainerContext, FSetProperty* PropertyToHandle);
-		TOptional<EPropertySearchResult> AnalysePossibleMapSubobjectProperties(FPropertyContainerContext& ContainerContext, FMapProperty* PropertyToHandle);
-		
+		TOptional<EPropertySearchResult> TrackPossibleArraySubobjectProperties(FPropertyContainerContext& ContainerContext, FArrayProperty* PropertyToHandle);
+		TOptional<EPropertySearchResult> TrackPossibleSetSubobjectProperties(FPropertyContainerContext& ContainerContext, FSetProperty* PropertyToHandle);
+		TOptional<EPropertySearchResult> TrackPossibleMapSubobjectProperties(FPropertyContainerContext& ContainerContext, FMapProperty* PropertyToHandle);
 		template<typename TCollectionData>
-		TOptional<EPropertySearchResult> AnalysePossibleSubobjectsInCollection(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* ObjectProperty, TCollectionData& Detail);
-		
-		TOptional<EPropertySearchResult> AnalysePossibleSubobjectProperties(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* PropertyToHandle, void* SnapshotValuePtr, void* WorldValuePtr);
+		TOptional<EPropertySearchResult> TrackPossibleSubobjectsInCollection(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* ObjectProperty, TCollectionData& Detail);
+		TOptional<EPropertySearchResult> TrackPossibleSubobjectProperties(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* PropertyToHandle, void* SnapshotValuePtr, void* WorldValuePtr);
 
-		
-
-		EPropertySearchResult AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest = false);
+		// Single property analysis
+		EPropertySearchResult TrackPropertyIfChangedRecursive(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest = false);
 		EPropertySearchResult TrackChangedProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon);
-
 		
 		ULevelSnapshot* Snapshot;
 		AActor* DeserializedSnapshotActor;
@@ -107,12 +97,6 @@ namespace UE::LevelSnapshots::Private
 		const ULevelSnapshotFilter* Filter;
 		/** Every time an object is analysed, it is added here, so we do not analyse more than once. */
 		TMap<UObject*, EPropertySearchResult> AnalysedSnapshotObjects;
-
-		/* Do we allow properties that do not show up in the details panel? */
-		bool bAllowNonEditableProperties = false;
-
-		/* Do we allow adding properties that did not change to the selection map? */
-		bool bAllowUnchangedProperties = false;
 	};
 }
 

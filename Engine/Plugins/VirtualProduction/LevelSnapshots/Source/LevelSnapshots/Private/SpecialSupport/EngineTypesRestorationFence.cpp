@@ -4,6 +4,7 @@
 
 #include "ActorGroupRestoration.h"
 #include "ActorLabelRestoration.h"
+#include "AssetUserDataRestoration.h"
 #include "AttachParentShowsTransformProperties.h"
 #include "CollisionRestoration.h"
 #include "GridPlacementRestoration.h"
@@ -132,5 +133,6 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		MaterialInstanceSupport::Register(Module);
 		ActorLabelRestoration::Register(Module);
 		PCGRestoration::Register(Module);
+		AssetUserDataRestoration::Register(Module);
 	}
 }

@@ -72,7 +72,7 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::ApplyFilterToFindSelecte
 		const FConditionalScopeLogTime LogTime(ConsoleVariables::CVarLogSelectionMap.GetValueOnAnyThread(), TEXT("Total Time"));
 		
 		FilterActorPair(MapToAddTo);
-		AnalyseComponentProperties(MapToAddTo);
+		AnalyseComponentRestoration(MapToAddTo);
 	}
 }
 
@@ -126,7 +126,7 @@ bool UE::LevelSnapshots::Private::FApplySnapshotFilter::EnsureParametersAreValid
 	return true;
 }
 
-void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseComponentProperties(FPropertySelectionMap& MapToAddTo)
+void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseComponentRestoration(FPropertySelectionMap& MapToAddTo)
 {
 	FAddedAndRemovedComponentInfo ComponentSelection;
 
@@ -178,10 +178,11 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::FilterActorPair(FPropert
         FLevelSnapshotPropertyChain(),
         WorldActor->GetClass()
         );
-	
-	AnalyseRootProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
+
+	PreApplyFilter(ActorContext, DeserializedSnapshotActor, WorldActor);
+	TrackChangedRootProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
 	const EFilterObjectPropertiesResult FilterResult = FindAndFilterCustomSubobjectPairs(MapToAddTo, DeserializedSnapshotActor, WorldActor);
-	ExtendAnalysedProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
+	PostApplyFilter(ActorContext, DeserializedSnapshotActor, WorldActor);
 	
 	ActorSelection.SetHasCustomSerializedSubobjects(FilterResult == EFilterObjectPropertiesResult::HasCustomSubobjects);
 	if (!ActorSelection.IsEmpty())
@@ -215,16 +216,16 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
         FLevelSnapshotPropertyChain(),
 		WorldSubobject->GetClass()
         );
-	
-	AnalyseRootProperties(ComponentContext, SnapshotSubobject, WorldSubobject);
-	
+
+	PreApplyFilter(ComponentContext, SnapshotSubobject, WorldSubobject);
+	TrackChangedRootProperties(ComponentContext, SnapshotSubobject, WorldSubobject);
 	const EFilterObjectPropertiesResult FilterResult = FindAndFilterCustomSubobjectPairs(MapToAddTo, SnapshotSubobject, WorldSubobject);
 	SubobjectSelection.SetHasCustomSerializedSubobjects(FilterResult == EFilterObjectPropertiesResult::HasCustomSubobjects);
 
 	// Non-component subobjects should always be added so when applying to world and resolving a subobject, we can tell whether it is referenced or just a dead object still existing in memory
 	const bool bAddedProperties = [this, &MapToAddTo, &ComponentContext, SnapshotSubobject, WorldSubobject, &SubobjectSelection]()
 	{
-		ExtendAnalysedProperties(ComponentContext, SnapshotSubobject, WorldSubobject);
+		PostApplyFilter(ComponentContext, SnapshotSubobject, WorldSubobject);
 		if (SubobjectSelection.IsEmpty())
 		{
 			// We don't track components because we can efficiently tell whether they're dead or not by asking the parent actor
@@ -259,7 +260,7 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
         Parent.RootClass
         );
 	StructContext.AuthoredPathInformation.Add(StructProperty->GetAuthoredName());
-	return AnalyseStructProperties(StructContext);
+	return TrackChangedPropertiesInStruct(StructContext);
 }
 
 UE::LevelSnapshots::Private::FApplySnapshotFilter::EFilterObjectPropertiesResult UE::LevelSnapshots::Private::FApplySnapshotFilter::FindAndFilterCustomSubobjectPairs(FPropertySelectionMap& MapToAddTo, UObject* SnapshotOwner, UObject* WorldOwner)
@@ -319,7 +320,7 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EFilterObjectPropertiesResult
 	return bAtLeastOneSubobjectWasAdded ? EFilterObjectPropertiesResult::HasCustomSubobjects : EFilterObjectPropertiesResult::HasOnlyNormalProperties;
 }
 
-void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
+void UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackChangedRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
 {
 	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
 	const FPropertyComparerArray PropertyComparers = Module.GetPropertyComparerForClass(ContainerContext.RootClass);
@@ -343,8 +344,38 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseRootProperties(FP
 			break;
 		}
 		
-		AnalyseProperty(ContainerContext, *FieldIt, bSkipEqualityTest);
+		TrackPropertyIfChangedRecursive(ContainerContext, *FieldIt, bSkipEqualityTest);
 	}
+}
+
+TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::HandlePossibleStructProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle)
+{
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(PropertyToHandle))
+	{
+		return FilterStructPair(ContainerContext, StructProperty);
+	}
+	return {};
+}
+
+UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackChangedPropertiesInStruct(FPropertyContainerContext& ContainerContext)
+{
+	bool bFoundAtLeastOneProperty = false;
+	for (TFieldIterator<FProperty> FieldIt(ContainerContext.ContainerClass); FieldIt; ++FieldIt)
+	{
+		bFoundAtLeastOneProperty |= TrackPropertyIfChangedRecursive(ContainerContext, *FieldIt) == EPropertySearchResult::FoundProperties;
+	}
+	return bFoundAtLeastOneProperty ? EPropertySearchResult::FoundProperties : EPropertySearchResult::NoPropertiesFound;
+}
+
+void UE::LevelSnapshots::Private::FApplySnapshotFilter::PreApplyFilter(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
+{
+	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
+	Module.PreApplyFilters({ SnapshotObject, WorldObject, Snapshot });
+}
+
+void UE::LevelSnapshots::Private::FApplySnapshotFilter::PostApplyFilter(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
+{
+	ExtendAnalysedProperties(ContainerContext, SnapshotObject, WorldObject);
 }
 
 void UE::LevelSnapshots::Private::FApplySnapshotFilter::ExtendAnalysedProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
@@ -375,51 +406,32 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::ExtendAnalysedProperties
 	}
 }
 
-TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::HandlePossibleStructProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle)
-{
-	if (FStructProperty* StructProperty = CastField<FStructProperty>(PropertyToHandle))
-	{
-		return FilterStructPair(ContainerContext, StructProperty);
-	}
-	return {};
-}
-
-UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseStructProperties(FPropertyContainerContext& ContainerContext)
-{
-	bool bFoundAtLeastOneProperty = false;
-	for (TFieldIterator<FProperty> FieldIt(ContainerContext.ContainerClass); FieldIt; ++FieldIt)
-	{
-		bFoundAtLeastOneProperty |= AnalyseProperty(ContainerContext, *FieldIt) == EPropertySearchResult::FoundProperties;
-	}
-	return bFoundAtLeastOneProperty ? EPropertySearchResult::FoundProperties : EPropertySearchResult::NoPropertiesFound;
-}
-
 TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::HandlePossibleSubobjectProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyToHandle)
 {
 	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(PropertyToHandle))
 	{
-		return AnalysePossibleArraySubobjectProperties(ContainerContext, ArrayProperty);
+		return TrackPossibleArraySubobjectProperties(ContainerContext, ArrayProperty);
 	}
 	if (FSetProperty* SetProperty = CastField<FSetProperty>(PropertyToHandle))
 	{
-		return AnalysePossibleSetSubobjectProperties(ContainerContext, SetProperty);
+		return TrackPossibleSetSubobjectProperties(ContainerContext, SetProperty);
 	}
 	if (FMapProperty* MapProperty = CastField<FMapProperty>(PropertyToHandle))
 	{
-		return AnalysePossibleMapSubobjectProperties(ContainerContext, MapProperty);
+		return TrackPossibleMapSubobjectProperties(ContainerContext, MapProperty);
 	}
 	
 	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(PropertyToHandle))
 	{
 		void* SnapshotValuePtr = PropertyToHandle->ContainerPtrToValuePtr<void>(ContainerContext.SnapshotContainer, 0);
 		void* WorldValuePtr = PropertyToHandle->ContainerPtrToValuePtr<void>(ContainerContext.WorldContainer, 0);
-		return AnalysePossibleSubobjectProperties(ContainerContext, ObjectProperty, SnapshotValuePtr, WorldValuePtr);
+		return TrackPossibleSubobjectProperties(ContainerContext, ObjectProperty, SnapshotValuePtr, WorldValuePtr);
 	}
 	
 	return {};
 }
 
-TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalysePossibleArraySubobjectProperties(FPropertyContainerContext& ContainerContext, FArrayProperty* PropertyToHandle)
+TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackPossibleArraySubobjectProperties(FPropertyContainerContext& ContainerContext, FArrayProperty* PropertyToHandle)
 {
 	struct FArrayData
 	{
@@ -451,12 +463,12 @@ TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResu
 	if (InnerAsObjectProperty && !CastField<FSoftObjectProperty>(PropertyToHandle->Inner))
 	{
 		FArrayData ArrayData(ContainerContext, PropertyToHandle);
-		return AnalysePossibleSubobjectsInCollection(ContainerContext, InnerAsObjectProperty, ArrayData);
+		return TrackPossibleSubobjectsInCollection(ContainerContext, InnerAsObjectProperty, ArrayData);
 	}
 	return {};
 }
 
-TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalysePossibleSetSubobjectProperties(FPropertyContainerContext& ContainerContext, FSetProperty* PropertyToHandle)
+TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackPossibleSetSubobjectProperties(FPropertyContainerContext& ContainerContext, FSetProperty* PropertyToHandle)
 {
 	struct FSetData
 	{
@@ -510,12 +522,12 @@ TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResu
 	if (InnerAsObjectProperty && !CastField<FSoftObjectProperty>(PropertyToHandle->ElementProp))
 	{
 		FSetData SetData(ContainerContext, PropertyToHandle);
-		return AnalysePossibleSubobjectsInCollection(ContainerContext, InnerAsObjectProperty, SetData);
+		return TrackPossibleSubobjectsInCollection(ContainerContext, InnerAsObjectProperty, SetData);
 	}
 	return {};
 }
 
-TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalysePossibleMapSubobjectProperties(FPropertyContainerContext& ContainerContext, FMapProperty* PropertyToHandle)
+TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackPossibleMapSubobjectProperties(FPropertyContainerContext& ContainerContext, FMapProperty* PropertyToHandle)
 {
 	struct FMapData
 	{
@@ -548,13 +560,13 @@ TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResu
 	if (InnerAsObjectProperty && !CastField<FSoftObjectProperty>(PropertyToHandle->ValueProp))
 	{
 		FMapData MapData(ContainerContext, PropertyToHandle);
-		return AnalysePossibleSubobjectsInCollection(ContainerContext, InnerAsObjectProperty, MapData);
+		return TrackPossibleSubobjectsInCollection(ContainerContext, InnerAsObjectProperty, MapData);
 	}
 	return {};
 }
 
 template<typename TCollectionData>
-TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalysePossibleSubobjectsInCollection(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* ObjectProperty, TCollectionData& Detail)
+TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackPossibleSubobjectsInCollection(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* ObjectProperty, TCollectionData& Detail)
 {
 	TArray<UObject*> UnchangedSubobjects;
 	bool bFoundChangedProperties = false;
@@ -570,7 +582,7 @@ TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResu
 		}
 
 		void* WorldValuePtr = Detail.GetWorldValuePtrFromIndex(WorldIndex);
-		const TOptional<EPropertySearchResult> SubbjectPairResult = AnalysePossibleSubobjectProperties(ContainerContext, ObjectProperty, SnapshotValuePtr, WorldValuePtr);
+		const TOptional<EPropertySearchResult> SubbjectPairResult = TrackPossibleSubobjectProperties(ContainerContext, ObjectProperty, SnapshotValuePtr, WorldValuePtr);
 		if (!SubbjectPairResult.IsSet())
 		{
 			return {};
@@ -599,7 +611,7 @@ TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResu
 	return bHasCollectionChanged ? EPropertySearchResult::FoundProperties : EPropertySearchResult::NoPropertiesFound;
 }
 
-TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalysePossibleSubobjectProperties(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* PropertyToHandle, void* SnapshotValuePtr, void* WorldValuePtr)
+TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult> UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackPossibleSubobjectProperties(FPropertyContainerContext& ContainerContext, FObjectPropertyBase* PropertyToHandle, void* SnapshotValuePtr, void* WorldValuePtr)
 {
 	// Soft object properties do not work with subobjects and are not expected to: the path will remain pointing at the real world object...
 	if (FSoftObjectProperty* SoftObjectPath = CastField<FSoftObjectProperty>(PropertyToHandle))
@@ -651,7 +663,7 @@ TOptional<UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResu
 	return {};
 }
 
-UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest)
+UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackPropertyIfChangedRecursive(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest)
 {
 	if (!Restorability::IsRestorableProperty(PropertyInCommon))
 	{
@@ -679,7 +691,7 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
 
 UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackChangedProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon)
 {
-	const TOptional<EPropertySearchResult> StructResult = HandlePossibleStructProperties(ContainerContext, PropertyInCommon);
+	const TOptional<EPropertySearchResult> StructResult = HandlePossibleStructProperty(ContainerContext, PropertyInCommon);
 	if (StructResult.IsSet())
 	{
 		return *StructResult;
@@ -691,7 +703,7 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
 		return *SubobjectResult;
 	}
 
-	if (bAllowUnchangedProperties || !AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor))
+	if (!AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor))
 	{
 		return EPropertySearchResult::FoundProperties;
 	}

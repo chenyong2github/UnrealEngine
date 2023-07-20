@@ -7,30 +7,59 @@
 #include "LevelSnapshotsFunctionLibrary.h"
 
 #include "PreviewScene.h"
+#include "UObject/Package.h"
 
 FName UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::DefaultSnapshotId = FName("DefaultSnapshotId");
 
-UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::FSnapshotTestRunner()
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::FSnapshotTestRunner(ETestFlags Flags)
+	: Flags(Flags)
 {
 	TestWorld = MakeShared<FPreviewScene>(
 		FPreviewScene::ConstructionValues()
 			.SetEditor(true)
 			);
+	
+	// Some tests rely on the fact that the test takes place in a non-transient world
+	if (EnumHasAnyFlags(Flags, ETestFlags::NonTransientWorld))
+	{
+		UPackage* Package = CreatePackage(*FString::Printf(TEXT("/Temp/LevelSnapshots/Test%s"), *FGuid::NewGuid().ToString(EGuidFormats::Base36Encoded)));
+		// Executed tests might (indirectly) trigger a manual garbage collection 
+		Package->AddToRoot();
+		TestWorld->GetWorld()->Rename(nullptr, Package);
+	}
 }
 
 UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::FSnapshotTestRunner(UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner&& Other)
 {
 	TestWorld = Other.TestWorld;
 	Snapshots = Other.Snapshots;
+	Flags = Other.Flags;
 	// Prevent Other's destructor from calling RemoveFromRoot
 	Other.Snapshots.Empty();
 }
 
 UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::~FSnapshotTestRunner()
 {
+	if (EnumHasAnyFlags(Flags, ETestFlags::NonTransientWorld))
+	{
+		UPackage* Package = TestWorld->GetWorld()->GetPackage();
+		Package->RemoveFromRoot();
+		// If you run a test, and then try to close the engine, the package would show as pending save
+		Package->SetFlags(RF_Transient);
+	}
+	
 	for (auto SnapshotIt = Snapshots.CreateIterator(); SnapshotIt; ++SnapshotIt)
 	{
+		SnapshotIt->Value->ConditionalBeginDestroy();
 		SnapshotIt->Value->RemoveFromRoot();
+		// ULevelSnapshot::BeginDestroy marks it as RF_Standalone again
+		SnapshotIt->Value->ClearFlags(RF_Standalone);
+	}
+	
+	if (EnumHasAnyFlags(Flags, ETestFlags::NonTransientWorld))
+	{
+		// Otherwise other tests will log a warning "CleanupWorld was called twice"
+		CollectGarbage(RF_Standalone);
 	}
 }
 
@@ -125,7 +154,8 @@ UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Pri
 {
 	return AccessSnapshot([OriginalActor, &Callback, Filter](ULevelSnapshot* Snapshot)
 	{
-		const TOptional<TNonNullPtr<AActor>> SnapshotCounterpart = Snapshot->GetDeserializedActor(OriginalActor);
+		const FSoftObjectPath PathToOriginalActor(OriginalActor);
+		const TOptional<TNonNullPtr<AActor>> SnapshotCounterpart = Snapshot->GetDeserializedActor(PathToOriginalActor);
 		if (ensure(SnapshotCounterpart))
 		{
 			FPropertySelectionMap SelectedProperties;

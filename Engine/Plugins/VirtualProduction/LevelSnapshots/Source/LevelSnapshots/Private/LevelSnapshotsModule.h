@@ -42,6 +42,8 @@ namespace UE::LevelSnapshots::Private
 		virtual void UnregisterSnapshotLoader(const TSharedRef<ISnapshotLoader>& Loader) override;
 		virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) override;
 		virtual void UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener) override;
+		virtual void RegisterTakeSnapshotListener(TSharedRef<ITakeSnapshotListener> Extender) override;
+		virtual void UnregisterTakeSnapshotListener(const TSharedRef<ITakeSnapshotListener>& Listener) override;
 		virtual void RegisterSnapshotFilterExtender(TSharedRef<ISnapshotFilterExtender> Extender) override;
 		virtual void UnregisterSnapshotFilterExtender(const TSharedRef<ISnapshotFilterExtender>& Listener) override;
 		virtual void AddExplicitilySupportedProperties(const TSet<const FProperty*>& Properties) override;
@@ -95,6 +97,10 @@ namespace UE::LevelSnapshots::Private
 		void OnPreRemoveComponent(UActorComponent* ComponentToRemove);
 		void OnPostRemoveComponent(const FPostRemoveComponentParams& Params);
 
+		void OnPreTakeObjectSnapshot(const FPreTakeObjectSnapshotEvent& Params);
+		void OnPostTakeObjectSnapshot(const FPostTakeObjectSnapshotEvent& Params);
+
+		void PreApplyFilters(const FPreApplyFiltersParams& Params);
 		FPostApplyFiltersResult PostApplyFilters(const FPostApplyFiltersParams& Params);
 		
 	private:
@@ -117,6 +123,7 @@ namespace UE::LevelSnapshots::Private
 		TArray<TSharedRef<IActorSnapshotFilter>> GlobalFilters;
 		TArray<TSharedRef<ISnapshotLoader>> SnapshotLoaders;
 		TArray<TSharedRef<IRestorationListener>> RestorationListeners;
+		TArray<TSharedRef<ITakeSnapshotListener>> TakeSnapshotListenersListeners;
 		TArray<TSharedRef<ISnapshotFilterExtender>> FilterExtenders;
 
 		/* Allows these properties even when the default behaviour would exclude them. */
@@ -129,6 +136,9 @@ namespace UE::LevelSnapshots::Private
 
 		/** Map of named delegates for confirming that a level snapshot is possible. */
 		TMap<FName, FCanTakeSnapshot> CanTakeSnapshotDelegates;
+		
+		void PreTakeSnapshot(const FPreTakeSnapshotEventData& Params);
+		void PostTakeSnapshot(const FPostTakeSnapshotEventData& Params);
 	};
 }
 

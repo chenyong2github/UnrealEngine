@@ -73,6 +73,9 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::StartupModule()
 		EngineTypesRestorationFence::RegisterSpecialEngineTypeSupport(*this);
 	});
 
+	OnPreTakeSnapshot().AddRaw(this, &FLevelSnapshotsModule::PreTakeSnapshot);
+	OnPostTakeSnapshot().AddRaw(this, &FLevelSnapshotsModule::PostTakeSnapshot);
+
 #if WITH_EDITOR
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
@@ -184,7 +187,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterCustomObjectS
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterGlobalActorFilter(TSharedRef<IActorSnapshotFilter> Filter)
 {
-	GlobalFilters.AddUnique(Filter);
+	GlobalFilters.AddUnique(MoveTemp(Filter));
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterGlobalActorFilter(const TSharedRef<IActorSnapshotFilter>& Filter)
@@ -194,7 +197,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterGlobalActorFi
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
 {
-	SnapshotLoaders.AddUnique(Loader);
+	SnapshotLoaders.AddUnique(MoveTemp(Loader));
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotLoader(const TSharedRef<ISnapshotLoader>& Loader)
@@ -204,7 +207,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotLoade
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterRestorationListener(TSharedRef<IRestorationListener> Listener)
 {
-	RestorationListeners.AddUnique(Listener);
+	RestorationListeners.AddUnique(MoveTemp(Listener));
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener)
@@ -212,9 +215,19 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorationLi
 	RestorationListeners.RemoveSingle(Listener);
 }
 
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterTakeSnapshotListener(TSharedRef<ITakeSnapshotListener> Extender)
+{
+	TakeSnapshotListenersListeners.AddUnique(MoveTemp(Extender));
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterTakeSnapshotListener(const TSharedRef<ITakeSnapshotListener>& Listener)
+{
+	TakeSnapshotListenersListeners.RemoveSingle(Listener);
+}
+
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterSnapshotFilterExtender(TSharedRef<ISnapshotFilterExtender> Extender)
 {
-	FilterExtenders.AddUnique(Extender);
+	FilterExtenders.AddUnique(MoveTemp(Extender));
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotFilterExtender(const TSharedRef<ISnapshotFilterExtender>& Listener)
@@ -553,6 +566,54 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRemoveComponent(c
 	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
 	{
 		Listener->PostRemoveComponent(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreTakeObjectSnapshot(const FPreTakeObjectSnapshotEvent& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(TakeSnapshotListeners);
+
+	for (const TSharedRef<ITakeSnapshotListener>& Listener : TakeSnapshotListenersListeners)
+	{
+		Listener->PreTakeObjectSnapshot(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostTakeObjectSnapshot(const FPostTakeObjectSnapshotEvent& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(TakeSnapshotListeners);
+
+	for (const TSharedRef<ITakeSnapshotListener>& Listener : TakeSnapshotListenersListeners)
+	{
+		Listener->PostTakeObjectSnapshot(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::PreTakeSnapshot(const FPreTakeSnapshotEventData& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(TakeSnapshotListeners);
+
+	for (const TSharedRef<ITakeSnapshotListener>& Listener : TakeSnapshotListenersListeners)
+	{
+		Listener->PreTakeSnapshot(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::PostTakeSnapshot(const FPostTakeSnapshotEventData& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(TakeSnapshotListeners);
+
+	for (const TSharedRef<ITakeSnapshotListener>& Listener : TakeSnapshotListenersListeners)
+	{
+		Listener->PostTakeSnapshot(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::PreApplyFilters(const FPreApplyFiltersParams& Params)
+{
+	for (const TSharedRef<ISnapshotFilterExtender>& Extender : FilterExtenders)
+	{
+		Extender->PreApplyFilters(Params);
 	}
 }
 

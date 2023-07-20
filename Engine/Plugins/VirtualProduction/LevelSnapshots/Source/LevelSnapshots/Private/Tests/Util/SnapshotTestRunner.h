@@ -13,6 +13,14 @@ class FPreviewScene;
 
 namespace UE::LevelSnapshots::Private::Tests
 {
+	enum class ETestFlags
+	{
+		None,
+		/** The UWorld should be created in a non-transient package */
+		NonTransientWorld = 1 << 0
+	};
+	ENUM_CLASS_FLAGS(ETestFlags);
+	
 	/**
 	* Utility for executing tests
 	*/
@@ -22,7 +30,7 @@ namespace UE::LevelSnapshots::Private::Tests
 
 		static FName DefaultSnapshotId;
 
-		FSnapshotTestRunner();
+		FSnapshotTestRunner(ETestFlags Flags = ETestFlags::None);
 		FSnapshotTestRunner(const FSnapshotTestRunner&) = delete;
 		FSnapshotTestRunner(FSnapshotTestRunner&& Other);
 		~FSnapshotTestRunner();
@@ -45,6 +53,8 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner& RunTest(TFunction<void()> Callback);
 
 	private:
+
+		ETestFlags Flags;
 
 		TSharedPtr<FPreviewScene> TestWorld;
 

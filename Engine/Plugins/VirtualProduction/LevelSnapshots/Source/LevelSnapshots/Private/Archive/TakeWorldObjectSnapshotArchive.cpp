@@ -3,6 +3,7 @@
 #include "TakeWorldObjectSnapshotArchive.h"
 
 #include "LevelSnapshotsLog.h"
+#include "LevelSnapshotsModule.h"
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
@@ -12,10 +13,15 @@
 void UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::TakeSnapshot(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
 {
 	check(InOriginalObject);
-	
-	FTakeWorldObjectSnapshotArchive Archive(InObjectData, InSharedData, InOriginalObject);
-	InOriginalObject->Serialize(Archive);
-	InObjectData.ObjectFlags = InOriginalObject->GetFlags();
+
+	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
+	Module.OnPreTakeObjectSnapshot({ InOriginalObject });
+	{
+		FTakeWorldObjectSnapshotArchive Archive(InObjectData, InSharedData, InOriginalObject);
+		InOriginalObject->Serialize(Archive);
+		InObjectData.ObjectFlags = InOriginalObject->GetFlags();
+	}
+	Module.OnPostTakeObjectSnapshot({ InOriginalObject });
 }
 
 UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
