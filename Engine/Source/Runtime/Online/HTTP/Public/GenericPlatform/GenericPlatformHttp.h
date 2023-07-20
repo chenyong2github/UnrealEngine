@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
@@ -13,6 +14,41 @@
 
 class FHttpManager;
 class IHttpRequest;
+
+/**
+ * Utility structure to help with building the HTTP user agent string.
+ */
+class FDefaultUserAgentBuilder
+{
+public:
+	HTTP_API FDefaultUserAgentBuilder();
+
+	// Build the user agent string. Passing a filter will limit the comments to only those allowed.
+	// Passing nullptr for a filter implies that all comments are allowed.
+	HTTP_API FString BuildUserAgentString(const TSet<FString>* AllowedProjectCommentsFilter = nullptr, const TSet<FString>* AllowedPlatformCommentsFilter = nullptr) const;
+
+	HTTP_API void SetProjectName(const FString& InProjectName);
+	HTTP_API void SetProjectVersion(const FString& InProjectVersion);
+	HTTP_API void AddProjectComment(const FString& InComment);
+	HTTP_API void SetPlatformName(const FString& InPlatformName);
+	HTTP_API void SetPlatformVersion(const FString& InPlatformVersion);
+	HTTP_API void AddPlatformComment(const FString& InComment);
+
+	// Get the builder version. The version is used for tracking app changes to the default user
+	// agent and is not included in the user agent string.
+	HTTP_API uint32 GetAgentVersion() const;
+
+private:
+	static HTTP_API FString BuildCommentString(const TArray<FString>& Comments, const TSet<FString>* AllowedCommentsFilter);
+
+	FString ProjectName;
+	FString ProjectVersion;
+	TArray<FString> ProjectComments;
+	FString PlatformName;
+	FString PlatformVersion;
+	TArray<FString> PlatformComments;
+	uint32 AgentVersion;
+};
 
 /**
  * Platform specific Http implementations
@@ -103,11 +139,43 @@ public:
 	/**
 	 * Returns the default User-Agent string to use in HTTP requests.
 	 * Requests that explicitly set the User-Agent header will not use this value.
+	 * 
+	 * The default User-Agent is built in the format "project/version (comments) platform/OS version (comments)"
 	 *
 	 * @return the default User-Agent string that requests should use.
 	 */
 	static HTTP_API FString GetDefaultUserAgent();
 	static HTTP_API FString EscapeUserAgentString(const FString& UnescapedString);
+
+	/**
+	 * Add a comment to be included in the project section of the default User-Agent string.
+	 */
+	static HTTP_API void AddDefaultUserAgentProjectComment(const FString& Comment);
+
+	/**
+	 * Add a comment to be included in the platform section of the default User-Agent string.
+	 */
+	static HTTP_API void AddDefaultUserAgentPlatformComment(const FString& Comment);
+
+	/**
+	 * Get the version of the default user agent. The version is incremented any time the default
+	 * user agent is changed. Used to invalidate any cached user agent value.
+	 * 
+	 * @return the current version of the default user agent.
+	 */
+	static HTTP_API uint32 GetDefaultUserAgentVersion();
+
+	/**
+	 * Gets a copy of the values used to build the default user agent string. Used for modifying
+	 * default user agent values before sending HTTP requests.
+	 */
+	static HTTP_API FDefaultUserAgentBuilder GetDefaultUserAgentBuilder();
+
+	/**
+	 * Utility for escaping a string used in the HTTP user agent. Removes disallowed characters.
+	 * 
+	 * @return the escaped string.
+	 */
 
 	/**
 	 * Get the proxy address specified by the operating system

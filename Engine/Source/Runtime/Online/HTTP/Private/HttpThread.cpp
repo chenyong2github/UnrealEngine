@@ -11,6 +11,7 @@
 #include "Misc/Parse.h"
 #include "HttpModule.h"
 #include "Http.h"
+#include "PlatformHttp.h"
 #include "Stats/Stats.h"
 
 DECLARE_STATS_GROUP(TEXT("HTTP Thread"), STATGROUP_HTTPThread, STATCAT_Advanced);
@@ -306,6 +307,8 @@ void FHttpThreadBase::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, T
 
 FLegacyHttpThread::FLegacyHttpThread()
 {
+	FPlatformHttp::AddDefaultUserAgentProjectComment(TEXT("http-legacy"));
+
 	HttpThreadActiveFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveFrameTimeInSeconds();
 	HttpThreadActiveMinimumSleepTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveMinimumSleepTimeInSeconds();
 	HttpThreadIdleFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadIdleFrameTimeInSeconds();

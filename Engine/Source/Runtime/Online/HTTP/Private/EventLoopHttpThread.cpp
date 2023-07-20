@@ -5,10 +5,12 @@
 #include "EventLoop/EventLoopIOManagerNull.h"
 #include "IHttpThreadedRequest.h"
 #include "Http.h"
+#include "PlatformHttp.h"
 #include "Stats/Stats.h"
 
 FEventLoopHttpThread::FEventLoopHttpThread()
 {
+	FPlatformHttp::AddDefaultUserAgentProjectComment(TEXT("http-eventloop"));
 }
 
 FEventLoopHttpThread::~FEventLoopHttpThread()

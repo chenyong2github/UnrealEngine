@@ -1,11 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformHttp.h"
+
+#include "Algo/Transform.h"
+#include "Containers/Array.h"
 #include "GenericPlatform/HttpRequestImpl.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/Paths.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/App.h"
+#include "Misc/ScopeRWLock.h"
 #include "String/BytesToHex.h"
+
+TAutoConsoleVariable<bool> CVarDefaultUserAgentCommentsEnabled(
+	TEXT("http.DefaultUserAgentCommentsEnabled"),
+	true,
+	TEXT("Whether comments are supported in the defualt user agent string"),
+	ECVF_SaveForNextBoot
+);
 
 namespace
 {
@@ -112,8 +125,170 @@ public:
 	virtual EHttpRequestDelegateThreadPolicy GetDelegateThreadPolicy() const override { return EHttpRequestDelegateThreadPolicy::CompleteOnGameThread; }
 };
 
+FDefaultUserAgentBuilder::FDefaultUserAgentBuilder()
+	: ProjectName(FApp::GetProjectName())
+	, ProjectVersion(FApp::GetBuildVersion())
+	, ProjectComments()
+	, PlatformName(FString(FPlatformProperties::IniPlatformName()))
+	, PlatformVersion(FPlatformMisc::GetOSVersion())
+	, PlatformComments()
+	, AgentVersion(1)
+{
+}
+
+FString FDefaultUserAgentBuilder::BuildUserAgentString(const TSet<FString>* AllowedProjectCommentsFilter, const TSet<FString>* AllowedPlatformCommentsFilter) const
+{
+	// strip/escape slashes and whitespace from components
+	return FString::Printf(TEXT("%s/%s%s %s/%s%s"),
+		*FGenericPlatformHttp::EscapeUserAgentString(ProjectName),
+		*FGenericPlatformHttp::EscapeUserAgentString(ProjectVersion),
+		*BuildCommentString(ProjectComments, AllowedProjectCommentsFilter),
+		*FGenericPlatformHttp::EscapeUserAgentString(PlatformName),
+		*FGenericPlatformHttp::EscapeUserAgentString(PlatformVersion),
+		*BuildCommentString(PlatformComments, AllowedPlatformCommentsFilter));
+}
+
+void FDefaultUserAgentBuilder::SetProjectName(const FString& InProjectName)
+{
+	ProjectName = InProjectName;
+	++AgentVersion;
+}
+
+void FDefaultUserAgentBuilder::SetProjectVersion(const FString& InProjectVersion)
+{
+	ProjectVersion = InProjectVersion;
+	++AgentVersion;
+}
+
+void FDefaultUserAgentBuilder::AddProjectComment(const FString& InComment)
+{
+	ProjectComments.AddUnique(InComment);
+	++AgentVersion;
+}
+
+void FDefaultUserAgentBuilder::SetPlatformName(const FString& InPlatformName)
+{
+	PlatformName = InPlatformName;
+	++AgentVersion;
+}
+
+void FDefaultUserAgentBuilder::SetPlatformVersion(const FString& InPlatformVersion)
+{
+	PlatformVersion = InPlatformVersion;
+	++AgentVersion;
+}
+
+void FDefaultUserAgentBuilder::AddPlatformComment(const FString& InComment)
+{
+	PlatformComments.AddUnique(InComment);
+	++AgentVersion;
+}
+
+uint32 FDefaultUserAgentBuilder::GetAgentVersion() const
+{
+	return AgentVersion;
+}
+
+FString FDefaultUserAgentBuilder::BuildCommentString(const TArray<FString>& Comments, const TSet<FString>* AllowedCommentsFilter)
+{
+	TArray<FString> FilteredComments;
+	Algo::TransformIf(Comments, FilteredComments,
+		[AllowedCommentsFilter](const FString& Comment) -> bool
+		{
+			return !AllowedCommentsFilter || AllowedCommentsFilter->Contains(Comment);
+		},
+		[](const FString& UnsanitizedComment)
+		{
+			FString SanitizedComment = UnsanitizedComment;
+			SanitizedComment.ReplaceInline(TEXT("("), TEXT(""));
+			SanitizedComment.ReplaceInline(TEXT(")"), TEXT(""));
+			SanitizedComment.ReplaceInline(TEXT(";"), TEXT(""));
+			return SanitizedComment;
+		}
+	);
+
+	return !FilteredComments.IsEmpty() ? FString::Printf(TEXT(" (%s)"), *FString::Join(FilteredComments, TEXT("; "))) : FString();
+}
+
+class FUserAgentImpl final
+{
+public:
+	static FUserAgentImpl& Get()
+	{
+		static FUserAgentImpl Instance;
+		return Instance;
+	}
+
+	FUserAgentImpl()
+		: RWLock()
+		, bCachedCommentsEnabled(false)
+	{
+		CachedUserAgent = BuildUserAgentString();
+		CVarDefaultUserAgentCommentsEnabled->OnChangedDelegate().AddRaw(this, &FUserAgentImpl::OnCommentsEnabledChanged);
+	}
+
+	void AddProjectComment(const FString& Comment)
+	{
+		FRWScopeLock WriteLock(RWLock, SLT_Write);
+		Builder.AddProjectComment(Comment);
+		CachedUserAgent = BuildUserAgentString();
+	}
+
+	void AddPlatformComment(const FString& Comment)
+	{
+		FRWScopeLock WriteLock(RWLock, SLT_Write);
+		Builder.AddPlatformComment(Comment);
+		CachedUserAgent = BuildUserAgentString();
+	}
+
+	FString GetUserAgent()
+	{
+		FRWScopeLock ReadLock(RWLock, SLT_ReadOnly);
+		return CachedUserAgent;
+	}
+
+	FDefaultUserAgentBuilder GetBuilder()
+	{
+		FRWScopeLock ReadLock(RWLock, SLT_ReadOnly);
+		return Builder;
+	}
+
+	uint32 GetAgentVersion()
+	{
+		return Builder.GetAgentVersion();
+	}
+
+private:
+	FString BuildUserAgentString()
+	{
+		if (CVarDefaultUserAgentCommentsEnabled.GetValueOnAnyThread())
+		{
+			return Builder.BuildUserAgentString();
+		}
+		else
+		{
+			// Build the user agent string without any comments.
+			TSet<FString> AllowedCommentsFilter;
+			return Builder.BuildUserAgentString(&AllowedCommentsFilter, &AllowedCommentsFilter);
+		}
+	}
+
+	void OnCommentsEnabledChanged(IConsoleVariable*)
+	{
+		FRWScopeLock WriteLock(RWLock, SLT_Write);
+		CachedUserAgent = BuildUserAgentString();
+	}
+
+	FRWLock RWLock;
+	FDefaultUserAgentBuilder Builder;
+	FString CachedUserAgent;
+	bool bCachedCommentsEnabled;
+};
+
 void FGenericPlatformHttp::Init()
 {
+	// Call during init to instantiate the user agent cache.
+	FUserAgentImpl::Get();
 }
 
 void FGenericPlatformHttp::Shutdown()
@@ -375,13 +550,27 @@ FString FGenericPlatformHttp::GetMimeType(const FString& FilePath)
 
 FString FGenericPlatformHttp::GetDefaultUserAgent()
 {
-	//** strip/escape slashes and whitespace from components
-	static FString CachedUserAgent = FString::Printf(TEXT("%s/%s %s/%s"),
-		*EscapeUserAgentString(FApp::GetProjectName()),
-		*EscapeUserAgentString(FApp::GetBuildVersion()),
-		*EscapeUserAgentString(FString(FPlatformProperties::IniPlatformName())),
-		*EscapeUserAgentString(FPlatformMisc::GetOSVersion()));
-	return CachedUserAgent;
+	return FUserAgentImpl::Get().GetUserAgent();
+}
+
+void FGenericPlatformHttp::AddDefaultUserAgentProjectComment(const FString& Comment)
+{
+	FUserAgentImpl::Get().AddProjectComment(Comment);
+}
+
+void FGenericPlatformHttp::AddDefaultUserAgentPlatformComment(const FString& Comment)
+{
+	FUserAgentImpl::Get().AddPlatformComment(Comment);
+}
+
+uint32 FGenericPlatformHttp::GetDefaultUserAgentVersion()
+{
+	return FUserAgentImpl::Get().GetAgentVersion();
+}
+
+FDefaultUserAgentBuilder FGenericPlatformHttp::GetDefaultUserAgentBuilder()
+{
+	return FUserAgentImpl::Get().GetBuilder();
 }
 
 FString FGenericPlatformHttp::EscapeUserAgentString(const FString& UnescapedString)
