@@ -78,7 +78,7 @@ bool UDisplayClusterSceneComponentSync::IsActive() const
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString UDisplayClusterSceneComponentSync::GenerateSyncId()
 {
-	return FString::Printf(TEXT("S_%s"), *GetOwner()->GetName());
+	return FString::Printf(TEXT("S_%s"), *GetFullName());
 }
 
 FString UDisplayClusterSceneComponentSync::SerializeToString() const

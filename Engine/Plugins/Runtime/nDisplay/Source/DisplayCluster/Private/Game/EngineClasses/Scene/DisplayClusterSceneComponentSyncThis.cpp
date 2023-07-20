@@ -32,7 +32,7 @@ void UDisplayClusterSceneComponentSyncThis::ClearDirty()
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString UDisplayClusterSceneComponentSyncThis::GenerateSyncId()
 {
-	return FString::Printf(TEXT("ST_%s"), *GetOwner()->GetName());
+	return FString::Printf(TEXT("ST_%s"), *GetFullName());
 }
 
 FTransform UDisplayClusterSceneComponentSyncThis::GetSyncTransform() const
