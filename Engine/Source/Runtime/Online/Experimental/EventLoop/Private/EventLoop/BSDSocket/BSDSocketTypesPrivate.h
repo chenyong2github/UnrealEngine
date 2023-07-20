@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
 #include "EventLoop/BSDSocket/BSDSocketTypes.h"
 
 #if PLATFORM_HAS_BSD_SOCKETS
