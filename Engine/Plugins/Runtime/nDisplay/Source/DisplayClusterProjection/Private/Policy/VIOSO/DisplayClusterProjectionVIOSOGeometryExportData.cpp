@@ -4,6 +4,8 @@
 #include "Policy/VIOSO/Windows/DisplayClusterProjectionVIOSOWarper.h"
 #include "Misc/DisplayClusterDataCache.h"
 
+#include "HAL/IConsoleManager.h"
+
 int32 GDisplayClusterRender_VIOSOPreviewMeshCacheEnable = 1;
 static FAutoConsoleVariableRef CDisplayClusterRender_VIOSOPreviewMeshCacheEnable(
 	TEXT("nDisplay.cache.VIOSO.PreviewMesh.enable"),
