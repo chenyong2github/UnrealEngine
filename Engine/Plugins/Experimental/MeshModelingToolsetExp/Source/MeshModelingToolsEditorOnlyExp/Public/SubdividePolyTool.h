@@ -67,8 +67,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRenderCage = true;
 
-	/** When using the group topology for subdivision, whether to add extra corners at sharp group edge bends. */
-	UPROPERTY(EditAnywhere, Category = TopologyOptions, meta = (EditCondition = "SubdivisionScheme != ESubdivisionScheme::Loop"))
+	/** When using the group topology for subdivision, whether to add extra corners at sharp group edge bends on mesh boundaries. Note: We cannot add extra corners on non-boundary group edges, as this would create non-manifold geometry on subdivision. */
+	UPROPERTY(EditAnywhere, Category = TopologyOptions, meta = (DisplayName = "Add Extra Corners on Boundary", EditCondition = "SubdivisionScheme != ESubdivisionScheme::Loop"))
 	bool bAddExtraCorners = true;
 
 	/** How acute an angle between two edges needs to be to add an extra corner there when Add Extra Corners is true. */

@@ -219,7 +219,7 @@ void USubdividePolyTool::Setup()
 	Topology = MakeShared<FGroupTopology>(OriginalMesh.Get(), false);
 	auto ShouldAddExtraCornerAtVert = [this](const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)
 	{
-		return Properties->bAddExtraCorners && FGroupTopology::IsEdgeAngleSharp(GroupTopology.GetMesh(), Vid, AttachedGroupEdgeEids, ExtraCornerDotProductThreshold);
+		return Properties->bAddExtraCorners && GroupTopology.GetMesh()->IsBoundaryVertex(Vid) && FGroupTopology::IsEdgeAngleSharp(GroupTopology.GetMesh(), Vid, AttachedGroupEdgeEids, ExtraCornerDotProductThreshold);
 	};
 	Topology->ShouldAddExtraCornerAtVert = ShouldAddExtraCornerAtVert;
 

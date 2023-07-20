@@ -935,28 +935,50 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 			FIndex3i TriB{ Face[2], Face[3], Face[1] };
 			int TriAIndex = OutMesh.AppendTriangle(TriA, GroupID);
 			int TriBIndex = OutMesh.AppendTriangle(TriB, GroupID);
+			bool bHasValidTriA = TriAIndex >= 0;
+			bool bHasValidTriB = TriBIndex >= 0;
+			if (!bHasValidTriA && !bHasValidTriB)
+			{
+				continue;
+			}
 
 			if (bShouldInterpolateUVs)
 			{
 				OpenSubdiv::Far::ConstIndexArray FaceUVIndices = FinalLevel.GetFaceFVarValues(FaceID);
 				
 				FIndex3i UVTriA{ FaceUVIndices[0], FaceUVIndices[1], FaceUVIndices[3] };
-				AddUVTriangleIfValid(UVTriA);
+				if (bHasValidTriA)
+				{
+					AddUVTriangleIfValid(UVTriA);
+				}
 
 				FIndex3i UVTriB{ FaceUVIndices[2], FaceUVIndices[3], FaceUVIndices[1] };
-				AddUVTriangleIfValid(UVTriB);
+				if (bHasValidTriB)
+				{
+					AddUVTriangleIfValid(UVTriB);
+				}
 			}
 
 			if (bHasMaterialIDs)
 			{
-				OutMesh.Attributes()->GetMaterialID()->SetValue(TriAIndex, RefinedMaterialIDs[FaceID]);
-				OutMesh.Attributes()->GetMaterialID()->SetValue(TriBIndex, RefinedMaterialIDs[FaceID]);
+				if (bHasValidTriA)
+				{
+					OutMesh.Attributes()->GetMaterialID()->SetValue(TriAIndex, RefinedMaterialIDs[FaceID]);
+				}
+				if (bHasValidTriB)
+				{
+					OutMesh.Attributes()->GetMaterialID()->SetValue(TriBIndex, RefinedMaterialIDs[FaceID]);
+				}
 			}
 		}
 		else
 		{
 			check(Face.size() == 3);
 			int TriIndex = OutMesh.AppendTriangle(FIndex3i{ Face[0], Face[1], Face[2] }, GroupID);
+			if (TriIndex < 0)
+			{
+				continue;
+			}
 
 			if (bShouldInterpolateUVs)
 			{
