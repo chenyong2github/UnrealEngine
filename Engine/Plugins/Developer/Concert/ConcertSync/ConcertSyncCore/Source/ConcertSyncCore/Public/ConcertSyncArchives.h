@@ -53,10 +53,11 @@ private:
 class CONCERTSYNCCORE_API FConcertSyncObjectWriter : public FConcertIdentifierWriter
 {
 public:
+
 	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets, const FConcertSyncRemapObjectPath& InRemapDelegate);
 	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets);
 
-	void SerializeObject(const UObject* InObject, const TArray<const FProperty*>* InPropertiesToWrite = nullptr);
+	void SerializeObject(const UObject* InObject, const TArray<const FProperty*>* InPropertiesToWrite = nullptr, bool bAllowOuters = false);
 	void SerializeProperty(const FProperty* InProp, const UObject* InObject);
 
 	using FConcertIdentifierWriter::operator<<; // For visibility of the overloads we don't override
@@ -72,11 +73,18 @@ public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	//~ End FArchive Interface
 
+	void SetSerializeNestedObjects(bool bInSerializeNestedObjects)
+	{
+		bSerializeNestedObjects = bInSerializeNestedObjects;
+	}
 private:
 	typedef TFunction<bool(const FProperty*)> FShouldSkipPropertyFunc;
 	bool bSkipAssets;
+	bool bSerializeNestedObjects = false;
+	FString PackageName;
 	FShouldSkipPropertyFunc ShouldSkipPropertyFunc;
 	FConcertSyncRemapObjectPath RemapObjectPathDelegate;
+	TSet<FString> CollectedObjects;
 };
 
 /** Archive for reading objects that have been received from another instance via Concert */
@@ -105,6 +113,7 @@ protected:
 	virtual void OnObjectSerialized(const FSoftObjectPath& Obj) {}
 
 private:
+	UObject* CurrentOuter = nullptr;
 	FConcertSyncWorldRemapper WorldRemapper;
 	FConcertSyncEncounteredMissingObject EncounteredMissingObjectDelegate;
 };

@@ -73,6 +73,7 @@ void FConcertServerSequencerManager::HandleSequencerOpenEvent(const FConcertSess
 	FConcertOpenSequencerState& SequencerState = SequencerStates.FindOrAdd(*InEvent.SequenceObjectPath);
 	SequencerState.ClientEndpointIds.AddUnique(InEventContext.SourceEndpointId);
 	SequencerState.State.SequenceObjectPath = InEvent.SequenceObjectPath;
+	SequencerState.TakeData = InEvent.TakeData;
 
 	// Forward the message to the other clients
 	TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
@@ -183,7 +184,9 @@ void FConcertServerSequencerManager::HandleWorkspaceSyncAndFinalizeCompletedEven
 	FConcertSequencerStateSyncEvent SequencerStateSyncEvent;
 	for (const auto& Pair : SequencerStates)
 	{
-		SequencerStateSyncEvent.SequencerStates.Add(Pair.Value.State);
+		FConcertSequencerState OutState = Pair.Value.State;
+		OutState.TakeData = Pair.Value.TakeData;
+		SequencerStateSyncEvent.SequencerStates.Emplace(MoveTemp(OutState));
 	}
 
 	LiveSession->GetSession().SendCustomEvent(SequencerStateSyncEvent, InEventContext.SourceEndpointId, EConcertMessageFlags::ReliableOrdered);

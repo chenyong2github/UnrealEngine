@@ -228,7 +228,7 @@ private:
 	 *
 	 * @param SequenceObjectPath	The sequence to open
 	 */
-	void ApplyOpenEvent(const FString& SequenceObjectPath);
+	void ApplyOpenEvent(const FConcertSequencerOpenEvent& InOpenEvent);
 
 	/**
 	 * Create a new sequence player to be used in -game instances.
@@ -329,7 +329,7 @@ private:
 	TArray<FConcertSequencerState> PendingSequencerEvents;
 
 	/** List of pending sequencer open events to apply at end of frame. */
-	TArray<FString> PendingSequenceOpenEvents;
+	TArray<FConcertSequencerOpenEvent> PendingSequenceOpenEvents;
 
 	/** List of pending sequencer open events to apply at end of frame. */
 	TArray<FConcertSequencerCloseEvent> PendingSequenceCloseEvents;

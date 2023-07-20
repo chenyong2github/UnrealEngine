@@ -238,8 +238,27 @@ FConcertSyncObjectWriter::FConcertSyncObjectWriter(FConcertLocalIdentifierTable*
 {
 }
 
-void FConcertSyncObjectWriter::SerializeObject(const UObject* InObject, const TArray<const FProperty*>* InPropertiesToWrite)
+void FConcertSyncObjectWriter::SerializeObject(const UObject* InObject, const TArray<const FProperty*>* InPropertiesToWrite, bool bAllowOuters /*= false*/)
 {
+	PackageName = InObject->GetPackage()->GetPathName();
+
+	if (bSerializeNestedObjects && !bAllowOuters)
+	{
+		// When serializing nested objects, we need to know when to stop
+		// capturing. A property can point to outer or this package and those
+		// should not be included in the serialization. So we make note of them
+		// here to stop the serialization when those objects are encountered and
+		// only store the FSoftObjectPath
+		CollectedObjects.Add(InObject->GetPackage()->GetPathName());
+		CollectedObjects.Add(InObject->GetPathName());
+		UObject* Outer = InObject->GetOuter();
+		while (	Outer )
+		{
+			CollectedObjects.Add(Outer->GetPathName());
+			Outer = Outer->GetOuter();
+		}
+	}
+
 	if (InPropertiesToWrite)
 	{
 		ShouldSkipPropertyFunc = [InObject, InPropertiesToWrite](const FProperty* InProperty) -> bool
@@ -267,6 +286,7 @@ void FConcertSyncObjectWriter::SerializeProperty(const FProperty* InProp, const 
 
 FArchive& FConcertSyncObjectWriter::operator<<(UObject*& Obj)
 {
+	bool bCanSerializeObject = false;
 	FSoftObjectPath ObjPath;
 	if (Obj)
 	{
@@ -277,11 +297,34 @@ FArchive& FConcertSyncObjectWriter::operator<<(UObject*& Obj)
 		else
 		{
 			FString ObjectPathString = Obj->GetPathName();
+
+			// Check to see if we can serialize before we perform the remapping.
+			bCanSerializeObject = !CollectedObjects.Contains(ObjectPathString);
+
 			RemapObjectPathDelegate.ExecuteIfBound(ObjectPathString);
 			ObjPath.SetPath(ObjectPathString);
 		}
 	}
 	ObjPath.SerializePath(*this);
+
+	bool bDoSerializeObject = bCanSerializeObject
+		&& bSerializeNestedObjects
+		&& PackageName == Obj->GetPackage()->GetPathName()
+		&& !Obj->IsA<UPackage>();
+
+	*this << bDoSerializeObject;
+	if (bDoSerializeObject)
+	{
+		// To prevent stack overflow we need to add to the collected objects first.
+		CollectedObjects.Add(ObjPath.ToString());
+
+		FString ClassName = Obj->GetClass()->GetPathName();
+		int32 OutFlags = static_cast<int32>(Obj->GetFlags());
+		*this << ClassName;
+		*this << OutFlags;
+
+		SerializeObject(Obj, nullptr, true);
+	}
 	return *this;
 }
 
@@ -400,6 +443,7 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 
 void FConcertSyncObjectReader::SerializeObject(UObject* InObject)
 {
+	CurrentOuter = InObject;
 	InObject->Serialize(*this);
 }
 
@@ -416,6 +460,8 @@ FArchive& FConcertSyncObjectReader::operator<<(UObject*& Obj)
 	FSoftObjectPath ObjPath;
 	ObjPath.SerializePath(*this);
 
+	bool bDidSerializeObject;
+	*this << bDidSerializeObject;
 	if (ObjPath.IsNull())
 	{
 		Obj = nullptr;
@@ -451,6 +497,25 @@ FArchive& FConcertSyncObjectReader::operator<<(UObject*& Obj)
 			{
 				EncounteredMissingObjectDelegate.Execute(FStringView(ResolvedObjPath));
 			}
+		}
+
+		if (bDidSerializeObject)
+		{
+			FString ClassName;
+			int32  CapturedObjectCreationFlags;
+			*this << ClassName;
+			*this << CapturedObjectCreationFlags;
+			EObjectFlags ObjectCreationFlags = static_cast<EObjectFlags>(CapturedObjectCreationFlags);
+
+			if (!Obj)
+			{
+				UClass* InClass = FindObject<UClass>(nullptr, *ClassName);
+				check(InClass);
+				Obj = NewObject<UObject>(CurrentOuter, InClass, NAME_None, ObjectCreationFlags);
+			}
+
+			check(Obj);
+			SerializeObject(Obj);
 		}
 	}
 

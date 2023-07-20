@@ -63,6 +63,14 @@ private:
 
 		/** Current state of the Sequence. */
 		FConcertSequencerState State;
+
+		/**
+		 * In the case that the SequenceObjectPath points to a take preset. We capture the preset data
+		 * into a payload that can be applied to take that we are going to open. We store it in the state
+		 * so that we can play it back when new users join.
+		 */
+		UPROPERTY()
+		FConcertByteArray TakeData;
 	};
 
 	/** Map of all currently opened Sequencer in a session, locally opened or not. */

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Misc/QualifiedFrameTime.h"
+#include "ConcertMessageData.h"
 #include "ConcertSequencerMessages.generated.h"
 
 
@@ -46,8 +47,17 @@ struct FConcertSequencerState
 	UPROPERTY()
 	float PlaybackSpeed;
 
+	/** Indicate if we are currently looping */
 	UPROPERTY()
 	bool bLoopMode = false;
+
+	/**
+	 * In the case that the SequenceObjectPath points to a take preset, we capture the preset data
+	 * into a payload that can be applied to take that we are going to open. We store it in the state
+	 * so that we can play it back when new users join.
+	 */
+	UPROPERTY()
+	FConcertByteArray TakeData;
 
 	FConcertSequencerState()
 		: PlayerStatus(EConcertMovieScenePlayerStatus::Stopped)
@@ -66,6 +76,14 @@ struct FConcertSequencerOpenEvent
 	/** The full path name to the root sequence of the sequencer that just opened. */
 	UPROPERTY()
 	FString SequenceObjectPath;
+
+	/**
+	 * In the case that the SequenceObjectPath points to a take preset, we capture the preset data
+	 * into a payload that can be applied to take that we are going to open. We store it in the state
+	 * so that we can play it back when new users join.
+	 */
+	UPROPERTY()
+	FConcertByteArray TakeData;
 };
 
 /**

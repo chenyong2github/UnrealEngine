@@ -15,7 +15,7 @@
 #include "IConcertSession.h"
 #include "ConcertSettings.h"
 #include "ConcertClientSettings.h"
-
+#include "ConcertSyncArchives.h"
 #include "ConcertClientWorkspace.h"
 
 #include "Engine/GameEngine.h"
@@ -119,6 +119,16 @@ FConcertClientSequencerManager::FConcertClientSequencerManager(IConcertSyncClien
 	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientSequencerManager::HandleAssetReload);
 }
 
+namespace UE::Private::ConcertClientSequencerManager
+{
+const FString PendingTakePath = TEXT("/Temp/TakeRecorder/PendingTake.PendingTake:PendingTake");
+
+bool IsPendingTakePath(const FString& InSequencePath)
+{
+	return InSequencePath == PendingTakePath;
+}
+}
+
 FConcertClientSequencerManager::~FConcertClientSequencerManager()
 {
 	ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
@@ -187,6 +197,25 @@ void FConcertClientSequencerManager::OnSequencerCreated(TSharedRef<ISequencer> I
 				FConcertSequencerOpenEvent OpenEvent;
 				OpenEvent.SequenceObjectPath = SequenceObjectPath;
 
+				if (UE::Private::ConcertClientSequencerManager::IsPendingTakePath(SequenceObjectPath))
+				{
+					// The pending take may have a level sequence loaded into it.  So we have to capture it with the object writer
+					// and transmit in our open event message.
+					//
+					ULevelSequence* LevelSequence = Cast<ULevelSequence>(Sequence);
+
+					FConcertSyncRemapObjectPath RemapperDelegate;
+					RemapperDelegate.BindLambda([](FString& InPath)
+					{
+						if (UE::Private::ConcertClientSequencerManager::IsPendingTakePath(InPath))
+						{
+							InPath = TEXT("/Engine/Transient.__PendingLevelSequence__");
+						}
+					});
+					FConcertSyncObjectWriter SyncObjectWriter(nullptr, LevelSequence, OpenEvent.TakeData.Bytes, true, false, RemapperDelegate);
+					SyncObjectWriter.SetSerializeNestedObjects(true);
+					SyncObjectWriter.SerializeObject(LevelSequence);
+				}
 				UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    Sending OpenEvent: %s"), *OpenEvent.SequenceObjectPath);
 				Session->SendCustomEvent(OpenEvent, Session->GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
 			}
@@ -498,7 +527,8 @@ void FConcertClientSequencerManager::OnStateSyncEvent(const FConcertSessionConte
 		if (!bFoundSequencerForObject)
 		{
 			UE_LOG(LogConcertSequencerSync, VeryVerbose, TEXT("    No existing Sequencer with sequence %s open. Will open and sync a new one at end of frame."), *SequencerState.SequenceObjectPath);
-			PendingSequenceOpenEvents.Add(SequencerState.SequenceObjectPath);
+			FConcertSequencerOpenEvent OpenEvent{SequencerState.SequenceObjectPath, SequencerState.TakeData};
+			PendingSequenceOpenEvents.Add(MoveTemp(OpenEvent));
 			PendingSequencerEvents.Add(SequencerState);
 		}
 	}
@@ -573,7 +603,7 @@ void FConcertClientSequencerManager::OnCloseEvent(const FConcertSessionContext&,
 void FConcertClientSequencerManager::OnOpenEvent(const FConcertSessionContext&, const FConcertSequencerOpenEvent& InEvent)
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("Event Received - Open: %s. Deferring until end of frame."), *InEvent.SequenceObjectPath);
-	PendingSequenceOpenEvents.Add(InEvent.SequenceObjectPath);
+	PendingSequenceOpenEvents.Add(InEvent);
 }
 
 void FConcertClientSequencerManager::HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
@@ -683,22 +713,53 @@ void FConcertClientSequencerManager::ApplyCloseEvent(const FConcertSequencerClos
 	ApplyCloseEventToPlayers(CloseEvent);
 }
 
-void FConcertClientSequencerManager::ApplyOpenEvent(const FString& SequenceObjectPath)
+void FConcertClientSequencerManager::ApplyOpenEvent(const FConcertSequencerOpenEvent& InOpenEvent)
 {
 	TGuardValue<bool> ReentrancyGuard(bRespondingToTransportEvent, true);
-
+	FString SequenceObjectPath = InOpenEvent.SequenceObjectPath;
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("Handling Event - Open: %s"), *SequenceObjectPath);
 
+	bool bDidOpen = false;
 #if WITH_EDITOR
 	if (IsSequencerRemoteOpenEnabled() && GIsEditor)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
+		if (!UE::Private::ConcertClientSequencerManager::IsPendingTakePath(SequenceObjectPath))
+		{
+			// Don't open the asset until we have loaded in the pending take data.
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
+		}
+
+		bDidOpen = true;
 	}
 
 #endif
 	if (!GIsEditor && CVarEnableSequencePlayer.GetValueOnAnyThread() > 0)
 	{
 		CreateNewSequencePlayerIfNotExists(*SequenceObjectPath);
+		bDidOpen = true;
+	}
+
+	if (bDidOpen && UE::Private::ConcertClientSequencerManager::IsPendingTakePath(SequenceObjectPath))
+	{
+		ULevelSequence* PendingLevelSequence = FindObject<ULevelSequence>(nullptr, *UE::Private::ConcertClientSequencerManager::PendingTakePath);
+
+		// Apply pending take data to our version of the pending take.
+		//
+		FConcertSyncEncounteredMissingObject MissingObjectDelegate;
+		MissingObjectDelegate.BindLambda([](const FStringView MissingObject)
+			{
+				UE_LOG(LogConcertSequencerSync, Display, TEXT("Missing Object %s when loading PendingTake"), MissingObject);
+			});
+
+		FConcertSyncWorldRemapper Remapper(
+			TEXT("/Engine/Transient.__PendingLevelSequence__"), PendingLevelSequence->GetPathName());
+		FConcertSyncObjectReader Reader(nullptr, MoveTemp(Remapper), nullptr, PendingLevelSequence, InOpenEvent.TakeData.Bytes,
+										MissingObjectDelegate);
+		Reader.SerializeObject(PendingLevelSequence);
+		#if WITH_EDITOR
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
+		#endif
+		PendingLevelSequence->GetPackage()->SetDirtyFlag(false);
 	}
 }
 
@@ -1242,9 +1303,9 @@ void FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted()
 	}
 	PendingCreate.Reset();
 
-	for (const FString& SequenceObjectPath : PendingSequenceOpenEvents)
+	for (const FConcertSequencerOpenEvent& SequenceOpenEvent : PendingSequenceOpenEvents)
 	{
-		ApplyOpenEvent(SequenceObjectPath);
+		ApplyOpenEvent(SequenceOpenEvent);
 	}
 	PendingSequenceOpenEvents.Reset();
 
