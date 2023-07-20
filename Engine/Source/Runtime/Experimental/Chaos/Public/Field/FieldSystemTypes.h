@@ -339,7 +339,7 @@ inline CHAOS_API const TArray<FName>& GetFieldPhysicsNames()
 	static const TArray<FName> FieldPhysicsNames =
 	{ "Node", "DynamicState", "LinearForce", "ExternalClusterStrain", "Kill", "LinearVelocity", "AngularVelocity",
 	 "AngularTorque", "InternalClusterStrain", "DisableThreshold", "SleepingThreshold", "PositionStatic",
-	 "PositionAnimated", "PositionTarget", "DynamicConstraint", "CollisionGroup", "ActivateDisabled", "InitialLinearVelocity", "InitialAngularVelocity" };
+	 "PositionAnimated", "PositionTarget", "DynamicConstraint", "CollisionGroup", "ActivateDisabled", "InitialLinearVelocity", "InitialAngularVelocity", "LinearImpulse"};
 
 	return FieldPhysicsNames;
 }
@@ -364,7 +364,8 @@ inline CHAOS_API const TArray<EFieldPhysicsType>& GetFieldPhysicsTypes()
 																EFieldPhysicsType::Field_CollisionGroup,
 																EFieldPhysicsType::Field_ActivateDisabled, 
 																EFieldPhysicsType::Field_InitialLinearVelocity, 
-																EFieldPhysicsType::Field_InitialAngularVelocity };
+																EFieldPhysicsType::Field_InitialAngularVelocity,
+																EFieldPhysicsType::Field_LinearImpulse };
 
 	return FieldPhysicsTypes;
 }

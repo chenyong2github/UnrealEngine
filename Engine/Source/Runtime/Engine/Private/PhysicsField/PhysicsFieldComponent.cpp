@@ -676,7 +676,7 @@ void FPhysicsFieldInstance::ReleaseInstance()
 	BoundsMax.Empty();
 }
 
-void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
+void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds, const bool bIsDebugBuffer)
 {
 	NodesOffsets.Reset();
 	NodesParams.Reset();
@@ -711,8 +711,17 @@ void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 				{
 					UPhysicsFieldComponent::BuildCommandBounds(FieldCommand);
 
-					BoundsMin.Add(FVector4(FieldCommand.BoundingBox.Min, 0.0));
-					BoundsMax.Add(FVector4(FieldCommand.BoundingBox.Max, FieldCommand.MaxMagnitude));
+
+					FVector MinBounds = FieldCommand.BoundingBox.Min;
+					FVector MaxBounds = FieldCommand.BoundingBox.Max;
+					if (bIsDebugBuffer && ((MinBounds.X <= -FLT_MAX) || (MaxBounds.X >= FLT_MAX)))
+					{
+						// When no bounds default size is 1m for the box
+						MinBounds = FieldCommand.CenterPosition - FVector(50, 50, 50);
+						MaxBounds = FieldCommand.CenterPosition + FVector(50, 50, 50);
+					}
+					BoundsMin.Add(FVector4(MinBounds, 0.0));
+					BoundsMax.Add(FVector4(MaxBounds, FieldCommand.MaxMagnitude));
 
 					TargetMin = MinVector(TargetMin, FieldCommand.BoundingBox.Min);
 					TargetMax = MaxVector(TargetMax, FieldCommand.BoundingBox.Max);
@@ -843,6 +852,9 @@ void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 
 	Super::SendRenderTransform_Concurrent();
 
+	static IConsoleVariable* TransientLifetimeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsField.Rendering.TransientLifetime"));
+	const float TransientLifetime = TransientLifetimeCVar ? TransientLifetimeCVar->GetFloat() : 0.0f;
+
 	TArray<uint8> FieldBuffers = { (uint8)(EFieldCommandBuffer::GPUFieldBuffer) ,(uint8)(EFieldCommandBuffer::GPUDebugBuffer) };
 	for (uint32 FieldIndex = 0; FieldIndex < 2; ++FieldIndex)
 	{
@@ -850,18 +862,35 @@ void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 		if (LocalInstance)
 		{
 			const bool bPreviousUpdate = LocalInstance->FieldCommands.Num() > 0;
+			const bool bIsDebugBuffer = FieldIndex == 1;
+
+			const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
 
 			LocalInstance->FieldCommands.Empty();
 			LocalInstance->FieldCommands.Append(PersistentCommands[FieldBuffers[FieldIndex]]);
 			LocalInstance->FieldCommands.Append(TransientCommands[FieldBuffers[FieldIndex]]);
-			TransientCommands[FieldBuffers[FieldIndex]].Empty();
+			LocalInstance->FieldCommands.Append(ConstructionCommands[FieldBuffers[FieldIndex]]);
+			
+			if (bIsDebugBuffer)
+			{
+				for (int32 CommandIndex = TransientCommands[FieldBuffers[FieldIndex]].Num() - 1; CommandIndex >= 0; --CommandIndex)
+				{
+					if (TimeSeconds - TransientCommands[FieldBuffers[FieldIndex]][CommandIndex].TimeCreation > TransientLifetime)
+					{
+						TransientCommands[FieldBuffers[FieldIndex]].RemoveAt(CommandIndex);
+					}
+				}
+			}
+			else
+			{
+				TransientCommands[FieldBuffers[FieldIndex]].Empty();
+			}
 
 			const bool bCurrentUpdate = LocalInstance->FieldCommands.Num() > 0;
 
 			if (bCurrentUpdate || bPreviousUpdate)
 			{
-				const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
-				LocalInstance->UpdateInstance(TimeSeconds);
+				LocalInstance->UpdateInstance(TimeSeconds, bIsDebugBuffer);
 			}
 		}
 	}
@@ -952,11 +981,12 @@ void UPhysicsFieldComponent::BuildCommandBounds(FFieldSystemCommand& FieldComman
 	FieldCommand.BoundingBox.Min = FVector(-FLT_MAX);
 	FieldCommand.BoundingBox.Max = FVector(FLT_MAX);
 	FieldCommand.MaxMagnitude = 1.0;
+	FieldCommand.CenterPosition = FVector::Zero();
 
 	if (FieldCommand.RootNode.IsValid())
 	{
 		FieldCommand.MaxMagnitude = FieldCommand.RootNode->EvalMaxMagnitude();
-		FieldCommand.RootNode->ComputeFieldBounds(FieldCommand.BoundingBox.Min, FieldCommand.BoundingBox.Max);
+		FieldCommand.RootNode->ComputeFieldBounds(FieldCommand.BoundingBox.Min, FieldCommand.BoundingBox.Max, FieldCommand.CenterPosition);
 	}
 }
 
@@ -984,6 +1014,11 @@ void UPhysicsFieldComponent::AddPersistentCommand(const FFieldSystemCommand& Fie
 		PersistentCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Add(FieldCommand);
 		PersistentCommands[(uint8)(EFieldCommandBuffer::GPUDebugBuffer)].Add(FieldCommand);
 	}
+}
+
+void UPhysicsFieldComponent::AddConstructionCommand(const FFieldSystemCommand& FieldCommand)
+{
+	ConstructionCommands[(uint8)(EFieldCommandBuffer::GPUDebugBuffer)].Add(FieldCommand);
 }
 
 void UPhysicsFieldComponent::RemoveTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsWorldField)
