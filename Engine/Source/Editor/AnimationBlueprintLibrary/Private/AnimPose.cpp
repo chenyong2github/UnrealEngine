@@ -92,7 +92,8 @@ void FAnimPose::GetPose(FCompactPose& InOutCompactPose) const
 		for (int32 Index = 0; Index < BoneNames.Num(); ++Index)
 		{
 			const FName& BoneName = BoneNames[Index];
-			const FCompactPoseBoneIndex PoseBoneIndex = FCompactPoseBoneIndex(InOutCompactPose.GetBoneContainer().GetPoseBoneIndexForBoneName(BoneName));
+			const int32 MeshBoneIndex = InOutCompactPose.GetBoneContainer().GetPoseBoneIndexForBoneName(BoneName);
+			const FCompactPoseBoneIndex PoseBoneIndex = InOutCompactPose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshBoneIndex));
 			if (PoseBoneIndex != INDEX_NONE)
 			{
 				InOutCompactPose[PoseBoneIndex] = LocalSpacePoses[Index];
