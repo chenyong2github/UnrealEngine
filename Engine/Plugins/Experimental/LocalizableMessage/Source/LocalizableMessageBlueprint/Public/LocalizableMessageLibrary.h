@@ -18,9 +18,8 @@ class ULocalizableMessageLibrary : public UBlueprintFunctionLibrary
 public:
 	/**
 	 * Conversion function from LocalizableMessage to FText.
-	 * @note Is only valid on the client. The processor generate a 
 	 */
-	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Localizable Message", meta = (WorldContext = "WorldContextObject"))
+	UFUNCTION(BlueprintPure, Category = "Localizable Message", meta = (WorldContext = "WorldContextObject"))
 	static LOCALIZABLEMESSAGEBLUEPRINT_API FText Conv_LocalizableMessageToText(UObject* WorldContextObject, UPARAM(ref) const FLocalizableMessage& Message);
 
 	/**
