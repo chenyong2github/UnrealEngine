@@ -3,8 +3,11 @@
 #pragma once
 
 #include "MuR/ModelPrivate.h"
+#include "MuT/ErrorLogPrivate.h"
+#include "MuT/TypeInfo.h"
 #include "UObject/GCObject.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SSearchBox.h"
 
 class STableViewBase;
 namespace ESelectInfo { enum Type : int; }
@@ -360,12 +363,16 @@ private:
 	int64 NavigationIndex = -1;
 	
 	/** Sort the contents of NavigationElements to follow a sequential pattern using the indices of the elements from 0 to +n*/
-	void SortNavigationElements();
-
+	void SortElementsByTreeIndex(TArray<TSharedPtr<FMutableCodeTreeElement>>& InElementsArrayToSort);
+	
+	/** If the focus could not be performed directly then cache the target until it is in view and can therefore be focused.
+	 * It will be valid if we are trying to focus something (it) and invalid if the focus operation has already been resolved. */
+	TSharedPtr<FMutableCodeTreeElement> ToFocusElement;
+	
 	/** Focus the current NavigationElement and places it into view. It also selects it so the previewer for the
 	 * element gets invoked
 	 */
-	void FocusViewOnNavigationTarget();
+	void FocusViewOnNavigationTarget(TSharedPtr<FMutableCodeTreeElement> InTargetElement);
 	
 	/** Wrapper struct designed to be used as cache for all elements found during the navigation system search for elements
 	 * of X Type or relation with a targeted constant resource. It is designed to be used and then destroyed once the
@@ -439,9 +446,9 @@ private:
 			const TSharedPtr<FMutableCodeTreeElement>* PtrFoundElement = InItemCache.Find(Key);
 			check(PtrFoundElement);
 			TSharedPtr<FMutableCodeTreeElement> FoundElement = *PtrFoundElement;
-			check(FoundElement != nullptr);
+			check(FoundElement);
 			
-			// Store this element on our temp Map of elements
+			// Store this element on our temp array of elements
 			FoundElements.Add(FoundElement);
 		}
 
@@ -556,6 +563,84 @@ private:
 	                                       const mu::DATATYPE ConstantDataType, const mu::OP::ADDRESS OperationAddress,
 	                                       const mu::FProgram& InProgram) const;
 	
+
+	/*
+	* Navigation : Text based navigation
+	*/
+
+	/** Current text being used to perform a search by name. It gets updated each time the user changes the text in the SearchBox */
+	FString SearchString;
+	
+	/** Flag that determines how to interpret the SearchString provided.
+	 * If true it means it is a regular expression.
+	 * If not it is just a fragment of text to seek for in the tree of operations. */
+	bool bIsSearchStringRegularExpression = false;
+	
+	/** Last search configuration -> Prevents recurrent searches with the same search parameters */
+	FString LastSearchedString;
+	bool bWasLastSearchRegEx = false;
+	TSharedPtr<mu::Model> LastSearchedModel;
+
+	/** A collection with all the elements we have found to be related with the SearchString. */
+	TArray<TSharedPtr<FMutableCodeTreeElement>> NameBasedNavigationElements;
+
+	/**  Index in the above array. Current navigation index for the navigation over elements related with the SearchString */
+	int32 StringNavigationIndex = -1;
+	
+	/** UI Callback that sets the backend flag to mirror the UI toggle.
+	* @param CheckBoxState The new state of the checkBox object being updated
+	*/
+	void OnRegexToggleChanged(ECheckBoxState CheckBoxState);
+
+	/** Exposes arrows to allow navigation over the found elements and handles the navigation using those.
+	 * @param SearchDirection The direction (up or down) being used to navigate the collection of tree elements
+	 */
+	void OnTreeStringSearch(SSearchBox::SearchDirection SearchDirection);
+
+	/** Invoked each time the user changes the search text in the UI. NewText cached in SearchString variable 
+	* @param InUpdatedText The new value set by the user for the TextBox used to provide the search string.
+	*/
+	void OnTreeSearchTextChanged(const FText& InUpdatedText);
+
+	/** Get the search results for the current search. Used by the Ui to generate some context related elements.
+	* @return Data for external search results to be shown in the search box.
+	*/
+	TOptional<SSearchBox::FSearchResultData> SearchResultsData() const;
+
+	/** Invoked each time the user commits to the text provided. It also caches the text provided by the user 
+	* @param InUpdatedText The current text being exposed in the UI textBox to be used for search. It is not being used
+	* since we rely in the value cached in the global variable "SearchString"
+	* @param TextCommitType Determines how the user did commit the search string.
+	*/
+	void OnTreeSearchTextCommitted(const FText& InUpdatedText, ETextCommit::Type TextCommitType);
+	
+	/** Move the focus to the next element in the collection of related elements to the cached SearchString. */
+	void GoToNextOperation();
+
+	/** Move the focus to the previous element in the collection of related elements to the cached SearchString. */
+	void GoToPreviousOperation();
+
+	/** Provided an index inside the NameBasedNavigationElements array change the focus to it. */
+	void GoToTargetOperation(const int32& InTargetIndex);
+
+	/** Provided a search string and a search type a series of elements to be navigated over */
+	void CacheOperationsMatchingStringPattern();
+
+	/** Searches the item cache in search of a string pattern that can be treated as a regular string or as a Regular expression.
+	 * @param InStringPattern The string to be searched over. It will get compared with the "Main Label" of the comparing operations.
+	 * @param bIsRegularExpression True if the InStringPattern is ought to be treated as a regular expression, false otherwise.
+	 * @param SearchPayload Structure containing the operations to be used as the origin of the search. This object will also contain the results of the search.
+	 * @param InProgram MutableProgram used to allow the search of the children of the operations being currently processed.
+	 */
+	void GetOperationsMatchingStringPattern(const FString& InStringPattern,const bool bIsRegularExpression, FElementsSearchCache& SearchPayload, const mu::FProgram& InProgram);
+
+	/** Provided a ItemCacheKey this method returns the string that represents it. It will not take in consideration duplicated entries since those are not part
+	 * of said ItemCache.
+	 * @param InItemCacheKey The key representing the current operation being searched.
+	 * @return The MainLabel used to display the provided operation.
+	 */
+	FString GetOperationDescriptiveText(const FItemCacheKey& InItemCacheKey);
+
 	
 	/*
 	* Main callbacks from the tree widget standard operation. 
@@ -762,6 +847,9 @@ public:
 		{
 			DuplicatedOf = *InDuplicatedOf;
 		}
+
+		// Generate the label to be used to display this operation in the operation tree
+		GenerateLabelText();
 		
 		// Process the data that can be extracted from the current state
 		SetElementCurrentState(InMutableStateIndex);
@@ -803,6 +891,151 @@ public:
 		bIsStateConstant = CurrentState.m_updateCache.Contains(MutableOperation);
 	}
 
+	void GenerateLabelText()
+	{
+		const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
+		const mu::OP_TYPE Type = Program.GetOpType(MutableOperation);
+		FString OpName = mu::s_opNames[static_cast<int32>(Type)];
+		OpName.TrimEndInline();
+
+		// See if the operation type accepts additional information in the label
+		switch ( Type )
+		{
+		case mu::OP_TYPE::BO_PARAMETER:
+		case mu::OP_TYPE::NU_PARAMETER:
+		case mu::OP_TYPE::SC_PARAMETER:
+		case mu::OP_TYPE::CO_PARAMETER:
+		case mu::OP_TYPE::PR_PARAMETER:
+		case mu::OP_TYPE::IM_PARAMETER:
+		case mu::OP_TYPE::ST_PARAMETER:
+		{
+			mu::OP::ParameterArgs Args = Program.GetOpArgs<mu::OP::ParameterArgs>(MutableOperation);
+			OpName += TEXT(" ");
+			OpName += StringCast<TCHAR>(Program.m_parameters[int32(Args.variable)].m_name.c_str()).Get();
+			break;
+		}
+
+		case mu::OP_TYPE::IM_SWIZZLE:
+		{
+			mu::OP::ImageSwizzleArgs Args = Program.GetOpArgs<mu::OP::ImageSwizzleArgs>(MutableOperation);
+			OpName += TEXT(" ");
+			OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.format)]).Get();
+			break;
+		}
+
+		case mu::OP_TYPE::IM_PIXELFORMAT:
+		{
+			mu::OP::ImagePixelFormatArgs Args = Program.GetOpArgs<mu::OP::ImagePixelFormatArgs>(MutableOperation);
+			OpName += TEXT(" ");
+			OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.format)]).Get();
+			OpName += TEXT(" or ");
+			OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.formatIfAlpha)]).Get();
+			break;
+		}
+
+		case mu::OP_TYPE::IM_MIPMAP:
+		{
+			mu::OP::ImageMipmapArgs Args = Program.GetOpArgs<mu::OP::ImageMipmapArgs>(MutableOperation);
+			OpName += FString::Printf(TEXT(" levels: %d-%d tail: %d"), Args.levels, Args.blockLevels, int32(Args.onlyTail));
+			break;
+		}
+
+		case mu::OP_TYPE::IM_RESIZE:
+		{
+			mu::OP::ImageResizeArgs Args = Program.GetOpArgs<mu::OP::ImageResizeArgs>(MutableOperation);
+			OpName += FString::Printf(TEXT(" %d x %d"), int32(Args.size[0]), int32(Args.size[1]));
+			break;
+		}
+
+		case mu::OP_TYPE::IM_RESIZEREL:
+		{
+			mu::OP::ImageResizeRelArgs Args = Program.GetOpArgs<mu::OP::ImageResizeRelArgs>(MutableOperation);
+			OpName += FString::Printf(TEXT(" %.3f x %.3f"), Args.factor[0], Args.factor[1]);
+			break;
+		}
+
+		case mu::OP_TYPE::IM_MULTILAYER:
+		{
+			mu::OP::ImageMultiLayerArgs Args = Program.GetOpArgs<mu::OP::ImageMultiLayerArgs>(MutableOperation);
+			OpName += TEXT(" rgb: ");
+			OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+			OpName += TEXT(", a: ");
+			OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+			OpName += FString::Printf(TEXT(" a from %d "), Args.BlendAlphaSourceChannel);
+			OpName += FString::Printf(TEXT(" range-id: %d"), Args.rangeId);
+			OpName += FString::Printf(TEXT(" mask-from-alpha: %d"), int32(Args.bUseMaskFromBlended));
+			break;
+		}
+
+		case mu::OP_TYPE::IM_LAYER:
+		{
+			mu::OP::ImageLayerArgs Args = Program.GetOpArgs<mu::OP::ImageLayerArgs>(MutableOperation);
+			OpName += TEXT(" rgb: ");
+			OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+			OpName += TEXT(", a: ");
+			OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+			OpName += FString::Printf(TEXT(" a from %d "), Args.BlendAlphaSourceChannel);
+			OpName += FString::Printf(TEXT(" flags %d"),Args.flags);
+			break;
+		}
+
+		case mu::OP_TYPE::IM_LAYERCOLOUR:
+		{
+			mu::OP::ImageLayerColourArgs Args = Program.GetOpArgs<mu::OP::ImageLayerColourArgs>(MutableOperation);
+			OpName += TEXT(" rgb: ");
+			OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+			OpName += TEXT(" a: ");
+			OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+			OpName += TEXT(" a from ");
+			OpName += FString::Printf(TEXT(" a from %d "), Args.BlendAlphaSourceChannel);
+			OpName += FString::Printf(TEXT(" flags %d"), Args.flags);
+			break;
+		}
+
+		case mu::OP_TYPE::IM_PLAINCOLOUR:
+		{
+			mu::OP::ImagePlainColourArgs Args = Program.GetOpArgs<mu::OP::ImagePlainColourArgs>(MutableOperation);
+			OpName += TEXT(" format: ");
+			OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.format)]).Get();
+			OpName += FString::Printf(TEXT(" size %d x %d"), Args.size[0], Args.size[1]);
+			OpName += FString::Printf(TEXT(" mips %d"), Args.LODs);
+			break;
+		}
+
+		case mu::OP_TYPE::IN_ADDIMAGE:
+		{
+			mu::OP::InstanceAddArgs Args = Program.GetOpArgs<mu::OP::InstanceAddArgs>(MutableOperation);
+			if (Program.m_constantStrings.IsValidIndex(Args.name))
+			{
+				OpName += TEXT(" name: ");
+				OpName += FString(Program.m_constantStrings[Args.name].c_str());
+			}
+ 			break;
+		}
+
+		default:
+			break;
+		}
+
+		// Prepare the text shown on the UI side of the operation tree
+		MainLabel = FString::Printf(TEXT("%s %d : %s"), *Caption, int32(MutableOperation), *OpName);
+
+		// DEBUG : 
+		// FString IndexOnTree = FString::FromInt(IndexOnTree);
+		// IndexOnTree.Append(TEXT("- "));
+		// MainLabel.InsertAt(0,IndexOnTree);
+
+		// DEBUG : 
+		// FString RowStateIndex = FString::FromInt(GetStateIndex());
+		// RowStateIndex.Append(TEXT(" st "));
+		// MainLabel.InsertAt(0,RowStateIndex);
+		
+		if (DuplicatedOf)
+		{
+			MainLabel.Append(TEXT(" (duplicated)"));
+		}
+	}
+	
 	int32 GetStateIndex() const
 	{
 		return CurrentMutableStateIndex;
@@ -810,20 +1043,20 @@ public:
 	
 public:
 
-	/** */
+	/** Model this operation is part of */
 	TSharedPtr<mu::Model, ESPMode::ThreadSafe> MutableModel;
 	
 	/** Mutable Graph Node represented in this tree row. */
 	mu::OP::ADDRESS MutableOperation;
-
-	/** Label representing this operation. */
-	FString Caption;
 
 	/** If this tree element is a duplicated of another op, this is the op. */
 	TSharedPtr<FMutableCodeTreeElement> DuplicatedOf;
 
 	/** The color to be used by the row representing this object */
 	FSlateColor LabelColor;
+
+	/** Label to be used to represent this operation in the tree */
+	FString MainLabel;
 
 	/*
 	 * Navigation metadata
@@ -854,6 +1087,8 @@ private:
 	 * of duplicated elements (duplicated) since children of duplicated elements are still unique and therefore they can
 	 * be present in more than one state (but can just appear in one state at any given time)
 	 */
-	int32 CurrentMutableStateIndex = -1;	
+	int32 CurrentMutableStateIndex = -1;
 
+	/** String representing additional data like the state this operation is from. It may be empty. */
+	FString Caption;
 };
