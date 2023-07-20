@@ -5170,8 +5170,7 @@ UMovieScene3DTransformSection* MovieSceneToolHelpers::GetTransformSection(
 	UMovieScene3DTransformTrack* TransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(InGuid);
 	if (!TransformTrack)
 	{
-		MovieScene->Modify();
-		TransformTrack = MovieScene->AddTrack<UMovieScene3DTransformTrack>(InGuid);
+		return nullptr;
 	}
 	TransformTrack->Modify();
 

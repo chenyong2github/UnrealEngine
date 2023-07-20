@@ -473,13 +473,9 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 	TWeakPtr<ISequencer> InSequencer = GetSequencer();
 	if (InSequencer.IsValid() && InSequencer.Pin()->GetFocusedMovieSceneSequence() && ActorToSnap.IsValid())
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("SnapAnimation", "Snap Animation"));
-
 		ISequencer* Sequencer = InSequencer.Pin().Get();
-		Sequencer->ForceEvaluate(); // force an evaluate so any control rig get's binding setup
 		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-		MovieScene->Modify();
-		
+
 		TArray<FFrameNumber> Frames;
 		if (SnapSettings && SnapSettings->BakingKeySettings == EBakingKeySettings::AllFrames)
 		{
@@ -493,6 +489,12 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 			FrameMap.GenerateKeyArray(Frames);
 
 		}
+		if (Frames.Num() == 0)
+		{
+			UE_LOG(LogControlRig, Error, TEXT("No Frames To Snap, probably no keys within time range"));
+			return false;
+		}
+		Sequencer->ForceEvaluate(); // force an evaluate so any control rig get's binding setup
 		TArray<FTransform> WorldTransformToSnap;
 		bool bSnapToFirstFrameNotParents = !CalculateWorldTransformsFromParents(Sequencer, ParentToSnap, Frames, WorldTransformToSnap);
 		if (Frames.Num() != WorldTransformToSnap.Num())
@@ -500,6 +502,11 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 			UE_LOG(LogControlRig, Error, TEXT("Number of Frames %d to Snap different than Parent Frames %d"), Frames.Num(),WorldTransformToSnap.Num());
 			return false;
 		}
+
+		FScopedTransaction ScopedTransaction(LOCTEXT("SnapAnimation", "Snap Animation"));
+
+		
+		MovieScene->Modify();
 
 		//need to make sure binding is setup
 		Sequencer->ForceEvaluate();
