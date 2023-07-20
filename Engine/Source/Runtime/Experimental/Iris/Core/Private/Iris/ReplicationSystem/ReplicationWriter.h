@@ -95,7 +95,8 @@ public:
 		FlushFlags_None				= 0U,
 		FlushFlags_FlushState		= 1U << 0U,											// Make sure that all current state data is acknowledged before we stop replicating the object
 		FlushFlags_FlushReliable	= FlushFlags_FlushState << 1U,						// Make sure that all enqueued Reliable RPCs are delivered before we stop replicating the object
-		FlushFlags_All				= FlushFlags_FlushState | FlushFlags_FlushReliable,
+		FlushFlags_FlushTornOffSubObjects	= FlushFlags_FlushReliable << 1U,					// Make sure that we flush TearOff and replicated destroy properly
+		FlushFlags_All				= FlushFlags_FlushState | FlushFlags_FlushReliable | FlushFlags_FlushTornOffSubObjects,
 		FlushFlags_Default			= FlushFlags_FlushReliable,
 	};
 
@@ -126,7 +127,7 @@ public:
 				uint64 IsDeltaCompressionEnabled : 1;					// Set to 1 if deltacompression is enabled for this object
 				uint64 LastAckedBaselineIndex : 2;						// Last acknowledged baseline index which we can use for deltacompresion
 				uint64 PendingBaselineIndex : 2;						// Baseline index pending acknowledgment from client
-				uint64 FlushFlags : 2;									// Flags indicating what we are waiting for when flushing
+				uint64 FlushFlags : 3;									// Flags indicating what we are waiting for when flushing
 			};
 		};
 
@@ -352,7 +353,7 @@ private:
 private:
 
 	uint32 GetDefaultFlushFlags() const;
-	uint32 GetFlushStatus(uint32 InternalIndex, const FReplicationInfo& Info, uint32 InFlushFlags = EFlushFlags::FlushFlags_Default) const;
+	uint32 GetFlushStatus(uint32 InternalIndex, const FReplicationInfo& Info, uint32 FlushFlagsToTest = EFlushFlags::FlushFlags_Default) const;
 	void SetPendingDestroyOrSubObjectPendingDestroyState(uint32 Index, FReplicationInfo& Info);
 
 	bool IsObjectIndexForOOBAttachment(uint32 InternalIndex) const { return InternalIndex == ObjectIndexForOOBAttachment; }

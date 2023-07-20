@@ -550,34 +550,40 @@ uint32 FReplicationWriter::GetDefaultFlushFlags() const
 	return EFlushFlags::FlushFlags_FlushReliable;
 }
 
-uint32 FReplicationWriter::GetFlushStatus(uint32 InternalIndex, const FReplicationInfo& Info, uint32 InFlushFlags) const
+uint32 FReplicationWriter::GetFlushStatus(uint32 InternalIndex, const FReplicationInfo& Info, uint32 FlushFlagsToTest) const
 {
 	uint32 FlushFlags = EFlushFlags::FlushFlags_None;
 
-	if (InFlushFlags == EFlushFlags::FlushFlags_None)
+	if (FlushFlagsToTest == EFlushFlags::FlushFlags_None)
 	{
 		return FlushFlags;
 	}
 
-	if (!!(InFlushFlags & EFlushFlags::FlushFlags_FlushState) && (Info.HasDirtyChangeMask || HasInFlightStateChanges(InternalIndex, Info) || IsObjectPartOfActiveHugeObject(InternalIndex, Info)))
+	if (!!(FlushFlagsToTest & EFlushFlags::FlushFlags_FlushState) && (Info.HasDirtyChangeMask || HasInFlightStateChanges(InternalIndex, Info) || IsObjectPartOfActiveHugeObject(InternalIndex, Info)))
 	{
 		FlushFlags |= EFlushFlags::FlushFlags_FlushState;
 	}
 
-	if (!!(InFlushFlags & EFlushFlags::FlushFlags_FlushReliable) && !Attachments.IsAllReliableSentAndAcked(ENetObjectAttachmentType::Normal, InternalIndex))
+	if (!!(FlushFlagsToTest & EFlushFlags::FlushFlags_FlushReliable) && !Attachments.IsAllReliableSentAndAcked(ENetObjectAttachmentType::Normal, InternalIndex))
 	{
 		FlushFlags |= EFlushFlags::FlushFlags_FlushReliable;
 	}
 
-	if (!Info.IsSubObject && FlushFlags != FlushFlags_All)
+	// Do we have a tear-off for the subobject in-flight?
+	if (!!(FlushFlagsToTest & EFlushFlags::FlushFlags_FlushTornOffSubObjects) && (Info.IsSubObject && Info.TearOff && (Info.GetState() == EReplicatedObjectState::WaitOnDestroyConfirmation)))
+	{
+		FlushFlags |= EFlushFlags::FlushFlags_FlushTornOffSubObjects;
+	}
+
+	if (!Info.IsSubObject && FlushFlags != FlushFlagsToTest)
 	{
 		// Check status of SubObjects as well.
 		for (uint32 SubObjectIndex : NetRefHandleManager->GetSubObjects(InternalIndex))
 		{
 			const FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
-			FlushFlags |= GetFlushStatus(SubObjectIndex, SubObjectInfo, InFlushFlags);
+			FlushFlags |= GetFlushStatus(SubObjectIndex, SubObjectInfo, FlushFlagsToTest);
 
-			if (FlushFlags == FlushFlags_All)
+			if (FlushFlags == FlushFlagsToTest)
 			{
 				break;
 			}
@@ -1915,7 +1921,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 	BatchEntry.bHasUnsentAttachments = bHasAttachments;
 
 	// Check if we must defer tearoff until after flush
-	const bool bSentTearOff = Info.TearOff && (GetFlushStatus(InternalIndex, Info, Info.FlushFlags) == EFlushFlags::FlushFlags_None);
+	const bool bSentTearOff = Info.TearOff && (GetFlushStatus(InternalIndex, Info, Info.FlushFlags | EFlushFlags::FlushFlags_FlushTornOffSubObjects) == EFlushFlags::FlushFlags_None);
 
 	Context.SetIsInitState(bIsInitialState);
 

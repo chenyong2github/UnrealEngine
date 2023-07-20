@@ -236,7 +236,7 @@ void FReplicationSystemTestNode::PreSendUpdate()
 	ReplicationSystem->PreSendUpdate(1.f);
 }
 
-bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
+bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId, const TCHAR* Desc)
 {
 	FPacketData Packet;
 
@@ -257,6 +257,10 @@ bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
 		Writer.CommitWrites();
 		Packet.BitCount = Writer.GetPosBits();
 		Packet.PacketId = PacketId++;
+		if (Desc)
+		{
+			Packet.Desc = FString(Desc);
+		}
 
 		Connection.WriteRecords.Enqueue(Record);
 		Connection.WrittenPackets.Enqueue(Packet);
@@ -268,6 +272,7 @@ bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
 	{
 		UE_NET_TRACE_FLUSH_COLLECTOR(Context.GetTraceCollector(), GetNetTraceId(), Connection.ConnectionId, ENetTracePacketType::Outgoing);
 		UE_NET_TRACE_PACKET_SEND(GetNetTraceId(), Connection.ConnectionId, Packet.PacketId, Packet.BitCount);
+		UE_LOG(LogIris, Log, TEXT("ReplicationSystemTestFixture: Conn: %u Send PacketId: %u %s"), ConnectionId, Packet.PacketId, *Packet.Desc);
 	}
 
 	UE_NET_TRACE_DESTROY_COLLECTOR(Context.GetTraceCollector());
@@ -293,6 +298,7 @@ void FReplicationSystemTestNode::DeliverTo(FReplicationSystemTestNode& Dest, uin
 
 		Context.SetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 
+		UE_LOG(LogIris, Log, TEXT("ReplicationSystemTestFixture: Conn: %u Deliver PacketId: %u %s"), LocalConnectionId, Packet.PacketId, *Packet.Desc);
 		Dest.RecvUpdate(RemoteConnectionId, Context);
 
 		UE_NET_TRACE_FLUSH_COLLECTOR(Context.GetTraceCollector(), Dest.GetNetTraceId(), RemoteConnectionId, ENetTracePacketType::Incoming);
@@ -301,6 +307,7 @@ void FReplicationSystemTestNode::DeliverTo(FReplicationSystemTestNode& Dest, uin
 	}
 	else
 	{
+		UE_LOG(LogIris, Log, TEXT("ReplicationSystemTestFixture: Conn: %u Dropped PacketId: %u %s"), LocalConnectionId, Packet.PacketId, *Packet.Desc);
 		UE_NET_TRACE_PACKET_DROPPED(Dest.GetNetTraceId(), RemoteConnectionId, Packet.PacketId, ENetTracePacketType::Incoming);
 		UE_NET_TRACE_PACKET_DROPPED(GetNetTraceId(), LocalConnectionId, Packet.PacketId, ENetTracePacketType::Outgoing);
 	}
@@ -345,9 +352,9 @@ FReplicationSystemTestServer::FReplicationSystemTestServer(const TCHAR* Name)
 {
 }
 
-bool FReplicationSystemTestServer::SendAndDeliverTo(FReplicationSystemTestClient* Client, bool bDeliver)
+bool FReplicationSystemTestServer::SendAndDeliverTo(FReplicationSystemTestClient* Client, bool bDeliver, const TCHAR* Desc)
 {
-	if (SendUpdate(Client->ConnectionIdOnServer))
+	if (SendUpdate(Client->ConnectionIdOnServer, Desc))
 	{
 		DeliverTo(Client, bDeliver);
 
@@ -358,9 +365,9 @@ bool FReplicationSystemTestServer::SendAndDeliverTo(FReplicationSystemTestClient
 }
 
 // Send data, return true if data was written
-bool FReplicationSystemTestServer::SendTo(FReplicationSystemTestClient* Client)
+bool FReplicationSystemTestServer::SendTo(FReplicationSystemTestClient* Client, const TCHAR* Desc)
 {
-	return SendUpdate(Client->ConnectionIdOnServer);
+	return SendUpdate(Client->ConnectionIdOnServer, Desc);
 }
 
 // If bDeliver is true deliver data to client and report packet as delivered

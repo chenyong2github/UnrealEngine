@@ -561,5 +561,96 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestImmediateTearOffExisting
 	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle)) == nullptr);
 }
 
+// Test to recreate a very specific bug where owner being torn-off has in flight rpc requiring a flush
+UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestImmediateTearOffWithSubObjectAndInFlightAttachmentsAndPacketLoss)
+{
+	UReplicationSystem* ReplicationSystem = Server->ReplicationSystem;
+
+	// Add a client
+	FReplicationSystemTestClient* Client = CreateClient();
+	RegisterNetBlobHandlers(Client);
+
+	// Spawn object on server
+	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
+
+	// Spawn second object on server as a subobject
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
+
+	// Trigger replication
+	ServerObject->IntA = 1;
+	ServerSubObject->IntA = 1;
+
+	// Send and deliver packet
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true, TEXT("Create Objects"));
+	Server->PostSendUpdate();
+
+	// Store Pointer to objects
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
+	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
+	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
+
+	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
+	UE_NET_ASSERT_TRUE(ClientSubObjectThatWillBeTornOff != nullptr);
+	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
+
+	// Modify the value of object only
+	ServerObject->IntA = 2;
+
+	// Create attachment to force flush behavior by having a rpc in flight
+	{
+		constexpr uint32 PayloadBitCount = 24;
+		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetRefHandle);
+		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
+	}
+
+	Server->PreSendUpdate();
+	Server->SendTo(Client, TEXT("State data + Attachment"));
+	Server->PostSendUpdate();
+
+	// Modify the value of object only
+	++ServerObject->IntA ;
+
+	Server->PreSendUpdate();
+	Server->SendTo(Client, TEXT("State data"));
+	Server->PostSendUpdate();
+
+	// TearOff the object using immediate tear-off
+	Server->ReplicationBridge->EndReplication(ServerObject, EEndReplicationFlags::TearOff);
+
+	Server->PreSendUpdate();
+	Server->SendTo(Client, TEXT("Tear off"));
+	Server->PostSendUpdate();
+
+	// Deliver packet to drive PendingTearOff -> WaitOnFlush
+	Server->DeliverTo(Client, true);
+
+	// Notify that we dropped tear off data
+	Server->DeliverTo(Client, false);
+
+	// This earlier caused an unwanted state transition
+	Server->PreSendUpdate();
+	Server->SendTo(Client, TEXT("Packet after tearoff"));
+	Server->PostSendUpdate();
+
+	// Drop the packet containing the original tear-off
+	Server->DeliverTo(Client, false);
+
+	// Deliver a packet
+	Server->DeliverTo(Client, true);
+
+	// This should contain resend of lost state
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true, TEXT("Resending tearoff"));
+	Server->PostSendUpdate();
+
+	// Verify that ClientObject is torn-off and that the final state was applied
+	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
+	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
+}
+
 
 }

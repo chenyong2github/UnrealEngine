@@ -59,6 +59,7 @@ public:
 		alignas(16) uint8 PacketBuffer[MaxPacketSize];
 		uint32 BitCount;
 		uint32 PacketId;
+		FString Desc;
 	};
 
 	struct FConnectionInfo
@@ -131,8 +132,8 @@ public:
 	void PostSendUpdate();
 
 	// Update methods for server connections
-	bool SendUpdate(uint32 ConnectionId);
-	bool SendUpdate() { return SendUpdate(1); }
+	bool SendUpdate(uint32 ConnectionId, const TCHAR* Desc = nullptr);
+	bool SendUpdate(const TCHAR* Desc = nullptr) { return SendUpdate(1, Desc); }
 
 	void DeliverTo(FReplicationSystemTestNode& Dest, uint32 LocalConnectionId, uint32 RemoteConnectionId, bool bDeliver);
 	void RecvUpdate(uint32 ConnectionId, FNetSerializationContext& Context);
@@ -175,10 +176,10 @@ public:
 	explicit FReplicationSystemTestServer(const TCHAR* Name);
 
 	// Send data and deliver to the client if bDeliver is true
-	bool SendAndDeliverTo(FReplicationSystemTestClient* Client, bool bDeliver);
+	bool SendAndDeliverTo(FReplicationSystemTestClient* Client, bool bDeliver, const TCHAR* Desc = nullptr);
 
 	// Send data, return true if data was written
-	bool SendTo(FReplicationSystemTestClient* Client);
+	bool SendTo(FReplicationSystemTestClient* Client, const TCHAR* Desc = nullptr);
 
 	// Explicitly set delivery status
 	void DeliverTo(FReplicationSystemTestClient* Client, bool bDeliver);
