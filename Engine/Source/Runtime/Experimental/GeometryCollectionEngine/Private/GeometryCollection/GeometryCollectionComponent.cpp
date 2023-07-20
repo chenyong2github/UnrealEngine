@@ -4559,17 +4559,6 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 						if (NewCommand.RootNode)
 						{
 							CombinedCommmands.Emplace(NewCommand);
-
-							UWorld* World = GetWorld();
-							if (World && World->PhysicsField)
-							{
-								const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
-
-								FFieldSystemCommand LocalCommand = NewCommand;
-								LocalCommand.InitFieldNodes(World->GetTimeSeconds(), Name);
-
-								World->PhysicsField->AddConstructionCommand(LocalCommand);
-							}
 						}
 					}
 				}

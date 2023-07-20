@@ -20,7 +20,7 @@
 #include "ShaderPrint.h"
 
 // Console variables
-int32 GPhysicsFieldTargetType = EFieldPhysicsType::Field_PhysicsType_Max;
+int32 GPhysicsFieldTargetType = EFieldPhysicsType::Field_LinearForce;
 FAutoConsoleVariableRef CVarPhysicsFieldTargetType(
 	TEXT("r.PhysicsField.Rendering.TargetType"),
 	GPhysicsFieldTargetType,
@@ -39,13 +39,6 @@ FAutoConsoleVariableRef CVarPhysicsFieldSystemType(
 	TEXT("r.PhysicsField.Rendering.SystemType"),
 	GPhysicsFieldSystemType,
 	TEXT("Physics field boolean to check if we want to display the CPU(0) or GPU(1) field.\n"),
-	ECVF_RenderThreadSafe);
-
-float GPhysicsFieldTransientLifetime = 3.0f;
-FAutoConsoleVariableRef CVarPhysicsFieldTransientLifetime(
-	TEXT("r.PhysicsField.Rendering.TransientLifetime"),
-	GPhysicsFieldTransientLifetime,
-	TEXT("Physics field transient commands lifetime for rendering.\n"),
 	ECVF_RenderThreadSafe);
 
 /**
@@ -76,7 +69,6 @@ class FPhysicsFieldRayMarchingCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, BoundsOffset)
 		SHADER_PARAMETER(uint32, BoundsSize)
 		SHADER_PARAMETER(uint32, LocalTarget)
-		SHADER_PARAMETER(uint32, PrintOffset)
 		SHADER_PARAMETER(uint32, GlobalTarget)
 		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
@@ -101,7 +93,7 @@ IMPLEMENT_GLOBAL_SHADER(FPhysicsFieldRayMarchingCS, "/Engine/Private/PhysicsFiel
 
 static FPhysicsFieldRayMarchingCS::FParameters* CreateShaderParameters(FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, const FPhysicsFieldResource* PhysicsFieldResource,
-	FRDGTextureRef& OutputTexture, const int32 TargetIndex, const int32 TargetType, const uint32 PrintOffset)
+	FRDGTextureRef& OutputTexture, const int32 TargetIndex)
 {
 	const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
@@ -116,8 +108,8 @@ static FPhysicsFieldRayMarchingCS::FParameters* CreateShaderParameters(FRDGBuild
 
 	Parameters->BoundsMin = PhysicsFieldResource->BoundsMin.SRV;
 	Parameters->BoundsMax = PhysicsFieldResource->BoundsMax.SRV;
-	Parameters->BoundsOffset = PhysicsFieldResource->FieldInfos.BoundsOffsets[TargetType];
-	Parameters->BoundsSize = PhysicsFieldResource->FieldInfos.BoundsOffsets[TargetType + 1] - PhysicsFieldResource->FieldInfos.BoundsOffsets[TargetType];;
+	Parameters->BoundsOffset = PhysicsFieldResource->FieldInfos.BoundsOffsets[GPhysicsFieldTargetType];
+	Parameters->BoundsSize = PhysicsFieldResource->FieldInfos.BoundsOffsets[GPhysicsFieldTargetType + 1] - PhysicsFieldResource->FieldInfos.BoundsOffsets[GPhysicsFieldTargetType];;
 
 	Parameters->NodesParams = PhysicsFieldResource->NodesParams.SRV;
 	Parameters->NodesOffsets = PhysicsFieldResource->NodesOffsets.SRV;
@@ -125,8 +117,7 @@ static FPhysicsFieldRayMarchingCS::FParameters* CreateShaderParameters(FRDGBuild
 	Parameters->TimeSeconds = PhysicsFieldResource->FieldInfos.TimeSeconds;
 
 	Parameters->LocalTarget = TargetIndex;
-	Parameters->GlobalTarget = TargetType;
-	Parameters->PrintOffset = PrintOffset;
+	Parameters->GlobalTarget = GPhysicsFieldTargetType;
 
 	return Parameters;
 }
@@ -137,51 +128,47 @@ static void AddPhysicsFieldRayMarchingPass(
 	const FPhysicsFieldResource* PhysicsFieldResource,
 	FRDGTextureRef& OutputTexture)
 {
-	const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
-	auto RenderPhysicsField = [&GraphBuilder, &View, PhysicsFieldResource, &OutputTexture, &OutputResolution](const int32 TargetType, const bool bClearBackground, uint32& PrintOffset) {
-
-		int32 TargetIndex = INDEX_NONE;
-		EFieldOutputType FieldOutputType = EFieldOutputType::Field_Output_Max;
-		GetFieldIndex(TargetType, TargetIndex, FieldOutputType);
-
-		const int32 NumBounds = PhysicsFieldResource->FieldInfos.BoundsOffsets[TargetType + 1] - PhysicsFieldResource->FieldInfos.BoundsOffsets[TargetType];
-		if (NumBounds > 0 && (!bClearBackground || (bClearBackground && (FieldOutputType == EFieldOutputType::Field_Output_Vector))))
-		{
-			const FIntVector BoundResolution(FPhysicsFieldRayMarchingCS::VoxelResolution * NumBounds, FPhysicsFieldRayMarchingCS::VoxelResolution, FPhysicsFieldRayMarchingCS::VoxelResolution);
-			PrintOffset = !bClearBackground ? PrintOffset + 1 : PrintOffset;
-
-			FPhysicsFieldRayMarchingCS::FParameters* Parameters = CreateShaderParameters(GraphBuilder, View, PhysicsFieldResource, OutputTexture, TargetIndex, TargetType, PrintOffset);
-
-			FPhysicsFieldRayMarchingCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPhysicsFieldRayMarchingCS::FFieldType>(bClearBackground ? 3 : FieldOutputType);
-			PermutationVector.Set<FPhysicsFieldRayMarchingCS::FEvalType>(GPhysicsFieldEvalType);
-			TShaderMapRef<FPhysicsFieldRayMarchingCS> ComputeShader(View.ShaderMap, PermutationVector);
-
-			const FIntVector DispatchCount = (!bClearBackground && (FieldOutputType == EFieldOutputType::Field_Output_Vector)) ?
-				FIntVector::DivideAndRoundUp(BoundResolution, FIntVector(4, 4, 4)) :
-				FIntVector::DivideAndRoundUp(FIntVector(OutputResolution.X, OutputResolution.Y, 1), FIntVector(8, 8, 1));
-
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("RenderPhysicsField"), ComputeShader, Parameters, DispatchCount);
-		}
-	};
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
-	uint32 PrintOffset = 0;
+	const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
 	if(GPhysicsFieldTargetType < EFieldPhysicsType::Field_PhysicsType_Max)
 	{
-		RenderPhysicsField(GPhysicsFieldTargetType, true, PrintOffset);
-		RenderPhysicsField(GPhysicsFieldTargetType, false, PrintOffset);
-	}
-	else
-	{
-		for (int32 TargetType = 0; TargetType < EFieldPhysicsType::Field_PhysicsType_Max; ++TargetType)
-		{
-			RenderPhysicsField(TargetType, true, PrintOffset);
-		}
+		int32 TargetIndex = INDEX_NONE;
+		EFieldOutputType FieldOutputType = EFieldOutputType::Field_Output_Max;
+		GetFieldIndex(GPhysicsFieldTargetType, TargetIndex, FieldOutputType);
 
-		for (int32 TargetType = 0; TargetType < EFieldPhysicsType::Field_PhysicsType_Max; ++TargetType)
+		if (GPhysicsFieldTargetType < EFieldPhysicsType::Field_PhysicsType_Max)
 		{
-			RenderPhysicsField(TargetType, false, PrintOffset);
+			// Reset the field background to highlight the vector lines color
+			if (FieldOutputType == EFieldOutputType::Field_Output_Vector)
+			{
+				FPhysicsFieldRayMarchingCS::FParameters* Parameters = CreateShaderParameters(GraphBuilder, View, PhysicsFieldResource, OutputTexture, TargetIndex);
+
+				FPhysicsFieldRayMarchingCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FPhysicsFieldRayMarchingCS::FFieldType>(3);
+				PermutationVector.Set<FPhysicsFieldRayMarchingCS::FEvalType>(GPhysicsFieldEvalType);
+				TShaderMapRef<FPhysicsFieldRayMarchingCS> ComputeShader(View.ShaderMap, PermutationVector);
+
+				const FIntVector DispatchCount = FIntVector::DivideAndRoundUp(FIntVector(OutputResolution.X, OutputResolution.Y, 1), FIntVector(8, 8, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("PhysicsFieldRayMarching"), ComputeShader, Parameters, DispatchCount);
+			}
+
+			{
+				FPhysicsFieldRayMarchingCS::FParameters* Parameters = CreateShaderParameters(GraphBuilder, View, PhysicsFieldResource, OutputTexture, TargetIndex);
+
+				const int32 NumBounds = PhysicsFieldResource->FieldInfos.BoundsOffsets[GPhysicsFieldTargetType + 1] - PhysicsFieldResource->FieldInfos.BoundsOffsets[GPhysicsFieldTargetType];
+				const FIntVector BoundResolution(FPhysicsFieldRayMarchingCS::VoxelResolution * NumBounds, FPhysicsFieldRayMarchingCS::VoxelResolution, FPhysicsFieldRayMarchingCS::VoxelResolution);
+
+				FPhysicsFieldRayMarchingCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FPhysicsFieldRayMarchingCS::FFieldType>(FieldOutputType);
+				PermutationVector.Set<FPhysicsFieldRayMarchingCS::FEvalType>(GPhysicsFieldEvalType);
+				TShaderMapRef<FPhysicsFieldRayMarchingCS> ComputeShader(View.ShaderMap, PermutationVector);
+
+				const FIntVector DispatchCount = (FieldOutputType == EFieldOutputType::Field_Output_Vector) ?
+					FIntVector::DivideAndRoundUp(BoundResolution, FIntVector(4, 4, 4)) :
+					FIntVector::DivideAndRoundUp(FIntVector(OutputResolution.X, OutputResolution.Y, 1), FIntVector(8, 8, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("PhysicsFieldRayMarching"), ComputeShader, Parameters, DispatchCount);
+			}
 		}
 	}
 }
@@ -195,12 +182,10 @@ void RenderPhysicsField(
 	if (PhysicsFieldProxy)
 	{
 		FPhysicsFieldResource* PhysicsFieldResource = (GPhysicsFieldSystemType == 0) ? PhysicsFieldProxy->DebugResource : PhysicsFieldProxy->FieldResource;
+
 		if (Views.Num() > 0 && PhysicsFieldResource && ShaderPrint::IsEnabled(Views[0].ShaderPrintData) && UE::PixelFormat::HasCapabilities(PF_FloatRGBA, EPixelFormatCapabilities::TypedUAVLoad))
 		{
-			if (ShaderPrint::IsSupported(Views[0].GetShaderPlatform()) && IsFeatureLevelSupported(Views[0].GetShaderPlatform(), ERHIFeatureLevel::SM5))
-			{
-				AddPhysicsFieldRayMarchingPass(GraphBuilder, Views[0], PhysicsFieldResource, SceneColorTexture);
-			}
+			AddPhysicsFieldRayMarchingPass(GraphBuilder, Views[0], PhysicsFieldResource, SceneColorTexture);
 		}
 	}
 }

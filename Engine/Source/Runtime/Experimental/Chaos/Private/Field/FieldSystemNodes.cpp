@@ -249,11 +249,10 @@ float FRadialIntMask::EvalMaxMagnitude() const
 	return 1.0f;
 }
 
-void FRadialIntMask::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FRadialIntMask::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	MinBounds = (ExteriorValue == 0) ? Position - FVector(Radius) : FVector(-FLT_MAX);
 	MaxBounds = (ExteriorValue == 0) ? Position + FVector(Radius) : FVector(FLT_MAX);
-	CenterPosition = Position;
 }
 
 /**
@@ -424,13 +423,6 @@ float FWaveScalar::EvalMaxMagnitude() const
 	return Magnitude;
 }
 
-void FWaveScalar::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
-{
-	MinBounds = FVector(-FLT_MAX);
-	MaxBounds = FVector(FLT_MAX);
-	CenterPosition = Position;
-}
-
 /**
 * Function Utils
 */
@@ -582,11 +574,10 @@ float FRadialFalloff::EvalMaxMagnitude() const
 	return Magnitude;
 }
 
-void FRadialFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FRadialFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	MinBounds = (Default == 0) ? Position - FVector(Radius) : FVector(-FLT_MAX);
 	MaxBounds = (Default == 0) ? Position + FVector(Radius) : FVector(FLT_MAX);
-	CenterPosition = Position;
 }
 
 /**
@@ -699,11 +690,10 @@ float FPlaneFalloff::EvalMaxMagnitude() const
 	return Magnitude;
 }
 
-void FPlaneFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FPlaneFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	MinBounds = FVector(-FLT_MAX);
 	MaxBounds = FVector(FLT_MAX);
-	CenterPosition = Position;
 }
 
 /**
@@ -818,7 +808,7 @@ float FBoxFalloff::EvalMaxMagnitude() const
 	return Magnitude;
 }
 
-void FBoxFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FBoxFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	MinBounds = FVector(-FLT_MAX);
 	MaxBounds = FVector(FLT_MAX);
@@ -829,7 +819,6 @@ void FBoxFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVe
 		MinBounds = BoundingBox.Min;
 		MaxBounds = BoundingBox.Max;
 	}
-	CenterPosition = Transform.GetTranslation();
 }
 
 /**
@@ -1019,13 +1008,6 @@ void FRadialVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& N
 float FRadialVector::EvalMaxMagnitude() const
 {
 	return Magnitude;
-}
-
-void FRadialVector::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
-{
-	MinBounds = FVector(-FLT_MAX);
-	MaxBounds = FVector(FLT_MAX);
-	CenterPosition = Position;
 }
 
 
@@ -1267,31 +1249,17 @@ float FSumScalar::EvalMaxMagnitude() const
 	return Magnitude * MaxMagnitude;
 }
 
-void FSumScalar::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FSumScalar::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
-	FVector CenterPositionA = FVector::Zero(), CenterPositionB = FVector::Zero();
 	if (ScalarRight.IsValid())
 	{
-		ScalarRight->ComputeFieldBounds(MinBoundsA, MaxBoundsA, CenterPositionA);
+		ScalarRight->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
 	}
 	if (ScalarLeft.IsValid())
 	{
-		ScalarLeft->ComputeFieldBounds(MinBoundsB, MaxBoundsB, CenterPositionB);
+		ScalarLeft->ComputeFieldBounds(MinBoundsB, MaxBoundsB);
 	}
-	CenterPosition = FVector::Zero();
-	int32 NumCenters = 0;
-	if (CenterPositionA != FVector::Zero())
-	{
-		CenterPosition += CenterPositionA;
-		++NumCenters;
-	}
-	if (CenterPositionB != FVector::Zero())
-	{
-		CenterPosition += CenterPositionB;
-		++NumCenters;
-	}
-	CenterPosition = (NumCenters > 0) ? CenterPosition / NumCenters : FVector::Zero();
 
 	if (Operation == EFieldOperationType::Field_Multiply ||
 		Operation == EFieldOperationType::Field_Divide)
@@ -1511,41 +1479,21 @@ float FSumVector::EvalMaxMagnitude() const
 	return Magnitude * MaxMagnitudeA * MaxMagnitude;
 }
 
-void FSumVector::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FSumVector::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX), MinBoundsC(-FLT_MAX), MaxBoundsC(FLT_MAX);
-	FVector CenterPositionA = FVector::Zero(), CenterPositionB = FVector::Zero(), CenterPositionC = FVector::Zero();
 	if (Scalar.IsValid())
 	{
-		Scalar->ComputeFieldBounds(MinBoundsC, MaxBoundsC, CenterPositionC);
+		Scalar->ComputeFieldBounds(MinBoundsC, MaxBoundsC);
 	}
 	if (VectorRight.IsValid())
 	{
-		VectorRight->ComputeFieldBounds(MinBoundsA, MaxBoundsA, CenterPositionA);
+		VectorRight->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
 	}
 	if (VectorLeft.IsValid())
 	{
-		VectorLeft->ComputeFieldBounds(MinBoundsB, MaxBoundsB, CenterPositionB);
+		VectorLeft->ComputeFieldBounds(MinBoundsB, MaxBoundsB);
 	}
-
-	CenterPosition = FVector::Zero();
-	int32 NumCenters = 0;
-	if (CenterPositionA != FVector::Zero())
-	{
-		CenterPosition += CenterPositionA;
-		++NumCenters;
-	}
-	if (CenterPositionB != FVector::Zero())
-	{
-		CenterPosition += CenterPositionB;
-		++NumCenters;
-	}
-	if (CenterPositionC != FVector::Zero())
-	{
-		CenterPosition += CenterPositionC;
-		++NumCenters;
-	}
-	CenterPosition = (NumCenters > 0) ? CenterPosition / NumCenters : FVector::Zero();
 
 	if (Operation == EFieldOperationType::Field_Multiply ||
 		Operation == EFieldOperationType::Field_Divide)
@@ -1648,12 +1596,12 @@ float FConversionField<InT, OutT>::EvalMaxMagnitude() const
 }
 
 template<class InT, class OutT>
-void FConversionField<InT, OutT>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FConversionField<InT, OutT>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX);
 	if (InputField.IsValid())
 	{
-		InputField->ComputeFieldBounds(MinBoundsA, MaxBoundsA, CenterPosition);
+		InputField->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
 	}
 	MinBounds = MinBoundsA;
 	MaxBounds = MaxBoundsA;
@@ -1812,34 +1760,18 @@ float FCullingField<T>::EvalMaxMagnitude() const
 }
 
 template<class T>
-void FCullingField<T>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
+void FCullingField<T>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
 {
 	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
-	FVector CenterPositionA = FVector::Zero(), CenterPositionB = FVector::Zero();
 
 	if (Culling.IsValid())
 	{
-		Culling->ComputeFieldBounds(MinBoundsA, MaxBoundsA, CenterPositionA);
+		Culling->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
 	}
 	if (Input.IsValid())
 	{
-		Input->ComputeFieldBounds(MinBoundsB, MaxBoundsB, CenterPositionB);
+		Input->ComputeFieldBounds(MinBoundsB, MaxBoundsB);
 	}
-
-	CenterPosition = FVector::Zero();
-	int32 NumCenters = 0;
-	if (CenterPositionA != FVector::Zero())
-	{
-		CenterPosition += CenterPositionA;
-		++NumCenters;
-	}
-	if (CenterPositionB != FVector::Zero())
-	{
-		CenterPosition += CenterPositionB;
-		++NumCenters;
-	}
-	CenterPosition = (NumCenters > 0) ? CenterPosition / NumCenters : FVector::Zero();
-
 	if (Operation == EFieldCullingOperationType::Field_Culling_Inside)
 	{
 		MinBounds = MinVector(MinBoundsA, MinBoundsB);

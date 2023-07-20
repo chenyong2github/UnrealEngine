@@ -6,7 +6,6 @@
 #include "CommonViewUniformBuffer.ush"
 #include "SceneTextureParameters.ush"
 #include "DeferredShadingCommon.ush"
-#include "ShaderPrintCommon.ush" 
 #include "ShaderPrint.ush" 
 #include "PositionReconstructionCommon.ush" 
  
@@ -21,8 +20,6 @@ Buffer<float4> BoundsMax;
 
 uint BoundsOffset;
 uint BoundsSize;
-
-uint PrintOffset;
 
 uint LocalTarget;
 uint GlobalTarget;
@@ -74,53 +71,30 @@ void SetOutputTexture(inout float RayDensity, in int BoundsIndex, in uint2 Pixel
 // Vector field visualisation
 #if PERMUTATION_FIELD == 0
 
-FFontColor GetVectorTargetColor()
-{
-	if(GlobalTarget == LINEAR_FORCE)
-	{
-		return FontRed;
-	}
-	else if(GlobalTarget == LINEAR_VELOCITY)
-	{
-		return FontGreen;
-	}
-	else if(GlobalTarget == ANGULAR_TORQUE)
-	{
-		return FontBlue;
-	}
-	else if(GlobalTarget == ANGULAR_VELOCITY)
-	{
-		return FontYellow;
-	}
-	return FontWhite;
-}
-
 void PrintVectorField()
 {
 	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50.0f, 200.0f));
-	Context.Pos.y += Context.Config.FontSpacing.y * PrintOffset;
 
-	const FFontColor VectorColor = GetVectorTargetColor();
-
-	Print(Context, TEXT("Vector Field | Type = "));
+	Print(Context, TEXT("Vector Field Type - "));
 	if(GlobalTarget == LINEAR_FORCE)
 	{
-		Print(Context, TEXT("Linear Force "), VectorColor);
+		Print(Context, TEXT("Linear Force "));
 	}
 	else if(GlobalTarget == LINEAR_VELOCITY)
 	{
-		Print(Context, TEXT("Linear Velocity "), VectorColor);
+		Print(Context, TEXT("Linear Velocity "));
 	}
 	else if(GlobalTarget == ANGULAR_TORQUE)
 	{
-		Print(Context, TEXT("Angular Torque "), VectorColor);
+		Print(Context, TEXT("Angular Torque "));
 	}
 	else if(GlobalTarget == ANGULAR_VELOCITY)
 	{
-		Print(Context, TEXT("Angular Velocity "), VectorColor);
+		Print(Context, TEXT("Angular Velocity "));
 	}
+	Newline(Context);
 
-	Print(Context, TEXT("| Count = "));
+	Print(Context, TEXT("Vector Field Count - "));
 	Print(Context, BoundsSize);
 }
 
@@ -129,7 +103,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID)
 {
 	GFieldGroupThreadId = GroupThreadId.x * 16 + GroupThreadId.y * 4 + GroupThreadId.z;
-	const FFontColor AABBColor = GetVectorTargetColor();
 	if(DispatchThreadId.x < VOXEL_RESOLUTION * BoundsSize && DispatchThreadId.y < VOXEL_RESOLUTION && DispatchThreadId.z < VOXEL_RESOLUTION)
 	{
 		const uint BoundsIndex = BoundsOffset + DispatchThreadId.x / VOXEL_RESOLUTION;
@@ -167,7 +140,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
 		{
 			for(int BoundsIndex = BoundsOffset, BoundsEnd = BoundsOffset + BoundsSize; BoundsIndex < BoundsEnd; ++BoundsIndex)
 			{
-				AddAABBWS(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(AABBColor.Color, 1));
+				AddAABBWS(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(1, 0.5f, 0, 1));
 			}
 			PrintVectorField();
 		}
@@ -178,107 +151,62 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
 
 #if PERMUTATION_FIELD == 1 || PERMUTATION_FIELD == 2
 
-FFontColor GetScalarTargetColor()
-{
-	if(GlobalTarget == EXTERNAL_STRAIN)
-	{
-		return FontCyan;
-	}
-	else if(GlobalTarget == INTERNAL_STRAIN)
-	{
-		return FontMagenta;
-	}
-	else if(GlobalTarget == DISABLED_THRESHOLD)
-	{
-		return FontOrange;
-	}
-	else if(GlobalTarget == SLEEPING_THRESHOLD)
-	{
-		return FontPurple;
-	}
-	else if(GlobalTarget == KILL_PARTICLES)
-	{
-		return FontTurquoise;
-	}
-	return FontWhite;
-}
-
 void PrintScalarField()
 {
 	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50.0f, 200.0f));
-	Context.Pos.y += Context.Config.FontSpacing.y * PrintOffset;
 
-	const FFontColor ScalarColor = GetScalarTargetColor();
+	Print(Context, TEXT("Scalar Field Type - "));
 
-	Print(Context, TEXT("Scalar Field | Type = "));
 	if(GlobalTarget == EXTERNAL_STRAIN)
 	{
-		Print(Context, TEXT("External Strain "), ScalarColor);
+		Print(Context, TEXT("External Strain "));
 	}
 	else if(GlobalTarget == INTERNAL_STRAIN)
 	{
-		Print(Context, TEXT("Internal Strain "), ScalarColor);
+		Print(Context, TEXT("Internal Strain "));
 	}
 	else if(GlobalTarget == DISABLED_THRESHOLD)
 	{
-		Print(Context, TEXT("Disabled Threshold "), ScalarColor);
+		Print(Context, TEXT("Disabled Threshold "));
 	}
 	else if(GlobalTarget == SLEEPING_THRESHOLD)
 	{
-		Print(Context, TEXT("Sleeping Threshold "), ScalarColor);
+		Print(Context, TEXT("Sleeping Threshold "));
 	}
 	else if(GlobalTarget == KILL_PARTICLES)
 	{
-		Print(Context, TEXT("Kill Particles "), ScalarColor);
+		Print(Context, TEXT("Kill Particles "));
 	}
 
-	Print(Context, TEXT("| Count = "));
+	Newline(Context);
+
+	Print(Context, TEXT("Scalar Field Count - "));
 	Print(Context, BoundsSize);
-}
-
-FFontColor GetIntegerTargetColor()
-{
-	if(GlobalTarget == DYNAMIC_STATE)
-	{
-		return FontSilver;
-	}
-	else if(GlobalTarget == COLLISION_GROUP)
-	{
-		return FontEmerald;
-	}
-	else if(GlobalTarget == ACTIVATE_DISABLED)
-	{
-		return FontWhite;
-	}
-	return FontWhite;
 }
 
 void PrintIntegerField()
 {
 	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50.0f, 200.0f));
-	Context.Pos.y += Context.Config.FontSpacing.y * PrintOffset;
 
-	const FFontColor IntegerColor = GetIntegerTargetColor();
+	Print(Context, TEXT("Integer Field Type - "));
 
-	Print(Context, TEXT("Integer Field | Type = "));
 	if(GlobalTarget == DYNAMIC_STATE)
 	{
-		Print(Context, TEXT("Dynamic State "), IntegerColor);
+		Print(Context, TEXT("Dynamic State "));
 	}
 	else if(GlobalTarget == COLLISION_GROUP)
 	{
-		Print(Context, TEXT("Collision Group "), IntegerColor);
+		Print(Context, TEXT("Collision Group "));
 	}
 	else if(GlobalTarget == ACTIVATE_DISABLED)
 	{
-		Print(Context, TEXT("Activate Disabled "), IntegerColor);
+		Print(Context, TEXT("Activate Disabled "));
 	}
 
-	Print(Context, TEXT("| Count = "));
+	Newline(Context);
+	Print(Context, TEXT("Integer Field Count - "));
 	Print(Context, BoundsSize);
 }
-
-
 
 // Integer and scalar field visualisation
 [numthreads(8, 8, 1)]
@@ -286,15 +214,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID)
 {
 	GFieldGroupThreadId = GroupThreadId.x * 8 + GroupThreadId.y + GroupThreadId.z;
-
-	#if PERMUTATION_FIELD == 2
-	const FFontColor AABBColor = GetIntegerTargetColor();
-	#endif
-
-	#if PERMUTATION_FIELD == 1
-	const FFontColor AABBColor = GetScalarTargetColor();
-	#endif
-
 	if(DispatchThreadId.x < OutputResolution.x && DispatchThreadId.y < OutputResolution.y)
 	{
 		float3 RayBegin, RayEnd, RayDirection;
@@ -347,7 +266,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
 		{
 			for(int BoundsIndex = BoundsOffset, BoundsEnd = BoundsOffset + BoundsSize; BoundsIndex < BoundsEnd; ++BoundsIndex)
 			{
-				AddAABBWS(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(AABBColor.Color, 1));
+				AddAABBWS(BoundsMin[BoundsIndex].xyz, BoundsMax[BoundsIndex].xyz, float4(1, 0.5f, 0, 1));
 			}
 #if PERMUTATION_FIELD == 2
 			PrintIntegerField();

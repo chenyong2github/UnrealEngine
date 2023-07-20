@@ -296,17 +296,6 @@ void UFieldSystemComponent::AddFieldCommand(bool Enabled, EFieldPhysicsType Targ
 			if (Command.RootNode)
 			{
 				SetupConstructionFields.Add(Command);
-
-				UWorld* World = GetWorld();
-				if (World && World->PhysicsField)
-				{
-					const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
-
-					FFieldSystemCommand LocalCommand = Command;
-					LocalCommand.InitFieldNodes(World->GetTimeSeconds(), Name);
-
-					World->PhysicsField->AddConstructionCommand(LocalCommand);
-				}
 			}
 		}
 
