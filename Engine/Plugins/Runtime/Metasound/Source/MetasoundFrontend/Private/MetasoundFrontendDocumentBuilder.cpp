@@ -906,7 +906,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddInterface(FName InterfaceName)
 			TArray<FMetasoundFrontendInterface> InterfacesToAdd;
 			InterfacesToAdd.Add(Entry->GetInterface());
 			FModifyInterfaceOptions Options({ }, MoveTemp(InterfacesToAdd));
-			ModifyInterfaces(MoveTemp(Options));
+			return ModifyInterfaces(MoveTemp(Options));
 		}
 	}
 
