@@ -55,12 +55,26 @@ void FTimerButterflyAggregationWorker::DoWork(TSharedPtr<TraceServices::FCancell
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
-		auto ThreadFilter = [this](uint32 ThreadId)
+		if (StartTime <= Session->GetDurationSeconds())
 		{
-			return CpuThreads.Contains(ThreadId);
-		};
+			auto ThreadFilter = [this](uint32 ThreadId)
+			{
+				return CpuThreads.Contains(ThreadId);
+			};
 
-		ResultButterfly.Reset(TimingProfilerProvider.CreateButterfly(StartTime, EndTime, ThreadFilter, bIncludeGpuThread));
+			double ClampedEndTime = FMath::Min(Session->GetDurationSeconds(), EndTime);
+			ResultButterfly.Reset(TimingProfilerProvider.CreateButterfly(StartTime, ClampedEndTime, ThreadFilter, bIncludeGpuThread));
+		}
+		else
+		{
+			// Exclude all threads to receive empty results in case infinite events are in the session.
+			auto ThreadFilter = [this](uint32 ThreadId)
+			{
+				return false;
+			};
+
+			ResultButterfly.Reset(TimingProfilerProvider.CreateButterfly(StartTime, EndTime, ThreadFilter, false));
+		}
 	}
 }
 

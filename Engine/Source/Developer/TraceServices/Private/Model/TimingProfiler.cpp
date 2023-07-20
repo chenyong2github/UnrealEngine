@@ -291,7 +291,12 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 	TMap<const FTimingProfilerTimer*, FAggregatedTimingStats> Aggregation;
 	if (Params.FrameType == ETraceFrameType::TraceFrameType_Count)
 	{
-		FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, Params.IntervalStart, Params.IntervalEnd, Params.CancellationToken, Aggregation);
+		if (Params.IntervalStart <= Session.GetDurationSeconds())
+		{
+			// Do not allow inf for the end time.
+			double EndTime = FMath::Min(Params.IntervalEnd, Session.GetDurationSeconds());
+			FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, Params.IntervalStart, EndTime, Params.CancellationToken, Aggregation);
+		}
 	}
 	else
 	{
