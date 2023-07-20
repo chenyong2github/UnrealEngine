@@ -44,10 +44,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bImportStaticMeshes = true;
 
-	/** Allow to convert static mesh using morph target to skeletal mesh" */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
-	bool bConvertStaticsWithMorphTargetsToSkeletals = false;
-
 	/** If enabled, all translated static mesh nodes will be imported as a single static mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bCombineStaticMeshes = false;

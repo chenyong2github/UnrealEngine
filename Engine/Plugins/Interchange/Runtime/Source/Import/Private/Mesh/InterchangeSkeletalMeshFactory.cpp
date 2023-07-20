@@ -1514,13 +1514,16 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::End
 		{
 			if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(ImportAssetObjectLODData.LodIndex))
 			{
-				FLODUtilities::FSkeletalMeshMatchImportedMaterialsParameters Parameters;
-				Parameters.bIsReImport = ImportAssetObjectData.bIsReImport;
-				Parameters.LodIndex = ImportAssetObjectLODData.LodIndex;
-				Parameters.SkeletalMesh = SkeletalMesh;
-				Parameters.ImportedMaterials = &ImportAssetObjectLODData.ImportedMaterials;
-				Parameters.ExistingOriginalPerSectionMaterialImportName = &ImportAssetObjectLODData.ExistingOriginalPerSectionMaterialImportName;
-				FLODUtilities::MatchImportedMaterials(Parameters);
+				if (SkeletalMesh->GetMaterials().Num() > 0)
+				{
+					FLODUtilities::FSkeletalMeshMatchImportedMaterialsParameters Parameters;
+					Parameters.bIsReImport = ImportAssetObjectData.bIsReImport;
+					Parameters.LodIndex = ImportAssetObjectLODData.LodIndex;
+					Parameters.SkeletalMesh = SkeletalMesh;
+					Parameters.ImportedMaterials = &ImportAssetObjectLODData.ImportedMaterials;
+					Parameters.ExistingOriginalPerSectionMaterialImportName = &ImportAssetObjectLODData.ExistingOriginalPerSectionMaterialImportName;
+					FLODUtilities::MatchImportedMaterials(Parameters);
+				}
 			}
 		}
 	}
