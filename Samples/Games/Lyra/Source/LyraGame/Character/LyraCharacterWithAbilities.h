@@ -29,4 +29,11 @@ private:
 	// The ability system component sub-object used by player characters.
 	UPROPERTY(VisibleAnywhere, Category = "Lyra|PlayerState")
 	TObjectPtr<ULyraAbilitySystemComponent> AbilitySystemComponent;
+	
+	// Health attribute set used by this actor.
+	UPROPERTY()
+	TObjectPtr<const class ULyraHealthSet> HealthSet;
+	// Combat attribute set used by this actor.
+	UPROPERTY()
+	TObjectPtr<const class ULyraCombatSet> CombatSet;
 };
