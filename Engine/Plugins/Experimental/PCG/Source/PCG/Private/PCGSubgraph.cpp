@@ -321,7 +321,7 @@ FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData
 	Context->Node = Node;
 
 	// Only duplicate the UserParameters if we have overriable params and we have at least one param pin connected.
-	const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
+	const UPCGBaseSubgraphSettings* Settings = Context->GetInputSettings<UPCGBaseSubgraphSettings>();
 	check(Settings);
 	const TArray<FPCGSettingsOverridableParam>& OverridableParams = Settings->OverridableParams();
 
@@ -445,7 +445,7 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 					Subsystem->ScheduleGeneric([Context]() {
 						// Wake up the current task
 						Context->bIsPaused = false;
-					return true;
+						return true;
 					}, Context->SourceComponent.Get(), Context->SubgraphTaskIds);
 
 					return false;
@@ -506,11 +506,29 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 FPCGInputForwardingElement::FPCGInputForwardingElement(const FPCGDataCollection& InputToForward)
 	: Input(InputToForward)
 {
-
+	// Root any previously unrooted data, so we don't need to make sure the caller is still around until this is executed
+	for (const FPCGTaggedData& TaggedData : Input.TaggedData)
+	{
+		if (TaggedData.Data && !TaggedData.Data->IsRooted())
+		{
+			UPCGData* DataToRoot = const_cast<UPCGData*>(TaggedData.Data.Get());
+			DataToRoot->AddToRoot();
+			RootedData.Add(DataToRoot);
+		}
+	}
 }
 
 bool FPCGInputForwardingElement::ExecuteInternal(FPCGContext* Context) const
 {
+	// Remove from rootset during the execution; data will be re-rooted by the normal process in the graph executor
+	for (UPCGData* DataToUnroot : RootedData)
+	{
+		ensure(DataToUnroot->IsRooted());
+		DataToUnroot->RemoveFromRoot();
+	}
+
+	const_cast<FPCGInputForwardingElement*>(this)->RootedData.Reset();
+
 	Context->OutputData = Input;
 	return true;
 }

@@ -229,11 +229,6 @@ namespace PCGPointHelpers
 	}
 }
 
-namespace PCGPointDataConstants
-{
-	const FName ActorReferenceAttribute = TEXT("ActorReference");
-}
-
 FPCGPointRef::FPCGPointRef(const FPCGPoint& InPoint)
 {
 	Point = &InPoint;

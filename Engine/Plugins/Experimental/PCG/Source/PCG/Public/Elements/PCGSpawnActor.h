@@ -10,6 +10,7 @@
 
 class AActor;
 class UPCGGraphInterface;
+class UPCGPointData;
 
 UENUM()
 enum class EPCGSpawnActorOption : uint8
@@ -40,6 +41,13 @@ struct FPCGActorPropertyOverride
 	FString PropertyTarget;
 };
 
+/*
+* PCG settings class that allows spawning actors with some options to perform the work more efficiently.
+* Note that depending on the options, any PCG components on the spawned actors can be also generated,
+* which is why this class derives from UPCGBaseSubgraphSettings - it has similar inner-workings to the subgraph node
+* as far as data passing and dispatch go.
+* Note that at this point in time, results from the underlying graphs being generated is not propagated back as results of this node.
+*/
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGSpawnActorSettings : public UPCGBaseSubgraphSettings
 {
@@ -78,6 +86,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
 	TSoftObjectPtr<AActor> RootActor;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))
+	bool bSpawnByAttribute = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bSpawnByAttribute"))
+	FName SpawnAttribute = NAME_None;
+
 protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -113,7 +127,11 @@ protected:
 
 public:
 	//~Begin UPCGBaseSubgraphSettings interface
+	// When using spawn by attribute, the potential execution of subgraphs will be done in a dynamic manner
+	virtual bool IsDynamicGraph() const { return bSpawnByAttribute; }
 	virtual UPCGGraphInterface* GetSubgraphInterface() const override;
+
+	static UPCGGraphInterface* GetGraphInterfaceFromActorSubclass(TSubclassOf<AActor> InTemplateActorClass);
 
 protected:
 #if WITH_EDITOR
@@ -138,18 +156,23 @@ public:
 	/** ~End UPCGBaseSubgraphNode interface */
 };
 
-class FPCGSpawnActorElement : public FSimplePCGElement
+class FPCGSpawnActorElement : public FPCGSubgraphElement
 {
 public:
 	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
-	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return !InSettings || InSettings->bEnabled; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return !InSettings; }
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 
 private:
+	bool SpawnAndPrepareSubgraphs(FPCGSubgraphContext* Context, const UPCGSpawnActorSettings* Settings) const;
+
 	TArray<FName> GetNewActorTags(FPCGContext* Context, AActor* TargetActor, bool bInheritActorTags, const TArray<FName>& AdditionalTags) const;
+
+	void CollapseIntoTargetActor(FPCGSubgraphContext* Context, AActor* TargetActor, TSubclassOf<AActor> TemplateActorClass, const UPCGPointData* PointData) const;
+	void SpawnActors(FPCGSubgraphContext* Context, AActor* TargetActor, TSubclassOf<AActor> TemplateActorClass, AActor* TemplateActor, FPCGTaggedData& Output, const UPCGPointData* PointData, UPCGPointData* OutPointData) const;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
