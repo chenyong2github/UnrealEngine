@@ -549,7 +549,17 @@ void UAnimGraphNode_AssetPlayerBase::PreloadRequiredAssetsHelper(UAnimationAsset
 		AssetToLoad = Cast<UAnimationAsset>(InExposedPin->DefaultObject);
 	}
 
-	PreloadObject(AssetToLoad);
+	if(AssetToLoad)
+	{
+		// HandleAnimReferenceCollection adds 'this' as well as any recursive dependencies
+		TArray<UAnimationAsset*> AssetAndDependencies;
+		AssetToLoad->HandleAnimReferenceCollection(AssetAndDependencies, true);
+
+		for (UAnimationAsset* Dependency : AssetAndDependencies)
+		{
+			PreloadObject(Dependency);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
