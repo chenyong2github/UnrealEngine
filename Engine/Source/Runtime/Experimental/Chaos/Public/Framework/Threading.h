@@ -726,14 +726,13 @@ FORCEINLINE void EnsureIsInGameThreadContext()
 		FPhysicsRwLock()
 		{
 			TlsSlot = FPlatformTLS::AllocTlsSlot();
+			check(FPlatformTLS::IsValidTlsSlot(TlsSlot));
 		}
 
 		~FPhysicsRwLock()
 		{
-			if (FPlatformTLS::IsValidTlsSlot(TlsSlot))
-			{
-				FPlatformTLS::FreeTlsSlot(TlsSlot);
-			}
+			check(FPlatformTLS::IsValidTlsSlot(TlsSlot));
+			FPlatformTLS::FreeTlsSlot(TlsSlot);
 		}
 
 		void ReadLock()
