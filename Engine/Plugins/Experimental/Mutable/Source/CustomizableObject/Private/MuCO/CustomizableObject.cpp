@@ -745,6 +745,13 @@ bool UCustomizableObject::ConditionalAutoCompile()
 		return false;
 	}
 
+	// Don't compile if the cook commandlet is running. Do not add a warning/error. Otherwise, we could end up
+	// invalidating the cook for no reason.
+	if (IsRunningCookCommandlet())
+	{
+		return false;
+	}
+
 	// Don't compile if we're running game, Compile and/or if AutoCompile is disabled
 	if (IsRunningGame() || System->IsCompilationDisabled() || !System->IsAutoCompileEnabled())
 	{

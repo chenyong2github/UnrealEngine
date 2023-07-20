@@ -938,6 +938,12 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	Options.bAnimBpPhysicsManipulationEnabled = Object->bEnableAnimBpPhysicsAssetsManipualtion;
 	Options.ImageTiling = Object->CompileOptions.ImageTiling;
 
+	if (!InOptions.bIsCooking && IsRunningCookCommandlet())
+	{
+		UE_LOG(LogMutable, Display, TEXT("Editor compilation suspended for Customizable Object [%s]. Can not compile COs when the cook commandlet is running. "), *Object->GetName());
+		return;
+	}
+
 	if (Object->IsLocked() || !UCustomizableObjectSystem::GetInstance()->LockObject(Object))
 	{
 		UE_LOG(LogMutable, Display, TEXT("Customizable Object is already being compiled or updated %s. Please wait a few seconds and try again."), *Object->GetName());
@@ -955,8 +961,6 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	{
 		UE_LOG(LogMutable, Display, TEXT("Compiling Customizable Object with %d LODBias."), InOptions.DebugBias);
 	}
-
-	CompilationLogsContainer.ClearMessageCounters();
 
 	FMutableGraphGenerationContext GenerationContext(Object, this, Options);
 	GenerationContext.ParamNamesToSelectedOptions = ParamNamesToSelectedOptions;
@@ -978,6 +982,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	}
 
 	// Clear Messages from previous Compilations
+	CompilationLogsContainer.ClearMessageCounters();
 	CompilationLogsContainer.ClearMessagesArray();
 
 	// Generate the mutable node expression
