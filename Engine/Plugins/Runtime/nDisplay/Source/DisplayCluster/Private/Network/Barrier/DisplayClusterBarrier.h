@@ -36,8 +36,16 @@ public:
 	// Wait until all caller threads arrived
 	virtual EDisplayClusterBarrierWaitResult Wait(const FString& CallerId, double* OutThreadWaitTime = nullptr, double* OutBarrierWaitTime = nullptr) override;
 
+	// Wait until all threads arrive (with data)
+	virtual EDisplayClusterBarrierWaitResult WaitWithData(const FString& ThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData, double* OutThreadWaitTime = nullptr, double* OutBarrierWaitTime = nullptr) override;
+
 	// Remove specified caller from the sync pipeline
 	virtual void UnregisterSyncCaller(const FString& CallerId) override;
+
+	virtual FDisplayClusterBarrierPreSyncEndDelegate& GetPreSyncEndDelegate() override
+	{
+		return BarrierPreSyncEndDelegate;
+	}
 
 	// Barrier timout notification
 	virtual FDisplayClusterBarrierTimeoutEvent& OnBarrierTimeout() override
@@ -46,6 +54,12 @@ public:
 	}
 
 private:
+	// Do some job before starting new sync iteration (opening the entrance gate)
+	void HandleBarrierPreSyncStart();
+
+	// Do some job before opening the exit gate
+	void HandleBarrierPreSyncEnd();
+
 	// Handler for barrier timouts
 	void HandleBarrierTimeout();
 
@@ -83,8 +97,15 @@ private:
 	// Watchdog timer to detect barrier waiting timeouts
 	FDisplayClusterWatchdogTimer WatchdogTimer;
 
+	// PreSyncEnd delegate. It's called when all threads arrived before opening the gate.
+	FDisplayClusterBarrierPreSyncEndDelegate BarrierPreSyncEndDelegate;
 	// Barrier timeout event
 	FDisplayClusterBarrierTimeoutEvent BarrierTimeoutEvent;
+
+	// Request data from the callers
+	FClientsCommData ClientsRequestData;
+	// Response data for the callers
+	FClientsCommData ClientsResponseData;
 
 	// Diagnostics data
 	double BarrierWaitTimeStart   = 0;
@@ -95,4 +116,6 @@ private:
 	mutable FCriticalSection DataCS;
 	// Barrier entrance CS
 	mutable FCriticalSection EntranceCS;
+	// Request/response data CS
+	mutable FCriticalSection CommDataCS;
 };

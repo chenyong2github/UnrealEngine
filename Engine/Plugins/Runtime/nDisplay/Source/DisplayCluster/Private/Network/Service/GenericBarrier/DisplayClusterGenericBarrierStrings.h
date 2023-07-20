@@ -47,8 +47,17 @@ namespace DisplayClusterGenericBarrierStrings
 
 	namespace SyncOnBarrier
 	{
-		constexpr static const TCHAR* Name = TEXT("SyncOnBarrier");
+		constexpr static const TCHAR* Name = TEXT("Sync");
 
 		constexpr static const TCHAR* ArgThreadMarker = TEXT("ThreadMarker");
+	}
+
+	namespace SyncOnBarrierWithData
+	{
+		constexpr static const TCHAR* Name = TEXT("SyncWithData");
+
+		constexpr static const TCHAR* ArgThreadMarker  = TEXT("ThreadMarker");
+		constexpr static const TCHAR* ArgRequestData   = TEXT("ReqData");
+		constexpr static const TCHAR* ArgResponseData  = TEXT("RespData");
 	}
 };

@@ -138,6 +138,9 @@ EDisplayClusterBarrierWaitResult FDisplayClusterBarrier::Wait(const FString& Cal
 				{
 					UE_LOG(LogDisplayClusterBarrier, Verbose, TEXT("Barrier '%s': sync start"), *Name);
 
+					// Prepare for new sync iteration
+					HandleBarrierPreSyncStart();
+
 					BarrierWaitTimeStart = ThreadWaitTimeStart;
 					WatchdogTimer.SetTimer(Timeout);
 				}
@@ -158,6 +161,9 @@ EDisplayClusterBarrierWaitResult FDisplayClusterBarrier::Wait(const FString& Cal
 
 					// All callers are here, pet the watchdog
 					WatchdogTimer.ResetTimer();
+
+					// Process sync done before allowing the threads to leave
+					HandleBarrierPreSyncEnd();
 
 					// Close input gate, open output gate
 					EventInputGateOpen->Reset();
@@ -212,6 +218,30 @@ EDisplayClusterBarrierWaitResult FDisplayClusterBarrier::Wait(const FString& Cal
 	return EDisplayClusterBarrierWaitResult::Ok;
 }
 
+EDisplayClusterBarrierWaitResult FDisplayClusterBarrier::WaitWithData(const FString& ThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData, double* OutThreadWaitTime /* = nullptr */, double* OutBarrierWaitTime /* = nullptr */)
+{
+	{
+		FScopeLock Lock(&CommDataCS);
+		// Store request data so it can be used once all the threads arrived
+		ClientsRequestData.Emplace(ThreadMarker, RequestData);
+	}
+
+	// Wait at the barrier
+	const EDisplayClusterBarrierWaitResult WaitResult = Wait(ThreadMarker, OutThreadWaitTime, OutBarrierWaitTime);
+
+	{
+		FScopeLock Lock(&CommDataCS);
+
+		if (TArray<uint8>* const FoundThreadResponseData = ClientsResponseData.Find(ThreadMarker))
+		{
+			OutResponseData = MoveTemp(*FoundThreadResponseData);
+			ClientsResponseData.Remove(ThreadMarker);
+		}
+	}
+
+	return WaitResult;
+}
+
 void FDisplayClusterBarrier::UnregisterSyncCaller(const FString& CallerId)
 {
 	UE_LOG(LogDisplayClusterBarrier, Log, TEXT("Barrier '%s': unregistering caller '%s'..."), *Name, *CallerId);
@@ -246,6 +276,19 @@ void FDisplayClusterBarrier::UnregisterSyncCaller(const FString& CallerId)
 	{
 		UE_LOG(LogDisplayClusterBarrier, Log, TEXT("Barrier '%s': caller '%s' not found"), *Name, *CallerId);
 	}
+}
+
+void FDisplayClusterBarrier::HandleBarrierPreSyncStart()
+{
+}
+
+void FDisplayClusterBarrier::HandleBarrierPreSyncEnd()
+{
+	// Execute sync delegate with data requested
+	BarrierPreSyncEndDelegate.ExecuteIfBound(Name, ClientsRequestData, ClientsResponseData);
+
+	// We can clean request data now before next iteration
+	ClientsRequestData.Empty(CallersAllowed.Num());
 }
 
 void FDisplayClusterBarrier::HandleBarrierTimeout()

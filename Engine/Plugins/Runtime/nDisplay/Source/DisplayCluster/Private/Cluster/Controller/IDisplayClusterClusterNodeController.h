@@ -11,6 +11,8 @@
 
 #include "DisplayClusterEnums.h"
 
+class FDisplayClusterService;
+
 
 /**
  * Node controller interface
@@ -39,6 +41,18 @@ public:
 
 	/** Return controller name */
 	virtual FString GetControllerName() const = 0;
+
+	/**
+	 * @note
+	 * This is a temporary workaround for a quick and safe implementation of the generic barriers expansion,
+	 * that would allow to set custom synchronization delegate. This will be refactored during Failover v2
+	 * implementation as we'll need all the nodes to have full set of servers for smooth primary role transition
+	 * and safe node replacement. Currently, the GB server is hosted on the p-nodes only.
+	 */
+	virtual FDisplayClusterService* GetGenericBarriersServer() const
+	{
+		return nullptr;
+	}
 
 	/** Drop specific cluster node */
 	virtual bool DropClusterNode(const FString& NodeId)

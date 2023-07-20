@@ -6,6 +6,22 @@
 
 
 /**
+ * Barreir synchonrization callback data
+ */
+struct FGenericBarrierSynchronizationDelegateData
+{
+	/** Barrier ID */
+	const FString BarrierId;
+
+	/** Binary data provided on sync request (node Id - to - data mapping) */
+	const TMap<FString, TArray<uint8>>& RequestData;
+
+	/** Binary data to respond (node Id - to - data mapping) */
+	TMap<FString, TArray<uint8>>& ResponseData;
+};
+
+
+/**
  * Generic barriers client interface
  */
 class IDisplayClusterGenericBarriersClient
@@ -38,9 +54,16 @@ public:
 	/** Checks if a specific barrier exists */
 	virtual bool IsBarrierAvailable(const FString& BarrierId) = 0;
 
+	/** Returns a synchronization delegate to a specific barrier or nullptr if not available */
+	DECLARE_DELEGATE_OneParam(FOnGenericBarrierSynchronizationDelegate, FGenericBarrierSynchronizationDelegateData&);
+	virtual FOnGenericBarrierSynchronizationDelegate* GetBarrierSyncDelegate(const FString& BarrierId) = 0;
+
 	/** Releases specific barrier */
 	virtual bool ReleaseBarrier(const FString& BarrierId) = 0;
 
 	/** Synchronize calling thread on a specific barrier */
 	virtual bool Synchronize(const FString& BarrierId, const FString& UniqueThreadMarker) = 0;
+
+	/** Synchronize calling thread on a specific barrier with custom data */
+	virtual bool Synchronize(const FString& BarrierId, const FString& UniqueThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData) = 0;
 };

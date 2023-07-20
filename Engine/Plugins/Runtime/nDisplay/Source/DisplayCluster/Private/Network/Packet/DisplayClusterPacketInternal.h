@@ -137,7 +137,7 @@ public:
 	}
 
 	// Set new binary argument to the packet
-	void SetBinArg(const FString& SectionName, const FString& ArgName, const TArray<uint8> ArgVal)
+	void SetBinArg(const FString& SectionName, const FString& ArgName, const TArray<uint8>& ArgVal)
 	{
 		TMap<FString, TArray<uint8>>* Section = BinaryArguments.Find(SectionName);
 		if (!Section)

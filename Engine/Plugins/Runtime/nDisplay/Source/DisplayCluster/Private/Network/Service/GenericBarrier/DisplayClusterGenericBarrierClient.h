@@ -40,8 +40,10 @@ public:
 	virtual bool CreateBarrier(const FString& BarrierId, const TArray<FString>& UniqueThreadMarkers, uint32 Timeout) override;
 	virtual bool WaitUntilBarrierIsCreated(const FString& BarrierId) override;
 	virtual bool IsBarrierAvailable(const FString& BarrierId) override;
+	virtual FOnGenericBarrierSynchronizationDelegate* GetBarrierSyncDelegate(const FString& BarrierId) override;
 	virtual bool ReleaseBarrier(const FString& BarrierId) override;
 	virtual bool Synchronize(const FString& BarrierId, const FString& UniqueThreadMarker) override;
+	virtual bool Synchronize(const FString& BarrierId, const FString& UniqueThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,4 +54,16 @@ public:
 	virtual EDisplayClusterCommResult IsBarrierAvailable(const FString& BarrierId, EBarrierControlResult& Result) override;
 	virtual EDisplayClusterCommResult ReleaseBarrier(const FString& BarrierId, EBarrierControlResult& Result) override;
 	virtual EDisplayClusterCommResult SyncOnBarrier(const FString& BarrierId, const FString& UniqueThreadMarker, EBarrierControlResult& Result) override;
+	virtual EDisplayClusterCommResult SyncOnBarrierWithData(const FString& BarrierId, const FString& UniqueThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData, EBarrierControlResult& Result) override;
+
+private:
+	/** Setup/release sync delegate for a specific barrier */
+	bool ConfigureBarrierSyncDelegate(const FString& BarrierId, bool bSetup);
+
+	/** Callback on barrier sync phase end */
+	void OnPreBarrierSyncEnd(const FString& BarrierId, const TMap<FString, TArray<uint8>>& RequestData, TMap<FString, TArray<uint8>>& ResponseData);
+
+private:
+	// Holds synchronization delegates for the barriers operated by this client
+	TMap<FString, FOnGenericBarrierSynchronizationDelegate> BarrierSyncDelegates;
 };

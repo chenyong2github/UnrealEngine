@@ -42,6 +42,7 @@ public:
 		return EDisplayClusterNodeRole::Primary;
 	}
 
+	virtual FDisplayClusterService* GetGenericBarriersServer() const override;
 	virtual bool DropClusterNode(const FString& NodeId) override;
 
 protected:

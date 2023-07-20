@@ -56,6 +56,13 @@ FString FDisplayClusterGenericBarrierService::GetProtocolName() const
 	return ProtocolName;
 }
 
+TSharedPtr<IDisplayClusterBarrier, ESPMode::ThreadSafe> FDisplayClusterGenericBarrierService::GetBarrier(const FString& BarrierId)
+{
+	FScopeLock Lock(&BarriersCS);
+	TSharedPtr<IDisplayClusterBarrier, ESPMode::ThreadSafe>* BarrierFound = Barriers.Find(BarrierId);
+	return BarrierFound ? *BarrierFound : nullptr;
+}
+
 TSharedPtr<IDisplayClusterSession> FDisplayClusterGenericBarrierService::CreateSession(FDisplayClusterSessionInfo& SessionInfo)
 {
 	SessionInfo.SessionName = FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionInfo.SessionId, *SessionInfo.Endpoint.ToString());
@@ -106,6 +113,32 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterGenericBarrierService::
 		const EDisplayClusterCommResult Result = SyncOnBarrier(BarrierId, UniqueThreadMarker, CtrlResult);
 
 		// Set response data
+		Response->SetTextArg(DisplayClusterGenericBarrierStrings::ArgumentsDefaultCategory, DisplayClusterGenericBarrierStrings::ArgResult, DisplayClusterTypesConverter::template ToString((uint8)CtrlResult));
+		Response->SetCommResult(Result);
+
+		return Response;
+	}
+	else if (Request->GetName().Equals(DisplayClusterGenericBarrierStrings::SyncOnBarrierWithData::Name, ESearchCase::IgnoreCase))
+	{
+		// Extract parameter: barrier ID
+		FString BarrierId;
+		Request->GetTextArg(DisplayClusterGenericBarrierStrings::ArgumentsDefaultCategory, DisplayClusterGenericBarrierStrings::ArgBarrierId, BarrierId);
+
+		// Extract parameter: thread marker
+		FString UniqueThreadMarker;
+		Request->GetTextArg(DisplayClusterGenericBarrierStrings::ArgumentsDefaultCategory, DisplayClusterGenericBarrierStrings::SyncOnBarrierWithData::ArgThreadMarker, UniqueThreadMarker);
+
+		// Extract parameter: request data
+		TArray<uint8> RequestData;
+		Request->GetBinArg(DisplayClusterGenericBarrierStrings::ArgumentsDefaultCategory, DisplayClusterGenericBarrierStrings::SyncOnBarrierWithData::ArgRequestData, RequestData);
+
+		// Process command
+		EBarrierControlResult CtrlResult = EBarrierControlResult::UnknownError;
+		TArray<uint8> ResponseData;
+		const EDisplayClusterCommResult Result = SyncOnBarrierWithData(BarrierId, UniqueThreadMarker, RequestData, ResponseData, CtrlResult);
+
+		// Set response data
+		Response->SetBinArg(DisplayClusterGenericBarrierStrings::ArgumentsDefaultCategory, DisplayClusterGenericBarrierStrings::SyncOnBarrierWithData::ArgResponseData, ResponseData);
 		Response->SetTextArg(DisplayClusterGenericBarrierStrings::ArgumentsDefaultCategory, DisplayClusterGenericBarrierStrings::ArgResult, DisplayClusterTypesConverter::template ToString((uint8)CtrlResult));
 		Response->SetCommResult(Result);
 
@@ -369,6 +402,47 @@ EDisplayClusterCommResult FDisplayClusterGenericBarrierService::SyncOnBarrier(co
 
 	// Sync on the barrier
 	(*Barrier)->Wait(UniqueThreadMarker);
+
+	Result = EBarrierControlResult::SynchronizedSuccessfully;
+	return EDisplayClusterCommResult::Ok;
+}
+
+EDisplayClusterCommResult FDisplayClusterGenericBarrierService::SyncOnBarrierWithData(const FString& BarrierId, const FString& UniqueThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData, EBarrierControlResult& Result)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRV_GB::SyncOnBarrierWithData);
+
+	// Validate input data
+	if (BarrierId.IsEmpty() || UniqueThreadMarker.IsEmpty())
+	{
+		Result = EBarrierControlResult::UnknownError;
+		return EDisplayClusterCommResult::WrongRequestData;
+	}
+
+	TSharedPtr<IDisplayClusterBarrier, ESPMode::ThreadSafe>* Barrier = nullptr;
+
+	{
+		FScopeLock Lock(&BarriersCS);
+
+		// Get barrier ptr to be able to use outside of the critical section
+		// so the other clients can also access it.
+		Barrier = Barriers.Find(BarrierId);
+	}
+
+	// More validation
+	if (!Barrier)
+	{
+		// Barrier not found
+		Result = EBarrierControlResult::NotFound;
+		return EDisplayClusterCommResult::WrongRequestData;
+	}
+	else if (!(*Barrier)->IsActivated())
+	{
+		Result = EBarrierControlResult::UnknownError;
+		return EDisplayClusterCommResult::NotAllowed;
+	}
+
+	// Sync on the barrier
+	(*Barrier)->WaitWithData(UniqueThreadMarker, RequestData, OutResponseData);
 
 	Result = EBarrierControlResult::SynchronizedSuccessfully;
 	return EDisplayClusterCommResult::Ok;

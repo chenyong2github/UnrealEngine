@@ -86,6 +86,11 @@ EDisplayClusterCommResult FDisplayClusterClusterNodeCtrlPrimary::GetNativeInputD
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterNodeController
 //////////////////////////////////////////////////////////////////////////////////////////////
+FDisplayClusterService* FDisplayClusterClusterNodeCtrlPrimary::GetGenericBarriersServer() const
+{
+	return GenericBarriersServer.Get();
+}
+
 bool FDisplayClusterClusterNodeCtrlPrimary::DropClusterNode(const FString& NodeId)
 {
 	// Kill all sessions of the requested node

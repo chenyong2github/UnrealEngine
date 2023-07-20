@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Network/Service/DisplayClusterService.h"
 #include "Network/Session/IDisplayClusterSessionPacketHandler.h"
 #include "Network/Protocol/IDisplayClusterProtocolGenericBarrier.h"
 #include "Network/Packet/DisplayClusterPacketInternal.h"
+
+#include "Cluster/IDisplayClusterGenericBarriersClient.h"
 
 class FEvent;
 
@@ -31,6 +31,9 @@ public:
 	virtual void Shutdown() override final;
 	virtual FString GetProtocolName() const override;
 
+public:
+	TSharedPtr<IDisplayClusterBarrier, ESPMode::ThreadSafe> GetBarrier(const FString& BarrierId);
+
 protected:
 	// Creates session instance for this service
 	virtual TSharedPtr<IDisplayClusterSession> CreateSession(FDisplayClusterSessionInfo& SessionInfo) override;
@@ -50,10 +53,7 @@ private:
 	virtual EDisplayClusterCommResult IsBarrierAvailable(const FString& BarrierId, EBarrierControlResult& Result) override;
 	virtual EDisplayClusterCommResult ReleaseBarrier(const FString& BarrierId, EBarrierControlResult& Result) override;
 	virtual EDisplayClusterCommResult SyncOnBarrier(const FString& BarrierId, const FString& UniqueThreadMarker, EBarrierControlResult& Result) override;
-
-private:
-	// Unregister cluster node from a barrier
-	void UnregisterClusterNode(const FString& NodeId);
+	virtual EDisplayClusterCommResult SyncOnBarrierWithData(const FString& BarrierId, const FString& UniqueThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData, EBarrierControlResult& Result) override;
 
 private:
 	// Barriers

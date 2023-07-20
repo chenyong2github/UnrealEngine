@@ -42,4 +42,7 @@ public:
 
 	// Synchronize calling thread on a specific barrier
 	virtual EDisplayClusterCommResult SyncOnBarrier(const FString& BarrierId, const FString& UniqueThreadMarker, EBarrierControlResult& Result) = 0;
+
+	// Synchronize calling thread on a specific barrier (with custom data)
+	virtual EDisplayClusterCommResult SyncOnBarrierWithData(const FString& BarrierId, const FString& UniqueThreadMarker, const TArray<uint8>& RequestData, TArray<uint8>& OutResponseData, EBarrierControlResult& Result) = 0;
 };
