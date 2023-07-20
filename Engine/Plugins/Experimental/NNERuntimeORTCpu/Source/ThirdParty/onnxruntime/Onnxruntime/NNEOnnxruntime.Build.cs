@@ -7,6 +7,7 @@ public class NNEOnnxruntime : ModuleRules
 	public NNEOnnxruntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
 		CppStandard = CppStandardVersion.Cpp17;
+		bDisableStaticAnalysis = true;
 
 		ShortName = "NNEORT"; // Shorten to avoid path-too-long errors
 
