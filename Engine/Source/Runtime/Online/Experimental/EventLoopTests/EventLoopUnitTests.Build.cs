@@ -10,7 +10,8 @@ public class EventLoopUnitTests : TestModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"EventLoop"
+				"EventLoop",
+				"Sockets"
 			});
 
 		UpdateBuildGraphPropertiesFile(new Metadata() { TestName = "EventLoop", TestShortName = "EventLoop" });

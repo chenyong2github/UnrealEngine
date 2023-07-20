@@ -62,7 +62,7 @@ protected:
 	int HandleCurlTimerCallback(CURLM* CurlM, long TimeoutMS);
 
 	void ProcessCurlSocketActions(curl_socket_t Socket, int EventFlags);
-	void ProcessCurlSocketEvent(curl_socket_t Socket, UE::EventLoop::EIOFlags Flags);
+	void ProcessCurlSocketEvent(curl_socket_t Socket, UE::EventLoop::ESocketIoRequestStatus Status, UE::EventLoop::EIOFlags Flags);
 	void ProcessCurlRequests();
 
 	struct FCurlSocketData

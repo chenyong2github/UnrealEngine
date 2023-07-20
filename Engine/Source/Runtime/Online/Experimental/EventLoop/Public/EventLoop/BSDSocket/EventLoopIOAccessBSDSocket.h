@@ -6,6 +6,7 @@
 
 #if PLATFORM_HAS_BSD_SOCKETS
 
+#include "Containers/UnrealString.h"
 #include "EventLoop/BSDSocket/BSDSocketTypes.h"
 #include "EventLoop/IEventLoopIOManager.h"
 #include "EventLoop/EventLoopManagedStorage.h"
@@ -13,13 +14,38 @@
 
 namespace UE::EventLoop {
 
-using FIOCallback = TUniqueFunction<void(EIOFlags SignaledFlags)>;
+enum class ESocketIoRequestStatus : uint8
+{
+	/**
+	 * No error occurred, signaled flags are valid.
+	 * After signaling the handle associated with the request will remain valid until the user
+	 * deletes the associated request.
+	 */
+	Ok,
+
+	/**
+	 * There are no resources available to serve the IO request.
+	 * This will occur if more requests have been made than the system is capable of handling.
+	 * After signaling the handle associated with the request is removed.
+	 */
+	NoResources,
+
+	/**
+	 * The request is invalid.
+	 * A request may be invalid if another request for the same socket is already in progress.
+	 * After signaling the handle associated with the request is removed.
+	 */
+	Invalid,
+};
+
+using FSocketIOCallback = TUniqueFunction<void(SOCKET Socket, ESocketIoRequestStatus Status, EIOFlags SignaledFlags)>;
+using FSocketIORequestDestroyedCallback = FManagedStorageOnRemoveComplete;
 
 struct FIORequestBSDSocket
 {
 	SOCKET Socket = INVALID_SOCKET;
 	EIOFlags Flags = EIOFlags::None;
-	FIOCallback Callback;
+	FSocketIOCallback Callback;
 };
 
 class FIOAccessBSDSocket final : public FNoncopyable
@@ -47,9 +73,9 @@ public:
 		return IORequestStorage.Add({MoveTemp(Request)});
 	}
 
-	void DestroyIORequest(FIORequestHandle& Handle)
+	void DestroyIORequest(FIORequestHandle& Handle, FSocketIORequestDestroyedCallback&& OnDestroyComplete = FSocketIORequestDestroyedCallback())
 	{
-		IORequestStorage.Remove(Handle);
+		IORequestStorage.Remove(Handle, MoveTemp(OnDestroyComplete));
 	}
 
 private:
@@ -57,5 +83,19 @@ private:
 };
 
 /* UE::EventLoop */ }
+
+inline FString LexToString(UE::EventLoop::ESocketIoRequestStatus Status)
+{
+	switch (Status)
+	{
+	case UE::EventLoop::ESocketIoRequestStatus::Ok: return TEXT("Ok");
+	case UE::EventLoop::ESocketIoRequestStatus::NoResources: return TEXT("NoResources");
+	case UE::EventLoop::ESocketIoRequestStatus::Invalid: return TEXT("Invalid");
+
+	default:
+		checkNoEntry();
+		return TEXT("Unknown");
+	}
+}
 
 #endif // PLATFORM_HAS_BSD_SOCKETS

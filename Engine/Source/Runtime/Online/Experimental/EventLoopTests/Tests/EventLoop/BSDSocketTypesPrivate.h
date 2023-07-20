@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/StringConv.h"
 #include "EventLoop/BSDSocket/BSDSocketTypes.h"
 
 #if PLATFORM_HAS_BSD_SOCKETS
@@ -16,7 +15,6 @@
 #include <ws2tcpip.h>
 
 typedef int32 SOCKLEN;
-#define strerror_r(errno,buf,len) strerror_s(buf,len,errno)
 
 #include "Windows/HideWindowsPlatformTypes.h"
 #else // PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS
@@ -60,16 +58,4 @@ inline int32 closesocket(SOCKET Socket)
 }
 
 #endif // PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS
-
-inline FString GetLastErrorString()
-{
-	constexpr uint32 BufferSize = 256;
-	ANSICHAR Buffer[BufferSize];
-	Buffer[0] = 0;
-
-	strerror_r(errno, Buffer, BufferSize);
-
-	return FString::Printf(TEXT("%s: (%d)"), StringCast<TCHAR>(Buffer).Get(), errno);
-}
-
 #endif // PLATFORM_HAS_BSD_SOCKETS

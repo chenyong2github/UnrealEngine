@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_HAS_BSD_SOCKETS
+#if PLATFORM_HAS_BSD_SOCKETS && PLATFORM_HAS_BSD_SOCKET_FEATURE_SELECT
 
 #include "EventLoop/BSDSocket/BSDSocketTypes.h"
 #include "EventLoop/BSDSocket/EventLoopIOAccessBSDSocket.h"
@@ -42,4 +42,4 @@ private:
 
 /* UE::EventLoop */ }
 
-#endif // PLATFORM_HAS_BSD_SOCKETS
+#endif // PLATFORM_HAS_BSD_SOCKETS && PLATFORM_HAS_BSD_SOCKET_FEATURE_SELECT
