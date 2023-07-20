@@ -30,7 +30,7 @@ TEST_CASE("UE::CoreUObject::FClassProperty::Identical")
 	REQUIRE(Property != nullptr);
 
 
-	UPackage* TestPackage = NewObject<UPackage>(nullptr, TEXT("TestPackageName"), RF_Transient);
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TEXT("/Temp/TestPackageName"), RF_Transient);
 	TestPackage->AddToRoot();
 	ON_SCOPE_EXIT
 	{
