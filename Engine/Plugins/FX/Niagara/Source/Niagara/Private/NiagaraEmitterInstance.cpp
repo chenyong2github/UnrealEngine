@@ -725,6 +725,20 @@ void FNiagaraEmitterInstance::UnbindParameters(bool bExternalOnly)
 			}
 		}
 
+		FNiagaraSystemSimulationPtr ParentSystemSimulation = ParentSystemInstance->GetSystemSimulation();
+		if (ParentSystemSimulation.IsValid())
+		{
+			ParentSystemSimulation->GetSpawnExecutionContext()->Parameters.Unbind(&RendererBindings);
+			ParentSystemSimulation->GetUpdateExecutionContext()->Parameters.Unbind(&RendererBindings);
+		}
+
+		if (FNiagaraUserRedirectionParameterStore* ParentOverrideParameters = ParentSystemInstance->GetOverrideParameters())
+		{
+			ParentOverrideParameters->Unbind(&RendererBindings);
+		}
+
+		ParentSystemInstance->GetInstanceParameters().Unbind(&RendererBindings);
+
 		CachedEmitter.GetEmitterData()->RendererBindings.Unbind(&RendererBindings);
 	}
 	else
