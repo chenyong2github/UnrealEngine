@@ -29,7 +29,6 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~FMediaPlateEditorToolkit();
-
 	/**
 	 * Initializes the editor tool kit.
 	 *
@@ -94,4 +93,6 @@ private:
 
 	/** Pointer to the style set to use for toolkits. */
 	TSharedRef<ISlateStyle> Style;
+	
+	void OnActorDeleted(AActor* Actor);
 };
