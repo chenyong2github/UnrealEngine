@@ -517,6 +517,8 @@ void FAnimNode_LinkedAnimGraph::HandleObjectsReinstanced_Impl(UObject* InSourceO
 		USkeletalMeshComponent* MeshComponent = SourceAnimInstance->GetSkelMeshComponent();
 		if(MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 		{
+			SourceAnimInstance->RecalcRequiredBones();
+
 			FAnimationInitializeContext Context(&SourceProxy);
 			InitializeSubGraph_AnyThread(Context);
 		}
