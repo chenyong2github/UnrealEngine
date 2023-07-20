@@ -51,6 +51,21 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		}
 	}
 
+	static void AddMediaPlateSupport(ILevelSnapshotsModule& Module)
+	{
+		UStruct* MediaPlateComponentClass = FindObject<UStruct>(nullptr, TEXT("/Script/MediaPlate.MediaPlateComponent"));
+		if (!MediaPlateComponentClass)
+		{
+			return;
+		}
+		
+		const FProperty* MediaPlaylistProperty = MediaPlateComponentClass->FindPropertyByName(TEXT("MediaPlaylist"));
+		if (ensure(MediaPlaylistProperty))
+		{
+			Module.AddExplicitilySupportedProperties({ MediaPlaylistProperty });
+		}
+	}
+
 	static void DisableIrrelevantBrushSubobjects(ILevelSnapshotsModule& Module)
 	{
 #if WITH_EDITORONLY_DATA
@@ -117,6 +132,7 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		// Enable / disable troublesome properties
 		AddSoftObjectPathSupport(Module);
 		AddAttachParentSupport(Module);
+		AddMediaPlateSupport(Module);
 		DisableIrrelevantBrushSubobjects(Module);
 		DisableIrrelevantWorldSettings(Module);
 		DisableIrrelevantMaterialInstanceProperties(Module);

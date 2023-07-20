@@ -12,6 +12,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Styling/AppStyle.h"
+#include "ScopedTransaction.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "SMediaPlaylistEditorTracks"
 
@@ -59,7 +61,14 @@ void SMediaPlaylistEditorTracks::Construct(const FArguments& InArgs, UMediaPlayl
 				]
 		];
 
+	FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SMediaPlaylistEditorTracks::OnObjectTransacted);
 	RefreshPlaylist();
+}
+
+SMediaPlaylistEditorTracks::~SMediaPlaylistEditorTracks()
+{
+	// AddSP is technically safe from dangling pointers but let's be nice and remove ourselves.
+	FCoreUObjectDelegates::OnObjectTransacted.RemoveAll(this);
 }
 
 void SMediaPlaylistEditorTracks::RefreshPlaylist()
@@ -104,8 +113,11 @@ void SMediaPlaylistEditorTracks::RefreshPlaylist()
 									UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 									if (MediaPlaylist != nullptr)
 									{
+#if WITH_EDITOR
+                                    	FScopedTransaction Transaction(LOCTEXT("Array.InsertMediaSource", "Insert Media Source"));
+                                    	MediaPlaylist->Modify();
+#endif
 										MediaPlaylist->Insert(nullptr, Index);
-										MediaPlaylist->MarkPackageDirty();
 										RefreshPlaylist();
 									}
 								}),
@@ -114,8 +126,11 @@ void SMediaPlaylistEditorTracks::RefreshPlaylist()
 									UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 									if (MediaPlaylist != nullptr)
 									{
+#if WITH_EDITOR
+										FScopedTransaction Transaction(LOCTEXT("Array.RemoveMediaSource", "Remove Media Source"));
+										MediaPlaylist->Modify();
+#endif
 										MediaPlaylist->RemoveAt(Index);
-										MediaPlaylist->MarkPackageDirty();
 										RefreshPlaylist();
 									}
 								}),
@@ -124,8 +139,11 @@ void SMediaPlaylistEditorTracks::RefreshPlaylist()
 									UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 									if (MediaPlaylist != nullptr)
 									{
+#if WITH_EDITOR
+										FScopedTransaction Transaction(LOCTEXT("Array.DuplicateMediaSource", "Duplicate Media Source"));
+										MediaPlaylist->Modify();
+#endif
 										MediaPlaylist->Insert(MediaPlaylist->Get(Index), Index);
-										MediaPlaylist->MarkPackageDirty();
 										RefreshPlaylist();
 									}
 								}))
@@ -140,8 +158,11 @@ void SMediaPlaylistEditorTracks::AddToPlaylist()
 	UMediaPlaylist* MediaPlaylist = MediaPlaylistPtr.Get();
 	if (MediaPlaylist != nullptr)
 	{
+#if WITH_EDITOR
+		FScopedTransaction Transaction(LOCTEXT("AddToPlaylist", "Add Media Source"));
+		MediaPlaylist->Modify();
+#endif
 		MediaPlaylist->Insert(nullptr, MediaPlaylist->Num());
-		MediaPlaylist->MarkPackageDirty();
 		RefreshPlaylist();
 	}
 }
@@ -169,12 +190,20 @@ void SMediaPlaylistEditorTracks::OnMediaSourceChanged(const FAssetData& AssetDat
 	if (MediaPlaylist != nullptr)
 	{
 		UMediaSource* MediaSource = Cast<UMediaSource>(AssetData.GetAsset());
-		
+#if WITH_EDITOR
+		FScopedTransaction Transaction(LOCTEXT("ChangeMediaSource", "Change Media Source"));
+		MediaPlaylist->Modify();
+#endif	
 		MediaPlaylist->Replace(Index, MediaSource);
-		MediaPlaylist->MarkPackageDirty();
 	}
 }
 
-
+void SMediaPlaylistEditorTracks::OnObjectTransacted(UObject* Object, const FTransactionObjectEvent& TransactionObjectEvent)
+{
+	if (Object == MediaPlaylistPtr.Get())
+	{
+		RefreshPlaylist();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

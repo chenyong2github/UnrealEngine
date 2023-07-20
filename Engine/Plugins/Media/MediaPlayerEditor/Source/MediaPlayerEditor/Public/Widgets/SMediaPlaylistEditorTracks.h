@@ -22,7 +22,7 @@ public:
 	SLATE_END_ARGS()
 
 public:
-
+	
 	/**
 	 * Construct this widget
 	 *
@@ -31,6 +31,7 @@ public:
 	 * @param InStyleSet The style set to use.
 	 */
 	void Construct(const FArguments& InArgs, UMediaPlaylist* InMediaPlaylist, const TSharedRef<ISlateStyle>& InStyle);
+	virtual ~SMediaPlaylistEditorTracks() override;
 
 protected:
 
@@ -64,4 +65,6 @@ protected:
 	 */
 	void OnMediaSourceChanged(const FAssetData& AssetData, int32 Index);
 
+	/** Engine callback to detect when the media is changed. */
+	void OnObjectTransacted(UObject* Object, const FTransactionObjectEvent& TransactionObjectEvent);
 };
