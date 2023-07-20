@@ -218,7 +218,9 @@ void UGameUserSettings::SetToDefaults()
 	WindowPosY = GetDefaultWindowPosition().Y;
 	FullscreenMode = GetDefaultWindowMode();
 	FrameRateLimit = 0.0f;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MinResolutionScale = Scalability::MinResolutionScale;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	DesiredScreenWidth = 1280;
 	DesiredScreenHeight = 720;
 	LastUserConfirmedDesiredScreenWidth = DesiredScreenWidth;
@@ -261,7 +263,9 @@ void UGameUserSettings::UpdateResolutionQuality()
 	const int32 MinHeight = UKismetSystemLibrary::GetMinYResolutionFor3DView();
 	const int32 ScreenWidth = (FullscreenMode == EWindowMode::WindowedFullscreen) ? GetDesktopResolution().X : ResolutionSizeX;
 	const int32 ScreenHeight = (FullscreenMode == EWindowMode::WindowedFullscreen) ? GetDesktopResolution().Y : ResolutionSizeY;
-	MinResolutionScale = FMath::Max<float>(Scalability::MinResolutionScale, ((float)MinHeight / (float)ScreenHeight) * 100.0f);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MinResolutionScale = Scalability::MinResolutionScale;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (bUseDesiredScreenHeight)
 	{
@@ -269,7 +273,7 @@ void UGameUserSettings::UpdateResolutionQuality()
 	}
 	else
 	{
-		ScalabilityQuality.ResolutionQuality = FMath::Max(ScalabilityQuality.ResolutionQuality, MinResolutionScale);
+		ScalabilityQuality.ResolutionQuality = FMath::Max(ScalabilityQuality.ResolutionQuality, Scalability::MinResolutionScale);
 	}
 }
 
@@ -281,14 +285,14 @@ float UGameUserSettings::GetDefaultResolutionScale()
 	const int32 ClampedHeight = (ScreenHeight > 0 && DesiredScreenHeight > ScreenHeight) ? ScreenHeight : DesiredScreenHeight;
 
 	const float DesiredResQuality = FindResolutionQualityForScreenSize(ClampedWidth, ClampedHeight);
-	return FMath::Max(DesiredResQuality, MinResolutionScale);
+	return FMath::Max(DesiredResQuality, Scalability::MinResolutionScale);
 }
 
 float UGameUserSettings::GetRecommendedResolutionScale()
 {
 	const float RecommendedResQuality = FindResolutionQualityForScreenSize(LastRecommendedScreenWidth, LastRecommendedScreenHeight);
 
-	return FMath::Max(RecommendedResQuality, MinResolutionScale);
+	return FMath::Max(RecommendedResQuality, Scalability::MinResolutionScale);
 }
 
 float UGameUserSettings::FindResolutionQualityForScreenSize(float Width, float Height)
@@ -760,7 +764,7 @@ int32 UGameUserSettings::GetOverallScalabilityLevel() const
 void UGameUserSettings::GetResolutionScaleInformationEx(float& CurrentScaleNormalized, float& CurrentScaleValue, float& MinScaleValue, float& MaxScaleValue) const
 {
 	CurrentScaleValue = ScalabilityQuality.ResolutionQuality;
-	MinScaleValue = MinResolutionScale;
+	MinScaleValue = Scalability::MinResolutionScale;
 	MaxScaleValue = Scalability::MaxResolutionScale;
 	CurrentScaleNormalized = ((float)CurrentScaleValue - (float)MinScaleValue) / (float)(MaxScaleValue - MinScaleValue);
 }
@@ -775,7 +779,7 @@ float UGameUserSettings::GetResolutionScaleNormalized() const
 
 void UGameUserSettings::SetResolutionScaleValueEx(float NewScaleValue)
 {
-	ScalabilityQuality.ResolutionQuality = FMath::Clamp(NewScaleValue, MinResolutionScale, Scalability::MaxResolutionScale);
+	ScalabilityQuality.ResolutionQuality = FMath::Clamp(NewScaleValue, Scalability::MinResolutionScale, Scalability::MaxResolutionScale);
 	const int32 ScreenWidth = (FullscreenMode == EWindowMode::WindowedFullscreen) ? GetDesktopResolution().X : ResolutionSizeX;
 	const int32 ScreenHeight = (FullscreenMode == EWindowMode::WindowedFullscreen) ? GetDesktopResolution().Y : ResolutionSizeY;
 	DesiredScreenWidth = ScreenWidth * ScalabilityQuality.ResolutionQuality / 100.0f;
@@ -784,7 +788,7 @@ void UGameUserSettings::SetResolutionScaleValueEx(float NewScaleValue)
 
 void UGameUserSettings::SetResolutionScaleNormalized(float NewScaleNormalized)
 {
-	const float RemappedValue = FMath::Lerp((float)MinResolutionScale, (float)Scalability::MaxResolutionScale, NewScaleNormalized);
+	const float RemappedValue = FMath::Lerp((float)Scalability::MinResolutionScale, (float)Scalability::MaxResolutionScale, NewScaleNormalized);
 	SetResolutionScaleValueEx(RemappedValue);
 }
 

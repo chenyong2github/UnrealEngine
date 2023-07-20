@@ -213,7 +213,7 @@ namespace Scalability
 	ENGINE_API FQualityLevels GetQualityLevelCounts();
 
 	/** Minimum single axis scale for render resolution */
-	static const float MinResolutionScale = 10.0f;
+	static const float MinResolutionScale = 0.0f;
 
 	/** Maximum single axis scale for render resolution */
 	static const float MaxResolutionScale = 100.0f;

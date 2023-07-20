@@ -421,6 +421,7 @@ protected:
 	float FrameRateLimit;
 
 	/** Min resolution scale we allow in current display mode */
+	UE_DEPRECATED(5.3, "MinResolutionScale is now always Scalability::MinResolutionScale=0 that fallbacks to default project wide behavior defined by r.ScreenPercentage.Default")
 	float MinResolutionScale;
 
 	/** Desired screen width used to calculate the resolution scale when user changes display mode */
