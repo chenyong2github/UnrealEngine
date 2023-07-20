@@ -730,8 +730,8 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId InputD
 	if (bGamepad)
 	{
 		/** For PIE, since this is gamepad, check if we want to route gamepad to second window.
-	 * Let the next PIE window handle the input (this allows people to use a controller for one window and kbm for the other).
-	 */
+		 * Let the next PIE window handle the input (this allows people to use a controller for one window and kbm for the other).
+		 */
 		const FViewportClient* InViewportClient = InViewport != nullptr ? InViewport->GetClient() : nullptr;
 		if (InViewportClient == this)
 		{
