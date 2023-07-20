@@ -1788,7 +1788,7 @@ void FOcclusionFeedback::ReadbackResults(FRHICommandList& RHICmdList)
 	}
 }
 
-void FOcclusionFeedback::AddPrimitive(FRHICommandList& RHICmdList, FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
+void FOcclusionFeedback::AddPrimitive(FRHICommandList& RHICmdList, const FPrimitiveOcclusionHistoryKey& PrimitiveKey, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
 {
 	constexpr uint32 MaxBatchedPrimitives = 512;
 	constexpr uint32 PrimitiveStride = sizeof(FVector4f) * 2u;
@@ -1817,7 +1817,7 @@ void FOcclusionFeedback::AddPrimitive(FRHICommandList& RHICmdList, FPrimitiveCom
 	OcclusionBatch.NumBatchedPrimitives++;
 
 	FOcclusionBuffer& OcclusionBuffer = OcclusionBuffers[CurrentBufferIndex];
-	OcclusionBuffer.BatchedPrimitives.Add(PrimitiveId);
+	OcclusionBuffer.BatchedPrimitives.Add(PrimitiveKey);
 }
 
 class FOcclusionFeedbackVS : public FGlobalShader

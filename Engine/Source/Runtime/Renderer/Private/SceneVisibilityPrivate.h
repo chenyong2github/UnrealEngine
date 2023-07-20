@@ -753,12 +753,12 @@ struct FOcclusionQuery
 
 struct FOcclusionFeedbackEntry
 {
-	FOcclusionFeedbackEntry(FPrimitiveComponentId InPrimitiveId, FVector InBoundsOrigin, FVector InBoundsExtent)
-		: PrimitiveId(InPrimitiveId)
+	FOcclusionFeedbackEntry(const FPrimitiveOcclusionHistoryKey& PrimitiveKey, FVector InBoundsOrigin, FVector InBoundsExtent)
+		: PrimitiveKey(PrimitiveKey)
 		, Bounds(InBoundsOrigin, InBoundsExtent)
 	{}
 
-	const FPrimitiveComponentId PrimitiveId;
+	const FPrimitiveOcclusionHistoryKey PrimitiveKey;
 	const FOcclusionBounds Bounds;
 };
 
@@ -893,7 +893,7 @@ public:
 
 		void AddOcclusionFeedback(const FOcclusionFeedbackEntry& Entry)
 		{
-			Packet.OcclusionFeedback.AddPrimitive(RHICmdList, Entry.PrimitiveId, Entry.Bounds.Origin, Entry.Bounds.Extent, DynamicVertexBuffer);
+			Packet.OcclusionFeedback.AddPrimitive(RHICmdList, Entry.PrimitiveKey, Entry.Bounds.Origin, Entry.Bounds.Extent, DynamicVertexBuffer);
 		}
 
 		void AddVisualizeQuery(const FBox& Box)

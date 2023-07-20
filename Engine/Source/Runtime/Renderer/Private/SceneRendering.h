@@ -515,66 +515,6 @@ private:
 	uint32 ValidFrameNumber;
 };
 
-class FOcclusionFeedback : public FRenderResource
-{
-public:
-	FOcclusionFeedback();
-	~FOcclusionFeedback();
-
-	// FRenderResource interface
-	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
-	virtual void ReleaseRHI() override;
-
-	void AddPrimitive(FRHICommandList& RHICmdList, FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
-
-	void BeginOcclusionScope(FRDGBuilder& GraphBuilder);
-	void EndOcclusionScope(FRDGBuilder& GraphBuilder);
-
-	/** Renders the current batch and resets the batch state. */
-	void SubmitOcclusionDraws(FRHICommandList& RHICmdList, FViewInfo& View);
-	
-	void ReadbackResults(FRHICommandList& RHICmdList);
-	void AdvanceFrame(uint32 OcclusionFrameCounter);
-
-	inline FRDGBuffer* GetGPUFeedbackBuffer() const
-	{
-		return GPUFeedbackBuffer;
-	}
-
-	inline bool IsOccluded(FPrimitiveComponentId Id) const
-	{
-		return LatestOcclusionResults.Contains(Id);
-	}
-
-private:
-	struct FOcclusionBatch
-	{
-		FGlobalDynamicVertexBuffer::FAllocation VertexAllocation;
-		uint32 NumBatchedPrimitives;
-	};
-
-	/** The pending batches. */
-	TArray<FOcclusionBatch, TInlineAllocator<3>> BatchOcclusionQueries;
-
-	FRDGBuffer* GPUFeedbackBuffer{};
-
-	struct FOcclusionBuffer
-	{
-		TArray<FPrimitiveComponentId> BatchedPrimitives;
-		FRHIGPUBufferReadback* ReadbackBuffer = nullptr;
-		uint32 OcclusionFrameCounter = 0u;
-	};
-
-	FOcclusionBuffer OcclusionBuffers[3];
-	uint32 CurrentBufferIndex;
-	
-	TSet<FPrimitiveComponentId> LatestOcclusionResults;
-	uint32 ResultsOcclusionFrameCounter;
-
-	//
-	FVertexDeclarationRHIRef OcclusionVertexDeclarationRHI;
-};
-
 DECLARE_STATS_GROUP(TEXT("Parallel Command List Markers"), STATGROUP_ParallelCommandListMarkers, STATCAT_Advanced);
 
 /** Helper class to marshal data from your RDG pass into the parallel command list set. */

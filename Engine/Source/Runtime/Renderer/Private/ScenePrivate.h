@@ -303,7 +303,7 @@ struct FPrimitiveOcclusionHistoryKey
 	FPrimitiveComponentId PrimitiveId;
 	int32 CustomIndex;
 
-	FPrimitiveOcclusionHistoryKey(const FPrimitiveOcclusionHistory& Element)
+	explicit FPrimitiveOcclusionHistoryKey(const FPrimitiveOcclusionHistory& Element)
 		: PrimitiveId(Element.PrimitiveId)
 		, CustomIndex(Element.CustomIndex)
 	{
@@ -314,6 +314,16 @@ struct FPrimitiveOcclusionHistoryKey
 	{
 	}
 };
+
+inline uint32 GetTypeHash(const FPrimitiveOcclusionHistoryKey& Key)
+{
+	return GetTypeHash(Key.PrimitiveId.PrimIDValue) ^ (GetTypeHash(Key.CustomIndex) >> 20);
+}
+
+inline bool operator==(const FPrimitiveOcclusionHistoryKey& A, const FPrimitiveOcclusionHistoryKey& B)
+{
+	return A.PrimitiveId == B.PrimitiveId && A.CustomIndex == B.CustomIndex;
+}
 
 /** Defines how the hash set indexes the FPrimitiveOcclusionHistory objects. */
 struct FPrimitiveOcclusionHistoryKeyFuncs : BaseKeyFuncs<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKey>
@@ -327,15 +337,14 @@ struct FPrimitiveOcclusionHistoryKeyFuncs : BaseKeyFuncs<FPrimitiveOcclusionHist
 
 	static bool Matches(KeyInitType A,KeyInitType B)
 	{
-		return A.PrimitiveId == B.PrimitiveId && A.CustomIndex == B.CustomIndex;
+		return A == B;
 	}
 
 	static uint32 GetKeyHash(KeyInitType Key)
 	{
-		return GetTypeHash(Key.PrimitiveId.PrimIDValue) ^ (GetTypeHash(Key.CustomIndex) >> 20);
+		return GetTypeHash(Key);
 	}
 };
-
 
 class FIndividualOcclusionHistory
 {
@@ -680,6 +689,66 @@ struct FPersistentGlobalDistanceFieldData : public FThreadSafeRefCountedObject
 	TRefCountPtr<IPooledRenderTarget> MipTexture;
 
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+};
+
+class FOcclusionFeedback : public FRenderResource
+{
+public:
+	FOcclusionFeedback();
+	~FOcclusionFeedback();
+
+	// FRenderResource interface
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
+	virtual void ReleaseRHI() override;
+
+	void AddPrimitive(FRHICommandList& RHICmdList, const FPrimitiveOcclusionHistoryKey& PrimitiveKey, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+
+	void BeginOcclusionScope(FRDGBuilder& GraphBuilder);
+	void EndOcclusionScope(FRDGBuilder& GraphBuilder);
+
+	/** Renders the current batch and resets the batch state. */
+	void SubmitOcclusionDraws(FRHICommandList& RHICmdList, FViewInfo& View);
+
+	void ReadbackResults(FRHICommandList& RHICmdList);
+	void AdvanceFrame(uint32 OcclusionFrameCounter);
+
+	inline FRDGBuffer* GetGPUFeedbackBuffer() const
+	{
+		return GPUFeedbackBuffer;
+	}
+
+	inline bool IsOccluded(const FPrimitiveOcclusionHistoryKey& PrimitiveKey) const
+	{
+		return LatestOcclusionResults.Contains(PrimitiveKey);
+	}
+
+private:
+	struct FOcclusionBatch
+	{
+		FGlobalDynamicVertexBuffer::FAllocation VertexAllocation;
+		uint32 NumBatchedPrimitives;
+	};
+
+	/** The pending batches. */
+	TArray<FOcclusionBatch, TInlineAllocator<3>> BatchOcclusionQueries;
+
+	FRDGBuffer* GPUFeedbackBuffer{};
+
+	struct FOcclusionBuffer
+	{
+		TArray<FPrimitiveOcclusionHistoryKey> BatchedPrimitives;
+		FRHIGPUBufferReadback* ReadbackBuffer = nullptr;
+		uint32 OcclusionFrameCounter = 0u;
+	};
+
+	FOcclusionBuffer OcclusionBuffers[3];
+	uint32 CurrentBufferIndex;
+
+	TSet<FPrimitiveOcclusionHistoryKey> LatestOcclusionResults;
+	uint32 ResultsOcclusionFrameCounter;
+
+	//
+	FVertexDeclarationRHIRef OcclusionVertexDeclarationRHI;
 };
 
 /**
