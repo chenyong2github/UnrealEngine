@@ -3616,6 +3616,9 @@ namespace ObjectTools
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 				bNeedsGarbageCollection = false;
 			}
+			
+			// Give systems opportunity to clean up references to the objects being deleted
+			FEditorDelegates::OnAssetsPreDelete.Broadcast(ShownObjectsToDelete);
 
 			// Load the asset tools module to get access to the browser type maps
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
