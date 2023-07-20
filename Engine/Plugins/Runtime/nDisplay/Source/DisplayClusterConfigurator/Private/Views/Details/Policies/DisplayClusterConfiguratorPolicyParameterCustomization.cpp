@@ -694,9 +694,9 @@ void FPolicyParameterInfoMatrix::FormatTextAndUpdateParameter()
 const FString FPolicyParameterInfo4x4Matrix::BaseMatrixString = DisplayClusterTypesConverter::template ToString<FMatrix>(FMatrix(FPlane(1.0f, 0.0f, 0.0f, 0.0f), FPlane(0.0f, 1.0f, 0.0f, 0.0f), FPlane(0.0f, 0.0f, 0.0f, 1.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f)));
 
 FPolicyParameterInfo4x4Matrix::FPolicyParameterInfo4x4Matrix(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewports, &BaseMatrixString),
-	A(MakeShared<TOptional<float>>()), B(MakeShared<TOptional<float>>()), C(MakeShared<TOptional<float>>()), D(MakeShared<TOptional<float>>()), E(MakeShared<TOptional<float>>())
+	UDisplayClusterBlueprint* InBlueprint, const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports, const FString* DefaultMatrixString)
+	: FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewports, DefaultMatrixString ? DefaultMatrixString  : &BaseMatrixString)
+	, A(MakeShared<TOptional<float>>()), B(MakeShared<TOptional<float>>()), C(MakeShared<TOptional<float>>()), D(MakeShared<TOptional<float>>()), E(MakeShared<TOptional<float>>())
 	, F(MakeShared<TOptional<float>>()), G(MakeShared<TOptional<float>>()), H(MakeShared<TOptional<float>>()), I(MakeShared<TOptional<float>>()), J(MakeShared<TOptional<float>>())
 	, K(MakeShared<TOptional<float>>()), L(MakeShared<TOptional<float>>()), M(MakeShared<TOptional<float>>()), N(MakeShared<TOptional<float>>()), O(MakeShared<TOptional<float>>())
 	, P(MakeShared<TOptional<float>>())

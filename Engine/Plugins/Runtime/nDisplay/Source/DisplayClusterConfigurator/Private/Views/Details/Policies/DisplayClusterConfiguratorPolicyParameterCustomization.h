@@ -417,7 +417,8 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports);
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
+		const FString* DefaultMatrixString = nullptr);
 
 	// FPolicyParameterInfo
 	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;

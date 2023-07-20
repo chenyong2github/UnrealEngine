@@ -3,49 +3,7 @@
 #pragma once
 
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
-#include "Policy/VIOSO/Windows/DisplayClusterProjectionVIOSOWarper.h"
-
-#include "RHI.h"
-#include "RHICommandList.h"
-#include "RHIResources.h"
-#include "Templates/SharedPointer.h"
-
-/**
- * VIOSO projection policy data
- */
-struct FDisplayClusterProjectionVIOSOPolicyViewData
-	: public TSharedFromThis<FDisplayClusterProjectionVIOSOPolicyViewData, ESPMode::ThreadSafe>
-{
-	enum class ERenderDevice : uint8
-	{
-		Unsupported = 0,
-		D3D11,
-		D3D12
-	};
-
-	FDisplayClusterProjectionVIOSOPolicyViewData();
-	virtual ~FDisplayClusterProjectionVIOSOPolicyViewData();
-
-public:
-	bool IsValid();
-
-	bool UpdateVIOSO(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP);
-	bool RenderVIOSO_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ShaderResourceTexture, FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
-
-protected:
-	bool InitializeVIOSO_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
-
-public:
-	FVector  ViewLocation;
-	FRotator ViewRotation;
-	FMatrix  ProjectionMatrix;
-
-private:
-	ERenderDevice RenderDevice = ERenderDevice::Unsupported;
-	FViosoWarper Warper;
-
-	bool bInitialized = false;
-};
+#include "Policy/VIOSO/Windows/DisplayClusterProjectionVIOSOPolicyViewData.h"
 
 /**
  * VIOSO projection policy
@@ -54,7 +12,7 @@ class FDisplayClusterProjectionVIOSOPolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionVIOSOPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+	FDisplayClusterProjectionVIOSOPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy, const TSharedRef<FDisplayClusterProjectionVIOSOLibrary, ESPMode::ThreadSafe>& InVIOSOLibrary);
 	virtual ~FDisplayClusterProjectionVIOSOPolicy();
 
 public:
@@ -88,9 +46,30 @@ protected:
 	void ImplRelease();
 
 protected:
+	// VIOSO DLL api
+	const TSharedRef<FDisplayClusterProjectionVIOSOLibrary, ESPMode::ThreadSafe> VIOSOLibrary;
+
 	FViosoPolicyConfiguration ViosoConfigData;
 
 	TArray<TSharedPtr<FDisplayClusterProjectionVIOSOPolicyViewData, ESPMode::ThreadSafe>> Views;
 
 	FCriticalSection DllAccessCS;
+
+private:
+#if WITH_EDITOR
+protected:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterProjectionPolicyPreview
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool HasPreviewMesh() override
+	{
+		return true;
+	}
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
+
+	void ReleasePreviewMeshComponent();
+
+private:
+	FDisplayClusterSceneComponentRef PreviewMeshComponentRef;
+#endif
 };

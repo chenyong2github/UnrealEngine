@@ -29,12 +29,17 @@ namespace DisplayClusterProjectionStrings
 			static constexpr const TCHAR* ChannelName  = TEXT("channel");
 
 			static constexpr const TCHAR* File         = TEXT("file");
+
+			// The VIOSO calibration file contains several instances of geometry (for several screens in one file), so we must use this parameter to be able to select the right one.
 			static constexpr const TCHAR* CalibIndex   = TEXT("index");
 			static constexpr const TCHAR* CalibAdapter = TEXT("adapter");
 
 			static constexpr const TCHAR* Gamma        = TEXT("gamma");
 
-			static constexpr const TCHAR* BaseMatrix   = TEXT("base");
+			// How many VIOSO units in meter
+			static constexpr const TCHAR* UnitsInMeter = TEXT("UnitsInMeter");
+
+			static constexpr const TCHAR* EnablePreview = TEXT("EnablePreview");
 		}
 
 		namespace manual
@@ -115,6 +120,18 @@ namespace DisplayClusterProjectionStrings
 			static constexpr const TCHAR* Channel = TEXT("channel");
 			static constexpr const TCHAR* Origin  = TEXT("origin");
 		}
+	}
+
+	namespace ThirdParty
+	{
+		static constexpr const TCHAR* PluginName = TEXT("nDisplay");
+
+		namespace VIOSO
+		{
+			static constexpr const TCHAR* Path = TEXT("ThirdParty/VIOSO/DLL");
+			static constexpr const TCHAR* DLL = TEXT("ViosoWarpBlend64.dll");
+		}
+
 	}
 
 	namespace projection

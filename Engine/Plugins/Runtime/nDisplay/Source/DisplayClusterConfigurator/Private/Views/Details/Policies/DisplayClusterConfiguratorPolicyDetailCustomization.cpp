@@ -504,12 +504,74 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDispl
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisplayClusterBlueprint* Blueprint)
 {
-	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
-		"File",
-		DisplayClusterProjectionStrings::cfg::VIOSO::File,
+	const FString VIOSOTypeKey = "VIOSOType";
+	const FString TypeVIOSO    = "VIOSO";
+	const FString TypeVWF      = "Explicit VWF";
+
+	auto RefreshPolicy = [this](const FString& SelectedItem)
+	{
+		PropertyUtilities.Pin()->ForceRefresh();
+	};
+
+	const bool bSort = false;
+
+	const TSharedPtr<FPolicyParameterInfoCombo> VIOSOCombo = MakeShared<FPolicyParameterInfoCombo>(
+		"VIOSO Type",
+		VIOSOTypeKey,
 		Blueprint,
 		ConfigurationViewports,
-		TArray<FString>{"vwf"}));
+		TArray<FString>{TypeVIOSO, TypeVWF},
+		&TypeVWF,
+		bSort);
+	VIOSOCombo->SetOnSelectedDelegate(FPolicyParameterInfoCombo::FOnItemSelected::CreateLambda(RefreshPolicy));
+	CustomPolicyParameters.Add(VIOSOCombo);
+
+	const FString Setting = VIOSOCombo->GetOrAddCustomParameterValueText().ToString();
+	if (Setting == TypeVIOSO)
+	{
+		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
+			"INI File",
+			DisplayClusterProjectionStrings::cfg::VIOSO::INIFile,
+			Blueprint,
+			ConfigurationViewports,
+			TArray<FString>{"ini"}));
+		CustomPolicyParameters.Last()->SetParameterTooltip(LOCTEXT("DisplayClusterProjectionVIOSOPolicyFileINI", "File containing calibration settings."));
+
+		// channel name from ini file, empty by default, which means getting the first matching one.
+		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<int32>>(
+			"Channel Name",
+			DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName,
+			Blueprint,
+			ConfigurationViewports));
+		CustomPolicyParameters.Last()->SetParameterTooltip(LOCTEXT("DisplayClusterProjectionVIOSOPolicyChannelName", "The VIOSO calibration file contains several instances of geometry (for several screens in one file), so we must use this parameter to be able to select the right one."));
+	}
+	else if (Setting == TypeVWF)
+	{
+		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
+			"VWF File",
+			DisplayClusterProjectionStrings::cfg::VIOSO::File,
+			Blueprint,
+			ConfigurationViewports,
+			TArray<FString>{"vwf"}));
+		CustomPolicyParameters.Last()->SetParameterTooltip(LOCTEXT("DisplayClusterProjectionVIOSOPolicyFile", "File containing one or more geometries created in the VIOSO calibration app."));
+
+		const float DefaultUnitsInMeter = 1000.f;
+		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
+			"Units In Meter",
+			DisplayClusterProjectionStrings::cfg::VIOSO::UnitsInMeter,
+			Blueprint,
+			ConfigurationViewports, DefaultUnitsInMeter));
+		CustomPolicyParameters.Last()->SetParameterTooltip(LOCTEXT("DisplayClusterProjectionVIOSOPolicyUnitsInMeter", "How many VIOSO units in meter. Specifies the unit of the calibration geometry in meters."));
+
+		// the calibration index in mapping file, defaults to 0,
+		// The VIOSO calibration file contains several instances of geometry (for several screens in one file), so we must use this parameter to be able to select the right one.
+		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<int32>>(
+			"Calib Index",
+			DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex,
+			Blueprint,
+			ConfigurationViewports));
+		CustomPolicyParameters.Last()->SetParameterTooltip(LOCTEXT("DisplayClusterProjectionVIOSOPolicyCalibIndex", "The VIOSO calibration file contains several instances of geometry (for several screens in one file), so we must use this parameter to be able to select the right one."));
+	}
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
 		"Origin",
@@ -517,10 +579,11 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisp
 		Blueprint,
 		ConfigurationViewports,
 		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() }));
+	CustomPolicyParameters.Last()->SetParameterTooltip(LOCTEXT("DisplayClusterProjectionVIOSOPolicyOrigin", "The VIOSO calibration app uses a special point in real world space and uses it as zero. The same point must be defined on the UE side inside DCRA."));
 
-	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfo4x4Matrix>(
-		"Matrix",
-		DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix,
+	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
+		"Enable Preview",
+		DisplayClusterProjectionStrings::cfg::VIOSO::EnablePreview,
 		Blueprint,
 		ConfigurationViewports));
 }

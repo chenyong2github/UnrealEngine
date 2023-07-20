@@ -4,66 +4,120 @@
 
 #include "CoreMinimal.h"
 #include "Policy/VIOSO/ViosoPolicyConfiguration.h"
+#include "Policy/VIOSO/DisplayClusterProjectionVIOSOTypes.h"
 
-//-------------------------------------------------------------------------------------------------
-// Vioso headers
-//-------------------------------------------------------------------------------------------------
-THIRD_PARTY_INCLUDES_START
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/PreWindowsApi.h"
-#include "VWBTypes.h"
-#include "Windows/PostWindowsApi.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-THIRD_PARTY_INCLUDES_END
+#include "Policy/VIOSO/DisplayClusterProjectionVIOSOGeometryExportData.h"
 
+#if WITH_VIOSO_LIBRARY
+
+class FDisplayClusterProjectionVIOSOLibrary;
 
 /**
  * Warper api for VIOSO
  */
-class FViosoWarper
+class FDisplayClusterProjectionVIOSOWarper
 {
 public:
-	bool IsValid();
+	FDisplayClusterProjectionVIOSOWarper(const TSharedRef<FDisplayClusterProjectionVIOSOLibrary, ESPMode::ThreadSafe>& InVIOSOLibrary, const FViosoPolicyConfiguration& InVIOSOConfigData, const FString& InUniqueName)
+		: VIOSOLibrary(InVIOSOLibrary)
+		, VIOSOConfigData(InVIOSOConfigData)
+		, UniqueName(InUniqueName)
+	{ }
 
-	bool Initialize(void* pDxDevice, const FViosoPolicyConfiguration &InConfigData);
+	virtual ~FDisplayClusterProjectionVIOSOWarper()
+	{
+		Release();
+	}
+
+	/** Constructor for VIOSO warper instances.
+	* (The cache is implemented inside)
+	* 
+	* @param InVIOSOLibrary
+	* @param InConfigData
+	* @param InUniqueName is a unique viewname for the viewport (for ex.: "vp_1:0", "vp_1:1", "vp_2:0",...)
+	* 
+	* @return an instance of the Warper class (the same object if InConfigData are equal).
+	*/
+	static TSharedRef<FDisplayClusterProjectionVIOSOWarper, ESPMode::ThreadSafe> Create(const TSharedRef<FDisplayClusterProjectionVIOSOLibrary, ESPMode::ThreadSafe>& InVIOSOLibrary, const FViosoPolicyConfiguration& InConfigData, const FString& InUniqueName);
+
+public:
+	inline bool IsInitialized() const
+	{
+		return pWarper != nullptr && bInitialized;
+	}
+
+	bool Initialize(void* pDxDevice, const FVector2D& InClippingPLanes);
 	void Release();
 
+	void UpdateClippingPlanes(const FVector2D& InClippingPlanes);
+
 	bool CalculateViewProjection(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, FMatrix& OutProjMatrix, const float WorldToMeters, const float NCP, const float FCP);
+
 	bool Render(VWB_param RenderParam, VWB_uint StateMask);
 
-private:
-	FVector ToViosoLocation(const FVector& InUnrealLocation, const float WorldToMeters) const;
-	FVector FromViosoLocation(const FVector& InViosoLocation, const float WorldToMeters) const;
-	FVector  ToViosoEulerRotation(const FRotator& InRotation) const;
-	FRotator FromViosoEulerRotation(const FVector& InEulerRotation) const;
+	//~ Begin TDisplayClusterDataCache
+	/** Return DataCache timeout in frames. */
+	static int32 GetDataCacheTimeOutInFrames();
 
-	bool IsViewClipValid() const;
+	/** Return true if DataCache is enabled. */
+	static bool IsDataCacheEnabled();
 
-	FVector GetViosoViewRotationEulerR_LHT() const;
-	FVector GetViosoViewRotationEulerR_RH() const;
-	FVector GetViosoViewLocation() const;
-	FMatrix GetProjMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const float NCP, const float FCP) const;
+	/** Returns the unique name of this MPCDI file resource for DataCache. */
+	inline const FString& GetDataCacheName() const
+	{
+		return UniqueName;
+	}
+
+	/** Method for releasing a cached data item, called before its destructor. */
+	inline void ReleaseDataCacheItem()
+	{ }
+	// ~~ End TDisplayClusterDataCache
 
 protected:
+	friend class FDisplayClusterWarpBlendVIOSOPreviewMeshCache;
+
+	/**
+	* Export warp mesh geometry from VIOSO file
+	*/
+	bool ExportGeometry(FDisplayClusterProjectionVIOSOGeometryExportData& OutMeshData);
+
+
+private:
+	FMatrix GetProjMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum) const;
+
+private:
+	// VIOSO API
+	const TSharedRef<FDisplayClusterProjectionVIOSOLibrary, ESPMode::ThreadSafe> VIOSOLibrary;
+
+	// vioso confguration data
+	const FViosoPolicyConfiguration VIOSOConfigData;
+
+	const FString UniqueName;
+
 	// Internal VIOSO data
 	struct VWB_Warper* pWarper = nullptr;
 
-private:
-	union {
-		struct {
-			VWB_float _left, _bottom, _right, _top;
-			VWB_float _near, _far;
-		};
-		VWB_float ViewClip[6];
+	/** Convert arry to local vars. */
+	struct FViewClip
+	{
+		// The correct order of ViewClips was obtained from the VIOSO sources
+		// void VWB_Warper_base::getClip( VWB_VEC3f const& e, VWB_float * pClip )
+		VWB_float Left, Top, Right, Bottom, NCP, FCP;
 	};
 
-	union {
-		struct {
-			VWB_float        _11, _12, _13, _14;
-			VWB_float        _21, _22, _23, _24;
-			VWB_float        _31, _32, _33, _34;
-			VWB_float        _41, _42, _43, _44;
-		};
-		VWB_float ViewMatrix[16];
+	union
+	{
+		VWB_float VWB_ViewClip[6];
+		FViewClip ViewClip;
 	};
+
+	// Warped can be used
+	bool bInitialized = false;
+
+	// Custom clipping planes
+	FVector2D DefaultClippingPlanes;
+
+	// Vioso geometry scale
+	float VIOSOGeometryScale = 1.f;
 };
+#endif

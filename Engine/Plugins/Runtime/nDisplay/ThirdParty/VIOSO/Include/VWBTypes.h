@@ -1,32 +1,22 @@
 #ifndef __VWB_SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
 #define __VWB_SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
 #include <stdint.h>
+#ifdef __cplusplus
 #include <vector>
-
+#endif
 /// Type definitions
 typedef void* VWB_param;	/// A versatile type to transfer an object pointer or integral number
-
 #ifdef WIN32
-
 typedef wchar_t VWB_wchar;	/// a 16bit unsignd integer
-
 #ifndef MAX_PATH
 #define MAX_PATH 260		/// define a maximum file path length, if not done by the OS SDK
-#else
-
-#if (MAX_PATH != 260)
+#elif( MAX_PATH != 260 )
 #error MAX_PATH define mismatch
-#endif
-
 #endif //ndef MAX_PATH
-
 #else
-
 typedef int16_t VWB_wchar;	/// a 16bit unsignd integer
 #define MAX_PATH 32768		/// define a maximum file path length, if not done by the OS SDK
-
 #endif
-
 typedef uint8_t VWB_byte;	/// a 8bit unsignd integer
 typedef uint16_t VWB_word;	/// a 16bit unsignd integer
 typedef int32_t VWB_int;	/// a 32bit signed integer
@@ -61,7 +51,7 @@ typedef enum VWB_ERROR
 } VWB_ERROR;
 
 typedef enum VWB_STATEMASK
-{   
+{
 	///< mask to capture and restore pipeline states and settings. All things are set by the warper
 	///< consider not restoring things you set each frame anyway
 	VWB_STATEMASK_STANDARD = 0, ///< VWB_STATEMASK_VERTEX_BUFFER | VWB_STATEMASK_INPUT_LAYOUT | VWB_STATEMASK_PRIMITIVE_TOPOLOGY | VWB_STATEMASK_RASTERSTATE
@@ -76,6 +66,7 @@ typedef enum VWB_STATEMASK
 	VWB_STATEMASK_SHADER_RESOURCE = 0x00000100, // shader resource 0 to 2 or texture register t0 to t2
 	VWB_STATEMASK_SAMPLER = 0x00001000, // Sampler state resource 0 to 2 in DX10 and later, DX9 sampler state is captured in state block
 	VWB_STATEMASK_CLEARBACKBUFFER = 0x00002000, // set to clear backbuffer
+	VWB_STATEMASK_VIEWPORT = 0x00004000, // set viewport to render target size and restores previous state REMARK this flag does not affect DX12
 	VWB_STATEMASK_ALL = 0x1FFFFFFF, // All
 	VWB_STATEMASK_DEFAULT = VWB_STATEMASK_VERTEX_BUFFER | VWB_STATEMASK_INPUT_LAYOUT | VWB_STATEMASK_PRIMITIVE_TOPOLOGY | VWB_STATEMASK_RASTERSTATE,
 	VWB_STATEMASK_DEFAULT_D3D12 = 0
@@ -97,7 +88,6 @@ struct VWB_Warper
 	
 	/// the calibration index in mapping file, defaults to 0,
 	/// you also might set this to negated display number, to search for a certain display:
-	/// 
 	VWB_int		calibIndex;
 
 	/// set to true to make the world turn and move with view direction and eye position, this is the case if the viewer gets
@@ -186,13 +176,22 @@ struct VWB_Warper
 	/// Bitfield; only valid in Windows build
 	/// 1 rendering of mouse cursor
 	/// 2 disable system cursor over window 
+	/// defaults to 0
 	VWB_int		mouseMode;
 
 	/// set to true to flip directX 11 texture v, defaults to false
 	bool		bFlipDXVs;
 
-	/// set to true to disable black level offset
+	/// set to true to disable black level offset, defaults to false
 	bool        bDoNoBlack;
+
+	/// set to a port a UDP broadcast is sent every 3 seconds, defaults to 0, which means no heartbeat is sent; only avaliable if "port" is set
+	VWB_word    heartBeatPort;
+
+	/// split info, a vector4 x: number of columns y: number of rows, z: column index, w: row index, defaults to [0,0,0,0]
+	/// If you want to split a map into 2 side-by side parts set to [2,1,0,0] for the left side and [2,1,1,0] for the right part
+	/// setting x or y to 0, indicates no split and z and w are not evaluated
+	VWB_word	calibSplit[4];
 };
 #pragma pack(pop)
 // ----------------------------------------------------------------------------------
@@ -212,6 +211,7 @@ typedef enum FLAG_WARPFILE_HEADER
 	FLAG_WARPFILE_HEADER_DISPLAYID=0x80,									///<   the displayID of that screen is valid
 	FLAG_WARPFILE_HEADER_BLENDV2=0x100,									///<   we are using VWB_BlendRecord2
 	FLAG_WARPFILE_HEADER_BLENDV3=0x200,									///<   we are using VWB_BlendRecord3
+	FLAG_WARPFILE_HEADER_ENCRYPTED=0x400,								///<   the geometry
 	FLAG_WARPFILE_HEADER_ALL=											///<   all available flags
 	FLAG_WARPFILE_HEADER_OFFSET |
 	FLAG_WARPFILE_HEADER_BORDER |
@@ -222,7 +222,8 @@ typedef enum FLAG_WARPFILE_HEADER
 	FLAG_WARPFILE_HEADER_3D |
 	FLAG_WARPFILE_HEADER_DISPLAYID |
 	FLAG_WARPFILE_HEADER_BLENDV2 |
-	FLAG_WARPFILE_HEADER_BLENDV3
+	FLAG_WARPFILE_HEADER_BLENDV3 |
+	FLAG_WARPFILE_HEADER_ENCRYPTED
 }FLAG_WARPFILE_HEADER;
 
 
@@ -254,8 +255,8 @@ Other blend data are ignored.
 /** VWB_WarpSetFileHeader\n
 *  ( Struct SmartProjector Warp Set File Header)\n
 *  Container to preface a set of warping/blending informations.
-* @author Johannes Mueller
 * @author Juergen Krahmann
+* @author Johannes Mueller
 * @date Apr. 12
 * @version 1.0
 * @bug No.
@@ -282,8 +283,8 @@ public:
 /** VWB_WarpFileHeader\n
 *  ( Struct SmartProjector Warp File Header)\n
 *  Container to preface warping information.
-* @author Johannes Mueller
 * @author Juergen Krahmann
+* @author Johannes Mueller
 * @date Apr. 12
 * @version 1.0
 * @bug No.
@@ -299,7 +300,7 @@ public:
 	char                                magicNumber[4];							///<   "vwf0"
 	VWB_uint                            szHdr;									///<   used to communicate the size of this header struct
 	VWB_uint                            flags;									///<   additional informations
-	///<  @see ESPWarpFileHeaderFlag for details
+	///<  @see FLAG_WARPFILE_HEADER for details
 	VWB_uint                            hMonitor;								///<   set to the HMONITOR of the treated display
 	VWB_uint                            size;									///<   actual size of the following data block; the size of the raw data can be calculated from dimensions
 	VWB_int                             width;									///<   count of warp records per row
@@ -329,8 +330,8 @@ public:
 *  ( Struct SmartProjector Warp File Header version 2)\n
 *  Container to preface warping information.
 * magicNumber[4]="vwf0"
-* @author Johannes Mueller
 * @author Juergen Krahmann
+* @author Johannes Mueller
 * @date May 13
 * @version 1.0
 * @bug No.
@@ -383,7 +384,7 @@ public:
 	///<   [6] => optional relative content position transform offset in y direction
 	///<   [7] => optional relative content position transform scale in x direction
 	///<   [8] => optional relative content position transform scale in y direction
-	char									primName[256];		///<   optional, human readable name for high level calibration the display is assigned to
+	char									primName[256];		///<   optional, human readable name of the compound or super compound
 	VWB_float								vReserved2[16];		///<   used to define additional informations in further versions
 
 	VWB_wchar								displayID[256];		///<   Windows display identifier, use EnumDisplayDevices using EDD_GET_DEVICE_INTERFACE_NAME flag to find it
@@ -392,11 +393,10 @@ public:
 }VWB_WarpFileHeader3;
 
 /** VWB_WarpFileHeader4\n
-*  ( Struct SmartProjector Warp File Header version 3)\n
+*  ( Warp File Header version 4)\n
 *  Container to preface warping information.
 * same as VWB_WarpFileHeader3, but with some reserved(s) unwrapped
 * magicNumber[4]="vwf0"
-* @author Johannes Mueller
 * @author Juergen Krahmann
 * @date Nov 16
 * @version 1.0
@@ -413,7 +413,7 @@ public:
 	char                                magicNumber[4];							///<   "vwf0"
 	VWB_uint                            szHdr;									///<   used to communicate the size of this header struct
 	VWB_uint                            flags;									///<   additional informations
-	///<  @see ESPWarpFileHeaderFlag for details
+	///<  @see FLAG_WARPFILE_HEADER for details
 	VWB_uint                            hMonitor;								///<   set to the HMONITOR of the treated display
 	VWB_uint                            size;									///<   actual size of the following data block; the size of the raw data can be calculated from dimensions
 	VWB_int                             width;									///<   count of warp records per row
@@ -455,11 +455,85 @@ public:
 	///<   [6] => optional relative content position transform offset in y direction
 	///<   [7] => optional relative content position transform scale in x direction
 	///<   [8] => optional relative content position transform scale in y direction
-	char                                primName[256];		///<   optional, human readable name for high level calibration the display is assigned to
+	char                                primName[256];		///<   optional, human readable name of the compound or super compound
 	VWB_float                           vReserved2[16];							///<   used to define additional informations in further versions
 	VWB_wchar							displayID[256];	///<   Windows display identifier, use EnumDisplayDevices using EDD_GET_DEVICE_INTERFACE_NAME flag to find it
 	char								hostname[256];	///<   network name or IP in dotted decimal
 }VWB_WarpFileHeader4;
+
+
+/** VWB_WarpFileHeader5\n
+*  ( Warp File Header version 5)\n
+*  Container to preface warping information.
+* same as VWB_WarpFileHeader4, added crypto hint
+* magicNumber[4]="vwf0"
+* @author Juergen Krahmann
+* @date Apr 22
+* @version 1.0
+* @bug No.
+* @todo Nothing. */
+typedef struct VWB_WarpFileHeader5
+{
+public:
+
+	// ----------------------------------------------------------------------------------
+	//                               public attributes
+	// ----------------------------------------------------------------------------------
+
+	char                                magicNumber[4];							///<   "vwf0"
+	VWB_uint                            szHdr;									///<   used to communicate the size of this header struct
+	VWB_uint                            flags;									///<   additional informations
+	///<  @see FLAG_WARPFILE_HEADER for details
+	VWB_uint                            hMonitor;								///<   set to the HMONITOR of the treated display
+	VWB_uint                            size;									///<   actual size of the following data block; the size of the raw data can be calculated from dimensions
+	VWB_int                             width;									///<   count of warp records per row
+	VWB_int                             height;									///<   count of rows of warp records
+	VWB_float                           white[4];								///<   white point of that projector; set to { 1.0f, 1.0f, 1.0f, 1.0f }
+	VWB_float                           black[4];								///<   black point of that projector; set to { 0.0f, 0.0f, 0.0f, 1.0f }
+	VWB_float                           splitRowIndex;							///<   [ 0] => row index
+	VWB_float                           splitColumnIndex;						///<   [ 1] => column index
+	VWB_float							splitRows;								///<   [ 2] => number of rows
+	VWB_float							splitColumns;							///<   [ 3] => number of columns
+	VWB_float							splitTotalWidth;						///<   [ 4] => original display width
+	VWB_float							splitTotalHeight;						///<   [ 5] => original display height
+	VWB_float							typeCalib;								///<   [ 6] => type to define the calibration type the information based on
+	VWB_float							offsetX;								///<   [ 7] => original desktop display offset x
+	VWB_float							offsetY;								///<   [ 8] => original desktop display offset y
+	VWB_float							blackScale;								///<   [ 9] => blacklevel correction texture scale factor
+	VWB_float							blackDark;								///<   [10] => blacklevel dark value maintain factor; 
+	VWB_float							blackBright;							///<   [11] => blacklevel bright value maintain factor
+	VWB_float							compoundID;								///<   [12] => ///<   identifier for a compound display, static cast to int, set if greater than 0, all screend/displays with same compound id should use same content space alas source rect
+	VWB_float							vReserved[3];							///<	reserved for future use
+	char                                name[256];								///<   optional, human readable name for that mapping
+	char								ident[4096];							///<   optional, xml identification for that mapping derived from pdi code from pictureall, only filled if nvapi is appliable
+	VWB_ull			                    tmIdent;								///<   used to communicate a time stamp to identify the warp information
+	VWB_float                           vCntDispPx[7];							///<   optional, used to store informations about the content position on handled display
+	///<   [0] => minimum covered display pixel column  (l)
+	///<   [1] => minimum covered display pixel row     (t)
+	///<   [2] => maximum covered display pixel column  (r)
+	///<   [3] => maximum covered display pixel row     (b)
+	///<   [4] => content to display pixel ratio in x direction
+	///<   [5] => content to display pixel ratio in y direction
+	///<   [6] => quantum of used display pixel
+	VWB_float                           vPartialCnt[9];
+	///<   [0] => minimum relative content position in x direction (l)
+	///<   [1] => minimum relative content position in y direction (t)
+	///<   [2] => maximum relative content position in x direction (r)
+	///<   [3] => maximum relative content position in y direction (b)
+	///<   [4] => optional aspect ratio of the content space
+	///<   [5] => optional relative content position transform offset in x direction
+	///<   [6] => optional relative content position transform offset in y direction
+	///<   [7] => optional relative content position transform scale in x direction
+	///<   [8] => optional relative content position transform scale in y direction
+	char                                primName[256];		///<   optional, human readable name of the compound or super compound
+	VWB_float                           vReserved2[16];							///<   used to define additional informations in further versions
+	VWB_wchar							displayID[256];	///<   Windows display identifier, use EnumDisplayDevices using EDD_GET_DEVICE_INTERFACE_NAME flag to find it
+	char								hostname[256];	///<   network name or IP in dotted decimal
+	VWB_uint							szKey;									///<   the key size, 0 if not used
+	VWB_byte							key[128];								///<   some PGP encrypted key
+	char								keyIdent[16];							///<   describes the used encryption method
+	char								keyDesc[256];							///<   human readable description of used encryption method
+} VWB_WarpFileHeader5;
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //                                                              VWB_WarpRecord
@@ -550,15 +624,27 @@ typedef struct BITMAPINFO {
   BITMAPINFOHEADER bmiHeader;
   RGBQUAD          bmiColors[1];
 } BITMAPINFO;
+typedef  enum
+{
+  BI_RGB = 0x0000,
+  BI_RLE8 = 0x0001,
+  BI_RLE4 = 0x0002,
+  BI_BITFIELDS = 0x0003,
+  BI_JPEG = 0x0004,
+  BI_PNG = 0x0005,
+  BI_CMYK = 0x000B,
+  BI_CMYKRLE8 = 0x000C,
+  BI_CMYKRLE4 = 0x000D
+} VWF_WIN32_BitmapCompression;
 #endif
 #endif
 #pragma pack(pop)
 
-typedef struct VWB_WarpBlendHeader{
-	VWB_WarpFileHeader4 header;
+typedef struct VWB_WarpBlendHeader {
+	VWB_WarpFileHeader5 header;
 	char path[MAX_PATH];
 } VWB_WarpBlendHeader;
-
+#ifdef __cplusplus
 typedef struct VWB_WarpBlend : VWB_WarpBlendHeader{
 	VWB_WarpRecord* pWarp;
 	union {
@@ -572,6 +658,20 @@ typedef struct VWB_WarpBlend : VWB_WarpBlendHeader{
 
 typedef std::vector<VWB_WarpBlend*> VWB_WarpBlendSet;
 typedef std::vector<VWB_WarpBlendHeader*> VWB_WarpBlendHeaderSet;
+#else // pure C
+typedef struct VWB_WarpBlend {
+	VWB_WarpFileHeader5 header;
+	char path[MAX_PATH];
+	VWB_WarpRecord* pWarp;
+	union {
+		VWB_BlendRecord* pBlend;
+		VWB_BlendRecord2* pBlend2;
+		VWB_BlendRecord3* pBlend3;
+	};
+	VWB_BlendRecord* pBlack;
+	VWB_BlendRecord* pWhite;
+} VWB_WarpBlend;
+#endif
 
 typedef struct VWB_WarpBlendVertex
 {
@@ -589,6 +689,8 @@ typedef struct VWB_WarpBlendMesh // a triangle list mesh
 	VWB_size dim;  // the dimension of the calibrated display in pixels
 }VWB_WarpBlendMesh;
 
+#pragma pack(pop)
+
 #ifdef WIN32
 #include <Unknwn.h>
 typedef struct VWB_D3D12_RENDERINPUT
@@ -596,26 +698,22 @@ typedef struct VWB_D3D12_RENDERINPUT
 	IUnknown* textureResource; // ID3D12Resource*, if NULL we use rendertarget as source and issue a copy, must be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state
 	IUnknown* renderTarget; // ID3D12Resource* must be set to add a barrier to command list or to use as copy source, must be in D3D12_RESOURCE_STATE_PRESENT state
 	UINT64    rtvHandlePtr; // ptr value from D3D12_CPU_DESCRIPTOR_HANDLE of render target descriptor heap
+	VWB_float viewport[6];  // set viewport; this is igored if Width or Height is 0 and full size is used; viewport[0] = D3D12_VIEWPORT.TopLeftX, viewport[1] = .TopLeftX, viewport[2] = .Width, viewport[3] = .Height, viewport[4] = .MinDepth, viewport[5] = .MaxDepth;
 } VWB_D3D12_RENDERINPUT;
 
-//typedef struct VWB_D3D12Helper
-//{
-//	typedef UINT64( __stdcall *pfn_getfenceValue )( );
-//
-//	VWB_uint sig;
-//	VWB_uint reserved;
-//	void* pDxDevice;
-//	void* pDxCommandQueue;
-//	const static VWB_uint _sig = 'DX12';
-//	VWB_D3D12Helper( void* _pDxDevice, void* _pDxCommandQueue )
-//		: sig( _sig )
-//		, reserved( 0 )
-//		, pDxDevice( _pDxDevice )
-//		, pDxCommandQueue( _pDxCommandQueue )
-//	{}
-//} VWB_D3D12Helper;
+
+typedef void (*VWB_pfnXPLMSetGraphicsState)( int inEnableFog, int inNumberTexUnits, int inEnableLighting, int inEnableAlphaTesting, int inEnableAlphaBlending, int inEnableDepthTesting, int inEnableDepthWriting );
+typedef void (*VWB_pfnXPLMBindTexture2d)( int inTextureNum, int inTextureUnit );
+typedef void (*VWB_pfnXPLMGenerateTextureNumbers)( int* outTextureIDs, int  inCount );
+
+struct __declspec( uuid("F4A32401-370C-4199-9C17-DD24C6988235")) __declspec( novtable ) IXPlaneRef : public IUnknown
+{
+public:
+	virtual void __stdcall SetGraphicsState( int inEnableFog, int inNumberTexUnits, int inEnableLighting, int inEnableAlphaTesting, int inEnableAlphaBlending, int inEnableDepthTesting, int inEnableDepthWriting ) = 0;
+	virtual void __stdcall BindTexture2d( int inTextureNum, int inTextureUnit ) = 0;
+	virtual void __stdcall GenerateTextureNumbers( int* outTextureIDs, int  inCount ) = 0;
+};
 #endif //def WIN32
-#pragma pack(pop)
 
 
 #endif//__VWB_SMARTPROJECTOR_DEVELOPMENT_FILE_DECLARATIONS__
