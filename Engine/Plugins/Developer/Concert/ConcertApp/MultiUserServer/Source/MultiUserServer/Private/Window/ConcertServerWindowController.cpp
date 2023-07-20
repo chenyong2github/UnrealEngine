@@ -176,8 +176,11 @@ namespace UE::MultiUserServer
 
 	void FConcertServerWindowController::SaveLayout() const
 	{
-		FLayoutSaveRestore::SaveToConfig(MultiUserServerLayoutIni, PersistentLayout.ToSharedRef());
-	    GConfig->Flush(false, MultiUserServerLayoutIni);
+		if (PersistentLayout)
+		{
+			FLayoutSaveRestore::SaveToConfig(MultiUserServerLayoutIni, PersistentLayout.ToSharedRef());
+		    GConfig->Flush(false, MultiUserServerLayoutIni);
+		}
 	}
 }
 
