@@ -54,7 +54,15 @@ public class libOpus : ModuleRules
 		}
         else if (Target.Platform == UnrealTargetPlatform.IOS)
         {
-            string OpusPath = LibraryPath + "/IOS/libOpus.a";
+            string OpusPath = LibraryPath + "/IOS/";
+			if (Target.Architecture == UnrealArch.IOSSimulator)
+			{
+				OpusPath += "libOpus.sim.a";
+			}
+			else
+			{
+				OpusPath += "libOpus.a";
+			}
             PublicAdditionalLibraries.Add(OpusPath);
         }
 	else if (Target.Platform == UnrealTargetPlatform.TVOS)
