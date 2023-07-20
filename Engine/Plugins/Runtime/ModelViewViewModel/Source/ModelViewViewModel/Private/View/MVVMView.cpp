@@ -150,7 +150,6 @@ void UMVVMView::DeinitializeBindings()
 	check(UserWidget);
 
 	const TArrayView<const FMVVMViewClass_SourceCreator> AllViewModelCreators = ClassExtension->GetViewModelCreators();
-	check(AllViewModelCreators.Num() == Sources.Num());
 	for (int32 Index = 0; Index < AllViewModelCreators.Num(); ++Index)
 	{
 		const FMVVMViewClass_SourceCreator& Item = AllViewModelCreators[Index];
