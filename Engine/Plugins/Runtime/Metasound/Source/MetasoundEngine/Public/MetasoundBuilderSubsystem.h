@@ -370,6 +370,7 @@ protected:
 		using namespace Metasound::Frontend;
 
 		UClassType* MetaSound = nullptr;
+		const FMetasoundFrontendClassName* DocClassName = nullptr;
 		if (BuilderOptions.ExistingMetaSound)
 		{
 			MetaSound = CastChecked<UClassType>(BuilderOptions.ExistingMetaSound.GetObject());
@@ -380,6 +381,10 @@ protected:
 			// being registered as it is below.
 			if (MetaSound)
 			{
+				// If MetaSound already exists, preserve the class name to avoid
+				// nametable bloat & preserve potentially existing references.
+				const FMetasoundFrontendDocument& ExistingDoc = CastChecked<const UClassType>(MetaSound)->GetDocumentChecked();
+				DocClassName = &ExistingDoc.RootGraph.Metadata.GetClassName();
 				const FNodeRegistryKey& RegistryKey = MetaSound->GetRegistryKey();
 				if (NodeRegistryKey::IsValid(RegistryKey))
 				{
@@ -410,10 +415,10 @@ protected:
 		FMetasoundFrontendDocument NewDocument = GetConstBuilder().GetDocument();
 		{
 			// This is required to ensure the newly build document has a unique class
-			// identifier to avoid collisions if added to the Frontend class registry
-			// (either below or at a later point in time).
+			// identifier than that of the given builder's document copy to avoid collisions
+			// if added to the Frontend class registry (either below or at a later point in time).
 			constexpr bool bResetVersion = false;
-			FMetaSoundFrontendDocumentBuilder::InitGraphClassMetadata(NewDocument.RootGraph.Metadata, bResetVersion);
+			FMetaSoundFrontendDocumentBuilder::InitGraphClassMetadata(NewDocument.RootGraph.Metadata, bResetVersion, DocClassName);
 		}
 
 		MetaSound->SetDocument(MoveTemp(NewDocument));

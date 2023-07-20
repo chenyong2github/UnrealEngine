@@ -7,6 +7,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
+#include "MetasoundLog.h"
 #include "MetasoundSource.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Paths.h"
@@ -260,8 +261,32 @@ bool FMetaSoundSourceBuilderAuditionLatentCommand::Update()
 {
 	if (Builder && AudioComponent)
 	{
+		auto GetComponentSoundClassName = [this]() -> FName
+		{
+			if (const USoundBase* InitSound = AudioComponent->GetSound())
+			{
+				const UMetaSoundSource* InitMetaSound = CastChecked<UMetaSoundSource>(InitSound);
+				return InitMetaSound->GetDocumentChecked().RootGraph.Metadata.GetClassName().GetFullName();
+			}
+
+			return { };
+		};
+
+		// This is an inline test to ensure that the first time a builder is auditioned, its generating a new unique MetaSound Class Name.
+		// Each subsequent call should maintain that name to avoid bloating the FName table/breaking references should this auditioned sound
+		// be in anyway referenced.
+		const FName InitClassName = GetComponentSoundClassName();
 		Builder->Audition(nullptr, AudioComponent, { }, true);
-		return true;
+		const FName BuiltClassName = GetComponentSoundClassName();
+
+		const bool bInitNameGenerated = InitClassName.IsNone() && !BuiltClassName.IsNone();
+		const bool bClassNameMaintained = InitClassName == BuiltClassName;
+		if (bInitNameGenerated || bClassNameMaintained)
+		{
+			return true;
+		}
+
+		UE_LOG(LogMetaSound, Error, TEXT("Latent test audition call resulted in generation of a new MetaSound class instead of re-using the existing class name"));
 	}
 	return false;
 }
@@ -345,6 +370,55 @@ bool FAudioMetasoundSourceBuilderTest::RunTest(const FString& Parameters)
 			constexpr bool bEnableLiveUpdate = false;
 			ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderAuditionLatentCommand(&Builder, AudioComponent, bEnableLiveUpdate));
 			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(2.f));
+			ADD_LATENT_AUTOMATION_COMMAND(FAudioComponentStopLatentCommand(AudioComponent));
+			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.5f));
+			ADD_LATENT_AUTOMATION_COMMAND(FBuilderRemoveFromRootLatentCommand(&Builder));
+			ADD_LATENT_AUTOMATION_COMMAND(FAudioComponentRemoveFromRootLatentCommand(AudioComponent));
+		}
+	}
+
+	return true;
+}
+
+// This test creates a MetaSound source from a SourceBuilder, adds a simple sine tone generator with a connected graph input frequency, and attempts to change the frequency and audition it rapidly 100 times.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMetasoundSourceBuilderTestSpamAudition, "Audio.Metasound.SpamAuditionMetasoundSource", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FAudioMetasoundSourceBuilderTestSpamAudition::RunTest(const FString& Parameters)
+{
+	using namespace EngineTestMetaSoundPatchBuilderPrivate;
+	using namespace EngineTestMetaSoundSourcePrivate;
+
+	FMetaSoundBuilderNodeInputHandle MonoOutNodeInput;
+	FMetaSoundBuilderNodeInputHandle GenInputNodeFreq;
+	UMetaSoundSourceBuilder& Builder = CreateMonoSourceSinGenBuilder(*this, &GenInputNodeFreq, &MonoOutNodeInput);
+	Builder.AddToRoot();
+
+	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())
+	{
+		constexpr bool bAddToRegistry = false;
+		TScriptInterface<IMetaSoundDocumentInterface> BuiltDocumentInterface = Builder.Build(nullptr, FMetaSoundBuilderOptions{ "BuildAndPlayMetasoundSource", bAddToRegistry });
+		UMetaSoundSource* MetaSoundSource = CastChecked<UMetaSoundSource>(BuiltDocumentInterface.GetObject());
+
+		if (UAudioComponent* AudioComponent = NewObject<UAudioComponent>())
+		{
+			AudioComponent->bAutoActivate = false;
+			AudioComponent->bIsUISound = true; // play while "paused"
+			AudioComponent->AudioDeviceID = AudioDevice->DeviceID;
+
+			AudioComponent->bAllowSpatialization = false;
+			AudioComponent->SetVolumeMultiplier(1.0f);
+			AudioComponent->AddToRoot();
+
+			constexpr bool bEnableLiveUpdate = false;
+			constexpr int32 NumTrials = 100;
+			for (int32 Index = 0; Index < NumTrials; ++Index)
+			{
+				FMetasoundFrontendLiteral NewValue;
+				NewValue.Set(FMath::RandRange(220.f, 2200.f));
+				ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderSetLiteralLatentCommand(*this, &Builder, GenInputNodeFreq, NewValue));
+				ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderAuditionLatentCommand(&Builder, AudioComponent, bEnableLiveUpdate));
+				ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.01f));
+			}
+
 			ADD_LATENT_AUTOMATION_COMMAND(FAudioComponentStopLatentCommand(AudioComponent));
 			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.5f));
 			ADD_LATENT_AUTOMATION_COMMAND(FBuilderRemoveFromRootLatentCommand(&Builder));
