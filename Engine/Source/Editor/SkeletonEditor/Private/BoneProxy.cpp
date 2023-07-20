@@ -20,6 +20,7 @@ UBoneProxy::UBoneProxy()
 	, PreviousScale(FVector::ZeroVector)
 	, bManipulating(false)
 	, bIsTickable(false)
+	, bIsTransformEditable(true)
 {
 }
 
@@ -240,7 +241,7 @@ void UBoneProxy::OnNumericValueCommitted(
 	ETransformType TransformType,
 	bool bIsCommit)
 {
-	if(TransformType != TransformType_Bone)
+	if(TransformType != TransformType_Bone || !bIsTransformEditable)
 	{
 		return;
 	}
@@ -346,7 +347,7 @@ void UBoneProxy::OnMultiNumericValueCommitted(
 
 bool UBoneProxy::DiffersFromDefault(ESlateTransformComponent::Type Component, ETransformType TransformType) const
 {
-	if(TransformType == TransformType_Bone)
+	if(TransformType == TransformType_Bone && bIsTransformEditable)
 	{
 		switch(Component)
 		{
@@ -375,7 +376,7 @@ bool UBoneProxy::DiffersFromDefault(ESlateTransformComponent::Type Component, ET
 
 void UBoneProxy::ResetToDefault(ESlateTransformComponent::Type InComponent, ETransformType TransformType)
 {
-	if(TransformType == TransformType_Bone)
+	if(TransformType == TransformType_Bone && bIsTransformEditable)
 	{
 		if (UDebugSkelMeshComponent* Component = SkelMeshComponent.Get())
 		{

@@ -115,6 +115,9 @@ public:
 	/** Flag indicating whether this FTickableEditorObject should actually tick */
 	bool bIsTickable;
 
+	/** Flag indicating whether this bone's transform is editable */
+	bool bIsTransformEditable;
+
 	/** Method to react to retrieval of numeric values for the widget */
 	TOptional<FVector::FReal> GetNumericValue(
 		ESlateTransformComponent::Type Component,

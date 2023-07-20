@@ -181,6 +181,20 @@ void FBoneProxyDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 	{
 		bIsEditingEnabled = (Component->AnimScriptInstance == Component->PreviewInstance);
 	}
+
+	if (bIsEditingEnabled)
+	{
+		bool bHasEditable = false;
+		for (const UBoneProxy* BoneProxy : BoneProxies)
+		{
+			if (BoneProxy->bIsTransformEditable)
+			{
+				bHasEditable = true;
+				break;
+			}
+		}
+		bIsEditingEnabled = bHasEditable;
+	}
 	
 	DetailBuilder.HideCategory(TEXT("Transform"));
 	DetailBuilder.HideCategory(TEXT("Reference Transform"));
@@ -377,6 +391,10 @@ void FBoneProxyDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 
 			for (UBoneProxy* BoneProxy : BoneProxiesView)
 			{
+				if (!BoneProxy->bIsTransformEditable)
+				{
+					continue; // Skip non editable bones
+				}
 				if (const UDebugSkelMeshComponent* Component = BoneProxy->SkelMeshComponent.Get())
 				{
 					switch(InComponent)
@@ -484,7 +502,7 @@ bool FBoneProxyDetailsCustomization::IsResetLocationVisible(TSharedPtr<IProperty
 		{
 			if (FAnimNode_ModifyBone* ModifyBone = Component->PreviewInstance->FindModifiedBone(BoneProxy->BoneName))
 			{
-				if (ModifyBone->Translation != FVector::ZeroVector)
+				if (ModifyBone->Translation != FVector::ZeroVector && BoneProxy->bIsTransformEditable)
 				{
 					return true;
 				}
@@ -503,7 +521,7 @@ bool FBoneProxyDetailsCustomization::IsResetRotationVisible(TSharedPtr<IProperty
 		{
 			if (FAnimNode_ModifyBone* ModifyBone = Component->PreviewInstance->FindModifiedBone(BoneProxy->BoneName))
 			{
-				if (ModifyBone->Rotation != FRotator::ZeroRotator)
+				if (ModifyBone->Rotation != FRotator::ZeroRotator && BoneProxy->bIsTransformEditable)
 				{
 					return true;
 				}
@@ -522,7 +540,7 @@ bool FBoneProxyDetailsCustomization::IsResetScaleVisible(TSharedPtr<IPropertyHan
 		{
 			if (FAnimNode_ModifyBone* ModifyBone = Component->PreviewInstance->FindModifiedBone(BoneProxy->BoneName))
 			{
-				if (ModifyBone->Scale != FVector(1.0f))
+				if (ModifyBone->Scale != FVector(1.0f) && BoneProxy->bIsTransformEditable)
 				{
 					return true;
 				}
