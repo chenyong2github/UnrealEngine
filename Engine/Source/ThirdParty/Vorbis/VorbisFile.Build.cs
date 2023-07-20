@@ -34,9 +34,10 @@ public class VorbisFile : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "IOS", "libvorbis.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "IOS", "libvorbisfile.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "IOS", "libvorbisenc.a"));
+			string LibExt = (Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "IOS", "libvorbis" + LibExt));
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "IOS", "libvorbisfile" + LibExt));
+			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "IOS", "libvorbisenc" + LibExt));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
