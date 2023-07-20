@@ -1858,6 +1858,7 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 	InBytes += PacketBytes;
 	InTotalBytes += PacketBytes;
 	++InPackets;
+	++InPacketsThisFrame;
 	++InTotalPackets;
 
 	if (Driver)
@@ -2161,9 +2162,8 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		// Make sure that we always push an ChannelRecordEntry for each transmitted packet even if it is empty
 		FChannelRecordImpl::PushPacketId(ChannelRecord, OutPacketId);
 
-		
-
 		++OutPackets;
+		++OutPacketsThisFrame;
 		++OutTotalPackets;
 		Driver->OutPackets++;
 		Driver->OutTotalPackets++;
@@ -5627,6 +5627,29 @@ static void	RemoveSimulatedNetConnections(const TArray<FString>& Args, UWorld* W
 FAutoConsoleCommandWithWorldAndArgs AddimulatedConnectionsCmd(TEXT("net.SimulateConnections"), TEXT("Starts a Simulated Net Driver"),	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(AddSimulatedNetConnections) );
 
 FAutoConsoleCommandWithWorldAndArgs RemoveSimulatedConnectionsCmd(TEXT("net.DisconnectSimulatedConnections"), TEXT("Disconnects some simulated connections (0 = all)"), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(RemoveSimulatedNetConnections));
+
+FAutoConsoleCommandWithWorldAndArgs ForceOnePacketPerBunch(TEXT("net.ForceOnePacketPerBunch"), 
+	TEXT("When set to true it will enable AutoFlush on all connections and force a packet to be sent for every bunch we create. This forces one packet per replicated actor and can help find rare ordering bugs"), 
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+{
+	bool bEnable = true;
+	if (Args.Num() > 0)
+	{
+		LexTryParseString<bool>(bEnable, *Args[0]);
+	}
+
+	UE_LOG(LogNet, Display, TEXT("ForceOnePacketPerBunch set to %s"), bEnable?TEXT("true"):TEXT("false"));
+
+	for (TObjectIterator<UNetConnection> It; It; ++It)
+	{
+		// Only set autoflush for GameNetDriver connections
+		if (It->Driver == World->NetDriver)
+		{
+			It->SetAutoFlush(bEnable);
+		}
+	}
+}));
+
 
 // ----------------------------------------------------------------
 

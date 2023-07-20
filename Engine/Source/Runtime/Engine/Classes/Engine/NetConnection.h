@@ -519,6 +519,10 @@ public:
 	int32 InTotalBytes, OutTotalBytes;
 	/** packets sent/received on this connection (accumulated during a StatPeriod) */
 	int32 InPackets, OutPackets;
+	/** Packets received in the current tick */
+	int32 InPacketsThisFrame = 0;
+	/** Packets sent in the current tick */
+	int32 OutPacketsThisFrame = 0;
 	/** total packets sent/received on this connection */
 	int32 InTotalPackets, OutTotalPackets;
 	/** bytes sent/received on this connection (per second) - these are from previous StatPeriod interval */
