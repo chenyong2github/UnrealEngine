@@ -7,7 +7,7 @@ public class DX11Input : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
+		PublicDependencyModuleNames.Add("DirectX");
 
 		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)

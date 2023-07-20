@@ -18,7 +18,7 @@ public class XInput : ModuleRules
 			if (Target.Architecture.bIsX64)
 			{
 				PublicAdditionalLibraries.Add(DirectX.GetLibDir(Target) + "XInput.lib");
-				PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
+				PublicDependencyModuleNames.Add("DirectX");
 			}
 			else
 			{

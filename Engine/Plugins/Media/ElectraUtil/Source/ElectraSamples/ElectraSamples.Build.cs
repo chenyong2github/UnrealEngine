@@ -38,7 +38,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
-				PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
+				PublicDependencyModuleNames.Add("DirectX");
 				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");

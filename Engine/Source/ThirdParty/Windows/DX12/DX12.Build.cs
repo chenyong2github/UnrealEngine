@@ -12,7 +12,7 @@ public class DX12 : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
+			PublicDependencyModuleNames.Add("DirectX");	
 
 			string[] AllD3DLibs = new string[]
 			{

@@ -9,7 +9,7 @@ public class DirectSound : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
+			PublicDependencyModuleNames.Add("DirectX");
 
 			string DirectXLibDir = DirectX.GetLibDir(Target);
 			PublicAdditionalLibraries.AddRange(

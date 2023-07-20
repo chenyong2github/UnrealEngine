@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Rules
 			//
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
-				PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
+				PublicDependencyModuleNames.Add("DirectX");
 
 				PrivateDefinitions.Add("_CRT_SECURE_NO_WARNINGS=1");
 
