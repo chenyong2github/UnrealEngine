@@ -86,7 +86,6 @@ Landscape.cpp: Terrain rendering
 #include "Algo/BinarySearch.h"
 #include "Algo/Count.h"
 #include "Algo/Transform.h"
-#include "Algo/AllOf.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -189,25 +188,6 @@ FAutoConsoleVariableRef CVarRenderNaniteLandscape(
 	TEXT("Render Landscape using Nanite."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
-
-struct FCompareULandscapeComponentClosest
-{
-	FCompareULandscapeComponentClosest(const FIntPoint& InCenter) : Center(InCenter) {}
-
-	FORCEINLINE bool operator()(const ULandscapeComponent* A, const ULandscapeComponent* B) const
-	{
-		const FIntPoint ABase = A->GetSectionBase();
-		const FIntPoint BBase = B->GetSectionBase();
-
-		int32 DistA = (ABase - Center).SizeSquared();
-		int32 DistB = (BBase - Center).SizeSquared();
-
-		return DistA < DistB;
-	}
-
-	FIntPoint Center;
-
-};
 
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -332,7 +312,7 @@ bool ALandscapeProxy::IsNaniteMeshUpToDate() const
 	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
 	{
 		const FGuid NaniteContentId = GetNaniteContentId();
-		return AreNaniteComponentsValid(NaniteContentId);
+		return (NaniteComponent != nullptr) && (NaniteComponent->GetProxyContentId() == NaniteContentId);
 	}
 
 	return true;
@@ -347,46 +327,25 @@ FGraphEventRef ALandscapeProxy::UpdateNaniteRepresentationAsync(const ITargetPla
 	{
 		const FGuid NaniteContentId = GetNaniteContentId();
 
-		int32 NumNewNaniteComponents = NumNaniteRequiredComponents();
-		if (NumNewNaniteComponents != NaniteComponents.Num())
+		if (NaniteComponent == nullptr)
 		{
-			RemoveNaniteComponents();
-			CreateNaniteComponents(NumNewNaniteComponents);
+			CreateNaniteComponent();
 		}
 
-		const FGuid ComponentNaniteContentId = GetNaniteComponentContentId();
-		const bool bNaniteContentDirty = ComponentNaniteContentId != NaniteContentId;
+		const FGuid ComponentNaniteContentId = NaniteComponent->GetProxyContentId();
+		const bool bNaniteComponentDirty = NaniteComponent->GetProxyContentId() != NaniteContentId;
 
-		UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentationAsync actor: '%s' package:'%s' dirty:%i component guid:'%s' proxy guid:'%s'"), *GetActorNameOrLabel(), *GetPackage()->GetName(), bNaniteContentDirty, *ComponentNaniteContentId.ToString(), *NaniteContentId.ToString());
+		UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentationAsync actor: '%s' package:'%s' dirty:%i component guid:'%s' proxy guid:'%s'"), *GetActorNameOrLabel(), *GetPackage()->GetName(), bNaniteComponentDirty, *ComponentNaniteContentId.ToString(), *NaniteContentId.ToString());
 
-		if (bNaniteContentDirty)
+		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
 		{
-			TArray<ULandscapeComponent*> StableOrderComponents(LandscapeComponents);
 			ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-			FGraphEventArray UpdateDependencies;
-			for (int32 i = 0; i < NumNewNaniteComponents; ++i)
-			{
-				
-				const int32 StartComponentIndex = i * NaniteMaxComponents;
-				const int32 EndComponentIndex = FMath::Min(LandscapeComponents.Num(), (i + 1) * NaniteMaxComponents);
-				const int32 NumComponents = EndComponentIndex - StartComponentIndex;
+			FGraphEventArray UpdateDependencies{ NaniteComponent->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled()) };
 
-				TArrayView<ULandscapeComponent*> StableOrderComponentsView = TArrayView<ULandscapeComponent*>(&StableOrderComponents[StartComponentIndex], LandscapeComponents.Num() - StartComponentIndex);
-				
-				ULandscapeComponent** MinComponent = Algo::MinElementBy(StableOrderComponentsView, 
-					[](const ULandscapeComponent* Component) { return Component->GetSectionBase(); }, 
-					[](const FIntPoint& A, const FIntPoint& B) { return (A.Y == B.Y) ? (A.X < B.X) : (A.Y < B.Y); }
-				);
-				check(MinComponent);
-				Algo::Sort(StableOrderComponentsView, FCompareULandscapeComponentClosest((*MinComponent)->GetSectionBase()));
-
-				TArrayView<ULandscapeComponent*> ComponentsToExport(StableOrderComponentsView.GetData(), NumComponents);
-				FGraphEventArray SingleProxyDependencies{ NaniteComponents[i]->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled(), ComponentsToExport, i) };
-
-				// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
-				TWeakObjectPtr<ULandscapeNaniteComponent> WeakComponent = NaniteComponents[i];
-				TWeakObjectPtr<ALandscapeProxy> WeakProxy = this;
-				FGraphEventRef FinalizeEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([WeakComponent, WeakProxy, Name = GetActorNameOrLabel(), InTargetPlatform]() {
+			// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
+			TWeakObjectPtr<ULandscapeNaniteComponent> WeakComponent = NaniteComponent;
+			TWeakObjectPtr<ALandscapeProxy> WeakProxy = this;
+			BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([WeakComponent, WeakProxy, Name = GetActorNameOrLabel(), InTargetPlatform]() {
 					if (!WeakComponent.IsValid() || !WeakProxy.IsValid())
 					{
 						UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentationAsync Component on: '%s' Is Invalid"), *Name);
@@ -394,16 +353,10 @@ FGraphEventRef ALandscapeProxy::UpdateNaniteRepresentationAsync(const ITargetPla
 					}
 					WeakComponent->InitializePlatformForLandscape(WeakProxy.Get(), InTargetPlatform);
 					WeakComponent->UpdatedSharedPropertiesFromActor();
-					},
-					TStatId(),
-					&SingleProxyDependencies,
-					ENamedThreads::GameThread);
-
-				UpdateDependencies.Add(FinalizeEvent);
-			}
-			
-			BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId(), &UpdateDependencies, ENamedThreads::GameThread);
-
+				},
+				TStatId(),
+				&UpdateDependencies,
+				ENamedThreads::GameThread);
 		}
 
 	}
@@ -419,39 +372,80 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* InTarget
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateNaniteRepresentation);
 
-	FGraphEventRef GraphEvent = UpdateNaniteRepresentationAsync(InTargetPlatform);
-	ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-
-	if (!GraphEvent.IsValid())
+	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
 	{
-		return;
-	}
+		const FGuid NaniteContentId = GetNaniteContentId();
 
-	UE_LOG(LogLandscape, Error, TEXT("UpdateNaniteRepresentation proxy:%p target platform:%p subsystem:%p"), this, InTargetPlatform, Subsystem);
-	if (!Subsystem->IsMultithreadedNaniteBuildEnabled() || IsRunningCookCommandlet())
-	{
-		UE_LOG(LogLandscape, Error, TEXT("Starting.."));
-		while (!GraphEvent->IsComplete())
+		bool bSuccess = true;
+		if (NaniteComponent == nullptr)
 		{
-			UE_LOG(LogLandscape, Error, TEXT("Waiting.."));
-
-			ENamedThreads::Type CurrentThread = FTaskGraphInterface::Get().GetCurrentThreadIfKnown();
-			FTaskGraphInterface::Get().ProcessThreadUntilIdle(CurrentThread);
-			FAssetCompilingManager::Get().ProcessAsyncTasks();
-
-			
-			UE_LOG(LogLandscape, Error, TEXT("Still.."));
+			CreateNaniteComponent();
+			bSuccess = true;
 		}
+
+		FGuid ComponentNaniteContentId = NaniteComponent->GetProxyContentId();
+		const bool bNaniteComponentDirty = ComponentNaniteContentId != NaniteContentId;
+		UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentation actor: '%s' package:'%s' dirty:%i component guid:'%s' proxy guid:'%s'"), *GetActorNameOrLabel(), *GetPackage()->GetName(), bNaniteComponentDirty , *ComponentNaniteContentId.ToString(), *NaniteContentId.ToString());
+
+		if (bNaniteComponentDirty)
+		{
+			ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
+			if (!Subsystem->IsMultithreadedNaniteBuildEnabled() || IsRunningCookCommandlet())
+			{
+
+				UE_LOG(LogLandscape, Log, TEXT("Commandlet synchronous nanite actor: '%s' "), *GetActorNameOrLabel());
+
+				FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
+				ProgressDialog.MakeDialogDelayed(/*Threshold = */1.0f);
+				NaniteComponent->InitializeForLandscape(this, NaniteContentId);
+			}
+			else
+			{
+				UE_LOG(LogLandscape, Log, TEXT("Commandlet asynchronous nanite actor: '%s' "), *GetActorNameOrLabel());
+
+				FGraphEventArray UpdateDependencies { NaniteComponent->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled())};
+
+				FGraphEventRef BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([this, InTargetPlatform]()
+					{
+					},
+					TStatId(),
+					&UpdateDependencies,
+					ENamedThreads::GameThread);
+			}			
+		}
+
+		if (bSuccess)
+		{
+			// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
+			bSuccess &= NaniteComponent->InitializePlatformForLandscape(this, InTargetPlatform);
+		}
+
+		if (bSuccess)
+		{
+			NaniteComponent->UpdatedSharedPropertiesFromActor();
+		}
+		else
+		{
+			// This will delete the Nanite component and will revert back to normal landscape rendering
+			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+		}
+	}
+	else
+	{
+		InvalidateNaniteRepresentation(/* bInCheckContentId = */false);
 	}
 }
 
 void ALandscapeProxy::InvalidateNaniteRepresentation(bool bInCheckContentId)
 {
-	if (HasNaniteComponents())
+	if (NaniteComponent != nullptr)
 	{
-		if (!bInCheckContentId || GetNaniteComponentContentId() != GetNaniteContentId())
+		if (!bInCheckContentId || NaniteComponent->GetProxyContentId() != GetNaniteContentId())
 		{
-			RemoveNaniteComponents();
+			// Don't call modify when detaching the nanite component, this is non-transactional "derived data", regenerated any time the source landscape data changes. This prevents needlessly dirtying the package :
+			NaniteComponent->DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bInCallModify = */false));
+			NaniteComponent->DestroyComponent();
+			NaniteComponent = nullptr;
 		}
 	}
 }
@@ -3760,13 +3754,7 @@ void ALandscapeProxy::PostLoad()
 		FeatureLevelChangedDelegateHandle = World->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
 	}
 	RepairInvalidTextures();
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (NaniteComponent_DEPRECATED)
-	{
-		NaniteComponents.Add(NaniteComponent_DEPRECATED);
-		NaniteComponent_DEPRECATED = nullptr;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	// Handle Nanite representation invalidation on load: 
 	if (!HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
 	{
@@ -3788,7 +3776,10 @@ void ALandscapeProxy::PostLoad()
 		}
 
 		// Remove RF_Transactional from Nanite components : they're re-created upon transacting now : 
-		ClearNaniteTransactional();
+		if (NaniteComponent != nullptr)
+		{
+			NaniteComponent->ClearFlags(RF_Transactional);
+		}
 	}
 #endif // WITH_EDITOR
 
@@ -5623,25 +5614,20 @@ void ULandscapeMeshProxyComponent::InitializeForLandscape(ALandscapeProxy* Lands
 
 #if WITH_EDITOR
 
-void  ALandscapeProxy::CreateNaniteComponents(int32 InNumComponents) 
+void  ALandscapeProxy::CreateNaniteComponent() 
 {
-	for (int32 i = 0; i < InNumComponents; ++i)
-	{
-		ULandscapeNaniteComponent* NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, *FString::Format(TEXT("LandscapeNaniteComponent_{0}"), {{ i }}));
-		NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-		NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		NaniteComponent->SetMobility(EComponentMobility::Static);
-		NaniteComponent->SetGenerateOverlapEvents(false);
-		NaniteComponent->SetCanEverAffectNavigation(false);
-		NaniteComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-		NaniteComponent->bSelectable = false;
-		NaniteComponent->DepthPriorityGroup = SDPG_World;
-		NaniteComponent->bForceNaniteForMasked = true;
-		NaniteComponent->RegisterComponent();
-		NaniteComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-
-		NaniteComponents.Add(NaniteComponent);
-	}
+	NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, TEXT("LandscapeNaniteComponent"));
+	NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	NaniteComponent->SetMobility(EComponentMobility::Static);
+	NaniteComponent->SetGenerateOverlapEvents(false);
+	NaniteComponent->SetCanEverAffectNavigation(false);
+	NaniteComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+	NaniteComponent->bSelectable = false;
+	NaniteComponent->DepthPriorityGroup = SDPG_World;
+	NaniteComponent->bForceNaniteForMasked = true;
+	NaniteComponent->RegisterComponent();
+	NaniteComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 }
 
 void ALandscapeProxy::SerializeStateHashes(FArchive& Ar)
@@ -5778,28 +5764,6 @@ UE::Landscape::EOutdatedDataFlags ALandscapeProxy::GetOutdatedDataFlags() const
 	return OutdatedDataFlags;
 }
 
-void ALandscapeProxy::ClearNaniteTransactional()
-{
-	for (ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (NaniteComponent)
-		{
-			NaniteComponent->ClearFlags(RF_Transactional);
-		}
-	}
-}
-
-void ALandscapeProxy::UpdateNaniteSharedPropertiesFromActor()
-{	
-	for (ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (NaniteComponent)
-		{
-			NaniteComponent->UpdatedSharedPropertiesFromActor();
-		}	
-	}
-}
-
 void ALandscapeProxy::InvalidatePhysicalMaterial()
 {
 	for (ULandscapeComponent* Component : LandscapeComponents)
@@ -5865,106 +5829,7 @@ void ALandscapeProxy::UpdatePhysicalMaterialTasks(bool bInShouldMarkDirty)
 		MarkPackageDirty();
 	}
 }
-
-void ALandscapeProxy::RemoveNaniteComponents()
-{
-	for (ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (NaniteComponent)
-		{
-			// Don't call modify when detaching the nanite component, this is non-transactional "derived data", regenerated any time the source landscape data changes. This prevents needlessly dirtying the package :
-			NaniteComponent->DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bInCallModify = */false));
-			NaniteComponent->DestroyComponent();
-		}
-	}
-
-	NaniteComponents.Empty();
-
-}
-#endif // WITH_EDITOR
-
-void ALandscapeProxy::EnableNaniteComponents(bool bInNaniteActive)
-{
-	for (ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (NaniteComponent)
-		{
-			NaniteComponent->SetEnabled(bInNaniteActive);
-		}
-	}
-}
-
-bool ALandscapeProxy::AreNaniteComponentsValid(const FGuid& InProxyContentId) const
-{
-	if (NaniteComponents.IsEmpty())
-	{
-		return false;
-	}
-
-	for (const ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (!NaniteComponent)
-		{
-			return false;
-		}
-
-		if (NaniteComponent->GetProxyContentId() != InProxyContentId)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-TSet<FPrimitiveComponentId> ALandscapeProxy::GetNanitePrimitiveComponentIds() const
-{
-	TSet<FPrimitiveComponentId> PrimitiveComponentIds;
-	for (const ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (NaniteComponent && NaniteComponent->SceneProxy)
-		{
-			PrimitiveComponentIds.Add(NaniteComponent->SceneProxy->GetPrimitiveComponentId());
-		}
-
-	}
-	return PrimitiveComponentIds;
-}
-
-FGuid ALandscapeProxy::GetNaniteComponentContentId() const
-{
-	if (NaniteComponents.IsEmpty())
-	{
-		return FGuid();
-	}
-
-	FGuid ContentId = NaniteComponents[0] ? NaniteComponents[0]->GetProxyContentId() : FGuid();
-	return ContentId;
-}
-
-bool ALandscapeProxy::AuditNaniteMaterials() const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::AuditMaterials);
-	for (const ULandscapeNaniteComponent* NaniteComponent : NaniteComponents)
-	{
-		if (!NaniteComponent)
-		{
-			return false;
-		}
-
-		Nanite::FMaterialAudit NaniteMaterials;
-		Nanite::AuditMaterials(NaniteComponent, NaniteMaterials);
-
-		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowed(GetWorld(), NaniteComponent->bForceNaniteForMasked);
-		if (!NaniteMaterials.IsValid(bIsMaskingAllowed))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-
+#endif
 
 void ALandscapeProxy::InvalidateGeneratedComponentData(bool bInvalidateLightingCache)
 {
@@ -6022,7 +5887,7 @@ void ALandscapeProxy::UpdateRenderingMethod()
 	}
 
 	bool bNaniteActive = false;
-	if ((GRenderNaniteLandscape != 0) && HasNaniteComponents())
+	if ((GRenderNaniteLandscape != 0) && NaniteComponent)
 	{
 		bNaniteActive = UseNanite(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 #if WITH_EDITOR
@@ -6042,13 +5907,18 @@ void ALandscapeProxy::UpdateRenderingMethod()
 #if WITH_EDITOR
 	if (bNaniteActive)
 	{
-		bNaniteActive = GetNaniteComponentContentId() == GetNaniteContentId();
+		bNaniteActive = NaniteComponent->GetProxyContentId() == GetNaniteContentId();
 	}
 #endif //WITH_EDITOR
 
 	if (bNaniteActive)
 	{
-		bNaniteActive = AuditNaniteMaterials();
+		TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateRenderingMethod-AuditMaterials);
+		Nanite::FMaterialAudit NaniteMaterials;
+		Nanite::AuditMaterials(NaniteComponent, NaniteMaterials);
+
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowed(GetWorld(), NaniteComponent->bForceNaniteForMasked);
+		bNaniteActive = NaniteMaterials.IsValid(bIsMaskingAllowed);
 	}
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
@@ -6059,7 +5929,10 @@ void ALandscapeProxy::UpdateRenderingMethod()
 		}
 	}
 
-	EnableNaniteComponents(bNaniteActive);
+	if (NaniteComponent)
+	{
+		NaniteComponent->SetEnabled(bNaniteActive);
+	}
 }
 
 ULandscapeLODStreamingProxy_DEPRECATED::ULandscapeLODStreamingProxy_DEPRECATED(const FObjectInitializer& ObjectInitializer)
