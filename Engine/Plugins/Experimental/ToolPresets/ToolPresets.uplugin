@@ -17,12 +17,12 @@
 	"IsExperimentalVersion": true,
 	"Modules": [
 		{
-			"Name": "PresetAsset",
+			"Name": "ToolPresetAsset",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "PresetEditor",
+			"Name": "ToolPresetEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}

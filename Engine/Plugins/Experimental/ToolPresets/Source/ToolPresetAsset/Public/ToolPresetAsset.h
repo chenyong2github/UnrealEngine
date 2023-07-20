@@ -9,22 +9,22 @@
 #include "AssetToolsModule.h"
 #include "EditorConfigBase.h"
 
-#include "PresetAsset.generated.h"
+#include "ToolPresetAsset.generated.h"
 
-#define LOCTEXT_NAMESPACE "PresetAsset"
+#define LOCTEXT_NAMESPACE "ToolPresetAsset"
 
 USTRUCT(BlueprintType)
-struct PRESETASSET_API FInteractiveToolPresetDefintion
+struct TOOLPRESETASSET_API FInteractiveToolPresetDefinition
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig))
+	UPROPERTY(VisibleAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
 	FString StoredProperties;
 
-	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
+	UPROPERTY(EditAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
 	FString Label;
 
-	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
+	UPROPERTY(EditAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
 	FString Tooltip;
 
 	bool IsValid() const;
@@ -33,17 +33,17 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct PRESETASSET_API FInteractiveToolPresetStore
+struct TOOLPRESETASSET_API FInteractiveToolPresetStore
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
-	TArray<FInteractiveToolPresetDefintion> NamedPresets;
+	UPROPERTY(EditAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
+	TArray<FInteractiveToolPresetDefinition> NamedPresets;
 
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig))
+	UPROPERTY(VisibleAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
 	FText ToolLabel;
 
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig))
+	UPROPERTY(VisibleAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
 	FSlateBrush ToolIcon;
 };
 
@@ -51,7 +51,7 @@ public:
  * Implements an asset that can be used to store tool settings as a named preset
  */
 UCLASS(BlueprintType, hidecategories=(Object), EditorConfig = "UInteractiveToolsPresetCollectionAsset_DefaultCollection")
-class PRESETASSET_API UInteractiveToolsPresetCollectionAsset 
+class TOOLPRESETASSET_API UInteractiveToolsPresetCollectionAsset 
 	: public UEditorConfigBase
 {
 	GENERATED_BODY()
@@ -65,16 +65,16 @@ public:
 	// Once we are satisifed with the data structure, planned accessors and mutators will include
 	// support for adding, removing, renaming, saving and retrieving presets.
 
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig) )
+	UPROPERTY(VisibleAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig) )
 	TMap<FString, FInteractiveToolPresetStore > PerToolPresets;
 
-	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
+	UPROPERTY(EditAnywhere, Category = "ToolPresetAsset", meta = (EditorConfig))
 	FText CollectionLabel;
 };
 
 
 UCLASS(hidecategories = Object)
-class PRESETASSET_API UInteractiveToolsPresetCollectionAssetFactory : public UFactory
+class TOOLPRESETASSET_API UInteractiveToolsPresetCollectionAssetFactory : public UFactory
 {
 	GENERATED_BODY()
 
@@ -112,7 +112,7 @@ public:
 	uint32 GetMenuCategories() const override
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		return AssetTools.RegisterAdvancedAssetCategory("Presets", LOCTEXT("AssetCategoryName", "Presets"));
+		return AssetTools.RegisterAdvancedAssetCategory("ToolPresets", LOCTEXT("AssetCategoryName", "Tool Presets"));
 	}
 
 	FString GetDefaultNewAssetName() const override

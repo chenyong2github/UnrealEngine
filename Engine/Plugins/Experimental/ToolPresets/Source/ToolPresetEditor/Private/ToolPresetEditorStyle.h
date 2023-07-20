@@ -6,7 +6,7 @@
 
 struct FSlateBrush;
 
-class FPresetEditorStyle
+class FToolPresetEditorStyle
 {
 public:
 	static void Initialize();
@@ -18,7 +18,7 @@ public:
 	static FName GetStyleSetName();
 
 	// use to access icons defined by the style set by name, eg GetBrush("BrushFalloffIcons.Smooth")
-	static const FSlateBrush* GetBrush(FName PropertyName, const ANSICHAR* Specifier = NULL);
+	static const FSlateBrush* GetBrush(FName PropertyName, const ANSICHAR* Specifier = nullptr);
 
 private:
 	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);

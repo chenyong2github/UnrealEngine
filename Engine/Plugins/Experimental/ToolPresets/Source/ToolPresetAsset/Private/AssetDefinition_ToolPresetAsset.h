@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "PresetAsset.h"
+#include "ToolPresetAsset.h"
 #include "AssetDefinitionDefault.h"
 
-#include "AssetDefinition_PresetAsset.generated.h"
+#include "AssetDefinition_ToolPresetAsset.generated.h"
 
 enum class EAssetCommandResult : uint8;
 struct FAssetCategoryPath;

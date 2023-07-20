@@ -6,42 +6,39 @@
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "Misc/ITransaction.h"
+#include "Widgets/Views/STableViewBase.h"
 
 class FTransaction;
-class UPresetUserSettings;
-class SPositiveActionButton;
+class FUICommandList;
+class SEditableTextBox;
 class SNegativeActionButton;
+class SPositiveActionButton;
 class SSplitter;
 class SVerticalBox;
-class SEditableTextBox;
-template<class ItemType> class STreeView;
-template<class ItemType> class SListView;
 class UInteractiveToolsPresetCollectionAsset;
-class FUICommandList;
+class UToolPresetUserSettings;
+template<class ItemType> class SListView;
+template<class ItemType> class STreeView;
 
 /**
  * Implements the preset manager panel.
  */
-class SPresetManager
+class SToolPresetManager
 	: public SCompoundWidget
 {
-
-	struct FPresetCollectionInfo
+	struct FToolPresetCollectionInfo
 	{
 		FSoftObjectPath PresetCollectionPath;
 		bool bCollectionEnabled;
 
-		FPresetCollectionInfo(FSoftObjectPath InPresetCollectionPath, bool bInEnabled)
+		FToolPresetCollectionInfo(FSoftObjectPath InPresetCollectionPath, bool bInEnabled)
 			: PresetCollectionPath(InPresetCollectionPath), bCollectionEnabled(bInEnabled)
 		{}
 	};
 
 public:
-
-	struct FPresetViewEntry
+	struct FToolPresetViewEntry
 	{
 		enum class EEntryType : uint8
 		{
@@ -67,11 +64,11 @@ public:
 		FString PresetLabel = "";
 		FString PresetTooltip = "";
 
-		TSharedPtr< FPresetViewEntry> Parent;
-		TArray<TSharedPtr< FPresetViewEntry> > Children;
+		TSharedPtr< FToolPresetViewEntry> Parent;
+		TArray<TSharedPtr< FToolPresetViewEntry> > Children;
 
 		// Collection Constructor
-		FPresetViewEntry(bool bEnabledIn, FSoftObjectPath CollectionPathIn, FText EntryLabelIn, int32 CountIn)
+		FToolPresetViewEntry(bool bEnabledIn, FSoftObjectPath CollectionPathIn, FText EntryLabelIn, int32 CountIn)
 			: EntryType(EEntryType::Collection),
 			  bEnabled(bEnabledIn), 
 			  CollectionPath(CollectionPathIn),
@@ -80,7 +77,7 @@ public:
 		{}
 
 		// Tool Constructor
-		FPresetViewEntry(FText EntryLabelIn, FSlateBrush EntryIconIn, FSoftObjectPath CollectionPathIn, FString ToolNameIn, int32 CountIn)
+		FToolPresetViewEntry(FText EntryLabelIn, FSlateBrush EntryIconIn, FSoftObjectPath CollectionPathIn, FString ToolNameIn, int32 CountIn)
 		  :	EntryType(EEntryType::Tool),
 			CollectionPath(CollectionPathIn),
 			EntryLabel(EntryLabelIn),
@@ -90,7 +87,7 @@ public:
 		{}
 
 		// Preset Constructor
-		FPresetViewEntry(FString ToolNameIn, int32 PresetIndexIn, FString PresetLabelIn, FString PresetTooltipIn, FText EntryLabelIn)
+		FToolPresetViewEntry(FString ToolNameIn, int32 PresetIndexIn, FString PresetLabelIn, FString PresetTooltipIn, FText EntryLabelIn)
 			: EntryType(EEntryType::Preset),
 			  EntryLabel(EntryLabelIn),
 			  ToolName(ToolNameIn),
@@ -99,7 +96,7 @@ public:
 			  PresetTooltip(PresetTooltipIn)
 		{}
 
-		bool HasSameMetadata(FPresetViewEntry& Other)
+		bool HasSameMetadata(FToolPresetViewEntry& Other)
 		{
 			bool bIsEqual = 
 				 EntryType == Other.EntryType &&
@@ -119,7 +116,7 @@ public:
 			return bIsEqual;
 		}
 
-		bool operator==(FPresetViewEntry& Other)
+		bool operator==(FToolPresetViewEntry& Other)
 		{
 			bool bIsEqual = bEnabled == Other.bEnabled &&
 				 EntryType == Other.EntryType &&
@@ -141,9 +138,9 @@ public:
 			return bIsEqual;
 		}
 
-		FPresetViewEntry& Root()
+		FToolPresetViewEntry& Root()
 		{
-			FPresetViewEntry* ActiveNode = this;
+			FToolPresetViewEntry* ActiveNode = this;
 			while (ActiveNode->Parent)
 			{
 				ActiveNode = ActiveNode->Parent.Get();
@@ -152,12 +149,10 @@ public:
 		}
 	};
 
-
-
-	SLATE_BEGIN_ARGS(SPresetManager) { }
+	SLATE_BEGIN_ARGS(SToolPresetManager) { }
 	SLATE_END_ARGS()
 
-	virtual ~SPresetManager();
+	virtual ~SToolPresetManager();
 
 	/**
 	 * Construct this widget
@@ -170,49 +165,46 @@ public:
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	//~ End SWidget Interface
 
-protected:
-
 private:
-
 	void BindCommands();
 
 	void RegeneratePresetTrees();
 
 	int32 GetTotalPresetCount() const;
 
-	TSharedRef<ITableRow> HandleTreeGenerateRow(TSharedPtr<FPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable);
-	void HandleTreeGetChildren(TSharedPtr<FPresetViewEntry> TreeEntry, TArray< TSharedPtr<FPresetViewEntry> >& ChildrenOut);
-	void HandleTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
-	void HandleUserTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
-	void HandleEditorTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
+	TSharedRef<ITableRow> HandleTreeGenerateRow(TSharedPtr<FToolPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable);
+	void HandleTreeGetChildren(TSharedPtr<FToolPresetViewEntry> TreeEntry, TArray< TSharedPtr<FToolPresetViewEntry> >& ChildrenOut);
+	void HandleTreeSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type);
+	void HandleUserTreeSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type);
+	void HandleEditorTreeSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type);
 	EVisibility ProjectPresetCollectionsVisibility() const;
 
 	TSharedPtr<SWidget> OnGetPresetContextMenuContent() const;
 	TSharedPtr<SWidget> OnGetCollectionContextMenuContent() const;
 
-	void GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry);
-	TSharedRef<ITableRow> HandleListGenerateRow(TSharedPtr<FPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable);
-    void HandleListSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo);
+	void GeneratePresetList(TSharedPtr<FToolPresetViewEntry> TreeEntry);
+	TSharedRef<ITableRow> HandleListGenerateRow(TSharedPtr<FToolPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable);
+    void HandleListSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo);
 
 	bool EditAreaEnabled() const;
-	void SetCollectionEnabled(TSharedPtr<FPresetViewEntry> TreeEntry, ECheckBoxState State);
-	void DeletePresetFromCollection(TSharedPtr< FPresetViewEntry > Entry);
+	void SetCollectionEnabled(TSharedPtr<FToolPresetViewEntry> TreeEntry, ECheckBoxState State);
+	void DeletePresetFromCollection(TSharedPtr< FToolPresetViewEntry > Entry);
 
-	void CollectionRenameStarted(TSharedPtr<FPresetViewEntry> TreeEntry, TSharedPtr<SEditableTextBox> RenameWidget);
-	void CollectionRenameEnded(TSharedPtr<FPresetViewEntry> TreeEntry, const FText& NewText);
+	void CollectionRenameStarted(TSharedPtr<FToolPresetViewEntry> TreeEntry, TSharedPtr<SEditableTextBox> RenameWidget);
+	void CollectionRenameEnded(TSharedPtr<FToolPresetViewEntry> TreeEntry, const FText& NewText);
 
 	void DeleteSelectedUserPresetCollection();
 	void AddNewUserPresetCollection();
 
-	void SetPresetLabel(TSharedPtr< FPresetViewEntry >, FText InLabel);
-	void SetPresetTooltip(TSharedPtr< FPresetViewEntry >, FText InTooltip);
+	void SetPresetLabel(TSharedPtr< FToolPresetViewEntry >, FText InLabel);
+	void SetPresetTooltip(TSharedPtr< FToolPresetViewEntry >, FText InTooltip);
 
 	const FSlateBrush* GetProjectCollectionsExpanderImage() const;
 	const FSlateBrush* GetUserCollectionsExpanderImage() const;
 	const FSlateBrush* GetExpanderImage(TSharedPtr<SWidget> ExpanderWidget, bool bIsUserCollections) const;
 
-	UInteractiveToolsPresetCollectionAsset* GetCollectionFromEntry(TSharedPtr<FPresetViewEntry> Entry);
-	void SaveIfDefaultCollection(TSharedPtr<FPresetViewEntry> Entry);
+	UInteractiveToolsPresetCollectionAsset* GetCollectionFromEntry(TSharedPtr<FToolPresetViewEntry> Entry);
+	void SaveIfDefaultCollection(TSharedPtr<FToolPresetViewEntry> Entry);
 
 	void OnDeleteClicked();
 	bool CanDelete();
@@ -220,43 +212,42 @@ private:
 	void OnRenameClicked();
 	bool CanRename();
 
-private:
-	
+private:	
 	TSharedPtr<FUICommandList> UICommandList;
 
-	TWeakObjectPtr<UPresetUserSettings> UserSettings;
+	TWeakObjectPtr<UToolPresetUserSettings> UserSettings;
 
-	TWeakPtr< SListView<TSharedPtr<FPresetViewEntry> > >  LastFocusedList;
+	TWeakPtr< SListView<TSharedPtr<FToolPresetViewEntry> > >  LastFocusedList;
 
 	bool bAreProjectCollectionsExpanded = true;
 	TSharedPtr<SButton> ProjectCollectionsExpander;
-	TArray< TSharedPtr< FPresetViewEntry > > ProjectCollectionsDataList;
-	TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > > ProjectPresetCollectionTreeView;
+	TArray< TSharedPtr< FToolPresetViewEntry > > ProjectCollectionsDataList;
+	TSharedPtr<STreeView<TSharedPtr<FToolPresetViewEntry> > > ProjectPresetCollectionTreeView;
 
 	bool bAreUserCollectionsExpanded = true;
 	TSharedPtr<SButton> UserCollectionsExpander;
-	TArray< TSharedPtr< FPresetViewEntry > > UserCollectionsDataList;
-	TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > > UserPresetCollectionTreeView;
+	TArray< TSharedPtr< FToolPresetViewEntry > > UserCollectionsDataList;
+	TSharedPtr<STreeView<TSharedPtr<FToolPresetViewEntry> > > UserPresetCollectionTreeView;
 
-	TArray< TSharedPtr< FPresetViewEntry > > EditorCollectionsDataList;
-	TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > > EditorPresetCollectionTreeView;
+	TArray< TSharedPtr< FToolPresetViewEntry > > EditorCollectionsDataList;
+	TSharedPtr<STreeView<TSharedPtr<FToolPresetViewEntry> > > EditorPresetCollectionTreeView;
 
 
-	TArray< TSharedPtr< FPresetViewEntry > > PresetDataList;
-	TSharedPtr<SListView<TSharedPtr<FPresetViewEntry> > > PresetListView;
+	TArray< TSharedPtr< FToolPresetViewEntry > > PresetDataList;
+	TSharedPtr<SListView<TSharedPtr<FToolPresetViewEntry> > > PresetListView;
 
-	int32 TotalPresetCount;
-	bool bHasActiveCollection;
-	bool bHasPresetsInCollection;
+	int32 TotalPresetCount = 0;
+	bool bHasActiveCollection = false;
+	bool bHasPresetsInCollection = false;
 	FText ActiveCollectionLabel;
-	bool bIsActiveCollectionEnabled;
+	bool bIsActiveCollectionEnabled = false;
 
 	TSharedPtr<SSplitter> Splitter;
 
 	TSharedPtr<SVerticalBox>  EditPresetArea;
 	TSharedPtr<SEditableTextBox> EditPresetLabel;
 	TSharedPtr<SEditableTextBox> EditPresetTooltip;
-	TSharedPtr<FPresetViewEntry> ActivePresetToEdit;
+	TSharedPtr<FToolPresetViewEntry> ActivePresetToEdit;
 
 	TSharedPtr<SPositiveActionButton> AddUserPresetButton;
 	TSharedPtr<SNegativeActionButton> DeleteUserPresetButton;

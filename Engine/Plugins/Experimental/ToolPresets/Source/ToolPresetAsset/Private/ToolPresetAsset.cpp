@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PresetAsset.h"
+#include "ToolPresetAsset.h"
 #include "JsonObjectConverter.h"
 
-void FInteractiveToolPresetDefintion::SetStoredPropertyData(TArray<UObject*>& Properties)
+void FInteractiveToolPresetDefinition::SetStoredPropertyData(TArray<UObject*>& Properties)
 {
 	FJsonObjectWrapper JsonWrapper;
 
@@ -37,7 +37,7 @@ void FInteractiveToolPresetDefintion::SetStoredPropertyData(TArray<UObject*>& Pr
 	JsonWrapper.JsonObjectToString(StoredProperties);
 }
 
-void FInteractiveToolPresetDefintion::LoadStoredPropertyData(TArray<UObject*>& Properties)
+void FInteractiveToolPresetDefinition::LoadStoredPropertyData(TArray<UObject*>& Properties)
 {
 	FJsonObjectWrapper JsonWrapper;
 	JsonWrapper.JsonObjectFromString(StoredProperties);
@@ -68,7 +68,7 @@ void FInteractiveToolPresetDefintion::LoadStoredPropertyData(TArray<UObject*>& P
 	}
 }
 
-bool FInteractiveToolPresetDefintion::IsValid() const
+bool FInteractiveToolPresetDefinition::IsValid() const
 {
 	FJsonObjectWrapper JsonWrapper;
 	return JsonWrapper.JsonObjectFromString(StoredProperties);

@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class PresetEditor : ModuleRules
+	public class ToolPresetEditor : ModuleRules
 	{
-		public PresetEditor(ReadOnlyTargetRules Target) : base(Target)
+		public ToolPresetEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
@@ -15,22 +15,22 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"ApplicationCore",
+					"AssetTools",
+					"ContentBrowser",
+					"ContentBrowserData",
 					"CoreUObject",
+					"DeveloperSettings",
+					"EditorConfig",
 					"EditorFramework",
 					"EditorStyle",
 					"Engine",
 					"InputCore",
+					"Projects",
 					"Slate",
 					"SlateCore",
+					"ToolPresetAsset",
 					"ToolWidgets",
-					"PresetAsset",
 					"UnrealEd",
-					"Projects",
-					"DeveloperSettings",
-					"ContentBrowser",
-					"ContentBrowserData",
-					"EditorConfig",
-					"AssetTools",
 				}
 			);
 		}

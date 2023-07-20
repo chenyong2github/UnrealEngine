@@ -48,7 +48,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 
 // for presets
-#include "PresetAsset.h"
+#include "ToolPresetAsset.h"
 #include "PropertyCustomizationHelpers.h"
 
 #include "LevelEditorViewport.h"
@@ -58,12 +58,12 @@
 #include "ToolkitBuilder.h"
 #include "Dialogs/Dialogs.h"
 #include "Widgets/Input/SComboButton.h"
-#include "IPresetEditorModule.h"
-#include "PresetSettings.h"
+#include "IToolPresetEditorModule.h"
+#include "ToolPresetSettings.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ModelingWidgets/SToolInputAssetComboPanel.h"
 #include "Fonts/SlateFontInfo.h"
-#include "PresetAssetSubsystem.h"
+#include "ToolPresetAssetSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
@@ -92,7 +92,7 @@ namespace FModelingToolsEditorModeToolkitLocals
 	{
 		UInteractiveToolsPresetCollectionAsset* Preset = nullptr;
 
-		UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+		UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 
 		if (PresetPath.IsNull() && ensure(PresetAssetSubsystem))
 		{
@@ -116,7 +116,7 @@ namespace FModelingToolsEditorModeToolkitLocals
 		UInteractiveToolsPresetCollectionAsset* Preset = nullptr;		
 		UInteractiveTool* Tool = EdMode.GetToolManager()->GetActiveTool(EToolSide::Left);
 
-		UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+		UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 
 		if (PresetPath.IsNull() && ensure(PresetAssetSubsystem))
 		{
@@ -163,8 +163,8 @@ FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 	UModelingModeEditableToolPaletteConfig::Initialize();
 	UModelingModeEditableToolPaletteConfig::Get()->LoadEditorConfig();
 
-	UPresetUserSettings::Initialize();
-	UPresetUserSettings::Get()->LoadEditorConfig();
+	UToolPresetUserSettings::Initialize();
+	UToolPresetUserSettings::Get()->LoadEditorConfig();
 
 	RecentPresetCollectionProvider = MakeShared< FRecentPresetCollectionProvider>();
 	CurrentPreset = MakeShared<FAssetData>();
@@ -1166,6 +1166,7 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 
 		MenuBuilder.BeginSection(NoExtensionHook, LOCTEXT("ModelingPresetPanelHeaderManagePresets", "Manage Presets"));
 
+
 		FUIAction CreateNewPresetAction;
 		CreateNewPresetAction.ExecuteAction = FExecuteAction::CreateLambda(OpenNewPresetDialog);
 		MenuBuilder.AddMenuEntry(
@@ -1174,9 +1175,10 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 			FSlateIcon( FAppStyle::Get().GetStyleSetName(), "Icons.Plus"),
 			CreateNewPresetAction);
 
+
 		FUIAction OpenPresetManangerAction;
 		OpenPresetManangerAction.ExecuteAction = FExecuteAction::CreateLambda([this]() {
-			IPresetEditorModule::Get().ExecuteOpenPresetEditor();
+			IToolPresetEditorModule::Get().ExecuteOpenPresetEditor();
 		});
 		MenuBuilder.AddMenuEntry(
 			FText(LOCTEXT("ModelingPresetPanelOpenPresetMananger", "Manage Presets...")),
@@ -1198,11 +1200,11 @@ void FModelingToolsEditorModeToolkit::ClearPresetComboList()
 
 void FModelingToolsEditorModeToolkit::RebuildPresetListForTool(bool bSettingsOpened)
 {	
-	TObjectPtr<UPresetUserSettings> UserSettings = UPresetUserSettings::Get();
+	TObjectPtr<UToolPresetUserSettings> UserSettings = UToolPresetUserSettings::Get();
 	UserSettings->LoadEditorConfig();
 
 	// We need to generate a combined list of Project Loaded and User available presets to intersect the enabled set against...
-	const UPresetProjectSettings* ProjectSettings = GetDefault<UPresetProjectSettings>();
+	const UToolPresetProjectSettings* ProjectSettings = GetDefault<UToolPresetProjectSettings>();
 	TSet<FSoftObjectPath> AllUserPresets;
 	
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -1244,7 +1246,7 @@ void FModelingToolsEditorModeToolkit::RebuildPresetListForTool(bool bSettingsOpe
 				AvailablePresetsForTool.Reserve(Preset.PerToolPresets[Tool.GetClass()->GetName()].NamedPresets.Num());
 				for (int32 PresetIndex = 0; PresetIndex < Preset.PerToolPresets[Tool.GetClass()->GetName()].NamedPresets.Num(); ++PresetIndex)
 				{
-					const FInteractiveToolPresetDefintion& PresetDef = Preset.PerToolPresets[Tool.GetClass()->GetName()].NamedPresets[PresetIndex];
+					const FInteractiveToolPresetDefinition& PresetDef = Preset.PerToolPresets[Tool.GetClass()->GetName()].NamedPresets[PresetIndex];
 					if (!PresetDef.IsValid())
 					{
 						continue;
@@ -1321,7 +1323,7 @@ void FModelingToolsEditorModeToolkit::CreateNewPresetInCollection(const FString&
 		{
 			Preset.PerToolPresets.FindOrAdd(Tool.GetClass()->GetName()).ToolIcon = *ActiveToolIcon;
 		}
-		FInteractiveToolPresetDefintion PresetValuesToCreate;
+		FInteractiveToolPresetDefinition PresetValuesToCreate;
 		if (PresetLabel.IsEmpty())
 		{
 			PresetValuesToCreate.Label = FString::Printf(TEXT("Unnamed_Preset-%d"), Preset.PerToolPresets.FindOrAdd(Tool.GetClass()->GetName()).NamedPresets.Num()+1);
@@ -1350,7 +1352,7 @@ void FModelingToolsEditorModeToolkit::CreateNewPresetInCollection(const FString&
 		
 	});
 
-	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 	if (CollectionPath.IsNull() && ensure(PresetAssetSubsystem))
 	{
 		ensure(PresetAssetSubsystem->SaveDefaultCollection());
@@ -1391,7 +1393,7 @@ void FModelingToolsEditorModeToolkit::UpdatePresetInCollection(const FToolPreset
 
 	RebuildPresetListForTool(false);
 
-	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 	if (PresetToEditIn.PresetCollection.IsNull() && ensure(PresetAssetSubsystem))
 	{
 		ensure(PresetAssetSubsystem->SaveDefaultCollection());

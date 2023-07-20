@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "EditorConfigBase.h"
 #include "Engine/DeveloperSettings.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
-#include "PresetSettings.generated.h"
+#include "ToolPresetSettings.generated.h"
 
 /**
  * Implements the settings for the PresetEditor.
  */
-UCLASS(EditorConfig = "UPresetUserSettings")
-class PRESETEDITOR_API UPresetUserSettings : public UEditorConfigBase
+UCLASS(EditorConfig = "UToolPresetUserSettings")
+class TOOLPRESETEDITOR_API UToolPresetUserSettings : public UEditorConfigBase
 {
-public:
 	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Interactive Tool Presets|Collections", meta = (EditorConfig, AllowedClasses = "/Script/PresetAsset.InteractiveToolsPresetCollectionAsset"))
+	
+public:
+	UPROPERTY(EditAnywhere, Category = "Interactive Tool Presets|Collections", meta = (EditorConfig, AllowedClasses = "/Script/ToolPresetAsset.InteractiveToolsPresetCollectionAsset"))
 	TSet<FSoftObjectPath> EnabledPresetCollections;
 
 	//~ Ideally the above property would be able to store if the default collection was enabled or not.
@@ -31,35 +32,34 @@ public:
 	bool bDefaultCollectionEnabled = true;
 
 	static void Initialize();
-	static UPresetUserSettings* Get();
+	static UToolPresetUserSettings* Get();
 
 private:
-	static TObjectPtr<UPresetUserSettings> Instance;
+	static TObjectPtr<UToolPresetUserSettings> Instance;
 };
 
 
 /**
- * Implements the settings for the Project Preset Collections.
+ * Implements the settings for the Tool Project Preset Collections.
  */
 UCLASS(config = Editor)
-class PRESETEDITOR_API UPresetProjectSettings
+class TOOLPRESETEDITOR_API UToolPresetProjectSettings
 	: public UDeveloperSettings
 {
+	GENERATED_BODY()
+	
 public:
-
 	// UDeveloperSettings overrides
 
 	virtual FName GetContainerName() const override { return FName("Project"); }
 	virtual FName GetCategoryName() const override { return FName("Plugins"); }
 	virtual FName GetSectionName() const override { return FName("Interactive Tool Presets"); }
 
-	virtual FText GetSectionText() const override { return NSLOCTEXT("PresetSettings", "SectionText", "Interactive Tool Presets"); };
-	virtual FText GetSectionDescription() const override { return NSLOCTEXT("PresetSettings", "SectionDescription", "Manage preset settings at the project level."); };
+	virtual FText GetSectionText() const override { return NSLOCTEXT("ToolPresetSettings", "SectionText", "Interactive Tool Presets"); };
+	virtual FText GetSectionDescription() const override { return NSLOCTEXT("ToolPresetSettings", "SectionDescription", "Manage preset settings at the project level."); };
 
 public:
-	GENERATED_BODY()
-
 	/* Controls which preset collection assets are to be loaded for this project.  */
-	UPROPERTY(config, EditAnywhere, Category = "Interactive Tool Presets|Collections", meta = (AllowedClasses = "/Script/PresetAsset.InteractiveToolsPresetCollectionAsset"))
+	UPROPERTY(config, EditAnywhere, Category = "Interactive Tool Presets|Collections", meta = (AllowedClasses = "/Script/ToolPresetAsset.InteractiveToolsPresetCollectionAsset"))
 	TSet<FSoftObjectPath> LoadedPresetCollections;
 };

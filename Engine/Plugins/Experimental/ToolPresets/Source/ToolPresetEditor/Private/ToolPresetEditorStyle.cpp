@@ -1,38 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PresetEditorStyle.h"
+#include "ToolPresetEditorStyle.h"
+
 #include "Brushes/SlateImageBrush.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Misc/Paths.h"
-#include "Styling/CoreStyle.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
 #include "SlateOptMacros.h"
+#include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleMacros.h"
-#include "Styling/ToolBarStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
-
-#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FPresetEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FToolPresetEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
 #define RootToContentDir StyleSet->RootToContentDir
 
-FString FPresetEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
+FString FToolPresetEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
 {
 	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("ToolPresets"))->GetContentDir();
 	return (ContentDir / RelativePath) + Extension;
 }
 
-TSharedPtr< FSlateStyleSet > FPresetEditorStyle::StyleSet = nullptr;
-TSharedPtr< class ISlateStyle > FPresetEditorStyle::Get() { return StyleSet; }
+TSharedPtr< FSlateStyleSet > FToolPresetEditorStyle::StyleSet = nullptr;
+TSharedPtr< class ISlateStyle > FToolPresetEditorStyle::Get() { return StyleSet; }
 
-FName FPresetEditorStyle::GetStyleSetName()
+FName FToolPresetEditorStyle::GetStyleSetName()
 {
-	static FName PresetEditorStyleName(TEXT("PresetEditorStyle"));
+	static FName PresetEditorStyleName(TEXT("ToolPresetEditorStyle"));
 	return PresetEditorStyleName;
 }
 
-const FSlateBrush* FPresetEditorStyle::GetBrush(FName PropertyName, const ANSICHAR* Specifier)
+const FSlateBrush* FToolPresetEditorStyle::GetBrush(FName PropertyName, const ANSICHAR* Specifier)
 {
 	return Get()->GetBrush(PropertyName, Specifier);
 }
@@ -40,7 +38,7 @@ const FSlateBrush* FPresetEditorStyle::GetBrush(FName PropertyName, const ANSICH
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void FPresetEditorStyle::Initialize()
+void FToolPresetEditorStyle::Initialize()
 {
 	// Const icon sizes
 	const FVector2D Icon8x8(8.0f, 8.0f);
@@ -81,7 +79,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 #undef BOX_BRUSH
 #undef DEFAULT_FONT
 
-void FPresetEditorStyle::Shutdown()
+void FToolPresetEditorStyle::Shutdown()
 {
 	if (StyleSet.IsValid())
 	{

@@ -1,63 +1,60 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/SPresetManager.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
-#include "Editor.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STreeView.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
-#include "Editor/TransBuffer.h"
-#include "PresetSettings.h"
-#include "Misc/ScopedSlowTask.h"
+#include "Widgets/SToolPresetManager.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/SWidget.h"
 #include "ContentBrowserModule.h"
-#include "IContentBrowserSingleton.h"
-#include "UObject/SavePackage.h"
+#include "Editor.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IAssetTools.h"
+#include "ISettingsModule.h"
+#include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
-#include "PresetAsset.h"
+#include "SlateOptMacros.h"
 #include "SNegativeActionButton.h"
 #include "SPositiveActionButton.h"
 #include "SSimpleButton.h"
-#include "PresetEditorStyle.h"
-#include "PresetAssetSubsystem.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Modules/ModuleManager.h"
-#include "ISettingsModule.h"
-#include "IAssetTools.h"
+#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "ToolPresetAsset.h"
+#include "ToolPresetAssetSubsystem.h"
+#include "ToolPresetEditorStyle.h"
+#include "ToolPresetSettings.h"
+#include "UObject/SavePackage.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
 
-#define LOCTEXT_NAMESPACE "SPresetManager"
+#define LOCTEXT_NAMESPACE "SToolPresetManager"
 
-DECLARE_DELEGATE_TwoParams(FOnCollectionEnabledCheckboxChanged, TSharedPtr<SPresetManager::FPresetViewEntry>, ECheckBoxState)
-DECLARE_DELEGATE_TwoParams(FOnPresetLabelChanged, TSharedPtr<SPresetManager::FPresetViewEntry>, FText)
-DECLARE_DELEGATE_TwoParams(FOnPresetTooltipChanged, TSharedPtr<SPresetManager::FPresetViewEntry>, FText)
-DECLARE_DELEGATE_OneParam(FOnPresetDeleted, TSharedPtr<SPresetManager::FPresetViewEntry>)
-DECLARE_DELEGATE_TwoParams(FOnCollectionRenameStarted, TSharedPtr<SPresetManager::FPresetViewEntry>, TSharedPtr<SEditableTextBox> RenameWidget)
-DECLARE_DELEGATE_TwoParams(FOnCollectionRenameEnded, TSharedPtr<SPresetManager::FPresetViewEntry>, const FText& NewText)
+DECLARE_DELEGATE_TwoParams(FOnCollectionEnabledCheckboxChanged, TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, ECheckBoxState)
+DECLARE_DELEGATE_TwoParams(FOnPresetLabelChanged, TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, FText)
+DECLARE_DELEGATE_TwoParams(FOnPresetTooltipChanged, TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, FText)
+DECLARE_DELEGATE_OneParam(FOnPresetDeleted, TSharedPtr<SToolPresetManager::FToolPresetViewEntry>)
+DECLARE_DELEGATE_TwoParams(FOnCollectionRenameStarted, TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, TSharedPtr<SEditableTextBox> RenameWidget)
+DECLARE_DELEGATE_TwoParams(FOnCollectionRenameEnded, TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, const FText& NewText)
 
-namespace PresetManagerLocals
+namespace UE::ToolPresetEditor::Private
 {
-	template<typename ASSETCLASS>
+	template <typename AssetType>
 	void GetObjectsOfClass(TArray<FSoftObjectPath>& OutArray)
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		TArray<FAssetData> AssetData;
 
 		FARFilter Filter;
-		Filter.ClassPaths.Add(ASSETCLASS::StaticClass()->GetClassPathName());
+		Filter.ClassPaths.Add(AssetType::StaticClass()->GetClassPathName());
 		Filter.PackagePaths.Add(FName("/ToolPresets"));
 		Filter.bRecursiveClasses = false;	
 		Filter.bRecursivePaths = true;
@@ -67,7 +64,7 @@ namespace PresetManagerLocals
 
 		for (int i = 0; i < AssetData.Num(); i++)
 		{
-			ASSETCLASS* Object = Cast<ASSETCLASS>(AssetData[i].GetAsset());		
+			AssetType* Object = Cast<AssetType>(AssetData[i].GetAsset());		
 			if (Object)
 			{				
 				OutArray.Add(Object->GetPathName());
@@ -82,12 +79,12 @@ namespace PresetManagerLocals
 	{
 		typedef SCollectionTableRow< ItemType > FSuperRowType;
 		typedef typename STableRow<ItemType>::FArguments FTableRowArgs;
-		typedef SPresetManager::FPresetViewEntry::EEntryType EEntryType;
+		typedef SToolPresetManager::FToolPresetViewEntry::EEntryType EEntryType;
 
 	public:
 
 		SLATE_BEGIN_ARGS(SCollectionTableRow) { }
-		    SLATE_ARGUMENT(TSharedPtr<SPresetManager::FPresetViewEntry>, ViewEntry)
+		    SLATE_ARGUMENT(TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, ViewEntry)
 			SLATE_EVENT(FOnCollectionEnabledCheckboxChanged, OnCollectionEnabledCheckboxChanged)
 			SLATE_EVENT(FOnCollectionRenameStarted, OnCollectionRenameStarted)
 			SLATE_EVENT(FOnCollectionRenameEnded, OnCollectionRenameEnded)
@@ -238,7 +235,7 @@ namespace PresetManagerLocals
 		END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 	private:
-		TSharedPtr<SPresetManager::FPresetViewEntry> ViewEntry;
+		TSharedPtr<SToolPresetManager::FToolPresetViewEntry> ViewEntry;
 		TSharedPtr<SCheckBox> EnabledWidget;
 		TSharedPtr<SEditableTextBox> CollectionRenameBox;
 
@@ -249,18 +246,16 @@ namespace PresetManagerLocals
 		FOnCollectionRenameEnded OnCollectionRenameEnded;
 	};
 
-
-
 	template<typename ItemType>
-	class SPresetTableRow : public SMultiColumnTableRow< ItemType>
+	class SToolPresetTableRow : public SMultiColumnTableRow< ItemType>
 	{
-		typedef SPresetManager::FPresetViewEntry::EEntryType EEntryType;
+		typedef SToolPresetManager::FToolPresetViewEntry::EEntryType EEntryType;
 		using typename SMultiColumnTableRow< ItemType>::FSuperRowType;
 
 	public:
 
-		SLATE_BEGIN_ARGS(SPresetTableRow) { }
-		SLATE_ARGUMENT(TSharedPtr<SPresetManager::FPresetViewEntry>, ViewEntry)
+		SLATE_BEGIN_ARGS(SToolPresetTableRow) { }
+		SLATE_ARGUMENT(TSharedPtr<SToolPresetManager::FToolPresetViewEntry>, ViewEntry)
 		SLATE_EVENT(FOnPresetDeleted, OnPresetDeleted)
 		SLATE_END_ARGS()
 
@@ -402,7 +397,7 @@ namespace PresetManagerLocals
 		END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 	private:
-		TSharedPtr<SPresetManager::FPresetViewEntry> ViewEntry;
+		TSharedPtr<SToolPresetManager::FToolPresetViewEntry> ViewEntry;
 		FOnPresetDeleted                     OnPresetDeleted;
 	};
 
@@ -410,16 +405,16 @@ namespace PresetManagerLocals
 
 
 
-/* SPresetManager interface
+/* SToolPresetManager interface
  *****************************************************************************/
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SPresetManager::Construct( const FArguments& InArgs )
+void SToolPresetManager::Construct( const FArguments& InArgs )
 {
-	UPresetUserSettings::Initialize();
+	UToolPresetUserSettings::Initialize();
 	BindCommands();
 
-	UserSettings = UPresetUserSettings::Get();
+	UserSettings = UToolPresetUserSettings::Get();
 	if (UserSettings.IsValid())
 	{
 		UserSettings->LoadEditorConfig();
@@ -469,7 +464,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 											.IsFocusable( false )
 											[
 												SNew(SImage)
-												.Image( this, &SPresetManager::GetUserCollectionsExpanderImage )
+												.Image( this, &SToolPresetManager::GetUserCollectionsExpanderImage )
 												.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
 											]
 										]
@@ -507,12 +502,12 @@ void SPresetManager::Construct( const FArguments& InArgs )
 								.AutoHeight()
 								[
 			
-											SAssignNew(EditorPresetCollectionTreeView, STreeView<TSharedPtr<FPresetViewEntry> >)
+											SAssignNew(EditorPresetCollectionTreeView, STreeView<TSharedPtr<FToolPresetViewEntry> >)
 												.TreeItemsSource(&EditorCollectionsDataList)
 												.SelectionMode(ESelectionMode::Single)
-												.OnGenerateRow(this, &SPresetManager::HandleTreeGenerateRow)
-												.OnGetChildren(this, &SPresetManager::HandleTreeGetChildren)
-												.OnSelectionChanged(this, &SPresetManager::HandleEditorTreeSelectionChanged)
+												.OnGenerateRow(this, &SToolPresetManager::HandleTreeGenerateRow)
+												.OnGetChildren(this, &SToolPresetManager::HandleTreeGetChildren)
+												.OnSelectionChanged(this, &SToolPresetManager::HandleEditorTreeSelectionChanged)
 												.Visibility_Lambda([this]()
 												{
 													return bAreUserCollectionsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
@@ -527,7 +522,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 													.HeaderContent()
 													[
 														SNew(STextBlock)
-														.Text(LOCTEXT("PresetManagerCollectionTitleHeader", "Collection"))
+														.Text(LOCTEXT("ToolPresetManagerCollectionTitleHeader", "Collection"))
 													]
 
 
@@ -538,13 +533,13 @@ void SPresetManager::Construct( const FArguments& InArgs )
 									.FillHeight(1.0f)
 								[
 			
-											SAssignNew(UserPresetCollectionTreeView, STreeView<TSharedPtr<FPresetViewEntry> >)
+											SAssignNew(UserPresetCollectionTreeView, STreeView<TSharedPtr<FToolPresetViewEntry> >)
 												.TreeItemsSource(&UserCollectionsDataList)
 												.SelectionMode(ESelectionMode::Single)
-												.OnGenerateRow(this, &SPresetManager::HandleTreeGenerateRow)
-												.OnGetChildren(this, &SPresetManager::HandleTreeGetChildren)
-												.OnSelectionChanged(this, &SPresetManager::HandleUserTreeSelectionChanged)
-												.OnContextMenuOpening(this, &SPresetManager::OnGetCollectionContextMenuContent)
+												.OnGenerateRow(this, &SToolPresetManager::HandleTreeGenerateRow)
+												.OnGetChildren(this, &SToolPresetManager::HandleTreeGetChildren)
+												.OnSelectionChanged(this, &SToolPresetManager::HandleUserTreeSelectionChanged)
+												.OnContextMenuOpening(this, &SToolPresetManager::OnGetCollectionContextMenuContent)
 												.Visibility_Lambda([this]()
 												{
 													return bAreUserCollectionsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
@@ -559,7 +554,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 													.HeaderContent()
 													[
 														SNew(STextBlock)
-														.Text(LOCTEXT("PresetManagerCollectionTitleHeader", "Collection"))
+														.Text(LOCTEXT("ToolPresetManagerCollectionTitleHeader", "Collection"))
 													]
 
 
@@ -592,7 +587,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 											.IsFocusable( false )
 											[
 												SNew(SImage)
-												.Image( this, &SPresetManager::GetProjectCollectionsExpanderImage )
+												.Image( this, &SToolPresetManager::GetProjectCollectionsExpanderImage )
 												.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
 											]
 										]
@@ -643,15 +638,15 @@ void SPresetManager::Construct( const FArguments& InArgs )
 											.FillHeight(1.0f)
 											[
 
-											SAssignNew(ProjectPresetCollectionTreeView, STreeView<TSharedPtr<FPresetViewEntry> >)
-											.Visibility(this, &SPresetManager::ProjectPresetCollectionsVisibility)
+											SAssignNew(ProjectPresetCollectionTreeView, STreeView<TSharedPtr<FToolPresetViewEntry> >)
+											.Visibility(this, &SToolPresetManager::ProjectPresetCollectionsVisibility)
 												.ItemHeight(32.0f)
 												.TreeItemsSource(&ProjectCollectionsDataList)
 												.SelectionMode(ESelectionMode::Single)
-												.OnGenerateRow(this, &SPresetManager::HandleTreeGenerateRow)
-												.OnGetChildren(this, &SPresetManager::HandleTreeGetChildren)
-												.OnSelectionChanged(this, &SPresetManager::HandleTreeSelectionChanged)
-												.OnContextMenuOpening(this, &SPresetManager::OnGetCollectionContextMenuContent)
+												.OnGenerateRow(this, &SToolPresetManager::HandleTreeGenerateRow)
+												.OnGetChildren(this, &SToolPresetManager::HandleTreeGetChildren)
+												.OnSelectionChanged(this, &SToolPresetManager::HandleTreeSelectionChanged)
+												.OnContextMenuOpening(this, &SToolPresetManager::OnGetCollectionContextMenuContent)
 												.HeaderRow
 												(
 													SNew(SHeaderRow)
@@ -662,7 +657,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 													.HeaderContent()
 													[
 														SNew(STextBlock)
-														.Text(LOCTEXT("PresetManagerCollectionTitleHeader", "Collection"))
+														.Text(LOCTEXT("ToolPresetManagerCollectionTitleHeader", "Collection"))
 													]
 
 
@@ -703,13 +698,13 @@ void SPresetManager::Construct( const FArguments& InArgs )
 							[
 
 
-								SAssignNew(PresetListView, SListView<TSharedPtr<FPresetViewEntry>>)
+								SAssignNew(PresetListView, SListView<TSharedPtr<FToolPresetViewEntry>>)
 								.ListItemsSource(&PresetDataList)
 								.ItemHeight(32.0f)
 								.SelectionMode(ESelectionMode::SingleToggle)
-								.OnGenerateRow(this, &SPresetManager::HandleListGenerateRow)		
-								.OnSelectionChanged(this, &SPresetManager::HandleListSelectionChanged)
-								.OnContextMenuOpening(this, &SPresetManager::OnGetPresetContextMenuContent)
+								.OnGenerateRow(this, &SToolPresetManager::HandleListGenerateRow)		
+								.OnSelectionChanged(this, &SToolPresetManager::HandleListSelectionChanged)
+								.OnContextMenuOpening(this, &SToolPresetManager::OnGetPresetContextMenuContent)
 								.HeaderRow
 								(
 									SNew(SHeaderRow)
@@ -724,7 +719,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 									.HeaderContent()									
 									[
 										SNew(SImage)
-										.Image(FPresetEditorStyle::Get()->GetBrush("ManagerIcons.Tools"))
+										.Image(FToolPresetEditorStyle::Get()->GetBrush("ManagerIcons.Tools"))
 										.DesiredSizeOverride(FVector2D(20, 20))
 									]
 									
@@ -736,7 +731,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 									.HeaderContent()
 									[
 										SNew(STextBlock)
-										.Text(LOCTEXT("PresetManagerPresetLabelHeader", "Label"))
+										.Text(LOCTEXT("ToolPresetManagerPresetLabelHeader", "Label"))
 									]
 
 									+ SHeaderRow::Column("Tooltip")
@@ -746,7 +741,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 									.HeaderContent()
 									[
 										SNew(STextBlock)
-										.Text(LOCTEXT("PresetManagerPresetTooltipHeader", "Tooltip"))
+										.Text(LOCTEXT("ToolPresetManagerPresetTooltipHeader", "Tooltip"))
 									]
 								)
 							]
@@ -784,14 +779,14 @@ void SPresetManager::Construct( const FArguments& InArgs )
 								.HAlign(EHorizontalAlignment::HAlign_Left)	
 								[
 									SNew(STextBlock)
-									.Text(LOCTEXT("PresetLabelEditLabel", "Label"))
+									.Text(LOCTEXT("ToolPresetLabelEditLabel", "Label"))
 								]
 								+ SHorizontalBox::Slot()
 								.FillWidth(1.f)								
 								.Padding(5.0f)
 								[
 									SNew(SEditableTextBox)
-									.IsEnabled(this, &SPresetManager::EditAreaEnabled)
+									.IsEnabled(this, &SToolPresetManager::EditAreaEnabled)
 									.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 									.Text_Lambda([this]() 
 									{
@@ -830,7 +825,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 								.HAlign(EHorizontalAlignment::HAlign_Left)
 								[
 									SNew(STextBlock)
-									.Text(LOCTEXT("PresetTooltipEditLabel", "Tooltip"))
+									.Text(LOCTEXT("ToolPresetTooltipEditLabel", "Tooltip"))
 								]
 								+ SHorizontalBox::Slot()
 								.FillWidth(1.f)
@@ -841,7 +836,7 @@ void SPresetManager::Construct( const FArguments& InArgs )
 									.MaxDesiredHeight(44.0f)
 									[
 										SNew(SMultiLineEditableTextBox)		
-										.IsEnabled(this, &SPresetManager::EditAreaEnabled)
+										.IsEnabled(this, &SToolPresetManager::EditAreaEnabled)
 										.AllowMultiLine(false)
 										.AutoWrapText(true)
 										.WrappingPolicy(ETextWrappingPolicy::DefaultWrapping)
@@ -891,30 +886,30 @@ void SPresetManager::Construct( const FArguments& InArgs )
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-SPresetManager::~SPresetManager()
+SToolPresetManager::~SToolPresetManager()
 {
 }
 
-void SPresetManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SToolPresetManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	RegeneratePresetTrees();
 }
 
-void SPresetManager::RegeneratePresetTrees()
+void SToolPresetManager::RegeneratePresetTrees()
 {
 	if (!ensure(UserSettings.IsValid()))
 	{
 		return;
 	}
 
-	const UPresetProjectSettings* ProjectSettings = GetDefault<UPresetProjectSettings>();
+	const UToolPresetProjectSettings* ProjectSettings = GetDefault<UToolPresetProjectSettings>();
 	TArray<FSoftObjectPath> AvailablePresetCollections = ProjectSettings->LoadedPresetCollections.Array();
 	TArray<FSoftObjectPath> AvailableUserPresetCollections;
-	PresetManagerLocals::GetObjectsOfClass<UInteractiveToolsPresetCollectionAsset>(AvailableUserPresetCollections);
+	UE::ToolPresetEditor::Private::GetObjectsOfClass<UInteractiveToolsPresetCollectionAsset>(AvailableUserPresetCollections);
 
 	TotalPresetCount = 0;
 
-	auto GenerateSubTree = [this](UInteractiveToolsPresetCollectionAsset* PresetCollection, TSharedPtr<FPresetViewEntry> RootEntry)
+	auto GenerateSubTree = [this](UInteractiveToolsPresetCollectionAsset* PresetCollection, TSharedPtr<FToolPresetViewEntry> RootEntry)
 	{
 		TMap<FString, FInteractiveToolPresetStore >::TIterator ToolNameIter = PresetCollection->PerToolPresets.CreateIterator();
 		for (; (bool)ToolNameIter; ++ToolNameIter)
@@ -926,7 +921,7 @@ void SPresetManager::RegeneratePresetTrees()
 			}
 			if (ToolCount)
 			{
-				RootEntry->Children.Add(MakeShared<FPresetViewEntry>(
+				RootEntry->Children.Add(MakeShared<FToolPresetViewEntry>(
 					ToolNameIter.Value().ToolLabel,
 					ToolNameIter.Value().ToolIcon,
 					RootEntry->CollectionPath,
@@ -942,15 +937,15 @@ void SPresetManager::RegeneratePresetTrees()
 
 	auto GenerateTreeEntries = [this, &GenerateSubTree](TObjectPtr<UInteractiveToolsPresetCollectionAsset> DefaultCollection,
 		TArray<FSoftObjectPath>* AssetList,
-		TArray< TSharedPtr< FPresetViewEntry > >& TreeList,
-		TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > >& TreeView)
+		TArray< TSharedPtr< FToolPresetViewEntry > >& TreeList,
+		TSharedPtr<STreeView<TSharedPtr<FToolPresetViewEntry> > >& TreeView)
 	{
 		bool bTreeNeedsRefresh = false;
-		TArray< TSharedPtr< FPresetViewEntry > > TempTreeDataList;
+		TArray< TSharedPtr< FToolPresetViewEntry > > TempTreeDataList;
 
 		if (DefaultCollection)
 		{
-			TSharedPtr<FPresetViewEntry> CollectionEntry = MakeShared<FPresetViewEntry>(
+			TSharedPtr<FToolPresetViewEntry> CollectionEntry = MakeShared<FToolPresetViewEntry>(
 				UserSettings->bDefaultCollectionEnabled,
 				FSoftObjectPath(),
 				DefaultCollection->CollectionLabel,
@@ -977,7 +972,7 @@ void SPresetManager::RegeneratePresetTrees()
 				}
 				if (PresetCollection)
 				{
-					TSharedPtr<FPresetViewEntry> CollectionEntry = MakeShared<FPresetViewEntry>(
+					TSharedPtr<FToolPresetViewEntry> CollectionEntry = MakeShared<FToolPresetViewEntry>(
 						UserSettings->EnabledPresetCollections.Contains(Path),
 						Path,
 						PresetCollection->CollectionLabel,
@@ -1010,7 +1005,7 @@ void SPresetManager::RegeneratePresetTrees()
 			bHasActiveCollection = false;
 		}
 
-		for (TSharedPtr<FPresetViewEntry>& Entry : TreeList)
+		for (TSharedPtr<FToolPresetViewEntry>& Entry : TreeList)
 		{
 			Entry->bEnabled = UserSettings->EnabledPresetCollections.Contains(Entry->CollectionPath);
 			if (Entry->bIsDefaultCollection)
@@ -1025,7 +1020,7 @@ void SPresetManager::RegeneratePresetTrees()
 	};
 
 	// Handle the default collection
-	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 	TObjectPtr<UInteractiveToolsPresetCollectionAsset> DefaultCollection = nullptr;
 	if (ensure(PresetAssetSubsystem))
 	{
@@ -1039,29 +1034,29 @@ void SPresetManager::RegeneratePresetTrees()
 }
 
 
-/* SPresetManager implementation
+/* SToolPresetManager implementation
  *****************************************************************************/
 
-int32 SPresetManager::GetTotalPresetCount() const
+int32 SToolPresetManager::GetTotalPresetCount() const
 {
 	return TotalPresetCount;
 }
 
-TSharedRef<ITableRow> SPresetManager::HandleTreeGenerateRow(TSharedPtr<FPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SToolPresetManager::HandleTreeGenerateRow(TSharedPtr<FToolPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(PresetManagerLocals::SCollectionTableRow< TSharedPtr<FPresetViewEntry> >, OwnerTable)
+	return SNew(UE::ToolPresetEditor::Private::SCollectionTableRow< TSharedPtr<FToolPresetViewEntry> >, OwnerTable)
 		.ViewEntry(TreeEntry)
-		.OnCollectionEnabledCheckboxChanged(this, &SPresetManager::SetCollectionEnabled)
-		.OnCollectionRenameStarted(this, &SPresetManager::CollectionRenameStarted)
-		.OnCollectionRenameEnded(this, &SPresetManager::CollectionRenameEnded);
+		.OnCollectionEnabledCheckboxChanged(this, &SToolPresetManager::SetCollectionEnabled)
+		.OnCollectionRenameStarted(this, &SToolPresetManager::CollectionRenameStarted)
+		.OnCollectionRenameEnded(this, &SToolPresetManager::CollectionRenameEnded);
 }
 
-void SPresetManager::HandleTreeGetChildren(TSharedPtr<FPresetViewEntry> TreeEntry, TArray< TSharedPtr<FPresetViewEntry> >& ChildrenOut)
+void SToolPresetManager::HandleTreeGetChildren(TSharedPtr<FToolPresetViewEntry> TreeEntry, TArray< TSharedPtr<FToolPresetViewEntry> >& ChildrenOut)
 {
 	ChildrenOut = TreeEntry->Children;
 }
 
-void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
+void SToolPresetManager::GeneratePresetList(TSharedPtr<FToolPresetViewEntry> TreeEntry)
 {
 	PresetDataList.Empty();
 	PresetListView->RequestListRefresh();
@@ -1074,14 +1069,14 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 		return;
 	}
 
-	if (TreeEntry->EntryType == FPresetViewEntry::EEntryType::Collection ||
-		TreeEntry->EntryType == FPresetViewEntry::EEntryType::Tool)
+	if (TreeEntry->EntryType == FToolPresetViewEntry::EEntryType::Collection ||
+		TreeEntry->EntryType == FToolPresetViewEntry::EEntryType::Tool)
 	{
 		UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(TreeEntry);
 
 		if (PresetCollection)
 		{
-			if (TreeEntry->EntryType == FPresetViewEntry::EEntryType::Collection)
+			if (TreeEntry->EntryType == FToolPresetViewEntry::EEntryType::Collection)
 			{
 				bHasActiveCollection = true;
 				bIsActiveCollectionEnabled = TreeEntry->bEnabled;
@@ -1096,7 +1091,7 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 						if (ToolNameIter.Value().NamedPresets[PresetIndex].IsValid())
 						{
 							bHasPresetsInCollection = true;
-							PresetDataList.Add(MakeShared<FPresetViewEntry>(
+							PresetDataList.Add(MakeShared<FToolPresetViewEntry>(
 								ToolNameIter.Key(),
 								PresetIndex,
 								ToolNameIter.Value().NamedPresets[PresetIndex].Label,
@@ -1127,7 +1122,7 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 					if (ToolData->NamedPresets[PresetIndex].IsValid())
 					{
 						bHasPresetsInCollection = true;
-						PresetDataList.Add(MakeShared<FPresetViewEntry>(
+						PresetDataList.Add(MakeShared<FToolPresetViewEntry>(
 							TreeEntry->ToolName,
 							PresetIndex,
 							ToolData->NamedPresets[PresetIndex].Label,
@@ -1145,9 +1140,9 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 
 }
 
-void SPresetManager::HandleEditorTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
+void SToolPresetManager::HandleEditorTreeSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
 {
-	for (TSharedPtr<FPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
+	for (TSharedPtr<FToolPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
 	{
 		Entry->bIsRenaming = false;
 	}
@@ -1162,9 +1157,9 @@ void SPresetManager::HandleEditorTreeSelectionChanged(TSharedPtr<FPresetViewEntr
 	}
 }
 
-void SPresetManager::HandleTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
+void SToolPresetManager::HandleTreeSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
 {
-	for (TSharedPtr<FPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
+	for (TSharedPtr<FToolPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
 	{
 		Entry->bIsRenaming = false;
 	}
@@ -1180,9 +1175,9 @@ void SPresetManager::HandleTreeSelectionChanged(TSharedPtr<FPresetViewEntry> Tre
 	}
 }
 
-void SPresetManager::HandleUserTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
+void SToolPresetManager::HandleUserTreeSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
 {
-	for (TSharedPtr<FPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
+	for (TSharedPtr<FToolPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
 	{
 		Entry->bIsRenaming = false;
 	}
@@ -1198,14 +1193,14 @@ void SPresetManager::HandleUserTreeSelectionChanged(TSharedPtr<FPresetViewEntry>
 	}
 }
 
-TSharedRef<ITableRow> SPresetManager::HandleListGenerateRow(TSharedPtr<FPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SToolPresetManager::HandleListGenerateRow(TSharedPtr<FToolPresetViewEntry> TreeEntry, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(PresetManagerLocals::SPresetTableRow< TSharedPtr<FPresetViewEntry> >, OwnerTable)
+	return SNew(UE::ToolPresetEditor::Private::SToolPresetTableRow< TSharedPtr<FToolPresetViewEntry> >, OwnerTable)
 		.ViewEntry(TreeEntry)
-		.OnPresetDeleted(this, &SPresetManager::DeletePresetFromCollection);
+		.OnPresetDeleted(this, &SToolPresetManager::DeletePresetFromCollection);
 }
 
-void SPresetManager::HandleListSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
+void SToolPresetManager::HandleListSelectionChanged(TSharedPtr<FToolPresetViewEntry> TreeEntry, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
@@ -1228,17 +1223,17 @@ void SPresetManager::HandleListSelectionChanged(TSharedPtr<FPresetViewEntry> Tre
 	}
 }
 
-bool SPresetManager::EditAreaEnabled() const
+bool SToolPresetManager::EditAreaEnabled() const
 {
 	return ActivePresetToEdit.IsValid();
 }
 
-EVisibility SPresetManager::ProjectPresetCollectionsVisibility() const
+EVisibility SToolPresetManager::ProjectPresetCollectionsVisibility() const
 {
 	return ProjectCollectionsDataList.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-void SPresetManager::SetCollectionEnabled(TSharedPtr<FPresetViewEntry> TreeEntry, ECheckBoxState State)
+void SToolPresetManager::SetCollectionEnabled(TSharedPtr<FToolPresetViewEntry> TreeEntry, ECheckBoxState State)
 {	
 	if (!ensure(UserSettings.IsValid()))
 	{
@@ -1264,13 +1259,13 @@ void SPresetManager::SetCollectionEnabled(TSharedPtr<FPresetViewEntry> TreeEntry
 	}
 }
 
-void SPresetManager::CollectionRenameStarted(TSharedPtr<FPresetViewEntry> TreeEntry, TSharedPtr<SEditableTextBox> RenameWidget)
+void SToolPresetManager::CollectionRenameStarted(TSharedPtr<FToolPresetViewEntry> TreeEntry, TSharedPtr<SEditableTextBox> RenameWidget)
 {
 	// TODO: Figure out why this crashes
 	//FSlateApplication::Get().SetKeyboardFocus(RenameWidget, EFocusCause::SetDirectly);
 }
 
-void SPresetManager::CollectionRenameEnded(TSharedPtr<FPresetViewEntry> TreeEntry, const FText& NewText)
+void SToolPresetManager::CollectionRenameEnded(TSharedPtr<FToolPresetViewEntry> TreeEntry, const FText& NewText)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -1310,7 +1305,7 @@ void SPresetManager::CollectionRenameEnded(TSharedPtr<FPresetViewEntry> TreeEntr
 }
 
 
-void SPresetManager::DeletePresetFromCollection(TSharedPtr< FPresetViewEntry > Entry)
+void SToolPresetManager::DeletePresetFromCollection(TSharedPtr< FToolPresetViewEntry > Entry)
 {
 	UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(Entry);
 	if (PresetCollection)
@@ -1324,7 +1319,7 @@ void SPresetManager::DeletePresetFromCollection(TSharedPtr< FPresetViewEntry > E
 	SaveIfDefaultCollection(Entry);
 }
 
-void SPresetManager::SetPresetLabel(TSharedPtr< FPresetViewEntry > Entry, FText InLabel)
+void SToolPresetManager::SetPresetLabel(TSharedPtr< FToolPresetViewEntry > Entry, FText InLabel)
 {
 	UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(Entry);
 	if (PresetCollection)
@@ -1336,7 +1331,7 @@ void SPresetManager::SetPresetLabel(TSharedPtr< FPresetViewEntry > Entry, FText 
 	SaveIfDefaultCollection(Entry);
 }
 
-void SPresetManager::SetPresetTooltip(TSharedPtr< FPresetViewEntry > Entry, FText InTooltip)
+void SToolPresetManager::SetPresetTooltip(TSharedPtr< FToolPresetViewEntry > Entry, FText InTooltip)
 {
 	UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(Entry);
 	if (PresetCollection)
@@ -1348,16 +1343,16 @@ void SPresetManager::SetPresetTooltip(TSharedPtr< FPresetViewEntry > Entry, FTex
 	SaveIfDefaultCollection(Entry);
 }
 
-void SPresetManager::DeleteSelectedUserPresetCollection()
+void SToolPresetManager::DeleteSelectedUserPresetCollection()
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 
-	TArray<TSharedPtr<FPresetViewEntry>> SelectedUserCollections = UserPresetCollectionTreeView->GetSelectedItems();
+	TArray<TSharedPtr<FToolPresetViewEntry>> SelectedUserCollections = UserPresetCollectionTreeView->GetSelectedItems();
 
 	if (SelectedUserCollections.Num() == 1)
 	{
-		TSharedPtr<FPresetViewEntry> Entry = SelectedUserCollections[0];
+		TSharedPtr<FToolPresetViewEntry> Entry = SelectedUserCollections[0];
 		if (Entry->bIsDefaultCollection)
 		{
 			return;
@@ -1375,7 +1370,7 @@ void SPresetManager::DeleteSelectedUserPresetCollection()
 	}
 }
 
-void SPresetManager::AddNewUserPresetCollection()
+void SToolPresetManager::AddNewUserPresetCollection()
 {
 	// Load necessary modules
 	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
@@ -1405,17 +1400,17 @@ void SPresetManager::AddNewUserPresetCollection()
 	bAreUserCollectionsExpanded = true;
 }
 
-const FSlateBrush* SPresetManager::GetProjectCollectionsExpanderImage() const
+const FSlateBrush* SToolPresetManager::GetProjectCollectionsExpanderImage() const
 {
 	return GetExpanderImage(ProjectCollectionsExpander, false);
 }
 
-const FSlateBrush* SPresetManager::GetUserCollectionsExpanderImage() const
+const FSlateBrush* SToolPresetManager::GetUserCollectionsExpanderImage() const
 {
 	return GetExpanderImage(UserCollectionsExpander, true);
 }
 
-const FSlateBrush* SPresetManager::GetExpanderImage(TSharedPtr<SWidget> ExpanderWidget, bool bIsUserCollections) const
+const FSlateBrush* SToolPresetManager::GetExpanderImage(TSharedPtr<SWidget> ExpanderWidget, bool bIsUserCollections) const
 {
 	const bool bIsItemExpanded = bIsUserCollections ? bAreUserCollectionsExpanded : bAreProjectCollectionsExpanded;
 
@@ -1450,10 +1445,10 @@ const FSlateBrush* SPresetManager::GetExpanderImage(TSharedPtr<SWidget> Expander
 	return FCoreStyle::Get().GetBrush(ResourceName);
 }
 
-UInteractiveToolsPresetCollectionAsset* SPresetManager::GetCollectionFromEntry(TSharedPtr<FPresetViewEntry> Entry)
+UInteractiveToolsPresetCollectionAsset* SToolPresetManager::GetCollectionFromEntry(TSharedPtr<FToolPresetViewEntry> Entry)
 {
 	UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
-	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 	
 	if (Entry->Root().bIsDefaultCollection && ensure(PresetAssetSubsystem))
 	{
@@ -1470,9 +1465,9 @@ UInteractiveToolsPresetCollectionAsset* SPresetManager::GetCollectionFromEntry(T
 	return PresetCollection;
 }
 
-void SPresetManager::SaveIfDefaultCollection(TSharedPtr<FPresetViewEntry> Entry)
+void SToolPresetManager::SaveIfDefaultCollection(TSharedPtr<FToolPresetViewEntry> Entry)
 {
-	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	UToolPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UToolPresetAssetSubsystem>();
 
 	if (Entry->Root().bIsDefaultCollection && ensure(PresetAssetSubsystem))
 	{
@@ -1480,26 +1475,26 @@ void SPresetManager::SaveIfDefaultCollection(TSharedPtr<FPresetViewEntry> Entry)
 	}
 }
 
-TSharedPtr<SWidget> SPresetManager::OnGetPresetContextMenuContent() const
+TSharedPtr<SWidget> SToolPresetManager::OnGetPresetContextMenuContent() const
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, UICommandList);
 
-	MenuBuilder.BeginSection("PresetManagerPresetAction", LOCTEXT("PresetAction", "Preset Actions"));
+	MenuBuilder.BeginSection("ToolPresetManagerPresetAction", LOCTEXT("ToolPresetAction", "Tool Preset Actions"));
 
-	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, LOCTEXT("DeletePresetLabel", "Delete Preset"), LOCTEXT("DeletePresetToolTip", "Delete the selected preset"));
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, LOCTEXT("DeleteToolPresetLabel", "Delete Tool Preset"), LOCTEXT("DeleteToolPresetToolTip", "Delete the selected tool preset"));
 
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedPtr<SWidget> SPresetManager::OnGetCollectionContextMenuContent() const
+TSharedPtr<SWidget> SToolPresetManager::OnGetCollectionContextMenuContent() const
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, UICommandList);
 
-	MenuBuilder.BeginSection("PresetManagerCollectionAction", LOCTEXT("CollectionAction", "Preset Collection Actions"));
+	MenuBuilder.BeginSection("ToolPresetManagerCollectionAction", LOCTEXT("CollectionAction", "Tool Preset Collection Actions"));
 
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, LOCTEXT("DeleteCollectionLabel", "Delete Collection"), LOCTEXT("DeleteCollectionToolTip", "Delete the selected collection"));
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("RenameCollectionLabel", "Rename Collection"), LOCTEXT("RenameCollectionToolTip", "Rename the selected collection"));
@@ -1509,7 +1504,7 @@ TSharedPtr<SWidget> SPresetManager::OnGetCollectionContextMenuContent() const
 	return MenuBuilder.MakeWidget();
 }
 
-void SPresetManager::BindCommands()
+void SToolPresetManager::BindCommands()
 {
 	// This should not be called twice on the same instance
 	check(!UICommandList.IsValid());
@@ -1522,17 +1517,17 @@ void SPresetManager::BindCommands()
 
 	CommandList.MapAction(
 		FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP(this, &SPresetManager::OnDeleteClicked),
-		FCanExecuteAction::CreateSP(this, &SPresetManager::CanDelete));
+		FExecuteAction::CreateSP(this, &SToolPresetManager::OnDeleteClicked),
+		FCanExecuteAction::CreateSP(this, &SToolPresetManager::CanDelete));
 
 	CommandList.MapAction(
 		FGenericCommands::Get().Rename,
-		FExecuteAction::CreateSP(this, &SPresetManager::OnRenameClicked),
-		FCanExecuteAction::CreateSP(this, &SPresetManager::CanRename));	
+		FExecuteAction::CreateSP(this, &SToolPresetManager::OnRenameClicked),
+		FCanExecuteAction::CreateSP(this, &SToolPresetManager::CanRename));	
 }
 
 
-void SPresetManager::OnDeleteClicked()
+void SToolPresetManager::OnDeleteClicked()
 {
 	if (UserPresetCollectionTreeView == LastFocusedList)
 	{
@@ -1541,47 +1536,47 @@ void SPresetManager::OnDeleteClicked()
 
 	if (PresetListView == LastFocusedList)
 	{
-		for (TSharedPtr<FPresetViewEntry> Entry : PresetListView->GetSelectedItems())
+		for (TSharedPtr<FToolPresetViewEntry> Entry : PresetListView->GetSelectedItems())
 		{
 			DeletePresetFromCollection(Entry);
 		}
 	}
 }
 
-bool SPresetManager::CanDelete()
+bool SToolPresetManager::CanDelete()
 {
 	bool bIsListValid = LastFocusedList.IsValid() && (LastFocusedList == UserPresetCollectionTreeView || LastFocusedList == PresetListView);
 	bool bIsSelectionValid = false;
 	if (bIsListValid)
 	{
 		bIsSelectionValid = LastFocusedList.Pin()->GetNumItemsSelected() == 1 &&
-			                (LastFocusedList.Pin()->GetSelectedItems()[0]->EntryType == FPresetViewEntry::EEntryType::Collection ||
-							 LastFocusedList.Pin()->GetSelectedItems()[0]->EntryType == FPresetViewEntry::EEntryType::Preset);
+			                (LastFocusedList.Pin()->GetSelectedItems()[0]->EntryType == FToolPresetViewEntry::EEntryType::Collection ||
+							 LastFocusedList.Pin()->GetSelectedItems()[0]->EntryType == FToolPresetViewEntry::EEntryType::Preset);
 	}
 	return bIsSelectionValid;
 }
 
-void SPresetManager::OnRenameClicked()
+void SToolPresetManager::OnRenameClicked()
 {
-	for (TSharedPtr<FPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
+	for (TSharedPtr<FToolPresetViewEntry> Entry : UserPresetCollectionTreeView->GetRootItems())
 	{
 		Entry->bIsRenaming = false;
 	}
 
-	for (TSharedPtr<FPresetViewEntry> Entry : UserPresetCollectionTreeView->GetSelectedItems())
+	for (TSharedPtr<FToolPresetViewEntry> Entry : UserPresetCollectionTreeView->GetSelectedItems())
 	{
 		Entry->bIsRenaming = true;
 	}
 }
 
-bool SPresetManager::CanRename()
+bool SToolPresetManager::CanRename()
 {
 	bool bIsListValid = LastFocusedList.IsValid() && LastFocusedList == UserPresetCollectionTreeView;
 	bool bIsSelectionValid = false;
 	if (bIsListValid)
 	{
 		bIsSelectionValid = LastFocusedList.Pin()->GetNumItemsSelected() == 1 &&
-			                LastFocusedList.Pin()->GetSelectedItems()[0]->EntryType == FPresetViewEntry::EEntryType::Collection;
+			                LastFocusedList.Pin()->GetSelectedItems()[0]->EntryType == FToolPresetViewEntry::EEntryType::Collection;
 	}
 	return bIsSelectionValid;
 }

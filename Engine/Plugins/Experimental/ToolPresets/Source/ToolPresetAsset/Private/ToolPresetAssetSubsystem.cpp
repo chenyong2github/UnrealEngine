@@ -1,19 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PresetAssetSubsystem.h"
-#include "PresetAsset.h"
+#include "ToolPresetAssetSubsystem.h"
+
 #include "EditorConfigSubsystem.h"
+#include "ToolPresetAsset.h"
 
-#define LOCTEXT_NAMESPACE "PresetAssetSubsystem"
+#define LOCTEXT_NAMESPACE "ToolPresetAssetSubsystem"
 
-void UPresetAssetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UToolPresetAssetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Collection.InitializeDependency(UEditorConfigSubsystem::StaticClass());
 
 	InitializeDefaultCollection();
 }
 
-void UPresetAssetSubsystem::Deinitialize()
+void UToolPresetAssetSubsystem::Deinitialize()
 {
 	if (DefaultCollection)
 	{
@@ -22,12 +23,12 @@ void UPresetAssetSubsystem::Deinitialize()
 	}	
 }
 
-UInteractiveToolsPresetCollectionAsset* UPresetAssetSubsystem::GetDefaultCollection()
+UInteractiveToolsPresetCollectionAsset* UToolPresetAssetSubsystem::GetDefaultCollection()
 {
 	return DefaultCollection;
 }
 
-bool UPresetAssetSubsystem::SaveDefaultCollection()
+bool UToolPresetAssetSubsystem::SaveDefaultCollection()
 {
 	if (DefaultCollection)
 	{
@@ -37,19 +38,19 @@ bool UPresetAssetSubsystem::SaveDefaultCollection()
 }
 
 
-void UPresetAssetSubsystem::InitializeDefaultCollection()
+void UToolPresetAssetSubsystem::InitializeDefaultCollection()
 {
 	/*
 	* We're storing the default collection as a JSON file instead of an asset
 	* on disk for a few reasons. First it avoids issues around automatically
 	* creating assets, both from avoiding build system issues and from a more
-	* philisophical point about requiring user involvement. Second, it helps
+	* philosophical point about requiring user involvement. Second, it helps
 	* compartmentalizing the "default" collection as more of Editor preferences,
 	* rather than a specific collection which has purpose and can be shared around. 
 	*/
 
 	DefaultCollection = NewObject<UInteractiveToolsPresetCollectionAsset>();
-	DefaultCollection->CollectionLabel = LOCTEXT("DefaultCollectionLabel", "Personal Presets (Default)");
+	DefaultCollection->CollectionLabel = LOCTEXT("DefaultCollectionLabel", "Personal Tool Presets (Default)");
 	DefaultCollection->LoadEditorConfig();
 }
 

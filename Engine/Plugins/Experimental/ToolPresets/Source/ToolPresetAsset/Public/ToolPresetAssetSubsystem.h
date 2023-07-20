@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
-#include "PresetAssetSubsystem.generated.h"
+#include "ToolPresetAssetSubsystem.generated.h"
 
 class UInteractiveToolsPresetCollectionAsset;
 
@@ -13,7 +13,7 @@ class UInteractiveToolsPresetCollectionAsset;
  *  (and to avoid accidentally trying to make one when it doesn't, such as when running cooking scripts).
  */
 UCLASS()
-class PRESETASSET_API UPresetAssetSubsystem : public UEditorSubsystem
+class TOOLPRESETASSET_API UToolPresetAssetSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
