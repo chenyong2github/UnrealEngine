@@ -61,6 +61,6 @@ void FToolPresetAssetModule::OnPostEngineInit()
 }
 
 
-IMPLEMENT_MODULE(FToolPresetAssetModule, PresetAsset);
+IMPLEMENT_MODULE(FToolPresetAssetModule, ToolPresetAsset);
 
 #undef LOCTEXT_NAMESPACE
