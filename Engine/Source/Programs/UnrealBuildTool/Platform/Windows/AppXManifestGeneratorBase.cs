@@ -243,6 +243,7 @@ namespace UnrealBuildTool
 			{
 				bHasStageIdOverrides = true;
 				UEStageIdToAppXCultureId = StageIdOverrides;
+				AppXResources!.AddCultures(UEStageIdToAppXCultureId.Values);
 			}
 
 
