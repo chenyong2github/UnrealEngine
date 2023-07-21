@@ -48,9 +48,6 @@ public:
 	virtual bool GetAdvancedMode() const = 0;
 	virtual void SetAdvancedMode(bool bInAdvancedMode) = 0;
 
-	virtual FString GetDocURLOverride() const = 0;
-	virtual void SetDocURLOverride(const FString& InDocURLOverride) = 0;
-
 	virtual bool IsEditingContentBundle() const = 0;
 	virtual bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const = 0;
 

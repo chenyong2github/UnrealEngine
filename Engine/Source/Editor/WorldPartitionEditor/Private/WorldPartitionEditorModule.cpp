@@ -298,16 +298,6 @@ void FWorldPartitionEditorModule::SetAdvancedMode(bool bInAdvancedMode)
 	GetMutableDefault<UWorldPartitionEditorSettings>()->bAdvancedMode = bInAdvancedMode;
 }
 
-FString FWorldPartitionEditorModule::GetDocURLOverride() const
-{
-	return GetDefault<UWorldPartitionEditorSettings>()->DocURLOverride;
-}
-
-void FWorldPartitionEditorModule::SetDocURLOverride(const FString& InDocURLOverride)
-{
-	GetMutableDefault<UWorldPartitionEditorSettings>()->DocURLOverride = InDocURLOverride;
-}
-
 void FWorldPartitionEditorModule::OnConvertMap()
 {
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
