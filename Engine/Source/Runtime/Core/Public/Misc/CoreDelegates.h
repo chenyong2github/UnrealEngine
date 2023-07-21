@@ -192,6 +192,12 @@ public:
 	// Called at the very end of engine initialization, right before the engine starts ticking. This is not called for commandlets
 	static CORE_API FSimpleMulticastDelegate OnFEngineLoopInitComplete;
 
+	// Called prior to running the Main function for commandlets
+	static FSimpleMulticastDelegate OnCommandletPreMain;
+
+	// Called after running the Main function for commandlets
+	static FSimpleMulticastDelegate OnCommandletPostMain;
+
 	// Called when the application is about to exit.
 	static CORE_API FSimpleMulticastDelegate OnExit;
 
