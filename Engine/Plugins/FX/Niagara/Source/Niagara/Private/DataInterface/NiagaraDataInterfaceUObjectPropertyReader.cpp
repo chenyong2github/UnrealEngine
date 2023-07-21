@@ -685,7 +685,7 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::InitPerInstanceData(void* PerIn
 	InstanceData_GT->UObjectBinding.Init(SystemInstance->GetInstanceParameters(), UObjectParameterBinding.Parameter);
 	InstanceData_GT->ChangeId = ChangeId;
 
-	if ( IsUsedByGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		TArray<uint32> GpuFunctionToPropertyRemap;
 
@@ -743,7 +743,7 @@ void UNiagaraDataInterfaceUObjectPropertyReader::DestroyPerInstanceData(void* Pe
 	FInstanceData_GameThread* InstanceData_GT = reinterpret_cast<FInstanceData_GameThread*>(PerInstanceData);
 	InstanceData_GT->~FInstanceData_GameThread();
 
-	if ( IsUsedByGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		ENQUEUE_RENDER_COMMAND(NDIUObjectPropertyReader_InitRT)
 		(

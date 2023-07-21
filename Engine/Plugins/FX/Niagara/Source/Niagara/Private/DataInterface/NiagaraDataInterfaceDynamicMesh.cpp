@@ -1048,7 +1048,7 @@ bool UNiagaraDataInterfaceDynamicMesh::InitPerInstanceData(void* PerInstanceData
 	FNDIInstanceData_GameThread* InstanceData = new(PerInstanceData) FNDIInstanceData_GameThread();
 	InstanceData->SystemInstanceID = SystemInstance->GetId();
 	InstanceData->bClearTrianglesPerFrame = bClearTrianglesPerFrame;
-	InstanceData->bGpuUsesDynamicAllocation = IsUsedWithGPUEmitter();		//-OPT: We can improve this by looking for used functions
+	InstanceData->bGpuUsesDynamicAllocation = IsUsedWithGPUScript();		//-OPT: We can improve this by looking for used functions
 	InstanceData->LocalBounds = DefaultBounds;
 
 	InstanceData->Sections.SetNum(Sections.Num());

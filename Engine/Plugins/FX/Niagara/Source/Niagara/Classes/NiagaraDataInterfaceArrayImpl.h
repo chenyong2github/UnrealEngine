@@ -430,7 +430,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 	void CachePropertiesFromOwner()
 	{
 		bShouldSyncToGpu = FNiagaraUtilities::ShouldSyncCpuToGpu(Owner->GpuSyncMode);
-		bShouldSyncToCpu = FNiagaraUtilities::ShouldSyncGpuToCpu(Owner->GpuSyncMode) && Owner->IsUsedByCPUEmitter();
+		bShouldSyncToCpu = FNiagaraUtilities::ShouldSyncGpuToCpu(Owner->GpuSyncMode) && Owner->IsUsedWithCPUScript();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1076,7 +1076,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 
 		PerInstanceData_GameThread.Emplace(SystemInstance->GetId(), InstanceData_GT);
 
-		if ( FNDIArrayImplHelper<TArrayType>::bSupportsGPU && Owner->IsUsedWithGPUEmitter() )
+		if ( FNDIArrayImplHelper<TArrayType>::bSupportsGPU && Owner->IsUsedWithGPUScript() )
 		{
 			bool bRWGpuArray = false;
 			FNiagaraDataInterfaceUtilities::ForEachGpuFunction(
@@ -1105,7 +1105,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 	{
 		auto* InstanceData_GT = reinterpret_cast<FNDIArrayInstanceData_GameThread<TArrayType>*>(InPerInstanceData);
 
-		if ( FNDIArrayImplHelper<TArrayType>::bSupportsGPU && Owner->IsUsedWithGPUEmitter() )
+		if ( FNDIArrayImplHelper<TArrayType>::bSupportsGPU && Owner->IsUsedWithGPUScript() )
 		{
 			ENQUEUE_RENDER_COMMAND(FNDIArrayProxyImpl_RemoveProxy)
 			(

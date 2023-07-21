@@ -1435,7 +1435,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	//Now the interfaces in the simulations are all correct, we can build the per instance data table.
 	int32 InstanceDataSize = 0;
 	DataInterfaceInstanceDataOffsets.Empty();
-	auto CalcInstDataSize = [&](const FNiagaraParameterStore& ParamStore, bool bIsCPUSimulation, bool bIsGPUSimulation, bool bSearchInstanceParams)
+	auto CalcInstDataSize = [&](const FNiagaraParameterStore& ParamStore, bool bIsCPUScript, bool bIsGPUScript, bool bSearchInstanceParams)
 	{
 		const TArrayView<const FNiagaraVariableWithOffset> Params = ParamStore.ReadParameterVariables();
 		const TArray<UNiagaraDataInterface*>& Interfaces = ParamStore.GetDataInterfaces();
@@ -1478,18 +1478,18 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 						bDataInterfacesHaveTickPrereqs = Interface->HasTickGroupPrereqs();
 					}
 
-					if (bIsGPUSimulation)
+					if (bIsGPUScript)
 					{
-						Interface->SetUsedByGPUEmitter(true);
+						Interface->SetUsedWithGPUScript(true);
 						if(FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy())
 						{
 							// We need to store the name of each DI source variable here so that we can look it up later when looking for the iteration interface.
 							Proxy->SourceDIName = Var.GetName();
 						}
 					}
-					else if (bIsCPUSimulation)
+					else if (bIsCPUScript)
 					{
-						Interface->SetUsedByCPUEmitter(true);
+						Interface->SetUsedWithCPUScript(true);
 					}
 				}
 			}
@@ -1497,8 +1497,8 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	};
 
 	CalcInstDataSize(InstanceParameters, false, false, false);//This probably should be a proper exec context.
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
+	CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
+	CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
 	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
@@ -1554,7 +1554,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 				PostTickDataInterfaces.Add(i);
 			}
 
-			if (Interface->IsUsedWithGPUEmitter())
+			if (Interface->IsUsedWithGPUScript())
 			{
 				const int32 GPUDataSize = Interface->PerInstanceDataPassedToRenderThreadSize();
 				if (GPUDataSize > 0)

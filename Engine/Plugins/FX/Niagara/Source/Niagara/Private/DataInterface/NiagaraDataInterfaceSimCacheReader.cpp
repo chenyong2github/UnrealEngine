@@ -244,7 +244,7 @@ void UNiagaraDataInterfaceSimCacheReader::DestroyPerInstanceData(void* PerInstan
 	FInstanceData_GameThread* InstanceData_GT = reinterpret_cast<FInstanceData_GameThread*>(PerInstanceData);
 	InstanceData_GT->~FInstanceData_GameThread();
 
-	if ( IsUsedByGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		ENQUEUE_RENDER_COMMAND(NDISimCacheReader_DestroyRT)
 		(
@@ -317,7 +317,7 @@ bool UNiagaraDataInterfaceSimCacheReader::PerInstanceTick(void* PerInstanceData,
 	else if (InstanceSimCache == nullptr)
 	{
 		InstanceData_GT->EmitterIndex = INDEX_NONE;
-		if ( IsUsedByGPUEmitter() )
+		if ( IsUsedWithGPUScript() )
 		{
 			ENQUEUE_RENDER_COMMAND(NDISimCacheReader_DestroyRT)
 			(

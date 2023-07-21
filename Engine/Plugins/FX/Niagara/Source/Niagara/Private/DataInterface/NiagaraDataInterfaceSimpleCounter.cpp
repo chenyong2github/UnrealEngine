@@ -210,7 +210,7 @@ bool UNiagaraDataInterfaceSimpleCounter::InitPerInstanceData(void* PerInstanceDa
 	FNDISimpleCounterInstanceData_GameThread* InstanceData_GT = new(PerInstanceData) FNDISimpleCounterInstanceData_GameThread();
 	InstanceData_GT->Counter = InitialValue;
 
-	if ( IsUsedWithGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		FNDISimpleCounterProxy* Proxy_GT = GetProxyAs<FNDISimpleCounterProxy>();
 		Proxy_GT->PerInstanceData_GameThread.Add(SystemInstance->GetId(), InstanceData_GT);
@@ -233,7 +233,7 @@ void UNiagaraDataInterfaceSimpleCounter::DestroyPerInstanceData(void* PerInstanc
 	auto* InstanceData = reinterpret_cast<FNDISimpleCounterInstanceData_GameThread*>(PerInstanceData);
 	InstanceData->~FNDISimpleCounterInstanceData_GameThread();
 
-	if ( IsUsedWithGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		FNDISimpleCounterProxy* Proxy_GT = GetProxyAs<FNDISimpleCounterProxy>();
 		Proxy_GT->PerInstanceData_GameThread.Remove(SystemInstance->GetId());

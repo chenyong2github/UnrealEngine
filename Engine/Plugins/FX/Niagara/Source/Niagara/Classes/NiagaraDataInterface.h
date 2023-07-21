@@ -681,12 +681,6 @@ public:
 	virtual bool HasTickGroupPrereqs() const { return false; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const { return NiagaraFirstTickGroup; }
 
-	/** Used to determine if we need to create CPU resources for the emitter. */
-	NIAGARA_API bool IsUsedWithCPUEmitter() const;
-
-	/** Used to determine if we need to create GPU resources for the emitter. */
-	NIAGARA_API bool IsUsedWithGPUEmitter() const;
-
 	/** Determines if this type definition matches to a known data interface type.*/
 	static NIAGARA_API bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
 
@@ -809,7 +803,7 @@ protected:
 public:
 	void PushToRenderThread()
 	{
-		if (bUsedByGPUEmitter && bRenderDataDirty)
+		if (bUsedWithGPUScript && bRenderDataDirty)
 		{
 			PushToRenderThreadImpl();
 			bRenderDataDirty = false;
@@ -822,21 +816,32 @@ public:
 		PushToRenderThread();
 	}
 
-	void SetUsedByCPUEmitter(bool bUsed = true)
+	void SetUsedWithCPUScript(bool bUsed = true)
 	{
 		check(IsInGameThread());
-		bUsedByCPUEmitter = bUsed;
+		bUsedWithCPUScript = bUsed;
 	}
 
-	void SetUsedByGPUEmitter(bool bUsed = true)
+	void SetUsedWithGPUScript(bool bUsed = true)
 	{
 		check(IsInGameThread());
-		bUsedByGPUEmitter = bUsed;
+		bUsedWithGPUScript = bUsed;
 		PushToRenderThread();
 	}
 
-	bool IsUsedByCPUEmitter() const { return bUsedByCPUEmitter; }
-	bool IsUsedByGPUEmitter() const { return bUsedByGPUEmitter; }
+	UE_DEPRECATED(5.3, "Please update your code to use IsUsedWithCPUScript")
+	bool IsUsedByCPUEmitter() const { return bUsedWithCPUScript; }
+	UE_DEPRECATED(5.3, "Please update your code to use IsUsedWithGPUScript")
+	bool IsUsedByGPUEmitter() const { return bUsedWithGPUScript; }
+	UE_DEPRECATED(5.3, "Please update your code to use IsUsedWithCPUScript")
+	NIAGARA_API bool IsUsedWithCPUEmitter() const { return bUsedWithCPUScript; }
+	UE_DEPRECATED(5.3, "Please update your code to use IsUsedWithGPUScript")
+	NIAGARA_API bool IsUsedWithGPUEmitter() const { return bUsedWithGPUScript; }
+
+	/** Used to determine if we need to create CPU resources for the emitter. */
+	bool IsUsedWithCPUScript() const { return bUsedWithCPUScript; }
+	/** Used to determine if we need to create GPU resources for the emitter. */
+	bool IsUsedWithGPUScript() const { return bUsedWithGPUScript; }
 
 protected:
 	template<typename T>
@@ -860,8 +865,8 @@ protected:
 	TUniquePtr<FNiagaraDataInterfaceProxy> Proxy;
 
 	uint32 bRenderDataDirty : 1;
-	uint32 bUsedByCPUEmitter : 1;
-	uint32 bUsedByGPUEmitter : 1;
+	uint32 bUsedWithCPUScript : 1;
+	uint32 bUsedWithGPUScript : 1;
 
 private:
 #if WITH_EDITOR

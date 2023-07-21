@@ -727,7 +727,7 @@ bool UNiagaraDataInterfaceSceneCapture2D::PerInstanceTickPostSimulate(void* PerI
 
 	// We need to update the texture ideally this is part of the tick but that isn't possible
 	// since the resource could have been deleted / changed before the ticks are processed
-	if (IsUsedWithGPUEmitter())
+	if (IsUsedWithGPUScript())
 	{
 		ENQUEUE_RENDER_COMMAND(NDISceneCapture2D_UpdateInstance)
 		(

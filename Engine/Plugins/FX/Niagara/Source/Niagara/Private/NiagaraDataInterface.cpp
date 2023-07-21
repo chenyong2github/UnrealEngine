@@ -90,8 +90,8 @@ void FNDIStageTickHandler::PostStageTick(FNiagaraSystemInstance* Instance, float
 UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectInitializer)
 {
 	bRenderDataDirty = false;
-	bUsedByCPUEmitter = false;
-	bUsedByGPUEmitter = false;
+	bUsedWithCPUScript = false;
+	bUsedWithGPUScript = false;
 }
 
 UNiagaraDataInterface::~UNiagaraDataInterface()
@@ -193,16 +193,6 @@ bool UNiagaraDataInterface::Equals(const UNiagaraDataInterface* Other) const
 		return false;
 	}
 	return true;
-}
-
-bool UNiagaraDataInterface::IsUsedWithCPUEmitter() const
-{
-	return bUsedByCPUEmitter;
-}
-
-bool UNiagaraDataInterface::IsUsedWithGPUEmitter() const
-{
-	return bUsedByGPUEmitter;
 }
 
 bool UNiagaraDataInterface::IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef)

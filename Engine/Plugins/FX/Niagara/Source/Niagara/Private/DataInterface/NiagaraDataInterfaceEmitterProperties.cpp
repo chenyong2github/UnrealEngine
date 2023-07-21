@@ -128,7 +128,7 @@ bool UNiagaraDataInterfaceEmitterProperties::InitPerInstanceData(void* PerInstan
 		InstanceData_GT->bLocalSpace = InstanceData_GT->EmitterInstance->GetCachedEmitterData()->bLocalSpace;
 	}
 
-	if ( IsUsedByGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		// Initialize render side instance data
 		ENQUEUE_RENDER_COMMAND(NDIEmitter_InitRT)
@@ -151,7 +151,7 @@ void UNiagaraDataInterfaceEmitterProperties::DestroyPerInstanceData(void* PerIns
 	FInstanceData_GameThread* InstanceData_GT = reinterpret_cast<FInstanceData_GameThread*>(PerInstanceData);
 	InstanceData_GT->~FInstanceData_GameThread();
 
-	if ( IsUsedByGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		ENQUEUE_RENDER_COMMAND(NDIEmitter_InitRT)
 		(

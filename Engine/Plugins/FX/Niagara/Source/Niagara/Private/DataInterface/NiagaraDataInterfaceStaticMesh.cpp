@@ -885,7 +885,7 @@ namespace NDIStaticMeshLocal
 			else if (!StaticMesh->bAllowCPUAccess)
 			{
 				//-TODO: This will be modified with the refactor to allow GPU to be used when CPU is also used
-				if (Interface->IsUsedWithGPUEmitter() && !Interface->IsUsedWithCPUEmitter())
+				if (Interface->IsUsedWithGPUScript() && !Interface->IsUsedWithCPUScript())
 				{
 					if (!FNiagaraUtilities::AreBufferSRVsAlwaysCreated(GMaxRHIShaderPlatform))
 					{
@@ -908,7 +908,7 @@ namespace NDIStaticMeshLocal
 
 					if (bNeedsCpuAccess)
 					{
-						if (Interface->IsUsedWithCPUEmitter())
+						if (Interface->IsUsedWithCPUScript())
 						{
 							UE_LOG(LogNiagara, Log, TEXT("NiagaraStaticMeshDataInterface used by CPU emitter and does not allow CPU access. System: %s, Mesh: %s"), *GetFullNameSafe(SystemInstance->GetSystem()), *GetFullNameSafe(StaticMesh));
 						}
@@ -1054,7 +1054,7 @@ namespace NDIStaticMeshLocal
 
 				const bool MeshValid = IsValid(StaticMesh);
 				const bool SupportUvMappingCpu = UsedByCpuUvMapping && MeshValid;
-				const bool SupportUvMappingGpu = UsedByGpuUvMapping && MeshValid && Interface->IsUsedWithGPUEmitter();
+				const bool SupportUvMappingGpu = UsedByGpuUvMapping && MeshValid && Interface->IsUsedWithGPUScript();
 
 				UvMappingUsage = FMeshUvMappingUsage(SupportUvMappingCpu, SupportUvMappingGpu);
 
@@ -1763,7 +1763,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	const bool bIsValid = InstanceData->Init(this, SystemInstance);
 
 	// Create render thread data?
-	if (bIsValid && IsUsedWithGPUEmitter() )
+	if (bIsValid && IsUsedWithGPUScript() )
 	{
 		TUniquePtr<NDIStaticMeshLocal::FGpuInitializeData> GpuInitializeData = MakeUnique<NDIStaticMeshLocal::FGpuInitializeData>();
 		GpuInitializeData->RenderProxy = GetProxyAs<NDIStaticMeshLocal::FRenderProxy>();
@@ -1872,7 +1872,7 @@ void UNiagaraDataInterfaceStaticMesh::DestroyPerInstanceData(void* PerInstanceDa
 	InstanceData->Release();
 	InstanceData->~FInstanceData_GameThread();
 
-	if ( IsUsedWithGPUEmitter() )
+	if ( IsUsedWithGPUScript() )
 	{
 		NDIStaticMeshLocal::FRenderProxy* Proxy_RT = GetProxyAs<NDIStaticMeshLocal::FRenderProxy>();
 		FNiagaraSystemInstanceID InstanceID_RT = SystemInstance->GetId();

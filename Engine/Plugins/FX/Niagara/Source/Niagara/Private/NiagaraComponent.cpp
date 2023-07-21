@@ -3630,8 +3630,8 @@ void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBas
 		UNiagaraDataInterface* OriginalDI = InValue.GetDataInterface();
 		UNiagaraDataInterface* DuplicatedDI = DuplicateObject(OriginalDI, this);
 		OverrideParameters.SetDataInterface(DuplicatedDI, InKey);
-		DuplicatedDI->SetUsedByCPUEmitter(OriginalDI->IsUsedWithCPUEmitter());
-		DuplicatedDI->SetUsedByGPUEmitter(OriginalDI->IsUsedWithGPUEmitter());
+		DuplicatedDI->SetUsedWithCPUScript(OriginalDI->IsUsedWithCPUScript());
+		DuplicatedDI->SetUsedWithGPUScript(OriginalDI->IsUsedWithGPUScript());
 	}
 	else if (InKey.IsUObject())
 	{
