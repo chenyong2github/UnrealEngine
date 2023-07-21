@@ -1266,6 +1266,13 @@ void FSkeletalAnimationTrackEditor::OnSequencerSaved(ISequencer& )
 //dirty anim sequence when the sequencer changes, to make sure it get's checked out etc..
 void FSkeletalAnimationTrackEditor::OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType)
 {
+	//only return if data really changed
+	if(DataChangeType ==  EMovieSceneDataChangeType::RefreshTree ||
+		DataChangeType == EMovieSceneDataChangeType::ActiveMovieSceneChanged ||
+		DataChangeType == EMovieSceneDataChangeType::RefreshAllImmediately)
+	{
+		return;
+	}
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	if (!SequencerPtr.IsValid())
 	{
