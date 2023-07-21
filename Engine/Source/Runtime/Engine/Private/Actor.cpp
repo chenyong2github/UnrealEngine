@@ -3502,6 +3502,19 @@ TArray<UActorComponent*> AActor::K2_GetComponentsByClass(TSubclassOf<UActorCompo
 	return MoveTemp(Components);
 }
 
+UActorComponent* AActor::FindComponentByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const
+{
+	for (UActorComponent* Component : GetComponents())
+	{
+		if (Component && Component->IsA(ComponentClass) && Component->ComponentHasTag(Tag))
+		{
+			return Component;
+		}
+	}
+
+	return nullptr;
+}
+
 TArray<UActorComponent*> AActor::GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const
 {
 	TInlineComponentArray<UActorComponent*> ComponentsByClass;

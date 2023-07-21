@@ -3521,6 +3521,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent", DisplayName = "Get Components By Class", ScriptName = "GetComponentsByClass", DeterminesOutputType = "ComponentClass"))
 	ENGINE_API TArray<UActorComponent*> K2_GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const;
 
+	/** Searches components array and returns first encountered component with a given tag. */
+	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
+	UActorComponent* FindComponentByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
+
 	/** Gets all the components that inherit from the given class with a given tag. */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
 	ENGINE_API TArray<UActorComponent*> GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
@@ -3539,6 +3543,15 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to FindComponentByClass must be derived from UActorComponent");
 
 		return (T*)FindComponentByClass(T::StaticClass());
+	}
+	
+	/** Templatized version of FindComponentByTag that handles casting for you */
+	template<class T>
+	T* FindComponentByTag(const FName& Tag) const
+	{
+		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to FindComponentByTag must be derived from UActorComponent");
+
+		return (T*)FindComponentByTag(T::StaticClass(), Tag);
 	}
 
 	/** Templatized version of FindComponentByInterface that handles casting for you */
