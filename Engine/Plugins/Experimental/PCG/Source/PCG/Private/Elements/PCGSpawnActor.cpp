@@ -905,6 +905,7 @@ void FPCGSpawnActorElement::SpawnActors(FPCGSubgraphContext* Context, AActor* Ta
 			if (OutPointData && ActorReferenceAttribute)
 			{
 				FPCGPoint& OutPoint = OutPointData->GetMutablePoints()[i + OutPointOffset];
+				OutPointData->Metadata->InitializeOnSet(OutPoint.MetadataEntry);
 				ActorReferenceAttribute->SetValue(OutPoint.MetadataEntry, FSoftObjectPath(GeneratedActor).ToString());
 			}
 		}
