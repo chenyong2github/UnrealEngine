@@ -98,7 +98,7 @@ void FDMXPixelMappingDetailCustomization_Renderer::PostUndo(bool bSuccess)
 	{
 		if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Object))
 		{
-			RendererComponent->InvalidatePreprocessRenderer();
+			RendererComponent->UpdatePreprocessRenderer();
 		}
 	}
 }
@@ -110,7 +110,7 @@ void FDMXPixelMappingDetailCustomization_Renderer::PostRedo(bool bSuccess)
 	{
 		if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Object))
 		{
-			RendererComponent->InvalidatePreprocessRenderer();
+			RendererComponent->UpdatePreprocessRenderer();
 		}
 	}
 }

@@ -18,80 +18,6 @@
 #define LOCTEXT_NAMESPACE "FDMXPixelMappingEditorUtils"
 
 
-bool FDMXPixelMappingEditorUtils::VerifyComponentRename(TSharedRef<FDMXPixelMappingToolkit> InToolkit, const FDMXPixelMappingComponentReference& InComponent, const FText& NewName, FText& OutErrorMessage)
-{
-	if (!InComponent.IsValid())
-	{
-		OutErrorMessage = LOCTEXT("InvalidComponentReference", "Invalid Component Reference");
-		return false;
-	}
-
-	if (NewName.IsEmptyOrWhitespace())
-	{
-		OutErrorMessage = LOCTEXT("EmptyComponentName", "Empty Component Name");
-		return false;
-	}
-
-	const FString& NewNameString = NewName.ToString();
-
-	if (NewNameString.Len() >= NAME_SIZE)
-	{
-		OutErrorMessage = LOCTEXT("ComponentNameTooLong", "Component Name is Too Long");
-		return false;
-	}
-
-	UDMXPixelMappingBaseComponent* ComponentToRename = InComponent.GetComponent();
-	if (!ComponentToRename)
-	{
-		// In certain situations, the template might be lost due to mid recompile with focus lost on the rename box at
-		// during a strange moment.
-		return false;
-	}
-
-	// Slug the new name down to a valid object name
-	const FName NewNameSlug = MakeObjectNameFromDisplayLabel(NewNameString, ComponentToRename->GetFName());
-
-	UDMXPixelMapping* DMXPixelMapping = InToolkit->GetDMXPixelMapping();
-	UDMXPixelMappingBaseComponent* ExistingComponent = DMXPixelMapping->FindComponent(NewNameSlug);
-
-	if (ExistingComponent != nullptr)
-	{
-		if (ComponentToRename != ExistingComponent)
-		{
-			OutErrorMessage = LOCTEXT("ExistingComponentName", "Existing Component Name");
-			return false;
-		}
-	}
-	else
-	{
-		// check for redirectors too
-		if (FindObject<UObject>(ComponentToRename->GetOuter(), *NewNameSlug.ToString()))
-		{
-			OutErrorMessage = LOCTEXT("ExistingOldComponentName", "Existing Old Component Name");
-			return false;
-		}
-	}
-
-	return true;
-}
-
-void FDMXPixelMappingEditorUtils::RenameComponent(TSharedRef<FDMXPixelMappingToolkit> InToolkit, const FName& OldObjectName, const FString& NewDisplayName)
-{
-	UDMXPixelMapping* DMXPixelMapping = InToolkit->GetDMXPixelMapping();
-	check(DMXPixelMapping);
-
-	UDMXPixelMappingBaseComponent* ComponentToRename = DMXPixelMapping->FindComponent(OldObjectName);
-	check(ComponentToRename);
-
-	// Get the new FName slug from the given display name
-	const FName NewFName = MakeObjectNameFromDisplayLabel(NewDisplayName, ComponentToRename->GetFName());
-	const FString NewNameStr = NewFName.ToString();
-
-	ComponentToRename->Rename(*NewNameStr);
-
-	InToolkit->OnComponentRenamed(ComponentToRename);
-}
-
 UDMXPixelMappingRendererComponent* FDMXPixelMappingEditorUtils::AddRenderer(UDMXPixelMapping* InPixelMapping)
 {
 	if (InPixelMapping == nullptr)
@@ -121,21 +47,6 @@ UDMXPixelMappingRendererComponent* FDMXPixelMappingEditorUtils::AddRenderer(UDMX
 
 	return Component;
 }
-
-void FDMXPixelMappingEditorUtils::CreateComponentContextMenu(FMenuBuilder& MenuBuilder, TSharedRef<FDMXPixelMappingToolkit> InToolkit)
-{
-	MenuBuilder.BeginSection("Edit", LOCTEXT("Edit", "Edit"));
-	{
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
-	}
-	MenuBuilder.EndSection();
-}
-
 
 bool FDMXPixelMappingEditorUtils::GetArrangedWidget(TSharedRef<SWidget> InWidget, FArrangedWidget& OutArrangedWidget)
 {

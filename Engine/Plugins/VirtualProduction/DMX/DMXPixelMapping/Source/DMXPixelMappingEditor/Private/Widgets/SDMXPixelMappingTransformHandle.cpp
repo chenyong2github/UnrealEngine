@@ -3,9 +3,9 @@
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
 
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
-#include "DMXPixelMappingLayoutSettings.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
+#include "Settings/DMXPixelMappingEditorSettings.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
 #include "Widgets/Images/SImage.h"
@@ -193,11 +193,9 @@ void SDMXPixelMappingTransformHandle::Resize(UDMXPixelMappingBaseComponent* Base
 
 		OutputComponent->SetSize(NewSize);
 
-		// Scale children if desired, no division by zero
-		const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-		if (!LayoutSettings ||
-			!LayoutSettings->bScaleChildrenWithParent ||
-			NewSize == FVector2D::ZeroVector)
+		// Scale children only if desired, no division by zero
+		const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
+		if (!DesignerSettings.bScaleChildrenWithParent || NewSize == FVector2D::ZeroVector)
 		{
 			return;
 		}

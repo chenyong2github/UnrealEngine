@@ -4,16 +4,15 @@
 
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXPixelMappingEditorCommon.h"
-#include "DMXPixelMappingLayoutSettings.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "LayoutScripts/DMXPixelMappingLayoutScript.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-
 #include "ScopedTransaction.h"
+#include "Settings/DMXPixelMappingEditorSettings.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingLayoutViewModel"
@@ -62,8 +61,8 @@ void UDMXPixelMappingLayoutViewModel::SetToolkit(const TSharedRef<FDMXPixelMappi
 	RefreshComponents();
 	RefreshLayoutScriptClass();
 
-	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	if (LayoutSettings && LayoutSettings->bApplyLayoutScriptWhenLoaded)
+	const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
+	if (DesignerSettings.bApplyLayoutScriptWhenLoaded)
 	{
 		FScopedTransaction ApplyLayoutScriptTransactionDirect(LOCTEXT("ApplyLayoutScriptTransactionDirect", "Apply Layout Script"));
 		ApplyLayoutScripts();
@@ -315,8 +314,8 @@ void UDMXPixelMappingLayoutViewModel::OnLayoutScriptClassChanged()
 		OnModelChanged.Broadcast();
 	}
 
-	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	if (LayoutScriptClass && LayoutSettings && LayoutSettings->bApplyLayoutScriptWhenLoaded)
+	const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
+	if (DesignerSettings.bApplyLayoutScriptWhenLoaded && LayoutScriptClass)
 	{
 		ApplyLayoutScripts();
 	}

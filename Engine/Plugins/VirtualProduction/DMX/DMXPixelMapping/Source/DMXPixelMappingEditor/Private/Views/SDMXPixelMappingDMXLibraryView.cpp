@@ -83,7 +83,7 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 					{
 						return bRenderComponentContainedInSelection ?
 							LOCTEXT("AddFixtureGroupTooltip", "Adds a DMX Library to the Pixel Mapping") :
-							LOCTEXT("CannotAddFixtureGroupTooltip", "Please select an Input Source");
+							LOCTEXT("CannotAddFixtureGroupTooltip", "Please select a source texture");
 					})
 				.ContentPadding(FMargin(5.0f, 1.0f))
 				.OnClicked(this, &SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked)

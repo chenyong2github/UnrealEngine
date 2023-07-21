@@ -108,3 +108,8 @@ void UDMXPixelMappingRootComponent::OnComponentRenamed(UDMXPixelMapping* PixelMa
 			CachedRendererComponentsByName.Add(RendererComponent->GetFName(), RendererComponent);
 		}, false);
 }
+
+FString UDMXPixelMappingRootComponent::GetUserFriendlyName() const
+{
+	return GetOuter()->GetName();
+}

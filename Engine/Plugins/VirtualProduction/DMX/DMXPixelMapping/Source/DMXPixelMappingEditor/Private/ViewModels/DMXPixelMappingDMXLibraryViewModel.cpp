@@ -92,7 +92,7 @@ void UDMXPixelMappingDMXLibraryViewModel::UpdateFixtureGroupFromSelection(TWeakP
 		{
 			if (Component->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass())
 			{
-				FixtureGroupComponents.Add(CastChecked<UDMXPixelMappingFixtureGroupComponent>(Component));
+				FixtureGroupComponents.AddUnique(CastChecked<UDMXPixelMappingFixtureGroupComponent>(Component));
 			}
 		}
 	}

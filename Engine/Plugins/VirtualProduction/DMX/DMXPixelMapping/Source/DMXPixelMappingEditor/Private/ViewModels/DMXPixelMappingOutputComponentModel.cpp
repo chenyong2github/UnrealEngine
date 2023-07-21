@@ -3,7 +3,6 @@
 #include "ViewModels/DMXPixelMappingOutputComponentModel.h"
 
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
-#include "DMXPixelMappingLayoutSettings.h"
 #include "DMXPixelMappingTypes.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
@@ -13,6 +12,7 @@
 #include "Library/DMXLibrary.h"
 #include "MVR/DMXMVRGeneralSceneDescription.h"
 #include "MVR/Types/DMXMVRFixtureNode.h"
+#include "Settings/DMXPixelMappingEditorSettings.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
 
@@ -75,8 +75,8 @@ bool FDMXPixelMappingOutputComponentModel::ShouldDraw() const
 {
 	if (UDMXPixelMappingMatrixCellComponent* CellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(WeakOutputComponent.Get()))
 	{
-		const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-		return LayoutSettings->bShowMatrixCells;
+		const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
+		return DesignerSettings.bShowMatrixCells;
 	}
 
 	return true;
@@ -84,10 +84,9 @@ bool FDMXPixelMappingOutputComponentModel::ShouldDraw() const
 
 bool FDMXPixelMappingOutputComponentModel::ShouldDrawName() const
 {
-	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	check(LayoutSettings);
+	const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
 
-	return LayoutSettings->bShowComponentNames &&
+	return DesignerSettings.bShowComponentNames &&
 		WeakOutputComponent.IsValid() && 
 		WeakOutputComponent->GetClass() != UDMXPixelMappingMatrixCellComponent::StaticClass();
 }
@@ -105,22 +104,20 @@ bool FDMXPixelMappingOutputComponentModel::ShouldDrawNameAbove() const
 
 bool FDMXPixelMappingOutputComponentModel::ShouldDrawCellID() const
 {
-	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	check(LayoutSettings);
+	const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
 
 	return
-		LayoutSettings->bShowCellIDs &&
+		DesignerSettings.bShowCellIDs &&
 		WeakOutputComponent.IsValid() &&
 		WeakOutputComponent->GetClass() == UDMXPixelMappingMatrixCellComponent::StaticClass();
 }
 
 bool FDMXPixelMappingOutputComponentModel::ShouldDrawPatchInfo() const
 {
-	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	check(LayoutSettings);
+	const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
 
 	return
-		LayoutSettings->bShowPatchInfo &&
+		DesignerSettings.bShowPatchInfo &&
 		GetFixturePatch() != nullptr;;
 }
 

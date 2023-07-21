@@ -5,7 +5,6 @@
 #include "Algo/Find.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorStyle.h"
-#include "DMXPixelMappingLayoutSettings.h"
 #include "DragDrop/DMXPixelMappingGroupChildDragDropHelper.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
@@ -14,21 +13,21 @@
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
+#include "Input/HittestGrid.h"
+#include "ScopedTransaction.h"
+#include "Settings/DMXPixelMappingEditorSettings.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/SCanvas.h"
 #include "Widgets/SDMXPixelMappingDesignerCanvas.h"
 #include "Widgets/SDMXPixelMappingOutputComponent.h"
 #include "Widgets/SDMXPixelMappingRuler.h"
 #include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
 #include "Widgets/SDMXPixelMappingZoomPan.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-
-#include "ScopedTransaction.h"
-#include "Widgets/SCanvas.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SGridPanel.h"
-#include "Input/HittestGrid.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Input/SButton.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingDesignerView"
@@ -886,16 +885,12 @@ void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(bool bClearP
 		}
 
 		// Select group if desired
-		const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-		if (LayoutSettings && LayoutSettings->bAlwaysSelectGroup)
+		const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
+		if (DesignerSettings.bAlwaysSelectGroup)
 		{
-			if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(PendingSelectedComponent))
+			if (UDMXPixelMappingOutputDMXComponent* OutputDMXComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(PendingSelectedComponent))
 			{
-				PendingSelectedComponent = GroupItemComponent->GetParent();
-			}
-			else if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(PendingSelectedComponent))
-			{
-				PendingSelectedComponent = MatrixComponent->GetParent();
+				PendingSelectedComponent = OutputDMXComponent->GetParent();
 			}
 		}
 
@@ -905,7 +900,7 @@ void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(bool bClearP
 
 		if (!bClearPreviousSelection)
 		{
-			SelectedComponents.Append(WeakToolkit.Pin()->GetSelectedComponents());
+			SelectedComponents.Append(Toolkit->GetSelectedComponents());
 		}
 		Toolkit->SelectComponents(SelectedComponents);
 

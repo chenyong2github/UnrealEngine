@@ -18,7 +18,6 @@ public:
 	TSharedPtr<FUICommandInfo> AddMapping;
 	TSharedPtr<FUICommandInfo> PlayDMX;
 	TSharedPtr<FUICommandInfo> StopPlayingDMX;
-	TSharedPtr<FUICommandInfo> TogglePlayDMXAll;
 
 	// Layout related
 	TSharedPtr<FUICommandInfo> SizeComponentToTexture;

@@ -17,6 +17,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "IDMXPixelMappingRenderer.h"
 #include "IDMXPixelMappingRendererModule.h"
+#include "Materials/MaterialInterface.h"
 #include "Modulators/DMXModulator.h"
 #include "RenderingThread.h"
 #include "TextureResource.h"
@@ -32,6 +33,8 @@ DECLARE_CYCLE_STAT(TEXT("PixelMapping Render"), STAT_DMXPixelMappingRender, STAT
 DECLARE_CYCLE_STAT(TEXT("PixelMapping SendDMX"), STAT_DMXPixelMappingSendDMX, STATGROUP_DMX);
 DECLARE_CYCLE_STAT(TEXT("PixelMapping RenderInputTexture"), STAT_DMXPixelMappingRenderInputTexture, STATGROUP_DMX);
 
+
+#define LOCTEXT_NAMESPACE "DMXPixelMappingRendererComponent"
 
 UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 {
@@ -77,7 +80,7 @@ void UDMXPixelMappingRendererComponent::PostInitProperties()
 
 	if (!IsTemplate())
 	{
-		InvalidatePreprocessRenderer();
+		UpdatePreprocessRenderer();
 	}
 }
 
@@ -87,7 +90,7 @@ void UDMXPixelMappingRendererComponent::PostLoad()
 
 	if (!IsTemplate())
 	{
-		InvalidatePreprocessRenderer();
+		UpdatePreprocessRenderer();
 	}
 }
 
@@ -108,7 +111,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		InvalidatePreprocessRenderer();
+		UpdatePreprocessRenderer();
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -125,7 +128,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 }
 #endif // WITH_EDITOR
 
-void UDMXPixelMappingRendererComponent::InvalidatePreprocessRenderer()
+void UDMXPixelMappingRendererComponent::UpdatePreprocessRenderer()
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!PixelMappingRenderer_DEPRECATED.IsValid())
@@ -275,6 +278,30 @@ void UDMXPixelMappingRendererComponent::RenderAndSendDMX()
 {
 	Render();
 	SendDMX();
+}
+
+FString UDMXPixelMappingRendererComponent::GetUserFriendlyName() const
+{
+	constexpr TCHAR NoSourceString[] = TEXT("None");
+	switch (RendererType)
+	{
+	case(EDMXPixelMappingRendererType::Texture):
+		return FString::Printf(TEXT("Pixel Mapping: %s"), InputTexture ? *InputTexture->GetName() : NoSourceString);
+		break;
+
+	case(EDMXPixelMappingRendererType::Material):
+		return FString::Printf(TEXT("Pixel Mapping: %s"), InputMaterial ? *InputMaterial->GetName() : NoSourceString);
+		break;
+
+	case(EDMXPixelMappingRendererType::UMG):
+		return FString::Printf(TEXT("Pixel Mapping: %s"), InputWidget ? *InputWidget->GetName() : NoSourceString);
+		break;
+
+	default:
+		checkf(0, TEXT("Invalid Renderer Type in DMXPixelMappingRendererComponent"));
+	}
+
+	return FString();
 }
 
 UTexture* UDMXPixelMappingRendererComponent::GetRenderedInputTexture() const
@@ -683,3 +710,5 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(co
 
 	return RenderTarget;
 }
+
+#undef LOCTEXT_NAMESPACE

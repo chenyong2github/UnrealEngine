@@ -10,7 +10,7 @@
 #include "PropertyHandle.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 
@@ -74,12 +74,10 @@ void FDMXPixelMappingColorSpaceDetails_RGBCMY::GenerateAttributeRow(IDetailLayou
 		.ValueContent()
 		.HAlign(HAlign_Fill)
 		[
-			SNew(SWrapBox)
-			.UseAllottedWidth(true)
-			.InnerSlotPadding(FVector2D(4.f, 0.f))
+			SNew(SHorizontalBox)
 
-			+ SWrapBox::Slot()
-			.HAlign(HAlign_Fill)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
 			[
 				SNew(SBox)
 				.MinDesiredWidth(120.f)
@@ -88,15 +86,15 @@ void FDMXPixelMappingColorSpaceDetails_RGBCMY::GenerateAttributeRow(IDetailLayou
 				]
 			]
 
-			+ SWrapBox::Slot()
-			.HAlign(HAlign_Left)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
 			.Padding(4.f, 0.f, 0.f, 0.f)
 			[
 				AttributeRowData.IsInvertColorHandle->CreatePropertyValueWidget()
 			]
 
-			+ SWrapBox::Slot()
-			.HAlign(HAlign_Left)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -104,8 +102,6 @@ void FDMXPixelMappingColorSpaceDetails_RGBCMY::GenerateAttributeRow(IDetailLayou
 				.Text(AttributeRowData.InvertColorLabel)
 			]
 		];
-
-	
 }
 
 FText FDMXPixelMappingColorSpaceDetails_RGBCMY::GetRedAttributeDisplayName() const

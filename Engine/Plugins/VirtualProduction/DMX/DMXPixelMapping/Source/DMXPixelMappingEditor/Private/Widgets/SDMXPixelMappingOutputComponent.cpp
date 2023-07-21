@@ -2,11 +2,11 @@
 
 #include "Widgets/SDMXPixelMappingOutputComponent.h"
 
-#include "DMXPixelMappingLayoutSettings.h"
 #include "DMXPixelMappingEditorStyle.h"
 #include "DMXPixelMappingTypes.h"
 #include "DMXPixelMappingUtils.h"
 #include "DMXRuntimeUtils.h"
+#include "Settings/DMXPixelMappingEditorSettings.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "ViewModels/DMXPixelMappingOutputComponentModel.h"
 #include "Widgets/Layout/SBorder.h"
@@ -82,7 +82,8 @@ void SDMXPixelMappingOutputComponent::Construct(const FArguments& InArgs, const 
 	];
 
 	ForceRefresh();
-	UDMXPixelMappingLayoutSettings::GetOnLayoutSettingsChanged().AddSP(this, &SDMXPixelMappingOutputComponent::RequestRefresh);
+
+	UDMXPixelMappingEditorSettings::OnEditorSettingsChanged.AddSP(this, &SDMXPixelMappingOutputComponent::RequestRefresh);
 }
 
 bool SDMXPixelMappingOutputComponent::Equals(UDMXPixelMappingBaseComponent* Component) const
@@ -178,9 +179,6 @@ TSharedRef<SWidget> SDMXPixelMappingOutputComponent::CreateContent()
 				.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			]
 		];
-
-	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	check(LayoutSettings);
 
 	if (Model->ShouldDrawName())
 	{
@@ -367,15 +365,15 @@ public:
 
 		RebuildAddressesContent();
 
-		UDMXPixelMappingLayoutSettings::GetOnLayoutSettingsChanged().AddSP(this, &SDMXPixelMappingScreenComponentCell::RebuildAddressesContent);
+		UDMXPixelMappingEditorSettings::OnEditorSettingsChanged.AddSP(this, &SDMXPixelMappingScreenComponentCell::RebuildAddressesContent);
 	}
 
 private:
 	/** Rebuilds addresses content */
 	void RebuildAddressesContent()
 	{
-		const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-		if (!LayoutSettings || !LayoutSettings->bShowPatchInfo)
+		const FDMXPixelMappingDesignerSettings& DesignerSettings = GetDefault<UDMXPixelMappingEditorSettings>()->DesignerSettings;
+		if (!DesignerSettings.bShowPatchInfo)
 		{
 			return;
 		}

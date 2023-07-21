@@ -21,11 +21,10 @@ void FDMXPixelMappingEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(SaveThumbnailImage, "Thumbnail", "Generate Thumbnail", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND(AddMapping, "Add Mapping", "Add Mapping", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddMapping, "Add Source", "Adds a new Source Texure, Material or User Widget to the Pixel Map asset.", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND(PlayDMX, "Play DMX", "Play DMX.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(StopPlayingDMX, "Stop Playing DMX", "Stop Playing DMX.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(TogglePlayDMXAll, "Toggle Play DMX All", "Toggles playing all render components and all their childs", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(PlayDMX, "Play DMX", "Starts to send DMX", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(StopPlayingDMX, "Stop Playing DMX", "Stops playing DMX.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(SizeComponentToTexture, "Size Component to Texture", "Sizes the selected group to Texture.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::S));
 	

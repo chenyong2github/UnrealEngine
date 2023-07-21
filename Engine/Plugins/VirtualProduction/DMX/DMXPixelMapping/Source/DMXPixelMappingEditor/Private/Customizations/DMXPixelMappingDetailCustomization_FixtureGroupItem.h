@@ -52,8 +52,8 @@ private:
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
 
-	/** Forces the layout to redraw */
-	void ForceRefresh();
+	/** Requests to refresh the details view */
+	void RequestRefresh();
 
 	/** Fixture Group Item Components that are being edited */
 	TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>> FixtureGroupItemComponents;

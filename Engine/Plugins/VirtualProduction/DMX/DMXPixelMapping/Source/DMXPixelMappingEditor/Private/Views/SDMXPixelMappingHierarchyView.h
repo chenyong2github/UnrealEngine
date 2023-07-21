@@ -3,48 +3,44 @@
 #pragma once
 
 #include "DMXPixelMappingEditorCommon.h"
-
 #include "EditorUndoClient.h"
+#include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SHeaderRow.h"
 
-class UDMXPixelMappingBaseComponent;
-namespace ESelectInfo { enum Type : int; }
-template <typename ItemType> class TTextFilter;
-
+class FDMXPixelMappingHierarchyItem;
 class FDMXPixelMappingToolkit;
-class UDMXPixelMapping;
-
 class FUICommandList;
 class ITableRow;
 class SBorder;
+class SHeaderRow;
 class SSearchBox;
 class STableViewBase;
 template<typename ItemType> class STreeView;
 template<typename ItemType> class TreeFilterHandler;
+template <typename ItemType> class TTextFilter;
+class UDMXPixelMapping;
+class UDMXPixelMappingBaseComponent;
 
 
-class SDMXPixelMappingHierarchyView
-	: public SCompoundWidget, public FEditorUndoClient
+
+class SDMXPixelMappingHierarchyView final
+	: public SCompoundWidget
+	, public FSelfRegisteringEditorUndoClient 
 {
 public:
-	using WidgetTextFilter = TTextFilter<FDMXPixelMappingHierarchyItemWidgetModelPtr>;
-	using HierarchTreeView = STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>;
-	using TreeViewPtr = TSharedPtr<HierarchTreeView>;
-
-	enum class EExpandBehavior : uint8
-	{
-		NeverExpand,
-		AlwaysExpand,
-		RestoreFromPrevious,
-		FromModel
-	};
-
-public:
-
 	SLATE_BEGIN_ARGS(SDMXPixelMappingHierarchyView) { }
 	SLATE_END_ARGS()
+		
+	/** ColumnIds for the tree view */
+	struct FColumnIds
+	{
+		static const FName EditorColor;
+		static const FName ComponentName;
+		static const FName FixtureID;
+		static const FName Patch;
+	};
 
-public:
 	/**
 	 * Constructs the widget.
 	 *
@@ -52,110 +48,115 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
-	// Begin SWidget
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	// End SWidget
-
-	 //~ Begin FEditorUndoClient Interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
-	// End of FEditorUndoClient
-
-	/** force a rebuild of the hierarchy **/
-	void RequestRebuildTree();
-
-	/** force a redraw of a component **/
-	void RequestComponentRedraw(UDMXPixelMappingBaseComponent* Component);
+	/** Refreshes the widget on the next tick */
+	void RequestRefresh();
 
 private:
-	/** Called when the 'Add Input Source' button was clicked */
-	FReply OnAddInputSourceButtonClicked();
+	/** Refreshes the widget */
+	void ForceRefresh();
 
-	TSharedPtr<SWidget> WidgetHierarchy_OnContextMenuOpening();
-	void WidgetHierarchy_OnGetChildren(FDMXPixelMappingHierarchyItemWidgetModelPtr InParent, FDMXPixelMappingHierarchyItemWidgetModelArr& OutChildren);
-	TSharedRef< ITableRow > WidgetHierarchy_OnGenerateRow(FDMXPixelMappingHierarchyItemWidgetModelPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
-	void WidgetHierarchy_OnSelectionChanged(FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem, ESelectInfo::Type SelectInfo);
+	/** Builds the child slot anew and refreshes the widget */
+	void BuildChildSlotAndRefresh();
 
-	/**  Gets an array of strings used for filtering/searching the specified widget. */
-	void GetWidgetFilterStrings(FDMXPixelMappingHierarchyItemWidgetModelPtr InModelPtr, TArray<FString>& OutStrings);
+	/** Generates the header row for the tree view */
+	TSharedRef<SHeaderRow> GenerateHeaderRow();
 
-	void ConditionallyUpdateTree();
-	/** Completely regenerates the treeview */
-	void RebuildTreeView();
+	/** Generates the header row filter menu */
+	TSharedRef<SWidget> GenerateHeaderRowFilterMenu();
+	
+	//~ Begin SWidget interface
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//~ End SWidget interface
 
-	void RestoreSelectedItems();
+	//~ Begin FEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FEditorUndoClient interface
 
-	/** Restores selection for a the item and its children. Returns true if the Model or a child was selected. */
-	bool RestoreSelectionForItemAndChildren(FDMXPixelMappingHierarchyItemWidgetModelPtr& Model);
+	/** Called to get child items */
+	void OnGetChildItems(FDMXPixelMappingHierarchyItemWidgetModelPtr InParent, FDMXPixelMappingHierarchyItemWidgetModelArr& OutChildren);
 
-	/** Rebuilds the tree structure based on the current filter options */
-	void RefreshTree();
+	/** Called when a row is generated */
+	TSharedRef<ITableRow> OnGenerateRow(FDMXPixelMappingHierarchyItemWidgetModelPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 
-	/** Called when a component was added */
-	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+	/** Called when the context menu is opening */
+	TSharedPtr<SWidget> OnContextMenuOpening();
 
-	/** Called when a component was removed */
-	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+	/** Called when selection changed */
+	void OnSelectionChanged(FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem, ESelectInfo::Type SelectInfo);
+
+	/** Toggles the visibility of a column */
+	void ToggleColumnVisility(FName ColumnId);
+
+	/** Returns true if the specified column is currently visible */
+	bool IsColumVisible(FName ColumnId) const;
+
+	/** Gets the sort mode for the given column ID */
+	EColumnSortMode::Type GetColumnSortMode(FName ColumnId) const;
+
+	/** Set the current sorting state of the hierarchy tree view and refreshes the tree, applying the new sorting */
+	void SetSortAndRefresh(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
+	/** Called when a component was added or removed from the pixel mapping */
+	void OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
 	/** Called when the selected widget has changed.  The treeview then needs to match the new selection. */
 	void OnEditorSelectionChanged();
 
-	void BeginRename();
+	/** Adopts the current selection of the toolkit */
+	void AdoptSelectionFromToolkit();
 
-	void BeginCut();
+	/** Adopts the selection from toolkit */
+	bool RecursiveAdoptSelectionFromToolkit(const TSharedRef<FDMXPixelMappingHierarchyItem>& Model);
 
-	bool CanBeginCut() const;
+	/** Returns true if the current selection can to be renamed */
+	bool CanRenameSelectedComponent() const;
 
-	void BeginCopy();
+	/** Renames selected components */
+	void RenameSelectedComponent();
 
-	bool CanBeginCopy() const;
+	/** Returns true if the current selection can to be deleted */
+	bool CanDeleteSelectedComponents() const;
 
-	void BeginPaste();
+	/** Deletes selected components */
+	void DeleteSelectedComponents();
 
-	bool CanBeginPaste() const;
+	/** Sets the text for the filter */
+	void SetFilterText(const FText& Text);
 
-	void BeginDuplicate();
+	/**  Gets an array of strings used for filtering/searching the specified widget. */
+	void GetWidgetFilterStrings(FDMXPixelMappingHierarchyItemWidgetModelPtr InModel, TArray<FString>& OutStrings) const;
 
-	bool CanBeginDuplicate() const;
+	/** Flag to ignore selections while the hierarchy view is updating the selection. */
+	bool bIsUpdatingSelection = false;
 
-	void BeginDelete();
+	/** All items in the tree */
+	TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>> TreeItems;
 
-	FText GetSearchText() const { return FText(); }
+	/** Root items being displayed */
+	TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>> FilteredRootItems;
 
-	void RecursivePaste(UDMXPixelMappingBaseComponent* InComponent);
+	/** All root items */
+	TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>> AllRootItems;
 
-	bool MoveComponentToComponent(UDMXPixelMappingBaseComponent* Source, UDMXPixelMappingBaseComponent* Destination, const bool bRename);
+	/** The search box widget */
+	TSharedPtr<SSearchBox> SearchBox;
 
-private:
-	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
-
-	/** Commands specific to the hierarchy. */
-	TSharedPtr<FUICommandList> CommandList;
-
-	TSharedPtr<SBorder> TreeViewArea;
-
-	TSharedPtr<SSearchBox> SearchBoxPtr;
+	/** The hierarchy tree view widget */
+	TSharedPtr<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>> HierarchyTreeView;
 
 	/** Handles filtering the hierarchy based on an IFilter. */
 	TSharedPtr<TreeFilterHandler<FDMXPixelMappingHierarchyItemWidgetModelPtr>> FilterHandler;
 
-	TSharedPtr<WidgetTextFilter> SearchBoxWidgetFilter;
+	/** Text filter for the filter handler, set from the search bbox */
+	TSharedPtr<TTextFilter<FDMXPixelMappingHierarchyItemWidgetModelPtr>> SearchFilter;
 
-	/** The source root widgets for the tree. */
-	FDMXPixelMappingHierarchyItemWidgetModelArr RootWidgets;
+	/** Timer handle for the request refresh timer */
+	FTimerHandle RequestRefreshTimerHandle;
 
-	/** The root widgets which are actually displayed by the TreeView which will be managed by the TreeFilterHandler. */
-	FDMXPixelMappingHierarchyItemWidgetModelArr TreeRootWidgets;
+	/** Commands specific to the hierarchy. */
+	TSharedPtr<FUICommandList> CommandList;
 
-	/** Has a full refresh of the tree been requested?  This happens when the user is filtering the tree */
-	bool bRefreshRequested;
-
-	/** Is the tree in such a changed state that the whole widget needs rebuilding? */
-	bool bRebuildTreeRequested;
-
-	/** Flag to ignore selections while the hierarchy view is updating the selection. */
-	bool bIsUpdatingSelection;
-
-	TreeViewPtr WidgetTreeView;
+	/** The toolkit that contains this widget */
+	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 };

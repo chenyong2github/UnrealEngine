@@ -9,14 +9,14 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDMXPixelMappingEditor, All, All);
 class UDMXPixelMappingBaseComponent;
 
 class FDMXPixelMappingToolkit;
-class FDMXPixelMappingHierarchyItemWidgetModel;
+class FDMXPixelMappingHierarchyItem;
 class FDMXPixelMappingPaletteWidgetViewModel;
 class FDMXPixelMappingComponentTemplate;
 
 using FDMXPixelMappingToolkitPtr = TSharedPtr<FDMXPixelMappingToolkit>;
 using FDMXPixelMappingToolkitWeakPtr = TWeakPtr<FDMXPixelMappingToolkit>;
-using FDMXPixelMappingHierarchyItemWidgetModelPtr = TSharedPtr<FDMXPixelMappingHierarchyItemWidgetModel>;
-using FDMXPixelMappingHierarchyWidgetModelWeakPtr = TWeakPtr<FDMXPixelMappingHierarchyItemWidgetModel>;
+using FDMXPixelMappingHierarchyItemWidgetModelPtr = TSharedPtr<FDMXPixelMappingHierarchyItem>;
+using FDMXPixelMappingHierarchyWidgetModelWeakPtr = TWeakPtr<FDMXPixelMappingHierarchyItem>;
 using FDMXPixelMappingHierarchyItemWidgetModelArr = TArray<FDMXPixelMappingHierarchyItemWidgetModelPtr>;
 using FDMXPixelMappingPreviewWidgetViewModelPtr = TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>;
 using FDMXPixelMappingPreviewWidgetViewModelArray = TArray<FDMXPixelMappingPreviewWidgetViewModelPtr>;

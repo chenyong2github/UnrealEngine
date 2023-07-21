@@ -3,14 +3,16 @@
 #pragma once
 
 #include "DMXPixelMappingComponentReference.h"
-
+#include "Settings/DMXPixelMappingEditorSettings.h"
 #include "TickableEditorObject.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 class FDMXPixelMappingComponentTemplate;
-class FSpawnTabArgs;
-
 class FDMXPixelMappingToolbar;
+class FSpawnTabArgs;
+class FTabManager;
+class SDockableTab;
 class SDMXPixelMappingHierarchyView;
 class SDMXPixelMappingDesignerView;
 class SDMXPixelMappingDetailsView;
@@ -23,11 +25,6 @@ class UDMXPixelMappingMatrixComponent;
 class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingRendererComponent;
 
-struct FScopedSlowTask;
-class FTabManager;
-class SDockableTab;
-class SWidget;
-
 
 /**
  * Implements an Editor toolkit for Pixel Mapping.
@@ -36,8 +33,6 @@ class FDMXPixelMappingToolkit
 	: public FAssetEditorToolkit
 	, public FTickableEditorObject
 {
-	friend class FDMXPixelMappingToolbar;
-
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnSelectedComponentsChangedDelegate)
 	FOnSelectedComponentsChangedDelegate& GetOnSelectedComponentsChangedDelegate() { return OnSelectedComponentsChangedDelegate; }
@@ -51,8 +46,6 @@ public:
 	 */
 	virtual ~FDMXPixelMappingToolkit();
 
-public:
-
 	/**
 	 * Edits the specified Texture object.
 	 *
@@ -63,7 +56,6 @@ public:
 	void InitPixelMappingEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UDMXPixelMapping* InDMXPixelMapping);
 
 public:
-
 	//~ Begin FAssetEditorToolkit Interface
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
@@ -87,19 +79,6 @@ public:
 	FDMXPixelMappingComponentReference GetReferenceFromComponent(UDMXPixelMappingBaseComponent* InComponent);
 
 	UDMXPixelMappingRendererComponent* GetActiveRendererComponent() const { return ActiveRendererComponent.Get(); }
-
-	TArray<UDMXPixelMappingOutputComponent*> GetActiveOutputComponents() const
-	{
-		TArray<UDMXPixelMappingOutputComponent*> ValidatedActiveOutputComponents;
-		for (TWeakObjectPtr<UDMXPixelMappingOutputComponent> ActiveOutputComponent : ActiveOutputComponents)
-		{
-			if (ActiveOutputComponent.IsValid())
-			{
-				ValidatedActiveOutputComponents.Add(ActiveOutputComponent.Get());
-			}
-		}
-		return ValidatedActiveOutputComponents;
-	}
 
 	const TSharedPtr<FUICommandList>& GetDesignerCommandList() const { return DesignerCommandList; }
 
@@ -139,7 +118,13 @@ public:
 	/** Adds a renderer to the pixel mapping. Sets it as active renderer if a new renderer was created */
 	void AddRenderer();
 
-	void OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent);
+	/**
+	 * Rename Pixel Maping component.
+	 *
+	 * @param PreviousObjectName	The previous object name, used to find the object
+	 * @param DesiredObjectName		The desired object name
+	 */
+	void RenameComponent(const FName& PreviousObjectName, const FString& DesiredObjectName) const;
 
 	/** 
 	 * Creates components from the template. Returns the new components.
@@ -167,11 +152,11 @@ private:
 
 	void StopPlayingDMX();
 
-	void ExecutebTogglePlayDMXAll();
+	/** Updates blueprint nodes */
+	void UpdateBlueprintNodes() const;
 
-	void UpdateBlueprintNodes(UDMXPixelMapping* InDMXPixelMapping);
-
-	void OnSaveThumbnailImage();
+	/** Saves a thumbnail image for the pixel mapping asset */
+	void SaveThumbnailImage();
 
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
@@ -204,7 +189,7 @@ private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
-	/** The Input Source View instance */
+	/** The DMX Library View instance */
 	TSharedPtr<SDMXPixelMappingDMXLibraryView> DMXLibraryView;
 
 	/** The Hierarchy View instance */
@@ -268,4 +253,7 @@ public:
 
 	/** Name of the Details View Tab */
 	static const FName LayoutViewTabID;
+
+	/** Dumped editor settings for fast comparison */
+	TArray<uint8, TFixedAllocator<sizeof(UDMXPixelMappingEditorSettings)>> EditorSettingsDump;
 };

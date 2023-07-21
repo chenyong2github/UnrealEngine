@@ -25,27 +25,6 @@ class FDMXPixelMappingEditorUtils
 {
 public:
 	/**
-	 * Check ability to rename the component.
-	 *
-	 * @param InToolkit				Pixel Mappint editor toolkit
-	 * @param InComponent			Component reference to rename
-	 * @param NewName				New name to check
-	 * @param OutErrorMessage		Output parameter in case of failed reaming
-	 *
-	 * @return true if the component can be renamed
-	 */
-	static bool VerifyComponentRename(TSharedRef<FDMXPixelMappingToolkit> InToolkit, const FDMXPixelMappingComponentReference& InComponent, const FText& NewName, FText& OutErrorMessage);
-
-	/**
-	 * Rename Pixel Maping component.
-	 *
-	 * @param InToolkit				Pixel Mappint editor toolkit
-	 * @param NewName				Old name
-	 * @param NewName				New name
-	 */
-	static void RenameComponent(TSharedRef<FDMXPixelMappingToolkit> InToolkit, const FName& OldObjectName, const FString& NewDisplayName);
-
-	/**
 	 * Add renderer to Pixel Mapping object
 	 *
 	 * @param InDMXPixelMapping		Pixel Mapping object
@@ -53,14 +32,6 @@ public:
 	 * @return Render Component pointer
 	 */
 	static UDMXPixelMappingRendererComponent* AddRenderer(UDMXPixelMapping* InPixelMapping);
-
-	/**
-	 * Create components commands menu
-	 *
-	 * @param MenuBuilder			Vertical menu builder
-	 * @param InToolkit				Pixel Mappint editor toolkit
-	 */
-	static void CreateComponentContextMenu(FMenuBuilder& MenuBuilder, TSharedRef<FDMXPixelMappingToolkit> InToolkit);
 
 	/**
 	 * Returns the arranged widget of a widget.

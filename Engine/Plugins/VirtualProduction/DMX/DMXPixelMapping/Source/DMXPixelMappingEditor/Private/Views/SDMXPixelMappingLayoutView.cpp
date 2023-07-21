@@ -2,17 +2,16 @@
 
 #include "Views/SDMXPixelMappingLayoutView.h"
 
-#include "DMXPixelMappingLayoutSettings.h"
 #include "Customizations/DMXPixelMappingHorizontalAlignmentCustomization.h"
 #include "Customizations/DMXPixelMappingLayoutViewModelDetails.h"
 #include "Customizations/DMXPixelMappingVerticalAlignmentCustomization.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "ViewModels/DMXPixelMappingLayoutViewModel.h"
-
 #include "DetailsViewArgs.h"
 #include "IDetailsView.h"
-#include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "Settings/DMXPixelMappingEditorSettings.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "ViewModels/DMXPixelMappingLayoutViewModel.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 
@@ -62,7 +61,6 @@ void SDMXPixelMappingLayoutView::Construct(const FArguments& InArgs, const TShar
 			[
 				CreateLayoutSettingsDetailsView()
 			]
-
 		];
 
 	Refresh();
@@ -111,11 +109,7 @@ void SDMXPixelMappingLayoutView::Refresh()
 
 TSharedRef<SWidget> SDMXPixelMappingLayoutView::CreateLayoutSettingsDetailsView()
 {
-	UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>();
-	if (!LayoutSettings)
-	{
-		return SNullWidget::NullWidget;
-	}
+	UDMXPixelMappingEditorSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingEditorSettings>();
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;

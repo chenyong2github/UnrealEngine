@@ -33,6 +33,7 @@ public:
 	virtual void SendDMX() override;
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
+	virtual FString GetUserFriendlyName() const override;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */

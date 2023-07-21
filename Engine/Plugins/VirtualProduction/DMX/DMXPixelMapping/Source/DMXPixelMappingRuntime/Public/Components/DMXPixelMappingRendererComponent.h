@@ -53,13 +53,14 @@ public:
 	virtual void SendDMX() override;
 	virtual void Render() final;
 	virtual void RenderAndSendDMX() final;
+	virtual FString GetUserFriendlyName() const override;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	/** Returns the pixel mapping preprocess renderer */
 	UDMXPixelMappingPreprocessRenderer* GetPreprocessRenderer() const { return PreprocessRenderer; }
 
-	/** Initializes the preprocess renderer from the current render type and input source */
-	void InvalidatePreprocessRenderer();
+	/** Updates the preprocess renderer from the current render type and source texture */
+	void UpdatePreprocessRenderer();
 
 	/**
 	 * Invalidates the pixel map, effectively causing a rebuild of the mapping on the next Render call.

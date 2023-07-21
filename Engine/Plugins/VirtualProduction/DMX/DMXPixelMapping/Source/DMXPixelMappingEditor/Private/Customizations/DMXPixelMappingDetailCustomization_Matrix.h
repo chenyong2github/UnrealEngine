@@ -50,8 +50,8 @@ private:
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
 
-	/** Forces the layout to redraw */
-	void ForceRefresh();
+	/** Requests to refresh the details view */
+	void RequestRefresh();
 
 	/** Matrix Components that are being edited */
 	TArray<TWeakObjectPtr<UDMXPixelMappingMatrixComponent>> MatrixComponents;
