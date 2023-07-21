@@ -16,11 +16,13 @@ Default is MaxImportThreads = 0\n\
    -if EnableCADCache is false, the scene is read all at once\n"),
 	ECVF_Default);
 
-bool FImportParameters::bGDisableCADKernelTessellation = true;
+bool FImportParameters::bGDisableCADKernelTessellation = false;
 FAutoConsoleVariableRef GCADTranslatorDisableCADKernelTessellation(
 	TEXT("ds.CADTranslator.DisableCADKernelTessellation"),
 	FImportParameters::bGDisableCADKernelTessellation,
-	TEXT("Disable to use CAD import library tessellator.\n"),
+	TEXT("\
+Disable to use CAD import library tessellator.\n\
+Default is enable\n"),
 	ECVF_Default);
 
 bool FImportParameters::bGEnableCADCache = true;
