@@ -194,8 +194,8 @@ public:
 	/** List of objects that are always relevant or currently relevant to at least one connection. */
 	FNetBitArrayView GetRelevantObjectsInternalIndices() const { return MakeNetBitArrayView(RelevantObjectsInternalIndices); }
 
-	/** List of objects on whom we copied their dirty state this frame */
-	FNetBitArrayView GetCleanedObjectsInternalIndices() const { return MakeNetBitArrayView(CleanedObjectsInternalIndices); }
+	/** List of objects that we polled this frame */
+	FNetBitArrayView GetPolledObjectsInternalIndices() const { return MakeNetBitArrayView(PolledObjectsInternalIndices); }
 
 	// Get bitarray for all internal indices that currently are assigned
 	const FNetBitArray& GetAssignedInternalIndices() const { return AssignedInternalIndices; }
@@ -316,8 +316,8 @@ private:
 	/** This contains the ScopableInternalIndices list minus filtered objects that are not relevant to any connection this frame. */
 	FNetBitArray RelevantObjectsInternalIndices;
 
-	/** List of objects that were dirty but whom we copied their dirty data this frame */
-	FNetBitArray CleanedObjectsInternalIndices;
+	/** List of objects that we polled this frame */
+	FNetBitArray PolledObjectsInternalIndices;
 
 	// Bitset containing all internal indices that are assigned
 	FNetBitArray AssignedInternalIndices;

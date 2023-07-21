@@ -739,8 +739,8 @@ void UObjectReplicationBridge::PreUpdateAndPoll()
 	const FNetBitArrayView WantToBeDormantObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetWantToBeDormantInternalIndices());
 
 	// Filter the set of objects considered for pre-update and polling
-	FNetBitArray ObjectsConsideredForPolling(LocalNetRefHandleManager.GetMaxActiveObjectCount());
-	FNetBitArrayView ObjectsConsideredForPollingView = MakeNetBitArrayView(ObjectsConsideredForPolling);
+	FNetBitArrayView ObjectsConsideredForPolling = LocalNetRefHandleManager.GetPolledObjectsInternalIndices();
+	ObjectsConsideredForPolling.Reset();
 
 	// We always want to consider objects marked as dirty and their subobjects
 	const FNetBitArrayView AccumulatedDirtyObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetAccumulatedDirtyNetObjects();
@@ -750,16 +750,16 @@ void UObjectReplicationBridge::PreUpdateAndPoll()
 		if (bEnableForceNetUpdate)
 		{
 			const FNetBitArrayView ForceNetUpdateObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetForceNetUpdateObjects();
-			PollFrequencyLimiter->Update(RelevantObjects, ForceNetUpdateObjects, ObjectsConsideredForPollingView);
+			PollFrequencyLimiter->Update(RelevantObjects, ForceNetUpdateObjects, ObjectsConsideredForPolling);
 		}
 		else
 		{
-			PollFrequencyLimiter->Update(RelevantObjects, AccumulatedDirtyObjects, ObjectsConsideredForPollingView);
+			PollFrequencyLimiter->Update(RelevantObjects, AccumulatedDirtyObjects, ObjectsConsideredForPolling);
 		}
 	}
 	else
 	{
-		ObjectsConsideredForPollingView.Copy(RelevantObjects);
+		ObjectsConsideredForPolling.Copy(RelevantObjects);
 	}
 
 	// Mask off objects pending dormancy as we do not want to poll/pre-update them unless they are marked for flush or are dirty
@@ -768,7 +768,7 @@ void UObjectReplicationBridge::PreUpdateAndPoll()
 		IRIS_PROFILER_SCOPE(PreUpdateAndPoll_Dormancy);
 
 		// Mask off objects pending dormancy that are not dirty
-		ObjectsConsideredForPollingView.CombineMultiple(FNetBitArrayView::AndNotOp, WantToBeDormantObjects, FNetBitArrayView::AndNotOp, AccumulatedDirtyObjects);
+		ObjectsConsideredForPolling.CombineMultiple(FNetBitArrayView::AndNotOp, WantToBeDormantObjects, FNetBitArrayView::AndNotOp, AccumulatedDirtyObjects);
 
 		FNetBitArrayView ForceNetUpdateObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetForceNetUpdateObjects();
 
@@ -848,7 +848,8 @@ void UObjectReplicationBridge::PreUpdateAndPoll()
 		{
 			IRIS_PROFILER_SCOPE(PreUpdateAndPoll_PatchDependentObjects);
 
-			FNetBitArray TempObjectsConsideredForPolling(ObjectsConsideredForPolling);
+			FNetBitArray TempObjectsConsideredForPolling;
+			TempObjectsConsideredForPolling.InitAndCopy(ObjectsConsideredForPolling);
 			FNetBitArray::ForAllSetBits(TempObjectsConsideredForPolling, NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices(), FNetBitArray::AndOp,
 				[&LocalNetRefHandleManager, &ObjectsConsideredForPolling](FInternalNetRefIndex ObjectIndex) 
 				{
@@ -869,7 +870,7 @@ void UObjectReplicationBridge::PreUpdateAndPoll()
 		PollerInitParams.ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
 
 		FObjectPoller Poller(PollerInitParams);
-		Poller.PollObjects(ObjectsConsideredForPollingView);
+		Poller.PollObjects(ObjectsConsideredForPolling);
 	
 		FObjectPoller::FPreUpdateAndPollStats Stats = Poller.GetPollStats();
 

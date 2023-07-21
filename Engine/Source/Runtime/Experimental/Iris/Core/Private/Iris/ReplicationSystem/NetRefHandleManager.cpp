@@ -24,7 +24,7 @@ FNetRefHandleManager::FNetRefHandleManager(FReplicationProtocolManager& InReplic
 , ScopableInternalIndices(MaxActiveObjectCount)
 , PrevFrameScopableInternalIndices(MaxActiveObjectCount)
 , RelevantObjectsInternalIndices(MaxActiveObjectCount)
-, CleanedObjectsInternalIndices(MaxActiveObjectCount)
+, PolledObjectsInternalIndices(MaxActiveObjectCount)
 , AssignedInternalIndices(MaxActiveObjectCount)
 , SubObjectInternalIndices(MaxActiveObjectCount)
 , DependentObjectInternalIndices(MaxActiveObjectCount)

@@ -350,21 +350,16 @@ public:
 
 		SerializationContext.SetInternalContext(&InternalContext);
 
-		// Build the list of dirty objects whom we will copy their data and "clean"
-		FNetBitArrayView CleanedObjects = NetRefHandleManager.GetCleanedObjectsInternalIndices();
-		const FNetBitArrayView AccumulatedDirtyNetObjects = ReplicationSystemInternal.GetDirtyNetObjectTracker().GetAccumulatedDirtyNetObjects();
-		const FNetBitArrayView RelevantObjects = NetRefHandleManager.GetRelevantObjectsInternalIndices();
-
-		CleanedObjects.Set(AccumulatedDirtyNetObjects, FNetBitArrayView::AndOp, RelevantObjects);
-
-
+		// Copy the state data of objects that got polled this frame.
+		const FNetBitArrayView ObjectsToCopy = NetRefHandleManager.GetPolledObjectsInternalIndices();
+		
 		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetRefHandleManager, &CopiedObjectCount, &SerializationContext](uint32 DirtyIndex)
 		{
 			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetRefHandleManager, SerializationContext, DirtyIndex);
 		};
 
 		// Only copy both dirty and relevant objects
-		CleanedObjects.ForAllSetBits(CopyFunction);
+		ObjectsToCopy.ForAllSetBits(CopyFunction);
 
 		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 		UE_NET_TRACE_FRAME_STATSCOUNTER(ReplicationSystemId, ReplicationSystem.CopiedObjectCount, CopiedObjectCount, ENetTraceVerbosity::Trace);
@@ -375,16 +370,18 @@ public:
 		IRIS_PROFILER_SCOPE(FReplicationSystem_ResetObjectStateDirtiness);
 
 		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
-		const FNetBitArrayView CleanedObjects = NetRefHandleManager.GetCleanedObjectsInternalIndices();
+
+		// Clean the objects that got polled and copied this frame
+		const FNetBitArrayView ObjectsToClean = NetRefHandleManager.GetPolledObjectsInternalIndices();
 
 		// Reset object dirtyness
-		CleanedObjects.ForAllSetBits([&NetRefHandleManager](uint32 DirtyIndex)
+		ObjectsToClean.ForAllSetBits([&NetRefHandleManager](uint32 DirtyIndex)
 		{
 			FReplicationInstanceOperationsInternal::ResetObjectStateDirtiness(NetRefHandleManager, DirtyIndex);
 		});
 
 		// Reset cleaned objects in the tracker
-		ReplicationSystemInternal.GetDirtyNetObjectTracker().ClearDirtyNetObjects(CleanedObjects);
+		ReplicationSystemInternal.GetDirtyNetObjectTracker().ClearDirtyNetObjects(ObjectsToClean);
 	}
 
 	void ProcessNetObjectAttachmentSendQueue(FNetBlobManager::EProcessMode ProcessMode)
