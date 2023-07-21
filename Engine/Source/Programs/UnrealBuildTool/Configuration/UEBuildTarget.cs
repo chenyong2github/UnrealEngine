@@ -1741,7 +1741,7 @@ namespace UnrealBuildTool
 					TargetFolderName += "IWYU";
 					break;
 				case UnrealIntermediateEnvironment.NonUnity:
-					TargetFolderName += "NonUnity";
+					TargetFolderName += "NU";
 					break;
 			}
 			return TargetFolderName;
