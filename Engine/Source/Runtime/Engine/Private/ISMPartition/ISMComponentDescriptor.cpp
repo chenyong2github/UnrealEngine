@@ -67,8 +67,15 @@ FISMComponentDescriptor FISMComponentDescriptor::CreateFrom(const TSubclassOf<US
 
 void FISMComponentDescriptorBase::InitFrom(const UStaticMeshComponent* Template, bool bInitBodyInstance)
 {
+	check(Template);
 	bEnableDiscardOnLoad = false;
-	ComponentClass = Template->GetClass();
+
+	// Disregard the template class if it does not stem from an instanced mesh component
+	if (Template->IsA(UInstancedStaticMeshComponent::StaticClass()))
+	{
+		ComponentClass = Template->GetClass();
+	}
+
 	Mobility = Template->Mobility;
 	VirtualTextureRenderPassType = Template->VirtualTextureRenderPassType;
 	LightmapType = Template->LightmapType;

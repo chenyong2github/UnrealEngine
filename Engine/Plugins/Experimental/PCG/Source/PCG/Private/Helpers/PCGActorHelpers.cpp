@@ -93,19 +93,34 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 #endif
 
 	FString ComponentName;
-	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass;
-	if (bMeshHasNaniteData)
-	{
-		ComponentClass = UInstancedStaticMeshComponent::StaticClass();
-		ComponentName += TEXT("ISM");
-	}
-	else
+	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass = InParams.Descriptor.ComponentClass;
+
+	// If the component class in invalid, default to HISM.
+	if (!ComponentClass)
 	{
 		ComponentClass = UHierarchicalInstancedStaticMeshComponent::StaticClass();
-		ComponentName += TEXT("HISM");
 	}
 
-	ComponentName += TEXT("_") + StaticMesh->GetName();
+	// It's potentially less efficient to put nanite meshes inside of HISMs so decay those to ISM in this case.
+	// Note the equality here, not a IsA because we do not want to change derived types either
+	if (ComponentClass == UHierarchicalInstancedStaticMeshComponent::StaticClass())
+	{
+		if (bMeshHasNaniteData)
+		{
+			ComponentClass = UInstancedStaticMeshComponent::StaticClass();
+		}
+		else
+		{
+			ComponentName = TEXT("HISM_");
+		}
+	}
+
+	if (ComponentClass == UInstancedStaticMeshComponent::StaticClass())
+	{
+		ComponentName = TEXT("ISM_");
+	}
+
+	ComponentName += StaticMesh->GetName();
 
 	UInstancedStaticMeshComponent* ISMC = NewObject<UInstancedStaticMeshComponent>(InTargetActor, ComponentClass, MakeUniqueObjectName(InTargetActor, ComponentClass, FName(ComponentName)));
 	InParams.Descriptor.InitComponent(ISMC);
