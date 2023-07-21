@@ -39,5 +39,7 @@ public class SkeletalMeshModelingTools : ModuleRules
 				"SkeletalMeshModifiers"
 			}
 		);
+
+		ShortName = "SkelMeshModTools";
 	}
 }
