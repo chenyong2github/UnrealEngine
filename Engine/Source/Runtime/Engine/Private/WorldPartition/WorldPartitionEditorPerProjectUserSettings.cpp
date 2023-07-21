@@ -87,6 +87,11 @@ TArray<FName> UWorldPartitionEditorPerProjectUserSettings::GetWorldDataLayersLoa
 
 const FWorldPartitionPerWorldSettings* UWorldPartitionEditorPerProjectUserSettings::GetWorldPartitionPerWorldSettings(UWorld* InWorld) const
 {
+	if (!ShouldLoadSettings(InWorld))
+	{
+		return nullptr;
+	}
+
 	if (const FWorldPartitionPerWorldSettings* ExistingPerWorldSettings = PerWorldEditorSettings.Find(TSoftObjectPtr<UWorld>(InWorld)))
 	{
 		return ExistingPerWorldSettings;
@@ -101,7 +106,12 @@ const FWorldPartitionPerWorldSettings* UWorldPartitionEditorPerProjectUserSettin
 
 bool UWorldPartitionEditorPerProjectUserSettings::ShouldSaveSettings(const UWorld* InWorld) const
 {
-	return InWorld && !InWorld->IsGameWorld() && FPackageName::DoesPackageExist(InWorld->GetPackage()->GetName());
+	return InWorld && !InWorld->IsGameWorld() && (InWorld->WorldType != EWorldType::Inactive) && FPackageName::DoesPackageExist(InWorld->GetPackage()->GetName());
+}
+
+bool UWorldPartitionEditorPerProjectUserSettings::ShouldLoadSettings(const UWorld* InWorld) const
+{
+	return InWorld && (InWorld->WorldType != EWorldType::Inactive);
 }
 
 #endif

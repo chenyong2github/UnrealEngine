@@ -109,7 +109,7 @@ public:
 	ENGINE_API void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor);
 
 private:
-	ENGINE_API const FWorldPartitionPerWorldSettings* GetWorldPartitionPerWorldSettings(UWorld* InWorld) const;
+	const FWorldPartitionPerWorldSettings* GetWorldPartitionPerWorldSettings(UWorld* InWorld) const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -143,7 +143,9 @@ public:
 	uint32 bHideLevelInstanceContent : 1;
 
 private:
-	ENGINE_API bool ShouldSaveSettings(const UWorld* InWorld) const;
+	bool ShouldSaveSettings(const UWorld* InWorld) const;
+
+	bool ShouldLoadSettings(const UWorld* InWorld) const;
 
 	UPROPERTY(config)
 	uint32 bDisableLoadingOfLastLoadedRegions : 1;
