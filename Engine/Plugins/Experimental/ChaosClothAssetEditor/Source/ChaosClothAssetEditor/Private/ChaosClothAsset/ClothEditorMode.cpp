@@ -12,6 +12,7 @@
 #include "ChaosClothAsset/ClothEditorContextObject.h"
 #include "ChaosClothAsset/AddWeightMapNode.h"
 #include "ChaosClothAsset/TransferSkinWeightsNode.h"
+#include "ChaosClothAsset/SelectionNode.h"
 #include "AssetEditorModeManager.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "EditorViewportClient.h"
@@ -37,6 +38,7 @@
 #include "MeshAttributePaintTool.h"
 #include "ChaosClothAsset/ClothWeightMapPaintTool.h"
 #include "ChaosClothAsset/ClothTransferSkinWeightsTool.h"
+#include "ChaosClothAsset/ClothMeshSelectionTool.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "DynamicMeshEditor.h"
@@ -217,6 +219,9 @@ void UChaosClothAssetEditorMode::RegisterTools()
 
 	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), ConstructionViewportToolsContext);
 	RegisterAddNodeCommand(CommandInfos.AddTransferSkinWeightsNode, FChaosClothAssetTransferSkinWeightsNode::StaticType(), CommandInfos.BeginTransferSkinWeightsTool);
+
+	RegisterClothTool(CommandInfos.BeginMeshSelectionTool, FChaosClothAssetEditorCommands::BeginMeshSelectionToolIdentifier, NewObject<UClothMeshSelectionToolBuilder>(), ConstructionViewportToolsContext);
+	RegisterAddNodeCommand(CommandInfos.AddMeshSelectionNode, FChaosClothAssetSelectionNode::StaticType(), CommandInfos.BeginMeshSelectionTool);
 }
 
 bool UChaosClothAssetEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
@@ -452,7 +457,6 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 	if (DynamicMeshComponent)
 	{
-		// TODO: Check for any outstanding changes on the dynamic mesh component?
 		DynamicMeshComponent->UnregisterComponent();
 		DynamicMeshComponent->SelectionOverrideDelegate.Unbind();
 
@@ -551,11 +555,8 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 	WireframeToTick->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
 
 	SelectedComponents->DeselectAll();
-	if (ConstructionViewMode != EClothPatternVertexType::Render)
-	{
-		SelectedComponents->Select(DynamicMeshComponent);
-		DynamicMeshComponent->PushSelectionToProxy();
-	}
+	SelectedComponents->Select(DynamicMeshComponent);
+	DynamicMeshComponent->PushSelectionToProxy();
 
 	// Update the context object with the ConstructionViewMode and Collection used to build the DynamicMeshComponents, so 
 	// tools know how to use the components.

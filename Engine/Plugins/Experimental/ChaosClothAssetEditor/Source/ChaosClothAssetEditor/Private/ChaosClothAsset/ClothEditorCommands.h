@@ -46,6 +46,11 @@ public:
 	const static FString AddTransferSkinWeightsNodeIdentifier;
 	TSharedPtr<FUICommandInfo> AddTransferSkinWeightsNode;
 
+	const static FString BeginMeshSelectionToolIdentifier;
+	TSharedPtr<FUICommandInfo> BeginMeshSelectionTool;
+	const static FString AddMeshSelectionNodeIdentifier;
+	TSharedPtr<FUICommandInfo> AddMeshSelectionNode;
+
 	// Construction viewport commands
 	const static FString ToggleConstructionViewWireframeIdentifier;
 	TSharedPtr<FUICommandInfo> ToggleConstructionViewWireframe;

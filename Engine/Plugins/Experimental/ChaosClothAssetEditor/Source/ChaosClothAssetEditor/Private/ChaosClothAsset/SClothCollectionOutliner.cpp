@@ -229,6 +229,23 @@ namespace ClothCollectionOutlinerHelpers
 	}
 
 	template<typename T>
+	FString AttributeValueToString(const TSet<T>& Set)
+	{
+		FString Out;
+		typename TSet<T>::TConstIterator Iter = Set.CreateConstIterator();
+		while(Iter)
+		{
+			Out += AttributeValueToString(*Iter);
+
+			if (++Iter)
+			{
+				Out += "; ";
+			}
+		}
+		return Out;
+	}
+
+	template<typename T>
 	FString AttributeValueToString(const FManagedArrayCollection& ClothCollection, const FName& AttributeName, const FName& GroupName, int32 AttributeArrayIndex)
 	{
 		const TManagedArray<T>* const Array = ClothCollection.FindAttributeTyped<T>(AttributeName, GroupName);
@@ -283,6 +300,9 @@ namespace ClothCollectionOutlinerHelpers
 			break;
 		case FManagedArrayCollection::EArrayType::FIntVector2ArrayType:
 			ValueAsString = AttributeValueToString<TArray<FIntVector2>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
+			break;
+		case FManagedArrayCollection::EArrayType::FIntArrayType:
+			ValueAsString = AttributeValueToString<TSet<int32>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
 			break;
 		default:
 			ensure(false);
