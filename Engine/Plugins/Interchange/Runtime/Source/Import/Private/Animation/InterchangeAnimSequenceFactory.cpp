@@ -20,6 +20,7 @@
 #include "Nodes/InterchangeSourceNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
 #include "InterchangeAnimationTrackSetNode.h"
+#include "Async/Async.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeAnimSequenceFactory)
 
