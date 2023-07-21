@@ -58,6 +58,9 @@ public:
 
 	/** Sets if the fragment is conflicting with others */
 	void SetConflicting(bool bConflicting) { bIsConflicting = bConflicting; }
+	
+	/** Sets the visibility of the channels of the fragment */
+	void SetChannelVisibility(EVisibility NewVisibility);
 
 	/** Gets the fixture patch node this widget refers to */
 	const TSharedPtr<FDMXFixturePatchNode>& GetFixturePatchNode() const { return FixturePatchNode; }

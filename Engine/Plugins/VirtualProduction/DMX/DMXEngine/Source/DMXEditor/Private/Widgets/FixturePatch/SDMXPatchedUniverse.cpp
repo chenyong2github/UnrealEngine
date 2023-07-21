@@ -163,8 +163,22 @@ void SDMXPatchedUniverse::SetMonitorInputsEnabled(bool bEnabled)
 {
 	bMonitorInputs = bEnabled;
 
-	if (!bEnabled)
+	if (bEnabled)
 	{
+		// Don't show the channel overlay of the fragment, so only the channel connectors display the values
+		for (const TSharedRef<SDMXFixturePatchFragment>& Fragment : FixturePatchFragmentWidgets)
+		{
+			Fragment->SetChannelVisibility(EVisibility::Hidden);
+		}
+	}
+	else
+	{
+		// Show the channel overlay of the fragment, so the fragments show their hovered state
+		for (const TSharedRef<SDMXFixturePatchFragment>& Fragment : FixturePatchFragmentWidgets)
+		{
+			Fragment->SetChannelVisibility(EVisibility::Visible);
+		}
+
 		ResetMonitor();
 	}
 }

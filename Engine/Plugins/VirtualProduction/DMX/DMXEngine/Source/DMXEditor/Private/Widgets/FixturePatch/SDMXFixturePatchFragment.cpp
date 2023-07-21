@@ -353,6 +353,11 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, const TShared
 	}
 }
 
+void SDMXFixturePatchFragment::SetChannelVisibility(EVisibility NewVisibility)
+{
+	ChannelsHorizontalBox->SetVisibility(NewVisibility);
+}
+
 void SDMXFixturePatchFragment::InitializeBorderPadding()
 {
 	if (bIsHead && FixturePatchNodeGroup.Num() > 1)
