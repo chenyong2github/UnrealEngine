@@ -220,23 +220,16 @@ public:
 	/** Temporal function. Used by GetParameters and ReloadParameters but its body should be moved somewhere else (probably on some other Instance update function). */
 	void InstanceUpdateFlags(const UCustomizableObjectInstance& Public);
 
-	/** See FCustomizableObjectInstanceDescriptor::GetParameters(...). */
-	mu::ParametersPtr GetParameters(UCustomizableObjectInstance* Public);
-
 	/** See FCustomizableObjectInstanceDescriptor::ReloadParameters(...). */
 	void ReloadParameters(UCustomizableObjectInstance* Public, bool bInvalidatePreviousData = false);
 
-	/** If bOnlyUpdatePrioForUpdates is true, Instances that need an update won't be modified. Just their entry in InOutRequestedUpdates will get its priority updated  */
-	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public, const bool bOnlyUpdatePrioForUpdates, FMutableInstanceUpdateMap& InOutRequestedUpdates);
+	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Publics, FMutableInstanceUpdateMap& InOutRequestedUpdates);
 	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance& Public, FMutableInstanceUpdateMap& InOutRequestedUpdates);
 
 	// Returns true if success (?)
 	bool UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData);
 
 	static void ReleaseMutableTexture(const FMutableImageCacheKey& MutableTextureKey, UTexture2D* Texture, struct FMutableResourceCache& Cache);
-
-	// Parameter decoration generation: game thread step
-	void UpdateParameterDecorationsEngineResources(const TSharedPtr<FMutableOperationData>& OperationData);
 
 	// Prepare the data for the unreal textures, but don't create them because
 	// it runs in the mutable thread
