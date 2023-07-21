@@ -7,6 +7,7 @@
 #include "Math/Rotator.h"
 #include "Math/Vector.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -14,6 +15,7 @@
 
 #include "InterchangeGenericAssetsPipelineSharedSettings.generated.h"
 
+class UInterchangeSkeletonFactoryNode;
 class USkeleton;
 
 /** Force mesh type, if user want to import all meshes as one type*/
@@ -138,4 +140,7 @@ public:
 		}
 		return Super::IsSettingsAreValid(OutInvalidReason);
 	}
+
+	/** Create a UInterchangeSkeletonFactorynode */
+	UInterchangeSkeletonFactoryNode* CreateSkeletonFactoryNode(UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& RootJointUid);
 };

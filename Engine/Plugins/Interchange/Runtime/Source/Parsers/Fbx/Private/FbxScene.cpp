@@ -655,6 +655,45 @@ namespace UE
 							SkeletonRootNodeUids.Add(JointNodeUid);
 						}
 					});
+				
+				//In case we import animation only and there is no meshes
+				if (SkeletonRootNodeUids.Num() == 0)
+				{
+					NodeContainer.IterateNodesOfType<UInterchangeSceneNode>([&](const FString& NodeUid, UInterchangeSceneNode* SceneNode)
+						{
+							if (SceneNode->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+							{
+								//Find the root joint for this MeshGeometry
+								FString JointNodeUid = NodeUid;
+								FString ParentNodeUid = SceneNode->GetParentUid();
+
+								while (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+								{
+									if (const UInterchangeSceneNode* Node = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(ParentNodeUid)))
+									{
+										if (Node->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+										{
+											JointNodeUid = ParentNodeUid;
+											ParentNodeUid = Node->GetParentUid();
+										}
+										else
+										{
+											break;
+										}
+									}
+									else
+									{
+										break;
+									}
+								}
+
+								if (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+								{
+									SkeletonRootNodeUids.Add(JointNodeUid);
+								}
+							}
+						});
+				}
 
 				int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
 

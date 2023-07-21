@@ -132,7 +132,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 			{
 				const FString& SkeletonRootUid = SkeletonRootUidAndMeshUids.Key;
 				//Every iteration is a skeletalmesh asset that combine all MeshInstances sharing the same skeleton root node
-				UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CreateSkeletonFactoryNode(SkeletonRootUid);
+				UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CommonSkeletalMeshesAndAnimationsProperties->CreateSkeletonFactoryNode(BaseNodeContainer, SkeletonRootUid);
 				//The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode;
 				TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
 				const TArray<FString>& MeshUids = SkeletonRootUidAndMeshUids.Value;
@@ -218,7 +218,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 						continue;
 					}
 				}
-				UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CreateSkeletonFactoryNode(SkeletonRootUid);
+				UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CommonSkeletalMeshesAndAnimationsProperties->CreateSkeletonFactoryNode(BaseNodeContainer, SkeletonRootUid);
 				if (bUseInstanceMesh)
 				{
 					const FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->GetMeshInstanceByUid(MeshUid);
@@ -264,64 +264,6 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 			CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
 		}
 	}
-}
-
-
-UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletonFactoryNode(const FString& RootJointUid)
-{
-	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
-	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
-	if (!RootJointNode)
-	{
-		return nullptr;
-	}
-
-	FString DisplayLabel = RootJointNode->GetDisplayLabel() + TEXT("_Skeleton");
-	FString SkeletonUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(RootJointNode->GetUniqueID());
-
-	UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = nullptr;
-	if (BaseNodeContainer->IsNodeUidValid(SkeletonUid))
-	{
-		//The node already exist, just return it
-		SkeletonFactoryNode = Cast<UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonUid));
-		if (!ensure(SkeletonFactoryNode))
-		{
-			//Log an error
-			return nullptr;
-		}
-		FString ExistingSkeletonRootJointUid;
-		SkeletonFactoryNode->GetCustomRootJointUid(ExistingSkeletonRootJointUid);
-		if (!ensure(ExistingSkeletonRootJointUid.Equals(RootJointUid)))
-		{
-			//Log an error
-			return nullptr;
-		}
-	}
-	else
-	{
-		SkeletonFactoryNode = NewObject<UInterchangeSkeletonFactoryNode>(BaseNodeContainer, NAME_None);
-		if (!ensure(SkeletonFactoryNode))
-		{
-			return nullptr;
-		}
-		SkeletonFactoryNode->InitializeSkeletonNode(SkeletonUid, DisplayLabel, USkeleton::StaticClass()->GetName());
-		SkeletonFactoryNode->SetCustomRootJointUid(RootJointNode->GetUniqueID());
-		SkeletonFactoryNode->SetCustomUseTimeZeroForBindPose(CommonSkeletalMeshesAndAnimationsProperties->bUseT0AsRefPose);
-		BaseNodeContainer->AddNode(SkeletonFactoryNode);
-	}
-
-	//If we have a specified skeleton
-	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
-	{
-		SkeletonFactoryNode->SetEnabled(false);
-		SkeletonFactoryNode->SetCustomReferenceObject(FSoftObjectPath(CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get()));
-	}
-#if WITH_EDITOR
-	//Iterate all joints to set the meta data value in the skeleton node
-	UE::Interchange::Private::FSkeletonHelper::RecursiveAddSkeletonMetaDataValues(BaseNodeContainer, SkeletonFactoryNode, RootJointUid);
-#endif //WITH_EDITOR
-
-	return SkeletonFactoryNode;
 }
 
 UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)

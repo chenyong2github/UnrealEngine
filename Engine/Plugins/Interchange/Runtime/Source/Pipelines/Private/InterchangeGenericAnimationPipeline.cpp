@@ -298,9 +298,49 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 		// TODO: Warn something wrong happened
 		return;
 	}
+	const bool bImportOnlyAnimation = CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations;
+
+	const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = nullptr;
+	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = nullptr;
 
 	const FString SkeletonFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SkeletonNodeUid);
-	const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<const UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonFactoryNodeUid));
+	SkeletonFactoryNode = Cast<const UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonFactoryNodeUid));
+
+	//If we import anim only and we do not have meshes and skeleton. We need to create a skeleton factory node
+	//base on the specified skeleton
+	if(bImportOnlyAnimation && !SkeletonFactoryNode && CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
+	{
+		const FReferenceSkeleton& ReferenceSkeleton = CommonSkeletalMeshesAndAnimationsProperties->Skeleton->GetReferenceSkeleton();
+		TArray<FString> SkeletonRootNodeUids;
+		BaseNodeContainer->IterateNodesOfType<UInterchangeSceneNode>([&SkeletonRootNodeUids, BaseNodeContainerClosure = BaseNodeContainer, &ReferenceSkeleton](const FString& NodeUid, UInterchangeSceneNode* Node)
+		{
+			if (Node->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+			{
+				if(ReferenceSkeleton.FindBoneIndex(FName(*Node->GetDisplayLabel())) != INDEX_NONE)
+				{
+					const FString ParentUid = Node->GetParentUid();
+					if (const UInterchangeSceneNode* ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainerClosure->GetNode(ParentUid)))
+					{
+						if (!ParentNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+						{
+							SkeletonRootNodeUids.Add(NodeUid);
+						}
+					}
+				}
+			}
+		});
+		FString SkeletonRootUid;
+		if (SkeletonRootNodeUids.Num() > 0)
+		{
+			SkeletonRootUid = SkeletonRootNodeUids[0];
+		}
+		if(!SkeletonRootUid.IsEmpty())
+		{
+			//Create a skeleton node from all the joint in the translated nodes
+			SkeletonFactoryNode = CommonSkeletalMeshesAndAnimationsProperties->CreateSkeletonFactoryNode(BaseNodeContainer, SkeletonRootUid);
+		}
+	}
+
 	if (!SkeletonFactoryNode)
 	{
 		// It can happen if we force static mesh import, in that case no skeleton will be create
@@ -308,7 +348,7 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 	}
 
 	FString SkeletalMeshFactoryNodeUid;
-	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = nullptr;
+
 	if (SkeletonFactoryNode->GetCustomSkeletalMeshFactoryNodeUid(SkeletalMeshFactoryNodeUid))
 	{
 		SkeletalMeshFactoryNode = Cast<const UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletalMeshFactoryNodeUid));
@@ -436,7 +476,10 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 	UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = NewObject<UInterchangeAnimSequenceFactoryNode>(BaseNodeContainer, NAME_None);
 	AnimSequenceFactoryNode->InitializeAnimSequenceNode(AnimSequenceUid, TrackNode.GetDisplayLabel());
 
-	AnimSequenceFactoryNode->SetCustomSkeletonFactoryNodeUid(SkeletonFactoryNode->GetUniqueID());
+	if (SkeletonFactoryNode)
+	{
+		AnimSequenceFactoryNode->SetCustomSkeletonFactoryNodeUid(SkeletonFactoryNode->GetUniqueID());
+	}
 	if (SkeletalMeshFactoryNode)
 	{
 		AnimSequenceFactoryNode->AddFactoryDependencyUid(SkeletalMeshFactoryNode->GetUniqueID());
@@ -465,11 +508,15 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 	}
 
 	//USkeleton cannot be created without a valid skeletal mesh
-	const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
-	AnimSequenceFactoryNode->AddFactoryDependencyUid(SkeletonUid);
+	FString SkeletonUid;
+	if(SkeletonFactoryNode)
+	{
+		SkeletonUid = SkeletonFactoryNode->GetUniqueID();
+		AnimSequenceFactoryNode->AddFactoryDependencyUid(SkeletonUid);
+	}
 
 	FString RootJointUid;
-	if (SkeletonFactoryNode->GetCustomRootJointUid(RootJointUid))
+	if (SkeletonFactoryNode && SkeletonFactoryNode->GetCustomRootJointUid(RootJointUid))
 	{
 		// NOTE: Could this be added as an array of FString attributes on the UInterchangeSkeletalAnimationTrackNode
 #if WITH_EDITOR
@@ -513,8 +560,6 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 				}
 			});
 	}
-
-	const bool bImportOnlyAnimation = CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations;
 
 	//Iterate dependencies
 	{

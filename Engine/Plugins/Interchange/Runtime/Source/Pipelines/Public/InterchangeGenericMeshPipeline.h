@@ -235,9 +235,6 @@ private:
 	/** Skeleton factory assets nodes */
 	TArray<UInterchangeSkeletonFactoryNode*> SkeletonFactoryNodes;
 
-	/** Create a UInterchangeSkeletonFactorynode */
-	UInterchangeSkeletonFactoryNode* CreateSkeletonFactoryNode(const FString& RootJointUid);
-
 	/** Skeletal mesh factory assets nodes */
 	TArray<UInterchangeSkeletalMeshFactoryNode*> SkeletalMeshFactoryNodes;
 
