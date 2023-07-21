@@ -446,33 +446,33 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	} \
 	Type GetLow##PropertyName(const FCollectionPropertyConstFacade& PropertyCollection, const Type& Default) \
 	{ \
-		return PropertyCollection.GetLowValue<Type>(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+		return PropertyCollection.GetLowValue<Type>(PropertyName##Name.ToString(), Default); \
 	} \
 	Type GetHigh##PropertyName(const FCollectionPropertyConstFacade& PropertyCollection, const Type& Default) \
 	{ \
-		return PropertyCollection.GetHighValue<Type>(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+		return PropertyCollection.GetHighValue<Type>(PropertyName##Name.ToString(), Default); \
 	} \
 	TPair<Type, Type> GetWeighted##PropertyName(const FCollectionPropertyConstFacade& PropertyCollection, const Type& Default) \
 	{ \
-		return PropertyCollection.GetWeightedValue<Type>(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+		return PropertyCollection.GetWeightedValue<Type>(PropertyName##Name.ToString(), Default); \
 	} \
 	FVector2f GetWeightedFloat##PropertyName(const FCollectionPropertyConstFacade& PropertyCollection, const float& Default) \
 	{ \
-		return PropertyCollection.GetWeightedFloatValue(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+		return PropertyCollection.GetWeightedFloatValue(PropertyName##Name.ToString(), Default); \
 	} \
 	Type Get##PropertyName(const FCollectionPropertyConstFacade& PropertyCollection, const Type& Default) \
 	{ \
-		return PropertyCollection.GetValue<Type>(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+		return PropertyCollection.GetValue<Type>(PropertyName##Name.ToString(), Default); \
 	} \
 	FString Get##PropertyName##String(const FCollectionPropertyConstFacade& PropertyCollection, const FString& Default) \
 	{ \
-		return PropertyCollection.GetStringValue(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+		return PropertyCollection.GetStringValue(PropertyName##Name.ToString(), Default); \
 	} \
 	UE_DEPRECATED(5.3, "GetFlags is being phased out to promote correct dirtying operations.") \
 	uint8 Get##PropertyName##Flags(const FCollectionPropertyConstFacade& PropertyCollection, uint8 Default) \
 	{ \
 PRAGMA_DISABLE_DEPRECATION_WARNINGS \
-	return PropertyCollection.GetFlags(PropertyName##Name.ToString(), Default, &PropertyName##Index); \
+	return PropertyCollection.GetFlags(PropertyName##Name.ToString(), Default); \
 PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 	} \
 	Type GetLow##PropertyName(const FCollectionPropertyConstFacade& PropertyCollection) const \
@@ -549,4 +549,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 		return PropertyName##Index != INDEX_NONE && \
 			PropertyCollection.IsEnabled(PropertyName##Index) && PropertyCollection.IsAnimatable(PropertyName##Index) && PropertyCollection.IsDirty(PropertyName##Index); \
 	} \
-	int32 PropertyName##Index = INDEX_NONE;
+	struct F##PropertyName##Index \
+	{ \
+		int32 Index = INDEX_NONE; \
+		UE_DEPRECATED(5.3, PREPROCESSOR_TO_STRING(PropertyName##Index) " must be explicitly initialized. Add " PREPROCESSOR_TO_STRING(PropertyName##Index) "(PropertyCollection) or (ForceInit) to this constructor initialization list.") \
+		F##PropertyName##Index() {} \
+		explicit F##PropertyName##Index(EForceInit) : Index(INDEX_NONE) {} \
+		explicit F##PropertyName##Index(const FCollectionPropertyConstFacade& PropertyCollection) : Index(PropertyCollection.GetKeyIndex(PropertyName##Name.ToString())) {} \
+		operator int32() const { return Index; } \
+	} PropertyName##Index;

@@ -191,6 +191,7 @@ public:
 			WeightMaps.FindRef(GetXPBDAreaSpringStiffnessString(PropertyCollection, XPBDAreaSpringStiffnessName.ToString())),
 			FSolverVec2(GetWeightedFloatXPBDAreaSpringStiffness(PropertyCollection, MaxStiffness)),
 			bTrimKinematicConstraints)
+		, XPBDAreaSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
@@ -210,6 +211,7 @@ public:
 			StiffnessMultipliers,
 			FSolverVec2(GetWeightedFloatXPBDAreaSpringStiffness(PropertyCollection, MaxStiffness)),
 			bTrimKinematicConstraints)
+		, XPBDAreaSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	virtual ~FXPBDAreaSpringConstraints() override = default;

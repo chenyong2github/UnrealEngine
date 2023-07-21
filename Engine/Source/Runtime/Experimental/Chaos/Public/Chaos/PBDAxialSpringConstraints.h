@@ -76,6 +76,7 @@ public:
 			WeightMaps.FindRef(GetAreaSpringStiffnessString(PropertyCollection, AreaSpringStiffnessName.ToString())),
 			FSolverVec2(GetWeightedFloatAreaSpringStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints)
+		, AreaSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
@@ -95,6 +96,7 @@ public:
 			StiffnessMultipliers,
 			FSolverVec2(GetWeightedFloatAreaSpringStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints)
+		, AreaSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	virtual ~FPBDAreaSpringConstraints() override = default;

@@ -44,6 +44,8 @@ public:
 			FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
 			MaxStiffness,
 			MeshScale)
+		, XPBDTetherStiffnessIndex(PropertyCollection)
+		, XPBDTetherScaleIndex(PropertyCollection)
 	{
 		NumTethers = 0;
 		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
@@ -72,6 +74,8 @@ public:
 			FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection, MaxStiffness)),
 			FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
 			MaxStiffness)
+		, XPBDTetherStiffnessIndex(PropertyCollection)
+		, XPBDTetherScaleIndex(PropertyCollection)
 	{
 		NumTethers = 0;
 		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
@@ -100,6 +104,8 @@ public:
 			InStiffness,
 			InScale,  // Scale clamping done in constructor
 			MaxStiffness)
+		, XPBDTetherStiffnessIndex(ForceInit)
+		, XPBDTetherScaleIndex(ForceInit)
 	{
 		NumTethers = 0;
 		for (const TConstArrayView<FTether>& TetherBatch : Tethers)

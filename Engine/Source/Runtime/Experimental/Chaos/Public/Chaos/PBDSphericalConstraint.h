@@ -49,6 +49,7 @@ public:
 		, Scale(MeshScale)
 		, MaxDistanceBase((FSolverReal)GetLowMaxDistance(PropertyCollection, 0.f))
 		, MaxDistanceRange((FSolverReal)GetHighMaxDistance(PropertyCollection, 1.f) - MaxDistanceBase)
+		, MaxDistanceIndex(PropertyCollection)
 	{
 	}
 
@@ -66,6 +67,9 @@ public:
 		, ParticleOffset(InParticleOffset)
 		, ParticleCount(InParticleCount)
 		, Scale(MeshScale)
+		, MaxDistanceBase((FSolverReal)GetLowMaxDistance(PropertyCollection, 0.f))
+		, MaxDistanceRange((FSolverReal)GetHighMaxDistance(PropertyCollection, 1.f) - MaxDistanceBase)
+		, MaxDistanceIndex(PropertyCollection)
 	{
 	}
 
@@ -80,6 +84,7 @@ public:
 		, ParticleOffset(InParticleOffset)
 		, ParticleCount(InParticleCount)
 		, Scale((FSolverReal)1.)
+		, MaxDistanceIndex(ForceInit)
 	{
 	}
 
@@ -213,6 +218,9 @@ public:
 		, BackstopDistanceBase((FSolverReal)GetLowBackstopDistance(PropertyCollection, 0.f))
 		, BackstopDistanceRange((FSolverReal)GetHighBackstopDistance(PropertyCollection, 1.f) - BackstopDistanceBase)
 		, bUseLegacyBackstop(GetUseLegacyBackstop(PropertyCollection, false))  // Only set the legacy backstop in constructor
+		, BackstopDistanceIndex(PropertyCollection)
+		, BackstopRadiusIndex(PropertyCollection)
+		, UseLegacyBackstopIndex(PropertyCollection)
 	{
 	}
 
@@ -234,8 +242,14 @@ public:
 		, ParticleOffset(InParticleOffset)
 		, ParticleCount(InParticleCount)
 		, Scale(MeshScale)
-		, bEnabled(true)
+		, BackstopRadiusBase((FSolverReal)FMath::Max(GetLowBackstopRadius(PropertyCollection, 0.f), 0.f))
+		, BackstopRadiusRange((FSolverReal)FMath::Max(GetHighBackstopRadius(PropertyCollection, 1.f), 0.f) - BackstopRadiusBase)
+		, BackstopDistanceBase((FSolverReal)GetLowBackstopDistance(PropertyCollection, 0.f))
+		, BackstopDistanceRange((FSolverReal)GetHighBackstopDistance(PropertyCollection, 1.f) - BackstopDistanceBase)
 		, bUseLegacyBackstop(GetUseLegacyBackstop(PropertyCollection, false))  // Only set the legacy backstop in constructor
+		, BackstopDistanceIndex(PropertyCollection)
+		, BackstopRadiusIndex(PropertyCollection)
+		, UseLegacyBackstopIndex(PropertyCollection)
 	{
 	}
 
@@ -257,6 +271,9 @@ public:
 		, Scale((FSolverReal)1.)
 		, bEnabled(true)
 		, bUseLegacyBackstop(bInUseLegacyBackstop)
+		, BackstopDistanceIndex(ForceInit)
+		, BackstopRadiusIndex(ForceInit)
+		, UseLegacyBackstopIndex(ForceInit)
 	{
 	}
 	~FPBDSphericalBackstopConstraint() {}

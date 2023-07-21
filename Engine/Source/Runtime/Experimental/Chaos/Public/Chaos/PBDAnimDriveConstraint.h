@@ -40,6 +40,8 @@ namespace Chaos::Softs
 			, UseDeprecatedApply(true)
 			, Stiffness(FSolverVec2::UnitVector, StiffnessMultipliers, InParticleCount)
 			, Damping(FSolverVec2::UnitVector, DampingMultipliers, InParticleCount)
+			, AnimDriveStiffnessIndex(ForceInit)
+			, AnimDriveDampingIndex(ForceInit)
 		{
 		}
 
@@ -65,6 +67,8 @@ namespace Chaos::Softs
 				FSolverVec2(GetWeightedFloatAnimDriveDamping(PropertyCollection, 1.f)),
 				WeightMaps.FindRef(GetAnimDriveDampingString(PropertyCollection, AnimDriveDampingName.ToString())),
 				InParticleCount)
+			, AnimDriveStiffnessIndex(PropertyCollection)
+			, AnimDriveDampingIndex(PropertyCollection)
 		{
 		}
 
@@ -92,6 +96,8 @@ namespace Chaos::Softs
 				FSolverVec2(GetWeightedFloatAnimDriveDamping(PropertyCollection, 1.f)),
 				DampingMultipliers,
 				InParticleCount)
+			, AnimDriveStiffnessIndex(PropertyCollection)
+			, AnimDriveDampingIndex(PropertyCollection)
 		{
 		}
 
@@ -112,6 +118,8 @@ namespace Chaos::Softs
 			, UseDeprecatedApply(false)
 			, Stiffness(FSolverVec2::UnitVector, StiffnessMultipliers, InParticleCount)
 			, Damping(FSolverVec2::UnitVector, DampingMultipliers, InParticleCount)
+			, AnimDriveStiffnessIndex(ForceInit)
+			, AnimDriveDampingIndex(ForceInit)
 		{
 		}
 

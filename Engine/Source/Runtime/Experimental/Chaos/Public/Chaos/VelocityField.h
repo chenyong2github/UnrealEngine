@@ -30,6 +30,10 @@ public:
 	explicit FVelocityAndPressureField(const FCollectionPropertyConstFacade& PropertyCollection)
 		: Offset(INDEX_NONE)
 		, NumParticles(0)
+		, DragIndex(PropertyCollection)
+		, LiftIndex(PropertyCollection)
+		, FluidDensityIndex(PropertyCollection)
+		, PressureIndex(PropertyCollection)
 	{
 		SetProperties(
 			FSolverVec2(GetWeightedFloatDrag(PropertyCollection, (FSolverReal)0.)),  // If these properties don't exist, set their values to 0, not to DefaultCoefficients!
@@ -42,6 +46,10 @@ public:
 	FVelocityAndPressureField()
 		: Offset(INDEX_NONE)
 		, NumParticles(0)
+		, DragIndex(ForceInit)
+		, LiftIndex(ForceInit)
+		, FluidDensityIndex(ForceInit)
+		, PressureIndex(ForceInit)
 	{
 		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0., FSolverVec2(0.));
 	}

@@ -40,6 +40,8 @@ public:
 			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
 			FPBDStiffness::DefaultPBDMaxStiffness,
 			MeshScale)
+		, TetherStiffnessIndex(PropertyCollection)
+		, TetherScaleIndex(PropertyCollection)
 	{}
 
 	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
@@ -63,6 +65,8 @@ public:
 			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
 			FPBDStiffness::DefaultPBDMaxStiffness,
 			MeshScale)
+		, TetherStiffnessIndex(PropertyCollection)
+		, TetherScaleIndex(PropertyCollection)
 	{}
 
 	FPBDLongRangeConstraints(
@@ -85,6 +89,8 @@ public:
 			InStiffness,
 			InScale,
 			MeshScale)
+		, TetherStiffnessIndex(ForceInit)
+		, TetherScaleIndex(ForceInit)
 	{}
 
 	virtual ~FPBDLongRangeConstraints() override {}

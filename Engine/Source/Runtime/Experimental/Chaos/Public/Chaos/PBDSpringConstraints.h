@@ -77,6 +77,7 @@ public:
 			WeightMaps.FindRef(GetEdgeSpringStiffnessString(PropertyCollection, EdgeSpringStiffnessName.ToString())),
 			FSolverVec2(GetWeightedFloatEdgeSpringStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints)
+		, EdgeSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
@@ -96,6 +97,7 @@ public:
 			StiffnessMultipliers,
 			FSolverVec2(GetWeightedFloatEdgeSpringStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints)
+		, EdgeSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	virtual ~FPBDEdgeSpringConstraints() override = default;
@@ -140,6 +142,7 @@ public:
 			WeightMaps.FindRef(GetBendingSpringStiffnessString(PropertyCollection, BendingSpringStiffnessName.ToString())),
 			FSolverVec2(GetWeightedFloatBendingSpringStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints)
+		, BendingSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
@@ -159,6 +162,7 @@ public:
 			StiffnessMultipliers,
 			FSolverVec2(GetWeightedFloatBendingSpringStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints)
+		, BendingSpringStiffnessIndex(PropertyCollection)
 	{}
 
 	virtual ~FPBDBendingSpringConstraints() override = default;

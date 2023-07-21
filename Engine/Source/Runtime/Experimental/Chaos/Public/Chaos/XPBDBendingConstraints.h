@@ -58,6 +58,13 @@ public:
 			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 			ParticleOffset,
 			ParticleCount)
+		, XPBDBendingElementStiffnessIndex(PropertyCollection)
+		, XPBDBendingElementDampingIndex(PropertyCollection)
+		, XPBDBucklingRatioIndex(PropertyCollection)
+		, XPBDBucklingStiffnessIndex(PropertyCollection)
+		, XPBDFlatnessRatioIndex(PropertyCollection)
+		, XPBDRestAngleIndex(PropertyCollection)
+		, XPBDRestAngleTypeIndex(PropertyCollection)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(InParticles);
@@ -91,6 +98,13 @@ public:
 			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 			ParticleOffset,
 			ParticleCount)
+		, XPBDBendingElementStiffnessIndex(PropertyCollection)
+		, XPBDBendingElementDampingIndex(PropertyCollection)
+		, XPBDBucklingRatioIndex(PropertyCollection)
+		, XPBDBucklingStiffnessIndex(PropertyCollection)
+		, XPBDFlatnessRatioIndex(PropertyCollection)
+		, XPBDRestAngleIndex(PropertyCollection)
+		, XPBDRestAngleTypeIndex(PropertyCollection)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(InParticles);
@@ -120,6 +134,13 @@ public:
 			bTrimKinematicConstraints,
 			MaxStiffness)
 		, DampingRatio(FSolverVec2::ZeroVector)
+		, XPBDBendingElementStiffnessIndex(ForceInit)
+		, XPBDBendingElementDampingIndex(ForceInit)
+		, XPBDBucklingRatioIndex(ForceInit)
+		, XPBDBucklingStiffnessIndex(ForceInit)
+		, XPBDFlatnessRatioIndex(ForceInit)
+		, XPBDRestAngleIndex(ForceInit)
+		, XPBDRestAngleTypeIndex(ForceInit)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(InParticles);
@@ -155,6 +176,13 @@ public:
 			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 			ParticleOffset,
 			ParticleCount)
+		, XPBDBendingElementStiffnessIndex(ForceInit)
+		, XPBDBendingElementDampingIndex(ForceInit)
+		, XPBDBucklingRatioIndex(ForceInit)
+		, XPBDBucklingStiffnessIndex(ForceInit)
+		, XPBDFlatnessRatioIndex(ForceInit)
+		, XPBDRestAngleIndex(ForceInit)
+		, XPBDRestAngleTypeIndex(ForceInit)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(InParticles);

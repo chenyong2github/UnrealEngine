@@ -39,6 +39,9 @@ public:
 			(FSolverReal)FMath::Max(GetSelfCollisionThickness(PropertyCollection, Base::BackCompatThickness), 0.f),
 			(FSolverReal)FMath::Clamp(GetSelfCollisionStiffness(PropertyCollection, Base::BackCompatStiffness), 0.f, 1.f),
 			FMath::Clamp((FSolverReal)GetSelfCollisionFriction(PropertyCollection, Base::BackCompatFrictionCoefficient), MinFrictionCoefficient, MaxFrictionCoefficient))
+		, SelfCollisionThicknessIndex(PropertyCollection)
+		, SelfCollisionStiffnessIndex(PropertyCollection)
+		, SelfCollisionFrictionIndex(PropertyCollection)
 	{}
 
 	FPBDCollisionSpringConstraints(
@@ -59,6 +62,9 @@ public:
 			InThickness,
 			InStiffness,
 			InFrictionCoefficient)
+		, SelfCollisionThicknessIndex(ForceInit)
+		, SelfCollisionStiffnessIndex(ForceInit)
+		, SelfCollisionFrictionIndex(ForceInit)
 	{}
 
 	virtual ~FPBDCollisionSpringConstraints() override {}

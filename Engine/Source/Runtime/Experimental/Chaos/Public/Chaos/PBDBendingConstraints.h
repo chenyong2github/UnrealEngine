@@ -38,6 +38,12 @@ public:
 			GetRestAngleValueFromCollection(PropertyCollection),
 			(ERestAngleConstructionType)GetRestAngleType(PropertyCollection, (int32)ERestAngleConstructionType::Use3DRestAngles),
 			bTrimKinematicConstraints)
+		, BendingElementStiffnessIndex(PropertyCollection)
+		, BucklingRatioIndex(PropertyCollection)
+		, BucklingStiffnessIndex(PropertyCollection)
+		, FlatnessRatioIndex(PropertyCollection)
+		, RestAngleIndex(PropertyCollection)
+		, RestAngleTypeIndex(PropertyCollection)
 	{
 		InitColor(InParticles);
 	}
@@ -62,6 +68,12 @@ public:
 			(FSolverReal)GetBucklingRatio(PropertyCollection, 0.f),  // BucklingRatio is clamped in base class
 			FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints) 
+		, BendingElementStiffnessIndex(PropertyCollection)
+		, BucklingRatioIndex(PropertyCollection)
+		, BucklingStiffnessIndex(PropertyCollection)
+		, FlatnessRatioIndex(PropertyCollection)
+		, RestAngleIndex(PropertyCollection)
+		, RestAngleTypeIndex(PropertyCollection)
 	{
 		InitColor(InParticles);
 	}
@@ -86,7 +98,13 @@ public:
 			InStiffness,
 			InBucklingRatio,
 			InBucklingStiffness,
-			bTrimKinematicConstraints) 
+			bTrimKinematicConstraints)
+		, BendingElementStiffnessIndex(ForceInit)
+		, BucklingRatioIndex(ForceInit)
+		, BucklingStiffnessIndex(ForceInit)
+		, FlatnessRatioIndex(ForceInit)
+		, RestAngleIndex(ForceInit)
+		, RestAngleTypeIndex(ForceInit)
 	{
 		InitColor(InParticles);
 	}

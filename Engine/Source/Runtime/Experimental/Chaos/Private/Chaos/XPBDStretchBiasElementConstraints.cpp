@@ -82,6 +82,13 @@ FXPBDStretchBiasElementConstraints::FXPBDStretchBiasElementConstraints(const FSo
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount)
+	, XPBDAnisoStretchUse3dRestLengthsIndex(PropertyCollection)
+	, XPBDAnisoStretchStiffnessWarpIndex(PropertyCollection)
+	, XPBDAnisoStretchStiffnessWeftIndex(PropertyCollection)
+	, XPBDAnisoStretchStiffnessBiasIndex(PropertyCollection)
+	, XPBDAnisoStretchDampingIndex(PropertyCollection)
+	, XPBDAnisoStretchWarpScaleIndex(PropertyCollection)
+	, XPBDAnisoStretchWeftScaleIndex(PropertyCollection)
 {
 	Lambdas.Init(FSolverVec3(0.), Constraints.Num());
 	InitConstraintsAndRestData(InParticles, TriangleMesh, FaceVertexUVs, GetXPBDAnisoStretchUse3dRestLengths(PropertyCollection, bDefaultUse3dRestLengths), bTrimKinematicConstraints);
@@ -154,6 +161,13 @@ FXPBDStretchBiasElementConstraints::FXPBDStretchBiasElementConstraints(const FSo
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount)
+	, XPBDAnisoStretchUse3dRestLengthsIndex(ForceInit)
+	, XPBDAnisoStretchStiffnessWarpIndex(ForceInit)
+	, XPBDAnisoStretchStiffnessWeftIndex(ForceInit)
+	, XPBDAnisoStretchStiffnessBiasIndex(ForceInit)
+	, XPBDAnisoStretchDampingIndex(ForceInit)
+	, XPBDAnisoStretchWarpScaleIndex(ForceInit)
+	, XPBDAnisoStretchWeftScaleIndex(ForceInit)
 {
 	Lambdas.Init(FSolverVec3(0.), Constraints.Num());
 	InitConstraintsAndRestData(InParticles, TriangleMesh, FaceVertexUVs, bUse3dRestLengths, bTrimKinematicConstraints);

@@ -111,6 +111,9 @@ public:
 		, NumParticles(InNumParticles)
 		, bGlobalIntersectionAnalysis(GetUseSelfIntersections(PropertyCollection, false) || GetUseGlobalIntersectionAnalysis(PropertyCollection, false))
 		, bContourMinimization(GetUseSelfIntersections(PropertyCollection, false) || GetUseContourMinimization(PropertyCollection, false))
+		, UseSelfIntersectionsIndex(PropertyCollection)
+		, UseGlobalIntersectionAnalysisIndex(PropertyCollection)
+		, UseContourMinimizationIndex(PropertyCollection)
 	{}
 
 	FPBDTriangleMeshCollisions(
@@ -125,6 +128,9 @@ public:
 		, NumParticles(InNumParticles)
 		, bGlobalIntersectionAnalysis(bInGlobalIntersectionAnalysis)
 		, bContourMinimization(bInContourMinimization)
+		, UseSelfIntersectionsIndex(ForceInit)
+		, UseGlobalIntersectionAnalysisIndex(ForceInit)
+		, UseContourMinimizationIndex(ForceInit)
 	{}
 
 	virtual ~FPBDTriangleMeshCollisions() = default;

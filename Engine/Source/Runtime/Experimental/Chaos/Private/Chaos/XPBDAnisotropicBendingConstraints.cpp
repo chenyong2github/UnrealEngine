@@ -88,6 +88,17 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		ParticleOffset,
 		ParticleCount)
 	, WarpWeftBiasBaseMultipliers(GenerateWarpWeftBiasBaseMultipliers(FaceVertexPatternPositions, TriangleMesh))
+	, XPBDAnisoBendingStiffnessWarpIndex(PropertyCollection)
+	, XPBDAnisoBendingStiffnessWeftIndex(PropertyCollection)
+	, XPBDAnisoBendingStiffnessBiasIndex(PropertyCollection)
+	, XPBDAnisoBendingDampingIndex(PropertyCollection)
+	, XPBDAnisoBucklingRatioIndex(PropertyCollection)
+	, XPBDAnisoBucklingStiffnessWarpIndex(PropertyCollection)
+	, XPBDAnisoBucklingStiffnessWeftIndex(PropertyCollection)
+	, XPBDAnisoBucklingStiffnessBiasIndex(PropertyCollection)
+	, XPBDAnisoFlatnessRatioIndex(PropertyCollection)
+	, XPBDAnisoRestAngleIndex(PropertyCollection)
+	, XPBDAnisoRestAngleTypeIndex(PropertyCollection)
 {
 	Lambdas.Init((FSolverReal)0., Constraints.Num());
 	InitColor(InParticles);
@@ -169,6 +180,17 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		ParticleOffset,
 		ParticleCount)
 	, WarpWeftBiasBaseMultipliers(GenerateWarpWeftBiasBaseMultipliers(FaceVertexPatternPositions, TriangleMesh))
+	, XPBDAnisoBendingStiffnessWarpIndex(ForceInit)
+	, XPBDAnisoBendingStiffnessWeftIndex(ForceInit)
+	, XPBDAnisoBendingStiffnessBiasIndex(ForceInit)
+	, XPBDAnisoBendingDampingIndex(ForceInit)
+	, XPBDAnisoBucklingRatioIndex(ForceInit)
+	, XPBDAnisoBucklingStiffnessWarpIndex(ForceInit)
+	, XPBDAnisoBucklingStiffnessWeftIndex(ForceInit)
+	, XPBDAnisoBucklingStiffnessBiasIndex(ForceInit)
+	, XPBDAnisoFlatnessRatioIndex(ForceInit)
+	, XPBDAnisoRestAngleIndex(ForceInit)
+	, XPBDAnisoRestAngleTypeIndex(ForceInit)
 {
 	Lambdas.Init((FSolverReal)0., Constraints.Num());
 	InitColor(InParticles);
