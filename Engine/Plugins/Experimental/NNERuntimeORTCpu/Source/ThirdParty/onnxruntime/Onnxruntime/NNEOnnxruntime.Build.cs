@@ -13,8 +13,15 @@ public class NNEOnnxruntime : ModuleRules
 
 		ShortName = "NNEORT"; // Shorten to avoid path-too-long errors
 
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		PrivatePCHHeaderFile = "Private/ORTPrivatePCH.h";
+		if (Target.StaticAnalyzer == StaticAnalyzer.None || Target.Platform.IsInGroup("Microsoft"))
+		{
+			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+			PrivatePCHHeaderFile = "Private/ORTPrivatePCH.h";
+		}
+		else
+		{
+			PCHUsage = ModuleRules.PCHUsageMode.NoPCHs;
+		}
 
 		PublicIncludePaths.AddRange(
 			new string[] {
