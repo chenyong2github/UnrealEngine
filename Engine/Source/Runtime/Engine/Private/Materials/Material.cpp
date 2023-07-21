@@ -2181,14 +2181,9 @@ void UMaterial::SetRenderTracePhysicalMaterialOutputs(TArrayView<TObjectPtr<clas
 	RenderTracePhysicalMaterialOutputs = PhysicalMaterials;
 }
 
-UMaterialInterface* UMaterial::GetNaniteOverride(TMicRecursionGuard RecursionGuard)
+UMaterialInterface* UMaterial::GetNaniteOverride(TMicRecursionGuard RecursionGuard) const
 {
-	return NaniteOverrideMaterial.GetOverrideMaterial(this);
-}
-
-TSoftObjectPtr<UMaterialInterface> UMaterial::GetNaniteOverrideRef(TMicRecursionGuard RecursionGuard) const
-{
-	return NaniteOverrideMaterial.OverrideMaterialRef;
+	return NaniteOverrideMaterial.GetOverrideMaterial();
 }
 
 /** Helper functions for text output of properties... */
@@ -3741,7 +3736,7 @@ void UMaterial::PostLoad()
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedMaterialResources.Empty();
 
-	NaniteOverrideMaterial.PostLoad();
+	NaniteOverrideMaterial.FixupLegacySoftReference(this);
 
 #if WITH_EDITORONLY_DATA
 	const FPackageFileVersion UEVer = GetLinkerUEVersion();
@@ -4314,8 +4309,6 @@ void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPl
 			}
 		}
 	}
-
-	NaniteOverrideMaterial.LoadOverrideForPlatform(TargetPlatform);
 }
 
 bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
@@ -4379,8 +4372,6 @@ void UMaterial::ClearAllCachedCookedPlatformData()
 		FMaterial::DeferredDeleteArray(CachedMaterialResourcesForPlatform);
 	}
 	CachedMaterialResourcesForCooking.Empty();
-
-	NaniteOverrideMaterial.ClearOverride();
 }
 #endif // WITH_EDITOR
 
@@ -4638,11 +4629,6 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableExecWire))
 	{
 		CreateExecutionFlowExpressions();
-	}
-
-	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
-	{
-		NaniteOverrideMaterial.PostEditChange(this);
 	}
 
 	TranslucencyDirectionalLightingIntensity = FMath::Clamp(TranslucencyDirectionalLightingIntensity, .1f, 10.0f);

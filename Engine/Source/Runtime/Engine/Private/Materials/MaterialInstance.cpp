@@ -1683,7 +1683,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 
 void UMaterialInstanceDynamic::SetNaniteOverride(UMaterialInterface* InMaterial)
 {
-	NaniteOverrideMaterial.InitUnsafe(InMaterial);
+	NaniteOverrideMaterial.SetOverrideMaterial(InMaterial, true);
 }
 
 float UMaterialInstanceDynamic::GetOpacityMaskClipValue() const
@@ -1856,7 +1856,7 @@ UPhysicalMaterial* UMaterialInstance::GetPhysicalMaterialFromMap(int32 Index) co
 	return PhysicalMaterialMap[Index];
 }
 
-UMaterialInterface* UMaterialInstance::GetNaniteOverride(TMicRecursionGuard RecursionGuard)
+UMaterialInterface* UMaterialInstance::GetNaniteOverride(TMicRecursionGuard RecursionGuard) const
 {
 	if (NaniteOverrideMaterial.bEnableOverride)
 	{
@@ -1866,23 +1866,6 @@ UMaterialInterface* UMaterialInstance::GetNaniteOverride(TMicRecursionGuard Recu
 	{
 		RecursionGuard.Set(this);
 		return Parent->GetNaniteOverride(RecursionGuard);
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-TSoftObjectPtr<UMaterialInterface> UMaterialInstance::GetNaniteOverrideRef(TMicRecursionGuard RecursionGuard) const
-{
-	if (NaniteOverrideMaterial.bEnableOverride)
-	{
-		return NaniteOverrideMaterial.OverrideMaterialRef;
-	}
-	else if (Parent && !RecursionGuard.Contains(this))
-	{
-		RecursionGuard.Set(this);
-		return Parent->GetNaniteOverrideRef(RecursionGuard);
 	}
 	else
 	{
@@ -2711,8 +2694,6 @@ void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *
 			CacheResourceShadersForCooking(TargetShaderPlatform, *CachedMaterialResourcesForPlatform, EMaterialShaderPrecompileMode::Background, TargetPlatform);
 		}
 	}
-
-	NaniteOverrideMaterial.LoadOverrideForPlatform(TargetPlatform);
 }
 
 bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
@@ -2753,8 +2734,6 @@ void UMaterialInstance::ClearAllCachedCookedPlatformData()
 	}
 
 	CachedMaterialResourcesForCooking.Empty();
-
-	NaniteOverrideMaterial.ClearOverride();
 }
 
 #endif
@@ -3044,7 +3023,7 @@ void UMaterialInstance::PostLoad()
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedMaterialResources.Empty();
 
-	NaniteOverrideMaterial.PostLoad();
+	NaniteOverrideMaterial.FixupLegacySoftReference(this);
 
 	AssertDefaultMaterialsPostLoaded();
 
@@ -4054,8 +4033,6 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
 	{
-		NaniteOverrideMaterial.PostEditChange();
-
 		// Update primitives that might depend on the nanite override material.
 		FGlobalComponentRecreateRenderStateContext RecreateComponentsRenderState;
 	}
@@ -4112,8 +4089,6 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 void UMaterialInstance::PostEditUndo()
 {
 	Super::PostEditUndo();
-
-	NaniteOverrideMaterial.PostEditChange();
 }
 
 #endif // WITH_EDITOR
@@ -4723,7 +4698,7 @@ bool UMaterialInstance::Equivalent(const UMaterialInstance* CompareTo) const
 		bOverrideSubsurfaceProfile != CompareTo->bOverrideSubsurfaceProfile ||
 		BasePropertyOverrides != CompareTo->BasePropertyOverrides ||
 		NaniteOverrideMaterial.bEnableOverride != CompareTo->NaniteOverrideMaterial.bEnableOverride ||
-		NaniteOverrideMaterial.OverrideMaterialRef != CompareTo->NaniteOverrideMaterial.OverrideMaterialRef
+		NaniteOverrideMaterial.GetOverrideMaterial() != CompareTo->NaniteOverrideMaterial.GetOverrideMaterial()
 		)
 	{
 		return false;
@@ -4772,8 +4747,8 @@ bool UMaterialInstance::IsRedundant() const
 	if (NaniteOverrideMaterial.bEnableOverride)
 	{
 		// Check if we resolve to a different material to our parent 
-		TSoftObjectPtr<UMaterialInterface> MyOverride = GetNaniteOverrideRef();
-		TSoftObjectPtr<UMaterialInterface> ParentOverride = Parent->GetNaniteOverrideRef();
+		TObjectPtr<UMaterialInterface> MyOverride = GetNaniteOverride();
+		TObjectPtr<UMaterialInterface> ParentOverride = Parent->GetNaniteOverride();
 		// Possible refinement: Could check if they are equivalent MIDs, or a redundant MID and its parent, but that would require loading them. 
 		if (MyOverride != ParentOverride)
 		{

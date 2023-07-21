@@ -280,7 +280,7 @@ class UMaterialEditorInstanceConstant : public UObject
 
 	/** An override material which will be used instead of this one when rendering with nanite. */
 	UPROPERTY(EditAnywhere, Category = MaterialEditorInstanceConstant, meta = (editcondition = "bNaniteOverride"))
-	TSoftObjectPtr<UMaterialInterface> NaniteOverrideMaterial;
+	TObjectPtr<UMaterialInterface> NaniteOverrideMaterial;
 
 	//~ Begin UObject Interface.
 	UNREALED_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

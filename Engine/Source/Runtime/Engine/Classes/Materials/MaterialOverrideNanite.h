@@ -9,7 +9,6 @@
 
 #include "MaterialOverrideNanite.generated.h"
 
-class ITargetPlatform;
 class UMaterialInterface;
 enum EShaderPlatform : uint16;
 
@@ -24,9 +23,31 @@ struct FMaterialOverrideNanite
 {
 	GENERATED_BODY()
 
-	/** An override material which will be used when rendering with nanite. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite, meta = (DisplayName = "Nanite Override Material"))
-	TSoftObjectPtr<UMaterialInterface> OverrideMaterialRef;
+	/** 
+	 * This will return the cached override material pointer, if the override material is set, or nullptr otherwise.
+	 * In a cooked game this will always return nullptr if the platform can't support nanite.
+	 */
+	UMaterialInterface* GetOverrideMaterial() const
+	{
+#if WITH_EDITORONLY_DATA
+		return OverrideMaterialEditor;
+#else
+		return OverrideMaterial;
+#endif
+	}
+
+	/** Setup the object directly. */
+	void SetOverrideMaterial(UMaterialInterface* InMaterial, bool bInOverride);
+
+	/** Serialize function as declared in the TStructOpsTypeTraits. */
+	bool Serialize(FArchive& Ar);
+
+	/** 
+	 * Resolve and fixup anylegacy soft pointer. 
+	 * Call this from the owning object's PostLoad(). 
+	 * Returns true if any fixup was done.
+	 */
+	bool FixupLegacySoftReference(UObject* OptionalOwner = nullptr);
 
 	/** 
 	 * Stored flag to set whether we apply this override.  
@@ -36,59 +57,27 @@ struct FMaterialOverrideNanite
 	UPROPERTY()
 	bool bEnableOverride = true;
 
+#if WITH_EDITORONLY_DATA
 	/** 
-	 * This will return the cached override material pointer, if the override material is set and enabled, or nullptr otherwise.
-	 * In a cooked game this will always return nullptr if the platform can't support nanite.
-	 * Supply an OptionalOwner, if you can, so that if the override fails to load, the log warning can report the referencer
+	 * EditorOnly version of the OverrideMaterial reference.
+	 * This is a hard reference, but is editoronly. We rely on -skiponlyeditoronly to avoid pulling this editoronly hard reference into the cook.
 	 */
-	UMaterialInterface* GetOverrideMaterial(UObject* OptionalOwner = nullptr)
-	{
-#if WITH_EDITOR
-		if (bIsRefreshRequested)
-		{
-			RefreshOverrideMaterial(OptionalOwner);
-			bIsRefreshRequested = false;
-		}
+	UPROPERTY(EditAnywhere, Category = Nanite, meta = (DisplayName = "Nanite Override Material"))
+	TObjectPtr<UMaterialInterface> OverrideMaterialEditor;
 #endif
-		return OverrideMaterial;
-	}
-
-	/** Serialize function as declared in the TStructOpsTypeTraits. */
-	bool Serialize(FArchive& Ar);
-	
-	/** Call this from the owning object's PostLoad(). */
-	void PostLoad();
-
-#if WITH_EDITOR
-	/** Call this from the owning object on edit changes. */
-	void PostEditChange(UObject* OptionalOwner = nullptr);
-	/** Initialize the cached override material pointer according to platform support. Call this from the owning object's BeginCacheForCookedPlatformData(). */
-	void LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform);
-	/** Clear the cached override material pointer. Call this from the owning object's ClearAllCachedCookedPlatformData() */
-	void ClearOverride();
-#endif
-
-	/** 
-	 * Setup the object directly.
-	 * Beware that this avoids all the protections around keeping the hard pointer unresolved on non-nanite platforms.
-	 */
-	void InitUnsafe(UMaterialInterface* InMaterial);
 
 protected:
-	/** Cached hard reference to override material which is only created if necessary. */
-	UPROPERTY()
+	/** 
+	 * Reference to our override material.
+	 * This is only non-null in cooked packages, and is only non-null for cooked platforms that support nanite.	
+	 * Note that we skip default serialization and use special logic inside Serialize().
+	 */
+	UPROPERTY(SkipSerialization)
 	TObjectPtr<UMaterialInterface> OverrideMaterial;
 
-	/** Return true if the platform can ever use the override. */
-	bool CanUseOverride(EShaderPlatform ShaderPlatform) const;
-
-#if WITH_EDITOR
-	/** Set true if we need to call RefreshOverrideMaterial() before next access. */
-	bool bIsRefreshRequested = false;
-
-	/** Refresh the cached hard reference to the override material. */
-	void RefreshOverrideMaterial(UObject* OptionalOwner = nullptr);
-#endif
+	/** Legacy editor soft reference that has been replaced by OverrideMaterialEditor. */
+	UPROPERTY(SkipSerialization)
+	TSoftObjectPtr<UMaterialInterface> OverrideMaterialRef;
 };
 
 template<>

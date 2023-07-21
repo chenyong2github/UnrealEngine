@@ -42,6 +42,9 @@ struct FFortniteReleaseBranchCustomObjectVersion
 		// Include the cell size when computing the cell guid
 		WorldPartitionRuntimeCellGuidWithCellSize,
 
+		// Enable SkipOnlyEditorOnly style cooking of NaniteOverrideMaterial
+		NaniteMaterialOverrideUsesEditorOnly,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

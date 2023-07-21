@@ -260,8 +260,7 @@ void UMaterialInstanceConstant::UpdateCachedData()
 void UMaterialInstanceConstant::SetNaniteOverrideMaterial(bool bInEnableOverride, UMaterialInterface* InOverrideMaterial)
 {
 	NaniteOverrideMaterial.bEnableOverride = bInEnableOverride;
-	NaniteOverrideMaterial.OverrideMaterialRef = InOverrideMaterial;
-	NaniteOverrideMaterial.PostEditChange(this);
+	NaniteOverrideMaterial.OverrideMaterialEditor = InOverrideMaterial;
 }
 
 uint32 UMaterialInstanceConstant::ComputeAllStateCRC() const
