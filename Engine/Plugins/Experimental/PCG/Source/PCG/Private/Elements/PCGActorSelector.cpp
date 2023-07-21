@@ -41,7 +41,7 @@ namespace PCGActorSelector
 		case EPCGActorSelection::ByTag:
 			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActors, bMultiSelect, &BoundsCheck, &SelfIgnoreCheck](AActor* Actor) -> bool
 			{
-				if (Actor->ActorHasTag(ActorSelectionTag) && BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
+				if (Actor && Actor->ActorHasTag(ActorSelectionTag) && BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -53,7 +53,7 @@ namespace PCGActorSelector
 		case EPCGActorSelection::ByClass:
 			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect, &BoundsCheck, &SelfIgnoreCheck](AActor* Actor) -> bool
 			{
-				if (Actor->IsA(ActorSelectionClass) && BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
+				if (Actor && Actor->IsA(ActorSelectionClass) && BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -88,9 +88,10 @@ namespace PCGActorSelector
 		}
 
 		// Early out if we have not the information necessary.
-		if (FilterRequired(Settings) &&
-			((Settings.ActorSelection == EPCGActorSelection::ByTag && Settings.ActorSelectionTag == NAME_None) ||
-			(Settings.ActorSelection == EPCGActorSelection::ByClass && !Settings.ActorSelectionClass)))
+		const bool bNoTagInfo = Settings.ActorSelection == EPCGActorSelection::ByTag && Settings.ActorSelectionTag == NAME_None;
+		const bool bNoClassInfo = Settings.ActorSelection == EPCGActorSelection::ByClass && !Settings.ActorSelectionClass;
+
+		if (FilterRequired(Settings) && (bNoTagInfo || bNoClassInfo))
 		{
 			return FoundActors;
 		}
@@ -203,6 +204,78 @@ namespace PCGActorSelector
 	}
 }
 
+FPCGActorSelectionKey::FPCGActorSelectionKey(FName InTag)
+{
+	Selection = EPCGActorSelection::ByTag;
+	Tag = InTag;
+}
+
+FPCGActorSelectionKey::FPCGActorSelectionKey(TSubclassOf<AActor> InSelectionClass)
+{
+	Selection = EPCGActorSelection::ByClass;
+	ActorSelectionClass = InSelectionClass;
+}
+
+bool FPCGActorSelectionKey::IsMatching(const AActor* InActor) const
+{
+	if (!InActor)
+	{
+		return false;
+	}
+
+	switch (Selection)
+	{
+	case EPCGActorSelection::ByTag:
+		return InActor->ActorHasTag(Tag);
+	case EPCGActorSelection::ByClass:
+		return InActor->IsA(ActorSelectionClass);
+	default:
+		return false;
+	}
+}
+
+TArray<FPCGActorSelectionKey> FPCGActorSelectionKey::GenerateAllKeysForActor(const AActor* InActor)
+{
+	TArray<FPCGActorSelectionKey> Result;
+
+	if (!InActor)
+	{
+		return Result;
+	}
+
+	Result.Reserve(InActor->Tags.Num() + 1);
+	Result.Emplace(InActor->GetClass());
+	for (FName Tag : InActor->Tags)
+	{
+		Result.Emplace(Tag);
+	}
+
+	return Result;
+}
+
+bool FPCGActorSelectionKey::operator==(const FPCGActorSelectionKey& InOther) const
+{
+	if (Selection != InOther.Selection)
+	{
+		return false;
+	}
+
+	switch (Selection)
+	{
+	case EPCGActorSelection::ByTag:
+		return Tag == InOther.Tag;
+	case EPCGActorSelection::ByClass:
+		return ActorSelectionClass == InOther.ActorSelectionClass;
+	default:
+		return false;
+	}
+}
+
+uint32 GetTypeHash(const FPCGActorSelectionKey& In)
+{
+	return HashCombine(HashCombine(GetTypeHash(In.Selection), GetTypeHash(In.Tag)), GetTypeHash(In.ActorSelectionClass));
+}
+
 #if WITH_EDITOR
 FText FPCGActorSelectorSettings::GetTaskNameSuffix() const
 {
@@ -230,3 +303,33 @@ FName FPCGActorSelectorSettings::GetTaskName(const FText& Prefix) const
 	return FName(FText::Format(NSLOCTEXT("PCGActorSelectorSettings", "NodeTitleFormat", "{0} ({1})"), Prefix, GetTaskNameSuffix()).ToString());
 }
 #endif // WITH_EDITOR
+
+FPCGActorSelectionKey FPCGActorSelectorSettings::GetAssociatedKey() const
+{
+	// If we don't look for AllWorldActors, it means we track the pcg component, which should be already picked up by the tracking system.
+	if (ActorFilter != EPCGActorFilter::AllWorldActors)
+	{
+		return FPCGActorSelectionKey();
+	}
+
+	switch (ActorSelection)
+	{
+	case EPCGActorSelection::ByTag:
+		return FPCGActorSelectionKey(ActorSelectionTag);
+	case EPCGActorSelection::ByClass:
+		return FPCGActorSelectionKey(ActorSelectionClass);
+	default:
+		return FPCGActorSelectionKey();
+	}
+}
+
+FPCGActorSelectorSettings FPCGActorSelectorSettings::ReconstructFromKey(const FPCGActorSelectionKey& InKey)
+{
+	FPCGActorSelectorSettings Result{};
+	Result.ActorFilter = EPCGActorFilter::AllWorldActors;
+	Result.ActorSelection = InKey.Selection;
+	Result.ActorSelectionTag = InKey.Tag;
+	Result.ActorSelectionClass = InKey.ActorSelectionClass;
+
+	return Result;
+}

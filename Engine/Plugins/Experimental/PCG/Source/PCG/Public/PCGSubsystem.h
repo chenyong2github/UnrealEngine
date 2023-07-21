@@ -167,6 +167,15 @@ public:
 	/** Propagate to the graph compiler graph changes */
 	void NotifyGraphChanged(UPCGGraph* InGraph);
 
+	/** Update the tracking on a given component. */
+	void UpdateComponentTracking(UPCGComponent* InComponent, bool bInShouldDirtyActors = false) { ActorAndComponentMapping.RegisterOrUpdateTracking(InComponent, bInShouldDirtyActors); }
+
+#if WITH_EDITOR
+	/** For deprecation only, register tracked actors from serialized components */
+	template <typename ActorContainer>
+	void AddSerializedTrackedActorsForDeprecation(const ActorContainer& InActors) { ActorAndComponentMapping.AddSerializedTrackedActorsForDeprecation(InActors); }
+#endif // WITH_EDITOR
+
 	/** Cleans up the graph cache on an element basis. InSettings is used for debugging and is optional. */
 	void CleanFromCache(const IPCGElement* InElement, const UPCGSettings* InSettings = nullptr);
 

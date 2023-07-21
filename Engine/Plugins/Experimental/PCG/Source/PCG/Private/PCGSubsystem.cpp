@@ -111,8 +111,7 @@ UPCGSubsystem::UPCGSubsystem()
 #if WITH_EDITOR
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// TODO: Uncomment when tracking is functionnal
-		// ActorAndComponentMapping.RegisterTrackingCallbacks();
+		ActorAndComponentMapping.RegisterTrackingCallbacks();
 	}
 #endif // WITH_EDITOR
 }
@@ -128,8 +127,7 @@ void UPCGSubsystem::Deinitialize()
 	bHasTickedOnce = false;
 
 #if WITH_EDITOR
-	// TODO: Uncomment when tracking is functionnal
-	// ActorAndComponentMapping.TeardownTrackingCallbacks();
+	ActorAndComponentMapping.TeardownTrackingCallbacks();
 #endif // WITH_EDITOR
 
 	Super::Deinitialize();
@@ -155,6 +153,11 @@ void UPCGSubsystem::PostInitialize()
 			});
 		}
 	}
+
+#if WITH_EDITOR
+	// When the PCGWorldActor is loaded, we can add delayed actors.
+	ActorAndComponentMapping.AddActorsPostInit();
+#endif // WITH_EDITOR
 }
 
 UPCGSubsystem* UPCGSubsystem::GetInstance(UWorld* World)

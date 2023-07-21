@@ -17,6 +17,7 @@ namespace EEndPlayReason { enum Type : int; }
 class APCGPartitionActor;
 struct FPCGContext;
 class FPCGStack;
+class UPCGActorAndComponentMapping;
 class UPCGComponent;
 class UPCGGraph;
 class UPCGGraphInterface;
@@ -71,6 +72,7 @@ class PCG_API UPCGComponent : public UActorComponent
 
 	friend class UPCGManagedActors;
 	friend class UPCGSubsystem;
+	friend class UPCGActorAndComponentMapping;
 
 public:
 	/** ~Begin UObject interface */
@@ -87,7 +89,6 @@ public:
 	//~Begin UActorComponent Interface
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void OnRegister() override;
 
@@ -248,8 +249,7 @@ public:
 	void StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInputData, const FPCGDataCollection& InOutputData);
 	const FPCGDataCollection* GetInspectionData(const FString& InStackPath) const;
 
-	/** Used by the tracking system to know if the component need to track actors. Not enabled for now, tracking is still done on the component.*/
-	bool ShouldTrackActors() const { return false; }
+	bool IsActorTracked(AActor* InActor, bool& bOutIsCulled) const;
 
 	/** Know if we need to force a generation, in case of BP added to the world in editor */
 	bool ShouldGenerateBPPCGAddedToWorld() const;
@@ -329,8 +329,6 @@ private:
 	void GetManagedResources(TArray<TObjectPtr<UPCGManagedResource>>& Resources) const;
 	void SetManagedResources(const TArray<TObjectPtr<UPCGManagedResource>>& Resources);
 
-	bool GetActorsFromTags(const TMap<FName, bool>& InTagsAndCulling, TSet<TWeakObjectPtr<AActor>>& OutActors);
-
 	void RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool bIsStructural, bool bDirtyInputs);
 	void OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
 
@@ -342,29 +340,13 @@ private:
 	/** Sets up actor, tracking, landscape and graph callbacks */
 	void SetupCallbacksOnCreation();
 
-	void SetupActorCallbacks();
-	void TeardownActorCallbacks();
-	void SetupTrackingCallbacks();
-	void TeardownTrackingCallbacks();
-	void RefreshTrackingData();
+	void UpdateTrackingCache();
 
-	void OnActorAdded(AActor* InActor);
-	void OnActorDeleted(AActor* InActor);
-	void OnActorMoved(AActor* InActor);
-	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	bool ActorIsTracked(AActor* InActor) const;
+	
+	bool DirtyTrackedActor(AActor* InActor, bool bIntersect, const TSet<FName>& InRemovedTags);
 
-	void OnActorChanged(AActor* InActor, UObject* InSourceObject, bool bActorTagChange);
-
-	bool PopulateTrackedActorToTagsMap(bool bForce = false);
-	bool AddTrackedActor(AActor* InActor, bool bForce = false);
-	bool RemoveTrackedActor(AActor* InActor);
-	bool UpdateTrackedActor(AActor* InActor);
-	bool DirtyTrackedActor(AActor* InActor);
-	bool DirtyCacheFromTag(const FName& InTag, const AActor* InActor, bool bIgnoreCull = false);
-	void DirtyCacheForAllTrackedTags();
-
-	bool GraphUsesLandscapePin() const;
+	bool ShouldTrackLandscape() const;
 #endif
 
 	FBox GetGridBounds(const AActor* InActor) const;
@@ -420,29 +402,20 @@ private:
 #if WITH_EDITOR
 	int32 InspectionCounter = 0;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
-	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
+	FPCGActorSelectionKeyToSettingsMap CachedTrackedKeysToSettings;
 
-	TMap<FName, bool> CachedTrackedTagsToCulling;
-
-	void SetupLandscapeTracking();
-	void TeardownLandscapeTracking();
-	void UpdateTrackedLandscape(bool bBoundsCheck = true);
-	void OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams);
+	TMap<FPCGActorSelectionKey, bool> CachedTrackedKeysToCulling;
 #endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<TSoftObjectPtr<ALandscapeProxy>> TrackedLandscapes;
+	TArray<TSoftObjectPtr<ALandscapeProxy>> TrackedLandscapes_DEPRECATED;
 #endif
 
 #if WITH_EDITORONLY_DATA
 	// Cached tracked actors list is serialized because we can't get it at postload time
 	UPROPERTY()
-	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors;
-
-	TMap<TWeakObjectPtr<AActor>, TSet<FName>> CachedTrackedActorToTags;
-	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>> CachedTrackedActorToDependencies;
-	bool bActorToTagsMapPopulated = false;
+	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors_DEPRECATED;
 
 	UPROPERTY(Transient)
 	TMap<FString, FPCGDataCollection> InspectionCache;

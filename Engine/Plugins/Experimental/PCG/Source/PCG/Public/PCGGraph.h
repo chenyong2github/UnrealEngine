@@ -223,8 +223,8 @@ public:
 #endif
 
 #if WITH_EDITOR
-	FPCGTagToSettingsMap GetTrackedTagsToSettings() const;
-	void GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const;
+	FPCGActorSelectionKeyToSettingsMap GetTrackedActorKeysToSettings() const;
+	void GetTrackedActorKeysToSettings(FPCGActorSelectionKeyToSettingsMap& OutKeysToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const;
 #endif
 
 	/** Size of grid on which this node should be executed. Nodes execute at the minimum of all input grid sizes. */

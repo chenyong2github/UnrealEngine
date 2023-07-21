@@ -59,6 +59,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = GenerationSettings)
 	bool bUse2DGrid = true;
 
+#if WITH_EDITORONLY_DATA
+	// Cached tracked actors list is serialized because we can't get it at postload time
+	UPROPERTY()
+	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors;
+#endif // WITH_EDITORONLY_DATA
+
 private:
 	void RegisterToSubsystem();
 	void UnregisterFromSubsystem();

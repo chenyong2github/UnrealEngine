@@ -788,16 +788,16 @@ void UPCGGraph::SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InN
 	}
 }
 
-FPCGTagToSettingsMap UPCGGraph::GetTrackedTagsToSettings() const
+FPCGActorSelectionKeyToSettingsMap UPCGGraph::GetTrackedActorKeysToSettings() const
 {
-	FPCGTagToSettingsMap TagsToSettings;
+	FPCGActorSelectionKeyToSettingsMap TagsToSettings;
 	TArray<TObjectPtr<const UPCGGraph>> VisitedGraphs;
 
-	GetTrackedTagsToSettings(TagsToSettings, VisitedGraphs);
+	GetTrackedActorKeysToSettings(TagsToSettings, VisitedGraphs);
 	return TagsToSettings;
 }
 
-void UPCGGraph::GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
+void UPCGGraph::GetTrackedActorKeysToSettings(FPCGActorSelectionKeyToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
 	if (OutVisitedGraphs.Contains(this))
 	{
@@ -810,7 +810,7 @@ void UPCGGraph::GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings
 	{
 		if (Node && Node->GetSettings())
 		{
-			Node->GetSettings()->GetTrackedActorTags(OutTagsToSettings, OutVisitedGraphs);
+			Node->GetSettings()->GetTrackedActorKeys(OutTagsToSettings, OutVisitedGraphs);
 		}
 	}
 }

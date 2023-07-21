@@ -19,12 +19,11 @@
 #define LOCTEXT_NAMESPACE "PCGDataFromActorElement"
 
 #if WITH_EDITOR
-void UPCGDataFromActorSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
+void UPCGDataFromActorSettings::GetTrackedActorKeys(FPCGActorSelectionKeyToSettingsMap& OutKeysToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
-	if (ActorSelector.ActorSelection == EPCGActorSelection::ByTag &&
-		ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
+	if (ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
 	{
-		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Emplace({ this, bTrackActorsOnlyWithinBounds });
+		OutKeysToSettings.FindOrAdd(ActorSelector.GetAssociatedKey()).Emplace(this, bTrackActorsOnlyWithinBounds);
 	}
 }
 

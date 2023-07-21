@@ -10,7 +10,9 @@
 #include "LandscapeDataAccess.h"
 #include "LandscapeInfoMap.h"
 #include "LandscapeProxy.h"
+
 #include "Async/ParallelFor.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Serialization/BufferWriter.h"
@@ -754,6 +756,12 @@ void UPCGLandscapeCache::SetupLandscapeCallbacks()
 		Landscapes.Add(Landscape);
 		Landscape->OnComponentDataChanged.AddUObject(this, &UPCGLandscapeCache::OnLandscapeChanged);
 	}
+
+	// Also track when the landscape is moved
+	if (GEngine)
+	{
+		GEngine->OnActorMoved().AddUObject(this, &UPCGLandscapeCache::OnLandscapeMoved);
+	}
 }
 
 void UPCGLandscapeCache::TeardownLandscapeCallbacks()
@@ -765,11 +773,16 @@ void UPCGLandscapeCache::TeardownLandscapeCallbacks()
 			Landscape->OnComponentDataChanged.RemoveAll(this);
 		}
 	}
+
+	if (GEngine)
+	{
+		GEngine->OnActorMoved().RemoveAll(this);
+	}
 }
 
-void UPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams)
+void UPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* InLandscape, const FLandscapeProxyComponentDataChangedParams& InChangeParams)
 {
-	if (!Landscapes.Contains(Landscape))
+	if (!Landscapes.Contains(InLandscape))
 	{
 		return;
 	}
@@ -777,7 +790,39 @@ void UPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FL
 	CacheLock.WriteLock();
 
 	// Just remove these from the cache, they'll be added back on demand
-	ChangeParams.ForEachComponent([this, Landscape](const ULandscapeComponent* LandscapeComponent)
+	InChangeParams.ForEachComponent([this, InLandscape](const ULandscapeComponent* LandscapeComponent)
+	{
+		if (LandscapeComponent)
+		{
+			FIntPoint Coordinate(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
+			TPair<FGuid, FIntPoint> ComponentKey(InLandscape->GetOriginalLandscapeGuid(), Coordinate);
+
+			FPCGLandscapeCacheEntry* EntryToDelete = nullptr;
+
+			if (CachedData.RemoveAndCopyValue(ComponentKey, EntryToDelete))
+			{
+				delete EntryToDelete;
+			}
+		}
+	});
+
+	CacheLayerNames(InLandscape);
+
+	CacheLock.WriteUnlock();
+}
+
+void UPCGLandscapeCache::OnLandscapeMoved(AActor* InActor)
+{
+	ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(InActor);
+	if (!Landscape || !Landscapes.Contains(Landscape))
+	{
+		return;
+	}
+
+	CacheLock.WriteLock();
+
+	// Just remove these from the cache, they'll be added back on demand
+	Landscape->ForEachComponent<ULandscapeComponent>(/*bIncludeFromChildActors=*/false, [this, Landscape](const ULandscapeComponent* LandscapeComponent)
 	{
 		if (LandscapeComponent)
 		{
@@ -786,7 +831,7 @@ void UPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FL
 
 			if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
 			{
-				delete *FoundEntry;
+				delete* FoundEntry;
 				CachedData.Remove(ComponentKey);
 			}
 		}
@@ -810,11 +855,11 @@ void UPCGLandscapeCache::CacheLayerNames()
 	}
 }
 
-void UPCGLandscapeCache::CacheLayerNames(ALandscapeProxy* Landscape)
+void UPCGLandscapeCache::CacheLayerNames(ALandscapeProxy* InLandscape)
 {
-	check(Landscape);
+	check(InLandscape);
 
-	if (ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo())
+	if (ULandscapeInfo* LandscapeInfo = InLandscape->GetLandscapeInfo())
 	{
 		for (const FLandscapeInfoLayerSettings& Layer : LandscapeInfo->Layers)
 		{

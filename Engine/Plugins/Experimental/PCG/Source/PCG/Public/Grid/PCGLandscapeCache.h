@@ -129,8 +129,9 @@ private:
 #if WITH_EDITOR
 	void SetupLandscapeCallbacks();
 	void TeardownLandscapeCallbacks();
-	void OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams);
-	void CacheLayerNames(ALandscapeProxy* Landscape);
+	void OnLandscapeChanged(ALandscapeProxy* InLandscape, const FLandscapeProxyComponentDataChangedParams& InChangeParams);
+	void OnLandscapeMoved(AActor* InActor);
+	void CacheLayerNames(ALandscapeProxy* InLandscape);
 	void CacheLayerNames();
 #endif
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
 
 #include "PCGActorSelector.generated.h"
 
@@ -17,6 +18,25 @@ enum class EPCGActorSelection : uint8
 	// Deprecated - actor labels are unavailable in shipping builds
 	ByName UMETA(Hidden),
 	ByClass
+};
+
+struct FPCGActorSelectionKey
+{
+	FPCGActorSelectionKey() = default;
+
+	explicit FPCGActorSelectionKey(FName InTag);
+	explicit FPCGActorSelectionKey(TSubclassOf<AActor> InSelectionClass);
+
+	bool operator==(const FPCGActorSelectionKey& InOther) const;
+
+	friend uint32 GetTypeHash(const FPCGActorSelectionKey& In);
+	bool IsMatching(const AActor* InActor) const;
+
+	static TArray<FPCGActorSelectionKey> GenerateAllKeysForActor(const AActor* InActor);
+
+	EPCGActorSelection Selection = EPCGActorSelection::ByTag;
+	FName Tag = NAME_None;
+	TSubclassOf<AActor> ActorSelectionClass = nullptr;
 };
 
 UENUM()
@@ -91,6 +111,9 @@ struct FPCGActorSelectorSettings
 	FText GetTaskNameSuffix() const;
 	FName GetTaskName(const FText& Prefix) const;
 #endif
+
+	FPCGActorSelectionKey GetAssociatedKey() const;
+	static FPCGActorSelectorSettings ReconstructFromKey(const FPCGActorSelectionKey& InKey);
 };
 
 namespace PCGActorSelector

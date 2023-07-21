@@ -40,7 +40,7 @@ protected:
 	//~End UObject interface implementation
 
 	//~Begin UPCGSettings interface
-	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
+	virtual void GetTrackedActorKeys(FPCGActorSelectionKeyToSettingsMap& OutKeysToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const override;
 #endif
 
