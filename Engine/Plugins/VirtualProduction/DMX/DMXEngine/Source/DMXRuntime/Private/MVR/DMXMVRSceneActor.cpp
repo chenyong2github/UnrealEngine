@@ -48,6 +48,7 @@ ADMXMVRSceneActor::ADMXMVRSceneActor()
 
 	MVRSceneRoot = CreateDefaultSubobject<USceneComponent>("MVRSceneRoot");
 	SetRootComponent(MVRSceneRoot);
+	AddInstanceComponent(MVRSceneRoot);
 }
 
 ADMXMVRSceneActor::~ADMXMVRSceneActor()
