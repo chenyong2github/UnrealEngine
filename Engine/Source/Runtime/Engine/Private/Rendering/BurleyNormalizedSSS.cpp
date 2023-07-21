@@ -7,6 +7,7 @@ BurleyNormalizedSSS.cpp: Compute the transmition profile for Burley normalized S
 
 #include "Rendering/BurleyNormalizedSSS.h"
 #include "Math/Vector.h"
+#include "HAL/IConsoleManager.h"
 
 static TAutoConsoleVariable<int32> CVarSSProfilesTransmissionUseLegacy(
 	TEXT("r.SSProfiles.Transmission.UseLegacy"),
