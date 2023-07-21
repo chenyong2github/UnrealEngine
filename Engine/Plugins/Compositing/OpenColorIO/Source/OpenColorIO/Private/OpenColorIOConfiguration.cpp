@@ -162,7 +162,13 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 	if (Config && Config->IsValid())
 	{
-		const FString LoadedConfigHash = Config->GetCacheID() + FString(OpenColorIOWrapper::GetVersion());
+		FString LoadedConfigHash = Config->GetCacheID() + FString(OpenColorIOWrapper::GetVersion());
+		
+		const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+		if (Settings->bSupportInverseViewTransforms)
+		{
+			LoadedConfigHash += FString(TEXT("_Inv"));
+		}
 
 		// Hash is different, proceed with the regeneration...
 		if (ConfigHash != LoadedConfigHash)
@@ -213,8 +219,6 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 					UE_LOG(LogOpenColorIO, Display, TEXT("Removing %s, not found."), *ExistingDisplayView.ToString());
 				}
 			}
-
-			const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 
 			// Genereate new shaders.
 			for (int32 indexTop = 0; indexTop < DesiredColorSpaces.Num(); ++indexTop)
