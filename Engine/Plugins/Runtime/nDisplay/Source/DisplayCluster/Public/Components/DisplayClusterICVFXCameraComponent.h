@@ -112,31 +112,31 @@ private:
 	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.FrustumOffset"))
 	FDisplayClusterEditorPropertyReference FrustumOffsetRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.RenderSettings.GenerateMips", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.RenderSettings.GenerateMips"))
 	FDisplayClusterEditorPropertyReference GenerateMipsRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.CameraMotionBlur", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.CameraMotionBlur"))
 	FDisplayClusterEditorPropertyReference CameraMotionBlurRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.CameraHideList", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.CameraHideList"))
 	FDisplayClusterEditorPropertyReference CameraHideListRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.bEnable", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.bEnable"))
 	FDisplayClusterEditorPropertyReference ChromaKeyEnabledRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyType", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyType"))
 	FDisplayClusterEditorPropertyReference ChromakeyTypeRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeySettingsSource", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeySettingsSource"))
 	FDisplayClusterEditorPropertyReference ChromakeySettingsSourceRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyColor", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyColor"))
 	FDisplayClusterEditorPropertyReference ChromakeyColorRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyMarkers", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyMarkers"))
 	FDisplayClusterEditorPropertyReference ChromakeyMarkersRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyRenderTexture", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyRenderTexture"))
 	FDisplayClusterEditorPropertyReference ChromakeyRenderTextureRef;
 
 	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CameraSettings.CameraOCIO.AllNodesOCIOConfiguration.bIsEnabled", DisplayName = "Enable Inner Frustum OCIO"))
@@ -157,37 +157,37 @@ private:
 	UPROPERTY(EditAnywhere, Transient, Category = "Inner Frustum Color Grading", meta = (PropertyPath = "CameraSettings.PerNodeColorGrading"))
 	FDisplayClusterEditorPropertyReference PerNodeColorGradingRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.bAllowReplace", DisplayName = "Enable Inner Frustum Texture Replacement", ToolTip = "Set to True to replace the entire inner frustum with the specified texture.", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.bAllowReplace", DisplayName = "Enable Inner Frustum Texture Replacement", ToolTip = "Set to True to replace the entire inner frustum with the specified texture."))
 	FDisplayClusterEditorPropertyReference TextureReplacementEnabledRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.SourceTexture", EditConditionPath = "CameraSettings.bEnable && CameraSettings.RenderSettings.Replace.bAllowReplace"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.SourceTexture"))
 	FDisplayClusterEditorPropertyReference SourceTextureRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion", EditConditionPath = "CameraSettings.bEnable && CameraSettings.RenderSettings.Replace.bAllowReplace"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion"))
 	FDisplayClusterEditorPropertyReference ShouldUseTextureRegionRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.TextureRegion", EditConditionPath = "CameraSettings.bEnable && CameraSettings.RenderSettings.Replace.bAllowReplace && CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Texture Replacement", meta = (PropertyPath = "CameraSettings.RenderSettings.Replace.TextureRegion"))
 	FDisplayClusterEditorPropertyReference TextureRegionRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Media", meta = (PropertyPath = "CameraSettings.RenderSettings.Media", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Media", meta = (PropertyPath = "CameraSettings.RenderSettings.Media"))
 	FDisplayClusterEditorPropertyReference MediaRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.RenderOrder", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.RenderOrder"))
 	FDisplayClusterEditorPropertyReference RenderOrderRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.CustomFrameSize", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.CustomFrameSize"))
 	FDisplayClusterEditorPropertyReference CustomFrameSizeRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.RenderTargetRatio", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.RenderTargetRatio"))
 	FDisplayClusterEditorPropertyReference RenderTargetRatioRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.GPUIndex", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.GPUIndex"))
 	FDisplayClusterEditorPropertyReference GPUIndexRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.StereoGPUIndex", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.StereoGPUIndex"))
 	FDisplayClusterEditorPropertyReference StereoGPUIndexRef;
 
-	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.StereoMode", EditConditionPath = "CameraSettings.bEnable"))
+	UPROPERTY(EditAnywhere, Transient, Category = Configuration, meta = (PropertyPath = "CameraSettings.RenderSettings.AdvancedRenderSettings.StereoMode"))
 	FDisplayClusterEditorPropertyReference StereoModeRef;
 
 #endif // WITH_EDITORONLY_DATA
