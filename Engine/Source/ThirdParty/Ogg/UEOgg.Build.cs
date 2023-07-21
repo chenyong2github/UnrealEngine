@@ -53,14 +53,14 @@ public class UEOgg : ModuleRules
 				: "_fPIC";
 			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Unix", Target.Architecture.LinuxName, "libogg" + fPIC + ".a"));
 		}
+        else if (Target.Platform == UnrealTargetPlatform.TVOS)
+        {
+            PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "tvos", "libogg.a"));
+        }
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
         {
 			string LibName = (Target.Architecture == UnrealArch.IOSSimulator) ? "libogg.sim.a" : "libogg.a";
 			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "ios", LibName));
-        }
-        else if (Target.Platform == UnrealTargetPlatform.TVOS)
-        {
-            PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "tvos", "libogg.a"));
         }
     }
 }

@@ -33,17 +33,17 @@ public class BLAKE3 : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Android", "ARM64", "Release", "libBLAKE3.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Android", "x64", "Release", "libBLAKE3.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.IOS)
+		else if (Target.Platform == UnrealTargetPlatform.TVOS)
+		{
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "TVOS", "Release", "libBLAKE3.a"));
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.IOS))
 		{
 			string LibDir = (Target.Architecture == UnrealArch.IOSSimulator)
 				? "Simulator"
 				: "Release";
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "IOS", LibDir, "libBLAKE3.a"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.TVOS)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "TVOS", "Release", "libBLAKE3.a"));
 		}
 	}
 }
