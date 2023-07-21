@@ -92,6 +92,10 @@ public class HarfBuzz : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
+			if (Target.Architecture == UnrealArch.IOSSimulator)
+			{
+				BuildTypeFolderName = "Simulator";
+			}
 			PublicAdditionalLibraries.Add(Path.Combine(HarfBuzzLibPath, BuildTypeFolderName, "libharfbuzz.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
