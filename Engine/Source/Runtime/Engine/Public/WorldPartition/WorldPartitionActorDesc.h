@@ -278,6 +278,7 @@ protected:
 	{
 		BoundsLocation = From->BoundsLocation;
 		BoundsExtent = From->BoundsExtent;
+		bIsBoundsValid = From->bIsBoundsValid;
 	}
 
 	virtual uint32 GetSizeOf() const { return sizeof(FWorldPartitionActorDesc); }
