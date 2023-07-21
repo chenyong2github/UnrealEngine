@@ -17,11 +17,85 @@
 
 
 UCustomizableObjectInstanceFactory::UCustomizableObjectInstanceFactory(const FObjectInitializer& ObjectInitializer)
-    : Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
     DisplayName = LOCTEXT("CustomizableObjectInstanceDisplayName", "Customizable Object Instance");
     NewActorClass = ACustomizableSkeletalMeshActor::StaticClass();
     bUseSurfaceOrientation = true;
+}
+
+
+void UCustomizableObjectInstanceFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
+{
+	Super::PostSpawnActor(Asset, NewActor);
+	UCustomizableObjectInstance* COInstance = Cast<UCustomizableObjectInstance>(Asset);
+	ACustomizableSkeletalMeshActor* NewCSMActor = CastChecked<ACustomizableSkeletalMeshActor>(NewActor);
+	if (NewCSMActor && COInstance)
+	{
+		int32 NumComponents = GetNumberOfComponents(COInstance);
+
+		for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
+		{
+			USkeletalMesh* SkeletalMesh = GetSkeletalMeshFromAsset(Asset, ComponentIndex);
+
+			if (ComponentIndex > 0 && ComponentIndex > NewCSMActor->GetNumComponents() - 1)
+			{
+				NewCSMActor->AttachNewComponent();
+			}
+
+			if (USkeletalMeshComponent* SkeletalMeshComp = NewCSMActor->GetSkeletalMeshComponentAt(ComponentIndex))
+			{
+				SkeletalMeshComp->UnregisterComponent();
+				UE_MUTABLE_SETSKINNEDASSET(SkeletalMeshComp, SkeletalMesh);
+
+				if (ComponentIndex == 0 && NewCSMActor->GetWorld()->IsGameWorld())
+				{
+					NewCSMActor->ReplicatedMesh = SkeletalMesh;
+				}
+
+				if (UCustomizableSkeletalComponent* CustomSkeletalComp = NewCSMActor->GetCustomizableSkeletalComponent(ComponentIndex))
+				{
+					CustomSkeletalComp->UnregisterComponent();
+					CustomSkeletalComp->CustomizableObjectInstance = COInstance;
+					CustomSkeletalComp->ComponentIndex = ComponentIndex;
+					CustomSkeletalComp->SetSkeletalMesh(SkeletalMesh, false);
+					CustomSkeletalComp->UpdateSkeletalMeshAsync();
+					CustomSkeletalComp->RegisterComponent();
+				}
+
+				SkeletalMeshComp->RegisterComponent();
+			}
+		}
+	}
+}
+
+
+void UCustomizableObjectInstanceFactory::PostCreateBlueprint(UObject* Asset, AActor* CDO)
+{
+	//if (Asset != NULL && CDO != NULL)
+	//{
+	//	USkeletalMesh* SkeletalMesh = GetSkeletalMeshFromAsset(Asset);
+	//	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset);
+
+	//	ASkeletalMeshActor* SkeletalMeshActor = CastChecked<ASkeletalMeshActor>(CDO);
+	//	SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh = SkeletalMesh;
+	//	SkeletalMeshActor->GetSkeletalMeshComponent()->AnimClass = AnimBlueprint ? Cast<UAnimBlueprintGeneratedClass>(AnimBlueprint->GeneratedClass) : NULL;
+	//}
+}
+
+UObject* UCustomizableObjectInstanceFactory::GetAssetFromActorInstance(AActor* ActorInstance)
+{
+	if (ACustomizableSkeletalMeshActor* CSMActor = CastChecked<ACustomizableSkeletalMeshActor>(ActorInstance))
+	{
+		if (CSMActor->GetNumComponents() > 0)
+		{
+			if (UCustomizableSkeletalComponent* CustomSkeletalComp = CSMActor->GetCustomizableSkeletalComponent(0))
+			{
+				return CustomSkeletalComp->CustomizableObjectInstance;
+			}
+		}
+	}
+	return nullptr;
 }
 
 bool UCustomizableObjectInstanceFactory::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
@@ -63,12 +137,6 @@ bool UCustomizableObjectInstanceFactory::CanCreateActorFrom(const FAssetData& As
         }
     }
 
-    if (!CustomizableObjectInstanceData.IsValid())
-    {
-        OutErrorMsg = LOCTEXT("NoSkeletalMeshAss", "No valid skeletal mesh was found associated with the animation sequence.");
-        return false;
-    }
-
     if (USkeletalMesh* SkeletalMeshCDO = Cast<USkeletalMesh>(AssetData.GetClass()->GetDefaultObject()))
     {
         if (SkeletalMeshCDO->HasCustomActorFactory())
@@ -99,67 +167,6 @@ USkeletalMesh* UCustomizableObjectInstanceFactory::GetSkeletalMeshFromAsset(UObj
 
     //check(SkeletalMesh != NULL);
     return SkeletalMesh;
-}
-
-
-void UCustomizableObjectInstanceFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
-{
-    UCustomizableObjectInstance* COInstance = Cast<UCustomizableObjectInstance>(Asset);
-    ACustomizableSkeletalMeshActor* NewCSMActor = CastChecked<ACustomizableSkeletalMeshActor>(NewActor);
-
-	if (NewCSMActor && COInstance)
-	{
-		int32 NumComponents = GetNumberOfComponents(COInstance);
-
-		for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
-		{
-			USkeletalMesh* SkeletalMesh = GetSkeletalMeshFromAsset(Asset, ComponentIndex);
-
-			if (ComponentIndex > 0 && ComponentIndex > NewCSMActor->GetNumComponents() - 1)
-			{
-				NewCSMActor->AttachNewComponent();
-			}
-
-			if (USkeletalMeshComponent* SkeletalMeshComp = NewCSMActor->GetSkeletalMeshComponentAt(ComponentIndex))
-			{
-				SkeletalMeshComp->UnregisterComponent();
-				UE_MUTABLE_SETSKINNEDASSET(SkeletalMeshComp,SkeletalMesh);
-
-				if (ComponentIndex == 0 && NewCSMActor->GetWorld()->IsGameWorld())
-				{
-					NewCSMActor->ReplicatedMesh = SkeletalMesh;
-				}
-
-				if (UCustomizableSkeletalComponent* CustomSkeletalComp = NewCSMActor->GetCustomizableSkeletalComponent(ComponentIndex))
-				{
-					CustomSkeletalComp->UnregisterComponent();
-					CustomSkeletalComp->CustomizableObjectInstance = COInstance;
-					CustomSkeletalComp->ComponentIndex = ComponentIndex;
-					CustomSkeletalComp->SetSkeletalMesh(SkeletalMesh, false);
-					CustomSkeletalComp->UpdateSkeletalMeshAsync();
-					CustomSkeletalComp->RegisterComponent();
-				}
-
-				SkeletalMeshComp->RegisterComponent();
-			}			
-		}
-
-		Super::PostSpawnActor(COInstance, NewActor);
-	}
-}
-
-
-void UCustomizableObjectInstanceFactory::PostCreateBlueprint(UObject* Asset, AActor* CDO)
-{
-    //if (Asset != NULL && CDO != NULL)
-    //{
-    //	USkeletalMesh* SkeletalMesh = GetSkeletalMeshFromAsset(Asset);
-    //	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset);
-
-    //	ASkeletalMeshActor* SkeletalMeshActor = CastChecked<ASkeletalMeshActor>(CDO);
-    //	SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh = SkeletalMesh;
-    //	SkeletalMeshActor->GetSkeletalMeshComponent()->AnimClass = AnimBlueprint ? Cast<UAnimBlueprintGeneratedClass>(AnimBlueprint->GeneratedClass) : NULL;
-    //}
 }
 
 

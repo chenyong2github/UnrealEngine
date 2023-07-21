@@ -61,6 +61,7 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeGroupProjectorParameter.h"
 #include "UObject/UObjectIterator.h"
+#include "Subsystems/PlacementSubsystem.h"
 
 
 class AActor;
@@ -190,10 +191,11 @@ void FCustomizableObjectEditorModule::StartupModule()
 	PropertyModule.NotifyCustomizationModuleChanged();
 
 	// Register factory
-	UCustomizableObjectInstanceFactory* CustomizableObjectInstanceFactory = NewObject<UCustomizableObjectInstanceFactory>();
-	CustomizableObjectInstanceFactory->NewActorClass = ACustomizableSkeletalMeshActor::StaticClass();
-	UEditorEngine* engine = GEditor;
-	engine->ActorFactories.Add(CustomizableObjectInstanceFactory);
+	GEditor->ActorFactories.Add(NewObject<UCustomizableObjectInstanceFactory>());
+	if (UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
+	{
+		PlacementSubsystem->RegisterAssetFactory(NewObject<UCustomizableObjectInstanceFactory>());
+	}
 	
 
 	// Additional UI style
