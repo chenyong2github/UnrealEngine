@@ -842,6 +842,8 @@ public:
 
 		FAssetRegistryTag(FName InName, const FString& InValue, ETagType InType, uint32 InDisplayFlags = TD_None)
 			: Name(InName), Value(InValue), Type(InType), DisplayFlags(InDisplayFlags) {}
+		FAssetRegistryTag(FName InName, FString&& InValue, ETagType InType, uint32 InDisplayFlags = TD_None)
+			: Name(InName), Value(MoveTemp(InValue)), Type(InType), DisplayFlags(InDisplayFlags) {}
 
 #if WITH_EDITOR
 		/** Callback  */
