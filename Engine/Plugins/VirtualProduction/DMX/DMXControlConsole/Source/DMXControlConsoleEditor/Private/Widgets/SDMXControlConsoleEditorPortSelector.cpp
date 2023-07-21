@@ -24,7 +24,7 @@ void SDMXControlConsoleEditorPortSelector::Construct(const FArguments& InArgs)
 
 		// Monitor All Ports Checkbox
 		+ SHorizontalBox::Slot()
-		.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
+		.Padding(FMargin(8.f, 0.f, 0.f, 0.f))
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
@@ -36,7 +36,7 @@ void SDMXControlConsoleEditorPortSelector::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-				.Text(LOCTEXT("MonitorAllLabel", "Send to All Ports"))
+				.Text(LOCTEXT("MonitorAllLabel", "Send Raw Data to All Ports"))
 			]
 
 			+ SHorizontalBox::Slot()
@@ -51,7 +51,7 @@ void SDMXControlConsoleEditorPortSelector::Construct(const FArguments& InArgs)
 		
 		// Port Selector
 		+ SHorizontalBox::Slot()
-		.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
+		.Padding(FMargin(20.f, 0.f, 0.f, 0.f))
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[

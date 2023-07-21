@@ -131,7 +131,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 					// Fixture Patches VerticalBox Section
 					+ SSplitter::Slot()
-					.Value(.20)
+					.Value(.2f)
 					.MinSize(10.f)
 					[
 						SNew(SScrollBox)
@@ -157,99 +157,108 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 					// DMX Control Console Section
 					+ SSplitter::Slot()
-					.Value(.60f)
+					.Value(.8f)
 					.MinSize(10.f)
 					[
-						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("NoBorder"))
-						.Padding(10.f)
+						SNew(SSplitter)
+						.Orientation(Orient_Horizontal)
+						.ResizeMode(ESplitterResizeMode::FixedSize)
+
+						+ SSplitter::Slot()
+						.Value(.80)
+						.MinSize(10.f)
 						[
-
-							SNew(SVerticalBox)
-							+ SVerticalBox::Slot()
+							SNew(SBorder)
+							.BorderImage(FAppStyle::GetBrush("NoBorder"))
+							.Padding(10.f)
 							[
-								SNew(SHorizontalBox)
-								+SHorizontalBox::Slot()
-								[
-									SAssignNew(HorizontalScrollBox, SScrollBox)
-									.ExternalScrollbar(HorizontalScrollBar)
-									.Orientation(Orient_Horizontal)
 
-									+ SScrollBox::Slot()
+								SNew(SVerticalBox)
+								+ SVerticalBox::Slot()
+								[
+									SNew(SHorizontalBox)
+									+SHorizontalBox::Slot()
 									[
-										SAssignNew(VerticalScrollBox, SScrollBox)
-										.ExternalScrollbar(VerticalScrollBar)
-										.Orientation(Orient_Vertical)
+										SAssignNew(HorizontalScrollBox, SScrollBox)
+										.ExternalScrollbar(HorizontalScrollBar)
+										.Orientation(Orient_Horizontal)
 
 										+ SScrollBox::Slot()
-										.HAlign(HAlign_Left)
-										.VAlign(VAlign_Center)
 										[
-											SNew(SBox)
-											.WidthOverride(50.f)
-											.HeightOverride(50.f)
-											.HAlign(HAlign_Center)
+											SAssignNew(VerticalScrollBox, SScrollBox)
+											.ExternalScrollbar(VerticalScrollBar)
+											.Orientation(Orient_Vertical)
+
+											+ SScrollBox::Slot()
+											.HAlign(HAlign_Left)
 											.VAlign(VAlign_Center)
 											[
-												SNew(SDMXControlConsoleEditorAddButton)
-												.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
-												.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
+												SNew(SBox)
+												.WidthOverride(50.f)
+												.HeightOverride(50.f)
+												.HAlign(HAlign_Center)
+												.VAlign(VAlign_Center)
+												[
+													SNew(SDMXControlConsoleEditorAddButton)
+													.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
+													.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
+												]
+											]
+
+											+ SScrollBox::Slot()
+											[
+												SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
 											]
 										]
-
-										+ SScrollBox::Slot()
-										[
-											SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
-										]
+									]
+						
+									// Horizontal ScrollBar slot
+									+SHorizontalBox::Slot()
+									.AutoWidth()
+									[
+										VerticalScrollBar
 									]
 								]
-						
-								// Horizontal ScrollBar slot
-								+SHorizontalBox::Slot()
-								.AutoWidth()
+					
+								// Vertical Scrollbar slot
+								+SVerticalBox::Slot()
+								.AutoHeight()
 								[
-									VerticalScrollBar
+									HorizontalScrollBar
 								]
 							]
-					
-							// Vertical Scrollbar slot
-							+SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								HorizontalScrollBar
-							]
 						]
-					]
 
-					// Details View Section
-					+ SSplitter::Slot()
-					.Value(.20)
-					.MinSize(10.f)
-					[
-						SNew(SScrollBox)
-						.Orientation(Orient_Vertical)
-						.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility))
-
-						+ SScrollBox::Slot()
+						// Details View Section
+						+ SSplitter::Slot()
+						.Value(.2f)
+						.MinSize(10.f)
 						[
-							SNew(SVerticalBox)
+							SNew(SScrollBox)
+							.Orientation(Orient_Vertical)
+							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility))
 
-							+SVerticalBox::Slot()
-							.AutoHeight()
+							+ SScrollBox::Slot()
 							[
-								FadersDetailsView.ToSharedRef()
-							]
+								SNew(SVerticalBox)
 
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								SNew(SSeparator)
-							]
+								+SVerticalBox::Slot()
+								.AutoHeight()
+								[
+									FadersDetailsView.ToSharedRef()
+								]
 
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								FaderGroupsDetailsView.ToSharedRef()
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								[
+									SNew(SSeparator)
+								]
+
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								[
+									FaderGroupsDetailsView.ToSharedRef()
+								]
 							]
 						]
 					]
@@ -576,15 +585,6 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("PortSelector");
-	{
-		SAssignNew(PortSelector, SDMXControlConsoleEditorPortSelector)
-			.OnPortsSelected(this, &SDMXControlConsoleEditorView::OnSelectedPortsChanged);
-
-		ToolbarBuilder.AddWidget(PortSelector.ToSharedRef());
-	}
-	ToolbarBuilder.EndSection();
-
 	return ToolbarBuilder.MakeWidget();
 }
 
@@ -624,7 +624,20 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateControlModeMenuWidget(
 		AddMenuEntryLambda(
 			LOCTEXT("AbsoluteControlModeRadioButtonLabel", "Absolute"),
 			LOCTEXT("AbsoluteControlModeRadioButton_ToolTip", "Values of all selected Faders are set to the same percentage."),
-			EDMXControlConsoleEditorControlMode::Absolute);
+			EDMXControlConsoleEditorControlMode::Absolute
+		);
+
+		// Port Selector menu entry
+
+		const TSharedRef<SWidget> PortSelectorWidget =
+			SNew(SBox)
+			.Padding(4.f, 0.f)
+			[
+				SAssignNew(PortSelector, SDMXControlConsoleEditorPortSelector)
+				.OnPortsSelected(this, &SDMXControlConsoleEditorView::OnSelectedPortsChanged)
+			];
+
+		MenuBuilder.AddWidget(PortSelectorWidget, FText::GetEmpty());
 	}
 	MenuBuilder.EndSection();
 
