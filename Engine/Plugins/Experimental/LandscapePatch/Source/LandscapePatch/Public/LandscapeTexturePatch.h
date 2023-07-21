@@ -298,6 +298,9 @@ public:
 		Falloff = FalloffIn; 
 	}
 
+	/**
+	 * Determines how the height patch is blended into the existing terrain.
+	 */
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
 	void SetBlendMode(ELandscapeTexturePatchBlendMode BlendModeIn) 
 	{ 
@@ -328,6 +331,19 @@ public:
 	/**
 	 * Gets the internal height render target, if source mode is set to Texture Backed Render Target.
 	 * 
+	 * Things that should be set up if using the internal render target:
+	 * - SetHeightSourceMode should have been called with TextureBackedRenderTarget.
+	 * - An appropriate texture size should have been set with SetResolution. If the patch extent has already
+	 *  been set, you can base your resolution on the extent and the resolution of the landscape by using
+	 *  GetInitResolutionFromLandscape().
+	 * - SetHeightRenderTargetFormat should have been called with a desired format. In particular, if using
+	 *  an alpha channel, the format should have an alpha channel (and SetUseAlphaChannelForHeight should have
+	 *  been called with "true").
+	 * 
+	 * In addition, you may need to call SetHeightEncodingMode, SetHeightEncodingSettings, and SetZeroHeightMeaning
+	 * based on how you want the data you write to be interpreted. This part is not specific to using an internal render
+	 * target, since you are likely to need to do that with a TextureAsset source mode as well.
+	 * 
 	 * @param bMarkDirty If true, marks the containing package as dirty, since the render target is presumably
 	 *  being written to. Can be set to false if the render target is not being written to.
 	 */
@@ -337,6 +353,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch, meta = (ETextureRenderTargetFormat = "ETextureRenderTargetFormat::RTF_R32f"))
 	void SetHeightRenderTargetFormat(ETextureRenderTargetFormat Format);
 
+	/**
+	 * Determines whether the height patch alpha channel is used for blending into the existing values.
+	 * Note that the source data needs to have an alpha channel in this case. How the alpha channel is
+	 * used depends on the patch blend mode (see SetBlendMode).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	void SetUseAlphaChannelForHeight(bool bUse)
 	{ 
@@ -356,7 +377,8 @@ public:
 	}
 
 	/**
-	 * Just like SetSourceEncodingMode, but resets ZeroInEncoding and WorldSpaceEncodingScale to mode-specific defaults.
+	 * Just like SetSourceEncodingMode, but resets ZeroInEncoding, WorldSpaceEncodingScale, and height
+	 * render target format to mode-specific defaults.
 	 */
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
 	void ResetHeightEncodingMode(ELandscapeTextureHeightPatchEncoding EncodingMode);
@@ -367,11 +389,7 @@ public:
 	 * in the same space as the landscape heightmap.
 	 */
 	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
-	void SetHeightEncodingSettings(const FLandscapeTexturePatchEncodingSettings& Settings)
-	{
-		Modify();
-		HeightEncodingSettings = Settings;
-	}
+	void SetHeightEncodingSettings(const FLandscapeTexturePatchEncodingSettings& Settings);
 
 	/**
 	 * Set how zero height is interpreted, see comments in ELandscapeTextureHeightPatchZeroHeightMeaning.
@@ -492,7 +510,10 @@ protected:
 	TObjectPtr<UTexture> HeightTextureAsset = nullptr;
 
 	
-	/** When true, texture alpha channel will be used when applying the patch. */
+	/** 
+	 * When true, texture alpha channel will be used when applying the patch. Note that the source data needs to
+	 * have an alpha channel for this to have an effect.
+	 */
 	UPROPERTY(EditAnywhere, Category = HeightPatch)
 	bool bUseTextureAlphaForHeight = false;
 
@@ -585,8 +606,9 @@ protected:
 	int32 InitTextureSizeY = 33;
 
 private:
+	void UpdateHeightConvertToNativeParamsIfNeeded();
 #if WITH_EDITOR
-	FLandscapeHeightPatchConvertToNativeParams GetHeightConversionParams() const;
+	FLandscapeHeightPatchConvertToNativeParams GetHeightConvertToNativeParams() const;
 	UTextureRenderTarget2D* ApplyToHeightmap(UTextureRenderTarget2D* InCombinedResult);
 	UTextureRenderTarget2D* ApplyToWeightmap(ULandscapeWeightPatchTextureInfo* PatchInfo, UTextureRenderTarget2D* InCombinedResult);
 
