@@ -2186,7 +2186,7 @@ namespace UnrealBuildTool
 								// If we're generating project files, then go ahead and wipe out the existing UBTMakefile for every target, to make sure that
 								// it gets a full dependency scan next time.
 								// NOTE: This is just a safeguard and doesn't have to be perfect.  We also check for newer project file timestamps in LoadUBTMakefile()
-								FileReference MakefileLocation = TargetMakefile.GetLocation(TargetDesc.ProjectFile, TargetDesc.Name, TargetDesc.Platform, TargetDesc.Architectures, TargetDesc.Configuration);
+								FileReference MakefileLocation = TargetMakefile.GetLocation(TargetDesc.ProjectFile, TargetDesc.Name, TargetDesc.Platform, TargetDesc.Architectures, TargetDesc.Configuration, TargetDesc.IntermediateEnvironment);
 								if (FileReference.Exists(MakefileLocation))
 								{
 									FileReference.Delete(MakefileLocation);

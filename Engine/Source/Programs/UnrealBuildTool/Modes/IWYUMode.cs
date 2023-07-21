@@ -357,13 +357,15 @@ namespace UnrealBuildTool
 			BuildConfiguration.MaxNestedPathLength = 220; // For now since the path is slightly longer
 
 			// Parse all the target descriptors
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(BuildArguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(BuildArguments, BuildConfiguration, Logger);
 
 			if (TargetDescriptors.Count != 1)
 			{
 				Logger.LogError($"IWYUMode can only handle command lines that produce one target (Cmdline: {Arguments.ToString()})");
 				return 0;
 			}
+
+			TargetDescriptors[0].IntermediateEnvironment = UnrealIntermediateEnvironment.IWYU;
 
 			string? ModuleToUpdateName = GetModuleToUpdateName(TargetDescriptors[0]);
 
@@ -406,7 +408,7 @@ namespace UnrealBuildTool
 			{
 				// Create target to be able to traverse all existing modules
 				Logger.LogInformation($"Creating BuildTarget for {TargetName}...");
-				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptors[0], BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, Logger);
+				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptors[0], BuildConfiguration, Logger);
 
 				Logger.LogInformation($"Calculating file filter for IWYU...");
 

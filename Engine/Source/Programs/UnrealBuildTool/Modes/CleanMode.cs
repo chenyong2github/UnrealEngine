@@ -48,7 +48,7 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Parse all the targets being built
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration, Logger);
 
 			Clean(TargetDescriptors, BuildConfiguration, Logger);
 
@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 					}
 
 					// Add all the makefiles and caches to be deleted
-					FilesToDelete.Add(TargetMakefile.GetLocation(Target.ProjectFile, Target.Name, Target.Platform, Target.Architectures, Target.Configuration));
+					FilesToDelete.Add(TargetMakefile.GetLocation(Target.ProjectFile, Target.Name, Target.Platform, Target.Architectures, Target.Configuration, TargetDescriptor.IntermediateEnvironment));
 					FilesToDelete.UnionWith(SourceFileMetadataCache.GetFilesToClean(Target.ProjectFile));
 
 					// Add all the intermediate folders to be deleted

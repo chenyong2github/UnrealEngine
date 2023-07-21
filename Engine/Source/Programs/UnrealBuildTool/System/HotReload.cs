@@ -584,7 +584,7 @@ namespace UnrealBuildTool
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = new CppDependencyCache();
-			CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architectures, Logger);
+			CppDependencies.Mount(TargetDescriptor, Makefile.TargetType, Logger);
 
 			ActionHistory History = new ActionHistory();
 			if (TargetDescriptor.ProjectFile != null)

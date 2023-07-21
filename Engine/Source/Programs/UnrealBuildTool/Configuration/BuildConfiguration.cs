@@ -234,5 +234,44 @@ namespace UnrealBuildTool
 		/// and only if output is not being redirected e.g. during a build from within Visual Studio
 		/// </summary>
 		public bool bCompactOutput => bCompactOutputCommandLine && !Console.IsOutputRedirected;
+
+		/// <summary>
+		/// Whether to unify C++ code into larger files for faster compilation.
+		/// </summary>
+		[CommandLine("-DisableUnity", Value = "false")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bUseUnityBuild = true;
+
+		/// <summary>
+		/// Whether to force C++ source files to be combined into larger files for faster compilation.
+		/// </summary>
+		[CommandLine("-ForceUnity")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bForceUnityBuild = false;
+
+		/// <summary>
+		/// Enables "include what you use" mode.
+		/// </summary>
+		[CommandLine("-IWYU")]
+		public bool bIWYU = false;
+
+		/// <summary>
+		/// Intermediate environment. Determines if the intermediates end up in a different folder than normal.
+		/// </summary>
+		public UnrealIntermediateEnvironment IntermediateEnvironment
+		{
+			get
+			{
+				if (bIWYU)
+				{
+					return UnrealIntermediateEnvironment.IWYU;
+				}
+				if (!bUseUnityBuild && !bForceUnityBuild)
+				{
+					return UnrealIntermediateEnvironment.NonUnity;
+				}
+				return UnrealIntermediateEnvironment.Default;
+			}
+		}
 	}
 }

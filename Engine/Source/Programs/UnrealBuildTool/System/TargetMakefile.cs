@@ -989,8 +989,9 @@ namespace UnrealBuildTool
 		/// <param name="Platform">The platform that the target is being built for</param>
 		/// <param name="Architectures">The architectures the target is being built for (can be blank to signify a default)</param>
 		/// <param name="Configuration">The configuration being built</param>
+		/// <param name="IntermediateEnvironment">Intermediate environment to use</param>
 		/// <returns>Path to the makefile</returns>
-		public static FileReference GetLocation(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealArchitectures Architectures, UnrealTargetConfiguration Configuration)
+		public static FileReference GetLocation(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealArchitectures Architectures, UnrealTargetConfiguration Configuration, UnrealIntermediateEnvironment IntermediateEnvironment)
 		{
 			DirectoryReference BaseDirectory = Unreal.EngineDirectory;
 			// Programs with .uprojects still want the Intermediate under Engine (see UEBuildTarget constructor for similar code) 
@@ -998,7 +999,9 @@ namespace UnrealBuildTool
 			{
 				BaseDirectory = ProjectFile.Directory;
 			}
-			return FileReference.Combine(BaseDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architectures, false), TargetName, Configuration.ToString(), "Makefile.bin");
+			string IntermediateFolder = UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architectures, false);
+			string TargetFolderName = UEBuildTarget.GetTargetIntermediateFolderName(TargetName, IntermediateEnvironment);
+			return FileReference.Combine(BaseDirectory, IntermediateFolder, TargetFolderName, Configuration.ToString(), "Makefile.bin");
 		}
 	}
 }

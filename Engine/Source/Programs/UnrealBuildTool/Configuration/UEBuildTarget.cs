@@ -1092,6 +1092,25 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Intermediate environment. Determines if the intermediates end up in a different folder than normal.
+	/// </summary>
+	public enum UnrealIntermediateEnvironment
+	{
+		/// <summary>
+		/// 
+		/// </summary>
+		Default,
+		/// <summary>
+		/// 
+		/// </summary>
+		IWYU,
+		/// <summary>
+		/// 
+		/// </summary>
+		NonUnity,
+	}
+
+	/// <summary>
 	/// A container for a binary files (dll, exe) with its associated debug info.
 	/// </summary>
 	public class BuildManifest
@@ -1150,12 +1169,50 @@ namespace UnrealBuildTool
 		/// Creates a target object for the specified target name.
 		/// </summary>
 		/// <param name="Descriptor">Information about the target</param>
+		/// <param name="BuildConfiguration">Build configuration</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns></returns>
+		public static UEBuildTarget Create(TargetDescriptor Descriptor, BuildConfiguration BuildConfiguration, ILogger Logger)
+		{
+			return Create(Descriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.IntermediateEnvironment, Logger);
+		}
+
+		/// <summary>
+		/// Creates a target object for the specified target name.
+		/// </summary>
+		/// <param name="Descriptor">Information about the target</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns></returns>
+		public static UEBuildTarget Create(TargetDescriptor Descriptor, ILogger Logger)
+		{
+			return Create(Descriptor, false, false, false, UnrealIntermediateEnvironment.Default, Logger);
+		}
+
+		/// <summary>
+		/// Creates a target object for the specified target name.
+		/// </summary>
+		/// <param name="Descriptor">Information about the target</param>
+		/// <param name="bSkipRulesCompile"></param>
+		/// <param name="bForceRulesCompile"></param>
+		/// <param name="bUsePrecompiled"></param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns></returns>
+		public static UEBuildTarget Create(TargetDescriptor Descriptor, bool bSkipRulesCompile, bool bForceRulesCompile, bool bUsePrecompiled, ILogger Logger)
+		{
+			return Create(Descriptor, bSkipRulesCompile, bForceRulesCompile, bUsePrecompiled, UnrealIntermediateEnvironment.Default, Logger);
+		}
+
+		/// <summary>
+		/// Creates a target object for the specified target name.
+		/// </summary>
+		/// <param name="Descriptor">Information about the target</param>
 		/// <param name="bSkipRulesCompile">Whether to skip compiling any rules assemblies</param>
 		/// <param name="bForceRulesCompile">Whether to always compile all rules assemblies</param>
 		/// <param name="bUsePrecompiled">Whether to use a precompiled engine build</param>
+		/// <param name="IntermediateEnvironment">Intermediate environment to use</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>The build target object for the specified build rules source file</returns>
-		public static UEBuildTarget Create(TargetDescriptor Descriptor, bool bSkipRulesCompile, bool bForceRulesCompile, bool bUsePrecompiled, ILogger Logger)
+		public static UEBuildTarget Create(TargetDescriptor Descriptor, bool bSkipRulesCompile, bool bForceRulesCompile, bool bUsePrecompiled, UnrealIntermediateEnvironment IntermediateEnvironment, ILogger Logger)
 		{
 			// make sure we are allowed to build this platform
 			if (!UEBuildPlatform.IsPlatformAvailable(Descriptor.Platform))
@@ -1172,7 +1229,7 @@ namespace UnrealBuildTool
 			TargetRules RulesObject;
 			using (GlobalTracer.Instance.BuildSpan("RulesAssembly.CreateTargetRules()").StartActive())
 			{
-				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architectures, Descriptor.ProjectFile, Descriptor.AdditionalArguments, Logger, Descriptor.IsTestsTarget);
+				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architectures, Descriptor.ProjectFile, Descriptor.AdditionalArguments, Logger, Descriptor.IsTestsTarget, IntermediateEnvironment: IntermediateEnvironment);
 			}
 			if ((ProjectFileGenerator.bGenerateProjectFiles == false) && !RulesObject.GetSupportedPlatforms().Contains(Descriptor.Platform))
 			{
@@ -1313,7 +1370,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the target rules for it
-			TargetRules BaseRules = RulesAssembly.CreateTargetRules(BaseTargetName, ThisRules.Platform, ThisRules.Configuration, ThisRules.Architectures, null, Arguments, Logger);
+			TargetRules BaseRules = RulesAssembly.CreateTargetRules(BaseTargetName, ThisRules.Platform, ThisRules.Configuration, ThisRules.Architectures, null, Arguments, Logger, IntermediateEnvironment: ThisRules.IntermediateEnvironment);
 
 			// Get all the configurable objects
 			object[] BaseObjects = BaseRules.GetConfigurableObjects().ToArray();
@@ -1446,6 +1503,11 @@ namespace UnrealBuildTool
 		public UnrealArchitectures Architectures;
 
 		/// <summary>
+		/// Intermediate environment. Determines if the intermediates end up in a different folder than normal.
+		/// </summary>
+		public UnrealIntermediateEnvironment IntermediateEnvironment;
+
+		/// <summary>
 		/// Relative path for platform-specific intermediates (eg. Intermediate/Build/Win64/x64)
 		/// </summary>
 		public string PlatformIntermediateFolder;
@@ -1569,6 +1631,7 @@ namespace UnrealBuildTool
 			Platform = InDescriptor.Platform;
 			Configuration = InDescriptor.Configuration;
 			Architectures = InDescriptor.Architectures;
+			IntermediateEnvironment = InDescriptor.IntermediateEnvironment;
 			Rules = InRules;
 			RulesAssembly = InRulesAssembly;
 			TargetType = Rules.Type;
@@ -1618,8 +1681,8 @@ namespace UnrealBuildTool
 			}
 
 			// Build the project intermediate directory
-			ProjectIntermediateDirectory = DirectoryReference.Combine(OutputRootDirectory, PlatformIntermediateFolder, TargetName, Configuration.ToString());
-			ProjectIntermediateDirectoryNoArch = DirectoryReference.Combine(OutputRootDirectory, PlatformIntermediateFolderNoArch, TargetName, Configuration.ToString());
+			ProjectIntermediateDirectory = DirectoryReference.Combine(OutputRootDirectory, PlatformIntermediateFolder, GetTargetIntermediateFolderName(TargetName, IntermediateEnvironment), Configuration.ToString());
+			ProjectIntermediateDirectoryNoArch = DirectoryReference.Combine(OutputRootDirectory, PlatformIntermediateFolderNoArch, GetTargetIntermediateFolderName(TargetName, IntermediateEnvironment), Configuration.ToString());
 
 			// Build the engine intermediate directory. If we're building agnostic engine binaries, we can use the engine intermediates folder. Otherwise we need to use the project intermediates directory.
 			if (!bUseSharedBuildEnvironment)
@@ -1661,6 +1724,27 @@ namespace UnrealBuildTool
 				FolderPath = Path.Combine(FolderPath, UnrealArchitectureConfig.ForPlatform(Platform).GetFolderNameForArchitectures(Architectures));
 			}
 			return FolderPath;
+		}
+
+		/// <summary>
+		/// Adjusts a target name to be a usable intermediate folder name.
+		/// </summary>
+		/// <param name="TargetName">Base target name</param>
+		/// <param name="IntermediateEnvironment">Intermediate environment to use</param>
+		/// <returns></returns>
+		public static string GetTargetIntermediateFolderName(string TargetName, UnrealIntermediateEnvironment IntermediateEnvironment)
+		{
+			string TargetFolderName = TargetName;
+			switch (IntermediateEnvironment)
+			{
+				case UnrealIntermediateEnvironment.IWYU:
+					TargetFolderName += "IWYU";
+					break;
+				case UnrealIntermediateEnvironment.NonUnity:
+					TargetFolderName += "NonUnity";
+					break;
+			}
+			return TargetFolderName;
 		}
 
 		/// <summary>
@@ -3905,7 +3989,7 @@ namespace UnrealBuildTool
 			bool bUseExternalFolder = ModuleRules.Plugin != null && (ModuleRules.Plugin.Type == PluginType.External && !ModuleRules.Plugin.bExplicitPluginTarget);
 
 			// Get the output and intermediate directories for this module
-			DirectoryReference IntermediateDirectory = DirectoryReference.Combine(BaseOutputDirectory, GetPlatformIntermediateFolder(Platform, Architectures, bUseExternalFolder), AppName, ModuleConfiguration.ToString());
+			DirectoryReference IntermediateDirectory = DirectoryReference.Combine(BaseOutputDirectory, GetPlatformIntermediateFolder(Platform, Architectures, bUseExternalFolder), GetTargetIntermediateFolderName(AppName, IntermediateEnvironment), ModuleConfiguration.ToString());
 
 			// Append a subdirectory if the module rules specifies one
 			if (!String.IsNullOrEmpty(ModuleRules.BinariesSubFolder))

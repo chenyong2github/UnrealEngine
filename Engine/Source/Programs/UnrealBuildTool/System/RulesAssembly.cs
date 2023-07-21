@@ -727,8 +727,9 @@ namespace UnrealBuildTool
 		/// <param name="Logger"></param>
 		/// <param name="IsTestTarget">If building a low level test target</param>
 		/// <param name="bSkipValidation">If validation should be skipped (QueryTargetMode)</param>
+		/// <param name="IntermediateEnvironment">Intermediate environment to use</param>
 		/// <returns>The build target rules for the specified target</returns>
-		public TargetRules CreateTargetRules(string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures? Architectures, FileReference? ProjectFile, CommandLineArguments? Arguments, ILogger Logger, bool IsTestTarget = false, bool bSkipValidation = false)
+		public TargetRules CreateTargetRules(string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures? Architectures, FileReference? ProjectFile, CommandLineArguments? Arguments, ILogger Logger, bool IsTestTarget = false, bool bSkipValidation = false, UnrealIntermediateEnvironment IntermediateEnvironment = UnrealIntermediateEnvironment.Default)
 		{
 			if (IsTestTarget)
 			{
@@ -764,7 +765,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					return Parent.CreateTargetRules(TargetName, Platform, Configuration, Architectures, ProjectFile, Arguments, Logger, IsTestTarget, bSkipValidation);
+					return Parent.CreateTargetRules(TargetName, Platform, Configuration, Architectures, ProjectFile, Arguments, Logger, IsTestTarget, bSkipValidation, IntermediateEnvironment);
 				}
 			}
 
@@ -772,7 +773,7 @@ namespace UnrealBuildTool
 			string TargetTypeName = TargetName + "Target";
 
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
-			TargetRules? TargetRules = CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architectures, ProjectFile, Arguments), Logger, IsTestTarget, bSkipValidation);
+			TargetRules? TargetRules = CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architectures, ProjectFile, Arguments, IntermediateEnvironment), Logger, IsTestTarget, bSkipValidation);
 
 			if (TargetRules == null)
 			{

@@ -128,6 +128,11 @@ namespace UnrealBuildTool
 		public bool bRebuild;
 
 		/// <summary>
+		/// The intermediate environment to use. This primarily controls the target's intermediate path.
+		/// </summary>
+		public UnrealIntermediateEnvironment IntermediateEnvironment = UnrealIntermediateEnvironment.Default;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
@@ -220,6 +225,37 @@ namespace UnrealBuildTool
 		public static TargetDescriptor FromTargetInfo(TargetInfo Info)
 		{
 			return new TargetDescriptor(Info.ProjectFile, Info.Name, Info.Platform, Info.Configuration, Info.Architectures, Info.Arguments);
+		}
+
+		/// <summary>
+		/// Parse a list of target descriptors from the command line
+		/// </summary>
+		/// <param name="Arguments">Command-line arguments</param>
+		/// <param name="BuildConfiguration">Build configuration to get common flags from</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns>List of target descriptors</returns>
+		public static List<TargetDescriptor> ParseCommandLine(CommandLineArguments Arguments, BuildConfiguration BuildConfiguration, ILogger Logger)
+		{
+			List<TargetDescriptor> TargetDescriptors = new List<TargetDescriptor>();
+			ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, TargetDescriptors, Logger);
+
+			// apply the intermediate environment from the build configuration
+			TargetDescriptors.ForEach(x => x.IntermediateEnvironment = BuildConfiguration.IntermediateEnvironment);
+
+			return TargetDescriptors;
+		}
+
+		/// <summary>
+		/// Parse a list of target descriptors from the command line
+		/// </summary>
+		/// <param name="Arguments">Command-line arguments</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns>List of target descriptors</returns>
+		public static List<TargetDescriptor> ParseCommandLine(CommandLineArguments Arguments, ILogger Logger)
+		{
+			List<TargetDescriptor> TargetDescriptors = new List<TargetDescriptor>();
+			ParseCommandLine(Arguments, false, false, false, TargetDescriptors, Logger);
+			return TargetDescriptors;
 		}
 
 		/// <summary>

@@ -335,15 +335,28 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a cache hierarchy for a particular target
 		/// </summary>
+		/// <param name="TargetDescriptor">Target descriptor being built</param>
+		/// <param name="TargetType">The target type</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns>Dependency cache hierarchy for the given project</returns>
+		public void Mount(TargetDescriptor TargetDescriptor, TargetType TargetType, ILogger Logger)
+		{
+			Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetType, TargetDescriptor.Architectures, TargetDescriptor.IntermediateEnvironment, Logger);
+		}
+
+		/// <summary>
+		/// Creates a cache hierarchy for a particular target
+		/// </summary>
 		/// <param name="ProjectFile">Project file for the target being built</param>
 		/// <param name="TargetName">Name of the target</param>
 		/// <param name="Platform">Platform being built</param>
 		/// <param name="Configuration">Configuration being built</param>
 		/// <param name="TargetType">The target type</param>
 		/// <param name="Architectures">The target architectures</param>
+		/// <param name="IntermediateEnvironment">Intermediate environment to use</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public void Mount(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, UnrealArchitectures Architectures, ILogger Logger)
+		public void Mount(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, UnrealArchitectures Architectures, UnrealIntermediateEnvironment IntermediateEnvironment, ILogger Logger)
 		{
 			string AppName = TargetName;
 			if (ProjectFile == null || !Unreal.IsEngineInstalled())
@@ -358,12 +371,12 @@ namespace UnrealBuildTool
 				}
 			}
 
-			FileReference EngineCacheLocation = FileReference.Combine(Unreal.WritableEngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architectures, false), AppName, Configuration.ToString(), "DependencyCache.bin");
+			FileReference EngineCacheLocation = FileReference.Combine(Unreal.WritableEngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architectures, false), UEBuildTarget.GetTargetIntermediateFolderName(AppName, IntermediateEnvironment), Configuration.ToString(), "DependencyCache.bin");
 			FindOrAddPartition(EngineCacheLocation, Unreal.EngineDirectory, Logger);
 
 			if (ProjectFile != null)
 			{
-				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architectures, false), TargetName, Configuration.ToString(), "DependencyCache.bin");
+				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architectures, false), UEBuildTarget.GetTargetIntermediateFolderName(TargetName, IntermediateEnvironment), Configuration.ToString(), "DependencyCache.bin");
 				FindOrAddPartition(ProjectCacheLocation, ProjectFile.Directory, Logger);
 			}
 		}

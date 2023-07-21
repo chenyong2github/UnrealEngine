@@ -174,7 +174,7 @@ namespace UnrealBuildTool
 				// Parse all the target descriptors
 				using (GlobalTracer.Instance.BuildSpan("TargetDescriptor.ParseCommandLine()").StartActive())
 				{
-					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
+					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration, Logger);
 
 					// Handle BuildConfiguration arguments nested inside -Target= args
 					TargetDescriptors.ForEach(x => x.AdditionalArguments.ApplyTo(BuildConfiguration));
@@ -528,7 +528,7 @@ namespace UnrealBuildTool
 					using (GlobalTracer.Instance.BuildSpan("Reading dependency cache").StartActive())
 					{
 						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
-						CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architectures, Logger);
+						CppDependencies.Mount(TargetDescriptor, Makefiles[TargetIdx].TargetType, Logger);
 					}
 				}
 
@@ -1067,7 +1067,7 @@ namespace UnrealBuildTool
 			FileReference? MakefileLocation = null;
 			if (BuildConfiguration.bUseUBTMakefiles)
 			{
-				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Architectures, TargetDescriptor.Configuration);
+				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Architectures, TargetDescriptor.Configuration, BuildConfiguration.IntermediateEnvironment);
 			}
 
 			// Try to load an existing makefile
@@ -1111,7 +1111,7 @@ namespace UnrealBuildTool
 				UEBuildTarget Target;
 				using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.Create()").StartActive())
 				{
-					Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, Logger);
+					Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration, Logger);
 				}
 
 				// Create the pre-build scripts
