@@ -212,7 +212,11 @@ public:
 		TSet<ULandscapeComponent*> RemovedComponents = PreviousComponents.Difference(NewComponents);
 		for (ULandscapeComponent* RemovedComponent : RemovedComponents)
 		{
-			BrushMaterialFreeInstances.Push(BrushMaterialInstanceMap.FindAndRemoveChecked(RemovedComponent));
+			TWeakObjectPtr<UMaterialInstanceDynamic> RemovedMaterialInstance;
+			if (ensure(BrushMaterialInstanceMap.RemoveAndCopyValue(RemovedComponent, RemovedMaterialInstance)))
+			{
+				BrushMaterialFreeInstances.Push(RemovedMaterialInstance);
+			}
 
 			RemovedComponent->EditToolRenderData.ToolMaterial = nullptr;
 			RemovedComponent->UpdateEditToolRenderData();
