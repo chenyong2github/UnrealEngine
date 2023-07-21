@@ -3523,7 +3523,7 @@ public:
 
 	/** Searches components array and returns first encountered component with a given tag. */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
-	UActorComponent* FindComponentByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
+	ENGINE_API UActorComponent* FindComponentByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
 
 	/** Gets all the components that inherit from the given class with a given tag. */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
