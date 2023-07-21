@@ -765,43 +765,22 @@ void UAssetEditorSubsystem::HandleRequestOpenAssetMessage(const FAssetEditorRequ
 	OpenEditorForAsset(Message.AssetName);
 }
 
-void UAssetEditorSubsystem::OpenEditorForAsset(const FSoftObjectPath& AssetPath)
+void UAssetEditorSubsystem::OpenEditorForAsset(const FSoftObjectPath& AssetPath, const EAssetTypeActivationOpenedMethod OpenedMethod)
 {
-	OpenEditorForAsset(AssetPath.ToString());
+	UObject* Object = FindObject<UObject>(AssetPath.GetAssetPath());
+	if (!Object)
+	{
+		Object = LoadObject<UObject>(nullptr, *AssetPath.GetAssetPathString(), nullptr, LOAD_NoRedirects);
+	}
+	if (Object)
+	{
+		OpenEditorForAsset(Object, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), true, OpenedMethod);
+	}
 }
 
 void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName, const EAssetTypeActivationOpenedMethod OpenedMethod)
 {
-	UPackage* Package = FindPackage(NULL, *AssetPathName);
-
-	if(!Package)
-	{
-		// An asset needs loading
-		Package =  LoadPackage(NULL, *AssetPathName, LOAD_NoRedirects);
-	}
-	
-	if (Package)
-	{
-		Package->FullyLoad();
-
-		FString AssetName = FPaths::GetBaseFilename(AssetPathName);
-		UObject* Object = FindObject<UObject>(Package, *AssetName);
-		
-		if (Object != nullptr)
-		{
-			OpenEditorForAsset(Object, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), true, OpenedMethod);
-		}
-	}
-	else
-	{
-		// fallback for unsaved assets
-		UObject* Object = FindObject<UObject>(nullptr, *AssetPathName);
-		
-		if (Object != nullptr)
-		{
-			OpenEditorForAsset(Object, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), true, OpenedMethod);
-		}
-	}
+	OpenEditorForAsset(FSoftObjectPath(AssetPathName), OpenedMethod);
 }
 
 bool UAssetEditorSubsystem::HandleTicker(float DeltaTime)

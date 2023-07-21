@@ -104,7 +104,7 @@ public:
 
 	/** Opens an asset by path */
 	UNREALED_API void OpenEditorForAsset(const FString& AssetPathName, const EAssetTypeActivationOpenedMethod OpenedMethod = EAssetTypeActivationOpenedMethod::Edit);
-	UNREALED_API void OpenEditorForAsset(const FSoftObjectPath& AssetPath);
+	UNREALED_API void OpenEditorForAsset(const FSoftObjectPath& AssetPath, const EAssetTypeActivationOpenedMethod OpenedMethod = EAssetTypeActivationOpenedMethod::Edit);
 
 	/**
 	 * Tries to open an editor for the specified asset.  Returns true if the asset is open in an editor.
