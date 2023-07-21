@@ -105,7 +105,7 @@ namespace UE::MLDeformer
 			SNew(SObjectPropertyEntryBox)
 			.PropertyHandle(TestAnimRow.GetPropertyHandle())
 			.AllowedClass(UAnimSequence::StaticClass())
-			.ObjectPath(VizSettings ? VizSettings->GetTestAnimSequence()->GetPathName() : FString())
+			.ObjectPath( (VizSettings && VizSettings->GetTestAnimSequence() )? VizSettings->GetTestAnimSequence()->GetPathName() : FString())
 			.ThumbnailPool(DetailBuilder.GetThumbnailPool())
 			.OnShouldFilterAsset(
 				this, 
