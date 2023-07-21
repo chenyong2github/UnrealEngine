@@ -14,7 +14,14 @@ enum class EInterchangeAnimationPayLoadType : uint8
 	CURVE,
 	MORPHTARGETCURVE, //handles/generates the same properties as the CURVE variation, but they way it is acquired might be different (depending on the Translator)
 	STEPCURVE,
-	BAKED
+	BAKED,
+	MORPHTARGETCURVEWEIGHTINSTANCE	//Handled within UInterchangeAnimSequenceFactory, contrary to the others which are handled in the Translators
+									// Purpose of this type is to generate a 1 frame long Animation with the Instantiated Morph Target Curve Weights.
+									//		This is needed for the special use cases where the imported 3d file format has a concept of MorphTargetWeight usages on StaticMeshes.
+									//		UE5 does not have support for this particular concept, and the workaround is to create a 1 frame long animation with the desired MorphTargetWeight settings.
+									//		This is also needed for the use cases where the import is a Level import and the 3d file format is instantiating a StaticMesh with a particular MorphTargetWeight settings.
+									//			This is done through the AnimSequnce being used on the SkeletalMeshActor's instance.
+									//		Related Ticket: UE-186102
 };
 
 

@@ -561,7 +561,37 @@ namespace UE::Interchange::Private
 					}
 					if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetNodeUidAnimationPayload.Key)))
 					{
-						AnimationCurvesPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationPayloadData(MorphTargetNodeUidAnimationPayload.Value));
+						if (MorphTargetNodeUidAnimationPayload.Value.Type == EInterchangeAnimationPayLoadType::MORPHTARGETCURVEWEIGHTINSTANCE)
+						{
+							AnimationCurvesPayloads.Add(PayloadKey, Async(EAsyncExecution::TaskGraph, [&MorphTargetNodeUidAnimationPayload]
+								{
+									TOptional<UE::Interchange::FAnimationPayloadData> Result;
+									UE::Interchange::FAnimationPayloadData AnimationPayLoadData(MorphTargetNodeUidAnimationPayload.Value.Type);
+
+									TArray<FString> PayLoadKeys;
+									MorphTargetNodeUidAnimationPayload.Value.UniqueId.ParseIntoArray(PayLoadKeys, TEXT(":"));
+
+									if (PayLoadKeys.Num() != 2)
+									{
+										return Result;
+									}
+
+									float Weight;
+									LexFromString(Weight, *PayLoadKeys[1]);
+
+									AnimationPayLoadData.Curves.SetNum(1);
+									FRichCurve& Curve = AnimationPayLoadData.Curves[0];
+									Curve.AddKey(0, Weight);
+
+									Result.Emplace(AnimationPayLoadData);
+
+									return Result;
+								}));
+						}
+						else
+						{
+							AnimationCurvesPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationPayloadData(MorphTargetNodeUidAnimationPayload.Value));
+						}
 						AnimationCurveMorphTargetNodeNames.Add(PayloadKey, MorphTargetNode->GetDisplayLabel());
 					}
 				}

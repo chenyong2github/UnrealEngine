@@ -204,6 +204,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	void GetMorphTargetCurveWeights(TMap<FString, float>& OutMorphTargetCurveWeights) const;
 
+
+	/** Set the Animation Asset To Play by this Scene Node. (only relevant for SkeletalMeshActors (SceneNodes that are instantiating Skeletal Meshes)) */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetCustomAnimationAssetUidToPlay(const FString& AttributeValue);
+	/** Get the Animation Asset To Play by this Scene Node. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool GetCustomAnimationAssetUidToPlay(FString& AttributeValue) const;
+
 private:
 
 	bool GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey
@@ -236,6 +244,9 @@ private:
 
 	//A scene node can have different MorphTarget curve settings:
 	UE::Interchange::TMapAttributeHelper<FString, float> MorphTargetCurveWeights;
+
+	//A scene node can reference an animation asset on top of base asset:
+	const UE::Interchange::FAttributeKey Macro_CustomAnimationAssetUidToPlayKey = UE::Interchange::FAttributeKey(TEXT("AnimationAssetUidToPlay"));
 
 	//mutable caches for global transforms
 	mutable TOptional<FTransform> CacheGlobalTransform;

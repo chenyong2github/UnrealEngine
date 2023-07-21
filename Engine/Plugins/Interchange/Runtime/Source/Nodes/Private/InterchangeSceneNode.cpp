@@ -393,3 +393,12 @@ void UInterchangeSceneNode::GetMorphTargetCurveWeights(TMap<FString, float>& Out
 {
 	OutMorphTargetCurveWeights = MorphTargetCurveWeights.ToMap();
 }
+
+bool UInterchangeSceneNode::SetCustomAnimationAssetUidToPlay(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimationAssetUidToPlay, FString);
+}
+bool UInterchangeSceneNode::GetCustomAnimationAssetUidToPlay(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(AnimationAssetUidToPlay, FString);
+}

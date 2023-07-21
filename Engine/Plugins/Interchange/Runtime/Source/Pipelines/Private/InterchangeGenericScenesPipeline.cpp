@@ -403,9 +403,11 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 
 			UE::Interchange::MeshesUtilities::ApplySlotMaterialDependencies(*MeshActorFactoryNode, SlotMaterialDependencies, *BaseNodeContainer);
 
-			TMap<FString, float> MorphTargetCurveWeights;
-			SceneNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
-			MeshActorFactoryNode->SetMorphTargetCurveWeights(MorphTargetCurveWeights);
+			FString AnimationAssetUidToPlay;
+			if (SceneNode->GetCustomAnimationAssetUidToPlay(AnimationAssetUidToPlay))
+			{
+				MeshActorFactoryNode->SetCustomAnimationAssetUidToPlay(AnimationAssetUidToPlay);
+			}
 
 			MeshActorFactoryNode->AddFactoryDependencyUid(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(MeshNode->GetUniqueID()));
 		}

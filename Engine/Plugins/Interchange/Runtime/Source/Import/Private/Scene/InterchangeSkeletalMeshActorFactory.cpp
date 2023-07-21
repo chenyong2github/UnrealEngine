@@ -2,6 +2,7 @@
 #include "Scene/InterchangeSkeletalMeshActorFactory.h"
 
 #include "InterchangeMeshActorFactoryNode.h"
+#include "InterchangeAnimSequenceFactoryNode.h"
 #include "Scene/InterchangeActorHelper.h"
 #include "InterchangeSceneNode.h"
 #include "InterchangeSkeletalMeshFactoryNode.h"
@@ -59,12 +60,26 @@ void UInterchangeSkeletalMeshActorFactory::SetupObject_GameThread(const FSetupOb
 					{
 						UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *SkeletalMeshComponent);
 
-						//Set Morph Target Curves:
-						TMap<FString, float> MorphTargetCurveWeights;
-						MeshActorFactoryNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
-						for (const TPair<FString, float>& MorphTargetCurve : MorphTargetCurveWeights)
+						FString AnimationAssetUidToPlay;
+						if (MeshActorFactoryNode->GetCustomAnimationAssetUidToPlay(AnimationAssetUidToPlay))
 						{
-							SkeletalMeshComponent->SetMorphTarget(*MorphTargetCurve.Key, MorphTargetCurve.Value);
+							const FString AnimSequenceFactoryNodeUid = TEXT("\\AnimSequence") + AnimationAssetUidToPlay;
+							if (const UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = Cast<UInterchangeAnimSequenceFactoryNode>(Arguments.NodeContainer->GetFactoryNode(AnimSequenceFactoryNodeUid)))
+							{
+								FSoftObjectPath AnimSequenceObject;
+								if (AnimSequenceFactoryNode->GetCustomReferenceObject(AnimSequenceObject))
+								{
+									if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceObject.TryLoad()))
+									{
+										SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+										SkeletalMeshComponent->AnimationData.AnimToPlay = AnimSequence;
+										SkeletalMeshComponent->AnimationData.bSavedLooping = false;
+										SkeletalMeshComponent->AnimationData.bSavedPlaying = false;
+										SkeletalMeshComponent->SetAnimation(AnimSequence);
+										
+									}
+								}
+							}
 						}
 					}
 				}

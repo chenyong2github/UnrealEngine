@@ -82,6 +82,50 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 			TrackSetNodes.Add(Node);
 		});
 
+
+	//Create AnimSequences(UInterchangeSkeletalAnimationTrackNode) for Mesh Instances having MorphTargetCurveWeights:
+	{
+		TArray<UInterchangeSceneNode*> SceneNodesWithMorphTargetCurveWeights;
+		BaseNodeContainer->IterateNodesOfType<UInterchangeSceneNode>([&SceneNodesWithMorphTargetCurveWeights](const FString& NodeUid, UInterchangeSceneNode* SceneNode)
+			{
+				TMap<FString, float> MorphTargetCurveWeights;
+				SceneNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
+
+				if (MorphTargetCurveWeights.Num() > 0)
+				{
+					SceneNodesWithMorphTargetCurveWeights.Add(SceneNode);
+				}
+			});
+
+		for (UInterchangeSceneNode* SceneNode : SceneNodesWithMorphTargetCurveWeights)
+		{
+			UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationNode = NewObject< UInterchangeSkeletalAnimationTrackNode >(BaseNodeContainer);
+			FString SkeletalAnimationNodeUid = "\\SkeletalAnimation\\MorphTargetCurveWeightInstantation\\" + SceneNode->GetUniqueID();
+			SkeletalAnimationNode->InitializeNode(SkeletalAnimationNodeUid, SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::TranslatedAsset);
+
+			SkeletalAnimationNode->SetCustomAnimationSampleRate(30.f);
+			SkeletalAnimationNode->SetCustomAnimationStartTime(0);
+			SkeletalAnimationNode->SetCustomAnimationStopTime(1.f / 30.f); //we want a single frame
+
+			SkeletalAnimationNode->SetCustomSkeletonNodeUid(SceneNode->GetUniqueID());
+
+			TMap<FString, float> MorphTargetCurveWeights;
+			SceneNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
+
+			for (const TPair<FString, float>& MorphTargetCurveWeight : MorphTargetCurveWeights)
+			{
+				FString PayloadUid = MorphTargetCurveWeight.Key + TEXT(":") + LexToString(MorphTargetCurveWeight.Value);
+
+				//add the payload key:
+				SkeletalAnimationNode->SetAnimationPayloadKeyForMorphTargetNodeUid(MorphTargetCurveWeight.Key, PayloadUid, EInterchangeAnimationPayLoadType::MORPHTARGETCURVEWEIGHTINSTANCE);
+			}
+
+			BaseNodeContainer->AddNode(SkeletalAnimationNode);
+
+			SceneNode->SetCustomAnimationAssetUidToPlay(SkeletalAnimationNodeUid);
+		}
+	}
+
 	if (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh)
 	{
 		for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)

@@ -51,19 +51,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
 	bool RemoveSlotMaterialDependencyUid(const FString& SlotName);
 
-	/** Set MorphTarget with given weight. */
+	/** Set the Animation Asset To Play by this Scene Node. (only relevant for SkeletalMeshActors (SceneNodes that are instantiating Skeletal Meshes)) */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool SetMorphTargetCurveWeight(const FString& MorphTargetName, const float& Weight);
-
-	/** Set MorphTarget with given weight. */
+	bool SetCustomAnimationAssetUidToPlay(const FString& AttributeValue);
+	/** Get the Animation Asset To Play by this Scene Node. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	void SetMorphTargetCurveWeights(const TMap<FString, float>& InMorphTargetCurveWeights);
-
-	/** Get MorphTargets and their weights. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	void GetMorphTargetCurveWeights(TMap<FString, float>& OutMorphTargetCurveWeights) const;
+	bool GetCustomAnimationAssetUidToPlay(FString& AttributeValue) const;
 
 private:
 	UE::Interchange::TMapAttributeHelper<FString, FString> SlotMaterialDependencies;
-	UE::Interchange::TMapAttributeHelper<FString, float> MorphTargetCurveWeights;
+
+	//A scene node can reference an animation asset on top of base asset:
+	const UE::Interchange::FAttributeKey Macro_CustomAnimationAssetUidToPlayKey = UE::Interchange::FAttributeKey(TEXT("AnimationAssetUidToPlay"));
 };
