@@ -653,6 +653,23 @@ AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
 	return NewActor;
 }
 
+EPCGHiGenGrid UPCGComponent::GetGenerationGrid() const
+{
+	const uint32 GridSize = GetGenerationGridSize();
+	if (PCGHiGenGrid::IsValidGridSize(GridSize))
+	{
+		return PCGHiGenGrid::GridSizeToGrid(GridSize);
+	}
+	else if (GridSize == PCGHiGenGrid::UnboundedGridSize())
+	{
+		return EPCGHiGenGrid::Unbounded;
+	}
+	else
+	{
+		return PCGHiGenGrid::GridSizeToGrid(GetGraph()->GetDefaultGridSize());
+	}
+}
+
 void UPCGComponent::StoreOutputDataForPin(const FString& InResourceKey, const FPCGDataCollection& InData)
 {
 	FReadScopeLock ScopedWriteLock(PerPinGeneratedOutputLock);
@@ -774,7 +791,12 @@ void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 
 FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
 {
-	if ((!bGenerated && GeneratedResources.IsEmpty() && !IsGenerating()) || IsPartitioned() || IsCleaningUp())
+	if (GetSubsystem() && GetSubsystem()->IsGraphCacheDebuggingEnabled())
+	{
+		UE_LOG(LogPCG, Log, TEXT("[%s] --- CLEANUP COMPONENT ---"), GetOwner() ? *GetOwner()->GetName() : TEXT("MissingComponent"));
+	}
+
+	if ((!bGenerated && GeneratedResources.IsEmpty() && !IsGenerating()) || IsCleaningUp())
 	{
 		return InvalidPCGTaskId;
 	}
@@ -1841,9 +1863,9 @@ void UPCGComponent::OnRefresh()
 	}
 	else
 	{
-		// If we just cleaned up resources, call back generate
-		// Also, for BPs, we ask if we should generate, to support generate on added to world.
-		if ((bWasGenerated || ShouldGenerateBPPCGAddedToWorld()) && (!bGenerated || bRegenerateInEditor))
+		// If we just cleaned up resources, call back generate. Only do this for original component, which will then trigger
+		// generation of local components. Also, for BPs, we ask if we should generate, to support generate on added to world.
+		if ((bWasGenerated || ShouldGenerateBPPCGAddedToWorld()) && !IsLocalComponent() && (!bGenerated || bRegenerateInEditor))
 		{
 			GenerateLocal(/*bForce=*/false);
 		}

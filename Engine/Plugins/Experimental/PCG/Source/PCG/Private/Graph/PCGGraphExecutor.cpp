@@ -140,11 +140,9 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 	// component, knock out the grid sizes.
 	if (SourceComponent && SourceComponent->GetGraph() && SourceComponent->GetGraph()->IsHierarchicalGenerationEnabled())
 	{
-		const int32 ComponentGridSize = SourceComponent->GetGenerationGridSize();
-		const int32 DefaultGridSize = SourceComponent->GetGraph()->GetDefaultGridSize();
-		const EPCGHiGenGrid DefaultGrid = PCGHiGenGrid::GridSizeToGrid(DefaultGridSize);
-		const EPCGHiGenGrid Grid = PCGHiGenGrid::GridSizeToGrid(ensure(PCGHiGenGrid::IsValidGridSize(ComponentGridSize)) ? ComponentGridSize : DefaultGridSize);
 		const bool bNonPartitionedComponent = !SourceComponent->IsLocalComponent() && !SourceComponent->IsPartitioned();
+		const EPCGHiGenGrid Grid = SourceComponent->GetGenerationGrid();
+		const EPCGHiGenGrid DefaultGrid = PCGHiGenGrid::GridSizeToGrid(SourceComponent->GetGraph()->GetDefaultGridSize());
 
 		for (FPCGGraphTask& Task : CompiledTasks)
 		{
@@ -639,12 +637,9 @@ void FPCGGraphExecutor::Execute()
 				if (Task.GraphGenerationGrid != EPCGHiGenGrid::Uninitialized)
 				{
 					// Graph generation sizes should be resolved by now
-					ensure(PCGHiGenGrid::IsValidGrid(Task.GraphGenerationGrid) || Task.GraphGenerationGrid == EPCGHiGenGrid::Unbounded);
+					ensure(PCGHiGenGrid::IsValidGrid(Task.GraphGenerationGrid & ~EPCGHiGenGrid::Unbounded) || Task.GraphGenerationGrid == EPCGHiGenGrid::Unbounded);
 
-					const bool bGraphHasNoGridSizes = Task.GraphGenerationGrid == EPCGHiGenGrid::Unbounded;
-					const bool bAtFromOrToGridSize = !!(Task.GenerationGrid & Task.GraphGenerationGrid);
-					const bool bInRange = !bGraphHasNoGridSizes && PCGHiGenGrid::IsValidGrid(Task.GenerationGrid) && bAtFromOrToGridSize;
-					bNeedsToCreateActiveTask = bGraphHasNoGridSizes || bInRange;
+					bNeedsToCreateActiveTask = !!(Task.GenerationGrid & Task.GraphGenerationGrid);
 
 					if (bGraphCacheDebuggingEnabled && !bNeedsToCreateActiveTask && Task.SourceComponent.Get() && Task.SourceComponent->GetOwner() && Task.Node)
 					{
@@ -1495,8 +1490,8 @@ namespace PCGGraphExecutor
 {
 	bool ExecuteGridLinkage(EPCGHiGenGrid InFromGrid, EPCGHiGenGrid InToGrid, const FString& InResourceKey, const FName& InOutputPinLabel, const UPCGNode* InDownstreamNode, FPCGGridLinkageContext* InContext)
 	{
-		// Non partitioned graph - no linkage required - data should just pass through.
-		if (!InContext->SourceComponent->IsLocalComponent() || !InContext->SourceComponent->GetGraph()->IsHierarchicalGenerationEnabled())
+		// Non-hierarchical generation - no linkage required - data should just pass through.
+		if (!InContext->SourceComponent->GetGraph()->IsHierarchicalGenerationEnabled())
 		{
 			InContext->OutputData = InContext->InputData;
 			return true;
@@ -1509,10 +1504,8 @@ namespace PCGGraphExecutor
 			FromGrid = InContext->SourceComponent->GetGraph()->GetDefaultGrid();
 		}
 
-		ensure(PCGHiGenGrid::IsValidGrid(FromGrid));
-		const int32 FromGridSize = PCGHiGenGrid::GridToGridSize(FromGrid);
-		ensure(PCGHiGenGrid::IsValidGrid(InToGrid));
-		const int32 ToGridSize = PCGHiGenGrid::GridToGridSize(InToGrid);
+		const uint32 FromGridSize = PCGHiGenGrid::IsValidGrid(FromGrid) ? PCGHiGenGrid::GridToGridSize(FromGrid) : PCGHiGenGrid::UnboundedGridSize();
+		const uint32 ToGridSize = PCGHiGenGrid::IsValidGrid(InToGrid) ? PCGHiGenGrid::GridToGridSize(InToGrid) : PCGHiGenGrid::UnboundedGridSize();
 
 		// Never allow a large grid to read data from small grid - this violates hierarchy.
 		if (FromGridSize < ToGridSize)
@@ -1522,12 +1515,28 @@ namespace PCGGraphExecutor
 			{
 				// Using the low level logging call because we have only a node pointer for the downstream node. Note that InContext
 				// is the context for the linkage element/task, which is not represented on the graph and cannot receive graph warnings/errors.
-				Subsystem->GetNodeVisualLogsMutable().Log(
-					InDownstreamNode, InContext->SourceComponent, ELogVerbosity::Error,
-					FText::Format(NSLOCTEXT("PCGGraphCompiler", "InvalidLinkage", "Could not read data across grid levels - origin grid size {0} must be greater than destination grid size {1}. Graph default grid size may need increasing."),
-						FromGridSize, ToGridSize
-					));
-
+				if (ToGridSize == PCGHiGenGrid::UnboundedGridSize())
+				{
+					Subsystem->GetNodeVisualLogsMutable().Log(
+						InDownstreamNode,
+						InContext->SourceComponent,
+						ELogVerbosity::Error,
+						FText::Format(
+							NSLOCTEXT("PCGGraphCompiler", "InvalidLinkageToUnbounded", "Could not read data across grid levels - cannot read from grid size {0} to Unbounded domain."),
+							FromGridSize,
+							ToGridSize));
+				}
+				else
+				{
+					Subsystem->GetNodeVisualLogsMutable().Log(
+						InDownstreamNode,
+						InContext->SourceComponent,
+						ELogVerbosity::Error,
+						FText::Format(
+							NSLOCTEXT("PCGGraphCompiler", "InvalidLinkageInvalidGridSizes", "Could not read data across grid levels - origin grid size {0} must be greater than destination grid size {1}. Graph default grid size may need increasing."),
+							FromGridSize,
+							ToGridSize));
+				}
 			}
 #endif
 
@@ -1552,10 +1561,18 @@ namespace PCGGraphExecutor
 				return false;
 			}
 
-			UPCGComponent* ComponentWithData = nullptr;
 			APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(InContext->SourceComponent->GetOwner());
 			UPCGComponent* OriginalComponent = PartitionActor ? PartitionActor->GetOriginalComponent(InContext->SourceComponent.Get()) : nullptr;
-			if (OriginalComponent)
+
+			UPCGComponent* ComponentWithData = nullptr;
+			bool bComponentWithDataIsOriginalComponent = false;
+			if (FromGridSize == PCGHiGenGrid::UnboundedGridSize())
+			{
+				// Unbounded means not generated on grid, instead use the original component volume
+				ComponentWithData = OriginalComponent;
+				bComponentWithDataIsOriginalComponent = true;
+			}
+			else if (OriginalComponent)
 			{
 				// Now iterate through local components and find a component from the correct from-grid, and overlapping this component.
 				// Would be more efficient if we had a spatial index. The current component octree seems to only store original components.
@@ -1601,7 +1618,11 @@ namespace PCGGraphExecutor
 				return true;
 			};
 
-			if (ComponentWithData->IsGenerating())
+			// If we need data from a local component but the local component is still generating, then we'll wait for it. On the other hand
+			// if we need data from the original component we assume the generation has already happened because it is always scheduled before
+			// the local components.
+			const bool bWaitForGeneration = bComponentWithDataIsOriginalComponent ? false : ComponentWithData->IsGenerating();
+			if (bWaitForGeneration)
 			{
 				PCGGraphExecutionLogging::LogGridLinkageTaskExecuteRetrieveWaitOnScheduledGraph(InContext, ComponentWithData, InResourceKey);
 
@@ -1620,7 +1641,8 @@ namespace PCGGraphExecutor
 			}
 
 			// Graph is not currently generating. If we have not already tried generating, try it once now.
-			if (!InContext->bScheduledGraph)
+			// But don't do this for the original component as this will always be scheduled before the local components.
+			if (!InContext->bScheduledGraph && !bComponentWithDataIsOriginalComponent)
 			{
 				PCGGraphExecutionLogging::LogGridLinkageTaskExecuteRetrieveScheduleGraph(InContext, ComponentWithData, InResourceKey);
 

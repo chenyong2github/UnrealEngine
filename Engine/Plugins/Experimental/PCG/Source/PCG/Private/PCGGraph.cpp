@@ -342,6 +342,12 @@ void UPCGGraph::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+uint32 UPCGGraph::GetDefaultGridSize() const
+{
+	ensure(IsHierarchicalGenerationEnabled());
+	return PCGHiGenGrid::IsValidGrid(HiGenGridSize) ? PCGHiGenGrid::GridToGridSize(HiGenGridSize) : PCGHiGenGrid::UnboundedGridSize();
+}
+
 UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& OutDefaultNodeSettings)
 {
 	UPCGSettings* Settings = NewObject<UPCGSettings>(GetTransientPackage(), InSettingsClass, NAME_None, RF_Transactional);
@@ -690,12 +696,17 @@ void UPCGGraph::PostNodeUndo(UPCGNode* InPCGNode)
 }
 #endif
 
-void UPCGGraph::GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes) const
+void UPCGGraph::GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes, bool& bOutHasUnbounded) const
 {
+	bOutHasUnbounded = HiGenGridSize == EPCGHiGenGrid::Unbounded;
+
 	const uint32 GraphDefaultGridSize = GetDefaultGridSize();
 	if (!IsHierarchicalGenerationEnabled())
 	{
-		OutGridSizes.Add(GraphDefaultGridSize);
+		if (PCGHiGenGrid::IsValidGridSize(GetDefaultGridSize()))
+		{
+			OutGridSizes.Add(GraphDefaultGridSize);
+		}
 		return;
 	}
 
@@ -709,6 +720,10 @@ void UPCGGraph::GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes) const
 			{
 				OutGridSizes.Add(GridSize);
 			}
+		}
+		else if (GridSize == PCGHiGenGrid::UnboundedGridSize())
+		{
+			bOutHasUnbounded = true;
 		}
 		else if (GridSize == PCGHiGenGrid::UninitializedGridSize())
 		{

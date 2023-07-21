@@ -408,11 +408,13 @@ namespace PCGHelpers
 		return CurrentInspectedObject && !CurrentInspectedObject->HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad);
 	}
 
-	bool GetGenerationGridSizes(const UPCGGraph* InGraph, const APCGWorldActor* InWorldActor, PCGHiGenGrid::FSizeArray& OutGridSizes)
+	bool GetGenerationGridSizes(const UPCGGraph* InGraph, const APCGWorldActor* InWorldActor, PCGHiGenGrid::FSizeArray& OutGridSizes, bool& bOutHasUnbounded)
 	{
+		bOutHasUnbounded = false;
+
 		if (InGraph && InGraph->IsHierarchicalGenerationEnabled())
 		{
-			InGraph->GetGridSizes(OutGridSizes);
+			InGraph->GetGridSizes(OutGridSizes, bOutHasUnbounded);
 			return true;
 		}
 		else if (InWorldActor)

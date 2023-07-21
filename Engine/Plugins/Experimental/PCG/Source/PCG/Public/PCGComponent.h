@@ -162,6 +162,7 @@ public:
 
 	uint32 GetGenerationGridSize() const { return GenerationGridSize; }
 	void SetGenerationGridSize(uint32 InGenerationGridSize) { GenerationGridSize = InGenerationGridSize; }
+	EPCGHiGenGrid GetGenerationGrid() const;
 
 	/** Store data with a resource key that identifies the pin. */
 	void StoreOutputDataForPin(const FString& InResourceKey, const FPCGDataCollection& InData);

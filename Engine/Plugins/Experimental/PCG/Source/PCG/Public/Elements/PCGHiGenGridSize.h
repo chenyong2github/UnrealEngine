@@ -16,7 +16,7 @@ class PCG_API UPCGHiGenGridSizeSettings : public UPCGSettings
 
 public:
 	EPCGHiGenGrid GetGrid() const { return HiGenGridSize; }
-	uint32 GetGridSize() const { return PCGHiGenGrid::GridToGridSize(HiGenGridSize); }
+	uint32 GetGridSize() const { return (HiGenGridSize == EPCGHiGenGrid::Unbounded) ? PCGHiGenGrid::UnboundedGridSize() : PCGHiGenGrid::GridToGridSize(HiGenGridSize); }
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR

@@ -140,8 +140,9 @@ bool UPCGActorAndComponentMapping::RegisterOrUpdatePartitionedPCGComponent(UPCGC
 	// sure to update the runtime flow, for them to also create PA if they need to.
 	if (bComponentHasChanged || bComponentWasAdded)
 	{
+		bool bHasUnbounded = false;
 		PCGHiGenGrid::FSizeArray GridSizes;
-		ensure(PCGHelpers::GetGenerationGridSizes(InComponent ? InComponent->GetGraph() : nullptr, PCGSubsystem->GetPCGWorldActor(), GridSizes));
+		ensure(PCGHelpers::GetGenerationGridSizes(InComponent ? InComponent->GetGraph() : nullptr, PCGSubsystem->GetPCGWorldActor(), GridSizes, bHasUnbounded));
 		PCGSubsystem->CreatePartitionActorsWithinBounds(Bounds, GridSizes);
 	}
 #endif // WITH_EDITOR

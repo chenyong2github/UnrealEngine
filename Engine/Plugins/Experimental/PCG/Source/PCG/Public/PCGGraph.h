@@ -135,7 +135,7 @@ public:
 
 	// Default grid size for generation. For hierarchical generation, nodes outside of grid size graph ranges will generate on this grid.
 	EPCGHiGenGrid GetDefaultGrid() const { ensure(IsHierarchicalGenerationEnabled()); return HiGenGridSize; }
-	uint32 GetDefaultGridSize() const { ensure(IsHierarchicalGenerationEnabled()); return PCGHiGenGrid::GridToGridSize(HiGenGridSize); }
+	uint32 GetDefaultGridSize() const;
 	bool IsHierarchicalGenerationEnabled() const { return bUseHierarchicalGeneration; }
 
 #if WITH_EDITORONLY_DATA
@@ -204,7 +204,7 @@ public:
 	bool RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel);
 
 	/** Determine the relevant grid sizes by inspecting all HiGenGridSize nodes. */
-	void GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes) const;
+	void GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes, bool& bOutHasUnbounded) const;
 
 #if WITH_EDITOR
 	void DisableNotificationsForEditor();

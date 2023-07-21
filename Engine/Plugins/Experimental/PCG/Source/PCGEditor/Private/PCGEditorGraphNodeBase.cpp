@@ -338,16 +338,17 @@ EPCGChangeType UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
 
 EPCGChangeType UPCGEditorGraphNodeBase::UpdateGridSizeVisualisation(UPCGComponent* InComponentBeingDebugged)
 {
-	if (!PCGNode)
+	const UPCGGraph* Graph = PCGNode ? PCGNode->GetGraph() : nullptr;
+	if (!Graph)
 	{
 		return EPCGChangeType::None;
 	}
 
 	EPCGChangeType ChangeType = EPCGChangeType::None;
-	const uint32 InspectingGridSize = (InComponentBeingDebugged && InComponentBeingDebugged->IsLocalComponent()) ?
-		InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
 
-	if (InspectingGridSize == PCGHiGenGrid::UninitializedGridSize())
+	const bool HiGenEnabled = Graph->IsHierarchicalGenerationEnabled();
+	const uint32 InspectingGridSize = InComponentBeingDebugged ? InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
+	if (!HiGenEnabled || (InspectingGridSize == PCGHiGenGrid::UninitializedGridSize()))
 	{
 		if (IsDisplayAsDisabledForced())
 		{
@@ -361,7 +362,7 @@ EPCGChangeType UPCGEditorGraphNodeBase::UpdateGridSizeVisualisation(UPCGComponen
 			ChangeType |= EPCGChangeType::Cosmetic;
 		}
 	}
-	else if (UPCGGraph* Graph = PCGNode->GetGraph())
+	else
 	{
 		uint32 DefaultGridSize;
 		UPCGSubsystem* Subsystem = UPCGSubsystem::GetActiveEditorInstance();

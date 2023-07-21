@@ -40,10 +40,22 @@ namespace PCGHiGenGrid
 
 	EPCGHiGenGrid GridSizeToGrid(uint32 InGridSize)
 	{
+		if (InGridSize == UnboundedGridSize())
+		{
+			return EPCGHiGenGrid::Unbounded;
+		}
 		// TODO: support other units
 		return ensure(IsValidGridSize(InGridSize)) ? static_cast<EPCGHiGenGrid>(InGridSize / 100) : EPCGHiGenGrid::Uninitialized;
 	}
 
-	uint32 UninitializedGridSize() { return static_cast<uint32>(EPCGHiGenGrid::Uninitialized); }
-	uint32 UnboundedGridSize() { return static_cast<uint32>(EPCGHiGenGrid::Unbounded); }
+	uint32 UninitializedGridSize()
+	{
+		return static_cast<uint32>(EPCGHiGenGrid::Uninitialized);
+	}
+
+	uint32 UnboundedGridSize()
+	{
+		// TODO: support other units
+		return 100 * static_cast<uint32>(EPCGHiGenGrid::Unbounded);
+	}
 }
