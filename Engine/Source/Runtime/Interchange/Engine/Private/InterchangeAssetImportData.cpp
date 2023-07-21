@@ -172,6 +172,7 @@ int32 UInterchangeAssetImportData::GetNumberOfPipelines() const
 
 const UInterchangeBaseNode* UInterchangeAssetImportData::GetStoredNode(const FString& InNodeUniqueId) const
 {
+	ProcessContainerCache();
 	UInterchangeBaseNodeContainer* NodeContainerResolved = TransientNodeContainer.Get();
 	if (NodeContainerResolved)
 	{
@@ -183,6 +184,7 @@ const UInterchangeBaseNode* UInterchangeAssetImportData::GetStoredNode(const FSt
 
 UInterchangeFactoryBaseNode* UInterchangeAssetImportData::GetStoredFactoryNode(const FString& InNodeUniqueId) const
 {
+	ProcessContainerCache();
 	UInterchangeBaseNodeContainer* NodeContainerResolved = TransientNodeContainer.Get();
 	if (NodeContainerResolved)
 	{
