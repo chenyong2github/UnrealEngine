@@ -267,14 +267,19 @@ namespace Metasound
 
 			const ArrayType& InputArrayRef = *InputArray;
 
-			// If the array size has changed, we need to reinit before getting the next value
-			if (PrevArraySize != InputArrayRef.Num())
+			// Determine if the state of the random number generator needs to be
+			// reinitialized.
+			const bool bIsArrayNonEmpty = InputArrayRef.Num() != 0; // Skip reinit if the array is empty because it represents an invalid state for this node.
+			const bool bIsArraySizeChanged = PrevArraySize != InputArrayRef.Num(); // Need to reinit for array size changes. 
+			const bool bIsSharedStateEnablementInconsistent = (*bEnableSharedState != bSharedStateInitialized); // Need to reinit if the shared state enablement has been updated.
+
+			const bool bIsStateReinitializationNeeded = bIsArrayNonEmpty && (bIsArraySizeChanged || bIsSharedStateEnablementInconsistent);
+
+			PrevArraySize = InputArrayRef.Num();
+
+			if (bIsStateReinitializationNeeded)
 			{
-				PrevArraySize = InputArrayRef.Num();
-				if (PrevArraySize != 0)
-				{
-					InitializeState(PrevArraySize);
-				}
+				InitializeState(PrevArraySize);
 			}
 
 			if (PrevArraySize == 0)
