@@ -185,7 +185,7 @@ public:
 	 * Update the datas based on the new bounds and commands
 	 * @param FieldCommands - Field commands to be sampled
 	 */
-	void UpdateInstance(const float TimeSeconds);
+	void UpdateInstance(const float TimeSeconds, const bool bIsDebugBuffer);
 
 	/** The field system resource. */
 	FPhysicsFieldResource* FieldResource = nullptr;
@@ -243,13 +243,16 @@ public:
 	/** Add the transient field command */
 	ENGINE_API void AddTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
 
-	/** Add the persitent field command */
+	/** Add the persistent field command */
 	ENGINE_API void AddPersistentCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
+
+	/** Add the construction field command */
+	ENGINE_API void AddConstructionCommand(const FFieldSystemCommand& FieldCommand);
 
 	/** Remove the transient field command */
 	ENGINE_API void RemoveTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
 
-	/** Remove the persitent field command */
+	/** Remove the persistent field command */
 	ENGINE_API void RemovePersistentCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
 
 	/** Fill the transient commands intersecting the bounding box from the physics field */
@@ -266,8 +269,11 @@ public:
 	/** List of all the field transient commands in the world */
 	TArray<FFieldSystemCommand> TransientCommands[(uint8)(EFieldCommandBuffer::NumFieldBuffers)];
 
-	/** List of all the field persitent commands in the world */
+	/** List of all the field persistent commands in the world */
 	TArray<FFieldSystemCommand> PersistentCommands[(uint8)(EFieldCommandBuffer::NumFieldBuffers)];
+
+	/** List of all the field construction commands in the world */
+	TArray<FFieldSystemCommand> ConstructionCommands[(uint8)(EFieldCommandBuffer::NumFieldBuffers)];
 
 	/** The instance of the GPU field system. */
 	FPhysicsFieldInstance* FieldInstance = nullptr;

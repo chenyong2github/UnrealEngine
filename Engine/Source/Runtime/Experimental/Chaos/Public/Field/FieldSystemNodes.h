@@ -85,7 +85,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	float Radius;
 	FVector Position;
@@ -172,6 +172,8 @@ public:
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
+	/** Compute the min/max spatial bounds of the field */
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	float Magnitude;
 	FVector Position;
@@ -229,7 +231,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	float Magnitude;
 	float MinRange;
@@ -293,7 +295,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 
 	float Magnitude;
@@ -355,7 +357,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	float Magnitude;
 	float MinRange;
@@ -483,6 +485,9 @@ public:
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
+	/** Compute the min/max spatial bounds of the field */
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
+
 	float Magnitude;
 	FVector Position;
 
@@ -570,7 +575,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	/** Default setup for the sum scalar field */
 	static void FillDefaultSetup(TArray<int32>& NodesOffsets, TArray<float>& NodesParams)
@@ -639,7 +644,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	/** Default setup for the sum vector field */
 	static void FillDefaultSetup(TArray<int32>& NodesOffsets, TArray<float>& NodesParams)
@@ -699,7 +704,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	/** Default setup for the conversion field */
 	static void FillDefaultSetup(TArray<int32>& NodesOffsets, TArray<float>& NodesParams)
@@ -760,7 +765,7 @@ public:
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
-	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const override;
 
 	TUniquePtr< FFieldNode<float> > Culling;
 	TUniquePtr< FFieldNode<T> > Input;

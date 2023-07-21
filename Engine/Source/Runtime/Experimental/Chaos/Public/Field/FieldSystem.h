@@ -456,10 +456,11 @@ public:
 	virtual float EvalMaxMagnitude() const { return 1.0; }
 
 	/** Compute the min/max spatial bounds of the field */
-	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds, FVector& CenterPosition) const
 	{
 		MinBounds = FVector(-FLT_MAX);
 		MaxBounds = FVector(FLT_MAX);
+		CenterPosition = FVector::Zero();
 	}
 
 	FName GetName() const { return Name; }
@@ -531,6 +532,7 @@ public:
 		, BoundingBox(FVector(-FLT_MAX), FVector(FLT_MAX))
 		, PhysicsType(EFieldPhysicsType::Field_None)
 		, MaxMagnitude(1.0)
+		, CenterPosition(FVector::Zero())
 	{}
 	FFieldSystemCommand(const FName& TargetAttributeIn, FFieldNodeBase * RootNodeIn)
 		: TargetAttribute(TargetAttributeIn)
@@ -540,6 +542,7 @@ public:
 		, BoundingBox(FVector(-FLT_MAX), FVector(FLT_MAX))
 		, PhysicsType(GetFieldPhysicsType(TargetAttributeIn))
 		, MaxMagnitude(1.0)
+		, CenterPosition(FVector::Zero())
 	{}
 	FFieldSystemCommand(const EFieldPhysicsType PhsyicsTypeIn, FFieldNodeBase* RootNodeIn)
 		: TargetAttribute(GetFieldPhysicsName(PhsyicsTypeIn))
@@ -549,6 +552,7 @@ public:
 		, BoundingBox(FVector(-FLT_MAX), FVector(FLT_MAX))
 		, PhysicsType(PhsyicsTypeIn)
 		, MaxMagnitude(1.0)
+		, CenterPosition(FVector::Zero())
 	{}
 
 	// Commands are copied when moved from the one thread to 
@@ -561,6 +565,7 @@ public:
 		, BoundingBox(Other.BoundingBox)
 		, PhysicsType(Other.RootNode ? Other.PhysicsType : EFieldPhysicsType::Field_None)
 		, MaxMagnitude(Other.MaxMagnitude)
+		, CenterPosition(Other.CenterPosition)
 	{
 		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : Other.MetaData)
 		{
@@ -614,6 +619,7 @@ public:
 	FBox BoundingBox;
 	EFieldPhysicsType PhysicsType;
 	float MaxMagnitude;
+	FVector CenterPosition;
 
 	TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > MetaData;
 };
