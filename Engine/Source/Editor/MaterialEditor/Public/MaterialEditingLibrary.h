@@ -390,4 +390,8 @@ public:
 	/** Returns statistics about the given material */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static FMaterialStatistics GetStatistics(UMaterialInterface* Material);
+
+	/** Returns any nanite override material for the given material */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static UMaterialInterface* GetNaniteOverrideMaterial(UMaterialInterface* Material);
 };

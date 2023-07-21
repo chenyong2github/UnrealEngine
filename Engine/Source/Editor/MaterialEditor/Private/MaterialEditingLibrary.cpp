@@ -1393,3 +1393,8 @@ FMaterialStatistics UMaterialEditingLibrary::GetStatistics(class UMaterialInterf
 
 	return Result;
 }
+
+UMaterialInterface* UMaterialEditingLibrary::GetNaniteOverrideMaterial(UMaterialInterface* Material)
+{
+	return Material->GetNaniteOverride();
+}
