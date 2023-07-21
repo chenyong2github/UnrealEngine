@@ -34,6 +34,15 @@ public:
 	static const int32 PoseHistorySize = 5;
 
 	/**
+	 * Register information about wait frames from a capture file, in order to build a history of
+	 * display times
+	 *
+	 * @param InWaitFrameHistory The WaitFrame packets from the capture
+	 *
+	 */
+	void RegisterCapturedWaitFrames(const TArray<FOpenXRWaitFramePacket>& InWaitFrameHistory);
+
+	/**
 	 * Register information about reference spaces from a capture file, in order to build a history of
 	 * space locations relative to those reference spaces.
 	 *
@@ -120,6 +129,15 @@ public:
 	 */
 	XrSpaceLocation GetEmulatedPoseForTime(XrSpace LocatingSpace, XrSpace BaseSpace, XrTime Time);
 
+	/**
+	 * Reset internal emulation state based on session teardown.
+	 *
+	 */
+	void OnSessionTeardown()
+	{
+		EmulatedBaseTime = INT64_MAX;
+	}
+	
 	// TODO: add LocateViews to pose manager tracking
 
 private:
@@ -135,6 +153,11 @@ private:
 	 * sort and remove duplicates in history for single space
 	 */
 	bool FilterSpaceHistory(const TArray<FOpenXRLocateSpacePacket>& RawHistory, TArray<FOpenXRLocateSpacePacket>& FilteredHistory);
+
+	/**
+	 * Resample the filtered history in order to ease reading poses back based on time offsets during emulation
+	 */
+	TArray<FOpenXRLocateSpacePacket> SliceFilteredSpaceHistory(const TArray<FOpenXRLocateSpacePacket>& FilteredHistory);
 
 	void ProcessCapturedReferenceSpaceHistory(const TArray<FOpenXRLocateSpacePacket>& SpaceHistory);
 	void ProcessCapturedActionSpaceHistory(const TArray<FOpenXRLocateSpacePacket>& SpaceHistory);
@@ -165,6 +188,13 @@ private:
 	// History of frame times, in order for pose manager to look into to estimate the relative frame index for times
 	TStaticArray <FrameTimeHistoryEntry, PoseHistorySize> FrameTimeHistory;
 	int32 LastInsertedFrameIndex = 0;
+
+	int64 CapturedSliceCount = 0;
+	XrTime WaitFrameStart = 0;
+	XrTime WaitFrameEnd = 0;
+	TArray<FOpenXRWaitFramePacket> WaitFrameHistory;
+
+	XrTime EmulatedBaseTime = INT64_MAX;
 };
 
 } // namespace UE::XRScribe

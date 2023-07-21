@@ -39,6 +39,7 @@ public:
 	[[nodiscard]] const TMap<XrReferenceSpaceType, XrExtent2Df>& GetReferenceSpaceBounds() { return ReferenceSpaceBounds; }
 	[[nodiscard]] const TArray<int64>& GetSwapchainFormats() { return SwapchainFormats; }
 	[[nodiscard]] const TArray<FOpenXRCreateActionPacket>& GetCreatedActions() { return CreatedActions; }
+	[[nodiscard]] const TArray<FOpenXRWaitFramePacket>& GetWaitFrames() { return WaitFrames; }
 
 	TArray<uint8>& GetEncodedData()
 	{
@@ -158,6 +159,8 @@ protected:
 	TMap<FString, TArray<XrActionSuggestedBinding>> StringToSuggestedBindingsMap;
 
 	TArray<FOpenXRCreateActionPacket> CreatedActions;
+
+	TArray<FOpenXRWaitFramePacket> WaitFrames;
 
 	// TODO: Would I ever want to bin properties into per-instance collections?
 	// When we are repaying, we're just going to create our own set of 'valid' parameters

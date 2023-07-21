@@ -513,7 +513,8 @@ void FOpenXRCaptureDecoder::DecodeWaitFrame(const FOpenXRAPIPacketBase& BasePack
 	FOpenXRWaitFramePacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
-	// nothing to do yet
+
+	WaitFrames.Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeBeginFrame(const FOpenXRAPIPacketBase& BasePacket)

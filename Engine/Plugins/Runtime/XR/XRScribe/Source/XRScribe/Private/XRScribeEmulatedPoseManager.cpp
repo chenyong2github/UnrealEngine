@@ -3,12 +3,38 @@
 #include "XRScribeEmulatedPoseManager.h"
 #include "XRScribeFileFormat.h"
 
+#include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogXRScribePoseManager, Log, All);
 
 namespace UE::XRScribe
 {
+
+enum class EXRScribePoseReplayMode : int32
+{
+	/** Replay poses over the same time period they were captured */
+	TimeMatched,
+	/** Replay poses as fast as possible (might look slow or fast across different machines/build configs) */
+	Immediate,
+};
+
+ static EXRScribePoseReplayMode XRScribePoseReplayMode = EXRScribePoseReplayMode::TimeMatched;
+ static FAutoConsoleVariableRef CVarXRScribePoseReplay(TEXT("XRScribe.PoseReplayMode"),
+ 	reinterpret_cast<int32&>(XRScribePoseReplayMode),
+ 	TEXT("Toggle the pose replay mode for XRScribe (TimeMatched, Immediate)"),
+ 	ECVF_ReadOnly);
+	
+void FOpenXRPoseManager::RegisterCapturedWaitFrames(const TArray<FOpenXRWaitFramePacket>& InWaitFrameHistory)
+{
+	WaitFrameStart = InWaitFrameHistory[0].FrameState.predictedDisplayTime;
+	WaitFrameEnd = InWaitFrameHistory.Last().FrameState.predictedDisplayTime;
+
+	// generate 120Hz slices for entire capture, as we assume we won't sample poses faster than 120Hz
+	CapturedSliceCount = ((WaitFrameEnd - WaitFrameStart) / 8333333) + 1;
+
+	WaitFrameHistory = InWaitFrameHistory;
+}
 
 void FOpenXRPoseManager::RegisterCapturedReferenceSpaces(const TArray<FOpenXRCreateReferenceSpacePacket>& CreateReferenceSpacePackets)
 {
@@ -99,6 +125,47 @@ bool FOpenXRPoseManager::FilterSpaceHistory(const TArray<FOpenXRLocateSpacePacke
 	return true;
 }
 
+TArray<FOpenXRLocateSpacePacket> FOpenXRPoseManager::SliceFilteredSpaceHistory(const TArray<FOpenXRLocateSpacePacket>& FilteredHistory)
+{
+	TArray<FOpenXRLocateSpacePacket> SlicedHistory;
+
+	if (XRScribePoseReplayMode == EXRScribePoseReplayMode::TimeMatched)
+	{
+		SlicedHistory.Reserve(CapturedSliceCount);
+
+		FOpenXRLocateSpacePacket PropogatedLocationPacket = FilteredHistory.Top();
+		PropogatedLocationPacket.Location.locationFlags = XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT | XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
+		PropogatedLocationPacket.Location.pose.orientation = ToXrQuat(FQuat::Identity);
+		PropogatedLocationPacket.Location.pose.position = ToXrVector(FVector::ZeroVector);
+
+		int64 HistoryIndex = 0;
+		for (int64 SliceIndex = 0; SliceIndex < CapturedSliceCount; SliceIndex++)
+		{
+			PropogatedLocationPacket.Time = WaitFrameStart + (SliceIndex * 8333333);
+
+			// TODO: we could interpolate poses in the slice?
+			// TODO: should we clean out invalid poses?
+
+			// forward propagate current pose until slice time surpasses current history time
+			if (HistoryIndex < FilteredHistory.Num() &&
+				FilteredHistory[HistoryIndex].Time <= PropogatedLocationPacket.Time)
+			{
+				PropogatedLocationPacket.Location = FilteredHistory[HistoryIndex].Location;
+				HistoryIndex++;
+			}
+		
+			SlicedHistory.Add(PropogatedLocationPacket);
+		}
+	}
+	else
+	{
+		check(XRScribePoseReplayMode == EXRScribePoseReplayMode::Immediate);
+		SlicedHistory = FilteredHistory;
+	}
+
+	return SlicedHistory;
+}
+
 void FOpenXRPoseManager::ProcessCapturedReferenceSpaceHistory(const TArray<FOpenXRLocateSpacePacket>& SpaceHistory)
 {
 	const XrSpace CapturedLocatedSpace = SpaceHistory[0].Space;
@@ -113,7 +180,9 @@ void FOpenXRPoseManager::ProcessCapturedReferenceSpaceHistory(const TArray<FOpen
 	TArray<FOpenXRLocateSpacePacket> FilteredSpaceHistory;
 	if (FilterSpaceHistory(SpaceHistory, FilteredSpaceHistory))
 	{
-		ReferencePoseHistories.Add(XR_REFERENCE_SPACE_TYPE_VIEW, MoveTemp(FilteredSpaceHistory));
+		TArray<FOpenXRLocateSpacePacket> SlicedHistory = SliceFilteredSpaceHistory(FilteredSpaceHistory);
+
+		ReferencePoseHistories.Add(XR_REFERENCE_SPACE_TYPE_VIEW, MoveTemp(SlicedHistory));
 	}
 }
 
@@ -136,7 +205,9 @@ void FOpenXRPoseManager::ProcessCapturedActionSpaceHistory(const TArray<FOpenXRL
 	if (FilterSpaceHistory(SpaceHistory, FilteredSpaceHistory))
 	{
 		const FName FetchedActionName(CreateAction.ActionName.GetData());
-		ActionPoseHistories.Add(FetchedActionName, MoveTemp(FilteredSpaceHistory));
+
+		TArray<FOpenXRLocateSpacePacket> SlicedHistory = SliceFilteredSpaceHistory(FilteredSpaceHistory);
+		ActionPoseHistories.Add(FetchedActionName, MoveTemp(SlicedHistory));
 
 		// TODO: we should be resilient to multiple action spaces per name
 	}
@@ -196,6 +267,8 @@ void FOpenXRPoseManager::AddEmulatedFrameTime(XrTime Time, int32 FrameNum)
 	FrameTimeHistory[HistoryIndex] = FrameTimeHistoryEntry({ Time , FrameNum });
 
 	LastInsertedFrameIndex = HistoryIndex;
+
+	EmulatedBaseTime = FMath::Min(EmulatedBaseTime, Time);
 }
 
 bool FOpenXRPoseManager::DoesActionContainPoseHistory(TStaticArray<ANSICHAR, XR_MAX_ACTION_NAME_SIZE>& ActionName)
@@ -217,28 +290,41 @@ XrSpaceLocation FOpenXRPoseManager::GetEmulatedPoseForTime(XrSpace LocatingSpace
 		return DummyLocation;
 	}
 
-	int32 SearchIndex = LastInsertedFrameIndex;
-	int32 StopIndex = SearchIndex - PoseHistorySize;
-	StopIndex = (StopIndex < 1) ? 1 : StopIndex;
-	while (SearchIndex >= StopIndex)
+	int32 PoseIndex = 0;
+	if (XRScribePoseReplayMode == EXRScribePoseReplayMode::TimeMatched)
 	{
-		const int32 HistoryIndex = SearchIndex % PoseHistorySize;
-		if (FrameTimeHistory[HistoryIndex].Time == Time)
+		const XrTime TimeOffsetFromSessionStart = Time - EmulatedBaseTime;
+		const int64 SliceOffset = TimeOffsetFromSessionStart/ 8333333;
+		const int64 SliceIndex = SliceOffset % CapturedSliceCount;
+		PoseIndex = SliceIndex;		
+	}
+	else
+	{
+		check(XRScribePoseReplayMode == EXRScribePoseReplayMode::Immediate);
+		
+		int32 SearchIndex = LastInsertedFrameIndex;
+		int32 StopIndex = SearchIndex - PoseHistorySize;
+		StopIndex = (StopIndex < 1) ? 1 : StopIndex;
+		while (SearchIndex >= StopIndex)
 		{
-			break;
+			const int32 HistoryIndex = SearchIndex % PoseHistorySize;
+			if (FrameTimeHistory[HistoryIndex].Time == Time)
+			{
+				break;
+			}
+		
+			SearchIndex--;
 		}
-
-		SearchIndex--;
+		
+		if (SearchIndex < StopIndex)
+		{
+			// We didn't find a match, just use most recent pose
+			SearchIndex = LastInsertedFrameIndex;
+		}
+		
+		PoseIndex = FrameTimeHistory[SearchIndex].FrameIndex;
 	}
-
-	if (SearchIndex < StopIndex)
-	{
-		// We didn't find a match, just use most recent pose
-		SearchIndex = LastInsertedFrameIndex;
-	}
-
-	const int32 PoseIndex = FrameTimeHistory[SearchIndex].FrameIndex;
-
+	
 	if (EmulatedReferenceSpaceTypeMap.Contains(LocatingSpace) && EmulatedReferenceSpaceTypeMap[LocatingSpace] == XR_REFERENCE_SPACE_TYPE_VIEW)
 	{
 		const TArray<FOpenXRLocateSpacePacket>& CapturedPoseHistories = ReferencePoseHistories[XR_REFERENCE_SPACE_TYPE_VIEW];

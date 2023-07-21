@@ -341,6 +341,8 @@ void FOpenXREmulationLayer::PostLoadActions()
 		FCStringAnsi::Strncpy(&EmulatedSystemProperties.systemName[ActualSystemNameLen], EmuStringAddend, RemainingSpace);
 	}
 
+	PoseManager.RegisterCapturedWaitFrames(CaptureDecoder.GetWaitFrames());
+
 	PoseManager.RegisterCapturedReferenceSpaces(CaptureDecoder.GetCreatedReferenceSpaces());
 
 	PoseManager.RegisterCapturedActions(CaptureDecoder.GetCreatedActions());
@@ -989,6 +991,8 @@ XrResult FOpenXREmulationLayer::XrLayerDestroySession(XrSession session)
 
 	// from the spec: "The application is responsible for ensuring that it has no calls using session in progress when the session is destroyed."
 	CurrentSession.Reset();
+
+	PoseManager.OnSessionTeardown();
 
 	return XR_SUCCESS;
 }
@@ -1933,7 +1937,8 @@ XrResult FOpenXREmulationLayer::XrLayerLocateViews(XrSession session, const XrVi
 		return XR_ERROR_HANDLE_INVALID;
 	}
 
-	// we only support locating views relative to HMD (for now)
+	// we only support locating views relative to HMD (for now). This means the views are actually
+	// relatively static unless user would change their IPD. Might change with gaze tracking
 	// TODO: support arbitrary spaces for view location (or maybe constrain to reference spaces)
 	{
 		const FOpenXREmulatedSpace* EmulatedSpace = reinterpret_cast<FOpenXREmulatedSpace*>(viewLocateInfo->space);
