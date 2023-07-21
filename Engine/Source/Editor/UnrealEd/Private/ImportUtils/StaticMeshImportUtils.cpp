@@ -405,13 +405,34 @@ bool StaticMeshImportUtils::AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAgg
 
 	FMatrix BoxTM = FMatrix::Identity;
 
-	BoxTM.SetAxis(0, (FVector)Planes[0].Normal);
-	BoxTM.SetAxis(1, (FVector)Planes[1].Normal);
+	FVector3f Axis[3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+	int32 Reorder[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE };
+	for (int32 PlaneIndex = 0; PlaneIndex < 3; ++PlaneIndex)
+	{
+		for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+		{
+			if(AreParallel(Planes[PlaneIndex].Normal, Axis[AxisIndex]))
+			{
+				Reorder[PlaneIndex] = AxisIndex;
+				break;
+			}
+		}
+	}
+	
+	if (Reorder[0] == INDEX_NONE || Reorder[1] == INDEX_NONE || Reorder[2] == INDEX_NONE)
+	{
+		Reorder[0] = 0;
+		Reorder[1] = 1;
+		Reorder[2] = 2;
+	}
+
+	BoxTM.SetAxis(0, (FVector)Planes[Reorder[0]].Normal);
+	BoxTM.SetAxis(1, (FVector)Planes[Reorder[1]].Normal);
 
 	// ensure valid TM by cross-product
-	FVector3f ZAxis = Planes[0].Normal ^ Planes[1].Normal;
+	FVector3f ZAxis = Planes[Reorder[0]].Normal ^ Planes[Reorder[1]].Normal;
 
-	if( !AreParallel(ZAxis, Planes[2].Normal) )
+	if (!AreParallel(ZAxis, Planes[Reorder[2]].Normal))
 	{
 		UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddBoxGeomFromTris (%s): Box axes are not perpendicular."), ObjName);
 		return false;
@@ -434,9 +455,9 @@ bool StaticMeshImportUtils::AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAgg
 	FKBoxElem BoxElem;
 	BoxElem.SetTransform( FTransform( BoxTM ) );	
 	// distance between parallel planes is box edge lengths.
-	BoxElem.X = FMath::Abs(Planes[0].PlaneDist[0] - Planes[0].PlaneDist[1]);
-	BoxElem.Y = FMath::Abs(Planes[1].PlaneDist[0] - Planes[1].PlaneDist[1]);
-	BoxElem.Z = FMath::Abs(Planes[2].PlaneDist[0] - Planes[2].PlaneDist[1]);
+	BoxElem.X = FMath::Abs(Planes[Reorder[0]].PlaneDist[0] - Planes[Reorder[0]].PlaneDist[1]);
+	BoxElem.Y = FMath::Abs(Planes[Reorder[1]].PlaneDist[0] - Planes[Reorder[1]].PlaneDist[1]);
+	BoxElem.Z = FMath::Abs(Planes[Reorder[2]].PlaneDist[0] - Planes[Reorder[2]].PlaneDist[1]);
 	AggGeom->BoxElems.Add(BoxElem);
 
 	return true;
