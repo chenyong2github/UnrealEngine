@@ -7,19 +7,14 @@ public class NNEOnnxruntime : ModuleRules
 	public NNEOnnxruntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
 		CppStandard = CppStandardVersion.Cpp17;
+
+		// Disable all static analysis checkers for this module
 		bDisableStaticAnalysis = true;
 
 		ShortName = "NNEORT"; // Shorten to avoid path-too-long errors
 
-		if (Target.StaticAnalyzer == StaticAnalyzer.None)
-		{
-			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-			PrivatePCHHeaderFile = "Private/ORTPrivatePCH.h";
-		}
-		else
-		{
-			PCHUsage = ModuleRules.PCHUsageMode.NoPCHs;
-		}
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PrivatePCHHeaderFile = "Private/ORTPrivatePCH.h";
 
 		PublicIncludePaths.AddRange(
 			new string[] {
@@ -115,8 +110,5 @@ public class NNEOnnxruntime : ModuleRules
 			PublicDefinitions.Add("PLATFORM_WIN64");
 			PublicDefinitions.Add("PLATFORM_NNE_MICROSOFT");
 		}
-
-		// Disable all static analysis checkers for this module
-		bDisableStaticAnalysis = true;
 	}
 }
