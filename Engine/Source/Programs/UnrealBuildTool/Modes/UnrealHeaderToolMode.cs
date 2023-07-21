@@ -1184,8 +1184,13 @@ namespace UnrealBuildTool.Modes
 
 				if (TargetArgumentIndex >= 0)
 				{
+					// Create the build configuration object, and read the settings
+					BuildConfiguration BuildConfiguration = new();
+					XmlConfig.ApplyTo(BuildConfiguration);
+					Arguments.ApplyTo(BuildConfiguration);
+
 					CommandLineArguments LocalArguments = new(new string[] { Arguments[TargetArgumentIndex] });
-					List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(LocalArguments, false, false, false, Logger);
+					List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(LocalArguments, BuildConfiguration, Logger);
 					if (TargetDescriptors.Count == 0)
 					{
 						Logger.LogError("No target descriptors found.");
@@ -1195,15 +1200,10 @@ namespace UnrealBuildTool.Modes
 					TargetDescriptor TargetDesc = TargetDescriptors[0];
 
 					// Create the target
-					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, false, false, false, Logger);
+					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, BuildConfiguration, Logger);
 
 					// Create the makefile for the target and export the module information
 					using ISourceFileWorkingSet WorkingSet = new EmptySourceFileWorkingSet();
-
-					// Create the build configuration object, and read the settings
-					BuildConfiguration BuildConfiguration = new();
-					XmlConfig.ApplyTo(BuildConfiguration);
-					Arguments.ApplyTo(BuildConfiguration);
 
 					// Create the makefile
 					TargetMakefile Makefile = await Target.BuildAsync(BuildConfiguration, WorkingSet, TargetDesc, Logger, true);

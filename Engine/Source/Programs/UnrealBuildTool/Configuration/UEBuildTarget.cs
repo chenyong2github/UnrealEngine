@@ -4738,8 +4738,10 @@ namespace UnrealBuildTool
 
 			//@todo.PLATFORM: Do any platform specific tool chain initialization here if required
 
+			string IntermediateAppName = GetTargetIntermediateFolderName(AppName, IntermediateEnvironment);
+
 			UnrealTargetConfiguration EngineTargetConfiguration = Configuration == UnrealTargetConfiguration.DebugGame ? UnrealTargetConfiguration.Development : Configuration;
-			DirectoryReference LinkIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, EngineTargetConfiguration.ToString());
+			DirectoryReference LinkIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, IntermediateAppName, EngineTargetConfiguration.ToString());
 
 			// Installed Engine intermediates go to the project's intermediate folder. Installed Engine never writes to the engine intermediate folder. (Those files are immutable)
 			// Also, when compiling in monolithic, all intermediates go to the project's folder.  This is because a project can change definitions that affects all engine translation
@@ -4748,11 +4750,11 @@ namespace UnrealBuildTool
 			{
 				if (ProjectFile != null)
 				{
-					LinkIntermediateDirectory = DirectoryReference.Combine(ProjectFile.Directory, PlatformIntermediateFolder, AppName, Configuration.ToString());
+					LinkIntermediateDirectory = DirectoryReference.Combine(ProjectFile.Directory, PlatformIntermediateFolder, IntermediateAppName, Configuration.ToString());
 				}
 				else if (ForeignPlugin != null)
 				{
-					LinkIntermediateDirectory = DirectoryReference.Combine(ForeignPlugin.Directory, PlatformIntermediateFolder, AppName, Configuration.ToString());
+					LinkIntermediateDirectory = DirectoryReference.Combine(ForeignPlugin.Directory, PlatformIntermediateFolder, IntermediateAppName, Configuration.ToString());
 				}
 			}
 

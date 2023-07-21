@@ -29,7 +29,7 @@ namespace UnrealBuildTool
 			XmlConfig.ApplyTo(BuildConfiguration);
 
 			// Parse all the targets being built
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false, Logger);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration, Logger);
 
 			await BuildTestsAsync(TargetDescriptors, BuildConfiguration, Logger);
 
