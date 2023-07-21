@@ -2261,13 +2261,20 @@ void UNiagaraComponent::OnChildDetached(USceneComponent* ChildComponent)
 
 bool UNiagaraComponent::IsVisible() const
 {
-	if (PoolingMethod == ENCPoolMethod::None || GetAttachParent() == nullptr)
+	// Pooled components are owned by the persistent level, so we need to check their current attached parent's level visibility, otherwise they ignore sublevel visibility
+	// Note we do not test the attached parents visibility as that doesn't match how Cascade works, and can cause visibility issues with gameplay cues who often attach to hidden components
+	if (PoolingMethod != ENCPoolMethod::None)
 	{
-		return Super::IsVisible();
+		if (USceneComponent* OwnerComponent = GetAttachParent())
+		{
+			if (OwnerComponent->CachedLevelCollection && !OwnerComponent->CachedLevelCollection->IsVisible())
+			{
+				return false;
+			}
+		}
 	}
 
-	// pooled components are owned by the persistent level, so we need to check their current attached parent visibility, otherwise they ignore sublevel visibility
-	return Super::IsVisible() && GetAttachParent()->IsVisible();
+	return Super::IsVisible();
 }
 
 void UNiagaraComponent::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
