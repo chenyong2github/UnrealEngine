@@ -49,7 +49,7 @@ class FLandscapeBrushCircle : public FLandscapeBrush
 	using Super = FLandscapeBrush;
 
 	// Components which previously we're under the area of the brush.
-	 TSet<TWeakObjectPtr<ULandscapeComponent>> BrushMaterialComponents;
+	TSet<TWeakObjectPtr<ULandscapeComponent>, TWeakObjectPtrSetKeyFuncs<TWeakObjectPtr<ULandscapeComponent>>> BrushMaterialComponents;
 	
 	// A Cache of previously created and now unused MIDs we can reuse if required.
 	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> BrushMaterialFreeInstances;
@@ -57,7 +57,8 @@ class FLandscapeBrushCircle : public FLandscapeBrush
 protected:
 	FVector2f LastMousePosition;
 	TObjectPtr<UMaterialInterface> BrushMaterial;
-	TMap<TWeakObjectPtr<ULandscapeComponent>, TWeakObjectPtr<UMaterialInstanceDynamic>> BrushMaterialInstanceMap;
+	TMap<TWeakObjectPtr<ULandscapeComponent>, TWeakObjectPtr<UMaterialInstanceDynamic>, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<ULandscapeComponent>, TWeakObjectPtr<UMaterialInstanceDynamic>>> BrushMaterialInstanceMap;
+
 	bool bCanPaint;
 
 	virtual float CalculateFalloff(float Distance, float Radius, float Falloff) = 0;
@@ -208,12 +209,22 @@ public:
 			}
 		}
 
+		// Remove invalid keys from BrushMaterialInstanceMap (weak pointers can be invalidated)
+		for (auto It= BrushMaterialInstanceMap.CreateIterator(); It; ++It)
+		{
+			if (!It.Key().IsValid())
+			{
+				BrushMaterialFreeInstances.Push(It.Value());
+				It.RemoveCurrent();
+			}
+		}
+
 		// Remove the material from any old components that are no longer in the region
 		TSet<ULandscapeComponent*> RemovedComponents = PreviousComponents.Difference(NewComponents);
 		for (ULandscapeComponent* RemovedComponent : RemovedComponents)
 		{
 			TWeakObjectPtr<UMaterialInstanceDynamic> RemovedMaterialInstance;
-			if (ensure(BrushMaterialInstanceMap.RemoveAndCopyValue(RemovedComponent, RemovedMaterialInstance)))
+			if (BrushMaterialInstanceMap.RemoveAndCopyValue(RemovedComponent, RemovedMaterialInstance))
 			{
 				BrushMaterialFreeInstances.Push(RemovedMaterialInstance);
 			}

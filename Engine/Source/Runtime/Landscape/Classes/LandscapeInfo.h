@@ -169,14 +169,14 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
-	TSet<TWeakObjectPtr<UObject>> PackagesToDeprecate;
+	TSet<TWeakObjectPtr<UObject>, TWeakObjectPtrSetKeyFuncs<TWeakObjectPtr<UObject>>> PackagesToDeprecate;
 
 	// SORTED list of all actors implementing the spline interface that are registered with this landscape info
 	UPROPERTY()
 	TArray<TScriptInterface<ILandscapeSplineInterface>> SplineActors;
 
 	// Not a property since this shouldn't be modified through transactions (no undo/redo)
-	TSet<TWeakObjectPtr<UPackage>> ModifiedPackages;
+	TSet<TWeakObjectPtr<UPackage>, TWeakObjectPtrSetKeyFuncs<TWeakObjectPtr<UPackage>>> ModifiedPackages;
 
 	bool bDirtyOnlyInMode;
 
