@@ -948,6 +948,10 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			ComputeLightGrid(GraphBuilder, bEnableClusteredLocalLights || bEnablePrepassLocalLights, SortedLightSet);
 		}
 	}
+	else
+	{
+		SetDummyForwardLightUniformBufferOnViews(GraphBuilder, ShaderPlatform, Views);
+	}
 
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem)

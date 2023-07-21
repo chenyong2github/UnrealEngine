@@ -147,6 +147,15 @@ TRDGUniformBufferRef<FForwardLightData> CreateDummyForwardLightUniformBuffer(FRD
 	return GraphBuilder.CreateUniformBuffer(ForwardLightData);
 }
 
+void SetDummyForwardLightUniformBufferOnViews(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform, TArray<FViewInfo>& Views)
+{
+	TRDGUniformBufferRef<FForwardLightData> ForwardLightUniformBuffer = CreateDummyForwardLightUniformBuffer(GraphBuilder, ShaderPlatform);
+	for (auto& View : Views)
+	{
+		View.ForwardLightingResources.SetUniformBuffer(ForwardLightUniformBuffer);
+	}
+}
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FForwardLightData, "ForwardLightData");
 
 FForwardLightData::FForwardLightData()
@@ -919,11 +928,7 @@ FComputeLightGridOutput FDeferredShadingSceneRenderer::GatherLightsAndComputeLig
 	
 	if (!bNeedLightGrid)
 	{
-		TRDGUniformBufferRef<FForwardLightData> ForwardLightUniformBuffer = CreateDummyForwardLightUniformBuffer(GraphBuilder, ShaderPlatform);
-		for (auto& View : Views)
-		{
-			View.ForwardLightingResources.SetUniformBuffer(ForwardLightUniformBuffer);
-		}
+		SetDummyForwardLightUniformBufferOnViews(GraphBuilder, ShaderPlatform, Views);
 		return Result;
 	}
 
