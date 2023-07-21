@@ -78,7 +78,7 @@ public:
 
 	//~ UActorComponent interface begin
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual void DestroyComponent(bool bPromoteChildren = false) override;
+	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	//~ UActorComponent interface end
 
 #endif // WITH_EDITOR
@@ -101,6 +101,7 @@ public:
 	/** Sets the unique name, which should match between sender and receiver of viewport textures */
 	UFUNCTION(BlueprintCallable, Category = "Sharing")
 	void SetUniqueName(const FString& NewUniqueName);
+
 
 protected:
 
@@ -176,6 +177,15 @@ private:
 
 	/** Called when the editor map is changed. Used to remove unwanted references to external maps. */
 	void HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType);
+
+	/** Unsubcribe from preview of all root actors */
+	void UnsubscribeFromAllPreviews();
+
+	/** Subscribe for preview of given root actor */
+	void SubscribeToPreview(ADisplayClusterRootActor* RootActor);
+
+	/** Unsubscribe from preview of given root actor */
+	void UnsubscribeFromPreview(ADisplayClusterRootActor* RootActor);
 
 #endif // WITH_EDITOR
 
