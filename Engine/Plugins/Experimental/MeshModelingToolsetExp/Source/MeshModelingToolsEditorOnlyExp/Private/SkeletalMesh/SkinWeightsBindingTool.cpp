@@ -105,12 +105,22 @@ void USkinWeightsBindingTool::Setup()
 								 ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
 
+	auto UpdateOccupancy = [this]()
+	{
+		Occupancy.Reset();
+		if (Properties->BindingType == ESkinWeightsBindType::GeodesicVoxel && Properties->bDebugDraw)
+		{
+			Occupancy = MakeShared<UE::Geometry::FOccupancyGrid3>(*OriginalMesh, Properties->VoxelResolution);
+		}
+	};
+	
 	// setup watchers
-	auto HandlePropertyChange = [this](const bool bUpdateOperator)
+	auto HandlePropertyChange = [this, UpdateOccupancy](const bool bUpdateOperator)
 	{
 		if (bUpdateOperator)
 		{
 			Preview->InvalidateResult();
+			UpdateOccupancy();
 		}
 		UpdateVisualization();
 	};
@@ -124,12 +134,7 @@ void USkinWeightsBindingTool::Setup()
 	Properties->WatchProperty(Properties->MaxInfluences,
 							  [HandlePropertyChange](int32) { HandlePropertyChange(true); });
 	Properties->WatchProperty(Properties->VoxelResolution,
-							  [this](int32)
-							  {
-							  	Occupancy = MakeShared<UE::Geometry::FOccupancyGrid3>(*OriginalMesh, Properties->VoxelResolution);
-								Preview->InvalidateResult();
-								UpdateVisualization();
-							  });
+							  [HandlePropertyChange](int32) { HandlePropertyChange(true); });
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
@@ -147,7 +152,7 @@ void USkinWeightsBindingTool::Setup()
 	Preview->PreviewMesh->SetShadowsEnabled(false);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
-	Occupancy = MakeShared<UE::Geometry::FOccupancyGrid3>(*OriginalMesh, Properties->VoxelResolution);
+	UpdateOccupancy();
 	
 	UpdateVisualization(/*bForce=*/true);
 	
@@ -256,9 +261,8 @@ void USkinWeightsBindingTool::Render(IToolsContextRenderAPI* RenderAPI)
 			if (bShowBoundary && Domain == FOccupancyGrid3::EDomain::Boundary)
 			{
 				FBox Box{Occupancy->GetCellBoxFromIndex(OccupancyIndex)};
-				DrawBox(RenderAPI, Transform, Box, FLinearColor(1.0, 1.0, 0.0, 0.5), 0.5f);
+				DrawBox(RenderAPI, Transform, Box, FLinearColor(1.0, 1.0, 0.0, 0.5), 0.0f);
 			}
-			
 		}
 	}
 	

@@ -556,21 +556,24 @@ void FSkinBindingOp::CreateSkinWeights_GeodesicVoxel(
 			const FVector3i CellIndex = Occupancy.GetCellIndexFromPoint(Pos);
 			const FVector3d CellCenter{Occupancy.GetCellCenterFromIndex(CellIndex)};
 
-			float Distance = BoneDistance[CellIndex];
-			Distance += FVector3d::Distance(CellCenter, Pos);
+			if (ensure(BoneDistance.IsValidIndex(CellIndex)))
+			{
+				float Distance = BoneDistance[CellIndex];
+				Distance += FVector3d::Distance(CellCenter, Pos);
 				
-			// Normalize the distance by the diagonal size of the bbox to maintain scale invariance.
-			float Weight = Distance / DiagonalBounds;
+				// Normalize the distance by the diagonal size of the bbox to maintain scale invariance.
+				float Weight = Distance / DiagonalBounds;
 
-			// Avoid div-by-zero but allow for the possibility that multiple bones may
-			// touch this vertex.
-			Weight = FMath::Max(Weight, UE_KINDA_SMALL_NUMBER);
+				// Avoid div-by-zero but allow for the possibility that multiple bones may
+				// touch this vertex.
+				Weight = FMath::Max(Weight, UE_KINDA_SMALL_NUMBER);
 
-			// Compute the actual weight, factoring in the stiffness value. W = (1/S(D))^2
-			// Where S(x) is the stiffness function.
-			Weight = FMath::Square(1.0f / ComputeWeightStiffness(Weight, InStiffness));
+				// Compute the actual weight, factoring in the stiffness value. W = (1/S(D))^2
+				// Where S(x) is the stiffness function.
+				Weight = FMath::Square(1.0f / ComputeWeightStiffness(Weight, InStiffness));
 
-			Weights[VertexIdx * TransformHierarchy.Num() + BoneIndex] = Weight;
+				Weights[VertexIdx * TransformHierarchy.Num() + BoneIndex] = Weight;
+			}
 		}
 	});	
 

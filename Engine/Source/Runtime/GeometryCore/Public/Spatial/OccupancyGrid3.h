@@ -59,8 +59,8 @@ struct FOccupancyGrid3
 			FVector3i(1, 1, 0),
 			FVector3i(1, 1, 1),
 		};
-		
-		for (int32 OccupancyId = 0; OccupancyId < Occupancy.Size(); OccupancyId++)
+
+		ParallelFor(Occupancy.Size(), [&](const int32 OccupancyId)
 		{
 			const FVector3i OccupancyIndex(Occupancy.ToIndex(OccupancyId));
 			const int32 Count = Algo::CountIf(CornerOffsets, [&WindingGrid, OccupancyIndex](FVector3i CornerOffset)
@@ -77,7 +77,7 @@ struct FOccupancyGrid3
 			{
 				Occupancy[OccupancyIndex] = EDomain::Boundary;
 			}
-		}
+		});
 
 		// Make sure we include all the vertices of the mesh as a part of the boundary, if
 		// the vertex areas are marked as being exterior.
@@ -85,9 +85,13 @@ struct FOccupancyGrid3
 		{
 			const FVector3d& Pos = InMesh.GetVertex(VertexIdx);
 			const FVector3i OccupancyIndex = GetCellIndexFromPoint(FVector(Pos));
-			if (Occupancy[OccupancyIndex] == EDomain::Exterior)
+
+			if (ensure(Occupancy.IsValidIndex(OccupancyIndex)))
 			{
-				Occupancy[OccupancyIndex] = EDomain::Boundary;
+				if (Occupancy[OccupancyIndex] == EDomain::Exterior)
+				{
+					Occupancy[OccupancyIndex] = EDomain::Boundary;
+				}
 			}
 		}
 	}
@@ -99,8 +103,7 @@ struct FOccupancyGrid3
 	{
 		FVector3f PP(InPoint);
 		PP -= GridOrigin;
-		PP += CellMidPoint;
-
+		
 		return { FMath::FloorToInt(PP.X / CellSize),
 				FMath::FloorToInt(PP.Y / CellSize),
 				FMath::FloorToInt(PP.Z / CellSize) };
@@ -110,7 +113,9 @@ struct FOccupancyGrid3
 	/// in the winding number grid, from which the occupancy got computed.
 	FVector3f GetCellCenterFromIndex(const FVector3i &Index) const
 	{
-		return {float(Index.X) * CellSize + GridOrigin.X, float(Index.Y) * CellSize + GridOrigin.Y, float(Index.Z) * CellSize + GridOrigin.Z};
+		return {float(Index.X) * CellSize + GridOrigin.X + CellMidPoint.X,
+				float(Index.Y) * CellSize + GridOrigin.Y + CellMidPoint.Y,
+				float(Index.Z) * CellSize + GridOrigin.Z + CellMidPoint.Z};
 	}
 
 	/// Given an index into the occupancy grid, returns the bbox that represents the cell in the winding number
