@@ -344,8 +344,9 @@ EPCGChangeType UPCGEditorGraphNodeBase::UpdateGridSizeVisualisation(UPCGComponen
 	}
 
 	EPCGChangeType ChangeType = EPCGChangeType::None;
+	const uint32 InspectingGridSize = (InComponentBeingDebugged && InComponentBeingDebugged->IsLocalComponent()) ?
+		InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
 
-	const uint32 InspectingGridSize = InComponentBeingDebugged ? InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
 	if (InspectingGridSize == PCGHiGenGrid::UninitializedGridSize())
 	{
 		if (IsDisplayAsDisabledForced())

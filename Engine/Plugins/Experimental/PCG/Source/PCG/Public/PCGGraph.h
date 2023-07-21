@@ -136,7 +136,7 @@ public:
 	// Default grid size for generation. For hierarchical generation, nodes outside of grid size graph ranges will generate on this grid.
 	EPCGHiGenGrid GetDefaultGrid() const { ensure(IsHierarchicalGenerationEnabled()); return HiGenGridSize; }
 	uint32 GetDefaultGridSize() const { ensure(IsHierarchicalGenerationEnabled()); return PCGHiGenGrid::GridToGridSize(HiGenGridSize); }
-	bool IsHierarchicalGenerationEnabled() const { return bHierarchicalGenerationEnabled; }
+	bool IsHierarchicalGenerationEnabled() const { return bUseHierarchicalGeneration; }
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
@@ -266,9 +266,9 @@ protected:
 #endif // WITH_EDITOR
 
 	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bHierarchicalGenerationEnabled = false;
+	bool bUseHierarchicalGeneration = false;
 
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName = "HiGen Default Grid Size", EditCondition = "bHierarchicalGenerationEnabled"))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName = "HiGen Default Grid Size", EditCondition = "bUseHierarchicalGeneration"))
 	EPCGHiGenGrid HiGenGridSize = EPCGHiGenGrid::Grid256;
 
 	/** Execution grid size for nodes. */
