@@ -39,13 +39,15 @@ public class MTLPP : ModuleRules
 				else
 				{
 					// Use development mtlpp library
-					PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlpp.a");
+					string LibExt = (Target.Platform == UnrealTargetPlatform.IOS && Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+					PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlpp" + LibExt);
 				}
 			}
 			// A development build that uses mtlpp compiled for release but with validation code enabled 
 			else if (Target.Configuration == UnrealTargetConfiguration.Development || Target.Configuration == UnrealTargetConfiguration.DebugGame)
 			{
-				PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlpp.a");
+				string LibExt = (Target.Platform == UnrealTargetPlatform.IOS && Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+				PublicAdditionalLibraries.Add(MTLPPPath + "lib/" + PlatformName + "/libmtlpp" + LibExt);
 			}
 			// A shipping configuration that disables all validation and is aggressively optimised.
 			else
