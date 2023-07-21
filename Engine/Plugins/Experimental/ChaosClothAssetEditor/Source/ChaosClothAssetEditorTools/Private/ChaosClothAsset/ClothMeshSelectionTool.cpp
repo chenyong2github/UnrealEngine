@@ -28,8 +28,8 @@
 
 const FToolTargetTypeRequirements& UClothMeshSelectionToolBuilder::GetTargetRequirements() const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UPrimitiveComponentBackedTarget::StaticClass()});
+	static FToolTargetTypeRequirements TypeRequirements(
+		UPrimitiveComponentBackedTarget::StaticClass());
 	return TypeRequirements;
 }
 
