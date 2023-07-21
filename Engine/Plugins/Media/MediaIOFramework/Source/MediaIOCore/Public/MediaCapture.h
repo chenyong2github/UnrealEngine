@@ -168,6 +168,7 @@ struct MEDIAIOCORE_API FMediaCaptureOptions
 	FMediaCaptureOptions();
 
 public:
+	void PostSerialize(const FArchive& Ar);
 
 	/** If source texture's size change, auto restart capture to follow source resolution if implementation supports it. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
@@ -734,3 +735,11 @@ private:
 	friend class UE::MediaCaptureData::FBufferCaptureFrame;
 };
 
+
+template<> struct TStructOpsTypeTraits<FMediaCaptureOptions> : public TStructOpsTypeTraitsBase2<FMediaCaptureOptions>
+{
+	enum
+	{
+		WithPostSerialize = true
+	};
+};

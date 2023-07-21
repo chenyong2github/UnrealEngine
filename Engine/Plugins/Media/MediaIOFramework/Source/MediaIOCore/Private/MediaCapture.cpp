@@ -42,6 +42,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "IAssetViewport.h"
 #include "LevelEditor.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif //WITH_EDITOR
 
@@ -111,6 +112,21 @@ FMediaCaptureOptions::FMediaCaptureOptions()
 	, NumberOfFramesToCapture(-1)
 {
 
+}
+
+void FMediaCaptureOptions::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITOR
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::MediaCaptureNewResizeMethods)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ResizeMethod = bResizeSourceBuffer_DEPRECATED ? EMediaCaptureResizeMethod::ResizeSource : EMediaCaptureResizeMethod::ResizeInRenderPass;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+#endif
 }
 
 

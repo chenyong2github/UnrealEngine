@@ -139,6 +139,9 @@ struct FUE5ReleaseStreamObjectVersion
 		// Changed default tangent behavior for new dynamic mesh components
 		DynamicMeshComponentsDefaultUseExternalTangents,
 		
+		// Added resize methods to media capture
+		MediaCaptureNewResizeMethods,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
