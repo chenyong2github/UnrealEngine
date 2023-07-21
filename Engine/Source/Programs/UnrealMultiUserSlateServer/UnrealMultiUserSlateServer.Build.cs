@@ -43,5 +43,7 @@ public class UnrealMultiUserSlateServer : ModuleRules
 				}
 			);
 		}
+
+		ShortName = "UEMultiUsrSltServ";
 	}
 }
