@@ -52,6 +52,8 @@ bool FMaterialOverrideNanite::FixupLegacySoftReference(UObject* OptionalOwner)
 	OverrideMaterialRef.Reset();
 	return true;
 
+#else
+	return false;
 #endif // WITH_EDITOR
 }
 
