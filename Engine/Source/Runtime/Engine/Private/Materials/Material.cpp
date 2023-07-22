@@ -1054,6 +1054,8 @@ void UMaterial::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITOR
 	GMaterialsWithDirtyUsageFlags.RemoveAnnotation(this);
+
+	NaniteOverrideMaterial.FixupLegacySoftReference(this);
 #endif
 }
 
@@ -3735,8 +3737,6 @@ void UMaterial::PostLoad()
 	}
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedMaterialResources.Empty();
-
-	NaniteOverrideMaterial.FixupLegacySoftReference(this);
 
 #if WITH_EDITORONLY_DATA
 	const FPackageFileVersion UEVer = GetLinkerUEVersion();

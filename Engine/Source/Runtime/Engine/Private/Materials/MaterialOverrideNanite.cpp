@@ -29,24 +29,7 @@ bool FMaterialOverrideNanite::FixupLegacySoftReference(UObject* OptionalOwner)
 	}
 
 	// When we are routing PostLoad, LoadSynchronous can return a valid object pointer when the asset has not loaded.
-	// We can still store the TObjectPtr, but we need to ensure that the material re-inits on completion of the async load.
-	if (OverrideMaterialEditor->HasAnyFlags(RF_NeedLoad))
-	{
-		const FString LongPackageName = OverrideMaterialRef.GetLongPackageName();
-		UE_LOG(LogMaterial, Display, TEXT("Async loading NaniteOverrideMaterial '%s'"), *LongPackageName);
-		LoadPackageAsync(LongPackageName, FLoadPackageAsyncDelegate::CreateLambda(
-			[WeakOverrideMaterial = MakeWeakObjectPtr(OverrideMaterialEditor)](const FName&, UPackage*, EAsyncLoadingResult::Type)
-			{
-				if (UMaterialInterface* Material = WeakOverrideMaterial.Get())
-				{
-					// Use a MaterialUpdateContext to make sure dependent interfaces (e.g. MIDs) update as well
-					FMaterialUpdateContext UpdateContext;
-					UpdateContext.AddMaterialInterface(Material);
-
-					Material->ForceRecompileForRendering();
-				}
-			}));
-	}
+	checkf(!OverrideMaterialEditor->HasAnyFlags(RF_NeedLoad), TEXT("Do not call FMaterialOverrideNanite::FixupLegacySoftReference during PostLoad"))
 
 	// Reset the deprecated ref.
 	OverrideMaterialRef.Reset();
@@ -136,6 +119,7 @@ void FMaterialOverrideNanite::SetOverrideMaterial(UMaterialInterface* InMaterial
 {
 #if WITH_EDITORONLY_DATA
 	OverrideMaterialEditor = InMaterial;
+	OverrideMaterialRef.Reset();
 #else
 	OverrideMaterial = InMaterial;
 #endif

@@ -785,7 +785,7 @@ void UMaterialEditorInstanceConstant::CopyToSourceInstance(const bool bForceStat
 		// Copy phys material back to source instance
 		SourceInstance->PhysMaterial = PhysMaterial;
 		SourceInstance->NaniteOverrideMaterial.bEnableOverride = bNaniteOverride;
-		SourceInstance->NaniteOverrideMaterial.OverrideMaterialEditor = NaniteOverrideMaterial;
+		SourceInstance->NaniteOverrideMaterial.SetOverrideMaterialEditor(NaniteOverrideMaterial);
 
 		// Copy the Lightmass settings...
 		SourceInstance->SetOverrideCastShadowAsMasked(LightmassSettings.CastShadowAsMasked.bOverride);
@@ -852,7 +852,7 @@ void UMaterialEditorInstanceConstant::SetSourceInstance(UMaterialInstanceConstan
 	Parent = SourceInstance->Parent;
 	PhysMaterial = SourceInstance->PhysMaterial;
 	bNaniteOverride = SourceInstance->NaniteOverrideMaterial.bEnableOverride;
-	NaniteOverrideMaterial = SourceInstance->NaniteOverrideMaterial.OverrideMaterialEditor;
+	NaniteOverrideMaterial = SourceInstance->NaniteOverrideMaterial.GetOverrideMaterialEditor();
 
 	CopyBasePropertiesFromParent();
 
