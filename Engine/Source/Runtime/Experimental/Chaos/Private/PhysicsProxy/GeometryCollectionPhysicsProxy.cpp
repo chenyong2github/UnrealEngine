@@ -744,6 +744,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 		{
 			bool bIsRoot = (GameThreadCollection.Parent[TransformIndex] == INDEX_NONE);
 			GameThreadCollection.Active[TransformIndex] = bIsRoot;
+			PhysicsThreadCollection.Active[TransformIndex] = bIsRoot;
 
 			if (FParticle* P = GTParticles[TransformIndex].Get())
 			{
