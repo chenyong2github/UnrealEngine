@@ -44,10 +44,10 @@ struct FMaterialOverrideNanite
 
 	/** 
 	 * Resolve and fixup anylegacy soft pointer. 
-	 * Call this from the owning object's PreSave(). 
+	 * Call this from the owning object's PostLoad(). 
 	 * Returns true if any fixup was done.
 	 */
-	ENGINE_API bool FixupLegacySoftReference(UObject* OptionalOwner = nullptr);
+	bool FixupLegacySoftReference(UObject* OptionalOwner = nullptr);
 
 	/** 
 	 * Stored flag to set whether we apply this override.  
@@ -58,21 +58,6 @@ struct FMaterialOverrideNanite
 	bool bEnableOverride = true;
 
 #if WITH_EDITORONLY_DATA
-	UMaterialInterface* GetOverrideMaterialEditor()
-	{
-		FixupLegacySoftReference();
-		return OverrideMaterialEditor;
-	}
-
-	void SetOverrideMaterialEditor(UMaterialInterface* NewOverride)
-	{
-		OverrideMaterialEditor = NewOverride;
-		OverrideMaterialRef.Reset();
-	}
-#endif
-
-protected:
-#if WITH_EDITORONLY_DATA
 	/** 
 	 * EditorOnly version of the OverrideMaterial reference.
 	 * This is a hard reference, but is editoronly. We rely on -skiponlyeditoronly to avoid pulling this editoronly hard reference into the cook.
@@ -81,6 +66,7 @@ protected:
 	TObjectPtr<UMaterialInterface> OverrideMaterialEditor;
 #endif
 
+protected:
 	/** 
 	 * Reference to our override material.
 	 * This is only non-null in cooked packages, and is only non-null for cooked platforms that support nanite.	

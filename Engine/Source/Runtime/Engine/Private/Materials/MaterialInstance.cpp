@@ -3023,6 +3023,8 @@ void UMaterialInstance::PostLoad()
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedMaterialResources.Empty();
 
+	NaniteOverrideMaterial.FixupLegacySoftReference(this);
+
 	AssertDefaultMaterialsPostLoaded();
 
 	// Ensure that the instance's parent is PostLoaded before the instance.
@@ -4673,8 +4675,6 @@ void UMaterialInstance::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	// @TODO : Remove any duplicate data from parent? Aims at improving change propagation (if controlled by parent)
 	Super::PreSave(ObjectSaveContext);
-
-	NaniteOverrideMaterial.FixupLegacySoftReference(this);
 }
 
 float UMaterialInstance::GetTextureDensity(FName TextureName, const struct FMeshUVChannelInfo& UVChannelData) const
