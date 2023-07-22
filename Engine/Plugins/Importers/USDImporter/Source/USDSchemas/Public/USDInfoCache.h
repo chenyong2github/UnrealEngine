@@ -91,6 +91,7 @@ public:
 	void LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset);
 
 	TArray<TWeakObjectPtr<UObject>> RemoveAllAssetPrimLinks(const UE::FSdfPath& Path);
+	void RemoveAllAssetPrimLinks();
 
 	TArray<TWeakObjectPtr<UObject>> GetAllAssetsForPrim(const UE::FSdfPath& Path) const;
 

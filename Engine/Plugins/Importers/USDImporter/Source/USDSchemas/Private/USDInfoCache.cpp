@@ -1480,6 +1480,21 @@ TArray<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE:
 	return Assets;
 }
 
+void FUsdInfoCache::RemoveAllAssetPrimLinks()
+{
+	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
+	if (!ImplPtr)
+	{
+		return;
+	}
+	FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	UE_LOG(LogUsd, Verbose, TEXT("Removing all asset prim links"));
+
+	ImplPtr->PrimPathToAssets.Empty();
+	ImplPtr->AssetToPrimPaths.Empty();
+}
+
 TArray<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfPath& Path) const
 {
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
