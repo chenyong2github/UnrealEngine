@@ -42,6 +42,10 @@ $ bLogArtifactCacheMisses : If true, log all artifact cache misses as informatio
 
 $ ArtifactDirectory : Location to store the artifacts.
 
+$ bUseUnityBuild : Whether to unify C++ code into larger files for faster compilation.
+
+$ bForceUnityBuild : Whether to force C++ source files to be combined into larger files for faster compilation.
+
 $ bDebugBuildsActuallyUseDebugCRT : Enables the debug C++ runtime (CRT) for debug builds. By default we always use the release runtime, since the debug version isn't particularly useful when debugging Unreal Engine projects, and linking against the debug CRT libraries forces our third party library dependencies to also be compiled using the debug CRT (and often perform more slowly). Often it can be inconvenient to require a separate copy of the debug versions of third party static libraries simply so that you can debug your program's code.
 
 $ bLegalToDistributeBinary : Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders with special restrictions (eg. CarefullyRedist, NotForLicensees, NoRedist).
@@ -55,10 +59,6 @@ $ bUseInlining : Enable inlining for all modules.
 $ bUseDebugLiveCodingConsole : Whether to enable support for live coding
 
 $ bUseXGEController : Whether the XGE controller worker and modules should be included in the engine build. These are required for distributed shader compilation using the XGE interception interface.
-
-$ bUseUnityBuild : Whether to unify C++ code into larger files for faster compilation.
-
-$ bForceUnityBuild : Whether to force C++ source files to be combined into larger files for faster compilation.
 
 $ bMergeModuleAndGeneratedUnityFiles : Whether to merge module and generated unity files for faster compilation.
 
