@@ -558,6 +558,10 @@ public:
 	 */
 	virtual UMaterialInterface* GetNaniteOverride(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const PURE_VIRTUAL(UMaterialInterface::GetNaniteOverride, return nullptr;);
 
+	/** Get the associated nanite override material. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	UMaterialInterface* GetNaniteOverideMaterial() const { return GetNaniteOverride(); }
+
 	/**
 	 * Precache PSOs which can be used for this material for the given vertex factory type and material paramaters
 	 */

@@ -18,7 +18,7 @@ enum EShaderPlatform : uint16;
  * We handle removing the override material and its dependencies from the cook on platforms where we can determine 
  * that the override material can never be used.
  */
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FMaterialOverrideNanite
 {
 	GENERATED_BODY()
