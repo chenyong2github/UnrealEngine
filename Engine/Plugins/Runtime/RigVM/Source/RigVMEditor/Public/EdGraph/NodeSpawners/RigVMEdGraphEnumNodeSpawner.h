@@ -9,15 +9,13 @@
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Blueprint.h"
-#include "BlueprintActionFilter.h"
-#include "BlueprintNodeSignature.h"
-#include "BlueprintFieldNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphNodeSpawner.h"
 #include "RigVMEdGraphEnumNodeSpawner.generated.h"
 
 class URigVMEdGraphNode;
 
 UCLASS(Transient)
-class RIGVMEDITOR_API URigVMEdGraphEnumNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphEnumNodeSpawner : public URigVMEdGraphNodeSpawner
 {
 	GENERATED_BODY()
 

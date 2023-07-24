@@ -14,6 +14,7 @@
 #include "RigVMBlueprint.h"
 #include "PropertyPathHelpers.h"
 #include "RigVMBlueprintUtils.h"
+#include "../../../RigVMEditor/Public/RigVMEditorModule.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
@@ -1393,9 +1394,8 @@ FSlateIcon URigVMEdGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 void URigVMEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
 #if WITH_EDITOR
-	// toodoooo
-	// const URigVMEdGraphSchema* Schema = Cast<URigVMEdGraphSchema>(GetSchema());
-	// IControlRigEditorModule::Get().GetContextMenuActions(Schema, Menu, Context);
+	const URigVMEdGraphSchema* Schema = Cast<URigVMEdGraphSchema>(GetSchema());
+	IRigVMEditorModule::Get().GetContextMenuActions(Schema, Menu, Context);
 #endif
 }
 

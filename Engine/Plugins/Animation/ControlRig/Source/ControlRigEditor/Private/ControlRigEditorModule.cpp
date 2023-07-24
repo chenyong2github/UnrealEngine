@@ -36,7 +36,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "EdGraphUtilities.h"
 #include "Graph/ControlRigGraphPanelPinFactory.h"
-#include "ControlRigBlueprintCommands.h"
+#include <Editor/ControlRigEditorCommands.h>
 #include "ControlRigHierarchyCommands.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/ControlRigEditorEditMode.h"
@@ -100,7 +100,7 @@ DEFINE_LOG_CATEGORY(LogControlRigEditor);
 void FControlRigEditorModule::StartupModule()
 {
 	FControlRigEditModeCommands::Register();
-	FControlRigBlueprintCommands::Register();
+	FControlRigEditorCommands::Register();
 	FControlRigHierarchyCommands::Register();
 	FControlRigEditorStyle::Get();
 
@@ -1283,7 +1283,7 @@ void FControlRigEditorModule::ExtendAnimSequenceMenu()
 TSharedRef<IControlRigEditor> FControlRigEditorModule::CreateControlRigEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, class UControlRigBlueprint* InBlueprint)
 {
 	TSharedRef< FControlRigEditor > NewControlRigEditor(new FControlRigEditor());
-	NewControlRigEditor->InitControlRigEditor(Mode, InitToolkitHost, InBlueprint);
+	NewControlRigEditor->InitRigVMEditor(Mode, InitToolkitHost, InBlueprint);
 	return NewControlRigEditor;
 }
 

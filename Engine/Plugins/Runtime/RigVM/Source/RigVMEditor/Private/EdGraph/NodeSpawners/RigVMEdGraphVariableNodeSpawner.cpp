@@ -62,6 +62,11 @@ void URigVMEdGraphVariableNodeSpawner::Prime()
 
 bool URigVMEdGraphVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
 {
+	if(URigVMEdGraphNodeSpawner::IsTemplateNodeFilteredOut(Filter))
+	{
+		return true;
+	}
+
 	if (Blueprint.IsValid())
 	{
 		if (!Filter.Context.Blueprints.Contains(Blueprint.Get()))
@@ -89,12 +94,12 @@ bool URigVMEdGraphVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActio
 			}
 		}
 	}
-	return Super::IsTemplateNodeFilteredOut(Filter);
+	return false;
 }
 
 FBlueprintNodeSignature URigVMEdGraphVariableNodeSpawner::GetSpawnerSignature() const
 {
-	return FBlueprintNodeSignature(FString("RigUnit=" + ExternalVariable.Name.ToString()));
+	return FBlueprintNodeSignature(FString("ExternalVariable=" + ExternalVariable.Name.ToString()));
 }
 
 FBlueprintActionUiSpec URigVMEdGraphVariableNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const

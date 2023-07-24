@@ -34,6 +34,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Editor/Transactor.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "RigVMEditorModule.h"
 #endif//WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "RigVMBlueprint"
@@ -101,6 +102,7 @@ bool FRigVMOldPublicFunctionData::IsMutable() const
 
 FSoftObjectPath URigVMBlueprint::PreDuplicateAssetPath;
 FSoftObjectPath URigVMBlueprint::PreDuplicateHostPath;
+TArray<URigVMBlueprint*> URigVMBlueprint::sCurrentlyOpenedRigVMBlueprints;
 
 URigVMBlueprint::URigVMBlueprint()
 {
@@ -677,6 +679,13 @@ URigVMEditorSettings* URigVMBlueprint::GetRigVMEditorSettings() const
 {
 	return GetMutableDefault<URigVMEditorSettings>(GetRigVMEditorSettingsClass());
 }
+
+#if WITH_EDITOR
+IRigVMEditorModule* URigVMBlueprint::GetEditorModule() const
+{
+	return &IRigVMEditorModule::Get();
+}
+#endif
 
 void URigVMBlueprint::Serialize(FArchive& Ar)
 {
@@ -2332,16 +2341,18 @@ void URigVMBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRe
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	// todooooo
-	// IControlRigEditorModule::Get().GetTypeActions((URigVMBlueprint*)this, ActionRegistrar);
+#if WITH_EDITOR
+	GetEditorModule()->GetTypeActions((URigVMBlueprint*)this, ActionRegistrar);
+#endif
 }
 
 void URigVMBlueprint::GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	// todooooo
-	// IControlRigEditorModule::Get().GetInstanceActions((URigVMBlueprint*)this, ActionRegistrar);
+#if WITH_EDITOR
+	GetEditorModule()->GetInstanceActions((URigVMBlueprint*)this, ActionRegistrar);
+#endif
 }
 
 void URigVMBlueprint::SetObjectBeingDebugged(UObject* NewObject)

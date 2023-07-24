@@ -75,6 +75,11 @@ FBlueprintNodeSignature URigVMEdGraphTemplateNodeSpawner::GetSpawnerSignature() 
 
 bool URigVMEdGraphTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
 {
+	if(URigVMEdGraphNodeSpawner::IsTemplateNodeFilteredOut(Filter))
+	{
+		return true;
+	}
+
 	bool bFilteredOut = true;
 	for (UEdGraphPin* Pin : Filter.Context.Pins)
 	{
@@ -133,8 +138,8 @@ bool URigVMEdGraphTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActio
 			}
 		}
 	}
-	
-	return Super::IsTemplateNodeFilteredOut(Filter);
+
+	return false;
 }
 
 FBlueprintActionUiSpec URigVMEdGraphTemplateNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const

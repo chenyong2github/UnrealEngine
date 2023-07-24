@@ -59,7 +59,6 @@ protected:
 
 	friend class URigVMTemplateNode;
 	friend class URigVMController;
-	friend class UControlRigBlueprint;
 };
 
 /**
@@ -169,7 +168,6 @@ protected:
 	mutable int32 ResolvedPermutation;
 
 	friend class URigVMController;
-	friend class UControlRigBlueprint;
 	friend class URigVMBlueprint;
 	friend struct FRigVMSetTemplateFilteredPermutationsAction;
 	friend struct FRigVMSetPreferredTemplatePermutationsAction;

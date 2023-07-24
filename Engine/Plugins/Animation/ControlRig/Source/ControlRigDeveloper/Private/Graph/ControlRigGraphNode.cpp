@@ -14,14 +14,5 @@ UControlRigGraphNode::UControlRigGraphNode()
 {
 }
 
-void UControlRigGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
-{
-#if WITH_EDITOR
-	// todo - part of this is likely generic 
-	const UControlRigGraphSchema* Schema = Cast<UControlRigGraphSchema>(GetSchema());
-	IControlRigEditorModule::Get().GetContextMenuActions(Schema, Menu, Context);
-#endif
-}
-
 #undef LOCTEXT_NAMESPACE
 

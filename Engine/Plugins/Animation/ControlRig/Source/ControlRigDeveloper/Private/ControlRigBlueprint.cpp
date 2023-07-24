@@ -386,6 +386,13 @@ UClass* UControlRigBlueprint::GetRigVMEditorSettingsClass() const
 	return UControlRigEditorSettings::StaticClass();
 }
 
+#if WITH_EDITOR
+IRigVMEditorModule* UControlRigBlueprint::GetEditorModule() const
+{
+	return &IControlRigEditorModule::Get();
+}
+#endif
+
 TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNewBlueprintName)
 {
 	TArray<FString> InternalCommands;

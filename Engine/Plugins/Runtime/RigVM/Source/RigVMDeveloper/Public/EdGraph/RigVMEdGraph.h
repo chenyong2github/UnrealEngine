@@ -104,8 +104,7 @@ private:
 #endif
 	friend class URigVMEdGraphNode;
 	friend class URigVMBlueprint;
-	friend class UControlRigGraphNode;
-	friend class FControlRigEditor;
+	friend class FRigVMEditor;
 	friend class SRigVMGraphNode;
 	friend class URigVMBlueprint;
 

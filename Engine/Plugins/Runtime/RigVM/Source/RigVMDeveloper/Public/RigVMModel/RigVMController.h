@@ -974,7 +974,7 @@ public:
 	FRigVMUnitNodeCreatedContext& GetUnitNodeCreatedContext() { return UnitNodeCreatedContext; }
 
 	// Wires the unit node delegates to the default controller delegates.
-	// this is used only within the Control Rig Editor currently.
+	// this is used only within the RigVM Editor currently.
 	void SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable, FString)> InCreateExternalVariableDelegate);
 	void ResetUnitNodeDelegates();
 
@@ -1386,29 +1386,29 @@ private:
 	TMap<FString, FString> InputPinRedirectors;
 	TMap<FString, FString> OutputPinRedirectors;
 
-	struct FControlRigStructPinRedirectorKey
+	struct FRigVMStructPinRedirectorKey
 	{
-		FControlRigStructPinRedirectorKey()
+		FRigVMStructPinRedirectorKey()
 		{
 		}
 
-		FControlRigStructPinRedirectorKey(UScriptStruct* InScriptStruct, const FString& InPinPathInNode)
+		FRigVMStructPinRedirectorKey(UScriptStruct* InScriptStruct, const FString& InPinPathInNode)
 		: Struct(InScriptStruct)
 		, PinPathInNode(InPinPathInNode)
 		{
 		}
 
-		friend uint32 GetTypeHash(const FControlRigStructPinRedirectorKey& Cache)
+		friend uint32 GetTypeHash(const FRigVMStructPinRedirectorKey& Cache)
 		{
 			return HashCombine(GetTypeHash(Cache.Struct), GetTypeHash(Cache.PinPathInNode));
 		}
 
-		bool operator ==(const FControlRigStructPinRedirectorKey& Other) const
+		bool operator ==(const FRigVMStructPinRedirectorKey& Other) const
 		{
 			return Struct == Other.Struct && PinPathInNode == Other.PinPathInNode;
 		}
 
-		bool operator !=(const FControlRigStructPinRedirectorKey& Other) const
+		bool operator !=(const FRigVMStructPinRedirectorKey& Other) const
 		{
 			return Struct != Other.Struct || PinPathInNode != Other.PinPathInNode;
 		}
@@ -1417,7 +1417,7 @@ private:
 		FString PinPathInNode;
 	};
 
-	static TMap<FControlRigStructPinRedirectorKey, FString> PinPathCoreRedirectors;
+	static TMap<FRigVMStructPinRedirectorKey, FString> PinPathCoreRedirectors;
 	FCriticalSection PinPathCoreRedirectorsLock;
 
 	FRigVMUnitNodeCreatedContext UnitNodeCreatedContext;

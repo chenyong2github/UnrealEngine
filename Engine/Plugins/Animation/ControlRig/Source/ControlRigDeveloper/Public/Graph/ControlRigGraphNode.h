@@ -39,9 +39,6 @@ public:
 
 	UControlRigGraphNode();
 
-	// URigVMEdGraphNode
-	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
-
 private:
 
 	friend class SRigVMGraphNode;

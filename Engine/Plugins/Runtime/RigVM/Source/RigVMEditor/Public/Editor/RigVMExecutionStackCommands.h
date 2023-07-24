@@ -10,7 +10,7 @@ class RIGVMEDITOR_API FRigVMExecutionStackCommands : public TCommands<FRigVMExec
 public:
 	FRigVMExecutionStackCommands() : TCommands<FRigVMExecutionStackCommands>
 	(
-		"ControlRigStack",
+		"RigVMExecutionStack",
 		NSLOCTEXT("Contexts", "RigStack", "Execution Stack"),
 		NAME_None, // "MainFrame" // @todo Fix this crash
 		"RigVMEditorStyle" // Icon Style Set

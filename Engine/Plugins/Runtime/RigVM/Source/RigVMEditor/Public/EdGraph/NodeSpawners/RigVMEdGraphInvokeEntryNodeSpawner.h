@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BlueprintActionFilter.h"
-#include "BlueprintNodeSignature.h"
-#include "BlueprintFieldNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphNodeSpawner.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMEdGraphInvokeEntryNodeSpawner.generated.h"
 
@@ -13,7 +11,7 @@ class URigVMEdGraphNode;
 class URigVMBlueprint;
 
 UCLASS(Transient)
-class RIGVMEDITOR_API URigVMEdGraphInvokeEntryNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphInvokeEntryNodeSpawner : public URigVMEdGraphNodeSpawner
 {
 	GENERATED_BODY()
 

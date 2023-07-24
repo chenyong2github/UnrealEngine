@@ -25,10 +25,12 @@ public class RigVMEditor : ModuleRules
                 "KismetCompiler",
                 "KismetWidgets",
                 "AnimationWidgets",
+                "ApplicationCore",
                 "AppFramework",
                 "AnimationCore",
                 "PropertyEditor",
                 "ToolMenus",
+                "MessageLog",
             }
         );
     }

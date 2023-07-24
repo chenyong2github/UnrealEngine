@@ -76,7 +76,6 @@ private:
 	
 
 	friend class URigVMController;
-	friend class UControlRigBlueprint;
 	friend class URigVMBlueprint;
 	friend struct FRigVMRemoveNodeAction;
 	friend class URigVMPin;

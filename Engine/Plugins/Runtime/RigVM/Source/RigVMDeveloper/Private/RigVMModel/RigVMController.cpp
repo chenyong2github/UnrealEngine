@@ -45,7 +45,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #endif
 
-TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
+TMap<URigVMController::FRigVMStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
 
 FRigVMControllerCompileBracketScope::FRigVMControllerCompileBracketScope(URigVMController* InController)
 : Graph(nullptr), bSuspendNotifications(InController->bSuspendNotifications)
@@ -14609,7 +14609,7 @@ bool URigVMController::ShouldRedirectPin(UScriptStruct* InOwningStruct, const FS
 		return false;
 	}
 	
-	FControlRigStructPinRedirectorKey RedirectorKey(InOwningStruct, InOldRelativePinPath);
+	FRigVMStructPinRedirectorKey RedirectorKey(InOwningStruct, InOldRelativePinPath);
 	if (const FString* RedirectedPinPath = PinPathCoreRedirectors.Find(RedirectorKey))
 	{
 		InOutNewRelativePinPath = *RedirectedPinPath;
@@ -14698,7 +14698,7 @@ bool URigVMController::ShouldRedirectPin(UScriptStruct* InOwningStruct, const FS
 
 					// this is also going to cache paths which haven't been redirected.
 					// consumers of the table have to still compare old != new
-					FControlRigStructPinRedirectorKey SubRedirectorKey(InOwningStruct, OldPath);
+					FRigVMStructPinRedirectorKey SubRedirectorKey(InOwningStruct, OldPath);
 					if (!PinPathCoreRedirectors.Contains(SubRedirectorKey))
 					{
 						PinPathCoreRedirectors.Add(SubRedirectorKey, NewPath);

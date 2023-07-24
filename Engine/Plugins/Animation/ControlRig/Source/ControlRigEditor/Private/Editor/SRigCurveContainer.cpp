@@ -199,7 +199,7 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 
 	if(ControlRigEditor.IsValid())
 	{
-		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigCurveContainer::OnEditorClose);
+		ControlRigEditor.Pin()->OnEditorClosed().AddSP(this, &SRigCurveContainer::OnEditorClose);
 	}
 }
 
@@ -304,7 +304,7 @@ TSharedPtr<SWidget> SRigCurveContainer::OnGetContextMenuContent() const
 	return MenuBuilder.MakeWidget();
 }
 
-void SRigCurveContainer::OnEditorClose(const FControlRigEditor* InEditor, URigVMBlueprint* InBlueprint)
+void SRigCurveContainer::OnEditorClose(const FRigVMEditor* InEditor, URigVMBlueprint* InBlueprint)
 {
 	if (UControlRigBlueprint* BP = Cast<UControlRigBlueprint>(InBlueprint))
 	{

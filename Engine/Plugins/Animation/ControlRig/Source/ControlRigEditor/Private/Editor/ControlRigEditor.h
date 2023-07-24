@@ -32,8 +32,6 @@ class FStructOnScope;
 class UToolMenu;
 class FControlRigEditor;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigEditorClosed, const FControlRigEditor*, URigVMBlueprint*);
-
 struct FControlRigEditorModes
 {
 	// Mode constants
@@ -59,96 +57,48 @@ private:
 class FControlRigEditor : public IControlRigEditor
 {
 public:
-	/**
-	 * Edits the specified character asset(s)
-	 *
-	 * @param	Mode					Mode that this editor should operate in
-	 * @param	InitToolkitHost			When Mode is WorldCentric, this is the level editor instance to spawn this editor within
-	 * @param	InControlRigBlueprint	The blueprint object to start editing.
-	 */
-	void InitControlRigEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UControlRigBlueprint* InControlRigBlueprint);
+
+	virtual void InitRigVMEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class URigVMBlueprint* InRigVMBlueprint) override;
+
+	virtual const FName GetEditorAppName() const override;
+	virtual const FName GetEditorModeName() const override;
+	virtual TSharedPtr<FApplicationMode> CreateEditorMode() override;
 
 public:
 	FControlRigEditor();
 	virtual ~FControlRigEditor();
 
+	virtual UObject* GetOuterForHost() const override;
+
 	// FRigVMEditor interface
 	virtual UClass* GetDetailWrapperClass() const;
+	virtual void Compile() override;
 
-	// FBlueprintEditor interface
-	virtual UBlueprint* GetBlueprintObj() const override;
-	virtual TSubclassOf<UEdGraphSchema> GetDefaultSchemaClass() const override;
+	// allows the editor to fill an empty graph
+	virtual void CreateEmptyGraphContent(URigVMController* InController) override;
 
 	int32 GetRigHierarchyTabCount() const { return RigHierarchyTabCount; }
-
-	FControlRigEditorClosed& OnControlRigEditorClosed() { return ControlRigEditorClosedDelegate; }
-
-private:
-
-	FControlRigEditorClosed ControlRigEditorClosedDelegate;
-
 
 public:
 	
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;
-	virtual FName GetToolkitContextFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
-	virtual FLinearColor GetWorldCentricTabColorScale() const override;	
 	virtual FString GetDocumentationLink() const override
 	{
 		return FString(TEXT("Engine/Animation/ControlRig"));
 	}
-	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	// BlueprintEditor interface
-	virtual bool TransactionObjectAffectsBlueprint(UObject* InTransactedObject) override;
-	virtual bool CanAddNewLocalVariable() const override;
-	virtual void OnAddNewLocalVariable() override;
-	virtual void OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription) override;
-	
-	virtual void DeleteSelectedNodes() override;
-	virtual bool CanDeleteNodes() const override;
-
-	virtual void CopySelectedNodes() override;
-	virtual bool CanCopyNodes() const override;
-
-	virtual void PasteNodes() override;
-	virtual bool CanPasteNodes() const override;
-
-	virtual bool IsNativeParentClassCodeLinkEnabled() const override { return false; }
-	virtual bool ReparentBlueprint_IsVisible() const override { return false; }
-
 	virtual FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph) override;
-
-	// Control Rig BP does not use regular BP function libraries, no need to load them.
-	virtual bool ShouldLoadBPLibrariesFromAssetRegistry() override { return false; }
-
-	// FEditorUndoClient Interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override;
-
-	virtual void PostTransaction(bool bSuccess, const FTransaction* Transaction, bool bIsRedo);
-
-	virtual void JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename = false) override;
+	
+	virtual void PostTransaction(bool bSuccess, const FTransaction* Transaction, bool bIsRedo) override;
 
 	void EnsureValidRigElementsInDetailPanel();
 
-	virtual void OnStartWatchingPin();
-	virtual bool CanStartWatchingPin() const;
-
-	virtual void OnStopWatchingPin();
-	virtual bool CanStopWatchingPin() const;
-
-	// IToolkitHost Interface
-	virtual void OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit) override;
-	virtual void OnToolkitHostingFinished(const TSharedRef<class IToolkit>& Toolkit) override;
-
 	//  FTickableEditorObject Interface
 	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override;
 
 	// Gets the Control Rig Blueprint being edited/viewed
 	UControlRigBlueprint* GetControlRigBlueprint() const;
@@ -159,30 +109,17 @@ public:
 	// returns the hierarchy being debugged
 	URigHierarchy* GetHierarchyBeingDebugged() const;
 
-	void SetDetailObjects(const TArray<UObject*>& InObjects);
-	void SetDetailObjects(const TArray<UObject*>& InObjects, bool bChangeUISelectionState);
 	void SetDetailViewForRigElements();
-	void SetDetailViewForGraph(URigVMGraph* InGraph);
-	void SetDetailViewForFocusedGraph();
-	void SetDetailViewForLocalVariable();
-	void RefreshDetailView();
 	bool DetailViewShowsAnyRigElement() const;
-	bool DetailViewShowsAnyRigUnit() const;
-	bool DetailViewShowsLocalVariable() const;
-	bool DetailViewShowsStruct(UScriptStruct* InStruct) const;
 	bool DetailViewShowsRigElement(FRigElementKey InKey) const;
+	virtual void RefreshDetailView() override;
 
-	void ClearDetailObject(bool bChangeUISelectionState = true);
-private:
+	void CreatePersonaToolKitIfRequired();
 
-	void ClearDetailsViewWrapperObjects();
 public:
 
 	/** Get the persona toolkit */
 	TSharedRef<IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }
-
-	/** Get the toolbox hosting widget */
-	TSharedRef<SBorder> GetToolbox() { return Toolbox.ToSharedRef(); }
 
 	/** Get the edit mode */
 	FControlRigEditorEditMode* GetEditMode() const;
@@ -200,22 +137,20 @@ public:
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> InDragDropOp, UEdGraph* InGraph, const FVector2D& InNodePosition, const FVector2D& InScreenPosition);
 
 	FPersonaViewportKeyDownDelegate& GetKeyDownDelegate() { return OnKeyDownDelegate; }
+
 	FOnGetContextMenu& OnGetViewportContextMenu() { return OnGetViewportContextMenuDelegate; }
 	FNewMenuCommandsDelegate& OnViewportContextMenuCommands() { return OnViewportContextMenuCommandsDelegate; }
 
-	virtual bool SelectLocalVariable(const UEdGraph* Graph, const FName& VariableName) override;
-
-private:
-
-	virtual void OnCreateComment() override;
-
 protected:
 
+	virtual void BindCommands() override;
+
 	void OnHierarchyChanged();
-	void OnControlsSettingsChanged();
 
 	void SynchronizeViewportBoneSelection();
-	
+
+	virtual void SaveAsset_Execute() override;
+	virtual void SaveAssetAs_Execute() override;
 
 	// update the cached modification value
 	void UpdateBoneModification(FName BoneName, const FTransform& Transform);
@@ -226,87 +161,21 @@ protected:
 	// reset all bone modification across all instance
 	void ResetAllBoneModification();
 
-	// FBlueprintEditor Interface
-	virtual void CreateDefaultCommands() override;
-	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);
-	virtual TSharedRef<SGraphEditor> CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph) override;
-	virtual void Compile() override;
-	virtual void SaveAsset_Execute() override;
-	virtual void SaveAssetAs_Execute() override;
-	virtual bool IsInAScriptingMode() const override { return true; }
-	virtual void CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints) override;
-	virtual void NewDocument_OnClicked(ECreatedDocumentType GraphType) override;
-	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
-	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
-	virtual bool IsEditable(UEdGraph* InGraph) const override;
-	virtual bool IsCompilingEnabled() const override;
-	virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;
-	virtual void OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated ) override;
-	virtual void OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection) override;
-	virtual void OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled) override;
-	virtual void RefreshEditors(ERefreshBlueprintEditorReason::Type Reason = ERefreshBlueprintEditorReason::UnknownReason) override;
-	virtual void SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents) override;
-	virtual void FocusInspectorOnGraphSelection(const TSet<class UObject*>& NewSelection, bool bForceRefresh = false) override;
-
-	virtual void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject) override;
-	void HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM);
-	void HandleControlRigExecutedEvent(URigVMHost* InControlRig, const FName& InEventName);
-	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode, const FName& InEntryName);
-	void SetHaltedNode(URigVMNode* Node);
+	virtual void HandleVMExecutedEvent(URigVMHost* InHost, const FName& InEventName) override;
 
 	// FBaseToolKit overrides
-	void CreateEditorModeManager() override;
-
-	// FGCObject Interface
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-
-	void BindCommands();
-
-protected:
-	/** Undo Action**/
-	void UndoAction();
-
-	/** Redo Action **/
-	void RedoAction();
+	virtual void CreateEditorModeManager() override;
 
 private:
-	/** Extend menu */
-	void ExtendMenu();
-
-	/** Extend toolbar */
-	void ExtendToolbar();
-
 	/** Fill the toolbar with content */
-	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+	virtual void FillToolbar(FToolBarBuilder& ToolbarBuilder, bool bEndSection = true) override;
 
-	TArray<FName> GetEventQueue() const;
-	void SetEventQueue(TArray<FName> InEventQueue);
-	void SetEventQueue(TArray<FName> InEventQueue, bool bCompile);
-	int32 GetEventQueueComboValue() const;
-	FText GetEventQueueLabel() const;
-	static FSlateIcon GetEventQueueIcon(const TArray<FName>& InEventQueue);
-	FSlateIcon GetEventQueueIcon() const;
-
-	enum EControlRigExecutionModeType
-	{
-		EControlRigExecutionModeType_Release,
-		EControlRigExecutionModeType_Debug
-	};
-
-	void SetExecutionMode(const EControlRigExecutionModeType InExecutionMode);
-	int32 GetExecutionModeComboValue() const;
-	FText GetExecutionModeLabel() const;
-	static FSlateIcon GetExecutionModeIcon(const EControlRigExecutionModeType InExecutionMode);
-	FSlateIcon GetExecutionModeIcon() const;
-	
-	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
-	virtual bool OnlyShowCustomDebugObjects() const override { return true; }
+	virtual TArray<FName> GetDefaultEventQueue() const override;
+	virtual void SetEventQueue(TArray<FName> InEventQueue, bool bCompile) override;
+	virtual int32 GetEventQueueComboValue() const override;
+	virtual FText GetEventQueueLabel() const override;
+	virtual FSlateIcon GetEventQueueIcon(const TArray<FName>& InEventQueue) const override;
 	virtual void HandleSetObjectBeingDebugged(UObject* InObject) override;
-	virtual FString GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const override;
-
-	/** Handle hiding items in the graph */
-	void HandleHideItem();
-	bool CanHideItem() const;
 
 	/** Handle preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
@@ -323,30 +192,16 @@ private:
 	void HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh);
 
 	/** Push a newly compiled/opened control rig to the edit mode */
-	void UpdateControlRig();
+	virtual void UpdateRigVMHost() override;
+	virtual void UpdateRigVMHost_PreClearOldHost(URigVMHost* InPreviousHost) override;
 
 	/** Update the name lists for use in name combo boxes */
-	void CacheNameLists();
+	virtual void CacheNameLists() override;
 
 	/** Rebind our anim instance to the preview's skeletal mesh component */
 	void RebindToSkeletalMeshComponent();
 
-	/** Update stale watch pins */
-	void UpdateStaleWatchedPins();
-
-	/** Wraps the normal blueprint editor's action menu creation callback */
-	FActionMenuContent HandleCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
-	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
-
-	void ToggleExecuteGraph();
-	bool IsExecuteGraphOn() const;
-	void ToggleAutoCompileGraph();
-	bool IsAutoCompileGraphOn() const;
-	bool CanAutoCompileGraph() const { return true; }
-	void ToggleEventQueue();
-	void ToggleExecutionMode();
-	TSharedRef<SWidget> GenerateEventQueueMenuContent();
-	TSharedRef<SWidget> GenerateExecutionModeMenuContent();
+	virtual void GenerateEventQueueMenuContent(FMenuBuilder& MenuBuilder) override;
 
 	enum ERigElementGetterSetterType
 	{
@@ -363,27 +218,7 @@ private:
 
 	 void HandleOnControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
 
-	 void HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint);
-
-	 void HandleVariableDroppedFromBlueprint(UObject* InSubject, FProperty* InVariableToDrop, const FVector2D& InDropPosition, const FVector2D& InScreenPosition);
-
-	 void HandleBreakpointAdded();
-
-	 void OnGraphNodeClicked(URigVMEdGraphNode* InNode);
-
-	 void OnNodeDoubleClicked(URigVMBlueprint* InBlueprint, URigVMNode* InNode);
-
-	 void OnGraphImported(UEdGraph* InEdGraph);
-
-	 virtual bool OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const override;
-
-	void HandleShowCurrentStatement();
-	
-	void HandleBreakpointActionRequested(const ERigVMBreakpointAction BreakpointAction);
-
-	bool IsHaltedAtBreakpoint() const;
-
-	void FrameSelection();
+	virtual void HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint) override;
 
 	FText GetTestAssetName() const;
 	FText GetTestAssetTooltip() const;
@@ -395,17 +230,8 @@ private:
 
 protected:
 
-	/** Toolbox hosting widget */
-	TSharedPtr<SBorder> Toolbox;
-
 	/** Persona toolkit used to support skeletal mesh preview */
 	TSharedPtr<IPersonaToolkit> PersonaToolkit;
-
-	/** The extender to pass to the level editor to extend it's window menu */
-	TSharedPtr<FExtender> MenuExtender;
-
-	/** Toolbar extender */
-	TSharedPtr<FExtender> ToolbarExtender;
 
 	/** Preview instance inspector widget */
 	TSharedPtr<SWidget> PreviewEditor;
@@ -429,40 +255,16 @@ protected:
 	FTransform GetRigElementTransform(const FRigElementKey& InElement, bool bLocal, bool bOnDebugInstance) const;
 	void SetRigElementTransform(const FRigElementKey& InElement, const FTransform& InTransform, bool bLocal);
 	
-	// FNotifyHook Interface
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	/** delegate for changing property */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
-	void OnWrappedPropertyChangedChainEvent(URigVMDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent);
-	void OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, URigVMBlueprint* InTargetBlueprint, bool bForce);
-	FRigVMController_BulkEditResult OnRequestBulkEditDialog(URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
-	bool OnRequestBreakLinksDialog(TArray<URigVMLink*> InLinks);
-	TRigVMTypeIndex OnRequestPinTypeSelectionDialog(const TArray<TRigVMTypeIndex>& InTypes);
-	void HandleJumpToHyperlink(const UObject* InSubject);
-	bool UpdateDefaultValueForVariable(FBPVariableDescription& InVariable, bool bUseCDO);
+	virtual void OnWrappedPropertyChangedChainEvent(URigVMDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent) override;
 
-	URigVMGraph* GetFocusedModel() const;
-	URigVMController* GetFocusedController() const;
-	TSharedPtr<SGraphEditor> GetGraphEditor(UEdGraph* InEdGraph) const;
-	
 	URigVMController* ActiveController;
-	bool bControlRigEditorInitialized;
-	bool bIsSettingObjectBeingDebugged;
 
 	/** Currently executing ControlRig or not - later maybe this will change to enum for whatever different mode*/
 	bool bExecutionControlRig;
 
-	/** The log to use for errors resulting from the init phase of the units */
-	FRigVMLog ControlRigLog;
-	/** Once the log is collected update the graph */
-	void UpdateGraphCompilerErrors();
-
 	void OnAnimInitialized();
-
-	/** Are we currently compiling through the user interface */
-	bool bIsCompilingThroughUI;
 
 	TSharedPtr<SRigVMGraphPinNameListValueWidget> PinControlNameList;
 	bool IsPinControlNameListEnabled() const;
@@ -474,24 +276,8 @@ protected:
 	void OnPinControlNameListComboBox(const TArray<TSharedPtr<FString>>* InNameList);
 	bool IsConstructionModeEnabled() const;
 
-	bool bAnyErrorsLeft;
-
-	TArray<FName> LastEventQueue;
-	EControlRigExecutionModeType ExecutionMode;
-	FString LastDebuggedRig;
 	int32 RigHierarchyTabCount;
-	TMap<FString, FString> KnownInstructionLimitWarnings;
-
-	URigVMNode* HaltedAtNode;
-
-	bool bSuspendDetailsPanelRefresh;
-
-	bool bAllowBulkEdits;
-
-	TArray<TStrongObjectPtr<URigVMDetailsViewWrapperObject>> WrapperObjects;
 	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
-
-	FDelegateHandle PropertyChangedHandle;
 
 	void OnPreConstruction_AnyThread(UControlRig* InRig, const FName& InEventName);
 	void OnPostConstruction_AnyThread(UControlRig* InRig, const FName& InEventName);

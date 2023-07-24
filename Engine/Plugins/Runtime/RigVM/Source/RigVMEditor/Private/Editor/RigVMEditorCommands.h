@@ -4,17 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "ControlRigEditorStyle.h"
+#include "Editor/RigVMEditorStyle.h"
 
-class FControlRigBlueprintCommands : public TCommands<FControlRigBlueprintCommands>
+class FRigVMEditorCommands : public TCommands<FRigVMEditorCommands>
 {
 public:
-	FControlRigBlueprintCommands() : TCommands<FControlRigBlueprintCommands>
+	FRigVMEditorCommands() : TCommands<FRigVMEditorCommands>
 	(
-		"ControlRigBlueprint",
-		NSLOCTEXT("Contexts", "Animation", "Rig Blueprint"),
+		"RigVMBlueprint",
+		NSLOCTEXT("Contexts", "RigVM", "RigVM Blueprint"),
 		NAME_None, // "MainFrame" // @todo Fix this crash
-		FControlRigEditorStyle::Get().GetStyleSetName() // Icon Style Set
+		FRigVMEditorStyle::Get().GetStyleSetName() // Icon Style Set
 	)
 	{}
 	
@@ -29,18 +29,6 @@ public:
 
 	/** Toggle between this and the last event queue */
 	TSharedPtr< FUICommandInfo > ToggleEventQueue;
-
-	/** Enable the construction mode for the rig */
-	TSharedPtr< FUICommandInfo > ConstructionEvent;
-
-	/** Run the forwards solve graph */
-	TSharedPtr< FUICommandInfo > ForwardsSolveEvent;
-
-	/** Run the backwards solve graph */
-	TSharedPtr< FUICommandInfo > BackwardsSolveEvent;
-
-	/** Run the backwards solve graph followed by the forwards solve graph */
-	TSharedPtr< FUICommandInfo > BackwardsAndForwardsSolveEvent;
 
 	/** Toggle between Release and Debug execution mode */
 	TSharedPtr< FUICommandInfo > ToggleExecutionMode;

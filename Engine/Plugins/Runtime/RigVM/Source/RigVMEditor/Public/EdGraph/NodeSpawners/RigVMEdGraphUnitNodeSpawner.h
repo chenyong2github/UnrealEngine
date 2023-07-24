@@ -9,9 +9,7 @@
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Blueprint.h"
-#include "BlueprintActionFilter.h"
-#include "BlueprintNodeSignature.h"
-#include "BlueprintFieldNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphNodeSpawner.h"
 #include "RigVMBlueprint.h"
 #include "EdGraph/RigVMEdGraph.h"
 #include "EdGraph/RigVMEdGraphNode.h"
@@ -21,7 +19,7 @@
 class URigVMEdGraphNode;
 
 UCLASS(Transient)
-class RIGVMEDITOR_API URigVMEdGraphUnitNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphUnitNodeSpawner : public URigVMEdGraphNodeSpawner
 {
 	GENERATED_BODY()
 
@@ -53,5 +51,5 @@ private:
 	static URigVMEdGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, const FName& InMethodName, FVector2D const Location);
 
 	friend class UEngineTestControlRig;
-	friend class FControlRigEditor;
+	friend class FRigVMEditor;
 };

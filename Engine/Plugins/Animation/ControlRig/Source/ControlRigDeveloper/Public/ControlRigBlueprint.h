@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ControlRigBlueprintGeneratedClass.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/Blueprint.h"
 #include "ControlRigDefines.h"
@@ -37,6 +38,7 @@ public:
 	UControlRigBlueprint();
 
 	// URigVMBlueprint interface
+	virtual UClass* GetRigVMBlueprintGeneratedClassPrototype() const override { return UControlRigBlueprintGeneratedClass::StaticClass(); }
 	virtual UClass* GetRigVMSchemaClass() const override { return UControlRigSchema::StaticClass(); }
 	virtual UScriptStruct* GetRigVMExecuteContextStruct() const override { return FControlRigExecuteContext::StaticStruct(); }
 	virtual UClass* GetRigVMEdGraphClass() const override;
@@ -44,6 +46,10 @@ public:
 	virtual UClass* GetRigVMEdGraphSchemaClass() const override;
 	virtual TArray<FString> GeneratePythonCommands(const FString InNewBlueprintName) override;
 	virtual UClass* GetRigVMEditorSettingsClass() const override;
+#if WITH_EDITOR
+	virtual IRigVMEditorModule* GetEditorModule() const override;
+#endif
+
 	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR

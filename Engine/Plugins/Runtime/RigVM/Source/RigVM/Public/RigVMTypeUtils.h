@@ -249,7 +249,7 @@ namespace RigVMTypeUtils
 			OldObjectName,
 			NewObjectName,
 			nullptr,
-			ECoreRedirectMatchFlags::AllowPartialMatch); // AllowPartialMatch to allow redirects from one package to another (see /Script/ControlRig.CRFourPointBezier -> /Script/RigVM.RigVMFourPointBezier)
+			ECoreRedirectMatchFlags::AllowPartialMatch); // AllowPartialMatch to allow redirects from one package to another
 
 		if (!bFoundRedirect)
 		{

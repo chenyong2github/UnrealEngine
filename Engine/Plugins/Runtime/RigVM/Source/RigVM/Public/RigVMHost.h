@@ -143,11 +143,11 @@ public:
 
 #if WITH_EDITOR
 
-	/** Bindable event for external objects to be notified that a control rig is fully end-loaded*/
+	/** Bindable event for external objects to be notified that a RigVMHost is fully end-loaded*/
 	DECLARE_EVENT_OneParam(URigVMHost, FOnEndLoadPackage, URigVMHost*);
 
 	// these are needed so that sequencer can have a chance to update its 
-	// ControlRig instances after the package is fully end-loaded
+	// RigVMHost instances after the package is fully end-loaded
 	void BroadCastEndLoadPackage() { EndLoadPackageEvent.Broadcast(this); }
 	FOnEndLoadPackage& OnEndLoadPackage() { return EndLoadPackageEvent; }
 
@@ -211,6 +211,8 @@ public:
 
 #if WITH_EDITOR
 	const FRigVMLog* GetLog() const { return RigVMLog; }
+	FRigVMLog* GetLog() { return RigVMLog; }
+	void SetLog(FRigVMLog* InLog) { RigVMLog = InLog; }
 #endif
 
 	DECLARE_EVENT_TwoParams(URigVM, FRigVMExecutedEvent, class URigVMHost*, const FName&);
@@ -320,10 +322,10 @@ public:
 	/** Copy the default values of external variables from the default object */
 	void CopyExternalVariableDefaultValuesFromCDO();
 	
-	/** Broadcasts a notification whenever the controlrig's memory is initialized. */
+	/** Broadcasts a notification whenever the RigVMHost's memory is initialized. */
 	FRigVMExecutedEvent InitializedEvent;
 
-	/** Broadcasts a notification whenever the controlrig is executed / updated. */
+	/** Broadcasts a notification whenever the RigVMHost is executed / updated. */
 	FRigVMExecutedEvent ExecutedEvent;
 
 protected: 

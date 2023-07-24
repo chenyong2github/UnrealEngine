@@ -9,6 +9,7 @@
 #include "Editor/SRigHierarchyTreeView.h"
 #include "Units/RigUnitContext.h"
 #include "ControlRigBlueprint.h"
+#include "Editor/RigVMEditor.h"
 #include "SRigHierarchy.generated.h"
 
 class SRigHierarchy;
@@ -86,7 +87,7 @@ public:
 
 private:
 
-	void OnEditorClose(const FControlRigEditor* InEditor, URigVMBlueprint* InBlueprint);
+	void OnEditorClose(const FRigVMEditor* InEditor, URigVMBlueprint* InBlueprint);
 
 	/** Bind commands that this widget handles */
 	void BindCommands();

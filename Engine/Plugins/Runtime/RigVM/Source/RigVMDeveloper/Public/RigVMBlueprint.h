@@ -17,6 +17,10 @@
 #include "RigVMBlueprint.generated.h"
 
 class URigVMBlueprintGeneratedClass;
+
+#if WITH_EDITOR
+class IRigVMEditorModule;
+#endif
 struct FEndLoadPackageContext;
 
 DECLARE_EVENT_TwoParams(URigVMBlueprint, FOnRigVMCompiledEvent, UObject*, URigVM*);
@@ -233,6 +237,11 @@ public:
 	/** Returns the settings defaults for this blueprint */
 	URigVMEditorSettings* GetRigVMEditorSettings() const;
 
+#if WITH_EDITOR
+	/** Returns the editor module to be used for this blueprint */
+	virtual IRigVMEditorModule* GetEditorModule() const;
+#endif
+
 	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
@@ -319,7 +328,7 @@ public:
 	void DecrementVMRecompileBracket();
 
 	// this is needed since even after load
-	// model data can change while the Control Rig BP is not opened
+	// model data can change while the RigVM BP is not opened
 	// for example, if a user defined struct changed after BP load,
 	// any pin that references the struct needs to be regenerated
 	void RefreshAllModels(ERigVMBlueprintLoadType InLoadType = ERigVMBlueprintLoadType::PostLoad);
@@ -703,6 +712,7 @@ protected:
 
 	static FSoftObjectPath PreDuplicateAssetPath;
 	static FSoftObjectPath PreDuplicateHostPath;
+	static TArray<URigVMBlueprint*> sCurrentlyOpenedRigVMBlueprints;
 
 	void MarkDirtyDuringLoad() { bDirtyDuringLoad = true; }
 	
@@ -719,13 +729,10 @@ private:
 	bool bMarkBlueprintAsStructurallyModifiedPending;
 
 	friend class FRigVMBlueprintCompilerContext;
+	friend class FRigVMEditor;
 	friend class FRigVMEditorModule;
 	friend class URigVMEdGraphSchema;
 	friend struct FRigVMEdGraphSchemaAction_PromoteToVariable;
-
-	// todo
-	friend class FControlRigEditorModule;
-	friend class FControlRigBlueprintCompilerContext;
 };
 
 class RIGVMDEVELOPER_API FRigVMBlueprintCompileScope

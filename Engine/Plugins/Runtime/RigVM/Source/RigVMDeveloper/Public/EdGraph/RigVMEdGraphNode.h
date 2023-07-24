@@ -277,10 +277,4 @@ private:
 	friend class URigVMEdGraphArrayNodeSpawner;
 	friend class URigVMEdGraphIfNodeSpawner;
 	friend class URigVMEdGraphSelectNodeSpawner;
-
-	// todo
-	friend class FControlRigEditor;
-	friend class UControlRigBlueprint;
-	friend class SControlRigGraphNode;
-	friend class UControlRigGraphSchema;
 };

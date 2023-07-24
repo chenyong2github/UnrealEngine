@@ -204,7 +204,6 @@ private:
 	bool IsNameAvailable(const FString& InName) const;
 
 	friend class URigVMController;
-	friend class UControlRigBlueprint;
 	friend class URigVMBlueprint;
 	friend class FRigVMControllerCompileBracketScope;
 	friend class URigVMCompiler;

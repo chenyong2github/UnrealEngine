@@ -314,7 +314,7 @@ public:
 	/** Helper function to recursively reset the pin defaults */
 	virtual void ResetPinDefaultsRecursive(UEdGraphPin* InPin) const;
 
-	/** Returns all of the applicable pin types for variables within a control rig */
+	/** Returns all of the applicable pin types for variables within a rigvm host */
 	virtual void GetVariablePinTypes(TArray<FEdGraphPinType>& PinTypes) const;
 
 	void StartGraphNodeInteraction(UEdGraphNode* InNode) const;

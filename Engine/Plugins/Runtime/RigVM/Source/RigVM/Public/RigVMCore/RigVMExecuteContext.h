@@ -194,7 +194,7 @@ struct RIGVM_API FRigVMRuntimeSettings
 	GENERATED_BODY()
 
 	/**
-	 * The largest allowed size for arrays within the Control Rig VM.
+	 * The largest allowed size for arrays within the RigVM.
 	 * Accessing or creating larger arrays will cause runtime errors in the rig.
 	 */
 	UPROPERTY(EditAnywhere, Category = "VM")
@@ -748,7 +748,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
 	const FName& GetFirstEntryEventInEventQueue() { return FirstEntryEventInQueue; }
 
-	// Control Rig can run multiple events per evaluation, such as the Backward&Forward Solve Mode,
+	// A RigVMHost can run multiple events per evaluation, such as the Backward&Forward Solve Mode,
 	// store the first event such that we know when to reset data for a new round of rig evaluation
 	FName FirstEntryEventInQueue = NAME_None;
 

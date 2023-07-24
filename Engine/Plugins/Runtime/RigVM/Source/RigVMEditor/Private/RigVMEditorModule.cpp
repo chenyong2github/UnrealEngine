@@ -7,6 +7,7 @@
 #include "RigVMEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Editor/RigVMEditorCommands.h"
 #include "Editor/RigVMExecutionStackCommands.h"
 #include "Editor/RigVMEditorStyle.h"
 #include "Editor/RigVMGraphDetailCustomization.h"
@@ -54,6 +55,7 @@ void FRigVMEditorModule::StartupModule()
 	if(IsRigVMEditorModuleBase())
 	{
 		FRigVMExecutionStackCommands::Register();
+		FRigVMEditorCommands::Register();
 		FRigVMEditorStyle::Register();
 
 		EdGraphPanelNodeFactory = MakeShared<FRigVMEdGraphPanelNodeFactory>();
@@ -138,6 +140,13 @@ const URigVMBlueprint* FRigVMEditorModule::GetRigVMBlueprintCDO() const
 
 void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
 {
+	// Only register actions for ourselves
+	UClass* BlueprintClass = GetRigVMBlueprintClass();
+	if(RigVMBlueprint->GetClass() != BlueprintClass)
+	{
+		return;
+	}
+
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
 	// actions get registered under specific object-keys; the idea is that 
@@ -188,8 +197,9 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 		FText MenuDesc = FText::FromName(Template.GetName());
 		FText ToolTip = Template.GetTooltipText();
 
-		UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphTemplateNodeSpawner::CreateFromNotation(Template.GetNotation(), MenuDesc, NodeCategory, ToolTip);
+		URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphTemplateNodeSpawner::CreateFromNotation(Template.GetNotation(), MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
+		NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
 
@@ -210,8 +220,9 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 		FText MenuDesc = FText::FromString(Factory->GetNodeTitle(FRigVMTemplateTypeMap()));
 		FText ToolTip = Factory->GetNodeTooltip(FRigVMTemplateTypeMap());
 
-		UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphTemplateNodeSpawner::CreateFromNotation(Template->GetNotation(), MenuDesc, NodeCategory, ToolTip);
+		URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphTemplateNodeSpawner::CreateFromNotation(Template->GetNotation(), MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
+		NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
 
@@ -258,8 +269,9 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 		FText MenuDesc = FText::FromString(DisplayNameMetadata + MenuDescSuffixMetadata);
 		FText ToolTip = Struct->GetToolTipText();
 
-		UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphUnitNodeSpawner::CreateFromStruct(Struct, Function.GetMethodName(), MenuDesc, NodeCategory, ToolTip);
+		URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphUnitNodeSpawner::CreateFromStruct(Struct, Function.GetMethodName(), MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
+		NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
 
@@ -286,8 +298,9 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 		FText MenuDesc = FText::FromString(FString::Printf(TEXT("Enum %s"), *EnumToConsider->GetName()));
 		FText ToolTip = MenuDesc;
 
-		UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphEnumNodeSpawner::CreateForEnum(EnumToConsider, MenuDesc, NodeCategory, ToolTip);
+		URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphEnumNodeSpawner::CreateForEnum(EnumToConsider, MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
+		NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	}
 
@@ -358,8 +371,9 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 				PublicFunctionsProperty->ImportText_Direct(*PublicFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
 				for(const FRigVMOldPublicFunctionData& PublicFunction : PublicFunctions)
 				{
-					UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
+					URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
 					check(NodeSpawner != nullptr);
+					NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 					ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 				}
 			}
@@ -370,8 +384,9 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 				PublicGraphFunctionsProperty->ImportText_Direct(*PublicGraphFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
 				for(const FRigVMGraphFunctionHeader& PublicFunction : PublicFunctions)
 				{
-					UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
+					URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
 					check(NodeSpawner != nullptr);
+					NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 					ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 				}
 			}
@@ -381,6 +396,13 @@ void FRigVMEditorModule::GetTypeActions(URigVMBlueprint* RigVMBlueprint, FBluepr
 
 void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
 {
+	// Only register actions for ourselves
+	UClass* BlueprintClass = GetRigVMBlueprintClass();
+	if(RigVMBlueprint->GetClass() != BlueprintClass)
+	{
+		return;
+	}
+
 	if (URigVMBlueprintGeneratedClass* GeneratedClass = RigVMBlueprint->GetRigVMBlueprintGeneratedClass())
 	{
 		if (URigVMHost* CDO = Cast<URigVMHost>(GeneratedClass->GetDefaultObject()))
@@ -392,10 +414,14 @@ void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBl
 			{
 				FText MenuDesc = FText::FromName(ExternalVariable.Name);
 				FText ToolTip = FText::FromString(FString::Printf(TEXT("Get the value of variable %s"), *ExternalVariable.Name.ToString()));
-				ActionRegistrar.AddBlueprintAction(GeneratedClass, URigVMEdGraphVariableNodeSpawner::CreateFromExternalVariable(RigVMBlueprint, ExternalVariable, true, MenuDesc, NodeCategory, ToolTip));
+				URigVMEdGraphNodeSpawner* GetNodeSpawner = URigVMEdGraphVariableNodeSpawner::CreateFromExternalVariable(RigVMBlueprint, ExternalVariable, true, MenuDesc, NodeCategory, ToolTip);
+				GetNodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
+				ActionRegistrar.AddBlueprintAction(GeneratedClass, GetNodeSpawner);
 
 				ToolTip = FText::FromString(FString::Printf(TEXT("Set the value of variable %s"), *ExternalVariable.Name.ToString()));
-				ActionRegistrar.AddBlueprintAction(GeneratedClass, URigVMEdGraphVariableNodeSpawner::CreateFromExternalVariable(RigVMBlueprint, ExternalVariable, false, MenuDesc, NodeCategory, ToolTip));
+				URigVMEdGraphNodeSpawner* SetNodeSpawner = URigVMEdGraphVariableNodeSpawner::CreateFromExternalVariable(RigVMBlueprint, ExternalVariable, false, MenuDesc, NodeCategory, ToolTip);
+				SetNodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
+				ActionRegistrar.AddBlueprintAction(GeneratedClass, SetNodeSpawner);
 			}
 		}
 
@@ -404,8 +430,9 @@ void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBl
 			TArray<URigVMLibraryNode*> Functions = LocalFunctionLibrary->GetFunctions();
 			for (URigVMLibraryNode* Function : Functions)
 			{
-				UBlueprintNodeSpawner* NodeSpawner = URigVMEdGraphFunctionRefNodeSpawner::CreateFromFunction(Function);
+				URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphFunctionRefNodeSpawner::CreateFromFunction(Function);
 				check(NodeSpawner != nullptr);
+				NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
 				ActionRegistrar.AddBlueprintAction(GeneratedClass, NodeSpawner);
 			}
 
@@ -416,10 +443,14 @@ void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBl
 				{
 					FText MenuDesc = FText::FromName(LocalVariable.Name);
 					FText ToolTip = FText::FromString(FString::Printf(TEXT("Get the value of variable %s"), *LocalVariable.Name.ToString()));
-					ActionRegistrar.AddBlueprintAction(GeneratedClass, URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(RigVMBlueprint, Function->GetContainedGraph(), LocalVariable, true, MenuDesc, NodeCategory, ToolTip));
+					URigVMEdGraphNodeSpawner* GetNodeSpawner = URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(RigVMBlueprint, Function->GetContainedGraph(), LocalVariable, true, MenuDesc, NodeCategory, ToolTip);
+					GetNodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
+					ActionRegistrar.AddBlueprintAction(GeneratedClass, GetNodeSpawner);
 
 					ToolTip = FText::FromString(FString::Printf(TEXT("Set the value of variable %s"), *LocalVariable.Name.ToString()));
-					ActionRegistrar.AddBlueprintAction(GeneratedClass, URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(RigVMBlueprint, Function->GetContainedGraph(), LocalVariable, false, MenuDesc, NodeCategory, ToolTip));
+					URigVMEdGraphNodeSpawner* SetNodeSpawner = URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(RigVMBlueprint, Function->GetContainedGraph(), LocalVariable, false, MenuDesc, NodeCategory, ToolTip);
+					SetNodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
+					ActionRegistrar.AddBlueprintAction(GeneratedClass, SetNodeSpawner);
 				}
 			}
 		}
@@ -433,7 +464,9 @@ void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBl
 				{
 					FText MenuDesc = FText::FromName(InputArgument.Name);
 					FText ToolTip = FText::FromString(FString::Printf(TEXT("Get the value of input %s"), *InputArgument.Name.ToString()));
-					ActionRegistrar.AddBlueprintAction(GeneratedClass, URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(RigVMBlueprint, Graph, InputArgument, true, MenuDesc, NodeCategory, ToolTip));
+					URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(RigVMBlueprint, Graph, InputArgument, true, MenuDesc, NodeCategory, ToolTip);
+					NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
+					ActionRegistrar.AddBlueprintAction(GeneratedClass, NodeSpawner);
 				}			
 			}
 		}
@@ -449,7 +482,9 @@ void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBl
 				FString Suffix = EntryName.ToString().EndsWith(EventStr) ? FString() : EventSuffix;
 				FText MenuDesc = FText::FromString(FString::Printf(TEXT("Run %s%s"), *EntryName.ToString(), *Suffix));
 				FText ToolTip = FText::FromString(FString::Printf(TEXT("Runs the %s%s"), *EntryName.ToString(), *Suffix));
-				ActionRegistrar.AddBlueprintAction(GeneratedClass, URigVMEdGraphInvokeEntryNodeSpawner::CreateForEntry(RigVMBlueprint, EntryName, MenuDesc, NodeCategory, ToolTip));
+				URigVMEdGraphNodeSpawner* NodeSpawner = URigVMEdGraphInvokeEntryNodeSpawner::CreateForEntry(RigVMBlueprint, EntryName, MenuDesc, NodeCategory, ToolTip);
+				NodeSpawner->SetRelatedBlueprintClass(BlueprintClass);
+				ActionRegistrar.AddBlueprintAction(GeneratedClass, NodeSpawner);
 			}
 		}
 	}
@@ -457,6 +492,12 @@ void FRigVMEditorModule::GetInstanceActions(URigVMBlueprint* RigVMBlueprint, FBl
 
 void FRigVMEditorModule::GetNodeContextMenuActions(URigVMBlueprint* RigVMBlueprint, const URigVMEdGraphNode* EdGraphNode, URigVMNode* ModelNode, UToolMenu* Menu) const
 {
+	// Only register menu actions for ourselves
+	if(RigVMBlueprint->GetClass() != GetRigVMBlueprintClass())
+	{
+		return;
+	}
+
 	GetNodeWorkflowContextMenuActions(RigVMBlueprint, EdGraphNode, ModelNode, Menu);
 	GetNodeEventsContextMenuActions(RigVMBlueprint, EdGraphNode, ModelNode, Menu);
 	GetNodeConversionContextMenuActions(RigVMBlueprint, EdGraphNode, ModelNode, Menu);
