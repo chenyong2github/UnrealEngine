@@ -337,7 +337,7 @@ private:
 
 #define DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY(A, C1, C2)	\
 {																					\
-	FNodeColorsRegistry::Get().RegisterNodeColors(A, {C1, C2});						\
+	::Dataflow::FNodeColorsRegistry::Get().RegisterNodeColors(A, {C1, C2});			\
 }																					\
 
 }

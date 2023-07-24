@@ -3,6 +3,7 @@
 #include "AssetDefinition_ClothAsset.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothEditor.h"
+#include "ChaosClothAsset/ColorScheme.h"
 #include "Dataflow/DataflowObject.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FileHelper.h"
@@ -157,7 +158,7 @@ TSoftClassPtr<UObject> UAssetDefinition_ClothAsset::GetAssetClass() const
 
 FLinearColor UAssetDefinition_ClothAsset::GetAssetColor() const
 {
-	return FLinearColor(FColor(180, 120, 110));
+	return UE::Chaos::ClothAsset::FColorScheme::Asset;
 }
 
 TConstArrayView<FAssetCategoryPath> UAssetDefinition_ClothAsset::GetAssetCategories() const
