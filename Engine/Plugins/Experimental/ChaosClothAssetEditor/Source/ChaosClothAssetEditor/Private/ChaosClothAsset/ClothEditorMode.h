@@ -143,7 +143,7 @@ private:
 
 	void SetDataflowGraphEditor(TSharedPtr<SDataflowGraphEditor> InGraphEditor);
 	
-	void OnDataflowNodeSelectionChanged(const TSet<UObject*>& NewSelection);
+	void StartToolForSelectedNode(const UObject* SelectedNode);
 	void OnDataflowNodeDeleted(const TSet<UObject*>& DeletedNodes);
 
 	/**

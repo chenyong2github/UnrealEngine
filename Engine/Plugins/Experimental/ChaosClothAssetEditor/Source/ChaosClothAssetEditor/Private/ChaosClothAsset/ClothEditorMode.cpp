@@ -908,41 +908,24 @@ void UChaosClothAssetEditorMode::SetDataflowGraphEditor(TSharedPtr<SDataflowGrap
 	}
 }
 
-void UChaosClothAssetEditorMode::OnDataflowNodeSelectionChanged(const TSet<UObject*>& NewSelection)
+void UChaosClothAssetEditorMode::StartToolForSelectedNode(const UObject* SelectedNode)
 {
-	using namespace UE::Chaos::ClothAsset;
-
 	// Start the tool associated with the selected node, if any
 
 	const TSharedRef<FUICommandList> CommandList = Toolkit->GetToolkitCommands();
-	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
+	const UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands& CommandInfos = UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::Get();
 
-	bool bNewToolStarted = false;
-	if (NewSelection.Num() == 1)
+	if (const UDataflowEdNode* const EdNode = Cast<UDataflowEdNode>(SelectedNode))
 	{
-		if (const UDataflowEdNode* const Node = Cast<UDataflowEdNode>(*NewSelection.CreateConstIterator()))
+		if (const TSharedPtr<const FDataflowNode> DataflowNode = EdNode->GetDataflowNode())
 		{
-			if (const TSharedPtr<const FDataflowNode> DataflowNode = Node->GetDataflowNode())
+			const FName DataflowNodeName = DataflowNode->GetType();
+			if (const TSharedPtr<const FUICommandInfo>* const Command = NodeTypeToToolCommandMap.Find(DataflowNodeName))
 			{
-				const FName DataflowNodeName = DataflowNode->GetType();
-				if (NodeTypeToToolCommandMap.Contains(DataflowNodeName))
-				{
-					CommandList->TryExecuteAction(NodeTypeToToolCommandMap[DataflowNodeName].ToSharedRef());
-					bNewToolStarted = true;
-				}
+				CommandList->TryExecuteAction(Command->ToSharedRef());
 			}
 		}
 	}
-
-	UEditorInteractiveToolsContext* const ToolsContext = GetInteractiveToolsContext();
-	checkf(ToolsContext, TEXT("No valid ToolsContext found for UChaosClothAssetEditorMode"));
-	if (!bNewToolStarted && ToolsContext->HasActiveTool())
-	{
-		// The user has clicked away from the selected node, end the tool
-		// TODO: If we wanted we could probably auto-accept the pending changes in the active tool
-		ToolsContext->EndTool(EToolShutdownType::Completed);
-	}
-
 }
 
 

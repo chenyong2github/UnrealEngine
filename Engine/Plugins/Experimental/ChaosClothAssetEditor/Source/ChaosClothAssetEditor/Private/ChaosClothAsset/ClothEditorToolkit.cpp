@@ -786,6 +786,7 @@ TSharedRef<SDataflowGraphEditor> FChaosClothAssetEditorToolkit::CreateGraphEdito
 	SGraphEditor::FGraphEditorEvents InEvents;
 	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeTitleCommitted);
+	InEvents.OnNodeSingleClicked = SGraphEditor::FOnNodeSingleClicked::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeSingleClicked);
 
 	TSharedRef<SDataflowGraphEditor> NewGraphEditor = SNew(SDataflowGraphEditor, Dataflow)
 		.GraphToEdit(Dataflow)
@@ -966,16 +967,37 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 		Dataflow->LastModifiedRenderTarget = Dataflow::FTimestamp::Current();
 	}
 
+
 	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
 	if (ClothMode)
 	{
+		// Close any running tool. OnNodeSingleClicked() will start a new tool if a new node was clicked.
+		UEditorInteractiveToolsContext* const ToolsContext = ClothMode->GetInteractiveToolsContext();
+		checkf(ToolsContext, TEXT("No valid ToolsContext found for FChaosClothAssetEditorToolkit"));
+		if (ToolsContext->HasActiveTool())
+		{
+			ToolsContext->EndTool(EToolShutdownType::Completed);
+		}
+
+		// Update the Construction viewport with the newly selected node's Collection
 		ClothMode->SetSelectedClothCollection(Collection);
-		ClothMode->OnDataflowNodeSelectionChanged(NewSelection);
 	}
 
 	if (Outliner)
 	{
 		Outliner->SetClothCollection(Collection);
+	}
+}
+
+void FChaosClothAssetEditorToolkit::OnNodeSingleClicked(UObject* ClickedNode) const
+{
+	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+	if (ClothMode)
+	{
+		// Start the corresponding tool
+		UEditorInteractiveToolsContext* const ToolsContext = ClothMode->GetInteractiveToolsContext();
+		checkf(ToolsContext, TEXT("No valid ToolsContext found for FChaosClothAssetEditorToolkit"));
+		ClothMode->StartToolForSelectedNode(ClickedNode);
 	}
 }
 

@@ -111,6 +111,7 @@ public:
 		SLATE_EVENT( SGraphEditor::FOnDisallowedPinConnection, OnDisallowedPinConnection )
 		SLATE_EVENT( SGraphEditor::FOnDoubleClicked, OnDoubleClicked )
 		SLATE_EVENT( SGraphEditor::FOnMouseButtonDown, OnMouseButtonDown )
+		SLATE_EVENT( SGraphEditor::FOnNodeSingleClicked, OnNodeSingleClicked )
 		//SLATE_ATTRIBUTE( FGraphAppearanceInfo, Appearance )
 	SLATE_END_ARGS()
 

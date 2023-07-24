@@ -108,7 +108,8 @@ void SGraphPanel::Construct( const SGraphPanel::FArguments& InArgs )
 	this->OnDisallowedPinConnection = InArgs._OnDisallowedPinConnection;
 	this->OnDoubleClicked = InArgs._OnDoubleClicked;
 	this->OnClicked = InArgs._OnMouseButtonDown;
-	
+	this->OnNodeSingleClicked = InArgs._OnNodeSingleClicked;
+
 	this->bPreservePinPreviewConnection = false;
 	this->PinVisibility = SGraphEditor::Pin_Show;
 

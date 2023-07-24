@@ -1096,6 +1096,9 @@ protected:
 	/** Node positions pre-drag, used to limit transaction creation on drag */
 	TMap<TWeakPtr<SNode>, FVector2D> OriginalNodePositions;
 
+	/** Called when the user left clicks on a node without dragging */
+	SGraphEditor::FOnNodeSingleClicked OnNodeSingleClicked;
+
 private:
 	/** Active timer that handles deferred zooming until the target zoom is reached */
 	EActiveTimerReturnType HandleZoomToFit(double InCurrentTime, float InDeltaTime);

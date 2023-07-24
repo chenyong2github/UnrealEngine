@@ -1009,6 +1009,12 @@ FReply SNodePanel::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerE
 
 				// We're done interacting with this node.
 				NodeUnderMousePtr.Reset();
+
+				if (OnNodeSingleClicked.IsBound())
+				{
+					OnNodeSingleClicked.Execute(NodeWidgetUnderMouse->GetObjectBeingDisplayed());
+				}
+
 			}
 			else if (this->HasMouseCapture())
 			{

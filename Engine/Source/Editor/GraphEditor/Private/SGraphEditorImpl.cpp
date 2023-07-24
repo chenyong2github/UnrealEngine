@@ -770,6 +770,7 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 			.ShowGraphStateOverlay(InArgs._ShowGraphStateOverlay)
 			.OnDoubleClicked(InArgs._GraphEvents.OnDoubleClicked)
 			.OnMouseButtonDown(InArgs._GraphEvents.OnMouseButtonDown)
+		    .OnNodeSingleClicked(InArgs._GraphEvents.OnNodeSingleClicked)
 		]
 
 		// Indicator of current zoom level
