@@ -125,7 +125,7 @@ public:
 
 	/** The handle released delegate that fires right before a handle is release so all data stores can clean up their state */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetingRequestHandleReleased, FTargetingRequestHandle)
-	static FOnTargetingRequestHandleReleased ReleaseHandleDelegate;
+	TARGETINGSYSTEM_API static FOnTargetingRequestHandleReleased ReleaseHandleDelegate;
 
 	/** Target Handle Generation Methods */
 
