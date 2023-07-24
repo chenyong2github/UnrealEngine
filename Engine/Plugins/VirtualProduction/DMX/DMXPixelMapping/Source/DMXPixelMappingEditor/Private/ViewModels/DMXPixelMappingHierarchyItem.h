@@ -44,6 +44,12 @@ public:
 	/** Gets the absolute channel of the patch of the component. Returns -1 if this item doesn't have a patch */
 	int64 GetAbsoluteChannel() const;
 
+	/** Returns true if this item is expanded */
+	bool IsExpanded() const;
+
+	/** Sets if the item is expanded */
+	void SetIsExpanded(bool bExpanded);
+
 	/** Sorts the children of this item by Projection. */
 	template <typename ProjectionType>
 	void StableSortChildren(ProjectionType Projection)

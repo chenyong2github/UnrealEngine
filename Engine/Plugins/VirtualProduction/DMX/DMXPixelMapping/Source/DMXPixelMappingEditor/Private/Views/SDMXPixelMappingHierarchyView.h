@@ -74,16 +74,19 @@ private:
 	//~ End FEditorUndoClient interface
 
 	/** Called to get child items */
-	void OnGetChildItems(FDMXPixelMappingHierarchyItemWidgetModelPtr InParent, FDMXPixelMappingHierarchyItemWidgetModelArr& OutChildren);
+	void OnGetChildItems(TSharedPtr<FDMXPixelMappingHierarchyItem> InParent, FDMXPixelMappingHierarchyItemWidgetModelArr& OutChildren);
 
 	/** Called when a row is generated */
-	TSharedRef<ITableRow> OnGenerateRow(FDMXPixelMappingHierarchyItemWidgetModelPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FDMXPixelMappingHierarchyItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Called when the context menu is opening */
 	TSharedPtr<SWidget> OnContextMenuOpening();
 
-	/** Called when selection changed */
-	void OnSelectionChanged(FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem, ESelectInfo::Type SelectInfo);
+	/** Called when selection changed in the hierarchy */
+	void OnHierarchySelectionChanged(TSharedPtr<FDMXPixelMappingHierarchyItem> Item, ESelectInfo::Type SelectInfo);
+
+	/** Called when selection changed in the hierarchy */
+	void OnHierarchyExpansionChanged(TSharedPtr<FDMXPixelMappingHierarchyItem> Item, bool bExpanded);
 
 	/** Toggles the visibility of a column */
 	void ToggleColumnVisility(FName ColumnId);
@@ -125,7 +128,7 @@ private:
 	void SetFilterText(const FText& Text);
 
 	/**  Gets an array of strings used for filtering/searching the specified widget. */
-	void GetWidgetFilterStrings(FDMXPixelMappingHierarchyItemWidgetModelPtr InModel, TArray<FString>& OutStrings) const;
+	void GetWidgetFilterStrings(TSharedPtr<FDMXPixelMappingHierarchyItem> InModel, TArray<FString>& OutStrings) const;
 
 	/** Flag to ignore selections while the hierarchy view is updating the selection. */
 	bool bIsUpdatingSelection = false;
@@ -143,13 +146,13 @@ private:
 	TSharedPtr<SSearchBox> SearchBox;
 
 	/** The hierarchy tree view widget */
-	TSharedPtr<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>> HierarchyTreeView;
+	TSharedPtr<STreeView<TSharedPtr<FDMXPixelMappingHierarchyItem>>> HierarchyTreeView;
 
 	/** Handles filtering the hierarchy based on an IFilter. */
-	TSharedPtr<TreeFilterHandler<FDMXPixelMappingHierarchyItemWidgetModelPtr>> FilterHandler;
+	TSharedPtr<TreeFilterHandler<TSharedPtr<FDMXPixelMappingHierarchyItem>>> FilterHandler;
 
 	/** Text filter for the filter handler, set from the search bbox */
-	TSharedPtr<TTextFilter<FDMXPixelMappingHierarchyItemWidgetModelPtr>> SearchFilter;
+	TSharedPtr<TTextFilter<TSharedPtr<FDMXPixelMappingHierarchyItem>>> SearchFilter;
 
 	/** Timer handle for the request refresh timer */
 	FTimerHandle RequestRefreshTimerHandle;

@@ -90,6 +90,26 @@ int64 FDMXPixelMappingHierarchyItem::GetAbsoluteChannel() const
 	return -1;
 }
 
+bool FDMXPixelMappingHierarchyItem::IsExpanded() const
+{
+	if (UDMXPixelMappingBaseComponent* BaseComponent = Cast<UDMXPixelMappingBaseComponent>(WeakComponent.Get()))
+	{
+		return BaseComponent->bExpanded;
+	}
+
+	return false;
+}
+
+void FDMXPixelMappingHierarchyItem::SetIsExpanded(bool bExpanded)
+{
+	UDMXPixelMappingBaseComponent* BaseComponent = Cast<UDMXPixelMappingBaseComponent>(WeakComponent.Get());
+	if (BaseComponent && BaseComponent->bExpanded != bExpanded)
+	{
+		BaseComponent->Modify();
+		BaseComponent->bExpanded = bExpanded;
+	}
+}
+
 void FDMXPixelMappingHierarchyItem::ReverseChildren()
 {
 	Algo::Reverse(Children);

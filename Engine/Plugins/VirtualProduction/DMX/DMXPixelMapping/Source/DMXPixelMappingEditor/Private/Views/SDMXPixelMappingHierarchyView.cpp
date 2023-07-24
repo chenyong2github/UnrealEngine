@@ -68,80 +68,16 @@ namespace UE::DMX::PixelMappingEditor::SDMXPixelMappingHierarchyView::Private
 		TArray<UDMXPixelMappingBaseComponent*> DMXPixelMappingBaseComponents;
 	};
 
-
-	/** Helper to restore expansion state after refreshing */
-	struct FTreeExpansionSnapshot
+	/** Helper to adopt the expansion of items in theh hierarchy treeview */
+	void AdoptItemExpansionFromTree(const TSharedRef<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>>& TreeView, const TSharedPtr<FDMXPixelMappingHierarchyItem>& Parent)
 	{
-		static FTreeExpansionSnapshot TakeSnapshot(const FDMXPixelMappingHierarchyItemWidgetModelArr& InRootWidgets, const TSharedPtr<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>>& InTreeView)
+		TreeView->SetItemExpansion(Parent, Parent->IsExpanded());
+		for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& Child : Parent->GetChildren())
 		{
-			FTreeExpansionSnapshot Result;
-			for (FDMXPixelMappingHierarchyItemWidgetModelPtr Model : InRootWidgets)
-			{
-				Result.RecursiveTakeSnapshot(Model, InTreeView);
-			}
-			return Result;
+			TreeView->SetItemExpansion(Child, Child->IsExpanded());
+			AdoptItemExpansionFromTree(TreeView, Child);
 		}
-
-		void RestoreExpandedAndExpandNewModels(const FDMXPixelMappingHierarchyItemWidgetModelArr& InRootWidgets, const TSharedPtr<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>>& InTreeView)
-		{
-			for (FDMXPixelMappingHierarchyItemWidgetModelPtr Model : InRootWidgets)
-			{
-				RecursiveRestoreSnapshot(Model, InTreeView);
-			}
-		}
-
-	private:
-
-		FTreeExpansionSnapshot()
-		{}
-
-		void RecursiveTakeSnapshot(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, const TSharedPtr<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>>& TreeView)
-		{
-			UDMXPixelMappingBaseComponent* Component = Model->GetComponent();
-			if (IsValid(Component))
-			{
-				ComponentExpansionStates.Add(Component) = TreeView->IsItemExpanded(Model);
-
-				for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Model->GetChildren())
-				{
-					RecursiveTakeSnapshot(ChildModel, TreeView);
-				}
-			}
-		}
-
-		void RecursiveRestoreSnapshot(FDMXPixelMappingHierarchyItemWidgetModelPtr Model, const TSharedPtr<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>>& TreeView)
-		{
-			UDMXPixelMappingBaseComponent* Component = Model->GetComponent();
-			if (IsValid(Component))
-			{
-				bool* pPreviousExpansionState = ComponentExpansionStates.Find(Component);
-				if (pPreviousExpansionState == nullptr)
-				{
-					// Initially collapse matrix components
-					if (Cast<UDMXPixelMappingMatrixComponent>(Component))
-					{
-						TreeView->SetItemExpansion(Model, false);
-					}
-					else
-					{
-						TreeView->SetItemExpansion(Model, true);
-					}
-				}
-				else
-				{
-					TreeView->SetItemExpansion(Model, *pPreviousExpansionState);
-				}
-
-				for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Model->GetChildren())
-				{
-					RecursiveRestoreSnapshot(ChildModel, TreeView);
-				}
-			}
-		}
-
-		TMap<UDMXPixelMappingBaseComponent*, bool> ComponentExpansionStates;
-	};
-
+	}
 }
 
 const FName SDMXPixelMappingHierarchyView::FColumnIds::EditorColor = "EditorColor";
@@ -191,27 +127,30 @@ void SDMXPixelMappingHierarchyView::RequestRefresh()
 
 void SDMXPixelMappingHierarchyView::ForceRefresh()
 {
-	RequestRefreshTimerHandle.Invalidate();
+	if (!ensureMsgf(HierarchyTreeView.IsValid(), TEXT("Cannot refresh the hierarchy tree view before BuildChildSlotAndRefresh() was called.")))
+	{
+		return;
+	}
 
-	using namespace UE::DMX::PixelMappingEditor::SDMXPixelMappingHierarchyView::Private;
-	FTreeExpansionSnapshot ExpansionSnapshot = FTreeExpansionSnapshot::TakeSnapshot(AllRootItems, HierarchyTreeView);
+	RequestRefreshTimerHandle.Invalidate();
 
 	// Create the root, and let it construct new tree items
 	AllRootItems.Reset();
 	AllRootItems.Add(FDMXPixelMappingHierarchyItem::CreateNew(WeakToolkit.Pin()));
 
-	// Refresh and filter the tree view
-	FilterHandler->RefreshAndFilterTree();
+	// Adopt expansion of new items from the old tree
+	using namespace UE::DMX::PixelMappingEditor::SDMXPixelMappingHierarchyView::Private;
+	for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& RootItem : AllRootItems)
+	{
+		AdoptItemExpansionFromTree(HierarchyTreeView.ToSharedRef(), RootItem);
+	}
 
-	ExpansionSnapshot.RestoreExpandedAndExpandNewModels(AllRootItems, HierarchyTreeView);
+	FilterHandler->RefreshAndFilterTree();
 	AdoptSelectionFromToolkit();
 }
 
 void SDMXPixelMappingHierarchyView::BuildChildSlotAndRefresh()
 {
-	using namespace UE::DMX::PixelMappingEditor::SDMXPixelMappingHierarchyView::Private;
-	FTreeExpansionSnapshot ExpansionSnapshot = FTreeExpansionSnapshot::TakeSnapshot(AllRootItems, HierarchyTreeView);
-
 	ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -257,7 +196,8 @@ void SDMXPixelMappingHierarchyView::BuildChildSlotAndRefresh()
 				.HeaderRow(GenerateHeaderRow())
 				.OnGetChildren(FilterHandler.ToSharedRef(), &TreeFilterHandler<TSharedPtr<FDMXPixelMappingHierarchyItem>>::OnGetFilteredChildren)
 				.OnGenerateRow(this, &SDMXPixelMappingHierarchyView::OnGenerateRow)
-				.OnSelectionChanged(this, &SDMXPixelMappingHierarchyView::OnSelectionChanged)
+				.OnSelectionChanged(this, &SDMXPixelMappingHierarchyView::OnHierarchySelectionChanged)
+				.OnExpansionChanged(this, &SDMXPixelMappingHierarchyView::OnHierarchyExpansionChanged)
 				.OnContextMenuOpening(this, &SDMXPixelMappingHierarchyView::OnContextMenuOpening)
 				.TreeItemsSource(&FilteredRootItems)
 				.OnItemToString_Debug_Lambda([this](FDMXPixelMappingHierarchyItemWidgetModelPtr Item) { return Item->GetComponentNameText().ToString(); })
@@ -266,15 +206,7 @@ void SDMXPixelMappingHierarchyView::BuildChildSlotAndRefresh()
 
 	FilterHandler->SetTreeView(HierarchyTreeView.Get());
 
-	// Create the root, and let it construct new tree items
-	AllRootItems.Reset();
-	AllRootItems.Add(FDMXPixelMappingHierarchyItem::CreateNew(WeakToolkit.Pin()));
-
-	// Refresh and filter the tree view
-	FilterHandler->RefreshAndFilterTree();
-
-	ExpansionSnapshot.RestoreExpandedAndExpandNewModels(AllRootItems, HierarchyTreeView);
-	AdoptSelectionFromToolkit();
+	ForceRefresh();
 }
 
 TSharedRef<SHeaderRow> SDMXPixelMappingHierarchyView::GenerateHeaderRow()
@@ -472,7 +404,7 @@ TSharedPtr<SWidget> SDMXPixelMappingHierarchyView::OnContextMenuOpening()
 	return MenuBuilder.MakeWidget();
 }
 
-void SDMXPixelMappingHierarchyView::OnSelectionChanged(FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem, ESelectInfo::Type SelectInfo)
+void SDMXPixelMappingHierarchyView::OnHierarchySelectionChanged(FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo == ESelectInfo::Direct)
 	{
@@ -492,6 +424,11 @@ void SDMXPixelMappingHierarchyView::OnSelectionChanged(FDMXPixelMappingHierarchy
 
 		Toolkit->SelectComponents(ComponentsToSelect);
 	}
+}
+
+void SDMXPixelMappingHierarchyView::OnHierarchyExpansionChanged(TSharedPtr<FDMXPixelMappingHierarchyItem> Item, bool bExpanded)
+{
+	Item->SetIsExpanded(bExpanded);
 }
 
 void SDMXPixelMappingHierarchyView::ToggleColumnVisility(FName ColumnId)
@@ -607,16 +544,9 @@ bool SDMXPixelMappingHierarchyView::RecursiveAdoptSelectionFromToolkit(const TSh
 	}
 
 	const TSet<FDMXPixelMappingComponentReference> SelectedComponents = Toolkit->GetSelectedComponents();
-	if (bContainsSelection)
-	{
-		HierarchyTreeView->SetItemExpansion(Item, true);
-	}
-
 	if (SelectedComponents.Contains(FDMXPixelMappingComponentReference(Toolkit, Item->GetComponent())))
 	{
-		HierarchyTreeView->SetItemSelection(Item, true, ESelectInfo::Direct);
 		HierarchyTreeView->RequestScrollIntoView(Item);
-
 		return true;
 	}
 
@@ -658,14 +588,9 @@ void SDMXPixelMappingHierarchyView::DeleteSelectedComponents()
 
 void SDMXPixelMappingHierarchyView::SetFilterText(const FText& Text)
 {
-	using namespace UE::DMX::PixelMappingEditor::SDMXPixelMappingHierarchyView::Private;
-	FTreeExpansionSnapshot ExpansionSnapshot = FTreeExpansionSnapshot::TakeSnapshot(AllRootItems, HierarchyTreeView);
-
 	FilterHandler->SetIsEnabled(!Text.IsEmpty());
 	SearchFilter->SetRawFilterText(Text);
 	FilterHandler->RefreshAndFilterTree();
-
-	ExpansionSnapshot.RestoreExpandedAndExpandNewModels(AllRootItems, HierarchyTreeView);
 }
 
 void SDMXPixelMappingHierarchyView::GetWidgetFilterStrings(FDMXPixelMappingHierarchyItemWidgetModelPtr InModel, TArray<FString>& OutStrings) const

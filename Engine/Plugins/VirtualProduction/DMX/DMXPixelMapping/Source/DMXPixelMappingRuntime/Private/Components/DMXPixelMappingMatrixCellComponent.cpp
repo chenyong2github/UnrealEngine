@@ -29,7 +29,7 @@ UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
 {
 #if WITH_EDITORONLY_DATA
 	bLockInDesigner = true;
-	EditorColor = FLinearColor::White.CopyWithNewOpacity(.4f);
+	EditorColor = FLinearColor::White.CopyWithNewOpacity(.25f);
 #endif // WITH_EDITORONLY_DATA
 }
 

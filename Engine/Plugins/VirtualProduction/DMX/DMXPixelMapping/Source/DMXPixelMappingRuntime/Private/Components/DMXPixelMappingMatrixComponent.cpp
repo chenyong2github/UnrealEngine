@@ -38,6 +38,8 @@ UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 	SetSize(FVector2D(32.f, 32.f));
 
 #if WITH_EDITORONLY_DATA
+	bExpanded = false;
+
 	// Even tho deprecated, default values on deprecated properties need be set so they don't load their type's default value.
 	ColorMode_DEPRECATED = EDMXColorMode::CM_RGB;
 	AttributeR_DEPRECATED.SetFromName("Red");

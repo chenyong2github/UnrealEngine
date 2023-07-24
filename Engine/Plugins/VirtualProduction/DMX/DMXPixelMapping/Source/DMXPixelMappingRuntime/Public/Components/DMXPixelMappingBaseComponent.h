@@ -188,6 +188,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
 	virtual void RenderAndSendDMX() {};
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bExpanded = true;
+#endif
+
 public:
 	/*----------------------------------------------------------
 		Public static functions
