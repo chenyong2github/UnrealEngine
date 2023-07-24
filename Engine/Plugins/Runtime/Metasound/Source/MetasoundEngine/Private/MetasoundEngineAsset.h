@@ -4,6 +4,7 @@
 
 #include "Metasound.h"
 #include "MetasoundAssetManager.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Serialization/Archive.h"
 
@@ -26,6 +27,11 @@ namespace Metasound
 		static void PostEditUndo(TMetaSoundObject& InMetaSound)
 		{
 			InMetaSound.GetModifyContext().SetForceRefreshViews();
+
+			const FMetasoundFrontendDocument& Document = InMetaSound.GetDocumentChecked();
+			const FMetasoundFrontendClassName& ClassName = Document.RootGraph.Metadata.GetClassName();
+			UMetaSoundBuilderSubsystem::GetChecked().PostBuilderAssetTransaction(ClassName);
+
 			if (UMetasoundEditorGraphBase* Graph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 			{
 				Graph->RegisterGraphWithFrontend();

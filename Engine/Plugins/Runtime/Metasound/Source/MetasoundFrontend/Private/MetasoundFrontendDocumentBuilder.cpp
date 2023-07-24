@@ -494,7 +494,7 @@ FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(TScriptInte
 {
 	if (DocumentInterface)
 	{
-		ReloadCache();
+		ReloadCacheInternal();
 	}
 }
 
@@ -504,7 +504,7 @@ FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(TScriptInte
 {
 	if (DocumentInterface)
 	{
-		ReloadCache();
+		ReloadCacheInternal();
 	}
 }
 
@@ -1069,7 +1069,7 @@ void FMetaSoundFrontendDocumentBuilder::ClearGraph()
 	GraphClass.PresetOptions.InputsInheritingDefault.Reset();
 	GetDocument().Interfaces.Reset();
 	RemoveUnusedDependencies();
-	ReloadCache();
+	ReloadCacheInternal();
 }
 
 bool FMetaSoundFrontendDocumentBuilder::ContainsEdge(const FMetasoundFrontendEdge& InEdge) const
@@ -1136,7 +1136,7 @@ bool FMetaSoundFrontendDocumentBuilder::ConvertToPreset(const FMetasoundFrontend
 	FRebuildPresetRootGraph RebuildPresetRootGraph(InReferencedDocument);
 	if (RebuildPresetRootGraph.Transform(GetDocument()))
 	{
-		ReloadCache();
+		ReloadCacheInternal();
 		return true;
 	}
 	return false;
@@ -1640,7 +1640,7 @@ bool FMetaSoundFrontendDocumentBuilder::ModifyInterfaces(Metasound::Frontend::FM
 	return Context.Execute(*this, Doc, *DocumentDelegates);
 }
 
-void FMetaSoundFrontendDocumentBuilder::ReloadCache()
+void FMetaSoundFrontendDocumentBuilder::ReloadCacheInternal()
 {
 	using namespace Metasound::Frontend;
 	if (!DocumentCache.IsValid())
@@ -2119,6 +2119,11 @@ bool FMetaSoundFrontendDocumentBuilder::RenameRootGraphClass(const FMetasoundFro
 }
 
 #if WITH_EDITOR
+void FMetaSoundFrontendDocumentBuilder::ReloadCache()
+{
+	ReloadCacheInternal();
+}
+
 void FMetaSoundFrontendDocumentBuilder::SetAuthor(const FString& InAuthor)
 {
 	FMetasoundFrontendClassMetadata& ClassMetadata = GetDocument().RootGraph.Metadata;

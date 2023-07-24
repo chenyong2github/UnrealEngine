@@ -630,6 +630,11 @@ void UMetaSoundBuilderBase::RenameRootGraphClass(const FMetasoundFrontendClassNa
 }
 
 #if WITH_EDITOR
+void UMetaSoundBuilderBase::ReloadCache()
+{
+	Builder.ReloadCache();
+}
+
 void UMetaSoundBuilderBase::SetAuthor(const FString& InAuthor)
 {
 	Builder.SetAuthor(InAuthor);
@@ -1570,6 +1575,17 @@ bool UMetaSoundBuilderSubsystem::IsInterfaceRegistered(FName InInterfaceName) co
 	FMetasoundFrontendInterface Interface;
 	return ISearchEngine::Get().FindInterfaceWithHighestVersion(InInterfaceName, Interface);
 }
+
+#if WITH_EDITOR
+void UMetaSoundBuilderSubsystem::PostBuilderAssetTransaction(const FMetasoundFrontendClassName& InClassName)
+{
+	TWeakObjectPtr<UMetaSoundBuilderBase> BuilderPtr = AssetBuilders.FindRef(InClassName.GetFullName());
+	if (UMetaSoundBuilderBase* Builder = BuilderPtr.Get())
+	{
+		Builder->ReloadCache();
+	}
+}
+#endif // WITH_EDITOR
 
 void UMetaSoundBuilderSubsystem::RegisterBuilder(FName BuilderName, UMetaSoundBuilderBase* Builder)
 {

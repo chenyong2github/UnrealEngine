@@ -213,6 +213,11 @@ public:
 	bool RenameRootGraphClass(const FMetasoundFrontendClassName& InName);
 
 #if WITH_EDITOR
+	// Primarily used by editor transaction stack to avoid corruption when object is
+	// changed outside of the builder API. Generally discouraged for direct use otherwise
+	// as it can be expensive and builder API should manage internal cache state directly.
+	void ReloadCache();
+
 	void SetAuthor(const FString& InAuthor);
 #endif // WITH_EDITOR
 
@@ -235,7 +240,7 @@ private:
 	const FMetasoundFrontendClassInput* FindNodeInputClassInput(const FGuid& InNodeID, const FGuid& InVertexID) const;
 	const FMetasoundFrontendClassOutput* FindNodeOutputClassOutput(const FGuid& InNodeID, const FGuid& InVertexID) const;
 
-	void ReloadCache();
+	void ReloadCacheInternal();
 
 	bool SetGraphInputInheritsDefault(FName InName, bool bInputInheritsDefault);
 

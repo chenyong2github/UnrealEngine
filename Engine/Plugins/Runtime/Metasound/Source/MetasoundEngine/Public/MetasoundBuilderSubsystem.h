@@ -27,6 +27,7 @@ class UMetaSound;
 class UMetaSoundPatch;
 class UMetaSoundSource;
 
+struct FMetasoundFrontendClassName;
 struct FMetasoundFrontendVersion;
 
 enum class EMetaSoundOutputAudioFormat : uint8;
@@ -332,6 +333,10 @@ public:
 	void RenameRootGraphClass(const FMetasoundFrontendClassName& InName);
 
 #if WITH_EDITOR
+	// Primarily used by editor transaction stack to avoid corruption when object is
+	// changed outside of the builder API. Generally discouraged for direct use otherwise.
+	void ReloadCache();
+
 	// Sets the author of the MetaSound.
 	void SetAuthor(const FString& InAuthor);
 #endif // WITH_EDITOR
@@ -608,6 +613,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	UPARAM(DisplayName = "Is Registered") bool IsInterfaceRegistered(FName InInterfaceName) const;
+
+#if WITH_EDITOR
+	// Updates builder data should a builder-managed asset be updated via the transaction stack.
+	void PostBuilderAssetTransaction(const FMetasoundFrontendClassName& InClassName);
+#endif // WITH_EDITOR
 
 	// Adds builder to subsystem's registry to make it persistent and easily accessible by multiple systems or Blueprints
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")

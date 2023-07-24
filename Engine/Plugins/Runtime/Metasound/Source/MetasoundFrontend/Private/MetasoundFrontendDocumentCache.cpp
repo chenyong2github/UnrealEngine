@@ -412,6 +412,13 @@ namespace Metasound::Frontend
 	FDocumentGraphEdgeCache::FDocumentGraphEdgeCache(TSharedRef<IDocumentCache> ParentCache)
 		: Parent(ParentCache)
 	{
+	}
+
+	void FDocumentGraphEdgeCache::Init(FEdgeModifyDelegates& OutDelegates)
+	{
+		OutputToEdgeIndices.Reset();
+		InputToEdgeIndex.Reset();
+
 		const TArray<FMetasoundFrontendEdge>& Edges = Parent->GetDocument().RootGraph.Graph.Edges;
 		for (int32 Index = 0; Index < Edges.Num(); ++Index)
 		{
@@ -419,12 +426,6 @@ namespace Metasound::Frontend
 			OutputToEdgeIndices.FindOrAdd(Edge.GetFromVertexHandle()).Add(Index);
 			InputToEdgeIndex.Add(Edge.GetToVertexHandle()) = Index;
 		}
-	}
-
-	void FDocumentGraphEdgeCache::Init(FEdgeModifyDelegates& OutDelegates)
-	{
-		OutputToEdgeIndices.Reset();
-		InputToEdgeIndex.Reset();
 
 		OutDelegates.OnEdgeAdded.AddSP(this, &FDocumentGraphEdgeCache::OnEdgeAdded);
 		OutDelegates.OnRemovingEdge.AddSP(this, &FDocumentGraphEdgeCache::OnRemovingEdge);
