@@ -801,8 +801,8 @@ static void DumpDistribution(FOutputDevice& Out, const TCHAR* Title, const FLog2
 		uint32 Num = Bins[Idx];
 		Sum += Num;
 		uint32 Max = Idx == 0 ? 0 : 1u << (Idx - 1);
-		float Percentage = (100.f * Num) / Total;
-		float Cumulative = (100.f * Sum) / Total;
+		float Percentage = (100.f * (float)Num) / (float)Total;
+		float Cumulative = (100.f * (float)Sum) / (float)Total;
 		if (Unit == EDumpUnit::Number)
 		{
 			Out.Logf(TEXT(" %4d %5.1f%% %5.1f%%  %d"), Max, Percentage, Cumulative, Num);
@@ -824,8 +824,8 @@ static void DumpSchemaStats(FOutputDevice& Out, const FSchemaStats& Stats)
 		if (uint32 Num = Stats.Counters[Idx])
 		{
 			Sum += Num;
-			float Percentage = (100.f * Num) / Stats.NumMembers;
-			float Cumulative = (100.f * Sum) / Stats.NumMembers;
+			float Percentage = (100.f * (float)Num) / (float)Stats.NumMembers;
+			float Cumulative = (100.f * (float)Sum) / (float)Stats.NumMembers;
 			Out.Logf(FormatStr, *ToName(EMemberType(Idx)).ToString(), Percentage, Cumulative, Num);
 		}
 	}

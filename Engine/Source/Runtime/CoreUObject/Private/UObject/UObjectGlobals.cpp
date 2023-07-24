@@ -1436,7 +1436,7 @@ public:
 
 		if (DiffArchive && !bDisable)
 		{
-			TArray<uint8> Data;
+			TArray64<uint8> Data;
 			Data.AddUninitialized(Length);
 			DiffArchive->Seek(Pos);
 			DiffArchive->Serialize(Data.GetData(), Length);
@@ -2081,7 +2081,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 	if (ShouldCreateThrottledSlowTask())
 	{
 		static const FText PostLoadText = NSLOCTEXT("Core", "PerformingPostLoad", "Performing post-load...");
-		SlowTask.Emplace(0, PostLoadText);
+		SlowTask.Emplace(0.0f, PostLoadText);
 	}
 
 	int32 NumObjectsLoaded = 0, NumObjectsFound = 0;
@@ -2153,7 +2153,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 			if (SlowTask)
 			{
 				SlowTask->CompletedWork = SlowTask->TotalAmountOfWork;
-				SlowTask->TotalAmountOfWork += ObjLoaded.Num();
+				SlowTask->TotalAmountOfWork += static_cast<float>(ObjLoaded.Num());
 				SlowTask->CurrentFrameScope = 0;
 			}
 #endif
@@ -2487,7 +2487,7 @@ namespace NameReuse
 			Entry->Store(reinterpret_cast<UPTRINT>(Parent), UsedName);
 
 			// Shift this entry to the end of the array as it's now the most recently used
-			int32 Index = Entry - Entries.GetData();
+			int32 Index = UE_PTRDIFF_TO_INT32(Entry - Entries.GetData());
 			if (Index != Entries.Num() - 1)
 			{
 				FEntry Removed = MoveTemp(*Entry);

@@ -377,7 +377,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		FPropertyTag& InnerTag = MaybeInnerTag.GetValue();
 
 		// set the tag's size
-		InnerTag.Size = UnderlyingArchive.Tell() - DataOffset;
+		InnerTag.Size = IntCastChecked<int32>(UnderlyingArchive.Tell() - DataOffset);
 
 		if (InnerTag.Size > 0)
 		{

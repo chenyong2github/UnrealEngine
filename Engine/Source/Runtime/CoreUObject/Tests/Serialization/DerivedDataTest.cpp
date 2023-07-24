@@ -25,7 +25,7 @@ namespace UE::DerivedDataTest::Private
 static FSharedBuffer MakeSharedBuffer(uint64& Counter, uint64 Size)
 {
 	FUniqueBuffer Unique = FUniqueBuffer::Alloc(Size);
-	TArrayView<uint64> Values(static_cast<uint64*>(Unique.GetData()), Size / sizeof(uint64));
+	TArrayView<uint64> Values(static_cast<uint64*>(Unique.GetData()), IntCastChecked<int32>(Size / sizeof(uint64)));
 	uint64 Index = 0;
 	for (uint64& Value : Values)
 	{

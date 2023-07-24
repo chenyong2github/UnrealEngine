@@ -380,7 +380,7 @@ void FJsonArchiveOutputFormatter::Serialize(void* Data, uint64 DataSize)
 	if(DataSize < MaxLineBytes)
 	{
 		// Encode the data on a single line. No need for hashing; intra-line merge conflicts are rare.
-		WriteValue(FString::Printf(TEXT("\"Base64:%s\""), *FBase64::Encode((const uint8*)Data, DataSize)));
+		WriteValue(FString::Printf(TEXT("\"Base64:%s\""), *FBase64::Encode((const uint8*)Data, static_cast<uint32>(DataSize))));
 	}
 	else
 	{
@@ -417,7 +417,7 @@ void FJsonArchiveOutputFormatter::Serialize(void* Data, uint64 DataSize)
 			Write("\t\"");
 
 			ANSICHAR LineData[MaxLineChars + 1];
-			uint64 NumLineChars = FBase64::Encode((const uint8*)Data + DataPos, FMath::Min<uint64>(DataSize - DataPos, MaxLineBytes), LineData);
+			uint64 NumLineChars = FBase64::Encode((const uint8*)Data + DataPos, FMath::Min<uint32>(IntCastChecked<uint32>(DataSize - DataPos), MaxLineBytes), LineData);
 			Inner.Serialize(LineData, NumLineChars);
 
 			Write("\"");

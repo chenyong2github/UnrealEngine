@@ -87,7 +87,7 @@ void FScriptStackTracker::DumpStackTraces( int32 StackThreshold, FOutputDevice& 
 
 	// Log quick summary as we don't log each individual so totals in CSV won't represent real totals.
 	Ar.Logf(TEXT("Captured %i unique callstacks totalling %" UINT64_FMT " function calls over %" UINT64_FMT " frames, averaging %5.2f calls/frame"), 
-		SortedCallStacks.Num(), TotalStackCount, FramesCaptured, (float)TotalStackCount / FramesCaptured);
+		SortedCallStacks.Num(), TotalStackCount, FramesCaptured, (float)TotalStackCount / (float)FramesCaptured);
 
 	// Iterate over each callstack and write out info in human readable form in CSV format
 	for( int32 CallStackIndex=0; CallStackIndex<SortedCallStacks.Num(); CallStackIndex++ )

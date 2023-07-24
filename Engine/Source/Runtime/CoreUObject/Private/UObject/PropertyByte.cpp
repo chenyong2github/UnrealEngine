@@ -74,11 +74,11 @@ void FByteProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, 
 		int32 EnumIndex = Enum->GetIndexByName(EnumValueName, EGetByNameFlags::ErrorIfNotFound);
 		if (EnumIndex == INDEX_NONE)
 		{
-			*(uint8*)Value = Enum->GetMaxEnumValue();
+			*(uint8*)Value = IntCastChecked<uint8>(Enum->GetMaxEnumValue());
 		}
 		else
 		{
-			*(uint8*)Value = Enum->GetValueByIndex(EnumIndex);
+			*(uint8*)Value = IntCastChecked<uint8>(Enum->GetValueByIndex(EnumIndex));
 		}
 	}
 	// Saving
@@ -106,7 +106,7 @@ bool FByteProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data
 
 	if (Ar.EngineNetVer() < FEngineNetworkCustomVersion::EnumSerializationCompat)
 	{
-		Ar.SerializeBits(Data, Enum ? FMath::CeilLogTwo(Enum->GetMaxEnumValue()) : 8);
+		Ar.SerializeBits(Data, Enum ? FMath::CeilLogTwo64(Enum->GetMaxEnumValue()) : 8);
 	}
 	else
 	{
@@ -206,7 +206,7 @@ struct TConvertIntToEnumProperty
 				*Enum->GetNameByValue(Enum->GetMaxEnumValue()).ToString()
 				);
 
-			NewValue = Enum->GetMaxEnumValue();
+			NewValue = IntCastChecked<uint8>(Enum->GetMaxEnumValue());
 		}
 
 		Property->SetPropertyValue_InContainer(Obj, NewValue, Tag.ArrayIndex);
@@ -425,7 +425,7 @@ const TCHAR* FByteProperty::ImportText_Internal( const TCHAR* InBuffer, void* Co
 			}
 			if (EnumIndex != INDEX_NONE)
 			{
-				int64 EnumValue = Enum->GetValueByIndex(EnumIndex);
+				uint8 EnumValue = IntCastChecked<uint8>(Enum->GetValueByIndex(EnumIndex));
 				if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 				{
 					SetValue_InContainer(ContainerOrPropertyPtr, EnumValue);
@@ -466,7 +466,7 @@ const TCHAR* FByteProperty::ImportText_Internal( const TCHAR* InBuffer, void* Co
 				uint64 TrueValue = 1ull;
 				if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 				{
-					SetValue_InContainer(ContainerOrPropertyPtr, TrueValue);
+					SetValue_InContainer(ContainerOrPropertyPtr, static_cast<uint8>(TrueValue));
 				}
 				else
 				{
@@ -479,7 +479,7 @@ const TCHAR* FByteProperty::ImportText_Internal( const TCHAR* InBuffer, void* Co
 				uint64 FalseValue = 0ull;
 				if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 				{
-					SetValue_InContainer(ContainerOrPropertyPtr, FalseValue);
+					SetValue_InContainer(ContainerOrPropertyPtr, static_cast<uint8>(FalseValue));
 				}
 				else
 				{

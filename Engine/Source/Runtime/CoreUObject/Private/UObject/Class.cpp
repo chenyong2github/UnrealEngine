@@ -628,8 +628,8 @@ UStruct::UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
 	, SuperStruct(InSuperStruct)
 	, Children(nullptr)
 	, ChildProperties(nullptr)
-	, PropertiesSize(ParamsSize ? ParamsSize : (InSuperStruct ? InSuperStruct->GetPropertiesSize() : 0))
-	, MinAlignment(Alignment ? Alignment : (FMath::Max(InSuperStruct ? InSuperStruct->GetMinAlignment() : 1, 1)))
+	, PropertiesSize(ParamsSize ? IntCastChecked<int32>(ParamsSize) : (InSuperStruct ? InSuperStruct->GetPropertiesSize() : 0))
+	, MinAlignment(Alignment ? IntCastChecked<int32>(Alignment) : (FMath::Max(InSuperStruct ? InSuperStruct->GetMinAlignment() : 1, 1)))
 	, PropertyLink(nullptr)
 	, RefLink(nullptr)
 	, DestructorLink(nullptr)
@@ -650,8 +650,8 @@ UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperSt
 	, SuperStruct(InSuperStruct)
 	, Children(nullptr)
 	, ChildProperties(nullptr)
-	, PropertiesSize(ParamsSize ? ParamsSize : (InSuperStruct ? InSuperStruct->GetPropertiesSize() : 0))
-	, MinAlignment(Alignment ? Alignment : (FMath::Max(InSuperStruct ? InSuperStruct->GetMinAlignment() : 1, 1)))
+	, PropertiesSize(ParamsSize ? IntCastChecked<int32>(ParamsSize) : (InSuperStruct ? InSuperStruct->GetPropertiesSize() : 0))
+	, MinAlignment(Alignment ? IntCastChecked<int32>(Alignment) : (FMath::Max(InSuperStruct ? InSuperStruct->GetMinAlignment() : 1, 1)))
 	, PropertyLink(nullptr)
 	, RefLink(nullptr)
 	, DestructorLink(nullptr)
@@ -1610,7 +1610,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 						}
 
 						// set the tag's size
-						Tag.Size = UnderlyingArchive.Tell() - DataOffset;
+						Tag.Size = IntCastChecked<int32>(UnderlyingArchive.Tell() - DataOffset);
 
 						if (Tag.Size > 0 && !UnderlyingArchive.IsTextFormat())
 						{
@@ -1978,7 +1978,7 @@ void UStruct::Serialize(FArchive& Ar)
 
 				// go back and write on-disk size
 				Ar.Seek(ScriptStorageSizeOffset);
-				int32 ScriptStorageSize = BytecodeEndOffset - BytecodeStartOffset;
+				int32 ScriptStorageSize = IntCastChecked<int32>(BytecodeEndOffset - BytecodeStartOffset);
 				Ar << ScriptStorageSize;
 
 				// back to where we were
@@ -6624,10 +6624,10 @@ void UFunction::InitializeDerivedMembers()
 		if (Property->PropertyFlags & CPF_Parm)
 		{
 			NumParms++;
-			ParmsSize = Property->GetOffset_ForUFunction() + Property->GetSize();
+			ParmsSize = IntCastChecked<uint16>(Property->GetOffset_ForUFunction() + Property->GetSize());
 			if (Property->PropertyFlags & CPF_ReturnParm)
 			{
-				ReturnValueOffset = Property->GetOffset_ForUFunction();
+				ReturnValueOffset = IntCastChecked<uint16>(Property->GetOffset_ForUFunction());
 			}
 		}
 		else if ((FunctionFlags & FUNC_HasDefaults) == 0)

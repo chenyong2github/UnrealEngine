@@ -551,7 +551,7 @@ protected:
 
 		uint16 Pack() const
 		{
-			return SkipNum | (bHasAnyZeroes ? HasZeroMask : 0) | (uint16)ValueNum << ValueNumShift | (bIsLast ? IsLastMask : 0);
+			return SkipNum | (uint16)(bHasAnyZeroes ? HasZeroMask : 0) | (uint16)(ValueNum << ValueNumShift) | (uint16)(bIsLast ? IsLastMask : 0);
 		}
 
 		static FFragment Unpack(uint16 Int)

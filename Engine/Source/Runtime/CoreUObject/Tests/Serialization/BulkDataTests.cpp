@@ -17,7 +17,7 @@ namespace UE::Serialization::BulkDataTest
 static FUniqueBuffer CreatePayload(uint64 Size, uint64 Seed = 0)
 {
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Size);
-	TArrayView<uint64> Values(static_cast<uint64*>(Buffer.GetData()), Size / sizeof(uint64));
+	TArrayView<uint64> Values(static_cast<uint64*>(Buffer.GetData()), IntCastChecked<int32>(Size / sizeof(uint64)));
 
 	uint64 Index = Seed;
 	for (uint64& Value : Values)

@@ -23,7 +23,7 @@ namespace PropertySerializationStats
 					TEXT("SavedStructs"), Structs.Load(),
 					TEXT("SavedMB"), static_cast<uint32>(UnversionedBytes.Load() >> 20),
 					TEXT("EquivalentTaggedMB"), static_cast<uint32>(VersionedBytes.Load() >> 20),
-					TEXT("CompressionRatio"), static_cast<float>(VersionedBytes.Load()) / UnversionedBytes.Load(),
+					TEXT("CompressionRatio"), static_cast<float>(VersionedBytes.Load()) / static_cast<float>(UnversionedBytes.Load()),
 					TEXT("BitfieldWasteKB"), static_cast<uint32>(UselessBytes.Load()) >> 10));
 	});
 #endif

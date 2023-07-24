@@ -7411,11 +7411,11 @@ void FAsyncPackage::UpdateLoadPercentage()
 	if (Linker)
 	{
 		const int32 PostLoadCount = FMath::Max(DeferredPostLoadObjects.Num(), Linker->ImportMap.Num());
-		NewLoadPercentage = 100.f * (LoadImportIndex + ExportIndex + DeferredPostLoadIndex) / (Linker->ExportMap.Num() + Linker->ImportMap.Num() + PostLoadCount);		
+		NewLoadPercentage = 100.f * static_cast<float>(LoadImportIndex + ExportIndex + DeferredPostLoadIndex) / static_cast<float>(Linker->ExportMap.Num() + Linker->ImportMap.Num() + PostLoadCount);
 	}
 	else if (DeferredPostLoadObjects.Num() > 0)
 	{
-		NewLoadPercentage = static_cast<float>(DeferredPostLoadIndex) / DeferredPostLoadObjects.Num();
+		NewLoadPercentage = static_cast<float>(DeferredPostLoadIndex) / static_cast<float>(DeferredPostLoadObjects.Num());
 	}
 	// It's also possible that we got so many objects to PostLoad that LoadPercantage will actually drop
 	LoadPercentage = FMath::Max(NewLoadPercentage, LoadPercentage);

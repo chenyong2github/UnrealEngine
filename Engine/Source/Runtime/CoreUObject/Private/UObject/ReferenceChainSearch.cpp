@@ -636,7 +636,7 @@ namespace UE::ReferenceChainSearch
 			Search.MergeGraph(MergedEdgeLists);
 
 			OutGraph = UE::Graph::ConstructTransposeGraph(MergedEdgeLists);
-			UE_LOG(LogReferenceChain, Display, TEXT("InitialGather memory usage: %.2f"), (OutGraph.GetAllocatedSize() + Search.GetAllocatedSize()) / 1024.0 / 1024.0);
+			UE_LOG(LogReferenceChain, Display, TEXT("InitialGather memory usage: %.2f"), static_cast<double>(OutGraph.GetAllocatedSize() + Search.GetAllocatedSize()) / 1024.0 / 1024.0);
 		}
 		else
 		{
@@ -652,7 +652,7 @@ namespace UE::ReferenceChainSearch
 			Search.MergeGraph(MergedEdgeLists);
 
 			OutGraph = UE::Graph::ConstructTransposeGraph(MergedEdgeLists);
-			UE_LOG(LogReferenceChain, Display, TEXT("InitialGather memory usage: %.2f"), (OutGraph.GetAllocatedSize() + Search.GetAllocatedSize()) / 1024.0 / 1024.0);
+			UE_LOG(LogReferenceChain, Display, TEXT("InitialGather memory usage: %.2f"), static_cast<double>(OutGraph.GetAllocatedSize() + Search.GetAllocatedSize()) / 1024.0 / 1024.0);
 		}
 	}
 
@@ -1513,7 +1513,7 @@ FReferenceChainSearch::FReferenceChainSearch(TConstArrayView<UObject*> InObjects
 		PrintResults(!!(Mode & EReferenceChainSearchMode::PrintAllResults));
 	}
 
-	UE_LOG(LogReferenceChain, Display, TEXT("Post-search memory usage: %.2f"), (ReferenceGraph.GetAllocatedSize() + Paths.GetAllocatedSize() + GetAllocatedSize()) / 1024.0 / 1024.0);
+	UE_LOG(LogReferenceChain, Display, TEXT("Post-search memory usage: %.2f"), static_cast<double>(ReferenceGraph.GetAllocatedSize() + Paths.GetAllocatedSize() + GetAllocatedSize()) / 1024.0 / 1024.0);
 
 	GUObjectArray.UnlockInternalArray();
 }

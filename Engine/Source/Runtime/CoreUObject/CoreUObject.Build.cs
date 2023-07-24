@@ -23,8 +23,7 @@ public class CoreUObject : ModuleRules
 		PrivateDependencyModuleNames.Add("Projects");
         PrivateDependencyModuleNames.Add("Json");
 
-		//@TODO: UE-127233
-		// UnsafeTypeCastWarningLevel = WarningLevel.Error;
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
 		if (Target.bBuildWithEditorOnlyData)
 		{

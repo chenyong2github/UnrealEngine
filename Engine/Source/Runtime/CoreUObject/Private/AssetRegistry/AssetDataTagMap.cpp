@@ -204,7 +204,7 @@ namespace FixedTagPrivate
 
 	uint32 HashCaseSensitive(const TCHAR* Str, int32 Len)		
 	{
-		return CityHash64(reinterpret_cast<const char*>(Str), sizeof(TCHAR) * Len);
+		return CityHash32(reinterpret_cast<const char*>(Str), sizeof(TCHAR) * Len);
 	}
 
 	uint32 HashCombineQuick(uint32 A, uint32 B)
@@ -705,7 +705,7 @@ namespace FixedTagPrivate
 		FMapHandle Out;
 		Out.IsValid = 1;
 		Out.HasNumberlessKeys = bHasNumberlessKeys;
-		Out.StoreIndex = StoreIndex;
+		Out.StoreIndex = static_cast<uint16>(StoreIndex);
 		Out.Num = Num;
 		Out.PairBegin = PairBegin;
 
@@ -760,7 +760,7 @@ namespace FixedTagPrivate
 		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
 			check(Src[Idx] <= std::numeric_limits<CharType>::max());
-			Dst[Idx] = Src[Idx];
+			Dst[Idx] = static_cast<CharType>(Src[Idx]);
 		}
 	}
 

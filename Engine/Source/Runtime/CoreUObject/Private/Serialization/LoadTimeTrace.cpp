@@ -220,7 +220,7 @@ void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const voi
 void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const FName& Name)
 {
 	TCHAR Buffer[FName::StringBufferSize];
-	uint16 NameLen = Name.ToString(Buffer);
+	uint16 NameLen = static_cast<uint16>(Name.ToString(Buffer));
 	UE_TRACE_LOG(LoadTime, ClassInfo, LoadTimeChannel, NameLen * sizeof(ANSICHAR))
 		<< ClassInfo.Class(Class)
 		<< ClassInfo.Name(Buffer, NameLen);

@@ -761,7 +761,7 @@ bool FAssetData::TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName
 	if (!TagsField.HasError()) // Ok if it does not exist
 	{
 		FAssetDataTagMap Tags;
-		Tags.Reserve(TagsArray.Num());
+		Tags.Reserve(IntCastChecked<int32>(TagsArray.Num()));
 		for (FCbFieldView TagField : TagsArray)
 		{
 			FName TagName;
