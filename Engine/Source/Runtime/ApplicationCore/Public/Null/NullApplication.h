@@ -10,6 +10,7 @@
 #include "Math/Vector2D.h"
 #include "Templates/SharedPointer.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/CoreDelegates.h"
 #include "GenericPlatform/GenericWindow.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 #include "GenericPlatform/GenericWindowDefinition.h"

@@ -94,40 +94,32 @@ FNullApplication::FNullApplication()
 	// TODO (william.belcher): There's no way of grabbing a work area from an OS that doesn't exist.
 	// Therefore, we have theoretically uncapped minimum and maximum. Let's just say you've got a
 	// 4096x4096 square as that's the maximum supported resolution for NvEnc
-	WorkArea.Left = 0;
+    WorkArea.Left = 0;
 	WorkArea.Top = 0;
 	WorkArea.Right = 4096;
 	WorkArea.Bottom = 4096;
 
-	uint32 ResolutionX, ResolutionY = 0;
-	FString ResolutionStr;
-	bool bSuccess = FParse::Value(FCommandLine::Get(), TEXT("NullApplicationWorkArea="), ResolutionStr);
-	if (bSuccess)
-	{
-		bSuccess = ParseResolution(*ResolutionStr, ResolutionX, ResolutionY);
-	}
-	else
-	{
-		bool UserSpecifiedWidth = FParse::Value(FCommandLine::Get(), TEXT("NullApplicationWorkAreaX="), ResolutionX);
-		bool UserSpecifiedHeight = FParse::Value(FCommandLine::Get(), TEXT("NullApplicationWorkAreaY="), ResolutionY);
-		bSuccess = UserSpecifiedWidth | UserSpecifiedHeight;
 
-		const float AspectRatio = 16.f / 9.f;
-		if (UserSpecifiedWidth && !UserSpecifiedHeight)
-		{
-			ResolutionY = FMath::FloorToInt((float)ResolutionX / AspectRatio);
-		}
-		else if (UserSpecifiedHeight && !UserSpecifiedWidth)
-		{
-			ResolutionX = FMath::FloorToInt((float)ResolutionY * AspectRatio);
-		}
-	}
+    // Default work area to the config res
+    static const IConsoleVariable* CVarSystemResolution = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SetRes"));
+    FString ResolutionStr = CVarSystemResolution->GetString();
 
-	if (bSuccess)
-	{
-		WorkArea.Right = ResolutionX;
+    uint32 ResolutionX, ResolutionY = 0;
+    if(ParseResolution(*ResolutionStr, ResolutionX, ResolutionY))
+    {
+        WorkArea.Right = ResolutionX;
+        WorkArea.Bottom = ResolutionY;
+    }
+	
+    // Listen for res changes to update our virtual display
+    FCoreDelegates::OnSystemResolutionChanged.AddLambda([this](uint32 ResolutionX, uint32 ResolutionY) {
+        WorkArea.Right = ResolutionX;
 		WorkArea.Bottom = ResolutionY;
-	}
+
+        FDisplayMetrics DisplayMetrics;
+		FNullPlatformDisplayMetrics::RebuildDisplayMetrics(DisplayMetrics);
+        BroadcastDisplayMetricsChanged(DisplayMetrics);
+    });
 }
 
 FNullApplication::~FNullApplication()

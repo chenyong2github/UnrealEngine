@@ -145,6 +145,10 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 				TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
 				ParentWindow->Resize(FVector2D(Width, Height));
 				FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
+                // Triggers the NullApplication to rebuild its DisplayMetrics with the new resolution and inform slate 
+                // about the updated virtual desktop size
+                FSystemResolution::RequestResolutionChange(Width, Height, GSystemResolution.WindowMode);
+	            IConsoleManager::Get().CallAllConsoleVariableSinks();
 			});
 	}
 
@@ -359,8 +363,13 @@ void FPixelStreamingEditorModule::MaybeResizeEditor(TSharedPtr<SWindow> RootWind
 
 	if (bSuccess)
 	{
+        // Update editor window size
 		RootWindow->Resize(FVector2D(ResolutionX, ResolutionY));
 		FSlateApplication::Get().OnSizeChanged(RootWindow->GetNativeWindow().ToSharedRef(), ResolutionX, ResolutionY);
+        // Triggers the NullApplication to rebuild its DisplayMetrics with the new resolution and inform slate 
+        // about the updated virtual desktop size
+        FSystemResolution::RequestResolutionChange(ResolutionX, ResolutionY, GSystemResolution.WindowMode);
+	    IConsoleManager::Get().CallAllConsoleVariableSinks();
 	}
 }
 
