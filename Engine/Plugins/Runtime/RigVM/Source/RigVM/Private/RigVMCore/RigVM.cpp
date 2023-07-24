@@ -6,6 +6,7 @@
 #include "UObject/AnimObjectVersion.h"
 #include "RigVMObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "RigVMObjectVersion.h"
 #include "HAL/PlatformTLS.h"
 #include "Async/ParallelFor.h"
@@ -130,6 +131,8 @@ void URigVM::Serialize(FArchive& Ar)
 
 void URigVM::Save(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	
 	CopyDeferredVMIfRequired();
 
 	// we rely on Ar.IsIgnoringArchetypeRef for determining if we are currently performing
@@ -157,6 +160,8 @@ void URigVM::Save(FArchive& Ar)
 
 void URigVM::Load(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	
 	// we rely on Ar.IsIgnoringArchetypeRef for determining if we are currently performing
 	// CPFUO (Copy Properties for unrelated objects). During a reinstance pass we don't
 	// want to overwrite the bytecode and some other properties - since that's handled already
