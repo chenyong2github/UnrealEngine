@@ -238,7 +238,7 @@ private:
 	}
 
 
-	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FMetasoundFrontendVertex>& InInputNameVertexMap) const;
+	bool IsParameterValid(const FAudioParameter& InParameter, const FMetasoundFrontendVertex* InVertex) const;
 
 	static Metasound::SourcePrivate::FParameterRouter& GetParameterRouter();
 

@@ -517,8 +517,9 @@ namespace Metasound
 
 				virtual UClass* GetUClassForDataType(const FName& InDataType) const override;
 
-				bool IsUObjectProxyFactory(UObject* InObject) const override;
-				TSharedPtr<Audio::IProxyData> CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const override;
+				virtual bool IsUObjectProxyFactory(UObject* InObject) const override;
+				virtual TSharedPtr<Audio::IProxyData> CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const override;
+				virtual bool IsValidUObjectForDataType(const FName& InDataTypeName, const UObject* InUObject) const override;
 
 				virtual FLiteral CreateDefaultLiteral(const FName& InDataType) const override;
 				virtual FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const override;
@@ -867,6 +868,41 @@ namespace Metasound
 				return ProxyPtr;
 			}
 
+			bool FDataTypeRegistry::IsValidUObjectForDataType(const FName& InDataTypeName, const UObject* InUObject) const
+			{
+				FDataTypeRegistryInfo DataTypeInfo;
+				if (GetDataTypeInfo(InDataTypeName, DataTypeInfo))
+				{
+					if (DataTypeInfo.bIsProxyParsable || DataTypeInfo.bIsUniquePtrProxyParsable_DEPRECATED)
+					{
+						if (InUObject)
+						{
+							FScopeLock ObjectRegistryLock(&RegistryObjectMapMutex);
+
+							const UClass* ObjectClass = InUObject->GetClass();
+							while (ObjectClass != UObject::StaticClass())
+							{
+								if (const FName* DataTypeSupportedByUObject = RegisteredObjectClasses.Find(ObjectClass))
+								{
+									if (*DataTypeSupportedByUObject == InDataTypeName)
+									{
+										return true;
+									}
+								}
+
+								ObjectClass = ObjectClass->GetOwnerClass();
+							}
+						}
+						else
+						{
+							return true;
+						}
+					}
+				}
+
+				return false;
+			}
+
 			FLiteral FDataTypeRegistry::CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const
 			{
 				TSharedPtr<Audio::IProxyData> ProxyPtr = CreateProxyFromUObject(InDataType, InObject);
@@ -1199,4 +1235,3 @@ namespace Metasound
 		}
 	}
 }
-

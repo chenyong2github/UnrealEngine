@@ -48,7 +48,7 @@
 namespace Metasound
 {
 	namespace SourcePrivate
-	{		
+	{
 		Frontend::FMetaSoundAssetRegistrationOptions GetInitRegistrationOptions()
 		{
 			Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
@@ -332,19 +332,21 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 	// via InitResources. If it has, this call is fast and returns the already cached RuntimeData.
 	RegisterGraphWithFrontend(GetInitRegistrationOptions());
 	const FRuntimeData& RuntimeData = GetRuntimeData();
-	const TArray<FMetasoundFrontendClassInput>& PublicInputs = RuntimeData.PublicInputs;
 
-	TMap<FName, FMetasoundFrontendVertex> PublicInputMap;
-	Algo::Transform(PublicInputs, PublicInputMap, [](const FMetasoundFrontendClassInput& Input)
+	TMap<FName, const FMetasoundFrontendVertex*> PublicInputMap;
 	{
-		return TPair<FName, FMetasoundFrontendVertex>(Input.Name, Input);
-	});
+		const TArray<FMetasoundFrontendClassInput>& PublicInputs = RuntimeData.PublicInputs;
+		Algo::Transform(PublicInputs, PublicInputMap, [](const FMetasoundFrontendClassInput& Input)
+			{
+				return TPair<FName, const FMetasoundFrontendVertex*>(Input.Name, &Input);
+			});
+	}
 
 	// Removes values that are not explicitly defined by the ParamType and returns
 	// whether or not the parameter is a valid input and should be included.
 	auto Sanitize = [&PublicInputMap](FAudioParameter& Parameter) -> bool
 	{
-		const FMetasoundFrontendVertex* Input = PublicInputMap.Find(Parameter.ParamName);
+		const FMetasoundFrontendVertex* Input = PublicInputMap.FindRef(Parameter.ParamName);
 		if (!Input)
 		{
 			return false;
@@ -438,7 +440,7 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 		return true;
 	};
 
-	auto ConstructProxies = [this](FAudioParameter& OutParamToInit)
+	auto ConstructProxies = [this](FAudioParameter& OutParamToInit, FName VertexTypeName)
 	{
 		using namespace Metasound;
 		using namespace Metasound::Frontend;
@@ -448,14 +450,11 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 			case EAudioParameterType::Object:
 			{
 				FDataTypeRegistryInfo DataTypeInfo;
-				if (IDataTypeRegistry::Get().GetDataTypeInfo(OutParamToInit.ObjectParam, DataTypeInfo))
-				{
-					TSharedPtr<Audio::IProxyData> ProxyPtr = IDataTypeRegistry::Get().CreateProxyFromUObject(DataTypeInfo.DataTypeName, OutParamToInit.ObjectParam);
-					OutParamToInit.ObjectProxies.Emplace(MoveTemp(ProxyPtr));
+				TSharedPtr<Audio::IProxyData> ProxyPtr = IDataTypeRegistry::Get().CreateProxyFromUObject(VertexTypeName, OutParamToInit.ObjectParam);
+				OutParamToInit.ObjectProxies.Emplace(MoveTemp(ProxyPtr));
 
-					// Null out param as it is no longer needed (nor desired to be accessed once passed to the Audio Thread)
-					OutParamToInit.ObjectParam = nullptr;
-				}
+				// Null out param as it is no longer needed (nor desired to be accessed once passed to the Audio Thread)
+				OutParamToInit.ObjectParam = nullptr;
 			}
 			break;
 
@@ -464,11 +463,8 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 				for (TObjectPtr<UObject>& Object : OutParamToInit.ArrayObjectParam)
 				{
 					FDataTypeRegistryInfo DataTypeInfo;
-					if (IDataTypeRegistry::Get().GetDataTypeInfo(Object, DataTypeInfo))
-					{
-						TSharedPtr<Audio::IProxyData> ProxyPtr = IDataTypeRegistry::Get().CreateProxyFromUObject(DataTypeInfo.DataTypeName, Object);
-						OutParamToInit.ObjectProxies.Emplace(MoveTemp(ProxyPtr));
-					}
+					TSharedPtr<Audio::IProxyData> ProxyPtr = IDataTypeRegistry::Get().CreateProxyFromUObject(VertexTypeName, Object);
+					OutParamToInit.ObjectProxies.Emplace(MoveTemp(ProxyPtr));
 				}
 				// Reset param array as it is no longer needed (nor desired to be accessed once passed to the Audio Thread).
 				// All object manipulation hereafter should be done via proxies
@@ -481,7 +477,6 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 		}
 	};
 
-
 	for (int32 i = ParametersToInit.Num() - 1; i >= 0; --i)
 	{
 		FAudioParameter& Parameter = ParametersToInit[i];
@@ -493,9 +488,10 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 		
 		if (Sanitize(Parameter))
 		{
-			if (IsParameterValid(Parameter, PublicInputMap))
+			const FMetasoundFrontendVertex* Vertex = PublicInputMap.FindRef(Parameter.ParamName);
+			if (IsParameterValid(Parameter, Vertex))
 			{
-				ConstructProxies(Parameter);
+				ConstructProxies(Parameter, Vertex->TypeName);
 			}
 			else
 			{
@@ -776,15 +772,15 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 
 bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter) const
 {
-	TMap<FName, FMetasoundFrontendVertex> InputNameTypeMap;
-	Algo::Transform(GetDocumentChecked().RootGraph.Interface.Inputs, InputNameTypeMap, [] (const FMetasoundFrontendClassInput& Input)
+	const TArray<FMetasoundFrontendClassInput>& Inputs = GetDocumentChecked().RootGraph.Interface.Inputs;
+	const FMetasoundFrontendVertex* Vertex = Algo::FindByPredicate(Inputs, [&InParameter] (const FMetasoundFrontendClassInput& Input)
 	{
-		return TPair<FName, FMetasoundFrontendVertex>(Input.Name, Input);
+		return Input.Name == InParameter.ParamName;
 	});
-	return IsParameterValid(InParameter, InputNameTypeMap);
+	return IsParameterValid(InParameter, Vertex);
 }
 
-bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FMetasoundFrontendVertex>& InInputNameVertexMap) const
+bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, const FMetasoundFrontendVertex* InVertex) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -794,12 +790,16 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 		return false;
 	}
 
-	const FMetasoundFrontendVertex* Vertex = InInputNameVertexMap.Find(InParameter.ParamName);
-	if (!Vertex)
+	if (!InVertex)
 	{
 		return false;
 	}
-	const FName& TypeName = Vertex->TypeName;
+
+	const FName& TypeName = InVertex->TypeName;
+	if (!InParameter.TypeName.IsNone() && InParameter.TypeName != TypeName)
+	{
+		return false;
+	}
 
 	bool bIsValid = false;
 	switch (InParameter.ParamType)
@@ -856,10 +856,7 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 
 		case EAudioParameterType::Object:
 		{
-			FDataTypeRegistryInfo DataTypeInfo;
-			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(InParameter.ObjectParam, DataTypeInfo);
-			bIsValid &= DataTypeInfo.bIsProxyParsable || DataTypeInfo.bIsUniquePtrProxyParsable_DEPRECATED;
-			bIsValid &= DataTypeInfo.DataTypeName == TypeName;
+			bIsValid = IDataTypeRegistry::Get().IsValidUObjectForDataType(TypeName, InParameter.ObjectParam);
 		}
 		break;
 
@@ -868,13 +865,9 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 			bIsValid = true;
 
 			const FName ElementTypeName = CreateElementTypeNameFromArrayTypeName(TypeName);
-			for (UObject* Object : InParameter.ArrayObjectParam)
+			for (const UObject* Object : InParameter.ArrayObjectParam)
 			{
-				FDataTypeRegistryInfo DataTypeInfo;
-				bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(Object, DataTypeInfo);
-				bIsValid &= DataTypeInfo.bIsProxyParsable || DataTypeInfo.bIsUniquePtrProxyParsable_DEPRECATED;
-				bIsValid &= DataTypeInfo.DataTypeName == ElementTypeName;
-
+				bIsValid = IDataTypeRegistry::Get().IsValidUObjectForDataType(ElementTypeName, InParameter.ObjectParam);
 				if (!bIsValid)
 				{
 					break;

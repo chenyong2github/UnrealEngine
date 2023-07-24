@@ -266,6 +266,7 @@ namespace Metasound
 			virtual bool IsLiteralTypeSupported(const FName& InDataType, ELiteralType InLiteralType) const = 0;
 			virtual bool IsLiteralTypeSupported(const FName& InDataType, EMetasoundFrontendLiteralType InLiteralType) const = 0;
 			virtual bool IsUObjectProxyFactory(UObject* InObject) const = 0;
+			virtual bool IsValidUObjectForDataType(const FName& InDataTypeName, const UObject* InUObject) const = 0;
 
 			virtual UClass* GetUClassForDataType(const FName& InDataType) const = 0;
 
