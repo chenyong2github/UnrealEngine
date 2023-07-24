@@ -1286,11 +1286,8 @@ namespace UnrealBuildTool
 
 			// Workaround for linker errors when linking against static libraries that were compiled with an older msvc
 			// https://github.com/microsoft/STL/issues/2655
-			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64ec)
-			{
-				Arguments.Add("/ALTERNATENAME:__imp___std_init_once_begin_initialize=__imp_InitOnceBeginInitialize");
-				Arguments.Add("/ALTERNATENAME:__imp___std_init_once_complete=__imp_InitOnceComplete");
-			}
+			Arguments.Add("/ALTERNATENAME:__imp___std_init_once_begin_initialize=__imp_InitOnceBeginInitialize");
+			Arguments.Add("/ALTERNATENAME:__imp___std_init_once_complete=__imp_InitOnceComplete");
 		}
 
 		protected virtual void AppendLibArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
