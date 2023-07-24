@@ -27,6 +27,7 @@ namespace Chaos::Softs
 		None = 0,
 		Enabled = 1 << 0,  /** Whether this property is enabled(so that it doesn't have to be removed from the collection when not needed). */
 		Animatable = 1 << 1,  /** Whether this property needs to be set at every frame. */
+		Legacy = 1 << 2,  /** Whether this property has been set by a legacy system predating the property collection. Can be useful for overriding/upgrading some properties post conversion. */
 		//~ Add new flags above this line
 		StringDirty = 1 << 6,  /** Whether this property's string has changed and needs to be updated at the next frame. */
 		Dirty = 1 << 7  /** Whether this property's value has changed and needs to be updated at the next frame. */
@@ -67,6 +68,9 @@ namespace Chaos::Softs
 		/** Return the property index for the specified key if it exists, or INDEX_NONE otherwise. */
 		int32 GetKeyIndex(const FString& Key) const { const int32* const Index = KeyIndices.Find(Key); return Index ? *Index : INDEX_NONE; }
 
+		/** Return the property name (key) for the specified index. */
+		const FString& GetKey(int32 KeyIndex) const { return GetValue<const FString&>(KeyIndex, KeyArray); }
+
 		//~ Values access per index, fast, no check, index must be valid (0 <= KeyIndex < Num())
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
 		T GetLowValue(int32 KeyIndex) const { return GetValue<T>(KeyIndex, LowValueArray); }
@@ -91,6 +95,7 @@ namespace Chaos::Softs
 
 		bool IsEnabled(int32 KeyIndex) const { return HasAnyFlags(KeyIndex, ECollectionPropertyFlags::Enabled); }
 		bool IsAnimatable(int32 KeyIndex) const { return HasAnyFlags(KeyIndex, ECollectionPropertyFlags::Animatable); }
+		bool IsLegacy(int32 KeyIndex) const { return HasAnyFlags(KeyIndex, ECollectionPropertyFlags::Legacy); }
 		bool IsStringDirty(int32 KeyIndex) const { return HasAnyFlags(KeyIndex, ECollectionPropertyFlags::StringDirty); }
 		bool IsDirty(int32 KeyIndex) const { return HasAnyFlags(KeyIndex, ECollectionPropertyFlags::Dirty); }
 
@@ -145,6 +150,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bool IsAnimatable(const FString& Key, bool bDefault = false, int32* OutKeyIndex = nullptr) const
 		{
 			return SafeGet(Key, [this](int32 KeyIndex)->bool { return IsAnimatable(KeyIndex); }, bDefault, OutKeyIndex);
+		}
+
+		bool IsLegacy(const FString& Key, bool bDefault = false, int32* OutKeyIndex = nullptr) const
+		{
+			return SafeGet(Key, [this](int32 KeyIndex)->bool { return IsLegacy(KeyIndex); }, bDefault, OutKeyIndex);
 		}
 
 		bool IsStringDirty(const FString& Key, bool bDefault = false, int32* OutKeyIndex = nullptr) const
@@ -250,6 +260,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		void SetEnabled(int32 KeyIndex, bool bEnabled) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Enabled, bEnabled); }
 		void SetAnimatable(int32 KeyIndex, bool bAnimatable) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Animatable, bAnimatable); }
+		void SetLegacy(int32 KeyIndex, bool bLegacy) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Legacy, bLegacy); }
 		void SetDirty(int32 KeyIndex) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Dirty, true); }
 		UE_DEPRECATED(5.3, "SetDirty can only be set, to unset use ClearDirtyFlags instead.")
 		void SetDirty(int32 KeyIndex, bool bDirty) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Dirty, bDirty); }
@@ -306,6 +317,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		int32 SetAnimatable(const FString& Key, bool bAnimatable)
 		{
 			return SafeSet(Key, [this, bAnimatable](int32 KeyIndex) { SetAnimatable(KeyIndex, bAnimatable); });
+		}
+
+		int32 SetLegacy(const FString& Key, bool bLegacy)
+		{
+			return SafeSet(Key, [this, bLegacy](int32 KeyIndex) { SetLegacy(KeyIndex, bLegacy); });
 		}
 
 		UE_DEPRECATED(5.3, "SetDirty can only be set, to unset use ClearDirtyFlags instead.")
@@ -381,10 +397,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		CHAOS_API void DefineSchema();
 
 		/** Add a single property, and return its index. */
-		CHAOS_API int32 AddProperty(const FString& Key, bool bEnabled = true, bool bAnimatable = false);
+		CHAOS_API int32 AddProperty(const FString& Key, ECollectionPropertyFlags Flags = ECollectionPropertyFlags::Enabled);
+
+		/** Add a single property, and return its index. */
+		CHAOS_API int32 AddProperty(const FString& Key, bool bEnabled, bool bAnimatable = false);
 
 		/** Add new properties, and return the index of the first added property. */
-		CHAOS_API int32 AddProperties(const TArray<FString>& Keys, bool bEnabled = true, bool bAnimatable = false);
+		CHAOS_API int32 AddProperties(const TArray<FString>& Keys, ECollectionPropertyFlags Flags = ECollectionPropertyFlags::Enabled);
+
+		/** Add new properties, and return the index of the first added property. */
+		CHAOS_API int32 AddProperties(const TArray<FString>& Keys, bool bEnabled, bool bAnimatable = false);
 
 		/**
 		 * Append all properties and values from an existing collection to this property collection.
@@ -402,14 +424,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		//~ Add values
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
-		inline int32 AddWeightedValue(const FString& Key, const T& LowValue, const T& HighValue, bool bEnabled = true, bool bAnimatable = false);
+		inline int32 AddWeightedValue(const FString& Key, const T& LowValue, const T& HighValue, ECollectionPropertyFlags Flags = ECollectionPropertyFlags::Enabled);
+		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
+		inline int32 AddWeightedValue(const FString& Key, const T& LowValue, const T& HighValue, bool bEnabled, bool bAnimatable = false);
 
+		CHAOS_API int32 AddWeightedFloatValue(const FString& Key, const FVector2f& Value, ECollectionPropertyFlags Flags = ECollectionPropertyFlags::Enabled);
 		CHAOS_API int32 AddWeightedFloatValue(const FString& Key, const FVector2f& Value, bool bEnabled, bool bAnimatable);
 
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
-		int32 AddValue(const FString& Key, const T& Value, bool bEnabled = true, bool bAnimatable = false) { return AddWeightedValue(Key, Value, Value, bEnabled, bAnimatable); }
+		int32 AddValue(const FString& Key, const T& Value, ECollectionPropertyFlags Flags = ECollectionPropertyFlags::Enabled) { return AddWeightedValue(Key, Value, Value, Flags); }
+		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
+		int32 AddValue(const FString& Key, const T& Value, bool bEnabled, bool bAnimatable = false) { return AddWeightedValue(Key, Value, Value, bEnabled, bAnimatable); }
 
-		CHAOS_API int32 AddStringValue(const FString& Key, const FString& Value, bool bEnabled = true, bool bAnimatable = false);
+		CHAOS_API int32 AddStringValue(const FString& Key, const FString& Value, ECollectionPropertyFlags Flags = ECollectionPropertyFlags::Enabled);
+		CHAOS_API int32 AddStringValue(const FString& Key, const FString& Value, bool bEnabled, bool bAnimatable = false);
 	};
 
 	template<typename T>
@@ -420,6 +448,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ValueArray[KeyIndex] = Value;
 			SetDirty(KeyIndex);
 		}
+	}
+
+	template<typename T, typename TEnableIf<TIsWeightedType<T>::Value, int>::type>
+	inline int32 FCollectionPropertyMutableFacade::AddWeightedValue(const FString& Key, const T& LowValue, const T& HighValue, ECollectionPropertyFlags Flags)
+	{
+		const int32 KeyIndex = AddProperty(Key, Flags);
+		SetWeightedValue(KeyIndex, LowValue, HighValue);
+		return KeyIndex;
 	}
 
 	template<typename T, typename TEnableIf<TIsWeightedType<T>::Value, int>::type>

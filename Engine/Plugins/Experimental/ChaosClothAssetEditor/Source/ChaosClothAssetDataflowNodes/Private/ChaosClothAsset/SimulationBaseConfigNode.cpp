@@ -86,22 +86,27 @@ int32 FChaosClothAssetSimulationBaseConfigNode::AddPropertyHelper(
 {
 	using namespace UE::Chaos::ClothAsset;
 
-	constexpr bool bIsEnabled = true;
-
 	int32 KeyIndex = Properties.GetKeyIndex(PropertyName.ToString());
 	if (KeyIndex == INDEX_NONE)
 	{
-		KeyIndex = Properties.AddProperty(PropertyName.ToString(), bIsEnabled, bIsAnimatable);
+		KeyIndex = Properties.AddProperty(PropertyName.ToString());
 	}
-	else
+	else if (!Properties.IsLegacy(KeyIndex))  // Only warns of duplicates when the property hasn't been set using a legacy Chaos config
 	{
-		Properties.SetAnimatable(KeyIndex, bIsAnimatable);
 		Private::LogAndToastDuplicateProperty(*this, PropertyName);
 	}
+	// else don't warn and hope people know what they are doing
 
+	// Set/clear flags
+	Properties.SetEnabled(KeyIndex, true);  // Always enabled when then node is active
+	Properties.SetLegacy(KeyIndex, false);  // No longer a legacy property after beind set by this node
+	Properties.SetAnimatable(KeyIndex, bIsAnimatable);
+
+	// Check for similar properties
 	for (const FName& SimilarPropertyName : SimilarPropertyNames)
 	{
-		if (Properties.GetKeyIndex(SimilarPropertyName.ToString()) != INDEX_NONE)
+		const int32 SimilarPropertyKeyIndex = Properties.GetKeyIndex(SimilarPropertyName.ToString());
+		if (SimilarPropertyKeyIndex != INDEX_NONE && !Properties.IsLegacy(SimilarPropertyKeyIndex))  // Only warns of overrides when the property hasn't been set using a legacy Chaos config
 		{
 			Private::LogAndToastSimilarProperty(*this, PropertyName, SimilarPropertyName);
 		}

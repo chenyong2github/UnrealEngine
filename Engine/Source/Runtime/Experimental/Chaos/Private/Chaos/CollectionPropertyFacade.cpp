@@ -157,10 +157,15 @@ namespace Chaos::Softs
 
 	int32 FCollectionPropertyMutableFacade::AddProperty(const FString& Key, bool bEnabled, bool bAnimatable)
 	{
-		const int32 Index = GetManagedArrayCollection()->AddElements(1, PropertyFacadeNames::PropertyGroup);
 		const ECollectionPropertyFlags Flags =
 			(bEnabled ? ECollectionPropertyFlags::Enabled : ECollectionPropertyFlags::None) |
 			(bAnimatable ? ECollectionPropertyFlags::Animatable : ECollectionPropertyFlags::None);
+		return AddProperty(Key, Flags);
+	}
+
+	int32 FCollectionPropertyMutableFacade::AddProperty(const FString& Key, ECollectionPropertyFlags Flags)
+	{
+		const int32 Index = GetManagedArrayCollection()->AddElements(1, PropertyFacadeNames::PropertyGroup);
 
 		// Update the arrayviews in case the new element triggered a reallocation 
 		UpdateArrays();
@@ -178,12 +183,18 @@ namespace Chaos::Softs
 
 	int32 FCollectionPropertyMutableFacade::AddProperties(const TArray<FString>& Keys, bool bEnabled, bool bAnimatable)
 	{
+		const ECollectionPropertyFlags Flags =
+			(bEnabled ? ECollectionPropertyFlags::Enabled : ECollectionPropertyFlags::None) |
+			(bAnimatable ? ECollectionPropertyFlags::Animatable : ECollectionPropertyFlags::None);
+
+		return AddProperties(Keys, Flags);
+	}
+
+	int32 FCollectionPropertyMutableFacade::AddProperties(const TArray<FString>& Keys, ECollectionPropertyFlags Flags)
+	{
 		if (const int32 NumProperties = Keys.Num())
 		{
 			const int32 StartIndex = GetManagedArrayCollection()->AddElements(NumProperties, PropertyFacadeNames::PropertyGroup);
-			const ECollectionPropertyFlags Flags =
-				(bEnabled ? ECollectionPropertyFlags::Enabled : ECollectionPropertyFlags::None) |
-				(bAnimatable ? ECollectionPropertyFlags::Animatable : ECollectionPropertyFlags::None);
 
 			// Update the arrayviews in case the new elements triggered a reallocation 
 			UpdateArrays();
@@ -228,9 +239,23 @@ namespace Chaos::Softs
 		return KeyIndex;
 	}
 
+	int32 FCollectionPropertyMutableFacade::AddWeightedFloatValue(const FString& Key, const FVector2f& Value, ECollectionPropertyFlags Flags)
+	{
+		const int32 KeyIndex = AddProperty(Key, Flags);
+		SetWeightedFloatValue(KeyIndex, Value);
+		return KeyIndex;
+	}
+
 	int32 FCollectionPropertyMutableFacade::AddStringValue(const FString& Key, const FString& Value, bool bEnabled, bool bAnimatable)
 	{
 		const int32 KeyIndex = AddProperty(Key, bEnabled, bAnimatable);
+		SetStringValue(Key, Value);
+		return KeyIndex;
+	}
+
+	int32 FCollectionPropertyMutableFacade::AddStringValue(const FString& Key, const FString& Value, ECollectionPropertyFlags Flags)
+	{
+		const int32 KeyIndex = AddProperty(Key, Flags);
 		SetStringValue(Key, Value);
 		return KeyIndex;
 	}
