@@ -1051,8 +1051,10 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 		MaterialFactoryNode->SetCustomScreenSpaceReflections(bScreenSpaceReflections);
 	}
 
+	bool bTwoSidedTransmission = false;
+	ShaderGraphNode->GetCustomTwoSidedTransmission(bTwoSidedTransmission);
 	// Two sidedness (ignored for thin translucency as it looks wrong)
-	if (!HasThinTranslucency(ShaderGraphNode))
+	if (bTwoSidedTransmission || !HasThinTranslucency(ShaderGraphNode))
 	{
 		bool bTwoSided = false;
 		ShaderGraphNode->GetCustomTwoSided(bTwoSided);

@@ -71,7 +71,7 @@ namespace UE::Interchange::GLTFMaterials
 		const FString IOR = TEXT("IOR");
 
 		const FString AlphaCutoff = TEXT("AlphaCutoff");
-
+		const FString AlphaMode = TEXT("AlphaMode"); //Specifically for Transmission Materials
 
 		//ClearCoat specific:
 		DECLARE_INTERCHANGE_GLTF_MI_MAP(ClearCoat)

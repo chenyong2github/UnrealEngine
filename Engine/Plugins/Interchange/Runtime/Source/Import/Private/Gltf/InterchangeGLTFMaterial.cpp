@@ -185,6 +185,7 @@ namespace UE::Interchange::GLTFMaterials
 			if (ShadingModel == EShadingModel::TRANSMISSION)
 			{
 				ShaderGraphNode->SetCustomScreenSpaceReflections(true);
+				ShaderGraphNode->SetCustomTwoSidedTransmission(true);
 			}
 
 			TArray<FString> Outputs = GetOutputs(ShadingModel);
@@ -215,10 +216,17 @@ namespace UE::Interchange::GLTFMaterials
 
 			//Set OpacityMaskClipValue if needed:
 			if (!GltfMaterial.bIsUnlitShadingModel &&
-				GltfMaterial.AlphaMode == GLTF::FMaterial::EAlphaMode::Mask &&
-				ShadingModel != EShadingModel::TRANSMISSION) //Transmission does not support AlphaCutoff
+				GltfMaterial.AlphaMode == GLTF::FMaterial::EAlphaMode::Mask)
 			{
-				ShaderGraphNode->SetCustomOpacityMaskClipValue(GltfMaterial.AlphaCutoff);
+				if (ShadingModel == EShadingModel::TRANSMISSION)
+				{
+					//Transmission (even for Materials) supports AlphaCutoff through the MF_Body instead of the automatic OpacityMaskClipValue
+					SetScalar(Inputs::AlphaCutoff, GltfMaterial.AlphaCutoff, 0.f, EProcessType::MATERIAL);
+				}
+				else
+				{
+					ShaderGraphNode->SetCustomOpacityMaskClipValue(GltfMaterial.AlphaCutoff);
+				}
 			}
 		}
 
@@ -226,13 +234,12 @@ namespace UE::Interchange::GLTFMaterials
 		{
 			MaterialInstanceNode = ShaderGraphNode;
 
-			FString ParentIdentifier = GetIdentifier(ShadingModel, AlphaMode, GltfMaterial.bIsDoubleSided && (ShadingModel != EShadingModel::TRANSMISSION)); //Transmission does not support two sided materials, see UInterchangeGenericMaterialPipeline::HandleCommonParameters
+			FString ParentIdentifier = GetIdentifier(ShadingModel, AlphaMode, GltfMaterial.bIsDoubleSided);
 			MaterialInstanceNode->AddStringAttribute(*(InterchangeGltfMaterialAttributeIdentifier + TEXT("ParentIdentifier")), ParentIdentifier);
 
 			//Set AlphaCutOff if needed:
 			if (!GltfMaterial.bIsUnlitShadingModel &&
-				GltfMaterial.AlphaMode == GLTF::FMaterial::EAlphaMode::Mask &&
-				ShadingModel != EShadingModel::TRANSMISSION) //Transmission does not support AlphaCutoff
+				GltfMaterial.AlphaMode == GLTF::FMaterial::EAlphaMode::Mask)
 			{
 				//AlphaCutoff
 				SetScalar(Inputs::AlphaCutoff, GltfMaterial.AlphaCutoff, 0.f, EProcessType::MATERIALINSTANCE);
@@ -526,6 +533,9 @@ namespace UE::Interchange::GLTFMaterials
 
 					//TransmissionFactor
 					SetScalar(Inputs::TransmissionFactor, GltfMaterial.Transmission.TransmissionFactor, 0.f);
+
+					//AlphaMode
+					SetScalar(Inputs::AlphaMode, AlphaMode, EAlphaMode::Blend);
 				}
 			}
 			else if (GltfMaterial.bHasClearCoat)
