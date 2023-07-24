@@ -145,6 +145,13 @@ void URigVM::Save(FArchive& Ar)
 		Ar << FunctionNamesStorage;
 		Ar << ByteCodeStorage;
 		Ar << Parameters;
+
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RigVMSaveDebugMapInGraphFunctionData)
+		{
+			return;
+		}
+
+		Ar << OperandToDebugRegisters;
 	}
 }
 
@@ -188,6 +195,11 @@ void URigVM::Load(FArchive& Ar)
 				Reset();
 				return;
 			}
+
+			if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::RigVMSaveDebugMapInGraphFunctionData)
+			{
+				Ar << OperandToDebugRegisters;
+			}
 		}
 
 		// we only deal with virtual machines now that use the new memory infrastructure.
@@ -217,6 +229,11 @@ void URigVM::Load(FArchive& Ar)
 		Ar << FunctionNamesStorage;
 		Ar << ByteCodeStorage;
 		Ar << Parameters;
+
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::RigVMSaveDebugMapInGraphFunctionData)
+		{
+			Ar << OperandToDebugRegisters;
+		}
 	}
 
 	// ensure to load the required functions
@@ -498,6 +515,7 @@ void URigVM::Reset(bool IsIgnoringArchetypeRef)
 		Instructions.Reset();
 		Parameters.Reset();
 		ParametersNameMap.Reset();
+		OperandToDebugRegisters.Reset();
 	}
 
 	if(!IsIgnoringArchetypeRef)
@@ -507,8 +525,6 @@ void URigVM::Reset(bool IsIgnoringArchetypeRef)
 		FactoriesPtr = &FactoriesStorage;
 		ByteCodePtr = &ByteCodeStorage;
 	}
-
-	OperandToDebugRegisters.Reset();
 
 	ExternalPropertyPaths.Reset();
 	LazyBranches.Reset();

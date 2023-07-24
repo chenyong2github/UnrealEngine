@@ -127,6 +127,8 @@ struct RIGVM_API FRigVMFunctionCompilationData
 	UPROPERTY()
 	uint32 Hash;
 
+	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;
+
 	bool IsValid() const
 	{
 		return Hash != 0;
@@ -193,6 +195,8 @@ struct RIGVM_API FRigVMFunctionCompilationData
 
 	friend FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationData& Data)
 	{
+		Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+		
 		Ar << Data.ByteCode;
 		Ar << Data.FunctionNames;
 		Ar << Data.WorkPropertyDescriptions;
@@ -206,6 +210,48 @@ struct RIGVM_API FRigVMFunctionCompilationData
 		Ar << Data.ExternalRegisterIndexToVariable;
 		Ar << Data.Operands;
 		Ar << Data.Hash;
+
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RigVMSaveDebugMapInGraphFunctionData)
+		{
+			return Ar;
+		}
+
+		// Serialize OperandToDebugRegisters
+		{
+			uint8 NumKeys = Data.OperandToDebugRegisters.Num();
+			Ar << NumKeys;
+
+			if (Ar.IsLoading())
+			{
+				for (int32 KeyIndex=0; KeyIndex<NumKeys; ++KeyIndex)
+				{
+					FRigVMOperand Key;
+					Ar << Key;
+					uint8 NumValues;
+					Ar << NumValues;
+					TArray<FRigVMOperand> Values;
+					Values.SetNumUninitialized(NumValues);
+					for (int32 ValueIndex=0; ValueIndex<NumValues; ++ValueIndex)
+					{
+						Ar << Values[ValueIndex];
+					}
+					Data.OperandToDebugRegisters.Add(Key, Values);
+				}
+			}
+			else
+			{
+				for (TPair<FRigVMOperand, TArray<FRigVMOperand>>& Pair : Data.OperandToDebugRegisters)
+				{
+					Ar << Pair.Key;
+					uint8 NumValues = Pair.Value.Num();
+					Ar << NumValues;
+					for (FRigVMOperand& Operand : Pair.Value)
+					{
+						Ar << Operand;
+					}
+				}
+			}
+		}
 		return Ar;
 	}
 };

@@ -141,6 +141,9 @@ struct FUE5ReleaseStreamObjectVersion
 		
 		// Added resize methods to media capture
 		MediaCaptureNewResizeMethods,
+
+		// Function data stores a map from work to debug operands
+		RigVMSaveDebugMapInGraphFunctionData,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
