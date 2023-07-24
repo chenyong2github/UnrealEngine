@@ -90,6 +90,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolbar::GenerateLayoutMenu()
 		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleScaleChildrenWithParent);
 		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleAlwaysSelectGroup);
 	}
+	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("DisplaySettings", LOCTEXT("DisplaySettingsSection", "Display Settings"));
 	{
