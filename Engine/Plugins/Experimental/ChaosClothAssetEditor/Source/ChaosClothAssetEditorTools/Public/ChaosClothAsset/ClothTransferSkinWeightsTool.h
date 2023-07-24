@@ -3,12 +3,10 @@
 #pragma once
 
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
-#include "BoneIndices.h"
 #include "ModelingOperators.h"
 #include "Transforms/TransformGizmoDataBinder.h"
-
-
 #include "ClothTransferSkinWeightsTool.generated.h"
+
 
 class UClothTransferSkinWeightsTool;
 class USkeletalMesh;
@@ -17,7 +15,7 @@ class UTransformProxy;
 class UCombinedTransformGizmo;
 class UMeshOpPreviewWithBackgroundCompute;
 class AInternalToolFrameworkActor;
-class UDynamicMeshComponent;
+class USkeletalMeshComponent;
 class FTransformGizmoDataBinder;
 struct FChaosClothAssetTransferSkinWeightsNode;
 
@@ -39,26 +37,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
 	FVector3d SourceMeshScale;
 
-
-	UPROPERTY(EditAnywhere, Category = Source)
-	int32 SourceMeshLOD = 0;
-
 	UPROPERTY(EditAnywhere, Category = Source)
 	bool bHideSourceMesh = false;
-
-	UPROPERTY(EditAnywhere, Category = Visualization, meta = (GetOptions = GetBoneNameList))
-	FName BoneName;
-
-	// Get the list of valid bone names
-	UFUNCTION()
-	TArray<FName> GetBoneNameList()
-	{
-		return BoneNameList;
-	}
-
-	UPROPERTY(meta = (TransientToolProperty))
-	TArray<FName> BoneNameList;
-
 };
 
 
@@ -95,8 +75,6 @@ private:
 	
 	void SetClothEditorContextObject(TObjectPtr<UClothEditorContextObject> InClothEditorContextObject);
 
-	void SetPreviewMeshColorFunction();
-
 	FTransform TransformFromProperties() const;
 	void SetSRTPropertiesFromTransform(const FTransform& Transform) const;
 
@@ -120,7 +98,7 @@ private:
 	TObjectPtr<AInternalToolFrameworkActor> SourceMeshParentActor;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UDynamicMeshComponent> SourceMeshComponent;
+	TObjectPtr<USkeletalMeshComponent> SourceMeshComponent;
 
 	// Source mesh transform gizmo support
 	UPROPERTY(Transient)
@@ -131,12 +109,8 @@ private:
 
 	TSharedPtr<FTransformGizmoDataBinder> DataBinder;
 
-	// Used to lookup the index of the currently selected-by-name bone
-	TMap<FName, FBoneIndexType> TargetMeshBoneNameToIndex;
-
 	FChaosClothAssetTransferSkinWeightsNode* TransferSkinWeightsNode = nullptr;
 
-	bool bHasInvalidLODWarning = false;
 	bool bHasOpFailedWarning = false;
 };
 
