@@ -17,8 +17,7 @@ class UVCamOutputProviderBase;
 namespace UE::VCamCoreEditor::Private
 {
 	/** Exposes all VCam widgets' connection settings for as long as the output provider has a valid widget. */
-	class FOutputProviderLayoutCustomization
-		: public IDetailCustomization
+	class FOutputProviderLayoutCustomization : public IDetailCustomization
 	{
 	public:
 
@@ -49,13 +48,20 @@ namespace UE::VCamCoreEditor::Private
 		};
 		/** The widgets added to the details panel */
 		TMap<TWeakObjectPtr<UVCamWidget>, FWidgetData> EditableWidgets;
+
+		/**
+		 * Whether a rebuild was already requested this tick.
+		 * The output provider may activate & deactivate multiple times in a single tick so we combine them all.
+		 * By deferring the update not only do we save useless updates, we can also detect whether the owning object was destroyed as part of an undo.
+		 */
+		bool bRequestedRefresh = false;
 		
 		FDetailWidgetRow ExtendWidgetsRow(IDetailLayoutBuilder& DetailBuilder, IDetailGroup& WidgetGroup);
 		void RebuildWidgetData();
 		void GenerateWidgetRows(IDetailGroup& RootWidgetGroup, IDetailLayoutBuilder& DetailBuilder);
 		TSharedRef<SHorizontalBox> CreateControlWidgets(const TWeakObjectPtr<UVCamWidget>& Widget) const;
 		
-		void OnActivationChanged(bool bNewIsActivated) const;
+		void OnActivationChanged(bool bNewIsActivated);
 		void ForceRefreshDetailsIfSafe() const;
 		
 		static void ClearWidgetData(TMap<TWeakObjectPtr<UVCamWidget>, FWidgetData>& InEditableWidgets);

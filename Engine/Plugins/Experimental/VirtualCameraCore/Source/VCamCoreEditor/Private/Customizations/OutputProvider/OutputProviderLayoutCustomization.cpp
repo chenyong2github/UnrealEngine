@@ -136,14 +136,6 @@ namespace UE::VCamCoreEditor::Private
 				GEditor->SyncBrowserToObjects(ObjectsToFocus);
 			}
 		}
-
-		static void OpenAssetAndSelectWidget(TWeakObjectPtr<UVCamWidget> WidgetToSelect)
-		{
-			if (UObject* Blueprint = GetBlueprintFrom(WidgetToSelect))
-			{
-				GEditor->EditObject(Blueprint);
-			}
-		}
 	}
 	
 	TSharedRef<IDetailCustomization> FOutputProviderLayoutCustomization::MakeInstance()
@@ -164,6 +156,8 @@ namespace UE::VCamCoreEditor::Private
 
 	void FOutputProviderLayoutCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	{
+		bRequestedRefresh = false;
+		
 		TArray<TWeakObjectPtr<UObject>> CustomizedObjects;
 		DetailBuilder.GetObjectsBeingCustomized(CustomizedObjects);
 		CustomizedOutputProvider = CustomizedObjects.Num() == 1
@@ -339,25 +333,55 @@ namespace UE::VCamCoreEditor::Private
 					TAttribute<bool>::CreateLambda([Widget]() { return Widget.IsValid(); })
 				)
 
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(Private::SPropertyEditorButton)
-					.Image(FAppStyle::Get().GetBrush(TEXT("Icons.Blueprint")))
-					.Text(LOCTEXT("OpenBlueprint", "Open the Blueprint owning this widget and select it in the hierarchy"))
-					.OnClickAction(FSimpleDelegate::CreateStatic(&Private::OpenAssetAndSelectWidget, Widget))
 			];
 	}
 	
-	void FOutputProviderLayoutCustomization::OnActivationChanged(bool bNewIsActivated) const
+	void FOutputProviderLayoutCustomization::OnActivationChanged(bool bNewIsActivated)
 	{
-		ForceRefreshDetailsIfSafe();
+		if (bRequestedRefresh || !CustomizedOutputProvider.IsValid())
+		{
+			return;
+		}
+
+		UWorld* World = CustomizedOutputProvider->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		bRequestedRefresh = true;
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakThis = AsWeak()]()
+		{
+			// ForceRefreshDetails may want to delete us ... in that case we must not keep ourselves alive.
+			FOutputProviderLayoutCustomization* This = nullptr;
+			if (TSharedPtr<IDetailCustomization> ThisPin = WeakThis.Pin())
+			{
+				This = StaticCastSharedPtr<FOutputProviderLayoutCustomization>(ThisPin).Get();
+			}
+
+			if (This)
+			{
+				This->ForceRefreshDetailsIfSafe();
+			}
+		}));
 	}
 
 	void FOutputProviderLayoutCustomization::ForceRefreshDetailsIfSafe() const
 	{
-		if (TSharedPtr<IDetailLayoutBuilder> DetailBuilder = WeakDetailBuilder.Pin())
+		// ForceRefreshDetails may want to delete our IDetailLayoutBuilder... in that case we must not keep it alive.
+		IDetailLayoutBuilder* DetailBuilder = nullptr;
+		if (TSharedPtr<IDetailLayoutBuilder> DetailBuilderPin = WeakDetailBuilder.Pin())
+		{
+			DetailBuilder = DetailBuilderPin.Get();
+		}
+
+		if (!DetailBuilder)
+		{
+			return;
+		}
+
+		const bool bCanRefresh = CustomizedOutputProvider.IsValid();
+		if (bCanRefresh)
 		{
 			DetailBuilder->ForceRefreshDetails();
 		}
