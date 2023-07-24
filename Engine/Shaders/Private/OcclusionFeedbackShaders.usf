@@ -30,7 +30,7 @@ void MainPS(
 	out float4 OutColor : SV_Target0
 )
 {
-	// TODO: write only some pixels?
+	// TODO: write only some pixels? 
 	OcclusionBuffer[PrimitiveIdx] = 1u;
 
 #if PERMUTATION_PIXEL_DISCARD
