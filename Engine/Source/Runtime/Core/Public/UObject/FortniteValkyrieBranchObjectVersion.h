@@ -16,7 +16,7 @@ struct FFortniteValkyrieBranchObjectVersion
 		AtomPrimitiveNewSerialization,
 
 		// Removing FAtomColor struct, now only using the color id.
-		AtomDeprecatingRedudantColorStructs,
+		AtomDeprecatingRedundantColorStructs,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
