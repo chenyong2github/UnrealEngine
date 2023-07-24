@@ -366,10 +366,6 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			ValidateModifierStack();
 			SavedModifierStack.Empty();
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamComponent, InputProfile))
-		{
-			ApplyInputProfile();
-		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamComponent, InputDeviceSettings))
 		{
 			SetInputDeviceSettings(InputDeviceSettings);
@@ -386,6 +382,7 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 	// Called e.g. after PostEditUndo. Must make sure that the delegates are registered.
 	EnsureDelegatesRegistered();
+	ApplyInputProfile();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -1160,6 +1157,14 @@ void UVCamComponent::ApplyInputProfile()
 		: nullptr;
 	if (Settings)
 	{
+#if WITH_EDITOR
+		// Some things in the input system are RF_Transacts, such as the UInputModifier, etc., which are duplicated in RequestRebuildControlMappings
+		// Those are transient by nature and will just pollute the transaction. We handle input manually by calling ApplyInputProfile in PostEditChange.
+		ITransaction* UndoState = GUndo;
+		GUndo = nullptr;
+		ON_SCOPE_EXIT{ GUndo = UndoState; };
+#endif
+		
 		// The modifiers' input mapping contexts must be registered to allow remapping...
 		// Copy intentional since we'll be modifying RegisteredMappingContexts in a for-range loop.
 		const TSet<TObjectPtr<const UInputMappingContext>> CopyOfRegisteredInputs = Settings->GetRegisteredInputMappingContexts();
@@ -1188,6 +1193,10 @@ void UVCamComponent::ApplyInputProfile()
 				NewKey.IsValid() ? Settings->MapPlayerKey(Args, FailureReason) : Settings->UnMapPlayerKey(Args, FailureReason);
 			}
 		}
+
+		FModifyContextOptions Options;
+		Options.bForceImmediately = true;
+		EnhancedInputSubsystemInterface->RequestRebuildControlMappings(Options);
 	}
 }
 

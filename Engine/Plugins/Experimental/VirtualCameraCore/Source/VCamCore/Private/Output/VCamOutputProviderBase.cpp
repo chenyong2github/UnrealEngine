@@ -11,9 +11,11 @@
 #include "Algo/RemoveIf.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "CoreGlobals.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/ScopeExit.h"
 #include "SceneViewExtensionContext.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
@@ -283,7 +285,13 @@ void UVCamOutputProviderBase::DisplayUMG()
 			// ... but in games there is only one viewport so we can just use the cine camera.
 			UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
 #endif
-			
+
+#if WITH_EDITOR
+			// Creating widgets should not be transacted because it will create a huge transaction.
+			ITransaction* UndoState = GUndo;
+			GUndo = nullptr;
+			ON_SCOPE_EXIT{ GUndo = UndoState; };
+#endif
 			if (!UMGWidget->Display(ActorWorld)
 				|| !ensureAlwaysMsgf(UMGWidget->GetWidget(), TEXT("UVPFullScreenUserWidget::Display returned true but did not create any subwidget!")))
 			{

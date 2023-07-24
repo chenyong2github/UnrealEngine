@@ -111,10 +111,6 @@ void UInputVCamSubsystem::OnUpdate(float DeltaTime)
 		return;
 	}
 
-	FModifyContextOptions Options;
-	Options.bForceImmediately = true;
-	RequestRebuildControlMappings(Options);
-
 	TArray<UInputComponent*> InputStack;
 	for (auto It = CurrentInputStack.CreateIterator(); It; ++It)
 	{
