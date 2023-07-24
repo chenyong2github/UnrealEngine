@@ -54,12 +54,12 @@ namespace UnrealBuildTool.Rules
 					// Don't need to handle it for Windows or Mac as IntelTBB.Build.cs already does it
 
 					// Python3
-					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
+					PublicSystemIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonSourceTPSDir, "libs"));
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "python39.dll"), Path.Combine(PythonBinaryTPSDir, "python39.dll"));
 
 					// USD
-					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
+					PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
 					PublicSystemLibraryPaths.Add(USDLibsDir);
 					foreach (string UsdLib in Directory.EnumerateFiles(USDLibsDir, "*.lib", SearchOption.AllDirectories))
 					{
@@ -85,13 +85,13 @@ namespace UnrealBuildTool.Rules
 					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.so.2"));
 
 					// Python3
-					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
+					PublicSystemIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "lib"));
 					PrivateRuntimeLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "bin"));
 					RuntimeDependencies.Add(Path.Combine(PythonBinaryTPSDir, "bin", "python3.9"));
 
 					// USD
-					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
+					PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
 					var USDBinDir = Path.Combine(ModuleDirectory, "..", "ThirdParty", "Linux", "bin", Target.Architecture.LinuxName);
 					PrivateRuntimeLibraryPaths.Add(USDBinDir);
 					foreach (string LibPath in Directory.EnumerateFiles(USDBinDir, "*.so", SearchOption.AllDirectories))
@@ -116,13 +116,13 @@ namespace UnrealBuildTool.Rules
 					// Don't need to handle it for Windows or Mac as IntelTBB.Build.cs already does it
 
 					// Python3
-					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
+					PublicSystemIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "lib"));
 					PrivateRuntimeLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "bin"));
 					RuntimeModulePaths.Add(Path.Combine(PythonBinaryTPSDir, "lib", "libpython3.9.dylib"));
 
 					// USD
-					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
+					PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
 					var USDBinDir = Path.Combine(ModuleDirectory, "..", "ThirdParty", "Mac", "bin");
 					foreach (string LibPath in Directory.EnumerateFiles(USDBinDir, "*.dylib", SearchOption.AllDirectories))
 					{

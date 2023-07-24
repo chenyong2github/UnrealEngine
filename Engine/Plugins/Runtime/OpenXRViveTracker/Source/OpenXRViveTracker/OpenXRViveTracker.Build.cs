@@ -5,49 +5,47 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-    public class OpenXRViveTracker: ModuleRules
-    {
-        public OpenXRViveTracker(ReadOnlyTargetRules Target) 
-				: base(Target)
-        {
+	public class OpenXRViveTracker : ModuleRules
+	{
+		public OpenXRViveTracker(ReadOnlyTargetRules Target) : base(Target)
+		{
 			PublicDependencyModuleNames.AddRange(
-			   new string[]
-			   {
+				new string[]
+				{
 					"InputDevice"
-			   }
-		   );
-
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    EngineDir + "/Source/ThirdParty/OpenXR/include",
-					EngineDir + "/Plugins/Runtime/OpenXR/Source/OpenXRHMD/Private",
 				}
-                );
+			 );
 
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
-                    "Core",
-                    "CoreUObject",
-                    "Engine",
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					Path.Combine(GetModuleDirectory("OpenXRHMD"), "Private"), // TODO: Adding private include path from other module
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core",
+					"CoreUObject",
+					"Engine",
 					"HeadMountedDisplay",
 					"XRBase",
-                    "InputCore",
+					"InputCore",
 					"OpenXRHMD",
 					"OpenXRInput",
 					"Slate",
 					"SlateCore",
 					"ApplicationCore"
 				}
-				);
+			);
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenXR");
+			PrivateIncludePathModuleNames.Add("OpenXR");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenXR");
 
-            if (Target.bBuildEditor == true)
-            {
-                PrivateDependencyModuleNames.Add("UnrealEd");
-            }
-        }
-    }
+			if (Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+			}
+		}
+	}
 }

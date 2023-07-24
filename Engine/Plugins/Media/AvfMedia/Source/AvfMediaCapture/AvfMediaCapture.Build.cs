@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.IO;
 namespace UnrealBuildTool.Rules
 {
 	public class AvfMediaCapture : ModuleRules
@@ -9,9 +7,9 @@ namespace UnrealBuildTool.Rules
 		public AvfMediaCapture(ReadOnlyTargetRules Target) : base(Target)
 		{
 			DynamicallyLoadedModuleNames.AddRange(
-			new string[] {
-				"Media",
-			});
+				new string[] {
+					"Media",
+				});
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
@@ -22,18 +20,17 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI"
 				});
-			
+
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Media",
 				});
-			
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-			PublicIncludePaths.AddRange(
+
+			PublicIncludePathModuleNames.AddRange(
 				new string[] {
-					Path.Combine(EngineDir, "Plugins/Media/AvfMedia/Source/AvfMedia/Public/")
+					"AvfMedia",
 				});
-			
+
 			PublicFrameworks.AddRange(
 				new string[] {
 					"CoreMedia",

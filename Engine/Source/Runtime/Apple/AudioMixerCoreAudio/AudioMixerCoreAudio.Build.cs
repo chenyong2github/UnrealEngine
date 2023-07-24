@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
-
+using System.IO;
 using UnrealBuildTool;
-
-
 
 public class AudioMixerCoreAudio : ModuleRules
 {
 	public AudioMixerCoreAudio(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
-		PublicIncludePaths.Add("Runtime/AudioMixer/Public");
-		PrivateIncludePaths.Add("Runtime/AudioMixer/Private");
+		PrivateIncludePathModuleNames.Add("AudioMixer");
+		PrivateIncludePaths.Add(Path.Combine(GetModuleDirectory("AudioMixer"), "Private")); // TODO: Adding private include path from other module
 
 
 		PrivateDependencyModuleNames.AddRange(
@@ -22,23 +19,21 @@ public class AudioMixerCoreAudio : ModuleRules
 				"AudioMixerCore",
 				"BinkAudioDecoder"
 			}
-			);
+		);
 
 		PrecompileForTargets = PrecompileTargetsType.None;
 
-        if (Target.bCompileAgainstEngine)
-        {
-            // Engine module is required for CompressedAudioInfo implementations.
-            PrivateDependencyModuleNames.Add("Engine");
+		if (Target.bCompileAgainstEngine)
+		{
+			// Engine module is required for CompressedAudioInfo implementations.
+			PrivateDependencyModuleNames.Add("Engine");
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target,
-                "UEOgg",
-                "Vorbis",
-                "VorbisFile"
-            );
-        }
-
-
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"UEOgg",
+				"Vorbis",
+				"VorbisFile"
+			);
+		}
 
 		PublicFrameworks.AddRange(new string[]
 		{
@@ -47,10 +42,9 @@ public class AudioMixerCoreAudio : ModuleRules
 		});
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            PublicFrameworks.Add("AudioUnit");
-        }
-
+		{
+			PublicFrameworks.Add("AudioUnit");
+		}
 
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");
 

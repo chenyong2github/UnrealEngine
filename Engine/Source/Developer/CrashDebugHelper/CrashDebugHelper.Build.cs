@@ -4,10 +4,10 @@ using UnrealBuildTool;
 
 public class CrashDebugHelper : ModuleRules
 {
-	public CrashDebugHelper( ReadOnlyTargetRules Target ) : base(Target)
+	public CrashDebugHelper(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(
-		new string[] {
+			new string[] {
 				"Developer/CrashDebugHelper/Private/",
 				"Developer/CrashDebugHelper/Private/Linux",
 				"Developer/CrashDebugHelper/Private/Mac",
@@ -16,13 +16,11 @@ public class CrashDebugHelper : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.Add( "ThirdParty/PLCrashReporter/PLCrashReporter/Source" );
-
 		if (Target.Type != TargetType.Game && Target.Type != TargetType.Client)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-				"Core",
+					"Core",
 				}
 			);
 		}
@@ -31,17 +29,18 @@ public class CrashDebugHelper : ModuleRules
 			IsRedistributableOverride = true;
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-				"Core",
+					"Core",
 				}
 			);
 		}
 
-		if(Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.bUseBundledDbgHelp)
+		if (Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.bUseBundledDbgHelp)
 		{
 			throw new System.Exception("CrashDebugHelper uses DBGENG.DLL at runtime, which depends on a matching version of DBGHELP.DLL but cannot be redistributed. Please set WindowsPlatform.bUseBundledDbgHelp = false for this target.");
 		}
 
 		// Note: PLCrashReporter is not supported on tvOS.
+		PrivateIncludePathModuleNames.Add("PLCrashReporter");
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, new string[]
@@ -49,5 +48,5 @@ public class CrashDebugHelper : ModuleRules
 				"PLCrashReporter"
 			});
 		}
-    }
+	}
 }
