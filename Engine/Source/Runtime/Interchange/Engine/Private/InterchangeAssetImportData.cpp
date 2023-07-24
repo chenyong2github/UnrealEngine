@@ -133,13 +133,13 @@ UInterchangeBaseNodeContainer* UInterchangeAssetImportData::GetNodeContainer() c
 	return Cast<UInterchangeBaseNodeContainer>(TransientNodeContainer.Get());
 }
 
-void UInterchangeAssetImportData::SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer) 
+void UInterchangeAssetImportData::SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer) const
 {
 	TransientNodeContainer = InNodeContainer; 
 }
 
 
-void UInterchangeAssetImportData::SetPipelines(const TArray<UObject*>& InPipelines) 
+void UInterchangeAssetImportData::SetPipelines(const TArray<UObject*>& InPipelines) const
 {
 	TransientPipelines.Reset();
 	for (UObject* Pipeline : InPipelines)
@@ -206,6 +206,10 @@ void UInterchangeAssetImportData::ProcessContainerCache() const
 			TransientNodeContainer = NewObject<UInterchangeBaseNodeContainer>();
 			TransientNodeContainer->SerializeNodeContainerData(NodeContainerAr);
 		}
+		else if(!TransientNodeContainer)
+		{
+			ProcessDeprecatedData();
+		}
 	}
 }
 
@@ -247,6 +251,33 @@ void UInterchangeAssetImportData::ProcessPipelinesCache() const
 				UObject* Pipeline = DeSerializePipeline(CachedPipeline.Value, ToCreateClass);
 
 				TransientPipelines.Add(Pipeline);
+			}
+		}
+		else if (TransientPipelines.Num() == 0)
+		{
+			ProcessDeprecatedData();
+		}
+	}
+}
+
+void UInterchangeAssetImportData::ProcessDeprecatedData() const
+{
+	if (UInterchangeManager::IsInterchangeImportEnabled())
+	{
+		if (!TransientNodeContainer && NodeContainer_DEPRECATED)
+		{
+			SetNodeContainer(NodeContainer_DEPRECATED.Get());
+		}
+		if (TransientPipelines.Num() == 0)
+		{
+			TransientPipelines.Empty();
+
+			for (const TObjectPtr<UObject>& PipelineObject : Pipelines_DEPRECATED)
+			{
+				if (PipelineObject)
+				{
+					TransientPipelines.Add(PipelineObject.Get());
+				}
 			}
 		}
 	}

@@ -801,6 +801,7 @@ UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftO
 	{
 		// Make sure that the instance does not carry over standalone and public flags as they are not actual assets to be persisted
 		GeneratedPipeline->ClearFlags(EObjectFlags::RF_Standalone|EObjectFlags::RF_Public);
+		GeneratedPipeline->UpdateWeakObjectPtrs();
 	}
 
 	return GeneratedPipeline;

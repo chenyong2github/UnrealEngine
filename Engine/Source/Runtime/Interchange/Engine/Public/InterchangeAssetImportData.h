@@ -74,11 +74,14 @@ public:
 	 */
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) override
 	{
-		if (GetNodeContainer()->IsNodeUidValid(NodeUniqueID))
+		if(const UInterchangeBaseNodeContainer* NodeContainerTmp = GetNodeContainer())
 		{
-			if (const UInterchangeBaseNode* Node = GetStoredNode(NodeUniqueID))
+			if (NodeContainerTmp->IsNodeUidValid(NodeUniqueID))
 			{
-				Node->AppendAssetRegistryTags(OutTags);
+				if (const UInterchangeBaseNode* Node = GetStoredNode(NodeUniqueID))
+				{
+					Node->AppendAssetRegistryTags(OutTags);
+				}
 			}
 		}
 		Super::AppendAssetRegistryTags(OutTags);
@@ -95,7 +98,7 @@ public:
 	INTERCHANGEENGINE_API UInterchangeBaseNodeContainer* GetNodeContainer() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
-	INTERCHANGEENGINE_API void SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer);
+	INTERCHANGEENGINE_API void SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer) const;
 
 
 	/**
@@ -108,7 +111,7 @@ public:
 	INTERCHANGEENGINE_API int32 GetNumberOfPipelines() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
-	INTERCHANGEENGINE_API void SetPipelines(const TArray<UObject*>& InPipelines);
+	INTERCHANGEENGINE_API void SetPipelines(const TArray<UObject*>& InPipelines) const;
 
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
@@ -131,6 +134,7 @@ private:
 
 	void ProcessContainerCache() const;
 	void ProcessPipelinesCache() const;
+	void ProcessDeprecatedData() const;
 	TArray64<uint8> CachedNodeContainer;
 	TArray<TPair<FString, FString>> CachedPipelines; //Class, Data(serialized JSON) pair
 };
