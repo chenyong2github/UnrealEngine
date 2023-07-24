@@ -11,13 +11,14 @@
 #include "PCGEditorSettings.h"
 #include "PCGGraph.h"
 #include "PCGPin.h"
+#include "PCGSettingsWithDynamicInputs.h"
 #include "PCGSubsystem.h"
 #include "PCGWorldActor.h"
-#include "Helpers/PCGHelpers.h"
 
 #include "GraphEditorActions.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
+#include "ScopedTransaction.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Widgets/Colors/SColorPicker.h"
@@ -40,6 +41,8 @@ void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode)
 	{
 		const ENodeEnabledState NewEnabledState = !PCGSettingsInterface->bEnabled ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
 		SetEnabledState(NewEnabledState);
+
+		bCanUserAddRemoveSourcePins = (InPCGNode->GetSettings() && InPCGNode->GetSettings()->IsA<UPCGSettingsWithDynamicInputs>());
 	}
 }
 
@@ -75,6 +78,27 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 	if (!Context->Node)
 	{
 		return;
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
+		if (Context->Pin && bCanUserAddRemoveSourcePins)
+		{
+			Section.AddMenuEntry(FPCGEditorCommands::Get().AddSourcePin);
+			Section.AddMenuEntry("RemovePin",
+				LOCTEXT("RemovePin", "Remove Source Pin"),
+				LOCTEXT("RemovePinTooltip", "Remove this source pin from the current node"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([Pin = Context->Pin, this]
+					{
+						const_cast<UPCGEditorGraphNodeBase*>(this)->OnUserRemoveDynamicInputPin(const_cast<UEdGraphPin*>(Pin));
+					}),
+					FCanExecuteAction::CreateLambda([Pin = Context->Pin, this]
+					{
+						return const_cast<UPCGEditorGraphNodeBase*>(this)->CanUserRemoveDynamicInputPin(const_cast<UEdGraphPin*>(Pin));
+					})));
+		}
 	}
 
 	{
@@ -722,6 +746,46 @@ void UPCGEditorGraphNodeBase::OnCommentBubbleToggled(bool bInCommentBubbleVisibl
 	{
 		PCGNode->Modify();
 		PCGNode->bCommentBubbleVisible = bInCommentBubbleVisible;
+	}
+}
+
+void UPCGEditorGraphNodeBase::OnUserAddDynamicInputPin()
+{
+	check(PCGNode);
+	
+	if (UPCGSettingsWithDynamicInputs* DynamicNodeSettings = Cast<UPCGSettingsWithDynamicInputs>(PCGNode->GetSettings()))
+	{
+		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorUserAddDynamicInputPin", "Add Source Pin"), DynamicNodeSettings);
+		DynamicNodeSettings->Modify();
+		DynamicNodeSettings->OnUserAddDynamicInputPin();
+	}
+}
+
+bool UPCGEditorGraphNodeBase::CanUserRemoveDynamicInputPin(UEdGraphPin* InPinToRemove)
+{
+	check(PCGNode && InPinToRemove);
+
+	if (UPCGSettingsWithDynamicInputs* DynamicNodeSettings = Cast<UPCGSettingsWithDynamicInputs>(PCGNode->GetSettings()))
+	{
+		const UPCGEditorGraphNodeBase* PCGGraphNode = CastChecked<const UPCGEditorGraphNodeBase>(InPinToRemove->GetOwningNode());
+		return DynamicNodeSettings->CanUserRemoveDynamicInputPin(PCGGraphNode->GetPinIndex(InPinToRemove));
+	}
+	
+	return false;
+}
+
+void UPCGEditorGraphNodeBase::OnUserRemoveDynamicInputPin(UEdGraphPin* InRemovedPin)
+{
+	check(PCGNode && InRemovedPin);
+
+	if (UPCGSettingsWithDynamicInputs* DynamicNodeSettings = Cast<UPCGSettingsWithDynamicInputs>(PCGNode->GetSettings()))
+	{
+		if (UPCGEditorGraphNodeBase* PCGGraphNode = Cast<UPCGEditorGraphNodeBase>(InRemovedPin->GetOwningNode()))
+		{
+			const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorUserRemoveDynamicInputPin", "Remove Source Pin"), DynamicNodeSettings);
+			DynamicNodeSettings->Modify();
+			DynamicNodeSettings->OnUserRemoveDynamicInputPin(PCGGraphNode->GetPCGNode(), PCGGraphNode->GetPinIndex(InRemovedPin));
+		}
 	}
 }
 

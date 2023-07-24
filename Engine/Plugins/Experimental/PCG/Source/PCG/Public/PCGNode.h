@@ -104,10 +104,11 @@ public:
 	UPCGPin* GetOutputPin(const FName& Label);
 	const UPCGPin* GetOutputPin(const FName& Label) const;
 	bool HasInboundEdges() const;
+	int32 GetInboundEdgesNum() const;
 
 	/** Allow to change the name of a pin, to keep edges connected. You need to make sure that the underlying settings are also updated, otherwise, it will be overwritten next time the settings are updated */
-	void RenameInputPin(const FName& OldLabel, const FName& NewLabel);
-	void RenameOutputPin(const FName& OldLabel, const FName& NewLabel);
+	void RenameInputPin(const FName& InOldLabel, const FName& InNewLabel, bool bInBroadcastUpdate = true);
+	void RenameOutputPin(const FName& InOldLabel, const FName& InNewLabel, bool bInBroadcastUpdate = true);
 
 	/** Pin from which data is passed through when this node is disabled. */
 	virtual const UPCGPin* GetPassThroughInputPin() const;

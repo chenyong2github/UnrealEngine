@@ -502,6 +502,11 @@ void FPCGEditor::BindCommands()
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.DisableDebugOnAllNodes,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnDisableDebugOnAllNodes));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.AddSourcePin,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAddDynamicInputPin),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanAddDynamicInputPin));
 }
 
 void FPCGEditor::OnFind()
@@ -759,6 +764,36 @@ bool FPCGEditor::CanCollapseNodesInSubgraph() const
 	}
 
 	return false;
+}
+
+void FPCGEditor::OnAddDynamicInputPin()
+{
+	check(GraphEditorWidget.IsValid());
+
+	const FGraphPanelSelectionSet SelectedNodes = GraphEditorWidget->GetSelectedNodes();
+	
+	if (!ensure(SelectedNodes.Num() == 1))
+	{
+		UE_LOG(LogPCGEditor, Warning, TEXT("Attempting to add new input pin to multiple nodes."));
+		return;
+	}
+
+	UPCGEditorGraphNodeBase* Node = CastChecked<UPCGEditorGraphNodeBase>(*SelectedNodes.CreateConstIterator());
+	Node->OnUserAddDynamicInputPin();
+}
+
+bool FPCGEditor::CanAddDynamicInputPin() const
+{
+	check(GraphEditorWidget.IsValid());
+
+	const FGraphPanelSelectionSet SelectedNodes = GraphEditorWidget->GetSelectedNodes();
+	if (SelectedNodes.Num() != 1)
+	{
+		return false;
+	}
+
+	const UPCGEditorGraphNodeBase* Node = Cast<const UPCGEditorGraphNodeBase>(*SelectedNodes.CreateConstIterator());
+	return (Node && Node->CanUserAddRemoveDynamicInputPins());
 }
 
 void FPCGEditor::OnCollapseNodesInSubgraph()

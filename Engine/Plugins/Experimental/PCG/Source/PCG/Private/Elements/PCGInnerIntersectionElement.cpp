@@ -1,38 +1,55 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/PCGIntersectionElement.h"
+#include "Elements/PCGInnerIntersectionElement.h"
 #include "Data/PCGSpatialData.h"
 #include "PCGContext.h"
 #include "PCGPin.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionElement)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInnerIntersectionElement)
 
-TArray<FPCGPinProperties> UPCGIntersectionSettings::InputPinProperties() const
+#define LOCTEXT_NAMESPACE "PCGInnerIntersectionElement"
+
+#if WITH_EDITOR
+FText UPCGInnerIntersectionSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("NodeTooltipText", "Spatial data will be generated as the result of intersecting with the other source inputs sequentially or no output if such an intersection does not exist. \nSee also: Intersection Node");
+}
+#endif // WITH_EDITOR
+
+TArray<FPCGPinProperties> UPCGInnerIntersectionSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
+	FPCGPinProperties& SourcePinProperty = PinProperties.Emplace_GetRef(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
 
+#if WITH_EDITOR
+	SourcePinProperty.Tooltip = LOCTEXT("SourcePinTooltip", "Source spatial data from which to conduct the intersection. Empty spatial data will be ignored.");
+#endif // WITH_EDITOR
+	
 	return PinProperties;
 }
 
-TArray<FPCGPinProperties> UPCGIntersectionSettings::OutputPinProperties() const
+TArray<FPCGPinProperties> UPCGInnerIntersectionSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
+	FPCGPinProperties& OutputPinProperty = PinProperties.Emplace_GetRef(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
 
+#if WITH_EDITOR
+	OutputPinProperty.Tooltip = LOCTEXT("OutputPinTooltip", "The intersection created from all the source input data.");
+#endif // WITH_EDITOR
+	
 	return PinProperties;
 }
 
-FPCGElementPtr UPCGIntersectionSettings::CreateElement() const
+FPCGElementPtr UPCGInnerIntersectionSettings::CreateElement() const
 {
-	return MakeShared<FPCGIntersectionElement>();
+	return MakeShared<FPCGInnerIntersectionElement>();
 }
 
-bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
+bool FPCGInnerIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGIntersectionElement::Execute);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGInnerIntersectionElement::Execute);
 
-	const UPCGIntersectionSettings* Settings = Context->GetInputSettings<UPCGIntersectionSettings>();
+	const UPCGInnerIntersectionSettings* Settings = Context->GetInputSettings<UPCGInnerIntersectionSettings>();
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
@@ -85,3 +102,5 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

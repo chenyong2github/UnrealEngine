@@ -2,7 +2,7 @@
 
 #if WITH_EDITOR
 
-#include "Elements/PCGIntersectionElement.h"
+#include "Elements/PCGInnerIntersectionElement.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGIntersectionDeterminismSingleSameDataTest, FPCGTestBaseClass, "pcg.tests.Intersection.Determinism.SingleSameData", PCGTestsCommon::TestFlags)
@@ -15,7 +15,7 @@ namespace
 {
 	void IntersectionTestBase(PCGTestsCommon::FTestData& TestData)
 	{
-		PCGDeterminismTests::GenerateSettings<UPCGIntersectionSettings>(TestData);
+		PCGDeterminismTests::GenerateSettings<UPCGInnerIntersectionSettings>(TestData);
 		// Source Volumes
 		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, PCGDeterminismTests::Defaults::SmallVector, PCGDeterminismTests::Defaults::MediumVector, PCGDeterminismTests::Defaults::MediumVector);
 		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, PCGDeterminismTests::Defaults::SmallVector * -1.f, PCGDeterminismTests::Defaults::MediumVector, PCGDeterminismTests::Defaults::MediumVector);

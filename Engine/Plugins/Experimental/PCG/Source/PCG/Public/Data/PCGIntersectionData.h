@@ -9,8 +9,8 @@
 UENUM()
 enum class EPCGIntersectionDensityFunction : uint8
 {
-	Multiply,
-	Minimum
+	Multiply UMETA(ToolTip="Multiplies the density values and results in the product."),
+	Minimum UMETA(ToolTip="Chooses the minimum of the density values.")
 };
 
 /**

@@ -7,6 +7,7 @@
 #include "PCGNode.h"
 #include "PCGPin.h"
 #include "PCGSettings.h"
+#include "PCGSettingsWithDynamicInputs.h"
 
 #include "GraphEditorSettings.h"
 #include "SCommentBubble.h"
@@ -359,6 +360,27 @@ void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNod
 	UpdateGraphNode();
 }
 
+void SPCGEditorGraphNode::CreateAddPinButtonWidget()
+{
+	// Add Pin Button (+) Source Reference: Engine\Source\Editor\GraphEditor\Private\KismetNodes\SGraphNodeK2Sequence.cpp
+	const TSharedPtr<SWidget> AddPinButton = AddPinButtonContent(LOCTEXT("AddSourcePin", "Add Pin"), LOCTEXT("AddSourcePinTooltip", "Add a dynamic source input pin"));
+
+	FMargin AddPinPadding = Settings->GetInputPinPadding();
+	AddPinPadding.Top += 6.0f;
+
+	check(PCGEditorGraphNode->GetPCGNode());
+	const UPCGSettingsWithDynamicInputs* NodeSettings = CastChecked<UPCGSettingsWithDynamicInputs>(PCGEditorGraphNode->GetPCGNode()->GetSettings());
+
+	const int32 Index = NodeSettings->GetStaticInputPinNum() + NodeSettings->GetDynamicInputPinNum();
+	LeftNodeBox->InsertSlot(Index)
+		.AutoHeight()
+		.VAlign(VAlign_Bottom)
+		.Padding(AddPinPadding)
+		[
+			AddPinButton.ToSharedRef()
+		];
+}
+
 void SPCGEditorGraphNode::UpdateGraphNode()
 {
 	if (PCGEditorGraphNode && PCGEditorGraphNode->ShouldDrawCompact())
@@ -368,6 +390,11 @@ void SPCGEditorGraphNode::UpdateGraphNode()
 	else
 	{
 		SGraphNode::UpdateGraphNode();
+
+		if (PCGEditorGraphNode->CanUserAddRemoveDynamicInputPins())
+		{
+			CreateAddPinButtonWidget();
+		}
 	}
 }
 
@@ -405,6 +432,25 @@ TSharedRef<SWidget> SPCGEditorGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle
 TSharedPtr<SGraphPin> SPCGEditorGraphNode::CreatePinWidget(UEdGraphPin* Pin) const
 {
 	return SNew(SPCGEditorGraphNodePin, Pin);
+}
+
+EVisibility SPCGEditorGraphNode::IsAddPinButtonVisible() const
+{
+	if (PCGEditorGraphNode && PCGEditorGraphNode->IsNodeEnabled() && PCGEditorGraphNode->CanUserAddRemoveDynamicInputPins() && SGraphNode::IsAddPinButtonVisible() == EVisibility::Visible)
+	{
+		return EVisibility::Visible;
+	}
+	
+	return EVisibility::Hidden;
+}
+
+FReply SPCGEditorGraphNode::OnAddPin()
+{
+	check(PCGEditorGraphNode);
+
+	PCGEditorGraphNode->OnUserAddDynamicInputPin();
+	
+	return FReply::Handled();
 }
 
 void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)

@@ -377,28 +377,34 @@ bool UPCGNode::IsOutputPinConnected(const FName& Label) const
 	}
 }
 
-void UPCGNode::RenameInputPin(const FName& OldLabel, const FName& NewLabel)
+void UPCGNode::RenameInputPin(const FName& InOldLabel, const FName& InNewLabel, bool bInBroadcastUpdate)
 {
-	if (UPCGPin* Pin = GetInputPin(OldLabel))
+	if (UPCGPin* Pin = GetInputPin(InOldLabel))
 	{
 		Pin->Modify();
-		Pin->Properties.Label = NewLabel;
+		Pin->Properties.Label = InNewLabel;
 
 #if WITH_EDITOR
-		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+		if (bInBroadcastUpdate)
+		{
+			OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+		}
 #endif // WITH_EDITOR
 	}
 }
 
-void UPCGNode::RenameOutputPin(const FName& OldLabel, const FName& NewLabel)
+void UPCGNode::RenameOutputPin(const FName& InOldLabel, const FName& InNewLabel, bool bInBroadcastUpdate)
 {
-	if (UPCGPin* Pin = GetOutputPin(OldLabel))
+	if (UPCGPin* Pin = GetOutputPin(InOldLabel))
 	{
 		Pin->Modify();
-		Pin->Properties.Label = NewLabel;
+		Pin->Properties.Label = InNewLabel;
 
 #if WITH_EDITOR
-		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+		if (bInBroadcastUpdate)
+		{
+			OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+		}
 #endif // WITH_EDITOR
 	}
 }
@@ -417,6 +423,19 @@ bool UPCGNode::HasInboundEdges() const
 	}
 
 	return false;
+}
+
+int32 UPCGNode::GetInboundEdgesNum() const
+{
+	int32 NumInboundEdges = 0;
+
+	for (const UPCGPin* InputPin : InputPins)
+	{
+		check(InputPin);
+		NumInboundEdges += InputPin->EdgeCount();
+	}
+	
+	return NumInboundEdges;
 }
 
 const UPCGPin* UPCGNode::GetPassThroughInputPin() const

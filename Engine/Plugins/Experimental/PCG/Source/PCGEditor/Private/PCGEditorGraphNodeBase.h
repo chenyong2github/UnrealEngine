@@ -43,6 +43,10 @@ public:
 	virtual void OnCommentBubbleToggled(bool bInCommentBubbleVisible) override;
 	// ~End UEdGraphNode interface
 
+	void OnUserAddDynamicInputPin();
+	bool CanUserRemoveDynamicInputPin(UEdGraphPin* InPinToRemove);
+	void OnUserRemoveDynamicInputPin(UEdGraphPin* InRemovedPin);
+	
 	UPCGNode* GetPCGNode() { return PCGNode; }
 	const UPCGNode* GetPCGNode() const { return PCGNode; }
 	void PostCopy();
@@ -68,6 +72,8 @@ public:
 	// Highlighted nodes draw with a light tint. Currently used to indicate nodes from hi-gen grids that are available for use.
 	void SetIsHighlighted(bool bInIsHighlighted) { bIsHighlighted = bInIsHighlighted; }
 	bool IsHighlighted() const { return bIsHighlighted; }
+
+	bool CanUserAddRemoveDynamicInputPins() const { return bCanUserAddRemoveSourcePins; }
 
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
@@ -98,4 +104,5 @@ protected:
 	bool bDisableReconstructFromNode = false;
 	bool bIsInspected = false;
 	bool bIsHighlighted = false;
+	bool bCanUserAddRemoveSourcePins = false;
 };

@@ -28,4 +28,5 @@ public:
 	TSharedPtr<FUICommandInfo> DebugOnlySelected;
 	TSharedPtr<FUICommandInfo> DisableDebugOnAllNodes;
 	TSharedPtr<FUICommandInfo> ToggleInspect;
+	TSharedPtr<FUICommandInfo> AddSourcePin;
 };

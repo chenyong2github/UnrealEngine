@@ -5,18 +5,19 @@
 #include "PCGSettings.h"
 #include "Data/PCGIntersectionData.h"
 
-#include "PCGIntersectionElement.generated.h"
+#include "PCGInnerIntersectionElement.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGIntersectionSettings : public UPCGSettings
+class PCG_API UPCGInnerIntersectionSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Intersection")); }
-	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGIntersectionSettings", "NodeTitle", "Intersection"); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Inner Intersection")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGInnerIntersectionSettings", "NodeTitle", "Inner Intersection"); }
+	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 
@@ -35,12 +36,13 @@ public:
 	EPCGIntersectionDensityFunction DensityFunction = EPCGIntersectionDensityFunction::Multiply;
 
 #if WITH_EDITORONLY_DATA
+	/** [EDITOR ONLY] If enabled, output points with a density value of 0 will NOT be automatically filtered out. */
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = "Settings|Debug", meta = (PCG_Overridable))
 	bool bKeepZeroDensityPoints = false;
 #endif
 };
 
-class FPCGIntersectionElement : public FSimplePCGElement
+class FPCGInnerIntersectionElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;

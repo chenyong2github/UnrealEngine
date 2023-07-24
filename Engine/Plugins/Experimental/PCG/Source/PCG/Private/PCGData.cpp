@@ -158,12 +158,37 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetInputsByPin(const FName& InPinLabe
 		});
 }
 
+TArray<FPCGTaggedData> FPCGDataCollection::GetSpatialInputsByPin(const FName& InPinLabel) const
+{
+	return TaggedData.FilterByPredicate([&InPinLabel](const FPCGTaggedData& Data) {
+		if (!ensure(Data.Data))
+		{
+			return false;
+		}
+
+		return Data.Pin == InPinLabel && Data.Data.IsA<UPCGSpatialData>();
+		});
+}
+
 int32 FPCGDataCollection::GetInputCountByPin(const FName& InPinLabel) const
 {
 	int32 Count = 0;
 	for (const FPCGTaggedData& Data : TaggedData)
 	{
 		if (Data.Pin == InPinLabel)
+		{
+			++Count;
+		}
+	}
+	return Count;
+}
+
+int32 FPCGDataCollection::GetSpatialInputCountByPin(const FName& InPinLabel) const
+{
+	int32 Count = 0;
+	for (const FPCGTaggedData& Data : TaggedData)
+	{
+		if (Data.Pin == InPinLabel && Data.Data && Data.Data.IsA<UPCGSpatialData>())
 		{
 			++Count;
 		}

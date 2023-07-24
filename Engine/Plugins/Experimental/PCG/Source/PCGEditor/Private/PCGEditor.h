@@ -204,6 +204,11 @@ private:
 	/** Whether we can collapse nodes in a subgraph */
 	bool CanCollapseNodesInSubgraph() const;
 
+	/** User is attempting to add a dynamic source pin to a node */
+	void OnAddDynamicInputPin();
+	/** Whether the user can add a dynamic source pin to a node */
+	bool CanAddDynamicInputPin() const;
+
 	void OnAlignTop();
 	void OnAlignMiddle();
 	void OnAlignBottom();
