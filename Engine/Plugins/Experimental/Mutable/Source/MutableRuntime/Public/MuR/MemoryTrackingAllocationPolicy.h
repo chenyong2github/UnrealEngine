@@ -226,7 +226,7 @@ namespace mu
 				uint32 AlignmentOfElement
 			) const
 			{
-				return Base.CalculateSlackShrink(NumElements, CurrentNumSlackElements, NumBytesPerElement);
+				return Base.CalculateSlackShrink(NumElements, CurrentNumSlackElements, NumBytesPerElement, AlignmentOfElement);
 			}
 
 			SizeType CalculateSlackGrow(
