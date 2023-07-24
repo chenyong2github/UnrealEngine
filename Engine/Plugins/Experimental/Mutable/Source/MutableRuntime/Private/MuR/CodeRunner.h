@@ -42,6 +42,19 @@ namespace  mu
 	class Parameters;
 	class RangeIndex;
 
+	using EventType = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTaskEvent;
+#else
+		FGraphEventRef;
+#endif
+
+	using TaskType = 
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+		UE::Tasks::FTask;
+#else
+		FGraphEventRef;
+#endif
 
     /** Code execution of the mutable virtual machine. */
     class CodeRunner
@@ -211,6 +224,16 @@ namespace  mu
 			}
 		};
 
+		struct FRomLoadOp
+		{
+			using StreamingDataContainerType = TArray<uint8, FDefaultMemoryTrackingAllocator<MemoryCounters::FStreamingMemoryCounter>>;
+
+			int32 RomIndex = -1;
+			ModelReader::OPERATION_ID m_streamID = -1;
+			StreamingDataContainerType m_streamBuffer;
+			TaskType Event;
+		};
+
 		class FLoadMeshRomTask : public CodeRunner::FIssuedTask
 		{
 		public:
@@ -223,7 +246,6 @@ namespace  mu
 			// FIssuedTask interface
 			bool Prepare(CodeRunner*, bool& bOutFailed) override;
 			void Complete(CodeRunner*) override;
-			bool IsComplete(CodeRunner*) override;
 
 		private:
 			int32 RomIndex = -1;
@@ -267,11 +289,12 @@ namespace  mu
 			// FIssuedTask interface
 			bool Prepare(CodeRunner*, bool& bOutFailed) override;
 			void Complete(CodeRunner*) override;
-			bool IsComplete(CodeRunner*) override;
 
 		private:
  			int32 LODIndexIndex = -1;
 			int32 LODIndexCount = -1;
+
+			TArray<int32> RomIndices;
 		};
 
 		void AddOp(const FScheduledOp& op)
@@ -361,6 +384,12 @@ namespace  mu
 			}
 		}
 
+    	/** Calculate an approximation of memory used by streaming buffers in this class. */
+		int32 GetStreamingMemoryBytes() const
+    	{
+			return RomLoadOps.GetAllocatedSize();			
+    	}
+    	
 		/** Calculate an approximation of memory used by manging structures in this class. */
 		int32 GetInternalMemoryBytes() const
 		{
@@ -573,20 +602,74 @@ namespace  mu
 		const Parameters* m_pParams = nullptr;
 		uint32 m_lodMask = 0;
 
-		// Async rom loading control
-		struct FRomLoadOp
-		{
-			using StreamingDataContainerType = TArray<uint8, FDefaultMemoryTrackingAllocator<MemoryCounters::FStreamingMemoryCounter>>;
+    private:
+    	struct FRomLoadOps
+    	{
+   		private:
+    		/** Rom read operations already in progress. */
+    		TArray<FRomLoadOp> RomLoadOps;
 
-			int32 m_romIndex = 0;
-			DATATYPE ConstantType = DT_NONE;
-			ModelReader::OPERATION_ID m_streamID;
-			StreamingDataContainerType m_streamBuffer;
-		};
-		TArray<FRomLoadOp> m_romLoadOps;
+			CodeRunner* Runner;
 
-	private:
+    	public:
 
+			FRomLoadOps(CodeRunner& InRunner)
+			{
+				Runner = &InRunner;
+			}
+
+    		FRomLoadOp* Find(const int32 RomIndex)
+    		{
+    			for (FRomLoadOp& RomLoadOp : RomLoadOps)
+    			{
+    				if (RomLoadOp.RomIndex == RomIndex)
+    				{
+    					return &RomLoadOp;
+    				}
+    			}
+
+    			return nullptr;
+    		}
+    	
+    		FRomLoadOp& Create(const int32 RomIndex)
+    		{
+    			for (FRomLoadOp& RomLoadOp : RomLoadOps)
+    			{
+    				if (RomLoadOp.RomIndex == -1)
+    				{
+    					RomLoadOp.RomIndex = RomIndex;
+    					return RomLoadOp;
+    				}
+    			}
+
+    			FRomLoadOp& RomLoadOp = RomLoadOps.AddDefaulted_GetRef();
+    			RomLoadOp.RomIndex = RomIndex;
+
+    			return RomLoadOp;
+    		}
+
+    		void Remove(FRomLoadOp& RomLoadOp)
+    		{
+    			RomLoadOp.RomIndex = -1;
+                RomLoadOp.m_streamBuffer.Empty();
+                RomLoadOp.Event = {};
+            }
+
+    		int32 GetAllocatedSize() const
+    		{
+    			int32 Result = 0;
+			
+    			for (const FRomLoadOp& RomLoadOp : RomLoadOps)
+    			{
+    				Result += RomLoadOp.m_streamBuffer.GetAllocatedSize();
+    			}
+
+    			return Result;
+    		}
+    	};
+    	
+    	FRomLoadOps RomLoadOps = FRomLoadOps(*this);
+    	    	
 		inline void AddChildren(const FScheduledOp& dep)
 		{
 			FCacheAddress at(dep);
@@ -611,9 +694,6 @@ namespace  mu
 		/** Calculate an heuristic to select op execution based on memory usage. */
 		int32 GetOpEstimatedMemoryDelta(const FScheduledOp& Candidate, const FProgram& Program);
 
-		/** */
-		void CompleteRomLoadOp(FRomLoadOp& o);
-		
 		/** Update debug stats. */
 		void UpdateTraces();
 

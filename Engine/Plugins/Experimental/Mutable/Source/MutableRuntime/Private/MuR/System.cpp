@@ -971,7 +971,7 @@ namespace mu
 		FModelCacheEntry n;
         n.Model = TWeakPtr<const Model>(InModel);
 		n.PendingOpsPerRom.SetNum(InModel->GetPrivate()->m_program.m_roms.Num());
-    	n.RomWeights.SetNum(InModel->GetPrivate()->m_program.m_roms.Num());
+    	n.RomWeights.SetNumZeroed(InModel->GetPrivate()->m_program.m_roms.Num());
     	CachePerModel.Add(n);
         return CachePerModel.Last();
     }
