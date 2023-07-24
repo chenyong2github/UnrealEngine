@@ -229,6 +229,15 @@ void UNiagaraSystem::BeginDestroy()
 #endif
 
 	FNiagaraWorldManager::DestroyAllSystemSimulations(this);
+
+	// Ensure we wait for any potential render commands to finish executing before we GC the NiagaraSystem
+	WaitRenderCommandsFence.BeginFence();
+}
+
+bool UNiagaraSystem::IsReadyForFinishDestroy()
+{
+	const bool bReady = Super::IsReadyForFinishDestroy();
+	return bReady && WaitRenderCommandsFence.IsFenceComplete();
 }
 
 void UNiagaraSystem::PreSave(const class ITargetPlatform* TargetPlatform)

@@ -233,6 +233,7 @@ public:
 	static NIAGARA_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 	NIAGARA_API virtual void BeginDestroy() override;
+	NIAGARA_API virtual bool IsReadyForFinishDestroy() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	NIAGARA_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
@@ -1014,6 +1015,8 @@ protected:
 
 	struct FStaticBuffersDeletor { void operator()(FNiagaraSystemStaticBuffers* Ptr) const; };
 	TUniquePtr<FNiagaraSystemStaticBuffers, FStaticBuffersDeletor> StaticBuffers;
+
+	FRenderCommandFence WaitRenderCommandsFence;
 };
 
 FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
