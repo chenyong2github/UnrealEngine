@@ -47,4 +47,5 @@ private:
 
 	/** Runtime handlers for each DataChannel channel. */
 	TMap<TWeakObjectPtr<const UNiagaraDataChannel>, TObjectPtr<UNiagaraDataChannelHandler>> Channels;
+	bool bIsCleanedUp = false;
 };

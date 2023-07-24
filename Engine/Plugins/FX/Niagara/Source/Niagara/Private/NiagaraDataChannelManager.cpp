@@ -23,14 +23,24 @@ void FNiagaraDataChannelManager::AddReferencedObjects(FReferenceCollector& Colle
 
 void FNiagaraDataChannelManager::RefreshDataChannels()
 {
-	for (TObjectIterator<UNiagaraDataChannel> DCIt; DCIt; ++DCIt)
+	if (bIsCleanedUp)
 	{
-		InitDataChannel(*DCIt, false);
+		return;
 	}
+
+	UNiagaraDataChannel::ForEachDataChannel([&](UNiagaraDataChannel* DataChannel)
+	{
+		if (DataChannel->HasAnyFlags(RF_ClassDefaultObject) == false)
+		{
+			InitDataChannel(DataChannel, false);
+		}
+	});
 }
 
 void FNiagaraDataChannelManager::Init()
 {
+	bIsCleanedUp = false;
+
 	//Initialize any existing data channels, more may be initialized later as they are loaded.
 	UNiagaraDataChannel::ForEachDataChannel([&](UNiagaraDataChannel* DataChannel)
 	{
@@ -44,6 +54,7 @@ void FNiagaraDataChannelManager::Init()
 void FNiagaraDataChannelManager::Cleanup()
 {
 	Channels.Empty();
+	bIsCleanedUp = true;
 }
 
 void FNiagaraDataChannelManager::BeginFrame(float DeltaSeconds)
