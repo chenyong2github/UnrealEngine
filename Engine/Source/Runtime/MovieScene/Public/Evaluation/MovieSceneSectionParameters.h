@@ -95,7 +95,7 @@ public:
 	int32 HierarchicalBias;
 
 	/** Sub-section flags defining how to deal with this sub-sequence */
-	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category="Sequence")
+	UPROPERTY(config, BlueprintReadWrite, Category="Sequence")
 	EMovieSceneSubSectionFlags Flags;
 
 	UPROPERTY()
