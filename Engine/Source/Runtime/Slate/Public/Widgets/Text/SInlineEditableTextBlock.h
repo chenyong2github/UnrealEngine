@@ -39,6 +39,8 @@ class SInlineEditableTextBlock: public SCompoundWidget
 		, _ShadowColorAndOpacity()
 		, _HighlightText()
 		, _WrapTextAt(0.0f)
+		, _AutoWrapNonEditText(false)
+		, _AutoWrapMultilineEditText(false)
 		, _Justification(ETextJustify::Left)
 		, _LineBreakPolicy()
 		, _IsReadOnly(false)
@@ -71,6 +73,12 @@ class SInlineEditableTextBlock: public SCompoundWidget
 
 		/** Whether text wraps onto a new line when it's length exceeds this width; if this value is zero or negative, no wrapping occurs. */
 		SLATE_ATTRIBUTE( float, WrapTextAt )
+
+		/** Whether the text should wrap automatically when in non-edit mode */
+		SLATE_ATTRIBUTE( bool, AutoWrapNonEditText )
+
+		/** Whether the multiline text should wrap automatically when in edit mode */
+		SLATE_ATTRIBUTE( bool, AutoWrapMultilineEditText )
 
 		/** How the text should be aligned with the margin. */
 		SLATE_ATTRIBUTE( ETextJustify::Type, Justification )
