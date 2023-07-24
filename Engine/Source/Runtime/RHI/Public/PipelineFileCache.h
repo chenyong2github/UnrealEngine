@@ -399,7 +399,8 @@ public:
 	 * @returns the old mask
 	 */
 	RHI_API static uint64 SetGameUsageMaskWithComparison(uint64 GameUsageMask, FPSOMaskComparisonFn InComparisonFnPtr);
-	static uint64 GetGameUsageMask()	{ return GameUsageMask;}
+	RHI_API static uint64 GetGameUsageMask() { return GameUsageMask; }
+	RHI_API static bool IsGameUsageMaskSet() { return GameUsageMaskSet; }
 	
 	RHI_API static void PreCompileComplete();
 
@@ -447,6 +448,7 @@ private:
 	static bool FileCacheEnabled;
 	static FPipelineStateLoggedEvent PSOLoggedEvent;
 	RHI_API static uint64 GameUsageMask;
+	RHI_API static bool GameUsageMaskSet;
 	static FPSOMaskComparisonFn MaskComparisonFn;	
 
 	RHI_API static bool LogNewPSOsToConsoleAndCSV; // Whether to log new PSOs to the log file and CSV.

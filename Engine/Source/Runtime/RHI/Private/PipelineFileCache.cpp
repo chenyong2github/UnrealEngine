@@ -185,6 +185,7 @@ FPipelineFileCacheManager::PSOOrder FPipelineFileCacheManager::RequestedOrder = 
 bool FPipelineFileCacheManager::FileCacheEnabled = false;
 FPipelineFileCacheManager::FPipelineStateLoggedEvent FPipelineFileCacheManager::PSOLoggedEvent;
 uint64 FPipelineFileCacheManager::GameUsageMask = 0;
+bool FPipelineFileCacheManager::GameUsageMaskSet = false;
 bool FPipelineFileCacheManager::LogNewPSOsToConsoleAndCSV = true;
 
 static int64 GetCurrentUnixTime()
@@ -3201,6 +3202,7 @@ uint64 FPipelineFileCacheManager::SetGameUsageMaskWithComparison(uint64 InGameUs
 		}
 		
 		FPipelineFileCacheManager::MaskComparisonFn = InComparisonFnPtr;
+		FPipelineFileCacheManager::GameUsageMaskSet = true;
 	}
 	
 	return OldMask;

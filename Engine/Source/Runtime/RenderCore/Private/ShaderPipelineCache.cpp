@@ -399,7 +399,12 @@ public:
 	FShaderPipelineCacheTask(FShaderPipelineCache* InCache, bool bIsUserCacheIn, EShaderPlatform InShaderPlatform) :
 		ShaderPlatform(InShaderPlatform), bIsUserCache(bIsUserCacheIn), Cache(InCache)
 	{
-		bReady = !CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread() || CVarPSOFileCachePreOptimizeEnabled.GetValueOnAnyThread();
+		// Mark task as ready if either:
+		// * The usage mask mechanism is disabled.
+		// * The usage mask mechanism is enabled and the mask has already been set.
+		// * Pre-optimization is enabled.
+		bReady = (!CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread() || FPipelineFileCacheManager::IsGameUsageMaskSet())
+			|| CVarPSOFileCachePreOptimizeEnabled.GetValueOnAnyThread();
 	}
 
 	bool Open(const FString& Key, const FString& Name, EShaderPlatform Platform);
@@ -665,21 +670,7 @@ bool FShaderPipelineCache::SetGameUsageMaskWithComparison(uint64 InMask, FPSOMas
 			bMaskChanged |= OldMask != InMask;
 			if (bMaskChanged)
 			{
-				// reset the current queue and all of the tasks.
-				ShaderPipelineCache->ClearPendingPrecompileTaskQueue();
-				int PendingPSOCacheCount = 0;
-				for (TPair < FString, TUniquePtr<class FShaderPipelineCacheTask>>& ShaderCacheTask : ShaderPipelineCache->ShaderCacheTasks)
-				{
-					if(!ShaderCacheTask.Value->CompletedMasks.Contains(InMask))
-					{
-						// Mask has changed and we have an open file refetch PSO's for this Mask - leave the FPipelineFileCacheManager file open - no need to close - just pull out the relevant PSOs.
-						// If this PSO compile run has completed for this Mask in which case don't refetch + compile for that mask
-						// Don't clear already compiled PSOHash list - this is not a full reset
-						ShaderCacheTask.Value->bReady = true;
-						ShaderPipelineCache->EnqueuePendingPrecompileTask(ShaderCacheTask.Key);
-						PendingPSOCacheCount++;
-					}
-				}
+				int PendingPSOCacheCount = ShaderPipelineCache->ApplyNewUsageMaskToAllTasks(InMask);
 
 				bMaskChanged = false;
 						
@@ -694,7 +685,6 @@ bool FShaderPipelineCache::SetGameUsageMaskWithComparison(uint64 InMask, FPSOMas
 		}
 		else
 		{
-			// NOTE: if this is called and then the cache is opened, but this function is never called again, the PSOs will not get precompiled. Should probably update the open call itself to see if there was a new mask set and call the code above
 			uint64 OldMask = FPipelineFileCacheManager::SetGameUsageMaskWithComparison(InMask, InComparisonFnPtr);
 			bMaskChanged |= OldMask != InMask;
 
@@ -708,6 +698,28 @@ bool FShaderPipelineCache::SetGameUsageMaskWithComparison(uint64 InMask, FPSOMas
 	}
 	
 	return bMaskChanged;
+}
+
+
+int FShaderPipelineCache::ApplyNewUsageMaskToAllTasks(uint64 Mask)
+{
+	// Reset the current queue and all of the tasks.
+	ShaderPipelineCache->ClearPendingPrecompileTaskQueue();
+	int PendingPSOCacheCount = 0;
+	for (TPair < FString, TUniquePtr<class FShaderPipelineCacheTask>>& ShaderCacheTask : ShaderPipelineCache->ShaderCacheTasks)
+	{
+		if (!ShaderCacheTask.Value->CompletedMasks.Contains(Mask))
+		{
+			// Mask has changed and we have an open file refetch PSO's for this Mask - leave the FPipelineFileCacheManager file open - no need to close - just pull out the relevant PSOs.
+			// If this PSO compile run has completed for this Mask in which case don't refetch + compile for that mask
+			// Don't clear already compiled PSOHash list - this is not a full reset
+			ShaderCacheTask.Value->bReady = true;
+			ShaderPipelineCache->EnqueuePendingPrecompileTask(ShaderCacheTask.Key);
+			PendingPSOCacheCount++;
+		}
+	}
+
+	return PendingPSOCacheCount;
 }
 
 void FShaderPipelineCache::Initialize(EShaderPlatform Platform)

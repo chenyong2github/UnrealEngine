@@ -229,6 +229,7 @@ private:
 
 	RENDERCORE_API void ClearPendingPrecompileTaskQueue();
 	RENDERCORE_API void EnqueuePendingPrecompileTask(const FString& PSOCacheKey);
+	RENDERCORE_API int ApplyNewUsageMaskToAllTasks(uint64 Mask);
 
 	RENDERCORE_API FRHIBlendState* GetOrCreateBlendState(const FBlendStateInitializerRHI& Initializer);
 	RENDERCORE_API FRHIRasterizerState* GetOrCreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer);
