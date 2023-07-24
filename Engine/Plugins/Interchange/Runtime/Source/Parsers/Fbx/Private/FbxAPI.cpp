@@ -150,6 +150,23 @@ namespace UE
 				}
 			}
 
+			bool FFbxParser::FetchMeshPayloadData(const FString& PayloadKey, const FTransform& MeshGlobalTransform, const FString& PayloadFilepath)
+			{
+				if (!PayloadContexts.Contains(PayloadKey))
+				{
+					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = LOCTEXT("CannotRetrievePayload", "Cannot retrieve payload; payload key doesn't have any context.");
+					return false;
+				}
+
+				{
+					//Critical section to force payload to be fetch one by one with no concurrency.
+					FScopeLock Lock(&PayloadCriticalSection);
+					TSharedPtr<FPayloadContextBase>& PayloadContext = PayloadContexts.FindChecked(PayloadKey);
+					return PayloadContext->FetchMeshPayloadToFile(*this, MeshGlobalTransform, PayloadFilepath);
+				}
+			}
+
 			bool FFbxParser::FetchAnimationBakeTransformPayload(const FString& PayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath)
 			{
 				if (!PayloadContexts.Contains(PayloadKey))

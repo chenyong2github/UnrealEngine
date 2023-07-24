@@ -223,6 +223,7 @@ void FInterchangeWorkerImpl::ProcessCommand(const TSharedPtr<UE::Interchange::IC
 	TArray<FString> JSonMessages;
 	FJsonLoadSourceCmd LoadSourceCommand;
 	FJsonFetchAnimationBakeTransformPayloadCmd FetchAnimationBakeTransform;
+	FJsonFetchMeshPayloadCmd FetchMeshPayloadCommand;
 	FJsonFetchPayloadCmd FetchPayloadCommand;
 	//Any command FromJson function return true if the Json descibe the command
 	if (LoadSourceCommand.FromJson(JsonToProcess))
@@ -241,6 +242,15 @@ void FInterchangeWorkerImpl::ProcessCommand(const TSharedPtr<UE::Interchange::IC
 		{
 			//We want to load an FBX file
 			ProcessResult = FetchFbxPayload(FetchAnimationBakeTransform, JSonResult, JSonMessages);
+		}
+	}
+	else if (FetchMeshPayloadCommand.FromJson(JsonToProcess))
+	{
+		//Load file command
+		if (FetchMeshPayloadCommand.GetTranslatorID().Equals(TEXT("FBX"), ESearchCase::IgnoreCase))
+		{
+			//We want to load an FBX file
+			ProcessResult = FetchFbxPayload(FetchMeshPayloadCommand, JSonResult, JSonMessages);
 		}
 	}
 	else if (FetchPayloadCommand.FromJson(JsonToProcess))
@@ -294,6 +304,20 @@ ETaskState FInterchangeWorkerImpl::FetchFbxPayload(const FJsonFetchPayloadCmd& F
 	ETaskState ResultState = ETaskState::Unknown;
 	FString PayloadKey = FetchPayloadCommand.GetPayloadKey();
 	FbxParser.FetchPayload(PayloadKey, ResultFolder);
+	FJsonLoadSourceCmd::JsonResultParser ResultParser;
+	ResultParser.SetResultFilename(FbxParser.GetResultPayloadFilepath(PayloadKey));
+	OutJSonMessages = FbxParser.GetJsonLoadMessages();
+	OutJSonResult = ResultParser.ToJson();
+	ResultState = ETaskState::ProcessOk;
+	return ResultState;
+}
+
+ETaskState FInterchangeWorkerImpl::FetchFbxPayload(const FJsonFetchMeshPayloadCmd& FetchMeshPayloadCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages)
+{
+	ETaskState ResultState = ETaskState::Unknown;
+	FString PayloadKey = FetchMeshPayloadCommand.GetPayloadKey();
+	FTransform MeshGlobalTransform = FetchMeshPayloadCommand.GetMeshGlobalTransform();
+	FbxParser.FetchMeshPayload(PayloadKey, MeshGlobalTransform, ResultFolder);
 	FJsonLoadSourceCmd::JsonResultParser ResultParser;
 	ResultParser.SetResultFilename(FbxParser.GetResultPayloadFilepath(PayloadKey));
 	OutJSonMessages = FbxParser.GetJsonLoadMessages();

@@ -71,7 +71,7 @@ namespace UE::Interchange::Gltf::Private
 		}
 	}
 
-	bool GetSkeletalMeshDescriptionForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription, TArray<FString>* OutJointUniqueNames)
+	bool GetSkeletalMeshDescriptionForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, const FTransform& MeshGlobalTransform, FMeshDescription& MeshDescription, TArray<FString>* OutJointUniqueNames)
 	{
 		TArray<FString> BakingAndPayloadKey;
 		PayLoadKey.ParseIntoArray(BakingAndPayloadKey, TEXT(";"));
@@ -121,7 +121,7 @@ namespace UE::Interchange::Gltf::Private
 		const GLTF::FMesh& GltfMesh = GltfAsset.Meshes[MeshIndex];
 		GLTF::FMeshFactory MeshFactory;
 		MeshFactory.SetUniformScale(GltfUnitConversionMultiplier); // GLTF is in meters while UE is in centimeters
-		MeshFactory.FillMeshDescription(GltfMesh, &BaseMeshDescription);
+		MeshFactory.FillMeshDescription(GltfMesh, MeshGlobalTransform, &BaseMeshDescription);
 
 		PatchPolygonGroups(BaseMeshDescription, GltfAsset);
 
@@ -278,7 +278,7 @@ namespace UE::Interchange::Gltf::Private
 		return true;
 	}
 
-	bool GetStaticMeshPayloadDataForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription)
+	bool GetStaticMeshPayloadDataForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, const FTransform& MeshGlobalTransform, FMeshDescription& MeshDescription)
 	{
 		TArray<FString> PayLoadKeys;
 		PayLoadKey.ParseIntoArray(PayLoadKeys, TEXT(":"));
@@ -316,7 +316,7 @@ namespace UE::Interchange::Gltf::Private
 
 		GLTF::FMeshFactory MeshFactory;
 		MeshFactory.SetUniformScale(GltfUnitConversionMultiplier); // GLTF is in meters while UE is in centimeters
-		MeshFactory.FillMeshDescription(GltfMesh, &MeshDescription, MorphTargetWeights);
+		MeshFactory.FillMeshDescription(GltfMesh, MeshGlobalTransform, &MeshDescription, MorphTargetWeights);
 
 		PatchPolygonGroups(MeshDescription, GltfAsset);
 

@@ -1390,9 +1390,9 @@ bool UInterchangeGLTFTranslator::GetVariantSetPayloadData(UE::Interchange::FVari
 	return true;
 }
 
-TFuture< TOptional< UE::Interchange::FMeshPayloadData > > UInterchangeGLTFTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
+TFuture< TOptional< UE::Interchange::FMeshPayloadData > > UInterchangeGLTFTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey, const FTransform& MeshGlobalTransform) const
 {
-	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey, MeshGlobalTransform]
 		{
 			UE::Interchange::FMeshPayloadData MeshPayLoadData;
 			bool bSuccessfullAcquisition = false;
@@ -1400,14 +1400,14 @@ TFuture< TOptional< UE::Interchange::FMeshPayloadData > > UInterchangeGLTFTransl
 			switch (PayLoadKey.Type)
 			{
 			case EInterchangeMeshPayLoadType::STATIC:
-				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription);
+				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshGlobalTransform, MeshPayLoadData.MeshDescription);
 				break;
 			case EInterchangeMeshPayLoadType::SKELETAL:
-				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetSkeletalMeshDescriptionForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription, &MeshPayLoadData.JointNames);
+				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetSkeletalMeshDescriptionForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshGlobalTransform, MeshPayLoadData.MeshDescription, &MeshPayLoadData.JointNames);
 				break;
 			case EInterchangeMeshPayLoadType::MORPHTARGET:
 				//GLTF handles morph targets as simple Meshes
-				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshPayLoadData.MeshDescription);
+				bSuccessfullAcquisition = UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey.UniqueId, MeshGlobalTransform, MeshPayLoadData.MeshDescription);
 				break;
 			case EInterchangeMeshPayLoadType::NONE:
 			default:

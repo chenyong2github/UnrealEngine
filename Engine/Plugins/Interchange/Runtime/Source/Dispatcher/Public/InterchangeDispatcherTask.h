@@ -170,6 +170,7 @@ namespace UE
 				: TranslatorID(InTranslatorID)
 				, PayloadKey(InPayloadKey)
 			{
+				
 				bIsDataInitialize = true;
 			}
 
@@ -231,6 +232,40 @@ namespace UE
 		protected:
 			FString TranslatorID = FString();
 			FString PayloadKey = FString();
+		};
+
+		//Mesh payload require a transform to bake the mesh to avoid degenerate triangle when importing a small mesh scale by a scene node.
+		class INTERCHANGEDISPATCHER_API FJsonFetchMeshPayloadCmd : public FJsonFetchPayloadCmd
+		{
+		public:
+			FJsonFetchMeshPayloadCmd()
+			{
+				check(!bIsDataInitialize);
+			}
+
+			FJsonFetchMeshPayloadCmd(const FString& InTranslatorID
+				, const FString& InPayloadKey
+				, const FTransform& InMeshGlobalTransform)
+				: FJsonFetchPayloadCmd(InTranslatorID, InPayloadKey)
+				, MeshGlobalTransform(InMeshGlobalTransform)
+			{}
+
+			virtual FString ToJson() const override;
+			virtual bool FromJson(const FString& JsonString) override;
+
+			FTransform GetMeshGlobalTransform() const
+			{
+				ensure(bIsDataInitialize);
+				return MeshGlobalTransform;
+			}
+
+			static FString GetMeshGlobalTransformJsonKey()
+			{
+				static const FString Key = TEXT("GlobalMeshTransform");
+				return Key;
+			}
+		protected:
+			FTransform MeshGlobalTransform = FTransform::Identity;
 		};
 
 		//Animation transform payload require transform to be bake by the translator

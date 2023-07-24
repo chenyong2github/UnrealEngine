@@ -39,6 +39,14 @@ namespace UE
 			void FetchPayload(const FString& PayloadKey, const FString& ResultFolder);
 
 			/**
+			 * Extract mesh payload data from the fbx, the key tell the translator what payload the client ask
+			 * @param - PayloadKey is the key that describe the payload data to extract from the fbx file
+			 * @param - MeshGlobalTransform is the transform we want to apply to the mesh vertex
+			 * @param - ResultFolder is the folder where we must put any result file
+			 */
+			void FetchMeshPayload(const FString& PayloadKey, const FTransform& MeshGlobalTransform, const FString& ResultFolder);
+
+			/**
 			 * Extract bake transform animation payload data from the fbx, the key tell the translator what payload the client ask
 			 * @param - PayloadKey is the key that describe the payload data to extract from the fbx file
 			 * @param - BakeFrequency is the Hz at which we should bake the transform

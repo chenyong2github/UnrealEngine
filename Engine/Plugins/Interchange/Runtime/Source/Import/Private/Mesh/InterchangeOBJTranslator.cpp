@@ -158,7 +158,7 @@ struct FObjData
 	FString CurrentMaterial;
 
 	/** Generates a MeshDescription for the named group */
-	FMeshDescription MakeMeshDescriptionForGroup(const FString& GroupName) const;
+	FMeshDescription MakeMeshDescriptionForGroup(const FString& GroupName, const FTransform& MeshGlobalTransform) const;
 
 	/** Returns a bounding box fitting the vertices in the named group */
 	FBox GetGroupBoundingBox(const FString& GroupName) const;
@@ -279,7 +279,7 @@ int32 FObjData::GetGroupPolygonCount(const FString& GroupName) const
 }
 
 
-FMeshDescription FObjData::MakeMeshDescriptionForGroup(const FString& GroupName) const
+FMeshDescription FObjData::MakeMeshDescriptionForGroup(const FString& GroupName, const FTransform& MeshGlobalTransform) const
 {
 	FMeshDescription MeshDescription;
 
@@ -289,6 +289,17 @@ FMeshDescription FObjData::MakeMeshDescriptionForGroup(const FString& GroupName)
 		// If group name not found, return an empty mesh description
 		return MeshDescription;
 	}
+
+	FMatrix TotalMatrix = MeshGlobalTransform.ToMatrixWithScale();
+	FMatrix TotalMatrixForNormal;
+	TotalMatrixForNormal = TotalMatrix.Inverse();
+	TotalMatrixForNormal = TotalMatrixForNormal.GetTransposed();
+
+	auto TransformPosition = [](const FMatrix& Matrix, FVector3f& Position)
+	{
+		const FVector TransformedPosition = Matrix.TransformPosition(FVector(Position));
+		Position = static_cast<FVector3f>(TransformedPosition);
+	};
 
 	FStaticMeshAttributes Attributes(MeshDescription);
 	Attributes.Register();
@@ -318,7 +329,9 @@ FMeshDescription FObjData::MakeMeshDescriptionForGroup(const FString& GroupName)
 	for (int32 ObjVertexIndex : VertexIndexMapping)
 	{
 		FVertexID VertexIndex = MeshDescription.CreateVertex();
-		Attributes.GetVertexPositions()[VertexIndex] = PositionToUEBasis(Positions[ObjVertexIndex]);
+		FVector3f& Position = Attributes.GetVertexPositions()[VertexIndex];
+		Position = PositionToUEBasis(Positions[ObjVertexIndex]);
+		TransformPosition(TotalMatrix, Position);
 	}
 
 	// Create UVs and initialize values
@@ -364,7 +377,9 @@ FMeshDescription FObjData::MakeMeshDescriptionForGroup(const FString& GroupName)
 
 				if (VertexData.NormalIndex != INDEX_NONE && Normals.IsValidIndex(VertexData.NormalIndex))
 				{
-					Attributes.GetVertexInstanceNormals()[VertexInstanceID] = PositionToUEBasis(Normals[VertexData.NormalIndex]);
+					FVector3f& Normal = Attributes.GetVertexInstanceNormals()[VertexInstanceID];
+					Normal = PositionToUEBasis(Normals[VertexData.NormalIndex]);
+					TransformPosition(TotalMatrixForNormal, Normal);
 				}
 
 				if (VertexData.UVIndex != INDEX_NONE && UVs.IsValidIndex(VertexData.UVIndex))
@@ -1519,14 +1534,14 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 }
 
 
-TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeOBJTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeOBJTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey, const FTransform& MeshGlobalTransform) const
 {
-	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey, MeshGlobalTransform]
 		{
 			using namespace UE::Interchange;
 
 			FMeshPayloadData Payload;
-			Payload.MeshDescription = ObjDataPtr->MakeMeshDescriptionForGroup(PayLoadKey.UniqueId);
+			Payload.MeshDescription = ObjDataPtr->MakeMeshDescriptionForGroup(PayLoadKey.UniqueId, MeshGlobalTransform);
 
 			return TOptional<FMeshPayloadData>(Payload);
 		}

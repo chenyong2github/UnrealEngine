@@ -63,17 +63,17 @@ namespace UE
 				/*
 				 * Fill the mesh description using the Mesh parameter.
 				 */
-				bool FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh);
+				bool FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh, const FTransform& MeshGlobalTransform);
 				
 				/*
 				 * Fill the mesh description using the Mesh parameter and also fill the OutJointNodeUniqueIDs so the MeshDescription bone Index can be map to the correct interchange joint scene node.
 				 */
-				bool FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointUniqueNames);
+				bool FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, const FTransform& MeshGlobalTransform, TArray<FString>& OutJointUniqueNames);
 
 				/*
 				 * Fill the mesh description using the Shape parameter.
 				 */
-				bool FillMeshDescriptionFromFbxShape(FbxShape* Shape);
+				bool FillMeshDescriptionFromFbxShape(FbxShape* Shape, const FTransform& MeshGlobalTransform);
 
 				/**
 				 * Add messages to the message log
@@ -96,7 +96,7 @@ namespace UE
 					Skinned = 2, //skinned mesh with joints
 				};
 
-				bool FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointUniqueNames, EMeshType MeshType);
+				bool FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, const FTransform& MeshGlobalTransform, TArray<FString>& OutJointUniqueNames, EMeshType MeshType);
 				bool IsOddNegativeScale(FbxAMatrix& TotalMatrix);
 				
 				//TODO move the real function from RenderCore to FVector, so we do not have to add render core to compute such a simple thing
@@ -123,7 +123,7 @@ namespace UE
 			public:
 				virtual ~FMeshPayloadContext() {}
 				virtual FString GetPayloadType() const override { return TEXT("Mesh-PayloadContext"); }
-				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
+				virtual bool FetchMeshPayloadToFile(FFbxParser& Parser, const FTransform& MeshGlobalTransform, const FString& PayloadFilepath) override;
 				bool bIsSkinnedMesh = false;
 				FbxMesh* Mesh = nullptr;
 				FbxScene* SDKScene = nullptr;
@@ -135,7 +135,7 @@ namespace UE
 			public:
 				virtual ~FMorphTargetPayloadContext() {}
 				virtual FString GetPayloadType() const override { return TEXT("MorphTarget-PayloadContext"); }
-				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
+				virtual bool FetchMeshPayloadToFile(FFbxParser& Parser, const FTransform& MeshGlobalTransform, const FString& PayloadFilepath) override;
 				FbxShape* Shape = nullptr;
 				FbxScene* SDKScene = nullptr;
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;

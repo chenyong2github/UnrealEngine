@@ -94,7 +94,7 @@ namespace UE
 						FInterchangeMeshPayLoadKey& PayLoadKey = OptionalPayLoadKey.GetValue();
 
 						//Add the map entry key, the translator will be call after to bulk get all the needed payload
-						TempMorphTargetMeshDescriptionsPerMorphTargetName.Add(PayLoadKey.UniqueId, MeshTranslatorPayloadInterface->GetMeshPayloadData(PayLoadKey));
+						TempMorphTargetMeshDescriptionsPerMorphTargetName.Add(PayLoadKey.UniqueId, MeshTranslatorPayloadInterface->GetMeshPayloadData(PayLoadKey, MeshNodeContext.SceneGlobalTransform.Get(FTransform::Identity)));
 					}
 				}
 
@@ -123,15 +123,8 @@ namespace UE
 							continue;
 						}
 						MorphTargetMeshPayload->VertexOffset = VertexOffset;
-						//Use the Mesh node parent bake transform
-						if (MeshNodeContext.SceneGlobalTransform.IsSet())
-						{
-							MorphTargetMeshPayload->GlobalTransform = MeshNodeContext.SceneGlobalTransform;
-						}
-						else
-						{
-							MorphTargetMeshPayload->GlobalTransform.Reset();
-						}
+						//The Mesh node parent bake transform was pass to the payload request.
+						MorphTargetMeshPayload->GlobalTransform.Reset();
 
 						if (!MorphTargetMeshNode->GetMorphTargetName(MorphTargetMeshPayload->MorphTargetName))
 						{
@@ -451,7 +444,7 @@ namespace UE
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
 				{
 					//Add the payload entry key, the payload data will be fill later in bulk by the translator
-					LodMeshPayloadPerTranslatorPayloadKey.Add(MeshNodeContext.TranslatorPayloadKey.UniqueId, MeshTranslatorPayloadInterface->GetMeshPayloadData(MeshNodeContext.TranslatorPayloadKey));
+					LodMeshPayloadPerTranslatorPayloadKey.Add(MeshNodeContext.TranslatorPayloadKey.UniqueId, MeshTranslatorPayloadInterface->GetMeshPayloadData(MeshNodeContext.TranslatorPayloadKey, MeshNodeContext.SceneGlobalTransform.Get(FTransform::Identity)));
 					//Count the morph target dependencies so we can reserve the right amount
 					MorphTargetCount += (bImportMorphTarget && MeshNodeContext.MeshNode) ? MeshNodeContext.MeshNode->GetMorphTargetDependeciesCount() : 0;
 				}
@@ -545,15 +538,10 @@ namespace UE
 							}
 						}
 					}
-					//Bake the payload, with the provide transform
-					if (MeshNodeContext.SceneGlobalTransform.IsSet())
-					{
-						AppendSettings.MeshTransform = MeshNodeContext.SceneGlobalTransform;
-					}
-					else
-					{
-						AppendSettings.MeshTransform.Reset();
-					}
+					
+					//The Mesh node parent bake transform was pass to the payload request.
+					AppendSettings.MeshTransform.Reset();
+
 					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, LodMeshDescription, AppendSettings);
 					if (MeshNodeContext.MeshNode->IsSkinnedMesh() || bIsRigidMesh)
 					{

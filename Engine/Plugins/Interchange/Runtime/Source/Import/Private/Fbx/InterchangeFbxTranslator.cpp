@@ -205,7 +205,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePa
 	return TextureTranslator->GetTexturePayloadData(PayLoadKey, AlternateTexturePath);
 }
 
-TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey, const FTransform& MeshGlobalTransform) const
 {
 	TSharedPtr<TPromise<TOptional<UE::Interchange::FMeshPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FMeshPayloadData>>>();
 
@@ -216,7 +216,7 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator:
 	}
 
 	// Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey.UniqueId);
+	FString JsonCommand = CreateFetchMeshPayloadFbxCommand(PayLoadKey.UniqueId, MeshGlobalTransform);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise, PayLoadKey](const int32 TaskIndex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetStaticMeshPayloadData::Dispatcher->AddTaskDone")
@@ -238,7 +238,7 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator:
 		}
 
 		// Grab the result file and fill the BaseNodeContainer
-		UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+		UE::Interchange::FJsonFetchMeshPayloadCmd::JsonResultParser ResultParser;
 		ResultParser.FromJson(JsonResult);
 		FString StaticMeshPayloadFilename = ResultParser.GetResultFilename();
 
@@ -421,6 +421,12 @@ FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFi
 FString UInterchangeFbxTranslator::CreateFetchPayloadFbxCommand(const FString& FbxPayloadKey) const
 {
 	UE::Interchange::FJsonFetchPayloadCmd PayloadCommand(TEXT("FBX"), FbxPayloadKey);
+	return PayloadCommand.ToJson();
+}
+
+FString UInterchangeFbxTranslator::CreateFetchMeshPayloadFbxCommand(const FString& FbxPayloadKey, const FTransform& MeshGlobalTransform) const
+{
+	UE::Interchange::FJsonFetchMeshPayloadCmd PayloadCommand(TEXT("FBX"), FbxPayloadKey, MeshGlobalTransform);
 	return PayloadCommand.ToJson();
 }
 

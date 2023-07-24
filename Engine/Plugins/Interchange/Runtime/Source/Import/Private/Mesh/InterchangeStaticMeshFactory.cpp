@@ -368,12 +368,6 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::Impor
 				}
 				LodMeshDescription = MoveTemp(MeshDescription);
 				bFirstValidMoved = true;
-
-				// Bake the payload mesh, with the provided transform
-				if (!MeshPayload.Transform.Equals(FTransform::Identity))
-				{
-					FStaticMeshOperations::ApplyTransform(LodMeshDescription, MeshPayload.Transform);
-				}
 			}
 			else
 			{
@@ -381,8 +375,6 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::Impor
 				{
 					continue;
 				}
-				// Bake the payload mesh, with the provided transform
-				AppendSettings.MeshTransform = MeshPayload.Transform;
 				FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, LodMeshDescription, AppendSettings);
 			}
 		}
@@ -843,7 +835,7 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 		FInterchangeMeshPayLoadKey& PayLoadKey = OptionalPayLoadKey.GetValue();
 
 		Payload.MeshName = PayLoadKey.UniqueId;
-		Payload.PayloadData = MeshTranslatorPayloadInterface->GetMeshPayloadData(PayLoadKey);
+		Payload.PayloadData = MeshTranslatorPayloadInterface->GetMeshPayloadData(PayLoadKey, Payload.Transform);
 
 		Payloads.Emplace(MoveTemp(Payload));
 	}

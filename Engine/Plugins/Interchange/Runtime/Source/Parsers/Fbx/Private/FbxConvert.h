@@ -23,6 +23,7 @@ namespace UE
 				 */
 				static FTransform ConvertTransform(const FbxAMatrix& Matrix);
 				static FMatrix ConvertMatrix(const FbxAMatrix& Matrix);
+				static FbxAMatrix ConvertMatrix(const FMatrix& UEMatrix);
 				static FQuat ConvertRotToQuat(FbxQuaternion Quaternion);
 				static FRotator ConvertEuler(FbxDouble3 Euler);
 				static FVector ConvertScale(FbxVector4 Vector);

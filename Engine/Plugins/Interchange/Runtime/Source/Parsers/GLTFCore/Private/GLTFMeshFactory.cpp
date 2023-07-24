@@ -2,7 +2,7 @@
 
 #include "GLTFMeshFactory.h"
 
-
+#include "GLTF/ConversionUtilities.h"
 #include "GLTFMesh.h"
 #include "StaticMeshAttributes.h"
 #include "Util/ColorConstants.h"
@@ -14,7 +14,7 @@ namespace GLTF
 	public:
 		FMeshFactoryImpl();
 
-		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights);
+		void FillMeshDescription(const GLTF::FMesh &Mesh, const FTransform& MeshGlobalTransform, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights);
 
 		void CleanUp();
 
@@ -31,6 +31,7 @@ namespace GLTF
 			const TVertexInstanceAttributesRef<FVector2f>& VertexInstanceUVs,
 			const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 			const TEdgeAttributesRef<bool>&                EdgeHardnesses,
+			const FTransform& MeshGlobalTransform,
 			FMeshDescription* MeshDescription,
 			const TArray<float>& MorphTargetWeights);
 
@@ -308,12 +309,14 @@ namespace GLTF
 		}
 	}
 
-	void FMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights)
+	void FMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, const FTransform& MeshGlobalTransform, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights)
 	{
 		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
 
 		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
 		StaticMeshAttributes.Register();
+
+		FMatrix TotalMatrix = ConvertMat(MeshGlobalTransform.ToMatrixWithScale());
 
 		TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
 		TEdgeAttributesRef<bool>  EdgeHardnesses = StaticMeshAttributes.GetEdgeHardnesses();
@@ -343,6 +346,14 @@ namespace GLTF
 
 			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
+			if (TotalMatrix != FMatrix::Identity)
+			{
+				for (FVector3f& Position : Positions)
+				{
+					const FVector TransformedPosition = TotalMatrix.TransformPosition(FVector(Position));
+					Position = static_cast<FVector3f>(TransformedPosition);
+				}
+			}
 
 			UpdateVector3fFromMorphTargets(Positions, Primitive, MorphTargetWeights, Vector3fMorphTargetAttributes::POSITIONS);
 
@@ -383,7 +394,7 @@ namespace GLTF
 				ImportPrimitive(Primitive, Index, NumUVs, Mesh.HasTangents(), Mesh.HasColors(),  //
 					VertexInstanceNormals, VertexInstanceTangents, VertexInstanceBinormalSigns, VertexInstanceUVs,
 					VertexInstanceColors,  //
-					EdgeHardnesses, MeshDescription,
+					EdgeHardnesses, MeshGlobalTransform, MeshDescription,
 					MorphTargetWeights);
 
 			bMeshUsesEmptyMaterial |= Primitive.MaterialIndex == INDEX_NONE;
@@ -419,6 +430,7 @@ namespace GLTF
 		const TVertexInstanceAttributesRef<FVector2f>& VertexInstanceUVs,
 		const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 		const TEdgeAttributesRef<bool>&                EdgeHardnesses,
+		const FTransform& MeshGlobalTransform,
 		FMeshDescription* MeshDescription,
 		const TArray<float>& MorphTargetWeights)
 	{
@@ -432,6 +444,23 @@ namespace GLTF
 		//	When the base mesh primitive does not specify normals, client implementations MUST calculate flat normals for each morph target; the provided tangents and their displacements (if present) MUST be ignored.
 		bool bIgnoreTangents = false;
 
+		FMatrix TotalMatrix = ConvertMat(MeshGlobalTransform.ToMatrixWithScale());
+		FMatrix TotalMatrixForNormal;
+		TotalMatrixForNormal = TotalMatrix.Inverse();
+		TotalMatrixForNormal = TotalMatrixForNormal.GetTransposed();
+
+		auto TransformPosition = [](const FMatrix& Matrix, FVector3f& Position)
+		{
+			const FVector TransformedPosition = Matrix.TransformPosition(FVector(Position));
+			Position = static_cast<FVector3f>(TransformedPosition);
+		};
+
+		auto TransformPosition4f = [](const FMatrix& Matrix, FVector4f& Position)
+		{
+			const FVector4d TransformedPosition = Matrix.TransformPosition(FVector4d(Position));
+			Position = static_cast<FVector4f>(TransformedPosition);
+		};
+
 		TArray<FVector3f>& Normals = GetVectorBuffer(NormalBufferIndex);
 		// glTF does not guarantee each primitive within a mesh has the same attributes.
 		// Fill in gaps as needed:
@@ -443,6 +472,14 @@ namespace GLTF
 			TArray<FVector3f>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
 			Primitive.GetNormals(Normals);
 
+			if (TotalMatrixForNormal != FMatrix::Identity)
+			{
+				for (FVector3f& Normal : Normals)
+				{
+					TransformPosition(TotalMatrixForNormal, Normal);
+				}
+			}
+
 			UpdateVector3fFromMorphTargets(Normals, Primitive, MorphTargetWeights, Vector3fMorphTargetAttributes::NORMALS);
 
 			ReIndex(Normals, Indices, ReindexBuffer);
@@ -452,6 +489,14 @@ namespace GLTF
 		{
 			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
+
+			if (TotalMatrix != FMatrix::Identity)
+			{
+				for (FVector3f& Position : Positions)
+				{
+					TransformPosition(TotalMatrix, Position);
+				}
+			}
 
 			//update positions with morph targets before generating flat normals:
 			UpdateVector3fFromMorphTargets(Positions, Primitive, MorphTargetWeights, Vector3fMorphTargetAttributes::POSITIONS);
@@ -465,6 +510,14 @@ namespace GLTF
 		{
 			TArray<FVector4f>& ReindexBuffer = GetVector4dBuffer(Reindex4dBufferIndex);
 			Primitive.GetTangents(Tangents);
+
+			if (TotalMatrixForNormal != FMatrix::Identity)
+			{
+				for (FVector4f& Tangent : Tangents)
+				{
+					TransformPosition4f(TotalMatrixForNormal, Tangent);
+				}
+			}
 
 			UpdateVector4dFromMorphTargets(Tangents, Primitive, MorphTargetWeights, Vector4dMorphTargetAttributes::TANGENTS);
 
@@ -616,9 +669,9 @@ namespace GLTF
 
 	FMeshFactory::~FMeshFactory() {}
 
-	void FMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights)
+	void FMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, const FTransform& MeshGlobalTransform, FMeshDescription* MeshDescription, const TArray<float>& MorphTargetWeights)
 	{
-		Impl->FillMeshDescription(Mesh, MeshDescription, MorphTargetWeights);
+		Impl->FillMeshDescription(Mesh, MeshGlobalTransform, MeshDescription, MorphTargetWeights);
 	}
 
 	const TArray<FLogMessage>& FMeshFactory::GetLogMessages() const

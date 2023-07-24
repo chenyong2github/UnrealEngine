@@ -202,27 +202,27 @@ FMeshDescriptionImporter::FMeshDescriptionImporter(FFbxParser& InParser, FMeshDe
 	bInitialized = ensure(MeshDescription) && ensure(SDKScene) && ensure(SDKGeometryConverter);
 }
 			
-bool FMeshDescriptionImporter::FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh)
+bool FMeshDescriptionImporter::FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh, const FTransform& MeshGlobalTransform)
 {
 	if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh))
 	{
 		return false;
 	}
 	TArray<FString> UnusedArray;
-	return FillMeshDescriptionFromFbxMesh(Mesh, UnusedArray, EMeshType::Static);
+	return FillMeshDescriptionFromFbxMesh(Mesh, MeshGlobalTransform, UnusedArray, EMeshType::Static);
 }
 
-bool FMeshDescriptionImporter::FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointUniqueNames)
+bool FMeshDescriptionImporter::FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, const FTransform& MeshGlobalTransform, TArray<FString>& OutJointUniqueNames)
 {
 	if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh) || !ensure(Mesh->GetDeformerCount() > 0))
 	{
 		return false;
 	}
 
-	return FillMeshDescriptionFromFbxMesh(Mesh, OutJointUniqueNames, EMeshType::Skinned);
+	return FillMeshDescriptionFromFbxMesh(Mesh, MeshGlobalTransform, OutJointUniqueNames, EMeshType::Skinned);
 }
 
-bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape)
+bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape, const FTransform& MeshGlobalTransform)
 {
 	//For the shape we just need the vertex positions
 	if (!ensure(bInitialized) || !ensure(MeshDescription))
@@ -243,9 +243,8 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape)
 		MeshDescription->SuspendVertexIndexing();
 
 		// Construct the matrices for the conversion from right handed to left handed system
-		FbxAMatrix TotalMatrix;
+		FbxAMatrix TotalMatrix = FFbxConvert::ConvertMatrix(MeshGlobalTransform.ToInverseMatrixWithScale());
 		FbxAMatrix TotalMatrixForNormal;
-		TotalMatrix.SetIdentity(); //We use the identity since we want to bake in the interchange factory if the pipeline request it
 		TotalMatrixForNormal = TotalMatrix.Inverse();
 		TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
 
@@ -287,7 +286,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape)
 	return true;
 }
 
-bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointUniqueNames, EMeshType MeshType)
+bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, const FTransform& MeshGlobalTransform, TArray<FString>& OutJointUniqueNames, EMeshType MeshType)
 {
 	if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh))
 	{
@@ -502,9 +501,8 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 		TRACE_CPUPROFILER_EVENT_SCOPE(BuildTriangles);
 
 		// Construct the matrices for the conversion from right handed to left handed system
-		FbxAMatrix TotalMatrix;
+		FbxAMatrix TotalMatrix = FFbxConvert::ConvertMatrix(MeshGlobalTransform.ToMatrixWithScale());
 		FbxAMatrix TotalMatrixForNormal;
-		TotalMatrix.SetIdentity();
 		TotalMatrixForNormal = TotalMatrix.Inverse();
 		TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
 		int32 PolygonCount = Mesh->GetPolygonCount();
@@ -518,6 +516,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 		}
 
 		int32 VertexCount = Mesh->GetControlPointsCount();
+		//Todo implement the odd negative scale, see legacy fbx 
 		bool OddNegativeScale = IsOddNegativeScale(TotalMatrix);
 
 		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
@@ -1198,7 +1197,7 @@ bool FMeshDescriptionImporter::IsOddNegativeScale(FbxAMatrix& TotalMatrix)
 //////////////////////////////////////////////////////////////////////////
 /// FMeshPayloadContext implementation
 
-bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
+bool FMeshPayloadContext::FetchMeshPayloadToFile(FFbxParser& Parser, const FTransform& MeshGlobalTransform, const FString& PayloadFilepath)
 {
 	if (!ensure(SDKScene != nullptr))
 	{
@@ -1231,7 +1230,7 @@ bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& 
 		FSkeletalMeshAttributes SkeletalMeshAttribute(MeshDescription);
 		SkeletalMeshAttribute.Register();
 		FMeshDescriptionImporter MeshDescriptionImporter(Parser, &MeshDescription, SDKScene, SDKGeometryConverter);
-		if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(Mesh, JointUniqueNames))
+		if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(Mesh, MeshGlobalTransform, JointUniqueNames))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 			Message->InterchangeKey = Parser.GetFbxHelper()->GetMeshUniqueID(Mesh);
@@ -1244,7 +1243,7 @@ bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& 
 		FStaticMeshAttributes StaticMeshAttribute(MeshDescription);
 		StaticMeshAttribute.Register();
 		FMeshDescriptionImporter MeshDescriptionImporter(Parser, &MeshDescription, SDKScene, SDKGeometryConverter);
-		if (!MeshDescriptionImporter.FillStaticMeshDescriptionFromFbxMesh(Mesh))
+		if (!MeshDescriptionImporter.FillStaticMeshDescriptionFromFbxMesh(Mesh, MeshGlobalTransform))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 			Message->InterchangeKey = Parser.GetFbxHelper()->GetMeshUniqueID(Mesh);
@@ -1275,7 +1274,7 @@ bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& 
 //////////////////////////////////////////////////////////////////////////
 /// FMorphTargetPayloadContext implementation
 
-bool FMorphTargetPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
+bool FMorphTargetPayloadContext::FetchMeshPayloadToFile(FFbxParser& Parser, const FTransform& MeshGlobalTransform, const FString& PayloadFilepath)
 {
 	if (!ensure(Shape))
 	{
@@ -1287,7 +1286,7 @@ bool FMorphTargetPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FS
 	FStaticMeshAttributes StaticMeshAttribute(MorphTargetMeshDescription);
 	StaticMeshAttribute.Register();
 	FMeshDescriptionImporter MeshDescriptionImporter(Parser, &MorphTargetMeshDescription, SDKScene, SDKGeometryConverter);
-	if (!MeshDescriptionImporter.FillMeshDescriptionFromFbxShape(Shape))
+	if (!MeshDescriptionImporter.FillMeshDescriptionFromFbxShape(Shape, MeshGlobalTransform))
 	{
 		UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 		Message->InterchangeKey = Parser.GetFbxHelper()->GetMeshUniqueID(Shape);

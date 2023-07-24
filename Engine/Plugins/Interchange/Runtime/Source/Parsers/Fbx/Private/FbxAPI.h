@@ -51,6 +51,9 @@ namespace UE
 				/* Extract the fbx data from the sdk into our node container */
 				bool FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath);
 
+				/* Extract the fbx mesh data from the sdk into our node container */
+				bool FetchMeshPayloadData(const FString& PayloadKey, const FTransform& MeshGlobalTransform, const FString& PayloadFilepath);
+
 				/* Extract the fbx data from the sdk into our node container */
 				bool FetchAnimationBakeTransformPayload(const FString& PayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath);
 				/**

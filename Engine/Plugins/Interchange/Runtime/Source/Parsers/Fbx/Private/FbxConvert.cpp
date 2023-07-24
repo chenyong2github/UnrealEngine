@@ -133,6 +133,33 @@ namespace UE
 				return UEMatrix;
 			}
 
+			FbxAMatrix FFbxConvert::ConvertMatrix(const FMatrix& UEMatrix)
+			{
+				FbxAMatrix FbxMatrix;
+
+				for (int i = 0; i < 4; ++i)
+				{
+					FbxVector4 Row;
+					if (i == 1)
+					{
+						Row[0] = -UEMatrix.M[i][0];
+						Row[1] = UEMatrix.M[i][1];
+						Row[2] = -UEMatrix.M[i][2];
+						Row[3] = -UEMatrix.M[i][3];
+					}
+					else
+					{
+						Row[0] = UEMatrix.M[i][0];
+						Row[1] = -UEMatrix.M[i][1];
+						Row[2] = UEMatrix.M[i][2];
+						Row[3] = UEMatrix.M[i][3];
+					}
+					FbxMatrix.SetRow(i, Row);
+				}
+
+				return FbxMatrix;
+			}
+
 			FQuat FFbxConvert::ConvertRotToQuat(FbxQuaternion Quaternion)
 			{
 				FQuat UnrealQuat;

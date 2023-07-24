@@ -21,7 +21,8 @@ namespace UnrealBuildTool.Rules
 					"InterchangeFactoryNodes",
 					"InterchangeImport",
 					"InterchangePipelines",
-					"MeshDescription"
+					"MeshDescription",
+					"StaticMeshDescription"
 				}
 			);
 

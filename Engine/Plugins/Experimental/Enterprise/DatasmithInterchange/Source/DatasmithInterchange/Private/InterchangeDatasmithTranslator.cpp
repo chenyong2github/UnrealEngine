@@ -33,6 +33,8 @@
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeVariantSetNode.h"
 
+#include "StaticMeshOperations.h"
+
 #include "Misc/App.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithInterchange"
@@ -552,7 +554,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeDatasmithTranslator::GetTex
 	return TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath);
 }
 
-TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey, const FTransform& MeshGlobalTransform) const
 {
 	TPromise<TOptional<UE::Interchange::FMeshPayloadData>> EmptyPromise;
 	EmptyPromise.SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
@@ -576,7 +578,7 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTrans
 		return EmptyPromise.GetFuture();
 	}
 
-	return Async(EAsyncExecution::TaskGraph, [this, MeshElement = MoveTemp(MeshElement)]
+	return Async(EAsyncExecution::TaskGraph, [this, MeshElement = MoveTemp(MeshElement), &MeshGlobalTransform]
 		{
 			TOptional<UE::Interchange::FMeshPayloadData> Result;
 
@@ -587,7 +589,11 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTrans
 				{
 					UE::Interchange::FMeshPayloadData StaticMeshPayloadData;
 					StaticMeshPayloadData.MeshDescription = MoveTemp(DatasmithMeshPayload.LodMeshes[0]);
-
+					// Bake the payload mesh, with the provided transform
+					if (!MeshGlobalTransform.Equals(FTransform::Identity))
+					{
+						FStaticMeshOperations::ApplyTransform(StaticMeshPayloadData.MeshDescription, MeshGlobalTransform);
+					}
 					Result.Emplace(MoveTemp(StaticMeshPayloadData));
 				}
 			}

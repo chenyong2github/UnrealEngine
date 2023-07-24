@@ -104,6 +104,30 @@ namespace UE::Interchange
 		}
 	}
 
+	void FInterchangeFbxParser::FetchMeshPayload(const FString& PayloadKey, const FTransform& MeshGlobalTransform, const FString& ResultFolder)
+	{
+		check(FbxParserPrivate.IsValid());
+		ResultsContainer->Empty();
+		FString PayloadFilepathCopy;
+		{
+			FScopeLock Lock(&ResultPayloadsCriticalSection);
+			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
+			//To avoid file path with too many character, we hash the payloadKey so we have a deterministic length for the file path.
+			FString PayloadKeyHash = Private::HashString(PayloadKey);
+			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + TEXT(".payload");
+
+			//Copy the map filename key because we are multithreaded and the TMap can be reallocated
+			PayloadFilepathCopy = PayloadFilepath;
+		}
+		if (!FbxParserPrivate->FetchMeshPayloadData(PayloadKey, MeshGlobalTransform, PayloadFilepathCopy))
+		{
+			UInterchangeResultError_Generic* Error = AddMessage<UInterchangeResultError_Generic>();
+			Error->SourceAssetName = SourceFilename;
+			Error->Text = LOCTEXT("CantFetchPayload", "Cannot fetch FBX payload data.");
+			return;
+		}
+	}
+
 	void FInterchangeFbxParser::FetchAnimationBakeTransformPayload(const FString& PayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& ResultFolder)
 	{
 		check(FbxParserPrivate.IsValid());

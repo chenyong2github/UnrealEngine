@@ -239,6 +239,9 @@ namespace UE
 									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, GlobalTransform, bResetCache);
 								}
 							}
+
+							FString JointNodeName = Parser.GetFbxHelper()->GetFbxObjectName(Node, true);
+							UnrealNode->SetDisplayLabel(JointNodeName);
 							break;
 						}
 
