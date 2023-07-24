@@ -11,6 +11,7 @@
 #include "Containers/Array.h"
 #include "Containers/StaticArray.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataCacheStats.h"
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataLegacyCacheStore.h"
@@ -28,138 +29,14 @@
 #include "Templates/UniquePtr.h"
 #include <atomic>
 
+void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats);
+
 namespace UE::DerivedData
 {
 
 ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache, bool bDeleteInnerCache);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FCacheStoreStats final : public ICacheStoreStats
-{
-public:
-	FCacheStoreStats(ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path);
-
-	FString Type;
-	FString Name;
-	FString Path;
-	FText Status;
-	ECacheStoreFlags Flags = ECacheStoreFlags::None;
-	ECacheStoreStatusCode StatusCode = ECacheStoreStatusCode::None;
-	mutable FMutex Mutex;
-
-	TMap<FString, FString> Attributes;
-
-#if ENABLE_COOK_STATS
-	FCookStats::CallStats GetStats;
-	FCookStats::CallStats PutStats;
-#endif
-
-	struct FRateStat
-	{
-		FMonotonicTimePoint StartTime;
-		FMonotonicTimePoint EndTime;
-		uint64 Amount = 0;
-	};
-
-	constexpr static int32 SpeedStatsMax = 16;
-
-	TStaticArray<FMonotonicTimeSpan, SpeedStatsMax> LatencyHistory;
-	int32 LatencyIndex = 0;
-	int32 LatencyCount = 0;
-
-	TStaticArray<FRateStat, SpeedStatsMax> PhysicalReadSizeHistory;
-	int32 PhysicalReadSizeIndex = 0;
-	int32 PhysicalReadSizeCount = 0;
-
-	TStaticArray<FRateStat, SpeedStatsMax> PhysicalWriteSizeHistory;
-	int32 PhysicalWriteSizeIndex = 0;
-	int32 PhysicalWriteSizeCount = 0;
-
-private:
-	FStringView GetType() const final { return Type; }
-	FStringView GetName() const final { return Name; }
-	FStringView GetPath() const final { return Path; }
-	void SetFlags(ECacheStoreFlags Flags) final;
-	void SetStatus(ECacheStoreStatusCode StatusCode, const FText& Status) final;
-	void SetAttribute(FStringView Key, FStringView Value) final;
-	void AddRequest(const FCacheStoreRequestStats& Stats) final;
-};
-
-FCacheStoreStats::FCacheStoreStats(ECacheStoreFlags InFlags, FStringView InType, FStringView InName, FStringView InPath)
-	: Type(InType)
-	, Name(InName)
-	, Path(InPath)
-	, Flags(InFlags)
-{
-}
-
-void FCacheStoreStats::SetFlags(ECacheStoreFlags InFlags)
-{
-	TUniqueLock Lock(Mutex);
-	Flags = InFlags;
-}
-
-void FCacheStoreStats::SetStatus(ECacheStoreStatusCode InStatusCode, const FText& InStatus)
-{
-	TUniqueLock Lock(Mutex);
-	Status = InStatus;
-	StatusCode = InStatusCode;
-}
-
-void FCacheStoreStats::SetAttribute(FStringView Key, FStringView Value)
-{
-	TUniqueLock Lock(Mutex);
-	Attributes.Emplace(Key, Value);
-}
-
-void FCacheStoreStats::AddRequest(const FCacheStoreRequestStats& Stats)
-{
-#if ENABLE_COOK_STATS
-	using FCallStats = FCookStats::CallStats;
-	using EHitOrMiss = FCallStats::EHitOrMiss;
-	using EStatType = FCallStats::EStatType;
-	const bool bIsInGameThread = IsInGameThread();
-	const bool bIsGet = Stats.Op != ECacheStoreRequestOp::Put;
-#endif
-
-	TUniqueLock Lock(Mutex);
-
-	if (!Stats.Latency.IsInfinity())
-	{
-		LatencyHistory[LatencyIndex++] = Stats.Latency;
-		LatencyCount = FMath::Max(LatencyCount, LatencyIndex);
-		LatencyIndex %= LatencyHistory.Num();
-	}
-
-	if (Stats.PhysicalReadSize && !Stats.LogicalWriteSize)
-	{
-		FRateStat& CurrentPhysicalReadSize = PhysicalReadSizeHistory[PhysicalReadSizeIndex++];
-		PhysicalReadSizeCount = FMath::Max(PhysicalReadSizeCount, PhysicalReadSizeIndex);
-		PhysicalReadSizeIndex %= PhysicalReadSizeHistory.Num();
-		CurrentPhysicalReadSize.StartTime = Stats.StartTime;
-		CurrentPhysicalReadSize.EndTime = Stats.EndTime;
-		CurrentPhysicalReadSize.Amount = Stats.PhysicalReadSize;
-	}
-
-	if (Stats.PhysicalWriteSize && !Stats.LogicalReadSize)
-	{
-		FRateStat& CurrentPhysicalWriteSize = PhysicalWriteSizeHistory[PhysicalWriteSizeIndex++];
-		PhysicalWriteSizeCount = FMath::Max(PhysicalWriteSizeCount, PhysicalWriteSizeIndex);
-		PhysicalWriteSizeIndex %= PhysicalWriteSizeHistory.Num();
-		CurrentPhysicalWriteSize.StartTime = Stats.StartTime;
-		CurrentPhysicalWriteSize.EndTime = Stats.EndTime;
-		CurrentPhysicalWriteSize.Amount = Stats.PhysicalWriteSize;
-	}
-
-#if ENABLE_COOK_STATS
-	FCookStats::CallStats& CallStats = bIsGet ? GetStats : PutStats;
-	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Counter, 1, bIsInGameThread);
-	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Cycles, int64(Stats.MainThreadTime.ToSeconds() / FPlatformTime::GetSecondsPerCycle64()), /*bIsInGameThread*/ true);
-	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Cycles, int64(Stats.OtherThreadTime.ToSeconds() / FPlatformTime::GetSecondsPerCycle64()), /*bIsInGameThread*/ false);
-	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Bytes, bIsGet ? Stats.PhysicalReadSize : Stats.PhysicalWriteSize, bIsInGameThread);
-#endif
-}
 
 class FCacheStoreHierarchy final : public ILegacyCacheStore, public ICacheStoreOwner
 {
@@ -173,6 +50,8 @@ public:
 
 	ICacheStoreStats* CreateStats(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path) final;
 	void DestroyStats(ICacheStoreStats* Stats) final;
+
+	void LegacyResourceStats(TArray<FDerivedDataCacheResourceStat>& OutStats) const final;
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -211,6 +90,8 @@ private:
 	// Caller must hold a write lock on CacheStoresLock.
 	void UpdateNodeFlags();
 
+	void RecordStats(FCacheBucket Bucket, ERequestType Type, ERequestOp Op, EStatus Status, uint64 LogicalReadSize, uint64 LogicalWriteSize);
+
 	class FCounterEvent;
 	class FDynamicRequestBarrier;
 
@@ -236,6 +117,9 @@ private:
 	static bool CanStoreIfOk(ECachePolicy Policy, ECacheStoreNodeFlags Flags);
 	static bool CanQueryIfError(ECachePolicy Policy, ECacheStoreNodeFlags Flags);
 
+	static uint64 MeasureLogicalRecordSize(const FCacheRecord& Record);
+	static uint64 MeasureLogicalValueSize(const FValue& Value);
+
 	struct FCacheStoreNode
 	{
 		ILegacyCacheStore* Cache{};
@@ -249,6 +133,7 @@ private:
 	ECacheStoreNodeFlags CombinedNodeFlags{};
 	TArray<FCacheStoreNode, TInlineAllocator<8>> Nodes;
 	IMemoryCacheStore* MemoryCache;
+	FCacheStats CacheStats;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -340,6 +225,9 @@ struct FCacheStoreHierarchy::TBatchParams
 	static FGetResponse FilterResponseByRequest(const FGetResponse& Response, const FGetRequest& Request);
 	static FPutRequest MakePutRequest(const FGetResponse& Response, const FGetRequest& Request);
 	static FGetRequest MakeGetRequest(const FPutRequest& Request, int32 RequestIndex);
+	static uint64 MeasureLogicalSize(const FGetResponse& Response);
+	static uint64 MeasureLogicalSize(const FPutRequest& Request);
+	static ERequestType GetBatchType();
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -462,7 +350,12 @@ ICacheStoreStats* FCacheStoreHierarchy::CreateStats(ILegacyCacheStore* CacheStor
 	{
 		if (Node.Cache == CacheStore)
 		{
-			Node.CacheStats.Emplace(new FCacheStoreStats(Flags, Type, Name, Path));
+			TUniquePtr<FCacheStoreStats> StoreStats(new FCacheStoreStats(CacheStats, Flags, Type, Name, Path));
+			Node.CacheStats.Emplace(StoreStats.Get());
+
+			TUniqueLock StatsLock(CacheStats.Mutex);
+			CacheStats.StoreStats.Emplace(MoveTemp(StoreStats));
+
 			return Node.CacheStats.Last();
 		}
 	}
@@ -480,13 +373,115 @@ void FCacheStoreHierarchy::DestroyStats(ICacheStoreStats* Stats)
 	{
 		if (Node.CacheStats.RemoveSingle((FCacheStoreStats*)Stats))
 		{
-			delete Stats;
+			TUniqueLock StatsLock(CacheStats.Mutex);
+			CacheStats.StoreStats.RemoveAll([Stats](TUniquePtr<FCacheStoreStats>& Match)
+			{
+				return Match.Get() == (FCacheStoreStats*)Stats;
+			});
 			return;
 		}
 	}
 	UE_LOGFMT(LogDerivedDataCache, Fatal,
 		"Failed to find {Type} cache store '{Name}' with path '{Path}' when destroying stats.",
 		Stats->GetType(), Stats->GetName(), Stats->GetPath());
+}
+
+void FCacheStoreHierarchy::LegacyResourceStats(TArray<FDerivedDataCacheResourceStat>& OutStats) const
+{
+#if ENABLE_COOK_STATS
+	using FCallStats = FCookStats::CallStats;
+	using EHitOrMiss = FCallStats::EHitOrMiss;
+	using EStatType = FCallStats::EStatType;
+
+	TArray<const FCacheBucketStats*, TInlineAllocator<64>> Buckets;
+	{
+		TUniqueLock StatsLock(CacheStats.Mutex);
+		for (const TUniquePtr<FCacheBucketStats>& Bucket : CacheStats.BucketStats)
+		{
+			Buckets.Add(Bucket.Get());
+		}
+	}
+
+	TMap<FString, int32> BucketNameToIndex;
+
+	for (const FCacheBucketStats* BucketStats : Buckets)
+	{
+		TUniqueLock Lock(BucketStats->Mutex);
+
+		TStringBuilder<64> DisplayName;
+		BucketStats->Bucket.ToDisplayName(DisplayName);
+		FString BucketName(DisplayName);
+
+		int32 Index;
+		if (const int32* IndexPtr = BucketNameToIndex.Find(BucketName))
+		{
+			Index = *IndexPtr;
+		}
+		else
+		{
+			Index = OutStats.Emplace(BucketName);
+			BucketNameToIndex.Add(BucketName, Index);
+		}
+
+		const int64 BuildCycles =
+			BucketStats->GetStats.GetAccumulatedValueAnyThread(EHitOrMiss::Miss, EStatType::Cycles) +
+			BucketStats->PutStats.GetAccumulatedValueAnyThread(EHitOrMiss::Hit, EStatType::Cycles);
+		OutStats[Index] += FDerivedDataCacheResourceStat(BucketName, /*bIsGameThreadTime*/ false,
+			double(BucketStats->GetStats.GetAccumulatedValueAnyThread(EHitOrMiss::Hit, EStatType::Cycles)) * FPlatformTime::GetSecondsPerCycle(),
+			double(BucketStats->GetStats.GetAccumulatedValueAnyThread(EHitOrMiss::Hit, EStatType::Bytes)) / 1024.0 / 1024.0,
+			BucketStats->GetStats.GetAccumulatedValueAnyThread(EHitOrMiss::Hit, EStatType::Counter),
+			double(BuildCycles) * FPlatformTime::GetSecondsPerCycle(),
+			double(BucketStats->PutStats.GetAccumulatedValueAnyThread(EHitOrMiss::Miss, EStatType::Bytes)) / 1024.0 / 1024.0,
+			BucketStats->PutStats.GetAccumulatedValueAnyThread(EHitOrMiss::Hit, EStatType::Counter));
+
+		const int64 MainThreadCycles =
+			BucketStats->GetStats.GetAccumulatedValue(EHitOrMiss::Hit, EStatType::Cycles, /*bIsInGameThread*/ true) +
+			BucketStats->GetStats.GetAccumulatedValue(EHitOrMiss::Miss, EStatType::Cycles, /*bIsInGameThread*/ true) +
+			BucketStats->PutStats.GetAccumulatedValue(EHitOrMiss::Hit, EStatType::Cycles, /*bIsInGameThread*/ true) +
+			BucketStats->PutStats.GetAccumulatedValue(EHitOrMiss::Miss, EStatType::Cycles, /*bIsInGameThread*/ true);
+		OutStats[Index].GameThreadTimeSec += double(MainThreadCycles) * FPlatformTime::GetSecondsPerCycle();
+	}
+
+	// Add in build times from the legacy stats because those are not captured by ICacheStats.
+	TArray<FDerivedDataCacheResourceStat> ResourceStats;
+	GatherDerivedDataCacheResourceStats(ResourceStats);
+
+	TMultiMap<FString, int32> LegacyNameToIndex;
+	for (auto It = ResourceStats.CreateConstIterator(); It; ++It)
+	{
+		if (int32 ParenIndex; It->AssetType.FindChar(TEXT('('), ParenIndex))
+		{
+			LegacyNameToIndex.Add(It->AssetType.Left(ParenIndex - 1), It.GetIndex());
+		}
+		else
+		{
+			LegacyNameToIndex.Add(It->AssetType, It.GetIndex());
+		}
+	}
+
+	for (FDerivedDataCacheResourceStat& Stat : OutStats)
+	{
+		double ResourceBuildTimeSec = 0.0;
+		double ResourceGameThreadTimeSec = 0.0;
+
+		TArray<int32, TInlineAllocator<4>> ResourceStatsForType;
+		LegacyNameToIndex.MultiFind(Stat.AssetType, ResourceStatsForType);
+		for (int32 Index : ResourceStatsForType)
+		{
+			const FDerivedDataCacheResourceStat& ResourceStat = ResourceStats[Index];
+			ResourceBuildTimeSec += ResourceStat.BuildTimeSec;
+			ResourceGameThreadTimeSec += ResourceStat.GameThreadTimeSec;
+		}
+
+		Stat.BuildTimeSec += ResourceBuildTimeSec;
+		if (Stat.GameThreadTimeSec < ResourceGameThreadTimeSec)
+		{
+			// Add the game thread time that was tracked in excess of the cache.
+			// This is an approximation of the build time.
+			Stat.GameThreadTimeSec += ResourceGameThreadTimeSec - Stat.GameThreadTimeSec;
+		}
+	}
+#endif
 }
 
 FCacheRecordPolicy FCacheStoreHierarchy::AddPolicy(const FCacheRecordPolicy& BasePolicy, ECachePolicy Policy)
@@ -545,17 +540,19 @@ class FCacheStoreHierarchy::TPutBatch final : public FBatchBase, public Params
 	using Params::Put;
 	using Params::Get;
 	using Params::MakeGetRequest;
+	using Params::MeasureLogicalSize;
+	using Params::GetBatchType;
 
 public:
 	static void Begin(
-		const FCacheStoreHierarchy& Hierarchy,
+		FCacheStoreHierarchy& Hierarchy,
 		TConstArrayView<FPutRequest> Requests,
 		IRequestOwner& Owner,
 		FOnPutComplete&& OnComplete);
 
 private:
 	TPutBatch(
-		const FCacheStoreHierarchy& InHierarchy,
+		FCacheStoreHierarchy& InHierarchy,
 		const TConstArrayView<FPutRequest> InRequests,
 		IRequestOwner& InOwner,
 		FOnPutComplete&& InOnComplete)
@@ -577,13 +574,15 @@ private:
 	bool DispatchPutRequests();
 	void CompletePutRequest(FPutResponse&& Response);
 
+	void FinishRequest(FPutResponse&& Response, const FPutRequest& Request);
+
 	struct FRequestState
 	{
 		bool bOk = false;
 		bool bStop = false;
 	};
 
-	const FCacheStoreHierarchy& Hierarchy;
+	FCacheStoreHierarchy& Hierarchy;
 	TArray<FPutRequest, TInlineAllocator<1>> Requests;
 	IRequestOwner& BatchOwner;
 	FOnPutComplete OnComplete;
@@ -597,7 +596,7 @@ private:
 
 template <typename Params>
 void FCacheStoreHierarchy::TPutBatch<Params>::Begin(
-	const FCacheStoreHierarchy& InHierarchy,
+	FCacheStoreHierarchy& InHierarchy,
 	const TConstArrayView<FPutRequest> InRequests,
 	IRequestOwner& InOwner,
 	FOnPutComplete&& InOnComplete)
@@ -632,7 +631,7 @@ void FCacheStoreHierarchy::TPutBatch<Params>::DispatchRequests()
 		const FRequestState& State = States[RequestIndex];
 		if (!State.bOk && !State.bStop)
 		{
-			OnComplete(Request.MakeResponse(BatchOwner.IsCanceled() ? EStatus::Canceled : EStatus::Error));
+			FinishRequest(Request.MakeResponse(BatchOwner.IsCanceled() ? EStatus::Canceled : EStatus::Error), Request);
 		}
 		++RequestIndex;
 	}
@@ -692,7 +691,8 @@ void FCacheStoreHierarchy::TPutBatch<Params>::CompleteGetRequest(FGetResponse&& 
 		State.bStop = true;
 		if (!State.bOk)
 		{
-			OnComplete(Requests[RequestIndex].MakeResponse(Response.Status));
+			const FPutRequest& Request = Requests[RequestIndex];
+			FinishRequest(Request.MakeResponse(Response.Status), Request);
 		}
 	}
 	if (RemainingRequestCount.Signal())
@@ -757,14 +757,22 @@ void FCacheStoreHierarchy::TPutBatch<Params>::CompletePutRequest(FPutResponse&& 
 		FRequestState& State = States[RequestIndex];
 		check(!State.bOk && !State.bStop);
 		State.bOk = true;
-		Response.UserData = Requests[RequestIndex].UserData;
-		OnComplete(MoveTemp(Response));
+		const FPutRequest& Request = Requests[RequestIndex];
+		Response.UserData = Request.UserData;
+		FinishRequest(MoveTemp(Response), Request);
 	}
 	if (RemainingRequestCount.Signal())
 	{
 		++NodePutIndex;
 		DispatchRequests();
 	}
+}
+
+template <typename Params>
+void FCacheStoreHierarchy::TPutBatch<Params>::FinishRequest(FPutResponse&& Response, const FPutRequest& Request)
+{
+	Hierarchy.RecordStats(Response.Key.Bucket, GetBatchType(), ERequestOp::Put, Response.Status, 0, MeasureLogicalSize(Request));
+	OnComplete(MoveTemp(Response));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -785,17 +793,19 @@ class FCacheStoreHierarchy::TGetBatch final : public FBatchBase, public Params
 	using Params::ModifyPolicyForResponse;
 	using Params::FilterResponseByRequest;
 	using Params::MakePutRequest;
+	using Params::MeasureLogicalSize;
+	using Params::GetBatchType;
 
 public:
 	static void Begin(
-		const FCacheStoreHierarchy& Hierarchy,
+		FCacheStoreHierarchy& Hierarchy,
 		TConstArrayView<FGetRequest> Requests,
 		IRequestOwner& Owner,
 		FOnGetComplete&& OnComplete);
 
 private:
 	TGetBatch(
-		const FCacheStoreHierarchy& InHierarchy,
+		FCacheStoreHierarchy& InHierarchy,
 		const TConstArrayView<FGetRequest> InRequests,
 		IRequestOwner& InOwner,
 		FOnGetComplete&& InOnComplete)
@@ -815,6 +825,8 @@ private:
 	void DispatchRequests();
 	void CompleteRequest(FGetResponse&& Response);
 
+	void FinishRequest(FGetResponse&& Response, const FGetRequest& Request);
+
 	struct FState
 	{
 		FGetRequest Request;
@@ -822,7 +834,7 @@ private:
 		int32 NodeIndex = 0;
 	};
 
-	const FCacheStoreHierarchy& Hierarchy;
+	FCacheStoreHierarchy& Hierarchy;
 	FOnGetComplete OnComplete;
 	TArray<FState, TInlineAllocator<8>> States;
 
@@ -833,7 +845,7 @@ private:
 
 template <typename Params>
 void FCacheStoreHierarchy::TGetBatch<Params>::Begin(
-	const FCacheStoreHierarchy& InHierarchy,
+	FCacheStoreHierarchy& InHierarchy,
 	const TConstArrayView<FGetRequest> InRequests,
 	IRequestOwner& InOwner,
 	FOnGetComplete&& InOnComplete)
@@ -949,7 +961,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 	{
 		if (State.Response.Status != EStatus::Ok)
 		{
-			OnComplete(FilterResponseByRequest(State.Response, State.Request));
+			FinishRequest(FilterResponseByRequest(State.Response, State.Request), State.Request);
 		}
 	}
 }
@@ -1001,7 +1013,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 	if (bFirstOk)
 	{
 		// Values may be fetched to populate earlier nodes. Remove values if requested.
-		OnComplete(FilterResponseByRequest(State.Response, State.Request));
+		FinishRequest(FilterResponseByRequest(State.Response, State.Request), State.Request);
 	}
 
 	if (Response.Status == EStatus::Ok)
@@ -1020,6 +1032,13 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 	}
 
 	++State.NodeIndex;
+}
+
+template <typename Params>
+void FCacheStoreHierarchy::TGetBatch<Params>::FinishRequest(FGetResponse&& Response, const FGetRequest& Request)
+{
+	Hierarchy.RecordStats(Request.Key.Bucket, GetBatchType(), ERequestOp::Get, Response.Status, MeasureLogicalSize(Response), 0);
+	OnComplete(MoveTemp(Response));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1192,6 +1211,24 @@ FCacheGetRequest FCacheStoreHierarchy::FCacheRecordBatchParams::MakeGetRequest(
 	return {Request.Name, Request.Record.GetKey(), AddPolicy(Request.Policy, ECachePolicy::SkipData), uint64(RequestIndex)};
 }
 
+template <>
+uint64 FCacheStoreHierarchy::FCacheRecordBatchParams::MeasureLogicalSize(const FGetResponse& Response)
+{
+	return MeasureLogicalRecordSize(Response.Record);
+}
+
+template <>
+uint64 FCacheStoreHierarchy::FCacheRecordBatchParams::MeasureLogicalSize(const FPutRequest& Request)
+{
+	return MeasureLogicalRecordSize(Request.Record);
+}
+
+template <>
+ECacheStoreRequestType FCacheStoreHierarchy::FCacheRecordBatchParams::GetBatchType()
+{
+	return ERequestType::Record;
+}
+
 void FCacheStoreHierarchy::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
@@ -1268,6 +1305,24 @@ FCacheGetValueRequest FCacheStoreHierarchy::FCacheValueBatchParams::MakeGetReque
 	return {Request.Name, Request.Key, AddPolicy(Request.Policy, ECachePolicy::SkipData), uint64(RequestIndex)};
 }
 
+template <>
+uint64 FCacheStoreHierarchy::FCacheValueBatchParams::MeasureLogicalSize(const FGetResponse& Response)
+{
+	return MeasureLogicalValueSize(Response.Value);
+}
+
+template <>
+uint64 FCacheStoreHierarchy::FCacheValueBatchParams::MeasureLogicalSize(const FPutRequest& Request)
+{
+	return MeasureLogicalValueSize(Request.Value);
+}
+
+template <>
+ECacheStoreRequestType FCacheStoreHierarchy::FCacheValueBatchParams::GetBatchType()
+{
+	return ERequestType::Value;
+}
+
 void FCacheStoreHierarchy::PutValue(
 	const TConstArrayView<FCachePutValueRequest> Requests,
 	IRequestOwner& Owner,
@@ -1290,14 +1345,14 @@ class FCacheStoreHierarchy::FGetChunksBatch final : public FBatchBase
 {
 public:
 	static void Begin(
-		const FCacheStoreHierarchy& Hierarchy,
+		FCacheStoreHierarchy& Hierarchy,
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete);
 
 private:
 	FGetChunksBatch(
-		const FCacheStoreHierarchy& InHierarchy,
+		FCacheStoreHierarchy& InHierarchy,
 		const TConstArrayView<FCacheGetChunkRequest> InRequests,
 		IRequestOwner& InOwner,
 		FOnCacheGetChunkComplete&& InOnComplete)
@@ -1315,13 +1370,15 @@ private:
 	void DispatchRequests();
 	void CompleteRequest(FCacheGetChunkResponse&& Response);
 
+	void FinishRequest(FCacheGetChunkResponse&& Response);
+
 	struct FState
 	{
 		FCacheGetChunkRequest Request;
 		EStatus Status = EStatus::Error;
 	};
 
-	const FCacheStoreHierarchy& Hierarchy;
+	FCacheStoreHierarchy& Hierarchy;
 	FOnCacheGetChunkComplete OnComplete;
 	TArray<FState, TInlineAllocator<8>> States;
 
@@ -1331,7 +1388,7 @@ private:
 };
 
 void FCacheStoreHierarchy::FGetChunksBatch::Begin(
-	const FCacheStoreHierarchy& InHierarchy,
+	FCacheStoreHierarchy& InHierarchy,
 	const TConstArrayView<FCacheGetChunkRequest> InRequests,
 	IRequestOwner& InOwner,
 	FOnCacheGetChunkComplete&& InOnComplete)
@@ -1390,7 +1447,7 @@ void FCacheStoreHierarchy::FGetChunksBatch::DispatchRequests()
 	{
 		if (State.Status != EStatus::Ok)
 		{
-			OnComplete(State.Request.MakeResponse(Owner.IsCanceled() ? EStatus::Canceled : EStatus::Error));
+			FinishRequest(State.Request.MakeResponse(Owner.IsCanceled() ? EStatus::Canceled : EStatus::Error));
 		}
 	}
 }
@@ -1402,7 +1459,7 @@ void FCacheStoreHierarchy::FGetChunksBatch::CompleteRequest(FCacheGetChunkRespon
 	{
 		check(State.Status == EStatus::Error);
 		Response.UserData = State.Request.UserData;
-		OnComplete(MoveTemp(Response));
+		FinishRequest(MoveTemp(Response));
 	}
 	State.Status = Response.Status;
 
@@ -1411,6 +1468,13 @@ void FCacheStoreHierarchy::FGetChunksBatch::CompleteRequest(FCacheGetChunkRespon
 		++NodeIndex;
 		DispatchRequests();
 	}
+}
+
+void FCacheStoreHierarchy::FGetChunksBatch::FinishRequest(FCacheGetChunkResponse&& Response)
+{
+	const ERequestType RequestType = Response.Id.IsNull() ? ERequestType::Value : ERequestType::Record;
+	Hierarchy.RecordStats(Response.Key.Bucket, RequestType, ERequestOp::GetChunk, Response.Status, Response.RawData.GetSize(), 0);
+	OnComplete(MoveTemp(Response));
 }
 
 void FCacheStoreHierarchy::GetChunks(
@@ -1423,7 +1487,7 @@ void FCacheStoreHierarchy::GetChunks(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void ConvertToLegacyStats(FDerivedDataCacheStatsNode& OutNode, const FCacheStoreStats& Stats)
+static void ConvertToLegacyStats(FDerivedDataCacheStatsNode& OutNode, FCacheStoreStats& Stats)
 {
 	EDerivedDataCacheStatus StatusCode;
 	switch (Stats.StatusCode)
@@ -1456,62 +1520,10 @@ static void ConvertToLegacyStats(FDerivedDataCacheStatsNode& OutNode, const FCac
 	}
 #endif
 
-	const auto MeasureActiveWallTime = [](TConstArrayView<FCacheStoreStats::FRateStat> History) -> FMonotonicTimeSpan
-	{
-		TSortedMap<FMonotonicTimePoint, FMonotonicTimePoint, TInlineAllocator<FCacheStoreStats::SpeedStatsMax>> WallTimes;
-		for (const FCacheStoreStats::FRateStat& RateStat : History)
-		{
-			WallTimes.Add(RateStat.StartTime, RateStat.EndTime);
-		}
-
-		FMonotonicTimeSpan Duration;
-		FMonotonicTimePoint ActiveStartTime = FMonotonicTimePoint::Infinity();
-		FMonotonicTimePoint ActiveEndTime;
-		for (const TTuple<FMonotonicTimePoint, FMonotonicTimePoint>& WallTime : WallTimes)
-		{
-			if (ActiveStartTime.IsInfinity())
-			{
-				ActiveStartTime = WallTime.Key;
-				ActiveEndTime = WallTime.Value;
-			}
-			if (ActiveEndTime < WallTime.Key)
-			{
-				Duration += ActiveEndTime - ActiveStartTime;
-				ActiveStartTime = WallTime.Key;
-			}
-			if (ActiveEndTime < WallTime.Value)
-			{
-				ActiveEndTime = WallTime.Value;
-			}
-		}
-		Duration += ActiveEndTime - ActiveStartTime;
-		return Duration;
-	};
-
-	FDerivedDataCacheSpeedStats& SpeedStats = OutNode.SpeedStats;
-
-	if (TConstArrayView<FMonotonicTimeSpan> LatencyHistory(&Stats.LatencyHistory[0], Stats.LatencyCount); !LatencyHistory.IsEmpty())
-	{
-		SpeedStats.LatencyMS = Algo::Accumulate(LatencyHistory, FMonotonicTimeSpan::Zero()).ToMilliseconds() / LatencyHistory.Num();
-	}
-
-	if (TConstArrayView<FCacheStoreStats::FRateStat> PhysicalReadSizeHistory(&Stats.PhysicalReadSizeHistory[0], Stats.PhysicalReadSizeCount); !PhysicalReadSizeHistory.IsEmpty())
-	{
-		const uint64 PhysicalReadSize = Algo::TransformAccumulate(PhysicalReadSizeHistory, &FCacheStoreStats::FRateStat::Amount, uint64(0));
-		if (const FMonotonicTimeSpan WallTime = MeasureActiveWallTime(PhysicalReadSizeHistory); !WallTime.IsZero())
-		{
-			SpeedStats.ReadSpeedMBs = double(PhysicalReadSize) / WallTime.ToSeconds() / 1024.0 / 1024.0;
-		}
-	}
-
-	if (TConstArrayView<FCacheStoreStats::FRateStat> PhysicalWriteSizeHistory(&Stats.PhysicalWriteSizeHistory[0], Stats.PhysicalWriteSizeCount); !PhysicalWriteSizeHistory.IsEmpty())
-	{
-		const uint64 PhysicalWriteSize = Algo::TransformAccumulate(PhysicalWriteSizeHistory, &FCacheStoreStats::FRateStat::Amount, uint64(0));
-		if (const FMonotonicTimeSpan WallTime = MeasureActiveWallTime(PhysicalWriteSizeHistory); !WallTime.IsZero())
-		{
-			SpeedStats.WriteSpeedMBs = double(PhysicalWriteSize) / WallTime.ToSeconds() / 1024.0 / 1024.0;
-		}
-	}
+	FMonotonicTimePoint Now = FMonotonicTimePoint::Now();
+	OutNode.SpeedStats.LatencyMS = Stats.AverageLatency.GetValue(Now);
+	OutNode.SpeedStats.ReadSpeedMBs = Stats.AveragePhysicalReadSize.GetRate(Now) / 1024.0 / 1024.0;
+	OutNode.SpeedStats.WriteSpeedMBs = Stats.AveragePhysicalWriteSize.GetRate(Now) / 1024.0 / 1024.0;
 }
 
 void FCacheStoreHierarchy::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
@@ -1520,7 +1532,7 @@ void FCacheStoreHierarchy::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 	OutNode.Children.Reserve(Nodes.Num());
 	for (const FCacheStoreNode& Node : Nodes)
 	{
-		for (const FCacheStoreStats* Stats : Node.CacheStats)
+		for (FCacheStoreStats* Stats : Node.CacheStats)
 		{
 			ConvertToLegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get(), *Stats);
 		}
@@ -1530,6 +1542,48 @@ void FCacheStoreHierarchy::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 bool FCacheStoreHierarchy::LegacyDebugOptions(FBackendDebugOptions& Options)
 {
 	return false;
+}
+
+void FCacheStoreHierarchy::RecordStats(FCacheBucket Bucket, ERequestType Type, ERequestOp Op, EStatus Status, uint64 LogicalReadSize, uint64 LogicalWriteSize)
+{
+	// Accumulate only request count and logical size from the hierarchy.
+	// Physical size and time are tracked by the individual cache stores.
+
+	FCacheBucketStats& BucketStats = CacheStats.GetBucket(Bucket);
+	TUniqueLock Lock(BucketStats.Mutex);
+	BucketStats.LogicalReadSize += LogicalReadSize;
+	BucketStats.LogicalWriteSize += LogicalWriteSize;
+	BucketStats.RequestCount.AddRequest(Type, Op, Status);
+
+#if ENABLE_COOK_STATS
+	using FCallStats = FCookStats::CallStats;
+	using EHitOrMiss = FCallStats::EHitOrMiss;
+	using EStatType = FCallStats::EStatType;
+
+	const bool bIsInGameThread = IsInGameThread();
+	const EHitOrMiss HitOrMiss = Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss;
+	FCallStats& CallStats = (Op == ERequestOp::Put) ? BucketStats.PutStats : BucketStats.GetStats;
+	CallStats.Accumulate(HitOrMiss, EStatType::Counter, 1, bIsInGameThread);
+#endif
+}
+
+uint64 FCacheStoreHierarchy::MeasureLogicalRecordSize(const FCacheRecord& Record)
+{
+	uint64 LogicalSize = 0;
+	if (const FCbObject& Meta = Record.GetMeta())
+	{
+		LogicalSize += Meta.GetSize();
+	}
+	for (const FValueWithId& Value : Record.GetValues())
+	{
+		LogicalSize += MeasureLogicalValueSize(Value);
+	}
+	return LogicalSize;
+}
+
+uint64 FCacheStoreHierarchy::MeasureLogicalValueSize(const FValue& Value)
+{
+	return Value.HasData() ? Value.GetRawSize() : 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

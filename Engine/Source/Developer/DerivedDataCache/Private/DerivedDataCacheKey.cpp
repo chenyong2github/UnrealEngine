@@ -2,6 +2,7 @@
 
 #include "DerivedDataCacheKey.h"
 
+#include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/StringConv.h"
 #include "DerivedDataCachePrivate.h"
@@ -94,9 +95,13 @@ public:
 	template <typename CharType>
 	inline FCacheBucket FindOrAdd(TStringView<CharType> Name);
 
+	inline void GetDisplayName(FCacheBucket Bucket, FStringBuilderBase& OutDisplayName);
+	inline void SetDisplayName(FCacheBucket Bucket, FStringView DisplayName);
+
 private:
 	FRWLock Lock;
 	TSet<FCacheBucketOwner, FCacheBucketOwnerKeyFuncs> Buckets;
+	TMap<FCacheBucket, FString> DisplayNames;
 };
 
 template <typename CharType>
@@ -121,6 +126,35 @@ inline FCacheBucket FCacheBuckets::FindOrAdd(const TStringView<CharType> Name)
 	return Buckets.FindOrAddByHash(Hash, MoveTemp(LocalBucket));
 }
 
+void FCacheBuckets::GetDisplayName(FCacheBucket Bucket, FStringBuilderBase& OutDisplayName)
+{
+	if (FReadScopeLock ReadLock(Lock); const FString* DisplayName = DisplayNames.Find(Bucket))
+	{
+		OutDisplayName << *DisplayName;
+		return;
+	}
+	FAnsiStringView BucketName = Bucket.ToString();
+	if (BucketName.StartsWith(ANSITEXTVIEW("Legacy")))
+	{
+		BucketName.RightChopInline(TEXTVIEW("Legacy").Len());
+	}
+	OutDisplayName << BucketName;
+}
+
+void FCacheBuckets::SetDisplayName(FCacheBucket Bucket, FStringView DisplayName)
+{
+	if (FReadScopeLock ReadLock(Lock); const FString* ExistingDisplayName = DisplayNames.Find(Bucket))
+	{
+		if (*ExistingDisplayName == DisplayName)
+		{
+			return;
+		}
+	}
+
+	FWriteScopeLock WriteLock(Lock);
+	DisplayNames.Emplace(Bucket, DisplayName);
+}
+
 static FCacheBuckets& GetCacheBuckets()
 {
 	static FCacheBuckets Buckets;
@@ -140,6 +174,29 @@ FCacheBucket::FCacheBucket(FUtf8StringView InName)
 FCacheBucket::FCacheBucket(FWideStringView InName)
 	: FCacheBucket(Private::GetCacheBuckets().FindOrAdd(InName))
 {
+}
+
+FCacheBucket::FCacheBucket(FUtf8StringView Name, FStringView DisplayName)
+	: FCacheBucket(Name)
+{
+	if (!DisplayName.IsEmpty())
+	{
+		Private::GetCacheBuckets().SetDisplayName(*this, DisplayName);
+	}
+}
+
+FCacheBucket::FCacheBucket(FWideStringView Name, FStringView DisplayName)
+	: FCacheBucket(Name)
+{
+	if (!DisplayName.IsEmpty())
+	{
+		Private::GetCacheBuckets().SetDisplayName(*this, DisplayName);
+	}
+}
+
+void FCacheBucket::ToDisplayName(FStringBuilderBase& OutDisplayName) const
+{
+	Private::GetCacheBuckets().GetDisplayName(*this, OutDisplayName);
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const FCacheBucket Bucket)

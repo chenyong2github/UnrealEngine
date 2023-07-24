@@ -44,6 +44,7 @@
 #include "IAnalyticsProviderET.h"
 #include "StudioAnalytics.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "Virtualization/VirtualizationSystem.h"
 #include "Experimental/ZenServerInterface.h"
 #endif
@@ -905,33 +906,6 @@ void LogCookStats(ECookMode::Type CookMode)
 		return;
 	}
 
-	/** Used for custom logging of DDC Resource usage stats. */
-	struct FDDCResourceUsageStat
-	{
-	public:
-		FDDCResourceUsageStat(FString InAssetType, double InTotalTimeSec, bool bIsGameThreadTime, double InSizeMB, int64 InAssetsBuilt) : AssetType(MoveTemp(InAssetType)), TotalTimeSec(InTotalTimeSec), GameThreadTimeSec(bIsGameThreadTime ? InTotalTimeSec : 0.0), SizeMB(InSizeMB), AssetsBuilt(InAssetsBuilt) {}
-		void Accumulate(const FDDCResourceUsageStat& OtherStat)
-		{
-			TotalTimeSec += OtherStat.TotalTimeSec;
-			GameThreadTimeSec += OtherStat.GameThreadTimeSec;
-			SizeMB += OtherStat.SizeMB;
-			AssetsBuilt += OtherStat.AssetsBuilt;
-		}
-		FString AssetType;
-		double TotalTimeSec;
-		double GameThreadTimeSec;
-		double SizeMB;
-		int64 AssetsBuilt;
-	};
-
-	/** Used for custom TSet comparison of DDC Resource usage stats. */
-	struct FDDCResourceUsageStatKeyFuncs : BaseKeyFuncs<FDDCResourceUsageStat, FString, false>
-	{
-		static const FString& GetSetKey(const FDDCResourceUsageStat& Element) { return Element.AssetType; }
-		static bool Matches(const FString& A, const FString& B) { return A == B; }
-		static uint32 GetKeyHash(const FString& Key) { return GetTypeHash(Key); }
-	};
-
 	/** Used to store profile data for custom logging. */
 	struct FCookProfileData
 	{
@@ -943,7 +917,7 @@ void LogCookStats(ECookMode::Type CookMode)
 	};
 
 	// instead of printing the usage stats generically, we capture them so we can log a subset of them in an easy-to-read way.
-	TSet<FDDCResourceUsageStat, FDDCResourceUsageStatKeyFuncs> DDCResourceUsageStats;
+	TArray<FDerivedDataCacheResourceStat> DDCResourceUsageStats;
 	TArray<FCookStatsManager::StringKeyValue> DDCSummaryStats;
 	TArray<FCookProfileData> CookProfileData;
 	TArray<FString> StatCategories;
@@ -963,54 +937,7 @@ void LogCookStats(ECookMode::Type CookMode)
 		}
 		else if (StatName.EndsWith(TEXT(".Usage"), ESearchCase::IgnoreCase))
 		{
-			// Anything that ends in .Usage is assumed to be an instance of FCookStats.FDDCResourceUsageStats. We'll log that using custom formatting.
-			FString AssetType = StatName;
-			AssetType.RemoveFromEnd(TEXT(".Usage"), ESearchCase::IgnoreCase);
-			// See if the asset has a subtype (found via the "Node" parameter")
-			const FCookStatsManager::StringKeyValue* AssetSubType = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("Node"); });
-			if (AssetSubType && AssetSubType->Value.Len() > 0)
-			{
-				AssetType += FString::Printf(TEXT(" (%s)"), *AssetSubType->Value);
-			}
-			// Pull the Time and Size attributes and AddOrAccumulate them into the set of stats. Ugly string/container manipulation code courtesy of UE/C++.
-			const FCookStatsManager::StringKeyValue* AssetTimeSecAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("TimeSec"); });
-			double AssetTimeSec = 0.0;
-			if (AssetTimeSecAttr)
-			{
-				LexFromString(AssetTimeSec, *AssetTimeSecAttr->Value);
-			}
-			const FCookStatsManager::StringKeyValue* AssetSizeMBAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("MB"); });
-			double AssetSizeMB = 0.0;
-			if (AssetSizeMBAttr)
-			{
-				LexFromString(AssetSizeMB, *AssetSizeMBAttr->Value);
-			}
-			const FCookStatsManager::StringKeyValue* ThreadNameAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("ThreadName"); });
-			bool bIsGameThreadTime = ThreadNameAttr != nullptr && ThreadNameAttr->Value == TEXT("GameThread");
-
-			const FCookStatsManager::StringKeyValue* HitOrMissAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("HitOrMiss"); });
-			bool bWasMiss = HitOrMissAttr != nullptr && HitOrMissAttr->Value == TEXT("Miss");
-			int64 AssetsBuilt = 0;
-			if (bWasMiss)
-			{
-				const FCookStatsManager::StringKeyValue* CountAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("Count"); });
-				if (CountAttr)
-				{
-					LexFromString(AssetsBuilt, *CountAttr->Value);
-				}
-			}
-
-
-			FDDCResourceUsageStat Stat(AssetType, AssetTimeSec, bIsGameThreadTime, AssetSizeMB, AssetsBuilt);
-			FDDCResourceUsageStat* ExistingStat = DDCResourceUsageStats.Find(Stat.AssetType);
-			if (ExistingStat)
-			{
-				ExistingStat->Accumulate(Stat);
-			}
-			else
-			{
-				DDCResourceUsageStats.Add(Stat);
-			}
+			// These are gathered through GatherResourceStats.
 			bStatUsedCustomFormatting = true;
 		}
 		else if (StatName == TEXT("DDC.Summary"))
@@ -1038,6 +965,8 @@ void LogCookStats(ECookMode::Type CookMode)
 			StatsInCategory.Append(StatAttributes);
 		}
 	};
+
+	GetDerivedDataCacheRef().GatherResourceStats(DDCResourceUsageStats);
 
 	FCookStatsManager::LogCookStats(LogStatsFunc);
 
@@ -1119,28 +1048,20 @@ void LogCookStats(ECookMode::Type CookMode)
 
 	DumpDerivedDataBuildRemoteExecutorStats();
 
-	if (DDCResourceUsageStats.Num() > 0)
+	if (!DDCResourceUsageStats.IsEmpty())
 	{
-		// sort the list
-		TArray<FDDCResourceUsageStat> SortedDDCResourceUsageStats;
-		SortedDDCResourceUsageStats.Empty(DDCResourceUsageStats.Num());
-		for (const FDDCResourceUsageStat& Stat : DDCResourceUsageStats)
-		{
-			SortedDDCResourceUsageStats.Emplace(Stat);
-		}
-		SortedDDCResourceUsageStats.Sort([](const FDDCResourceUsageStat& LHS, const FDDCResourceUsageStat& RHS)
-			{
-				return LHS.TotalTimeSec > RHS.TotalTimeSec;
-			});
+		Algo::SortBy(DDCResourceUsageStats, [](const FDerivedDataCacheResourceStat& Stat) { return Stat.BuildTimeSec + Stat.LoadTimeSec; }, TGreater());
 
 		UE_LOG(LogCook, Display, TEXT(""));
 		UE_LOG(LogCook, Display, TEXT("DDC Resource Stats"));
 		UE_LOG(LogCook, Display, TEXT("======================================================================================================="));
 		UE_LOG(LogCook, Display, TEXT("Asset Type                          Total Time (Sec)  GameThread Time (Sec)  Assets Built  MB Processed"));
 		UE_LOG(LogCook, Display, TEXT("----------------------------------  ----------------  ---------------------  ------------  ------------"));
-		for (const FDDCResourceUsageStat& Stat : SortedDDCResourceUsageStats)
+		for (const FDerivedDataCacheResourceStat& Stat : DDCResourceUsageStats)
 		{
-			UE_LOG(LogCook, Display, TEXT("%-34s  %16.2f  %21.2f  %12d  %12.2f"), *Stat.AssetType, Stat.TotalTimeSec, Stat.GameThreadTimeSec, Stat.AssetsBuilt, Stat.SizeMB);
+			UE_LOG(LogCook, Display, TEXT("%-34s  %16.2f  %21.2f  %12d  %12.2f"),
+				*Stat.AssetType, Stat.LoadTimeSec + Stat.BuildTimeSec, Stat.GameThreadTimeSec,
+				Stat.BuildCount, Stat.LoadSizeMB + Stat.BuildSizeMB);
 		}
 	}
 

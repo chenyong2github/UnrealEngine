@@ -801,6 +801,14 @@ public:
 		return Stats;
 	}
 
+	virtual void GatherResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats) const override
+	{
+		if (Hierarchy)
+		{
+			Hierarchy->LegacyResourceStats(DDCResourceStats);
+		}
+	}
+
 private:
 	void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final
 	{
@@ -880,6 +888,12 @@ private:
 	{
 		check(Hierarchy);
 		Hierarchy->DestroyStats(Stats);
+	}
+
+	void LegacyResourceStats(TArray<FDerivedDataCacheResourceStat>& OutStats) const final
+	{
+		check(Hierarchy);
+		Hierarchy->LegacyResourceStats(OutStats);
 	}
 
 	/** MountPak console command handler. */

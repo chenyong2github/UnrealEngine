@@ -213,7 +213,6 @@ namespace UE::DerivedData::CookStats
 }
 #endif
 
-void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats);
 void GatherDerivedDataCacheSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats);
 
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
@@ -934,7 +933,7 @@ public:
 
 	virtual void GatherResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats) const override
 	{
-		GatherDerivedDataCacheResourceStats(DDCResourceStats);
+		Backend->GatherResourceStats(DDCResourceStats);
 	}
 
 	virtual void GatherSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats) const override
@@ -949,7 +948,7 @@ public:
 		// Gather the latest resource stats
 		TArray<FDerivedDataCacheResourceStat> ResourceStats;
 
-		GatherDerivedDataCacheResourceStats(ResourceStats);
+		GatherResourceStats(ResourceStats);
 
 		FDerivedDataCacheResourceStat ResourceStatsTotal(TEXT("Total"));
 

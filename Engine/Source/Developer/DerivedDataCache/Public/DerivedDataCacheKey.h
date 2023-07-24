@@ -46,6 +46,13 @@ public:
 	UE_API explicit FCacheBucket(FUtf8StringView Name);
 	UE_API explicit FCacheBucket(FWideStringView Name);
 
+	/** Create a cache bucket from a name and a display name. */
+	UE_API FCacheBucket(FUtf8StringView Name, FStringView DisplayName);
+	UE_API FCacheBucket(FWideStringView Name, FStringView DisplayName);
+
+	/** Append the display name if available or the bucket name if not. */
+	UE_API void ToDisplayName(FStringBuilderBase& OutDisplayName) const;
+
 	/** Whether this is null. */
 	inline bool IsNull() const { return !Name; }
 	/** Whether this is not null. */

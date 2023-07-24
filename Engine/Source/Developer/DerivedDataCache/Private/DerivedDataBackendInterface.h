@@ -133,6 +133,8 @@ public:
 	 *  Gather the usage of the DDC hierarchically.
 	 */
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
+
+	virtual void GatherResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats) const = 0;
 };
 
 /** Lexical conversions from and to enums */

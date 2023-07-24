@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Async/Mutex.h"
+#include "Containers/ContainersFwd.h"
 #include "DerivedDataCache.h"
 #include "Misc/MonotonicTime.h"
 
 class FText;
+struct FDerivedDataCacheResourceStat;
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheStoreRequestTimer; }
@@ -162,6 +164,8 @@ public:
 
 	virtual ICacheStoreStats* CreateStats(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path = {}) = 0;
 	virtual void DestroyStats(ICacheStoreStats* Stats) = 0;
+
+	virtual void LegacyResourceStats(TArray<FDerivedDataCacheResourceStat>& OutStats) const = 0;
 };
 
 enum class ECacheStoreStatusCode : uint8

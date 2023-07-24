@@ -1091,6 +1091,7 @@ void FHttpCacheStore::FGetRecordOp::GetRecordOnly(const FCacheKey& InKey, const 
 
 	Key = InKey;
 	OnRecordComplete = MoveTemp(InOnComplete);
+	RequestStats.Bucket = Key.Bucket;
 
 	TAnsiStringBuilder<64> Bucket;
 	Algo::Transform(Key.Bucket.ToString(), AppendChars(Bucket), FCharAnsi::ToLower);
@@ -1787,6 +1788,7 @@ void FHttpCacheStore::FExistsBatchOp::EndExists(TUniquePtr<FHttpOperation> Opera
 		{
 			UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Cache miss with corrupt response for %s from '%s'."),
 				*CacheStore.Domain, *WriteToString<96>(Request.Key), *Request.Name);
+			RequestStats.Bucket = Request.Key.Bucket;
 			EndRequest(Request, {}, EStatus::Error);
 		}
 		return;
@@ -1804,6 +1806,7 @@ void FHttpCacheStore::FExistsBatchOp::EndExists(TUniquePtr<FHttpOperation> Opera
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid response for %s from '%s'"),
 				*CacheStore.Domain, *WriteToString<96>(Request.Key), *Request.Name);
+			RequestStats.Bucket = Request.Key.Bucket;
 			EndRequest(Request, {}, EStatus::Error);
 		}
 		return;
@@ -1824,6 +1827,7 @@ void FHttpCacheStore::FExistsBatchOp::EndExists(TUniquePtr<FHttpOperation> Opera
 		}
 
 		const FCacheGetValueRequest& Request = Requests[int32(OpId)];
+		RequestStats.Bucket = Request.Key.Bucket;
 
 		if (StatusCode < 200 || StatusCode > 204)
 		{
@@ -2671,6 +2675,9 @@ void FHttpCacheStore::GetChunks(
 				}
 				if (bOpUsed)
 				{
+					FRequestStats& RequestStats = Op->EditStats();
+					RequestStats.Type = ERequestType::Record;
+					RequestStats.Op = ERequestOp::GetChunk;
 					Op->RecordStats(OpStatus);
 					TRACE_COUNTER_ADD(HttpDDC_BytesReceived, Op->ReadStats().PhysicalReadSize);
 					TRACE_COUNTER_ADD(HttpDDC_BytesSent, Op->ReadStats().PhysicalWriteSize);
