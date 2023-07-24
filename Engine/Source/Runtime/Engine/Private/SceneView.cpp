@@ -182,6 +182,16 @@ static TAutoConsoleVariable<int32> CVarDefaultAutoExposureExtendDefaultLuminance
 	TEXT(" 0: Legacy range (UE4 default)\n")
 	TEXT(" 1: Extended range (UE5 default)"));
 
+static TAutoConsoleVariable<float> CVarDefaultLocalExposureHighlightContrastScale(
+	TEXT("r.DefaultFeature.LocalExposure.HighlightContrastScale"),
+	1.0f,
+	TEXT("Engine default (project setting) for Local Exposure Highlight Contrast Scale (postprocess volume/camera/game setting still can override)\n"));
+
+static TAutoConsoleVariable<float> CVarDefaultLocalExposureShadowContrastScale(
+	TEXT("r.DefaultFeature.LocalExposure.ShadowContrastScale"),
+	1.0f,
+	TEXT("Engine default (project setting) for Local Exposure Shadow Contrast Scale (postprocess volume/camera/game setting still can override)\n"));
+
 static TAutoConsoleVariable<int32> CVarDefaultMotionBlur(
 	TEXT("r.DefaultFeature.MotionBlur"),
 	1,
@@ -1828,6 +1838,18 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 			{
 				FinalPostProcessSettings.AutoExposureMethod = (EAutoExposureMethod)Value;
 			}
+		}
+
+		{
+			const float HighlightContrastScale = FMath::Clamp(CVarDefaultLocalExposureHighlightContrastScale.GetValueOnGameThread(), 0.0f, 1.0f);
+
+			FinalPostProcessSettings.LocalExposureHighlightContrastScale = HighlightContrastScale;
+		}
+
+		{
+			const float ShadowContrastScale = FMath::Clamp(CVarDefaultLocalExposureHighlightContrastScale.GetValueOnGameThread(), 0.0f, 1.0f);
+
+			FinalPostProcessSettings.LocalExposureShadowContrastScale = ShadowContrastScale;
 		}
 
 		if (!CVarDefaultMotionBlur.GetValueOnGameThread())

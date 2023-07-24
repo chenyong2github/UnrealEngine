@@ -144,6 +144,9 @@ struct FUE5ReleaseStreamObjectVersion
 
 		// Function data stores a map from work to debug operands
 		RigVMSaveDebugMapInGraphFunctionData,
+
+		// Changed default Local Exposure Contrast Scale from 1.0 to 0.8
+		LocalExposureDefaultChangeFrom1,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

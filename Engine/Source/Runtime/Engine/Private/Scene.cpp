@@ -509,8 +509,8 @@ FPostProcessSettings::FPostProcessSettings()
 	AutoExposureApplyPhysicalCameraExposure = 1;
 
 	LocalExposureContrastScale_DEPRECATED = 1.0f;
-	LocalExposureHighlightContrastScale = 1.0f;
-	LocalExposureShadowContrastScale = 1.0f;
+	LocalExposureHighlightContrastScale = 0.8f;
+	LocalExposureShadowContrastScale = 0.8f;
 	LocalExposureDetailStrength = 1.0f;
 	LocalExposureBlurredLuminanceBlend = 0.6f;
 	LocalExposureBlurredLuminanceKernelSizePercent = 50.0f;
@@ -665,6 +665,12 @@ bool FPostProcessSettings::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LocalExposureDefaultChangeFrom1)
+	{
+		LocalExposureHighlightContrastScale = 1.0f;
+		LocalExposureShadowContrastScale = 1.0f;
+	}
 
 	// Don't actually serialize, just write the custom version for PostSerialize
 	return false;

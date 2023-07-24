@@ -667,6 +667,16 @@ class URendererSettings : public UDeveloperSettings
 	uint32 bExtendDefaultLuminanceRangeInAutoExposureSettings : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		ConsoleVariable = "r.DefaultFeature.LocalExposure.HighlightContrastScale", DisplayName = "Local Exposure Highlight Contrast Scale",
+		ToolTip = "Default Value for Local Exposure Highlight Contrast Scale.", ClampMin = "0.0", ClampMax = "1.0"))
+	float DefaultFeatureLocalExposureHighlightContrastScale;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		ConsoleVariable = "r.DefaultFeature.LocalExposure.ShadowContrastScale", DisplayName = "Local Exposure Shadow Contrast Scale",
+		ToolTip = "Default Value for Local Exposure Shadow Contrast Scale.", ClampMin = "0.0", ClampMax = "1.0"))
+	float DefaultFeatureLocalExposureShadowContrastScale;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.MotionBlur", DisplayName = "Motion Blur",
 		ToolTip = "Whether the default for MotionBlur is enabled or not (postprocess volume/camera/game setting can still override and enable or disable it independently)"))
 	uint32 bDefaultFeatureMotionBlur : 1;
