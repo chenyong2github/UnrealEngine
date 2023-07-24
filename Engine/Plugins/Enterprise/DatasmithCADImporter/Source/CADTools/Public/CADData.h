@@ -55,6 +55,7 @@ enum EComponentType : uint8
 {
 	Reference = 0,
 	Instance,
+	OverriddeOccurence,
 	Body,
 	LastType
 };
@@ -96,11 +97,7 @@ struct CADTOOLS_API FObjectDisplayDataId
 class CADTOOLS_API FArchiveGraphicProperties
 {
 public:
-	FArchiveGraphicProperties()
-		: ColorUId(0)
-		, MaterialUId(0)
-	{
-	}
+	FArchiveGraphicProperties() = default;
 
 	FArchiveGraphicProperties(const FArchiveGraphicProperties& Parent)
 		: ColorUId(Parent.ColorUId)
@@ -109,6 +106,8 @@ public:
 	}
 
 	virtual ~FArchiveGraphicProperties() = default;
+
+	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FArchiveGraphicProperties& C);
 
 public:
 	FMaterialUId ColorUId = 0;

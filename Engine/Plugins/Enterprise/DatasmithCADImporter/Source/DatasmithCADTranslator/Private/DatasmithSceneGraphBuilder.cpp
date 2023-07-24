@@ -17,7 +17,7 @@ namespace DatasmithSceneGraphBuilderImpl
  * For more details:
  * @see https://docs.techsoft3d.com/exchange/latest/build/managing_attribute_inheritance.html
  */
-void SpreadGraphicProperties(const CADLibrary::FArchiveCADObject& Component, ActorData& ComponentData)
+void SpreadGraphicProperties(const CADLibrary::FArchiveCADObject& Component, FActorData& ComponentData)
 {
 	if (!ComponentData.ColorUId)
 	{
@@ -131,6 +131,7 @@ bool FDatasmithSceneGraphBuilder::Build()
 	{
 		return false;
 	}
+
 	AncestorSceneGraphHash.Add(RootHash);
 
 	return FDatasmithSceneBaseGraphBuilder::Build();
@@ -176,10 +177,10 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 		return;
 	}
 
-	ActorData Data(TEXT(""));
+	FActorData Data(TEXT(""));
 
 	const FCadId RootId = 1;
-	ActorData ParentData(ActorElement->GetName());
+	FActorData ParentData(ActorElement->GetName());
 	CADLibrary::FArchiveReference& Reference = SceneGraph->GetReference(RootId);
 
 	CADLibrary::FArchiveInstance EmptyInstance;
@@ -189,7 +190,7 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 
 	AddMetaData(ActorElement, EmptyInstance, Reference);
 
-	ActorData ComponentData(*ActorUUID, ParentData);
+	FActorData ComponentData(*ActorUUID, ParentData);
 	//DatasmithSceneGraphBuilderImpl::GetMainMaterial(Reference.MetaData, ComponentData, bMaterialPropagationIsTopDown);
 
 	AddChildren(ActorElement, Reference, ComponentData);
@@ -225,7 +226,7 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 {
 	const FCadId RootId = 1;
 
-	ActorData Data(TEXT(""));
+	FActorData Data(TEXT(""));
 	CADLibrary::FArchiveReference& Reference = SceneGraph->GetReference(RootId);
 	TSharedPtr<IDatasmithActorElement> RootActor = BuildReference(Reference, Data);
 	DatasmithScene->AddActor(RootActor);
@@ -298,12 +299,53 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 	return true;
 }
 
-TSharedPtr<IDatasmithActorElement>  FDatasmithSceneBaseGraphBuilder::BuildInstance(FCadId InstanceId, const ActorData& ParentData)
+void FDatasmithSceneBaseGraphBuilder::OverrideInstance(CADLibrary::FArchiveOverrideOccurrence* OverrideOccurrence, CADLibrary::FArchiveInstance& Instance, FActorData& InstanceData)
+{
+	if (OverrideOccurrence == nullptr)
+	{
+		return;
+	}
+
+	if (OverrideOccurrence->OverridenChildren.Num())
+	{
+		InstanceData.OverridenChildren = MoveTemp(OverrideOccurrence->OverridenChildren);
+	}
+
+	if (OverrideOccurrence->TransformMatrix != FMatrix::Identity)
+	{
+		Instance.TransformMatrix = OverrideOccurrence->TransformMatrix;
+	}
+
+	Instance.bShow = OverrideOccurrence->bShow;
+}
+
+TSharedPtr<IDatasmithActorElement>  FDatasmithSceneBaseGraphBuilder::BuildInstance(FCadId InstanceId, const FActorData& ParentData)
 {
 	CADLibrary::FArchiveReference* Reference = nullptr;
 	CADLibrary::FArchiveReference EmptyReference;
 
 	CADLibrary::FArchiveInstance& Instance = SceneGraph->GetInstance(InstanceId);
+
+	CADLibrary::FArchiveOverrideOccurrence* OverrideInstancePtr = nullptr;
+	uint32 OverridenSceneGraphId = 0;
+
+	if(ParentData.OverridenChildren.Num() > 0)
+	{
+		CADLibrary::FArchiveSceneGraph* ParentSceneGraph = CADFileToSceneGraphArchive.FindRef(ParentData.SceneGraphId);
+		if(ParentSceneGraph)
+		{
+			for (const FCadId& OverrideOccurrenceId : ParentData.OverridenChildren)
+			{
+				CADLibrary::FArchiveOverrideOccurrence& OverrideOccurrence = ParentSceneGraph->GetOverrideOccurrence(OverrideOccurrenceId);
+				if (OverrideOccurrence.Label == Instance.Label)
+				{
+					OverrideInstancePtr = &OverrideOccurrence;
+					OverridenSceneGraphId = ParentData.SceneGraphId;
+					break;
+				}
+			}
+		}
+	}
 
 	CADLibrary::FArchiveSceneGraph* InstanceSceneGraph = SceneGraph;
 	if (Instance.bIsExternalReference)
@@ -357,14 +399,31 @@ TSharedPtr<IDatasmithActorElement>  FDatasmithSceneBaseGraphBuilder::BuildInstan
 	{
 		AddMetaData(Actor, Instance, *Reference);
 
-		ActorData InstanceData(*ActorUUID, ParentData);
+		FActorData InstanceData(*ActorUUID, ParentData);
 
 		DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(Instance, InstanceData);
 		DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(*Reference, InstanceData);
+		if (OverrideInstancePtr && OverrideInstancePtr->OverridenChildren.Num())
+		{
+			InstanceData.OverridenChildren = OverrideInstancePtr->OverridenChildren;
+			InstanceData.SceneGraphId = OverridenSceneGraphId;
+		}
+		else if (Instance.OverridenChildren.Num())
+		{
+			InstanceData.OverridenChildren = MoveTemp(Instance.OverridenChildren);
+			InstanceData.SceneGraphId = InstanceSceneGraph->SceneGraphId;
+		}
 
-		AddChildren(Actor, *Reference, InstanceData);
-
-		DatasmithSceneGraphBuilderImpl::AddTransformToActor(Instance, Actor, ImportParameters);
+		OverrideInstance(OverrideInstancePtr, Instance, InstanceData);
+		if(Instance.bShow)
+		{
+			AddChildren(Actor, *Reference, InstanceData);
+			DatasmithSceneGraphBuilderImpl::AddTransformToActor(Instance, Actor, ImportParameters);
+		}
+		else
+		{
+			Actor.Reset();
+		}
 	}
 
 	if (SceneGraph != InstanceSceneGraph)
@@ -386,7 +445,7 @@ TSharedPtr<IDatasmithActorElement>  FDatasmithSceneBaseGraphBuilder::CreateActor
 	return TSharedPtr<IDatasmithActorElement>();
 }
 
-TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildReference(CADLibrary::FArchiveReference& Reference, const ActorData& ParentData)
+TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildReference(CADLibrary::FArchiveReference& Reference, const FActorData& ParentData)
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 
@@ -403,7 +462,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildReferen
 
 	AddMetaData(Actor, EmptyInstance, Reference);
 
-	ActorData ReferenceData(*ActorUUID, ParentData);
+	FActorData ReferenceData(*ActorUUID, ParentData);
 	DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(Reference, ReferenceData);
 
 	AddChildren(Actor, Reference, ReferenceData);
@@ -413,7 +472,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildReferen
 	return Actor;
 }
 
-TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(FCadId BodyId, const ActorData& ParentData)
+TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(FCadId BodyId, const FActorData& ParentData)
 {
 	CADLibrary::FArchiveInstance EmptyInstance;
 	CADLibrary::FArchiveBody& Body = SceneGraph->GetBody(BodyId);
@@ -428,7 +487,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(FC
 	DatasmithSceneGraphBuilderImpl::GetNodeUuidAndLabel(EmptyInstance, Body, ParentData.Uuid, BodyUUID, BodyLabel);
 
 	// Apply materials on the current part
-	ActorData BodyData(*BodyUUID, ParentData);
+	FActorData BodyData(*BodyUUID, ParentData);
 	DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(Body, BodyData);
 	FMaterialUId MaterialUId = (BodyData.Inheritance == CADLibrary::ECADGraphicPropertyInheritance::Unset) ? -1 : BodyData.MaterialUId ? BodyData.MaterialUId : BodyData.ColorUId;
 
@@ -633,7 +692,7 @@ bool FDatasmithSceneBaseGraphBuilder::DoesActorHaveChildrenOrIsAStaticMesh(const
 	return false;
 }
 
-void FDatasmithSceneBaseGraphBuilder::AddChildren(TSharedPtr<IDatasmithActorElement> Actor, const CADLibrary::FArchiveReference& Reference, const ActorData& ParentData)
+void FDatasmithSceneBaseGraphBuilder::AddChildren(TSharedPtr<IDatasmithActorElement> Actor, const CADLibrary::FArchiveReference& Reference, const FActorData& ParentData)
 {
 	for (const FCadId& ChildId : Reference.Children)
 	{

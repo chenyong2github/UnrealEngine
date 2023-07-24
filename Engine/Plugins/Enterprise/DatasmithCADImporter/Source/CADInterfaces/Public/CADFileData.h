@@ -73,6 +73,7 @@ public:
 
 	void SetArchiveNames()
 	{
+		SceneGraphArchive.SceneGraphId = FileDescription.GetDescriptorHash();
 		SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), GetSceneFileHash());
 		MeshArchiveFile = FString::Printf(TEXT("UEx%08x"), GetGeomFileHash());
 	}

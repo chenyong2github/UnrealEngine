@@ -23,10 +23,10 @@ class IDatasmithMeshElement;
 class IDatasmithScene;
 class IDatasmithUEPbrMaterialElement;
 
-class ActorData  //#ueent_CAD
+class FActorData
 {
 public:
-	ActorData(const TCHAR* NodeUuid, const ActorData& ParentData)
+	FActorData(const TCHAR* NodeUuid, const FActorData& ParentData)
 		: Uuid(NodeUuid)
 		, Inheritance(ParentData.Inheritance)
 		, MaterialUId(ParentData.MaterialUId)
@@ -34,7 +34,7 @@ public:
 	{
 	}
 
-	ActorData(const TCHAR* NodeUuid)
+	FActorData(const TCHAR* NodeUuid)
 		: Uuid(NodeUuid)
 		, Inheritance(CADLibrary::ECADGraphicPropertyInheritance::Unset)
 		, MaterialUId(0)
@@ -46,10 +46,10 @@ public:
 	CADLibrary::ECADGraphicPropertyInheritance Inheritance = CADLibrary::ECADGraphicPropertyInheritance::Unset;
 	FMaterialUId MaterialUId;
 	FMaterialUId ColorUId;
+
+	uint32 SceneGraphId = 0;
+	TArray<FCadId> OverridenChildren;
 };
-
-
-
 
 class DATASMITHCADTRANSLATOR_API FDatasmithSceneBaseGraphBuilder
 {
@@ -66,12 +66,14 @@ public:
 	virtual bool Build();
 
 protected:
-	TSharedPtr<IDatasmithActorElement> BuildInstance(FCadId InstanceId, const ActorData& ParentData);
-	TSharedPtr<IDatasmithActorElement> BuildReference(CADLibrary::FArchiveReference& Reference, const ActorData& ParentData);
-	TSharedPtr<IDatasmithActorElement> BuildBody(FCadId BodyId, const ActorData& ParentData);
+	TSharedPtr<IDatasmithActorElement> BuildInstance(FCadId InstanceId, const FActorData& ParentData);
+	TSharedPtr<IDatasmithActorElement> BuildReference(CADLibrary::FArchiveReference& Reference, const FActorData& ParentData);
+	TSharedPtr<IDatasmithActorElement> BuildBody(FCadId BodyId, const FActorData& ParentData);
+
+	void OverrideInstance(CADLibrary::FArchiveOverrideOccurrence* OverrideOccurrence, CADLibrary::FArchiveInstance& Instance, FActorData& InstanceData);
 
 	void AddMetaData(TSharedPtr<IDatasmithActorElement> ActorElement, const CADLibrary::FArchiveCADObject& Instance, const CADLibrary::FArchiveCADObject& Reference);
-	void AddChildren(TSharedPtr<IDatasmithActorElement> Actor, const CADLibrary::FArchiveReference& Reference, const ActorData& ParentData);
+	void AddChildren(TSharedPtr<IDatasmithActorElement> Actor, const CADLibrary::FArchiveReference& Reference, const FActorData& ParentData);
 	bool DoesActorHaveChildrenOrIsAStaticMesh(const TSharedPtr< IDatasmithActorElement >& ActorElement);
 
 	TSharedPtr<IDatasmithUEPbrMaterialElement> GetDefaultMaterial();

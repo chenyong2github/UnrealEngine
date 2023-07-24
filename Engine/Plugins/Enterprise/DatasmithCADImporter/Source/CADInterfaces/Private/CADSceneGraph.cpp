@@ -15,11 +15,8 @@ FArchive& operator<<(FArchive& Ar, FArchiveCADObject& Object)
 	Ar << Object.Label;
 	Ar << Object.MetaData;
 	Ar << Object.TransformMatrix;
-	Ar << Object.ColorUId;
-	Ar << Object.MaterialUId;
-	Ar << Object.bIsRemoved;
-	Ar << Object.Inheritance;
 	Ar << Object.Unit;
+	Ar << (FArchiveGraphicProperties&) Object;
 	return Ar;
 }
 
@@ -36,7 +33,7 @@ bool FArchiveCADObject::SetNameWithAttributeValue(const TCHAR* Key)
 
 FArchive& operator<<(FArchive& Ar, FArchiveInstance& Instance) 
 {
-	Ar << (FArchiveCADObject&) Instance;
+	Ar << (FArchiveWithOverridenChildren&) Instance;
 	Ar << Instance.ReferenceNodeId;
 	Ar << Instance.bIsExternalReference;
 	return Ar;
@@ -56,7 +53,20 @@ FArchive& operator<<(FArchive& Ar, FArchiveUnloadedReference& Unloaded)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FArchiveBody& Body) 
+FArchive& operator<<(FArchive& Ar, FArchiveOverrideOccurrence& OverrideOccurrence)
+{
+	Ar << (FArchiveWithOverridenChildren&) OverrideOccurrence;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FArchiveWithOverridenChildren& WithOverridenChildren)
+{
+	Ar << (FArchiveCADObject&) WithOverridenChildren;
+	Ar << WithOverridenChildren.OverridenChildren;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FArchiveBody& Body)
 {
 	Ar << (FArchiveCADObject&) Body;
 	Ar << Body.MaterialFaceSet;
@@ -86,6 +96,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveMaterial& Material)
 
 FArchive& operator<<(FArchive& Ar, FArchiveSceneGraph& SceneGraph)
 {
+	Ar << SceneGraph.SceneGraphId;
 	Ar << SceneGraph.CADFileName;
 	Ar << SceneGraph.ArchiveFileName;
 	Ar << SceneGraph.FullPath;
@@ -97,6 +108,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveSceneGraph& SceneGraph)
 	Ar << SceneGraph.Instances;
 	Ar << SceneGraph.References;
 	Ar << SceneGraph.UnloadedReferences;
+	Ar << SceneGraph.OverrideOccurrences;
 	Ar << SceneGraph.Bodies;
 
 	Ar << SceneGraph.CADIdToIndex;
@@ -135,7 +147,7 @@ FArchiveInstance& FArchiveSceneGraph::AddInstance(const FArchiveCADObject& Paren
 	return Instances[Index];
 }
 
-FArchiveInstance& FArchiveSceneGraph::GetInstance(FCadId CadId)
+FArchiveInstance& FArchiveSceneGraph::GetInstance(const FCadId CadId)
 {
 	ensure(CADIdToIndex.IsValidIndex(CadId));
 	const int32 Index = CADIdToIndex[CadId];
@@ -199,7 +211,7 @@ FArchiveReference& FArchiveSceneGraph::AddReference(FArchiveInstance& Parent)
 	return References[Index];
 }
 
-FArchiveReference& FArchiveSceneGraph::AddOccurence(FArchiveReference& Parent)
+FArchiveReference& FArchiveSceneGraph::AddOccurrence(FArchiveReference& Parent)
 {
 	FArchiveInstance& Instance = AddInstance(Parent);
 	Parent.AddChild(Instance.Id);
@@ -208,14 +220,14 @@ FArchiveReference& FArchiveSceneGraph::AddOccurence(FArchiveReference& Parent)
 	return Reference;
 }
 
-void FArchiveSceneGraph::RemoveLastOccurence()
+void FArchiveSceneGraph::RemoveLastOccurrence()
 {
 	RemoveLastReference();
 	RemoveLastInstance();
 }
 
 
-FArchiveReference& FArchiveSceneGraph::GetReference(FCadId CadId)
+FArchiveReference& FArchiveSceneGraph::GetReference(const FCadId CadId)
 {
 	ensure(CADIdToIndex.IsValidIndex(CadId));
 	const int32 Index = CADIdToIndex[CadId];
@@ -223,7 +235,7 @@ FArchiveReference& FArchiveSceneGraph::GetReference(FCadId CadId)
 	return References[Index];
 }
 
-bool FArchiveSceneGraph::IsAReference(FCadId CadId) const
+bool FArchiveSceneGraph::IsAReference(const FCadId CadId) const
 {
 	if (!CADIdToIndex.IsValidIndex(CadId))
 	{
@@ -246,6 +258,11 @@ void FArchiveSceneGraph::RemoveLastReference()
 
 	References.SetNum(References.Num() - 1, false);
 	CADIdToIndex.SetNum(CADIdToIndex.Num() - 1, false);
+}
+
+void FArchiveWithOverridenChildren::AddOverridenChild(const FCadId ChildId)
+{
+	OverridenChildren.Add(ChildId);
 }
 
 void FArchiveReference::AddChild(const FCadId ChildId)
@@ -309,7 +326,7 @@ FArchiveUnloadedReference& FArchiveSceneGraph::AddUnloadedReference(FArchiveInst
 	return UnloadedReferences[Index];
 }
 
-FArchiveUnloadedReference& FArchiveSceneGraph::GetUnloadedReference(FCadId CadId)
+FArchiveUnloadedReference& FArchiveSceneGraph::GetUnloadedReference(const FCadId CadId)
 {
 	ensure(CADIdToIndex.IsValidIndex(CadId));
 	const int32 Index = CADIdToIndex[CadId];
@@ -317,7 +334,27 @@ FArchiveUnloadedReference& FArchiveSceneGraph::GetUnloadedReference(FCadId CadId
 	return UnloadedReferences[Index];
 }
 
-bool FArchiveSceneGraph::IsAUnloadedReference(FCadId CadId) const
+FArchiveOverrideOccurrence& FArchiveSceneGraph::AddOverrideOccurrence(FArchiveWithOverridenChildren& Parent)
+{
+	ensure(OverrideOccurrences.Num() < OverrideOccurrences.Max());
+
+	const int32 ReferenceId = LastEntityId++;
+
+	int32 Index = OverrideOccurrences.Emplace(ReferenceId, Parent);
+	CADIdToIndex.Add(Index);
+
+	return OverrideOccurrences[Index];
+}
+
+FArchiveOverrideOccurrence& FArchiveSceneGraph::GetOverrideOccurrence(const FCadId CadId)
+{
+	ensure(CADIdToIndex.IsValidIndex(CadId));
+	const int32 Index = CADIdToIndex[CadId];
+	ensure(OverrideOccurrences.IsValidIndex(Index));
+	return OverrideOccurrences[Index];
+}
+
+bool FArchiveSceneGraph::IsAUnloadedReference(const FCadId CadId) const
 {
 	if (!CADIdToIndex.IsValidIndex(CadId))
 	{
@@ -353,7 +390,7 @@ FArchiveBody& FArchiveSceneGraph::AddBody(FArchiveReference& Parent, EMesher InM
 	return Bodies[Index];
 }
 
-FArchiveBody& FArchiveSceneGraph::GetBody(FCadId CadId)
+FArchiveBody& FArchiveSceneGraph::GetBody(const FCadId CadId)
 {
 	ensure(CADIdToIndex.IsValidIndex(CadId));
 	const int32 Index = CADIdToIndex[CadId];
@@ -361,7 +398,7 @@ FArchiveBody& FArchiveSceneGraph::GetBody(FCadId CadId)
 	return Bodies[Index];
 }
 
-bool FArchiveSceneGraph::IsABody(FCadId CadId) const
+bool FArchiveSceneGraph::IsABody(const FCadId CadId) const
 {
 	if (!CADIdToIndex.IsValidIndex(CadId))
 	{
@@ -387,11 +424,6 @@ void FArchiveSceneGraph::RemoveLastBody()
 
 void FArchiveSceneGraph::AddExternalReferenceFile(const FArchiveUnloadedReference& Reference)
 {
-	if (Reference.ExternalFile.GetFileName().IsEmpty())
-	{
-		return;
-	}
-
 	const int32 Index = CADIdToIndex[Reference.Id];
 	ensure(ExternalReferenceFiles.Add(Reference.ExternalFile) == Index);
 }

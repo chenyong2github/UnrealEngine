@@ -38,8 +38,6 @@ public:
 	FString Label;
 	TMap<FString, FString> MetaData;
 	FMatrix TransformMatrix = FMatrix::Identity;
-
-	// not serialized
 	double Unit = 1;
 
 	bool IsNameDefined() const
@@ -51,12 +49,57 @@ public:
 
 };
 
-class CADINTERFACES_API FArchiveInstance : public FArchiveCADObject
+class CADINTERFACES_API FArchiveWithOverridenChildren : public FArchiveCADObject
+{
+public:
+	FArchiveWithOverridenChildren() = default;
+	FArchiveWithOverridenChildren(FCadId Id, const FArchiveCADObject& Parent)
+		: FArchiveCADObject(Id, Parent)
+	{
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FArchiveWithOverridenChildren& C);
+
+	void AddOverridenChild(const FCadId ChildId);
+
+public:
+	TArray<FCadId> OverridenChildren;
+};
+
+/**
+ * This class save the override data of an occurrence. 
+ * Indeed, some tools/formats allows to override some occurrences of the instances of a reference (e.g. only the 4th occurrence of C is hidden in the graph below)
+ * 
+ *     A
+ *     | - B
+ *     |   | - C (show)
+ *     |   | - C (show)
+ *     | 
+ *     | - B
+ *     |   | - C (show)
+ *     |   | - C (hide)
+ */
+class CADINTERFACES_API FArchiveOverrideOccurrence : public FArchiveWithOverridenChildren
+{
+public:
+	FArchiveOverrideOccurrence() = default;
+	FArchiveOverrideOccurrence(FCadId Id, const FArchiveCADObject& Parent)
+		: FArchiveWithOverridenChildren(Id, Parent)
+	{
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FArchiveOverrideOccurrence& C);
+};
+
+/**
+ * An instance is link to its reference but It also save its tree of override occurrence children
+ */
+class CADINTERFACES_API FArchiveInstance : public FArchiveWithOverridenChildren
 {
 public:
 	FArchiveInstance() = default;
 	FArchiveInstance(FCadId Id, const FArchiveCADObject& Parent)
-		: FArchiveCADObject(Id, Parent)
+		: FArchiveWithOverridenChildren(Id, Parent)
 	{
 	}
 
@@ -179,6 +222,7 @@ public:
 	void DeserializeMockUpFile(const TCHAR* Filename);
 
 public:
+	uint32 SceneGraphId = 0;
 	FString CADFileName;
 	FString ArchiveFileName;
 	FString FullPath;
@@ -191,6 +235,7 @@ public:
 	TArray<FArchiveUnloadedReference> UnloadedReferences;
 	TArray<FFileDescriptor> ExternalReferenceFiles;
 	TArray<FArchiveInstance> Instances;
+	TArray<FArchiveOverrideOccurrence> OverrideOccurrences;
 
 	TArray<int32> CADIdToIndex;
 	FCadId LastEntityId = 1;
@@ -206,33 +251,38 @@ public:
 		ExternalReferenceFiles.Reserve(ComponentCount[EComponentType::Reference]);
 		Bodies.Reserve(ComponentCount[EComponentType::Body]);
 
-		CADIdToIndex.Reserve(ComponentCount[EComponentType::Instance] + ComponentCount[EComponentType::Reference] + ComponentCount[EComponentType::Body] + 1);
+		OverrideOccurrences.Reserve(ComponentCount[EComponentType::OverriddeOccurence]);
+
+		CADIdToIndex.Reserve(ComponentCount[EComponentType::OverriddeOccurence] + ComponentCount[EComponentType::Instance] + ComponentCount[EComponentType::Reference] + ComponentCount[EComponentType::Body] + 1);
 		CADIdToIndex.Add(0);
 	}
 
 	FArchiveInstance& AddInstance(const FArchiveCADObject& Parent);
-	FArchiveInstance& GetInstance(FCadId CadId);
+	FArchiveInstance& GetInstance(const FCadId CadId);
 	void RemoveLastInstance();
-	bool IsAInstance(FCadId CadId) const;
+	bool IsAInstance(const FCadId CadId) const;
 
 	FArchiveReference& AddReference(FArchiveUnloadedReference&);
 	FArchiveReference& AddReference(FArchiveInstance& Parent);
-	FArchiveReference& GetReference(FCadId CadId);
+	FArchiveReference& GetReference(const FCadId CadId);
 	void RemoveLastReference();
 	bool IsAReference(FCadId CadId) const;
 
-	FArchiveReference& AddOccurence(FArchiveReference& Parent);
-	void RemoveLastOccurence();
+	FArchiveReference& AddOccurrence(FArchiveReference& Parent);
+	void RemoveLastOccurrence();
 
 	FArchiveUnloadedReference& AddUnloadedReference(FArchiveInstance& Parent);
-	FArchiveUnloadedReference& GetUnloadedReference(FCadId CadId);
+	FArchiveUnloadedReference& GetUnloadedReference(const FCadId CadId);
 	void RemoveLastUnloadedReference();
-	bool IsAUnloadedReference(FCadId CadId) const;
+	bool IsAUnloadedReference(const FCadId CadId) const;
+
+	FArchiveOverrideOccurrence& AddOverrideOccurrence(FArchiveWithOverridenChildren& Parent);
+	FArchiveOverrideOccurrence& GetOverrideOccurrence(const FCadId CadId);
 
 	FArchiveBody& AddBody(FArchiveReference& Parent, EMesher InMesher);
-	FArchiveBody& GetBody(FCadId CadId);
+	FArchiveBody& GetBody(const FCadId CadId);
 	void RemoveLastBody();
-	bool IsABody(FCadId CadId) const;
+	bool IsABody(const FCadId CadId) const;
 
 	void AddExternalReferenceFile(const FArchiveUnloadedReference& Reference);
 

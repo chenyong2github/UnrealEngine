@@ -24,6 +24,7 @@ class FArchiveMaterial;
 class FArchiveReference;
 class FArchiveSceneGraph;
 class FArchiveUnloadedReference;
+class FArchiveWithOverridenChildren;
 class FCADFileData;
 
 class FTechSoftFileParser : public ICADFileParser
@@ -79,6 +80,7 @@ private:
 	void CountUnderPartDefinition(const A3DAsmPartDefinition* PartDefinition);
 	void CountUnderRepresentationItem(const A3DRiRepresentationItem* RepresentationItem);
 	void CountUnderRepresentationSet(const A3DRiSet* RepresentationSet);
+	void CountUnderOverrideOccurrence(const A3DAsmProductOccurrence* Occurrence);
 
 	void ReserveCADFileData();
 
@@ -112,13 +114,18 @@ private:
 	// MetaData
 	void ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FArchiveCADObject& OutMetaData);
 
-	void BuildInstanceName(FArchiveInstance& MetaData, const FArchiveReference& Parent);
+	void BuildInstanceName(FArchiveCADObject& MetaData, const FArchiveReference& Parent);
 	void BuildReferenceName(FArchiveCADObject& Reference);
 	void BuildPartName(FArchiveCADObject& Part);
 	void BuildBodyName(FArchiveBody& MetaData, const FArchiveReference& Parent);
 	void BuildRepresentationSetName(FArchiveCADObject& MetaData, const FArchiveReference& Parent);
-	// Graphic properties
+
 	void ExtractGraphicProperties(const A3DGraphics* Graphics, FArchiveCADObject& OutMetaData);
+
+	/**
+	 * Recursive method to extract the subtree of override occurrences of the children tree of an instance 
+	 */
+	void ExtractOverrideOccurrenceSubtree(const A3DAsmProductOccurrence* OccurrencePtr, FArchiveWithOverridenChildren& Parent);
 
 	/**
 	 * ColorName and MaterialName have to be initialized before.

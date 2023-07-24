@@ -220,7 +220,7 @@ void SetIOOption(A3DImport& Importer)
 	Importer.m_sLoadData.m_sGeneral.m_bReadWireframes = A3D_FALSE;
 	Importer.m_sLoadData.m_sGeneral.m_bReadPmis = A3D_FALSE;
 	Importer.m_sLoadData.m_sGeneral.m_bReadAttributes = A3D_TRUE;
-	Importer.m_sLoadData.m_sGeneral.m_bReadHiddenObjects = A3D_FALSE;
+	Importer.m_sLoadData.m_sGeneral.m_bReadHiddenObjects = A3D_TRUE;
 	Importer.m_sLoadData.m_sGeneral.m_bReadConstructionAndReferences = A3D_FALSE;
 	Importer.m_sLoadData.m_sGeneral.m_bReadActiveFilter = A3D_FALSE;
 	Importer.m_sLoadData.m_sGeneral.m_eReadingMode2D3D = kA3DRead_3D;
@@ -639,6 +639,7 @@ void FTechSoftFileParser::CountUnderModel()
 		else
 		{
 			CountUnderOccurrence(ModelFileData->m_ppPOccurrences[Index]);
+			CountUnderOverrideOccurrence(ModelFileData->m_ppPOccurrences[Index]);
 		}
 	}
 
@@ -734,7 +735,7 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 
 	if (ConfigurationToLoad.IsEmpty())
 	{
-		// no default configuration, traverse the first occurence
+		// no default configuration, traverse the first occurrence
 		for (unsigned int Index = 0; Index < ConfigurationSetData->m_uiPOccurrencesSize; ++Index)
 		{
 			ConfigurationData.FillFrom(ConfigurationSetData->m_ppPOccurrences[Index]);
@@ -790,6 +791,7 @@ void FTechSoftFileParser::CountUnderConfigurationSet(const A3DAsmProductOccurren
 			if (bIsConfigurationToLoad)
 			{
 				CountUnderOccurrence(ConfigurationSetData->m_ppPOccurrences[Index]);
+				CountUnderOverrideOccurrence(ConfigurationSetData->m_ppPOccurrences[Index]);
 				return;
 			}
 		}
@@ -809,6 +811,7 @@ void FTechSoftFileParser::CountUnderConfigurationSet(const A3DAsmProductOccurren
 			if (ConfigurationData->m_uiProductFlags & A3D_PRODUCT_FLAG_CONFIG)
 			{
 				CountUnderOccurrence(ConfigurationSetData->m_ppPOccurrences[Index]);
+				CountUnderOverrideOccurrence(ConfigurationSetData->m_ppPOccurrences[Index]);
 			}
 		}
 	}
@@ -868,7 +871,7 @@ void FTechSoftFileParser::ProcessUnloadedReference(const FArchiveInstance& Insta
 
 void FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* OccurrencePtr, FArchiveReference& ParentReference)
 {
-	// first product occurence with m_pPart != nullptr || m_uiPOccurrencesSize > 0
+	// first product occurrence with m_pPart != nullptr || m_uiPOccurrencesSize > 0
 	const A3DAsmProductOccurrence* CachedOccurrencePtr = OccurrencePtr;
 	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(OccurrencePtr);
 	if (!OccurrenceData.IsValid())
@@ -889,7 +892,7 @@ void FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Occu
 	ExtractMetaData(OccurrencePtr, Instance);
 	Instance.DefineGraphicsPropertiesFromNoOverwrite(ParentReference);
 
-	if (Instance.bIsRemoved || !Instance.bShow)
+	if (Instance.bIsRemoved)
 	{
 		SceneGraph.RemoveLastInstance();
 		return;
@@ -977,6 +980,48 @@ void FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Occu
 	if(ReferencePtr)
 	{
 		ReferenceCache.Add(ReferencePtr, Instance.ReferenceNodeId);
+	}
+
+	for (uint32 Index = 0; Index < OccurrenceData->m_uiPOccurrencesSize; ++Index)
+	{
+		ExtractOverrideOccurrenceSubtree(OccurrenceData->m_ppPOccurrences[Index], Instance);
+	}
+}
+
+void FTechSoftFileParser::ExtractOverrideOccurrenceSubtree(const A3DAsmProductOccurrence* OccurrencePtr, FArchiveWithOverridenChildren& Parent)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(OccurrencePtr);
+
+	FArchiveOverrideOccurrence& OverrideOccurrence = SceneGraph.AddOverrideOccurrence(Parent);
+	ExtractMetaData(OccurrencePtr, OverrideOccurrence);
+
+	Parent.AddOverridenChild(OverrideOccurrence.Id);
+
+	FArchiveReference Reference;
+	BuildInstanceName(OverrideOccurrence, Reference);
+
+	A3DMiscTransformation* Transform = OccurrenceData->m_pLocation;
+	ExtractTransformation(Transform, OverrideOccurrence);
+
+	for (uint32 Index = 0; Index < OccurrenceData->m_uiPOccurrencesSize; ++Index)
+	{
+		ExtractOverrideOccurrenceSubtree(OccurrenceData->m_ppPOccurrences[Index], OverrideOccurrence);
+	}
+}
+
+void FTechSoftFileParser::CountUnderOverrideOccurrence(const A3DAsmProductOccurrence* Occurrence)
+{
+	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
+	if (Occurrence && OccurrenceData.IsValid())
+	{
+		ComponentCount[EComponentType::OverriddeOccurence]++;
+
+		uint32 ChildrenCount = OccurrenceData->m_uiPOccurrencesSize;
+		A3DAsmProductOccurrence** Children = OccurrenceData->m_ppPOccurrences;
+		for (uint32 Index = 0; Index < ChildrenCount; ++Index)
+		{
+			CountUnderOverrideOccurrence(Children[Index]);
+		}
 	}
 }
 
@@ -1083,6 +1128,7 @@ void FTechSoftFileParser::CountUnderOccurrence(const A3DAsmProductOccurrence* Oc
 		for (uint32 Index = 0; Index < ChildrenCount; ++Index)
 		{
 			CountUnderOccurrence(Children[Index]);
+			CountUnderOverrideOccurrence(Children[Index]);
 		}
 	}
 }
@@ -1262,7 +1308,7 @@ void FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* Representati
 	}
 
 	FCadId RepresentationSetId = 0;
-	FArchiveReference& RepresentationSet = SceneGraph.AddOccurence(Parent);
+	FArchiveReference& RepresentationSet = SceneGraph.AddOccurrence(Parent);
 	ExtractMetaData(RepresentationSetPtr, RepresentationSet);
 	RepresentationSet.DefineGraphicsPropertiesFromNoOverwrite(Parent);
 	BuildRepresentationSetName(RepresentationSet, Parent);
@@ -1270,7 +1316,7 @@ void FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* Representati
 	if (RepresentationSet.bIsRemoved || !RepresentationSet.bShow)
 	{
 		Parent.RemoveLastChild();
-		SceneGraph.RemoveLastOccurence();
+		SceneGraph.RemoveLastOccurrence();
 		return;
 	}
 
@@ -1425,7 +1471,7 @@ void FTechSoftFileParser::BuildReferenceName(FArchiveCADObject& ReferenceData)
 	}
 }
 
-void FTechSoftFileParser::BuildInstanceName(FArchiveInstance& InstanceData, const FArchiveReference& Parent)
+void FTechSoftFileParser::BuildInstanceName(FArchiveCADObject& InstanceData, const FArchiveReference& Parent)
 {
 	TMap<FString, FString>& MetaData = InstanceData.MetaData;
 

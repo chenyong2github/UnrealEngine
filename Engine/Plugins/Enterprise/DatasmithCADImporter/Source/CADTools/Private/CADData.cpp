@@ -51,6 +51,16 @@ FMaterialUId BuildMaterialUId(const FCADMaterial& Material)
 	return FMath::Abs((int32)MaterialUId);
 }
 
+FArchive& operator<<(FArchive& Ar, FArchiveGraphicProperties& Object)
+{
+	Ar << Object.ColorUId;
+	Ar << Object.MaterialUId;
+	Ar << Object.bIsRemoved;
+	Ar << Object.bShow;
+	Ar << Object.Inheritance;
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FCADMaterial& Material)
 {
 	Ar << Material.MaterialName;
@@ -242,13 +252,15 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 	}
 	else if (Extension == TEXT("iam"))
 	{
+		// Importer.m_sLoadData.m_sIncremental not supported
 		Format = ECADFormat::INVENTOR;
-		bCanReferenceOtherFiles = true;
+		bCanReferenceOtherFiles = false;
 	}
 	else if (Extension == TEXT("jt"))
 	{
+		// Importer.m_sLoadData.m_sIncremental not supported
 		Format = ECADFormat::JT;
-		bCanReferenceOtherFiles = true;
+		bCanReferenceOtherFiles = false;
 	}
 	else if (Extension == TEXT("model"))
 	{
@@ -302,6 +314,7 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 	}
 	else if (Extension == TEXT("3dxml") || Extension == TEXT("3drep"))
 	{
+		// Importer.m_sLoadData.m_sIncremental not supported
 		Format = ECADFormat::CATIA_3DXML;
 		bCanReferenceOtherFiles = false;
 	}
@@ -323,7 +336,7 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 	else if (Extension == TEXT("ifc") || Extension == TEXT("ifczip"))
 	{
 		Format = ECADFormat::IFC;
-		bCanReferenceOtherFiles = false;
+		bCanReferenceOtherFiles = true;
 	}
 	else if (Extension == TEXT("dgn"))
 	{

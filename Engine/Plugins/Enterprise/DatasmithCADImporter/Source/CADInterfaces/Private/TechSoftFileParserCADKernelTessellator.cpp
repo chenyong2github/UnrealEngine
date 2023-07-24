@@ -54,13 +54,13 @@ void FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes);
 
 	int32 RepresentationCount = RepresentationItemsCache.Num();
-	TMap<FCadId, TArray<A3DRiRepresentationItem*>> OccurenceIdToRepresentations;
+	TMap<FCadId, TArray<A3DRiRepresentationItem*>> OccurrenceIdToRepresentations;
 	for (TPair<A3DRiRepresentationItem*, FCadId>& Entry : RepresentationItemsCache)
 	{
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
 		FArchiveBody& Body = SceneGraph.GetBody(Entry.Value);
 
-		TArray<A3DRiRepresentationItem*>& Representations = OccurenceIdToRepresentations.FindOrAdd(Body.ParentId);
+		TArray<A3DRiRepresentationItem*>& Representations = OccurrenceIdToRepresentations.FindOrAdd(Body.ParentId);
 		if (Representations.Max() == 0)
 		{
 			Representations.Reserve(RepresentationCount);
@@ -69,7 +69,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes()
 		Representations.Add(RepresentationItemPtr);
 	}
 
-	for (TPair<FCadId, TArray<A3DRiRepresentationItem*>>& Representations : OccurenceIdToRepresentations)
+	for (TPair<FCadId, TArray<A3DRiRepresentationItem*>>& Representations : OccurrenceIdToRepresentations)
 	{
 		SewAndMesh(Representations.Value);
 		if (bConvertionFailed)
