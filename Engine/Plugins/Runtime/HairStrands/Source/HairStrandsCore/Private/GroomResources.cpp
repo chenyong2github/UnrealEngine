@@ -1159,6 +1159,7 @@ void FHairStrandsRestResource::InternalRelease()
 	TangentBuffer.Release();
 	CurveBuffer.Release();
 	MaxAvailableCurveCount = 0;
+	CachedTangentPointCount = 0;
 }
 
 void FHairStrandsRestResource::InternalResetLoadedSize()
