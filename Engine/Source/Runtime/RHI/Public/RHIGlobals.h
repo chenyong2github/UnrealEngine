@@ -551,6 +551,9 @@ struct FRHIGlobals
 	/** True if the pipeline file cache can be used with this RHI */
 	bool SupportsPipelineFileCache = false;
 
+	/** True if the RHI support PSO precaching */
+	bool SupportsPSOPrecaching = false;
+
 	/** True if the RHI supports setting the stencil ref at pixel granularity from the pixel shader */
 	bool SupportsStencilRefFromPixelShader = false;
 
@@ -741,6 +744,7 @@ extern RHI_API FRHIGlobals GRHIGlobals;
 #define GRHIPresentCounter                                     GRHIGlobals.PresentCounter
 #define GRHISupportsArrayIndexFromAnyShader                    GRHIGlobals.SupportsArrayIndexFromAnyShader
 #define GRHISupportsPipelineFileCache                          GRHIGlobals.SupportsPipelineFileCache
+#define GRHISupportsPSOPrecaching                              GRHIGlobals.SupportsPSOPrecaching
 #define GRHISupportsStencilRefFromPixelShader                  GRHIGlobals.SupportsStencilRefFromPixelShader
 #define GRHISupportsConservativeRasterization                  GRHIGlobals.SupportsConservativeRasterization
 #define GRHISupportsMeshShadersTier0                           GRHIGlobals.SupportsMeshShadersTier0

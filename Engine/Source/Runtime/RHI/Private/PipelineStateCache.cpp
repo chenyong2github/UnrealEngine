@@ -121,7 +121,7 @@ static TAutoConsoleVariable<int32> CVarRTPSOCacheSize(
 );
 #endif // RHI_RAYTRACING
 
-int32 GPSOPrecaching = 0;
+int32 GPSOPrecaching = 1;
 static FAutoConsoleVariableRef CVarPSOPrecaching(
 	TEXT("r.PSOPrecaching"),
 	GPSOPrecaching,
@@ -2685,7 +2685,7 @@ bool PipelineStateCache::IsPSOPrecachingEnabled()
 	// Disables in the editor for now by default untill more testing is done - still WIP
 	return false;
 #else
-	return GPSOPrecaching != 0 && GRHISupportsPipelineFileCache;
+	return GPSOPrecaching != 0 && GRHISupportsPSOPrecaching;
 #endif // WITH_EDITOR
 }
 

@@ -64,7 +64,7 @@ static FAutoConsoleVariableRef CVarPSOPrecacheResources(
 	ECVF_ReadOnly
 );
 
-int32 GPSOProxyCreationWhenPSOReady = 0;
+int32 GPSOProxyCreationWhenPSOReady = 1;
 static FAutoConsoleVariableRef CVarPSOProxyCreationWhenPSOReady(
 	TEXT("r.PSOPrecache.ProxyCreationWhenPSOReady"),
 	GPSOProxyCreationWhenPSOReady,
