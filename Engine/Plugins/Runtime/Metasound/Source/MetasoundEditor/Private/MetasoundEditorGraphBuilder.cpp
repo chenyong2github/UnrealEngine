@@ -1090,10 +1090,22 @@ namespace Metasound
 							}
 						}
 					}
-					
+
 					if (!bObjectFound)
 					{
-						OutDefaultLiteral.Clear();
+						// If the class default literal is the default (type is None), then the literal should be set to that.
+						// However, if the class default literal is set to an object, the literal should be set to a valid, null object.
+						// This is used for reset to default behavior, where an valid object literal with a null value is a separate case
+						// from an inherited cleared default literal. 
+						const FMetasoundFrontendLiteral* ClassDefaultLiteral = InputHandle->GetClassDefaultLiteral();
+						if (ClassDefaultLiteral && ClassDefaultLiteral->GetType() == EMetasoundFrontendLiteralType::None)
+						{
+							OutDefaultLiteral.Clear();	
+						}
+						else
+						{
+							OutDefaultLiteral.Set(static_cast<UObject*>(nullptr));
+						}
 					}
 				}
 				break;

@@ -411,7 +411,11 @@ EMetasoundFrontendLiteralType UMetasoundEditorGraphMemberDefaultObject::GetLiter
 void UMetasoundEditorGraphMemberDefaultObject::SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral)
 {
 	UObject* Object = nullptr;
-	ensure(InLiteral.TryGet(Object));
+	// If default constructed (type is None), then we don't need to try to get the object, and just return nullptr
+	if (InLiteral.GetType() != EMetasoundFrontendLiteralType::None)
+	{
+		ensure(InLiteral.TryGet(Object));
+	}
 	Default.Object = Object;
 }
 
