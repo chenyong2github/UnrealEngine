@@ -4995,7 +4995,7 @@ void CompilerHLSL::emit_access_chain(const Instruction &instruction)
 		auto *backing_variable = maybe_get_backing_variable(ops[2]);
 
 		// UE Change Begin: Support StructuredBuffer in HLSL backend
-		if (is_user_type_structured(backing_variable->self))
+		if (backing_variable != nullptr && is_user_type_structured(backing_variable->self))
 		{
 			CompilerGLSL::emit_instruction(instruction);
 			return;
