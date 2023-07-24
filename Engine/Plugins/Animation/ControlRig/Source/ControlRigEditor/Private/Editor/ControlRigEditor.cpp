@@ -152,12 +152,6 @@ FControlRigEditor::~FControlRigEditor()
 		}
 	}
 
-	if (UWorld* PreviewWorld = GetPersonaToolkit()->GetPreviewScene()->GetWorld())
-	{
-		PreviewWorld->MarkObjectsPendingKill();
-		PreviewWorld->MarkAsGarbage();
-	}
-
 	if (PersonaToolkit.IsValid())
 	{
 		constexpr bool bSetPreviewMeshInAsset = false;
