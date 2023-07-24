@@ -28,7 +28,7 @@ using namespace UE::Geometry;
 #define MESH_BEVEL_DEBUG_ENSURE(Expr) ensure(Expr)
 #else
 #define MESH_BEVEL_DEBUG_CHECK(Expr) 
-#define MESH_BEVEL_DEBUG_ENSURE(Expr) (Expr)
+#define MESH_BEVEL_DEBUG_ENSURE(Expr) !!(Expr)
 #endif
 
 
