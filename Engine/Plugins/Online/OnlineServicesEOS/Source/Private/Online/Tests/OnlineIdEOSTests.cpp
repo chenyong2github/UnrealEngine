@@ -11,7 +11,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAccountIdReplicationTest,
 bool FAccountIdReplicationTest::RunTest(const FString& Parameters)
 {
 	IEOSSDKManager* SDKManager = IEOSSDKManager::Get();
-	if(SDKManager && SDKManager->Initialize() == EOS_EResult::EOS_Success)
+	if(ensure(SDKManager) && ensure(SDKManager->IsInitialized()))
 	{
 		using namespace UE::Online;
 

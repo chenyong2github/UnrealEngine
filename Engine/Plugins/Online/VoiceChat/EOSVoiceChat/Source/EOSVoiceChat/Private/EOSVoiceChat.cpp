@@ -102,8 +102,7 @@ void FEOSVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Ini
 
 			if (!EosPlatformHandle)
 			{
-				EOS_EResult EosResult = SDKManager.Initialize();
-				if (EosResult == EOS_EResult::EOS_Success)
+				if (SDKManager.IsInitialized())
 				{
 					FString ConfigProductId;
 					FString ConfigSandboxId;
@@ -167,7 +166,7 @@ void FEOSVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Ini
 				}
 				else
 				{
-					UE_LOG(LogEOSVoiceChat, Warning, TEXT("FEOSVoiceChat::Initialize SDKManager.Initialize failed"));
+					UE_LOG(LogEOSVoiceChat, Warning, TEXT("FEOSVoiceChat::Initialize SDKManager not initialized"));
 					Result = FVoiceChatResult(EVoiceChatResult::ImplementationError);
 				}
 			}

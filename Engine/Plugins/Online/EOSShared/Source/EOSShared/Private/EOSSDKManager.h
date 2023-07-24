@@ -29,7 +29,9 @@ public:
 	virtual ~FEOSSDKManager();
 
 	// Begin IEOSSDKManager
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual EOS_EResult Initialize() override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool IsInitialized() const override { return bInitialized; }
 
 	virtual const FEOSSDKPlatformConfig* GetPlatformConfig(const FString& PlatformConfigName, bool bLoadIfMissing = false) override;

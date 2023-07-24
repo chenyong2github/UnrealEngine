@@ -147,10 +147,9 @@ void FOnlineSubsystemEOS::ModuleInit()
 	// If a fork is requested, we need to wait for post-fork to init the SDK
 	if (!FForkProcessHelper::IsForkRequested() || FForkProcessHelper::IsForkedChildProcess())
 	{
-		EOS_EResult InitResult = EOSSDKManager->Initialize();
-		if (InitResult != EOS_EResult::EOS_Success)
+		if (!EOSSDKManager->IsInitialized())
 		{
-			UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%d)"), InitResult);
+			UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: EOSSDK not initialized"));
 			return;
 		}
 	}
@@ -281,10 +280,9 @@ bool FOnlineSubsystemEOS::Init()
 		return false;
 	}
 
-	EOS_EResult InitResult = EOSSDKManager->Initialize();
-	if (InitResult != EOS_EResult::EOS_Success)
+	if (!EOSSDKManager->IsInitialized())
 	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%d)"), InitResult);
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: EOSSDK not initialized"));
 		return false;
 	}
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/Fork.h"
 #include "Modules/ModuleInterface.h"
 
 #include "EOSSDKManager.h"
@@ -30,4 +31,5 @@ private:
 	TUniquePtr<FEOSSDKManager> SDKManager;
 #endif
 	TArray<FString> SuppressedLogStrings;
+	FDelegateHandle OnPostForkDelegateHandle;
 };
