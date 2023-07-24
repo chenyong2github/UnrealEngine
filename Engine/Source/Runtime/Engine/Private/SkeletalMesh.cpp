@@ -5217,12 +5217,18 @@ void USkeletalMesh::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeIte
 	// hasn't tested this route, but we don't have retarget base pose if not editor, wonder we should to non-editor soon
 	ensure(false);
 	FAnimationRuntime::FillUpComponentSpaceTransforms(GetRefSkeleton(), GetRefSkeleton().GetRefBonePose(), ComponentSpaceRefPose);
-#endif // 
+#endif //
 
 	const int32 NumJoint = GetRefSkeleton().GetNum();
 	// allocate buffer
 	OutNames.Reset(NumJoint);
 	OutNodeItems.Reset(NumJoint);
+
+	if(ComponentSpaceRefPose.Num() < NumJoint)
+	{
+		// if the mesh's RetargetBasePose is out of whack we should rely on the ref skeleton
+		FAnimationRuntime::FillUpComponentSpaceTransforms(GetRefSkeleton(), GetRefSkeleton().GetRefBonePose(), ComponentSpaceRefPose);
+	}
 
 	if (NumJoint > 0)
 	{
