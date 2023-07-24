@@ -30,6 +30,11 @@
 	#include "Async/TaskGraphFwd.h"
 #endif
 
+namespace mu::MemoryCounters
+{
+	struct FStreamingMemoryCounterTag {};
+	using  FStreamingMemoryCounter = TMemoryCounter<FStreamingMemoryCounterTag>;
+}
 
 namespace  mu
 {
@@ -571,10 +576,12 @@ namespace  mu
 		// Async rom loading control
 		struct FRomLoadOp
 		{
+			using StreamingDataContainerType = TArray<uint8, FDefaultMemoryTrackingAllocator<MemoryCounters::FStreamingMemoryCounter>>;
+
 			int32 m_romIndex = 0;
 			DATATYPE ConstantType = DT_NONE;
 			ModelReader::OPERATION_ID m_streamID;
-			TArray<uint8> m_streamBuffer;
+			StreamingDataContainerType m_streamBuffer;
 		};
 		TArray<FRomLoadOp> m_romLoadOps;
 

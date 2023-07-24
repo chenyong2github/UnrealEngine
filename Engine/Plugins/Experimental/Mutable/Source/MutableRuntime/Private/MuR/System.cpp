@@ -49,6 +49,8 @@ namespace mu
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemPool,		TEXT("MutableRuntime/MemPool"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemCache,		TEXT("MutableRuntime/MemCache"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemRom,		TEXT("MutableRuntime/MemRom"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemImage,		TEXT("MutableRuntime/MemImage"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemMesh,		TEXT("MutableRuntime/MemMesh"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemStream,		TEXT("MutableRuntime/MemStream"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemTotal,		TEXT("MutableRuntime/MemTotal"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemBudget,		TEXT("MutableRuntime/MemBudget"));
@@ -176,12 +178,6 @@ namespace mu
 		m_pD->WorkingMemoryManager.CacheResources.Empty();
 		check(m_pD->WorkingMemoryManager.TempImages.IsEmpty());
 		check(m_pD->WorkingMemoryManager.TempMeshes.IsEmpty());
-
-		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Pooled = 0;
-		//m_pD->WorkingMemoryManager.TrackedBudgetBytes_Temp = 0;
-		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached = 0;
-		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Rom = 0;
-		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Stream = 0;
 	}
 
 	
@@ -441,7 +437,6 @@ namespace mu
 		if (m_pD->WorkingMemoryManager.BudgetBytes == 0)
 		{
 			m_pD->WorkingMemoryManager.PooledImages.Empty();
-			m_pD->WorkingMemoryManager.TrackedBudgetBytes_Pooled = 0;
 		}
 
 	}
@@ -463,12 +458,7 @@ namespace mu
 				{
 					if (Data)
 					{
-						int32 DataSize = Data->GetDataSize();
-						int32 Removed = m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
-						if (Removed)
-						{
-							m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached -= DataSize;
-						}
+						m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
 					}
 				}
 
@@ -476,12 +466,7 @@ namespace mu
 				{
 					if (Data)
 					{
-						int32 DataSize = Data->GetDataSize();
-						int32 Removed = m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
-						if (Removed)
-						{
-							m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached -= DataSize;
-						}
+						m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
 					}
 				}
 
@@ -897,89 +882,41 @@ namespace mu
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+		MUTABLE_CPUPROFILER_SCOPE(LogWorkingMemory);
+
 		// For now, we calculate these for every log. We will later track on resource creation, destruction or state change.
+		// All resource memory is tracked by the memory allocator, but that does not give information about where the memory is
+		// located. Keep the localized memory computation for now.   
 		const uint32 RomBytes = GetRomBytes();
 		const uint32 CacheBytes = GetCacheBytes();
 		const uint32 TrackedCacheBytes = GetTrackedCacheBytes();
 		const uint32 PoolBytes = GetPooledBytes();
 		const uint32 TempBytes = GetTempBytes();
-		uint32 StreamingBufferBytes = 0;
-		uint32 InternalBytes = 0;
 
-		InternalBytes += PooledImages.GetAllocatedSize();
-		InternalBytes += TempImages.GetAllocatedSize();
-		InternalBytes += TempMeshes.GetAllocatedSize();
-		InternalBytes += CacheResources.GetAllocatedSize();
-		InternalBytes += CachePerModel.GetAllocatedSize();
-		InternalBytes += LiveInstances.GetAllocatedSize();
+		// Get allocator counters.
+		const SSIZE_T ImageAllocBytes	 = MemoryCounters::FImageMemoryCounter::Counter.load(std::memory_order_relaxed);
+		const SSIZE_T MeshAllocBytes     = MemoryCounters::FMeshMemoryCounter::Counter.load(std::memory_order_relaxed);
+		const SSIZE_T StreamAllocBytes   = MemoryCounters::FStreamingMemoryCounter::Counter.load(std::memory_order_relaxed);
+		const SSIZE_T InternalAllocBytes = MemoryCounters::FMemoryTrackerInternalMemoryCounter::Counter.load(std::memory_order_relaxed);
 
-		if (CurrentRunner)
-		{
-			// Data reserved for ongoing streaming operations
-			for ( const CodeRunner::FRomLoadOp& Op : CurrentRunner->m_romLoadOps )
-			{
-				StreamingBufferBytes += Op.m_streamBuffer.GetAllocatedSize();
-			}
+		SSIZE_T TotalBytes = ImageAllocBytes + MeshAllocBytes + StreamAllocBytes + InternalAllocBytes;
 
-			InternalBytes += CurrentRunner->GetInternalMemoryBytes();
-		}
+		UE_LOG(LogMutableCore, Log, 
+			TEXT("Mem KB: ImageAlloc %7d, MeshAlloc %7d, StreamAlloc %7d, InternalAlloc %7d,  AllocTotal %7d / %7d. \
+				  Resources MemLoc: Temp %7d, Pool %7d, Cache0+1 %7d (%7d), Rom %7d."),
+			ImageAllocBytes/1024, MeshAllocBytes/1024, StreamAllocBytes/1024, InternalAllocBytes/1024, TotalBytes/1024, BudgetBytes/1024,  
+			TempBytes/1024, PoolBytes/1024, CacheBytes/1024, TrackedCacheBytes/1024, RomBytes/1024);
 
-		TArray<const Model*> Models;
-		for (const FLiveInstance& Instance: LiveInstances)
-		{
-			Models.AddUnique(Instance.Model.Get());
-
-			InternalBytes += Instance.Cache->OpExecutionData.GetAllocatedSize()
-				+ Instance.Cache->ImageResults.GetAllocatedSize()
-				+ Instance.Cache->MeshResults.GetAllocatedSize()
-				+ Instance.Cache->LayoutResults.GetAllocatedSize()
-				+ Instance.Cache->InstanceResults.GetAllocatedSize()
-				+ Instance.Cache->ColorResults.GetAllocatedSize()
-				+ Instance.Cache->ProjectorResults.GetAllocatedSize()
-				+ Instance.Cache->m_usedRangeIndices.GetAllocatedSize();
-
-			for (const FWorkingMemoryManager::FModelCacheEntry& c : CachePerModel)
-			{
-				InternalBytes += c.RomWeights.GetAllocatedSize();
-			}			
-		}
-
-		// Data stored per-model, but related to instance construction
-		for (const FModelCacheEntry& CacheEntry:CachePerModel)
-		{
-			// Keys for resources generated so far
-			for (const FModelCacheEntry::FGeneratedResourceData& Data : CacheEntry.GeneratedResources)
-			{
-				InternalBytes += Data.ParameterValuesBlob.GetAllocatedSize();
-			}
-		}
-
-		uint32 TotalBytes = InternalBytes 
-			+ TempBytes 
-			+ TrackedCacheBytes
-			+ PoolBytes
-			+ StreamingBufferBytes
-			+ RomBytes;
-
-		UE_LOG(LogMutableCore, Log, TEXT("Mem KB: Internal %7d   Temp %7d    Pool %7d (%7d)   Cache0+1 %7d (%7d) (%7d)   Rom %7d (%7d)   Stream %7d (%7d)   Total %7d / %7d"),
-			InternalBytes / 1024,
-			TempBytes / 1024, //TrackedBudgetBytes_Temp / 1024,
-			PoolBytes / 1024, TrackedBudgetBytes_Pooled / 1024,
-			CacheBytes / 1024, TrackedCacheBytes / 1024, TrackedBudgetBytes_Cached / 1024,
-			RomBytes / 1024, TrackedBudgetBytes_Rom / 1024,
-			StreamingBufferBytes / 1024, TrackedBudgetBytes_Stream / 1024,
-			TotalBytes / 1024,
-			BudgetBytes / 1024
-			);
-
-		TRACE_COUNTER_SET(MutableRuntime_MemInternal, InternalBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemTemp, TempBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemPool, PoolBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemCache, TrackedCacheBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemRom, RomBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemStream, StreamingBufferBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemTotal, TotalBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemBudget, BudgetBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemTemp,	  TempBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemPool,     PoolBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemCache,    TrackedCacheBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemRom,      RomBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemInternal, InternalAllocBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemMesh,     MeshAllocBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemImage,    ImageAllocBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemStream,   StreamAllocBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemTotal,    TotalBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemBudget,   BudgetBytes);
 #endif
 	}
 
@@ -1034,7 +971,8 @@ namespace mu
 		FModelCacheEntry n;
         n.Model = TWeakPtr<const Model>(InModel);
 		n.PendingOpsPerRom.SetNum(InModel->GetPrivate()->m_program.m_roms.Num());
-        CachePerModel.Add(n);
+    	n.RomWeights.SetNum(InModel->GetPrivate()->m_program.m_roms.Num());
+    	CachePerModel.Add(n);
         return CachePerModel.Last();
     }
 
@@ -1044,26 +982,10 @@ namespace mu
 	{
 		MUTABLE_CPUPROFILER_SCOPE(GetCurrentMemoryBytes);
 
-		int32 RomBytes = TrackedBudgetBytes_Rom; // GetRomBytes();
-		int32 PoolBytes = TrackedBudgetBytes_Pooled; // GetPooledBytes();
-		int32 TempBytes = GetTempBytes(); // TrackedBudgetBytes_Temp + GetTempMeshesBytes(); 
-		int32 TrackedCacheBytes = TrackedBudgetBytes_Cached; // GetTrackedCacheBytes();
-		int32 TrackedStreamBytes = TrackedBudgetBytes_Stream;
-
-		int64 TotalBytes = 0;
-		TotalBytes += TempBytes;
-		TotalBytes += RomBytes;
-		TotalBytes += PoolBytes;
-		TotalBytes += TrackedCacheBytes;
-		TotalBytes += TrackedStreamBytes;
-
-		TRACE_COUNTER_SET(MutableRuntime_MemTemp, TempBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemPool, PoolBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemCache, TrackedCacheBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemRom, RomBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemStream, TrackedStreamBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemTotal, TotalBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemBudget, BudgetBytes);
+		SSIZE_T TotalBytes = MemoryCounters::FImageMemoryCounter::Counter.load(std::memory_order_relaxed) + 
+						     MemoryCounters::FMeshMemoryCounter::Counter.load(std::memory_order_relaxed) +
+							 MemoryCounters::FStreamingMemoryCounter::Counter.load(std::memory_order_relaxed) +
+							 MemoryCounters::FMemoryTrackerInternalMemoryCounter::Counter.load(std::memory_order_relaxed);
 
 		return TotalBytes;
 	}
@@ -1114,7 +1036,6 @@ namespace mu
 				int32 PooledResourceSize = PooledImages[0]->GetDataSize();
 				TotalBytes -= PooledResourceSize;				
 				PooledImages.RemoveAtSwap(0);
-				TrackedBudgetBytes_Pooled -= PooledResourceSize;
 				bFinished = TotalBytes <= BudgetBytes;
 			}
 		}
@@ -1176,8 +1097,6 @@ namespace mu
 				// UE_LOG(LogMutableCore,Log, "Unloading rom because of memory budget: %d.", lowestPriorityRom);
 				int32 UnloadedSize = Candidate.Value.Model->GetPrivate()->m_program.UnloadRom(Candidate.Value.RomIndex);
 				TotalBytes -= UnloadedSize;
-				TrackedBudgetBytes_Rom -= UnloadedSize;
-
 				bFinished = TotalBytes <= BudgetBytes;
 			}
 		}
@@ -1275,12 +1194,7 @@ namespace mu
 
 							if (Value == Removed)
 							{
-								int32 RemoveCount = CacheResources.Remove(Removed);
-								if (RemoveCount > 0)
-								{
-									TrackedBudgetBytes_Cached -= RemovedDataSize;
-								}
-
+								CacheResources.Remove(Removed);
 								Instance.Cache->SetUnused(*RemIt);
 							}
 						}
@@ -1422,11 +1336,7 @@ namespace mu
 							{
 								MUTABLE_CPUPROFILER_SCOPE(EnsureBudgetBelow_FreeCached_Free_Current_ActualFree);
 
-								int32 RemoveCount = CacheResources.Remove(Removed);
-								if (RemoveCount > 0)
-								{
-									TrackedBudgetBytes_Cached -= RemovedDataSize;
-								}
+								CacheResources.Remove(Removed);
 								CurrentInstanceCache->SetUnused(*RemIt);
 							}
 						}
@@ -1465,8 +1375,6 @@ namespace mu
     {
         check(pModel);
 
-        FProgram& Program = pModel->GetPrivate()->m_program;
-
         // If budget is zero, we don't unload anything here, and we assume it is managed somewhere else.
         if (!BudgetBytes)
         {
@@ -1478,12 +1386,7 @@ namespace mu
         // Update current cache
         {
 			FModelCacheEntry* ModelCache = FindModelCache(pModel.Get());
-
-            if (ModelCache->RomWeights.Num()<Program.m_roms.Num())
-            {
-				ModelCache->RomWeights.SetNumZeroed(Program.m_roms.Num());
-            }
-
+        	
             ModelCache->RomWeights[romIndex].Key++;
             ModelCache->RomWeights[romIndex].Value = RomTick;
         }
@@ -1491,7 +1394,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	static int32 AddMultiValueKeys(TArray<uint8_t>& Blob, int32 pos, const TMap< TArray<int>, PARAMETER_VALUE >& multi)
+	static int32 AddMultiValueKeys(FWorkingMemoryManager::TMemoryTrackedArray<uint8>& Blob, int32 pos, const TMap< TArray<int>, PARAMETER_VALUE >& multi)
 	{
 		Blob.SetNum(pos + 4);
 		uint32 s = uint32(multi.Num());
@@ -1544,7 +1447,7 @@ namespace mu
 		}
 
 		// Generate the relevant parameters blob
-		TArray<uint8> Blob;
+		TMemoryTrackedArray<uint8> Blob;
 		Blob.Reserve(2048);
 		for (int32 ParamIndex : *RelevantParams)
 		{

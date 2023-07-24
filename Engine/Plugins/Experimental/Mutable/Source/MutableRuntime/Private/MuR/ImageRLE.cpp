@@ -280,7 +280,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void CompressRLE_RGBA( int32 width, int32 rows,
                            const uint8* pBaseDataByte,
-                           TArray<uint8>& destData )
+                           Image::ImageDataContainerType& destData )
     {
         // TODO: Support for compression from compressed data size, like L_RLE formats.
         TArray<int8_t> rle;
@@ -432,7 +432,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void CompressRLE_RGB( int32 width, int32 rows,
                           const uint8* pBaseDataByte,
-                          TArray<uint8>& destData )
+                          Image::ImageDataContainerType& destData )
     {
         TArray<int8_t> rle;
         rle.Reserve(  (width*rows) );

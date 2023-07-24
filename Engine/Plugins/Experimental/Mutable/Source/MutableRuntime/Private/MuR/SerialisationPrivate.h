@@ -158,6 +158,30 @@ namespace mu
 		}																\
 		
 
+#define MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(T)									     \
+	template<typename Alloc>                                                             \
+	void operator <<(OutputArchive& arch, const TArray<T, Alloc>& v)					 \
+	{                                                                                    \
+		uint32 Num = uint32(v.Num());													 \
+		arch << Num;																	 \
+		if (Num)																		 \
+		{                                                                                \
+			arch.GetPrivate()->m_pStream->Write(&v[0], Num * sizeof(T));				 \
+		}                                                                                \
+	}                                                                                    \
+	                                                                                     \
+	template<typename Alloc>                                                             \
+	void operator >>(InputArchive& arch, TArray<T, Alloc>& v)                            \
+	{                                                                                    \
+		uint32 Num;																		 \
+		arch >> Num;																	 \
+		v.SetNum(Num);																	 \
+		if (Num)																		 \
+		{                                                                                \
+			arch.GetPrivate()->m_pStream->Read(&v[0], Num * sizeof(T));					 \
+		}                                                                                \
+	}                                                                                    \
+
 	//---------------------------------------------------------------------------------------------
 	// TVariant custom serialize. Based on the default serialization.
 	//---------------------------------------------------------------------------------------------
@@ -311,68 +335,41 @@ namespace mu
 		}
 	}
 
-
-	//---------------------------------------------------------------------------------------------
-#define MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(T)									\
-	template<>																			\
-	void DLLEXPORT operator<< <T>(OutputArchive& arch, const TArray<T>& v)						\
-	{                                                                                   \
-		uint32 Num = uint32(v.Num());													\
-		arch << Num;																	\
-		if (Num)																		\
-		{                                                                               \
-			arch.GetPrivate()->m_pStream->Write(&v[0], Num * sizeof(T));				\
-		}                                                                               \
-	}                                                                                   \
-																						\
-	template<>																			\
-	void DLLEXPORT operator>> <T>(InputArchive& arch, TArray<T>& v)								\
-	{                                                                                   \
-		uint32 Num;																		\
-		arch >> Num;																	\
-		v.SetNum(Num);																	\
-		if (Num)																		\
-		{                                                                               \
-			arch.GetPrivate()->m_pStream->Read(&v[0], Num * sizeof(T));					\
-		}                                                                               \
-	}																					\
-
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(float);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(double);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint8);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint16);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint32);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint64);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int8);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int16);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int32);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int64);
-
 	MUTABLE_DEFINE_POD_SERIALISABLE(vec2f);
 	MUTABLE_DEFINE_POD_SERIALISABLE(vec3f);
 	MUTABLE_DEFINE_POD_SERIALISABLE(mat3f);
 	MUTABLE_DEFINE_POD_SERIALISABLE(mat4f);
 	MUTABLE_DEFINE_POD_SERIALISABLE(vec2<int>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec2f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec3f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(mat3f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(mat4f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec2<int>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(TCHAR);
 
 	// Unreal POD Serializables
 	MUTABLE_DEFINE_POD_SERIALISABLE(FUintVector2);
 	MUTABLE_DEFINE_POD_SERIALISABLE(UE::Math::TIntVector2<uint16>);
 	MUTABLE_DEFINE_POD_SERIALISABLE(UE::Math::TIntVector2<int16>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FUintVector2);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<uint16>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<int16>);
-
 	MUTABLE_DEFINE_POD_SERIALISABLE(FVector4f);
 	MUTABLE_DEFINE_POD_SERIALISABLE(UE::Math::TVector4<float>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FVector4f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TVector4<float>);
 
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(float);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(double);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint8);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint16);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint32);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint64);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int8);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int16);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int32);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int64);
+
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec2f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec3f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(mat3f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(mat4f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec2<int>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(TCHAR);
+
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(FUintVector2);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<uint16>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<int16>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(FVector4f);
 
 	//---------------------------------------------------------------------------------------------
 	template<>

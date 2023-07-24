@@ -346,6 +346,9 @@ namespace mu
     
 	public:
 
+		template<typename Type>
+		using TMemoryTrackedArray = TArray<Type, FDefaultMemoryTrackingAllocator<MemoryCounters::FMeshMemoryCounter>>;
+
 		//! Non-persistent internal id unique for a mesh generated for a specific state and
 		//! parameter values.
 		mutable uint32 m_internalId = 0;
@@ -430,7 +433,7 @@ namespace mu
 		};
 		// This is the pose used by this mesh fragment, used to update the transforms of the final skeleton
 		// taking into consideration the meshes being used.
-		TArray<FBonePose> BonePoses;
+		TMemoryTrackedArray<FBonePose> BonePoses;
 
 		// Array containing the bonemaps of all surfaces in the mesh.
 		TArray<uint16> BoneMap;

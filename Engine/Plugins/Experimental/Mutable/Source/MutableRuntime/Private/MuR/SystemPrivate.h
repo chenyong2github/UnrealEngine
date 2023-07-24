@@ -19,6 +19,11 @@
 #include "HAL/PlatformTLS.h"
 #endif
 
+namespace mu::MemoryCounters
+{
+	struct FMemoryTrackerInternalMemoryCounterTag {};
+	using FMemoryTrackerInternalMemoryCounter = TMemoryCounter<FMemoryTrackerInternalMemoryCounterTag>;
+}
 
 namespace mu
 {
@@ -205,8 +210,11 @@ namespace mu
 	template<class DATA>
 	class CodeContainer
 	{
-	public:
+		using MemoryCounter = MemoryCounters::FMemoryTrackerInternalMemoryCounter;
+		using ArrayDataContainerType = TArray<DATA, FDefaultMemoryTrackingAllocator<MemoryCounter>>;
+		using MapDataContainerType = TMap<FCacheAddress, DATA, FDefaultMemoryTrackingSetAllocator<MemoryCounter>>;
 
+	public:
 		void resize(size_t s)
 		{
 			m_index0.SetNumZeroed(s);
@@ -335,9 +343,10 @@ namespace mu
 		{
 		private:
 			friend class CodeContainer<DATA>;
+
 			const CodeContainer<DATA>* container;
-			typename TArray<DATA>::TIterator it0;
-			typename TMap<FCacheAddress, DATA>::TIterator it1;
+			typename CodeContainer<DATA>::ArrayDataContainerType::TIterator it0;
+			typename CodeContainer<DATA>::MapDataContainerType::TIterator it1;
 
 			iterator(CodeContainer<DATA>* InContainer)
 				: container(InContainer)
@@ -419,13 +428,12 @@ namespace mu
 			return m_index0.GetAllocatedSize()
 				+ m_otherIndex.GetAllocatedSize();
 		}
-
 	private:
 		// For index 0
-		TArray<DATA> m_index0;
+		ArrayDataContainerType m_index0;
 
 		// For index>0
-		TMap<FCacheAddress, DATA> m_otherIndex;
+		MapDataContainerType m_otherIndex;
 	};
 
 
@@ -434,7 +442,12 @@ namespace mu
 	{
 	public:
 
-		TArray< ExecutionIndex, TInlineAllocator<4> > m_usedRangeIndices;
+		using AllocType = FDefaultMemoryTrackingAllocator<MemoryCounters::FMemoryTrackerInternalMemoryCounter>;
+
+		template<class Type, class Alloc = AllocType >
+		using TMemoryTrackedArray = TArray<Type, Alloc>;
+		
+		TMemoryTrackedArray<ExecutionIndex, TInlineAllocator<4, AllocType>> m_usedRangeIndices;
 
 		/** Runtime data for each program op. */
 		struct FOpExecutionData
@@ -469,14 +482,15 @@ namespace mu
 		CodeContainer<FOpExecutionData> OpExecutionData;
 
 		/** */
-		TArray<FVector4f> ColorResults;
-		TArray<Ptr<const Image>> ImageResults;
-		TArray<Ptr<const Layout>> LayoutResults;
-		TArray<Ptr<const Mesh>> MeshResults;
-		TArray<Ptr<const Instance>> InstanceResults;
-		TArray<FProjector> ProjectorResults;
-		TArray<Ptr<const String>> StringResults;
-		TArray<Ptr<const ExtensionData>> ExtensionDataResults;
+
+		TMemoryTrackedArray<FVector4f> ColorResults;
+		TMemoryTrackedArray<Ptr<const Image>> ImageResults;
+		TMemoryTrackedArray<Ptr<const Layout>> LayoutResults;
+		TMemoryTrackedArray<Ptr<const Mesh>> MeshResults;
+		TMemoryTrackedArray<Ptr<const Instance>> InstanceResults;
+		TMemoryTrackedArray<FProjector> ProjectorResults;
+		TMemoryTrackedArray<Ptr<const String>> StringResults;
+		TMemoryTrackedArray<Ptr<const ExtensionData>> ExtensionDataResults;
 
 		/** */
 		inline const ExecutionIndex& GetRangeIndex(uint32_t i)
@@ -1093,6 +1107,14 @@ namespace mu
     /** Struct to manage all the memory allocated for resources used during mutable operation. */
     struct FWorkingMemoryManager
     {
+		using MemoryCounter = MemoryCounters::FMemoryTrackerInternalMemoryCounter;
+
+		template<class Type>
+		using TMemoryTrackedArray = TArray<Type, FDefaultMemoryTrackingAllocator<MemoryCounter>>;
+
+		template<class KeyType, class ValueType>
+		using TMemoryTrackedMap = TMap<KeyType, ValueType, FDefaultMemoryTrackingSetAllocator<MemoryCounter>>;
+
 		/** Cached traking for streamed model data for one model. */
         struct FModelCacheEntry
         {
@@ -1100,10 +1122,10 @@ namespace mu
             TWeakPtr<const Model> Model;
 
             /** For each model rom, the last time its streamed data was used. */
-            TArray< TPair<uint64,uint64> > RomWeights;
+            TMemoryTrackedArray<TPair<uint64, uint64>> RomWeights;
 
 			/** Count of pending operations for every rom index. */
-			TArray<uint16> PendingOpsPerRom;
+			TMemoryTrackedArray<uint16> PendingOpsPerRom;
 
 			//! Management of generated resources
 			//! @{
@@ -1118,7 +1140,7 @@ namespace mu
 				uint32 LastRequestId;
 
 				//! An opaque blob with the values of the relevant parameters
-				TArray<uint8> ParameterValuesBlob;
+				TMemoryTrackedArray<uint8> ParameterValuesBlob;
 			};
 
 			//! The last id generated for a resource
@@ -1130,7 +1152,7 @@ namespace mu
 
 			//! Cached ids for returned assets
 			//! This is non-persistent runtime data
-			TArray<FGeneratedResourceData> GeneratedResources;
+			TMemoryTrackedArray<FGeneratedResourceData> GeneratedResources;
 
 			//! Get a resource key for a given resource with given parameter values.
 			FResourceID GetResourceKey(uint32 ParamListIndex, OP::ADDRESS RootAt, const Parameters*, int32 InMaxResourceKeys);
@@ -1147,34 +1169,28 @@ namespace mu
 		/** Maximum number of resource keys that will be stored for resource reusal. */
 		int32 MaxGeneratedResourceCacheSize = 1024;
 
-		/** Signed ints to account for imprecisions especially with temp.*/
-		int32 TrackedBudgetBytes_Rom = 0;
-		// int32 TrackedBudgetBytes_Temp = 0;
-		int32 TrackedBudgetBytes_Pooled = 0;
-		int32 TrackedBudgetBytes_Cached = 0;
-		int32 TrackedBudgetBytes_Stream = 0;
 
 		/** This value is used to track the order of loading of roms. */
         uint64 RomTick = 0;
 
 		/** Control info for the per-model cache of streamed data. */
-        TArray< FModelCacheEntry > CachePerModel;
+        TMemoryTrackedArray<FModelCacheEntry> CachePerModel;
 
 		/** Data for each mutable instance that is being updated. */
-		TArray<FLiveInstance> LiveInstances;
+		TMemoryTrackedArray<FLiveInstance> LiveInstances;
 
 		/** Temporary reference to the memory of the current instance being updated. Only valid during a mutable "atomic" operation, like a BeginUpdate or a GetImage. */
 		TSharedPtr<FProgramCache> CurrentInstanceCache;
 
 		/** Resources that have been used in the past, but haven't been deallocated because they still fitted the memory budget and they could be reused. */
-		TArray<Ptr<Image>> PooledImages;
+		TMemoryTrackedArray<Ptr<Image>> PooledImages;
 
 		/** List of intermediate resources that are not soterd anywhere yet. They are still locally referenced by code. */
-		TArray<Ptr<const Image>> TempImages;
-		TArray<Ptr<const Mesh>> TempMeshes;
+		TMemoryTrackedArray<Ptr<const Image>> TempImages;
+		TMemoryTrackedArray<Ptr<const Mesh>> TempMeshes;
 
 		/** List of resources that are currently in any cache position, and the number of positions they are in. */
-		TMap<Ptr<const Resource>, int32> CacheResources;
+		TMemoryTrackedMap<Ptr<const Resource>, int32> CacheResources;
 
 		/** Given a mutable model, find or create its rom cache. */
 		FModelCacheEntry* FindModelCache(const Model*);
@@ -1215,7 +1231,7 @@ namespace mu
 				{
 					Ptr<Image> Result = Candidate;
 					PooledImages.RemoveAtSwap(Index);
-					TrackedBudgetBytes_Pooled -= Result->GetDataSize();
+					
 					if (Init == EInitializationType::Black)
 					{
 						Result->InitToBlack();
@@ -1237,7 +1253,6 @@ namespace mu
 			Ptr<Image> Result = new Image(SizeX, SizeY, Lods, Format, Init);
 
 			TempImages.Add(Result);
-			//TrackedBudgetBytes_Temp += Result->GetDataSize();
 			return Result;
 		}
 
@@ -1246,11 +1261,7 @@ namespace mu
 		{
 			CheckRunnerThread();
 
-			int32 Removed = TempImages.RemoveSingle(Resource);
-			if (Removed)
-			{
-				//TrackedBudgetBytes_Temp -= Resource->GetDataSize();
-			}
+			TempImages.RemoveSingle(Resource);
 			
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
@@ -1285,12 +1296,8 @@ namespace mu
 				return;
 			}
 
-			int32 ResourceDataSize = Resource->GetDataSize();
-			int32 Removed = TempImages.RemoveSingle(Resource);
-			if (Removed)
-			{
-				//TrackedBudgetBytes_Temp -= ResourceDataSize;
-			}
+			const int32 ResourceDataSize = Resource->GetDataSize();
+			TempImages.RemoveSingle(Resource);
 
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
@@ -1302,7 +1309,6 @@ namespace mu
 				if (bInBudget)
 				{
 					PooledImages.Add(const_cast<Image*>(Resource.get()));
-					TrackedBudgetBytes_Pooled += ResourceDataSize;
 				}
 			}
 			else
@@ -1324,12 +1330,8 @@ namespace mu
 				return;
 			}
 
-			int32 ResourceDataSize = Resource->GetDataSize();
-			int32 Removed = TempImages.RemoveSingle(Resource);
-			if (Removed)
-			{
-				//TrackedBudgetBytes_Temp -= ResourceDataSize;
-			}
+			const int32 ResourceDataSize = Resource->GetDataSize();
+			TempImages.RemoveSingle(Resource);
 
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
@@ -1341,7 +1343,6 @@ namespace mu
 				if (bInBudget)
 				{
 					PooledImages.Add(Resource.get());
-					TrackedBudgetBytes_Pooled += ResourceDataSize;
 				}
 			}
 			else
@@ -1362,7 +1363,6 @@ namespace mu
 			Ptr<Mesh> Result = new Mesh();
 
 			TempMeshes.Add(Result);
-			//TrackedBudgetBytes_Temp += Result->GetDataSize();
 
 			return Result;
 		}
@@ -1372,11 +1372,7 @@ namespace mu
 			CheckRunnerThread();
 
 			const int32 ResourceDataSize = Resource->GetDataSize();
-			const int32 Removed = TempMeshes.RemoveSingle(Resource);
-			if (Removed)
-			{
-				//TrackedBudgetBytes_Temp -= ResourceDataSize;
-			}
+			TempMeshes.RemoveSingle(Resource);
 
 			Ptr<Mesh> Result;
 			if (!Resource->IsUnique())
@@ -1403,12 +1399,8 @@ namespace mu
 				return;
 			}
 
-			int32 ResourceDataSize = Resource->GetDataSize();
-			int32 Removed = TempMeshes.RemoveSingle(Resource);
-			if (Removed)
-			{
-				//TrackedBudgetBytes_Temp -= ResourceDataSize;
-			}
+			TempMeshes.RemoveSingle(Resource);
+			check(!TempMeshes.Contains(Resource));
 
 			EnsureBudgetBelow(0);
 
@@ -1434,8 +1426,6 @@ namespace mu
 				return nullptr;
 			}
 
-			int32 ResultDataSize = Result->GetDataSize();
-
 			// If we retrieved the last reference to this resource in "From" cache position (it could still be in other cache positions as well)
 			if (bIsLastReference)
 			{
@@ -1445,14 +1435,12 @@ namespace mu
 				if (!*CountPtr)
 				{
 					CacheResources.FindAndRemoveChecked(Result);
-					TrackedBudgetBytes_Cached -= ResultDataSize;
 				}
 			}
 
 			if (!bTakeOwnership && Result->IsUnique())
 			{
 				TempMeshes.Add(Result);
-				//TrackedBudgetBytes_Temp += ResultDataSize;
 			}
 
 			return Result;
@@ -1468,8 +1456,6 @@ namespace mu
 				return nullptr;
 			}
 
-			int32 ResultDataSize = Result->GetDataSize();
-
 			// If we retrieved the last reference to this resource in "From" cache position (it could still be in other cache positions as well)
 			if (bIsLastReference)
 			{
@@ -1479,7 +1465,6 @@ namespace mu
 				if (!*CountPtr)
 				{
 					CacheResources.FindAndRemoveChecked(Result);
-					TrackedBudgetBytes_Cached -= ResultDataSize;
 				}
 			}
 
@@ -1487,7 +1472,6 @@ namespace mu
 			if (!bTakeOwnership && Result->IsUnique())
 			{
 				TempImages.Add(Result);
-				//TrackedBudgetBytes_Temp += ResultDataSize;
 			}
 
 			return Result;
@@ -1499,20 +1483,11 @@ namespace mu
 			if (Resource)
 			{
 				int32 ResourceDataSize = Resource->GetDataSize();
-				int32 Removed = TempImages.RemoveSingle(Resource);
-				if (Removed)
-				{
-					//TrackedBudgetBytes_Temp -= ResourceDataSize;
-				}
+				TempImages.RemoveSingle(Resource);
 
 				check(!TempImages.Contains(Resource));
 
 				int32& Count = CacheResources.FindOrAdd(Resource, 0);
-				if (!Count)
-				{
-					TrackedBudgetBytes_Cached += ResourceDataSize;
-				}
-
 				++Count;
 			}
 
@@ -1523,19 +1498,9 @@ namespace mu
 		{
 			if (Resource)
 			{
-				int32 ResourceDataSize = Resource->GetDataSize();
-				int32 Removed = TempMeshes.RemoveSingle(Resource);
-				if (Removed)
-				{
-					//TrackedBudgetBytes_Temp -= ResourceDataSize;
-				}
+				TempMeshes.RemoveSingle(Resource);
 
 				int32& Count = CacheResources.FindOrAdd(Resource, 0);
-				if (!Count)
-				{
-					TrackedBudgetBytes_Cached += ResourceDataSize;
-				}
-
 				++Count;
 			}
 
@@ -1562,19 +1527,6 @@ namespace mu
 				Result += Value->GetDataSize();
 			}
 
-			ensure(Result == TrackedBudgetBytes_Pooled);
-
-			return Result;
-		}
-
-		int32 GetTempMeshesBytes() const
-		{
-			int32 Result = 0;
-			for (const Ptr<const Mesh>& Value : TempMeshes)
-			{
-				Result += Value->GetDataSize();
-			}
-
 			return Result;
 		}
 
@@ -1586,7 +1538,12 @@ namespace mu
 				Result += Value->GetDataSize();
 			}
 
-			return Result + GetTempMeshesBytes();
+			for (const Ptr<const Mesh>& Value : TempMeshes)
+			{
+				Result += Value->GetDataSize();
+			}
+
+			return Result;
 		}
 
 
@@ -1717,8 +1674,6 @@ namespace mu
 				}
 
 				const Resource* Value = nullptr;
-				int32 ValueDataSize = 0;
-				int32 RemoveCount = 0;
 
 				switch (Data.DataType)
 				{
@@ -1726,12 +1681,7 @@ namespace mu
 					Value = CurrentInstanceCache->ImageResults[Data.DataTypeIndex].get();
 					if (Value)
 					{
-						ValueDataSize = Value->GetDataSize();
-						RemoveCount = CacheResources.Remove(Value);
-						if (RemoveCount)
-						{
-							TrackedBudgetBytes_Cached -= ValueDataSize;
-						}
+						CacheResources.Remove(Value);
 						CurrentInstanceCache->ImageResults[Data.DataTypeIndex] = nullptr;
 					}
 					break;
@@ -1740,12 +1690,7 @@ namespace mu
 					Value = CurrentInstanceCache->MeshResults[Data.DataTypeIndex].get();
 					if (Value)
 					{
-						ValueDataSize = Value->GetDataSize();
-						RemoveCount = CacheResources.Remove(Value);
-						if (RemoveCount)
-						{
-							TrackedBudgetBytes_Cached -= ValueDataSize;
-						}
+						CacheResources.Remove(Value);
 						CurrentInstanceCache->MeshResults[Data.DataTypeIndex] = nullptr;
 					}
 					break;

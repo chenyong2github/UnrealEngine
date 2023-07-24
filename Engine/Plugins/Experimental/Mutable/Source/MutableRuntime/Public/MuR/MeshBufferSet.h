@@ -7,6 +7,13 @@
 #include "HAL/PlatformMath.h"
 #include "MuR/MutableMemory.h"
 
+#include "MuR/MemoryTrackingAllocationPolicy.h"
+
+namespace mu::MemoryCounters
+{
+	struct FMeshMemoryCounterTag {};
+	using FMeshMemoryCounter = TMemoryCounter<FMeshMemoryCounterTag>;
+}
 
 namespace mu
 {
@@ -164,6 +171,9 @@ namespace mu
 
 	struct MESH_BUFFER
 	{
+		template<typename Type>
+		using TMemoryTrackedArray = TArray<Type, FDefaultMemoryTrackingAllocator<MemoryCounters::FMeshMemoryCounter>>;
+
 		//!
 		MESH_BUFFER()
 		{
@@ -174,7 +184,7 @@ namespace mu
 		TArray<mu::MESH_BUFFER_CHANNEL> m_channels;
 
 		//!
-		TArray<uint8> m_data;
+		TMemoryTrackedArray<uint8> m_data;
 
 		//!
 		uint32 m_elementSize;

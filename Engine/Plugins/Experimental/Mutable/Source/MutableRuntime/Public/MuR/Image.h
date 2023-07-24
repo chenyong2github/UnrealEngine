@@ -12,6 +12,14 @@
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
 
+#include "MuR/MemoryTrackingAllocationPolicy.h"
+
+namespace mu::MemoryCounters
+{
+	struct FImageMemoryCounterTag {};
+	using FImageMemoryCounter = TMemoryCounter<FImageMemoryCounterTag>;
+}
+
 namespace mu
 {
 
@@ -292,7 +300,9 @@ namespace mu
 		uint32 ReferenceID = 0;
 
 		/** Pixel data for all lods. */
-		TArray<uint8> m_data;
+
+		using ImageDataContainerType = TArray<uint8, FDefaultMemoryTrackingAllocator<MemoryCounters::FImageMemoryCounter>>;
+		ImageDataContainerType m_data;
 
 
 		// This used to be the methods in the private implementation of the image interface

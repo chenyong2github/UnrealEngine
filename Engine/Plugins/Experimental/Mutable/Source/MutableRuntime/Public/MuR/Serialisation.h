@@ -7,12 +7,15 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
+#include "Math/Vector.h"
+#include "Math/IntVector.h"
+#include "Math/Vector4.h"
+#include "MuR/MutableMath.h"
 
 namespace mu
 {    
     class Image;
 	class Model;
-
 
 #define MUTABLE_DEFINE_POD_SERIALISABLE(T)							\
 	template<>														\
@@ -21,14 +24,12 @@ namespace mu
 	template<>														\
 	void DLLEXPORT operator>> <T>(InputArchive& arch, T& t);		\
 
-
-#define MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(T)							\
-	template<>																\
-	void DLLEXPORT operator<< <T>(OutputArchive& arch, const TArray<T>& v);	\
-																			\
-	template<>																\
-	void DLLEXPORT operator>> <T>(InputArchive& arch, TArray<T>& v);		\
-
+#define MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(T)									     \
+	template<typename Alloc>                                                             \
+	void operator <<(OutputArchive& arch, const TArray<T, Alloc>& v);					 \
+	                                                                                     \
+	template<typename Alloc>                                                             \
+	void operator >>(InputArchive& arch, TArray<T, Alloc>& v);                           \
 
 #define MUTABLE_DEFINE_ENUM_SERIALISABLE(T)							\
 	template<>														\
@@ -334,20 +335,41 @@ namespace mu
         t.Unserialise( arch );
 	}
 
-
 	MUTABLE_DEFINE_POD_SERIALISABLE(float);
 	MUTABLE_DEFINE_POD_SERIALISABLE(double);
 
-    MUTABLE_DEFINE_POD_SERIALISABLE( int8 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( int16 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( int32 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( int64 );
+    MUTABLE_DEFINE_POD_SERIALISABLE(int8);
+    MUTABLE_DEFINE_POD_SERIALISABLE(int16);
+    MUTABLE_DEFINE_POD_SERIALISABLE(int32);
+    MUTABLE_DEFINE_POD_SERIALISABLE(int64);
 
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint8 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint16 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint32 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint64 );
+    MUTABLE_DEFINE_POD_SERIALISABLE(uint8);
+    MUTABLE_DEFINE_POD_SERIALISABLE(uint16);
+    MUTABLE_DEFINE_POD_SERIALISABLE(uint32);
+    MUTABLE_DEFINE_POD_SERIALISABLE(uint64);
 
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(float);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(double);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint8);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint16);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint32);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint64);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int8);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int16);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int32);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int64);
+
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec2f);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec3f);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(mat3f);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(mat4f);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec2<int>);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(TCHAR);
+
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FUintVector2);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<uint16>);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<int16>);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FVector4f);
 	
 	//---------------------------------------------------------------------------------------------
 	template<>
@@ -358,23 +380,26 @@ namespace mu
 	
 	
 	//---------------------------------------------------------------------------------------------
-	template<typename T> void operator<<(OutputArchive& arch, const TArray<T>& v)
+	template<typename T, typename Alloc> 
+	void operator<<(OutputArchive& arch, const TArray<T, Alloc>& v)
 	{
-		// TODO: Optimise for vectors of PODs
-		arch << (uint32)v.Num();
-		for (std::size_t i = 0; i < v.Num(); ++i)
+		const uint32 Num = (uint32)v.Num();
+		arch << Num;
+		
+		for (SIZE_T i = 0; i < Num; ++i)
 		{
 			arch << v[i];
 		}
 	}
 
-	template<typename T> void operator>>(InputArchive& arch, TArray<T>& v)
+	template<typename T, typename Alloc> 
+	void operator>>(InputArchive& arch, TArray<T, Alloc>& v)
 	{
-		// TODO: Optimise for vectors of PODs
-		uint32 size;
-		arch >> size;
-		v.SetNum(size);
-		for (std::size_t i = 0; i < size; ++i)
+		uint32 Num;
+		arch >> Num;
+		v.SetNum(Num);
+
+		for (SIZE_T i = 0; i < Num; ++i)
 		{
 			arch >> v[i];
 		}

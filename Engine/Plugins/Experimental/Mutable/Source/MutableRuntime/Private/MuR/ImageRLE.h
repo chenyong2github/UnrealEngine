@@ -66,7 +66,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
 	MUTABLERUNTIME_API extern void CompressRLE_RGBA(int32 width, int32 rows,
 									const uint8* pBaseDataByte,
-									TArray<uint8>& destData );
+									Image::ImageDataContainerType& destData );
 
     //---------------------------------------------------------------------------------------------
 	MUTABLERUNTIME_API extern void UncompressRLE_RGBA(int32 width, int32 rows,
@@ -85,7 +85,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
 	MUTABLERUNTIME_API extern void CompressRLE_RGB(int32 width, int32 rows,
 									const uint8* pBaseDataByte,
-									TArray<uint8>& destData );
+									Image::ImageDataContainerType& destData );
 
     //---------------------------------------------------------------------------------------------
 	MUTABLERUNTIME_API extern void UncompressRLE_RGB(int32 width, int32 rows,

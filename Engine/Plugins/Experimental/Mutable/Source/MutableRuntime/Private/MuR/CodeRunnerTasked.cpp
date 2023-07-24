@@ -80,7 +80,6 @@ namespace mu
 				Ptr<Mesh> Value = Mesh::StaticUnserialise(arch);
 				program.m_constantMeshes[ResIndex].Value = Value;
 				check(program.m_constantMeshes[ResIndex].Value);
-				m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
 				break;
 			}
 			case DATATYPE::DT_IMAGE:
@@ -90,15 +89,12 @@ namespace mu
 				Ptr<Image> Value = Image::StaticUnserialise(arch);
 				program.m_constantImageLODs[ResIndex].Value = Value;
 				check(program.m_constantImageLODs[ResIndex].Value);
-				m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
 				break;
 			}
 			default:
 				check(false);
 				break;
 			}
-
-			m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream -= o.m_streamBuffer.GetAllocatedSize();
 
 			o.m_romIndex = -1;
 			o.m_streamBuffer.Empty();
@@ -2092,7 +2088,6 @@ namespace mu
 			if (uint32(op->m_streamBuffer.Num()) < RomSize)
 			{
 				op->m_streamBuffer.SetNum((size_t)RomSize);
-				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream += op->m_streamBuffer.GetAllocatedSize();
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
@@ -2300,7 +2295,6 @@ namespace mu
 			if (uint32(op->m_streamBuffer.Num()) < RomSize)
 			{
 				op->m_streamBuffer.SetNum(RomSize);
-				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream += op->m_streamBuffer.GetAllocatedSize();
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
