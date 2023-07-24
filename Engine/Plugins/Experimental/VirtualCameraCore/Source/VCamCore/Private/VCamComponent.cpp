@@ -1482,9 +1482,7 @@ void UVCamComponent::DestroyOutputProvider(UVCamOutputProviderBase* Provider)
 {
 	if (Provider)
 	{
-		// Begin Destroy will deinitialize if needed
-		Provider->ConditionalBeginDestroy();
-		Provider = nullptr;
+		Provider->Deinitialize();
 	}
 }
 
