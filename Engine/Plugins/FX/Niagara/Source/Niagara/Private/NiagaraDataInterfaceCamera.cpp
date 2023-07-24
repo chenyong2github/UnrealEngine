@@ -549,9 +549,7 @@ void UNiagaraDataInterfaceCamera::CalculateParticleDistances(FVectorVMExternalFu
 
 ETickingGroup UNiagaraDataInterfaceCamera::CalculateTickGroup(const void* PerInstanceData) const
 {
-	if (!bRequireCurrentFrameData)
-		return NiagaraFirstTickGroup;
-	return ETickingGroup::TG_PostUpdateWork;
+	return IsUsedWithCPUScript() && bRequireCurrentFrameData ? ETickingGroup::TG_PostUpdateWork : NiagaraFirstTickGroup;
 }
 
 #if WITH_EDITOR	
