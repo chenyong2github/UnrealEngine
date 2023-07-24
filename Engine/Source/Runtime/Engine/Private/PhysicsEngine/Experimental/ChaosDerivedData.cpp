@@ -7,6 +7,10 @@
 #include "Serialization/MemoryWriter.h"
 #include "PhysicsEngine/Experimental/ChaosCooking.h"
 
+#if WITH_EDITOR
+#include "DerivedDataCacheKey.h"
+#endif
+
 class FChaosDerivedDataCookerRefHolder : public FGCObject
 {
 public:
@@ -35,6 +39,9 @@ private:
 
 const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 {
+#if WITH_EDITOR
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacyChaosGeometryData"), TEXTVIEW("BodySetup"));
+#endif
 	return TEXT("ChaosGeometryData");
 }
 

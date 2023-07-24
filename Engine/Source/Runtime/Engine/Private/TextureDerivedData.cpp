@@ -487,6 +487,7 @@ const FGuid& GetTextureDerivedDataVersion()
  */
 void GetTextureDerivedDataKeyFromSuffix(const FString& KeySuffix, FString& OutKey)
 {
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacyTEXTURE"), TEXTVIEW("Texture"));
 	OutKey = FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("TEXTURE"),
 		TEXTURE_DERIVEDDATA_VER,

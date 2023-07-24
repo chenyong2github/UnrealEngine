@@ -12,6 +12,7 @@
 #include "Async/Async.h"
 #include "SoundWaveCompiler.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "AudioResampler.h"
 #include "AudioCompressionSettingsUtils.h"
@@ -256,6 +257,7 @@ static void GetStreamedAudioDerivedDataKeySuffix(
  */
 static void GetStreamedAudioDerivedDataKeyFromSuffix(const FString& KeySuffix, FString& OutKey)
 {
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacySTREAMEDAUDIO"), TEXTVIEW("Audio"));
 	OutKey = FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("STREAMEDAUDIO"),
 		STREAMEDAUDIO_DERIVEDDATA_VER,

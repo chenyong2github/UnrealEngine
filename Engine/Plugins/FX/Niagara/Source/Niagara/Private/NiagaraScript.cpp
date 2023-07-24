@@ -31,6 +31,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
+	#include "DerivedDataCacheKey.h"
 	#include "Interfaces/ITargetPlatform.h"
 	#include "NiagaraSettings.h"
 	#include "Internationalization/Regex.h"
@@ -1003,6 +1004,8 @@ FString UNiagaraScript::BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataI
 	KeyString.AppendChar(TCHAR('_'));
 
 	CompileId.AppendKeyString(KeyString);
+
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacyNiagaraScriptDerivedData"), TEXTVIEW("NiagaraScript"));
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NiagaraScriptDerivedData"), NIAGARASCRIPT_DERIVEDDATA_VER, *KeyString);
 }
 

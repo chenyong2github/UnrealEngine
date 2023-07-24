@@ -14,6 +14,7 @@
 #if WITH_EDITOR
 	#include "Interfaces/ITargetPlatformManagerModule.h"
 	#include "DerivedDataCacheInterface.h"
+	#include "DerivedDataCacheKey.h"
 	#include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
 #include "ProfilingDebugging/CookStats.h"
@@ -459,6 +460,7 @@ static FString GetNiagaraShaderMapKeyString(const FNiagaraShaderMapId& ShaderMap
 	NiagaraShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapId.AppendKeyString(ShaderMapKeyString);
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacyNIAGARASM"), TEXTVIEW("NiagaraShader"));
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NIAGARASM"), *NIAGARASHADERMAP_DERIVEDDATA_VER, *ShaderMapKeyString);
 }
 

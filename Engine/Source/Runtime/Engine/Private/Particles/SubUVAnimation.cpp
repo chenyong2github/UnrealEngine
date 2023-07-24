@@ -9,6 +9,7 @@
 #include "ParticleHelper.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
 #include "ComponentReregisterContext.h"
 #include "RHI.h"
 
@@ -34,6 +35,11 @@ FString FSubUVDerivedData::GetDDCKeyString(const FGuid& StateId, int32 SizeX, in
 	// adding v3 to the key after allowing other formats
 	// adding v4 to the key after adding G8 support
 	KeyString += TEXT("_V4");
+
+#if WITH_EDITOR
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacySUBUV"), TEXTVIEW("SubUV"));
+#endif
+
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("SUBUV_"), SUBUV_DERIVEDDATA_VER, *KeyString);
 }
 

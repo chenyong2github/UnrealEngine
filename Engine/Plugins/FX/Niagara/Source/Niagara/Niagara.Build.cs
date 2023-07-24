@@ -59,6 +59,7 @@ public class Niagara : ModuleRules
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
                 "TargetPlatform",
+                "DerivedDataCache",
 				"EditorFramework",
                 "UnrealEd",
 				"SlateCore",

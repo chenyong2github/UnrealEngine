@@ -25,6 +25,7 @@
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
 #include "StaticMeshCompiler.h"
 #endif
 
@@ -137,6 +138,7 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 	const float VoxelDensity = CVarDensity->GetValueOnAnyThread();
 	const FString VoxelDensityString = VoxelDensity == .1f ? TEXT("") : FString::Printf(TEXT("_%.3f"), VoxelDensity);
 
+	static UE::DerivedData::FCacheBucket LegacyBucket(TEXTVIEW("LegacyDIST"), TEXTVIEW("DistanceField"));
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("DIST"),
 		*FString::Printf(TEXT("%s_%s%s%s"), *InMeshKey, DISTANCEFIELD_DERIVEDDATA_VER, *PerMeshMaxString, *VoxelDensityString),
