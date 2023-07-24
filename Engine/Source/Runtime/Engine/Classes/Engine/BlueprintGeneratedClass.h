@@ -627,7 +627,7 @@ struct FBPComponentClassOverride
 	}
 };
 
-UCLASS(NeedsDeferredDependencyLoading, MinimalAPI)
+UCLASS(NeedsDeferredDependencyLoading, MinimalAPI, config=Engine)
 class UBlueprintGeneratedClass : public UClass, public IBlueprintPropertyGuidProvider
 {
 	GENERATED_UCLASS_BODY()
@@ -923,6 +923,9 @@ protected:
 	ENGINE_API bool BuildCustomArrayPropertyListForPostConstruction(FArrayProperty* ArrayProperty, FCustomPropertyListNode*& InPropertyList, const uint8* DataPtr, const uint8* DefaultDataPtr, int32 StartIndex = 0);
 
 private:
+	/** List of native class-owned properties that require complete values for comparison when generating the post-construction property list due to how they are used. These properties cannot be reduced into a list of subfields (e.g. structs). */
+	UPROPERTY(config)
+	TArray<FString> RequiresCompleteValueForPostConstruction;
 	/** List of native class-owned properties that differ from defaults. This is used to optimize property initialization during post-construction by minimizing the number of native class-owned property values that get copied to the new instance. */
 	TIndirectArray<FCustomPropertyListNode> CustomPropertyListForPostConstruction;
 	/** In some cases UObject::ConditionalPostLoad() code calls PostLoadDefaultObject() on a class that's still being serialized. */
