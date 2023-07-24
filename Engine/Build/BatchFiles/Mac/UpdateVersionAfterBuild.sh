@@ -42,6 +42,7 @@ fi
 # now write out an xcconfig containing all platform build versions relative to the project
 XCCONFIG_FILE="$1/Intermediate/Build/Versions.xcconfig"
 
+mkdir -p "$1/Intermediate/Build"
 echo "UE_MAC_BUILD_VERSION = $MAC_VERSION" > "$XCCONFIG_FILE"
 echo "UE_IOS_BUILD_VERSION = $IOS_VERSION" >> "$XCCONFIG_FILE"
 echo "UE_TVOS_BUILD_VERSION = $TVOS_VERSION" >> "$XCCONFIG_FILE"
