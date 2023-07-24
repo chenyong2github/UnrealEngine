@@ -17,11 +17,19 @@ namespace UE::EditorPixelStreaming::Settings
 		TEXT("Use a remote signalling server. Default: false"),
 		ECVF_Default);
 
+    TAutoConsoleVariable<FString> CVarEditorPixelStreamingSource(
+		TEXT("PixelStreaming.Editor.Source"),
+		TEXT("Editor"),
+		TEXT("Editor PixelStreaming source. Supported values are `Editor`, `LevelEditor`"),
+		ECVF_Default);
+
     void InitialiseSettings()
     {
 		using namespace UE::PixelStreaming;
         // Options parse (if these exist they are set to true)
 		CommandLineParseOption(TEXT("EditorPixelStreamingStartOnLaunch"), CVarEditorPixelStreamingStartOnLaunch);
 		CommandLineParseOption(TEXT("EditorPixelStreamingUseRemoteSignallingServer"), CVarEditorPixelStreamingUseRemoteSignallingServer);
+
+        CommandLineParseValue(TEXT("EditorPixelStreamingSource="), CVarEditorPixelStreamingSource);
     }
 }

@@ -101,7 +101,20 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 
 		if (UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
 		{
-			StartStreaming(UE::EditorPixelStreaming::EStreamTypes::Editor);
+            // Default our source to the full editor
+            UE::EditorPixelStreaming::EStreamTypes Source = UE::EditorPixelStreaming::EStreamTypes::Editor;
+
+            FString SourceStr = UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingSource.GetValueOnAnyThread();
+            if(SourceStr == TEXT("Editor") || SourceStr == TEXT("editor"))
+            {
+                Source = UE::EditorPixelStreaming::EStreamTypes::Editor;
+            }
+            else if(SourceStr == TEXT("LevelEditor") || SourceStr == TEXT("leveleditor"))
+            {
+                Source = UE::EditorPixelStreaming::EStreamTypes::LevelEditorViewport;
+            }
+
+			StartStreaming(Source);
 		}
 	});
 
