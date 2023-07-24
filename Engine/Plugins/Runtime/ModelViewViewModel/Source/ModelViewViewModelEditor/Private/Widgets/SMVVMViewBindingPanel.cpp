@@ -25,6 +25,8 @@
 #include "Toolkits/IToolkitHost.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -446,7 +448,17 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 {
 	FSlateIcon EmptyIcon(FAppStyle::GetAppStyleSetName(), "Icon.Empty");
 
+	BindingsList = nullptr;
+	if (MVVMExtension.Get())
+	{
+		BindingsList = SNew(SBindingsList, StaticCastSharedRef<SBindingsPanel>(AsShared()), MVVMExtension.Get());
+	}
+
+	TSharedPtr<SHorizontalBox> BindingPanelToolBar = SNew(SHorizontalBox);
+
 	FSlimHorizontalToolBarBuilder ToolbarBuilderGlobal(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+
+	// Insert widgets in the toolbar to the left of the search bar
 	ToolbarBuilderGlobal.BeginSection("Picking");
 	{
 		ToolbarBuilderGlobal.AddToolBarButton(
@@ -479,9 +491,38 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 	}
 	ToolbarBuilderGlobal.EndSection();
 
+	// Pre-search box slot
+	BindingPanelToolBar->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		[
+			ToolbarBuilderGlobal.MakeWidget()
+		];
+
+	TSharedRef<SWidget> SearchTextWidget = SNullWidget::NullWidget;
+	if (BindingsList)
 	{
-		ToolbarBuilderGlobal.AddWidget(SNew(SSpacer), NAME_None, true, HAlign_Right);
+		SearchTextWidget =
+			SNew(SSearchBox)
+			.HintText(LOCTEXT("SearchHint", "Search"))
+			.SelectAllTextWhenFocused(false)
+			.OnTextChanged(BindingsList.ToSharedRef(), &SBindingsList::OnFilterTextChanged);
+		
 	}
+
+	// Search box slot
+	BindingPanelToolBar->AddSlot()
+		.FillWidth(1.f)
+		.VAlign(VAlign_Center)
+		[
+			SearchTextWidget
+		];
+
+	// Reset the toolbar builder and insert widgets to the right of the search bar
+	ToolbarBuilderGlobal = FSlimHorizontalToolBarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+	ToolbarBuilderGlobal.AddWidget(SNew(SSpacer), NAME_None, true, HAlign_Right);
 
 	{
 		ToolbarBuilderGlobal.AddWidget(CreateDrawerDockButton());
@@ -507,11 +548,15 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 		ToolbarBuilderGlobal.EndSection();
 	}
 
-	BindingsList = nullptr;
-	if (MVVMExtension.Get())
-	{
-		BindingsList = SNew(SBindingsList, StaticCastSharedRef<SBindingsPanel>(AsShared()), MVVMExtension.Get());
-	}
+	// Post-search box slot
+	BindingPanelToolBar->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		[
+			ToolbarBuilderGlobal.MakeWidget()
+		];
 
 	TSharedRef<SWidget> BindingWidget = SNew(SOverlay)
 		+ SOverlay::Slot()
@@ -581,7 +626,7 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 		.AutoHeight()
 		.Padding(8.0f, 2.0f, 0.0f, 2.0f)
 		[
-			ToolbarBuilderGlobal.MakeWidget()
+			BindingPanelToolBar.ToSharedRef()
 		]
 
 		+SVerticalBox::Slot()

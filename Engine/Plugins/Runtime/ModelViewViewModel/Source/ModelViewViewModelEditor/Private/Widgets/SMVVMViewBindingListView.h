@@ -29,6 +29,9 @@ public:
 
 	void Refresh();
 
+	void OnFilterTextChanged(const FText& InFilterText);
+	void ClearFilterText();
+
 	/** Constructs context menu used for right click and dropdown button */
 	TSharedPtr<SWidget> OnSourceConstructContextMenu();
 
@@ -48,6 +51,7 @@ private:
 	TArray<TSharedPtr<FBindingEntry>> RootGroups;
 	TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> MVVMExtension;
 	mutable bool bSelectionChangedGuard = false;
+	FText FilterText;
 };
 
 } // namespace UE::MVVM

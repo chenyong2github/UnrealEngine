@@ -101,6 +101,9 @@ public:
 	DECLARE_EVENT(UMVVMBlueprintView, FOnBindingsUpdated);
 	FOnBindingsUpdated OnBindingsUpdated;
 
+	DECLARE_EVENT(UMVVMBlueprintView, FOnBindingsAdded);
+	FOnBindingsAdded OnBindingsAdded;
+
 	DECLARE_EVENT(UMVVMBlueprintView, FOnViewModelsUpdated);
 	FOnViewModelsUpdated OnViewModelsUpdated;
 

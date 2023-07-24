@@ -138,6 +138,7 @@ FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget,
 	NewBinding.DestinationPath.SetPropertyPath(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), UE::MVVM::FMVVMConstFieldVariant(Property));
 	NewBinding.BindingId = FGuid::NewGuid();
 
+	OnBindingsAdded.Broadcast();
 	OnBindingsUpdated.Broadcast();
 	return NewBinding;
 }
@@ -147,6 +148,7 @@ FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddDefaultBinding()
 	FMVVMBlueprintViewBinding& NewBinding = Bindings.AddDefaulted_GetRef();
 	NewBinding.BindingId = FGuid::NewGuid();
 
+	OnBindingsAdded.Broadcast();
 	OnBindingsUpdated.Broadcast();
 	return NewBinding;
 }

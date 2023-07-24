@@ -83,5 +83,12 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	 * Get a string that identifies this binding. 
 	 * This is of the form: Widget.Property <- ViewModel.Property
 	 */
-	FString GetDisplayNameString(const UWidgetBlueprint* WidgetBlueprint) const;
+	FString GetDisplayNameString(const UWidgetBlueprint* WidgetBlueprint, bool bUseDisplayName = false) const;
+
+	/**
+	 * Get a string that identifies this binding and is specifically formatted for search. 
+	 * This includes the display name and variable name of all fields and widgets, as well as all function keywords.
+	 * For use in the UI, use GetDisplayNameString()
+	 */
+	FString GetSearchableString(const UWidgetBlueprint* WidgetBlueprint) const;
 };

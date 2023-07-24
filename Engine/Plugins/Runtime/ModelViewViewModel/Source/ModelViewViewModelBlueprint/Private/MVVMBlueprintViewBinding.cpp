@@ -2,12 +2,15 @@
 
 #include "MVVMBlueprintViewBinding.h"
 
+#include "Blueprint/WidgetTree.h"
 #include "Bindings/MVVMConversionFunctionHelper.h"
 #include "K2Node_CallFunction.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintViewBinding)
+
+#define LOCTEXT_NAMESPACE "MVVMBlueprintViewBinding"
 
 FName FMVVMBlueprintViewBinding::GetFName() const
 {
@@ -16,7 +19,36 @@ FName FMVVMBlueprintViewBinding::GetFName() const
 
 namespace UE::MVVM::Private
 {
-	void AppendViewModelPathString(const UWidgetBlueprint* WidgetBlueprint, const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& ViewModelPath, FStringBuilderBase& PathBuilder)
+	FText GetDisplayNameForField(const FMVVMConstFieldVariant& Field)
+	{
+		if (!Field.IsEmpty())
+		{
+			if (Field.IsProperty())
+			{
+				return Field.GetProperty()->GetDisplayNameText();
+			}
+			if (Field.IsFunction())
+			{
+				return Field.GetFunction()->GetDisplayNameText();
+			}
+		}
+		return LOCTEXT("None", "<None>");
+	}
+
+	FString GetDisplayNameForWidget(const UWidgetBlueprint* WidgetBlueprint, const FName& WidgetName)
+	{
+		if (UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree)
+		{
+			if (UWidget* FoundWidget = WidgetTree->FindWidget(WidgetName))
+			{
+				return FoundWidget->GetDisplayLabel().IsEmpty() ? WidgetName.ToString() : FoundWidget->GetDisplayLabel();
+			}
+		}
+
+		return WidgetName.IsNone() ? TEXT("<none>") : WidgetName.ToString();
+	}
+
+	void AppendViewModelPathString(const UWidgetBlueprint* WidgetBlueprint, const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& ViewModelPath, FStringBuilderBase& PathBuilder, FStringBuilderBase& FunctionKeywordsBuilder, bool bUseDisplayName = false, bool bAppendFunctionKeywords = false)
 	{
 		if (ViewModelPath.IsEmpty())
 		{
@@ -29,31 +61,147 @@ namespace UE::MVVM::Private
 		{
 			PathBuilder << ViewModel->GetDisplayName().ToString();
 		}
+		else if (ViewModelPath.IsFromWidget())
+		{
+			if (bUseDisplayName)
+			{
+				PathBuilder << GetDisplayNameForWidget(WidgetBlueprint, ViewModelPath.GetWidgetName());
+			}
+			else
+			{
+				PathBuilder << ViewModelPath.GetWidgetName();
+			}
+		}
 		else
 		{
 			PathBuilder << TEXT("<none>");
 		}
 
-		const FString PropertyPath = ViewModelPath.GetPropertyPath(WidgetBlueprint->SkeletonGeneratedClass);
-		if (!PropertyPath.IsEmpty())
+		TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = ViewModelPath.GetFields(WidgetBlueprint->SkeletonGeneratedClass);
+		for (const UE::MVVM::FMVVMConstFieldVariant& Field : Fields)
 		{
 			PathBuilder << TEXT(".");
-			PathBuilder << PropertyPath;
+			if (bUseDisplayName)
+			{
+				PathBuilder << GetDisplayNameForField(Field).ToString();
+			}
+			else
+			{
+				PathBuilder << Field.GetName().ToString();
+			}
+
+			if (Field.IsFunction() && bAppendFunctionKeywords)
+			{
+				FString FunctionKeywords = Field.GetFunction()->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
+				if (!FunctionKeywords.IsEmpty())
+				{
+					FunctionKeywordsBuilder << TEXT(".");
+					FunctionKeywordsBuilder << FunctionKeywords;
+				}
+			}
 		}
 	}
 	
-	FString GetBindingViewModelName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding)
+	void AppendWidgetPathString(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& WidgetPath, FStringBuilderBase& PathBuilder, FStringBuilderBase& FunctionKeywordsBuilder, bool bUseDisplayName = false, bool bAppendFunctionKeywords = false)
+	{
+		if (WidgetBlueprint == nullptr)
+		{
+			PathBuilder << TEXT("<none>");
+			return;
+		}
+
+		if (WidgetPath.GetWidgetName().IsNone() && !bUseDisplayName)
+		{
+			PathBuilder << TEXT("<none>");
+		}
+		else if (WidgetBlueprint->GetFName() == WidgetPath.GetWidgetName())
+		{
+			if (bUseDisplayName)
+			{
+				PathBuilder << TEXT("self");
+			}
+			else
+			{
+				PathBuilder << WidgetBlueprint->GetName();
+			}
+		}
+		else
+		{
+			if (bUseDisplayName)
+			{
+				PathBuilder << GetDisplayNameForWidget(WidgetBlueprint, WidgetPath.GetWidgetName());
+			}
+			else
+			{
+				PathBuilder << WidgetPath.GetWidgetName();
+			}
+		}
+
+		TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = WidgetPath.GetFields(WidgetBlueprint->SkeletonGeneratedClass);
+		for (const UE::MVVM::FMVVMConstFieldVariant& Field : Fields)
+		{
+			PathBuilder << TEXT(".");
+			if (bUseDisplayName)
+			{
+				PathBuilder << GetDisplayNameForField(Field).ToString();
+			}
+			else
+			{
+				PathBuilder << Field.GetName().ToString();
+			}
+
+			if (Field.IsFunction() && bAppendFunctionKeywords)
+			{
+				FString FunctionKeywords = Field.GetFunction()->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
+				if (!FunctionKeywords.IsEmpty())
+				{
+					FunctionKeywordsBuilder << TEXT(".");
+					FunctionKeywordsBuilder << FunctionKeywords;
+				}
+			}
+		}
+	}
+
+	FString GetBindingPathName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bIsSource, FStringBuilderBase& FunctionKeywordsBuilder, bool bUseDisplayName = false, bool bAppendFunctionKeywords = false)
 	{
 		UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
 		UMVVMBlueprintView* BlueprintView = ExtensionView->GetBlueprintView();
 
 		TStringBuilder<256> NameBuilder;
 
-		if (UEdGraph* Graph = ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, true))
+		if (UEdGraph* Graph = ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bIsSource))
 		{
 			if (const UK2Node_CallFunction* CallFunctionNode = ConversionFunctionHelper::GetFunctionNode(Graph))
 			{
-				NameBuilder << CallFunctionNode->GetFunctionName();
+				if (bUseDisplayName)
+				{
+					if (UFunction* TargetFunction = CallFunctionNode->GetTargetFunction())
+					{
+						NameBuilder << TargetFunction->GetDisplayNameText().ToString();
+					}
+					else
+					{
+						NameBuilder << CallFunctionNode->GetFunctionName();
+					}
+				}
+				else
+				{
+					NameBuilder << CallFunctionNode->GetFunctionName();
+				}
+
+				if (bAppendFunctionKeywords)
+				{
+					if (UFunction* TargetFunction = CallFunctionNode->GetTargetFunction())
+					{
+						FString FunctionKeywords = TargetFunction->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
+						if (!FunctionKeywords.IsEmpty())
+						{
+							FunctionKeywordsBuilder << TEXT(".");
+							FunctionKeywordsBuilder << FunctionKeywords;
+						}
+					}
+				}
+
 				NameBuilder << TEXT("(");
 
 				bool bFirst = true;
@@ -74,7 +222,14 @@ namespace UE::MVVM::Private
 					FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName(), true);
 					if (!ArgumentPath.IsEmpty())
 					{
-						AppendViewModelPathString(WidgetBlueprint, BlueprintView, ArgumentPath, NameBuilder);
+						if (ArgumentPath.IsFromViewModel())
+						{
+							AppendViewModelPathString(WidgetBlueprint, BlueprintView, ArgumentPath, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+						}
+						else
+						{
+							AppendWidgetPathString(WidgetBlueprint, ArgumentPath, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+						}
 					}
 					else
 					{
@@ -91,129 +246,62 @@ namespace UE::MVVM::Private
 				NameBuilder << TEXT("<error>");
 			}
 		}
-		else if (!Binding.Conversion.SourceToDestinationFunction.GetMemberName().IsNone())
-		{
-			if (const UFunction* SourceToDestFunction = Binding.Conversion.SourceToDestinationFunction.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass))
-			{
-				NameBuilder << SourceToDestFunction->GetName();
-				NameBuilder << TEXT("(");
-			
-				AppendViewModelPathString(WidgetBlueprint, BlueprintView, Binding.SourcePath, NameBuilder);
-
-				NameBuilder << TEXT(")");
-			}
-			else
-			{
-				NameBuilder << Binding.Conversion.SourceToDestinationFunction.GetMemberName();
-				NameBuilder << TEXT("()");
-			}
-		}
-		else if (!Binding.SourcePath.IsEmpty())
-		{
-			AppendViewModelPathString(WidgetBlueprint, BlueprintView, Binding.SourcePath, NameBuilder);
-		}
-
-		FString Name = NameBuilder.ToString();
-		if (Name.IsEmpty())
-		{
-			Name = TEXT("<none>");
-		}
-
-		return Name;
-	}
-
-	void AppendWidgetPathString(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& WidgetPath, FStringBuilderBase& PathBuilder)
-	{
-		if (WidgetBlueprint == nullptr)
-		{
-			PathBuilder << TEXT("<none>");
-			return;
-		}
-
-		if (WidgetPath.GetWidgetName().IsNone())
-		{
-			PathBuilder << TEXT("<none>");
-		}
-		else if (WidgetBlueprint->GetFName() == WidgetPath.GetWidgetName())
-		{
-			PathBuilder << TEXT("self");
-		}
 		else
 		{
-			PathBuilder << WidgetPath.GetWidgetName();
-		}
-
-		const FString PropertyPath = WidgetPath.GetPropertyPath(WidgetBlueprint->SkeletonGeneratedClass);
-		if (!PropertyPath.IsEmpty())
-		{
-			PathBuilder << TEXT(".");
-			PathBuilder << PropertyPath;
-		}
-	}
-
-	FString GetBindingWidgetName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding)
-	{
-		TStringBuilder<256> NameBuilder;
-
-		if (UEdGraph* Graph = ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, false))
-		{
-			if (const UK2Node_CallFunction* CallFunctionNode = ConversionFunctionHelper::GetFunctionNode(Graph))
+			const FMVVMBlueprintPropertyPath Path = bIsSource ? Binding.SourcePath : Binding.DestinationPath;
+			const FMemberReference FunctionReference = bIsSource ? Binding.Conversion.SourceToDestinationFunction : Binding.Conversion.DestinationToSourceFunction;
+			if (!FunctionReference.GetMemberName().IsNone())
 			{
-				NameBuilder << CallFunctionNode->GetFunctionName();
-				NameBuilder << TEXT("(");
-
-				bool bFirst = true;
-
-				for (const UEdGraphPin* Pin : CallFunctionNode->Pins)
+				if (const UFunction* Function = FunctionReference.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass))
 				{
-					if (Pin->Direction == EGPD_Input)
-					{
-						if (!bFirst)
-						{
-							NameBuilder << TEXT(", ");
-						}
+					NameBuilder << Function->GetName();
 
-						FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName(), true);
-						if (!ArgumentPath.IsEmpty())
+					if (bAppendFunctionKeywords)
+					{
+						FString FunctionKeywords = Function->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
+						if (!FunctionKeywords.IsEmpty())
 						{
-							AppendWidgetPathString(WidgetBlueprint, ArgumentPath, NameBuilder);
-						}
-						else
-						{
-							NameBuilder << Pin->GetDefaultAsString();
+							FunctionKeywordsBuilder << TEXT(".");
+							FunctionKeywordsBuilder << FunctionKeywords;
 						}
 					}
 
-					bFirst = false;
+					NameBuilder << TEXT("(");
+
+					if (Path.IsFromViewModel())
+					{
+						AppendViewModelPathString(WidgetBlueprint, BlueprintView, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+
+					}
+					else
+					{
+						AppendWidgetPathString(WidgetBlueprint, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+					}
+
+					NameBuilder << TEXT(")");
 				}
-
-				NameBuilder << TEXT(")");
+				else
+				{
+					NameBuilder << FunctionReference.GetMemberName();
+					NameBuilder << TEXT("()");
+				}
 			}
 			else
 			{
-				NameBuilder << TEXT("<error>");
-			}
-		}
-		else if (!Binding.Conversion.DestinationToSourceFunction.GetMemberName().IsNone())
-		{
-			if (const UFunction* DestToSourceFunction = Binding.Conversion.DestinationToSourceFunction.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass))
-			{
-				NameBuilder << DestToSourceFunction->GetName();
-				NameBuilder << TEXT("(");
-			
-				AppendWidgetPathString(WidgetBlueprint, Binding.DestinationPath, NameBuilder);
+				if (!Path.IsEmpty())
+				{
+					if (Path.IsFromViewModel())
+					{
+						AppendViewModelPathString(WidgetBlueprint, BlueprintView, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
 
-				NameBuilder << TEXT(")");
-			}
-			else
-			{
-				NameBuilder << Binding.Conversion.SourceToDestinationFunction.GetMemberName();
-				NameBuilder << TEXT("()");
-			}
-		}
-		else if (!Binding.DestinationPath.IsEmpty())
-		{
-			AppendWidgetPathString(WidgetBlueprint, Binding.DestinationPath, NameBuilder);
+					}
+					else
+					{
+						AppendWidgetPathString(WidgetBlueprint, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+					}
+				}
+			} 
+
 		}
 
 		FString Name = NameBuilder.ToString();
@@ -226,13 +314,14 @@ namespace UE::MVVM::Private
 	}
 }
 
-FString FMVVMBlueprintViewBinding::GetDisplayNameString(const UWidgetBlueprint* WidgetBlueprint) const
+FString FMVVMBlueprintViewBinding::GetDisplayNameString(const UWidgetBlueprint* WidgetBlueprint, bool bUseDisplayName) const
 {
 	check(WidgetBlueprint);
 
 	TStringBuilder<256> NameBuilder;
+	TStringBuilder<2> FunctionKeywordsBuilder; // This is only passed to GetBindingPathName but never used in this function.
 
-	NameBuilder << UE::MVVM::Private::GetBindingWidgetName(WidgetBlueprint, *this);
+	NameBuilder << UE::MVVM::Private::GetBindingPathName(WidgetBlueprint, *this, false, FunctionKeywordsBuilder, bUseDisplayName);
 
 	if (BindingType == EMVVMBindingMode::TwoWay)
 	{
@@ -251,7 +340,40 @@ FString FMVVMBlueprintViewBinding::GetDisplayNameString(const UWidgetBlueprint* 
 		NameBuilder << TEXT(" ??? "); // shouldn't happen
 	}
 
-	NameBuilder << UE::MVVM::Private::GetBindingViewModelName(WidgetBlueprint, *this);
+	NameBuilder << UE::MVVM::Private::GetBindingPathName(WidgetBlueprint, *this, true, FunctionKeywordsBuilder, bUseDisplayName);
 
 	return NameBuilder.ToString();
 }
+
+FString FMVVMBlueprintViewBinding::GetSearchableString(const UWidgetBlueprint* WidgetBlueprint) const
+{
+	check(WidgetBlueprint);
+
+	FString SearchString;
+
+	// Get the binding string with variable names.
+	SearchString.Append(GetDisplayNameString(WidgetBlueprint, false));
+
+	// Remove the extra formatting that we don't need for search.
+	// We will include the formatted string as well in the second call to GetBindingPathName.
+	SearchString.ReplaceInline(TEXT(" "), TEXT(""));
+	SearchString.ReplaceInline(TEXT(")"), TEXT(""));
+	SearchString.ReplaceInline(TEXT("("), TEXT("."));
+	SearchString.ReplaceInline(TEXT(","), TEXT("."));
+
+	SearchString.Append(TEXT("."));
+
+	// Get the binding string with display names.
+	SearchString.Append(GetDisplayNameString(WidgetBlueprint, true));
+
+	// Create the function keywords string.
+	TStringBuilder<128> FunctionKeywordsBuilder;
+	UE::MVVM::Private::GetBindingPathName(WidgetBlueprint, *this, false, FunctionKeywordsBuilder, false, true);
+	UE::MVVM::Private::GetBindingPathName(WidgetBlueprint, *this, true, FunctionKeywordsBuilder, false, true);
+
+	SearchString.Append(FunctionKeywordsBuilder);
+
+	return SearchString;
+}
+
+#undef LOCTEXT_NAMESPACE

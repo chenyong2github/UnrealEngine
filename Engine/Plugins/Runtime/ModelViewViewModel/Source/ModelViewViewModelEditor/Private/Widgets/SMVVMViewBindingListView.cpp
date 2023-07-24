@@ -107,6 +107,11 @@ struct FBindingEntry
 		Children.Add(Child);
 	}
 
+	void RemoveChildAt(int32 IndexToRemove)
+	{
+		Children.RemoveAt(IndexToRemove);
+	}
+
 	void ResetChildren()
 	{
 		Children.Reset();
@@ -119,6 +124,31 @@ struct FBindingEntry
 			BindingId == Other.BindingId;
 	}
 
+	FString GetSearchNameString(UMVVMBlueprintView* View, UWidgetBlueprint* WidgetBP)
+	{
+		FString RowToString;
+		FString FunctionKeywords;
+		
+		FMVVMBlueprintViewBinding* BindingInRow; // Initialized and used only when RowType is Binding.
+
+		switch (RowType)
+		{
+		case UE::MVVM::FBindingEntry::ERowType::Group:
+		case UE::MVVM::FBindingEntry::ERowType::Parameter:
+			RowToString = Name.ToString();
+			break;
+		case UE::MVVM::FBindingEntry::ERowType::Binding:
+			BindingInRow = GetBinding(View);
+			RowToString.Append(BindingInRow->GetSearchableString(WidgetBP));
+			break;
+		default:
+			break;
+		}
+
+		RowToString.ReplaceInline(TEXT(" "), TEXT(""));
+
+		return RowToString;
+	}
 private:
 	ERowType RowType = ERowType::None;
 	FName Name;
@@ -176,6 +206,72 @@ namespace Private
 			}
 		}
 		return TSharedPtr<FBindingEntry>();
+	}
+
+	void FilterBindingsList(FString FilterString, TArray<TSharedPtr<FBindingEntry>>& RootGroups, UMVVMBlueprintView* BlueprintView, UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr)
+	{
+		if (!FilterString.TrimStartAndEnd().IsEmpty())
+		{
+			TArray<FString> SearchKeywords;
+			FilterString.ParseIntoArray(SearchKeywords, TEXT(" "));
+			FString EntryString;
+
+			auto IsAllKeywordsInString = [](FString EntryString, TArray<FString>& SearchKeywords) -> bool {
+				for (const FString& Keyword : SearchKeywords)
+				{
+					if (!EntryString.Contains(Keyword))
+					{
+						return false;
+					}
+				}
+				return true;
+			};
+
+			for (int32 GroupEntryIndex = RootGroups.Num() - 1; GroupEntryIndex >= 0; GroupEntryIndex--)
+			{
+				TSharedPtr<FBindingEntry> GroupEntry = RootGroups[GroupEntryIndex];
+				EntryString = GroupEntry->GetSearchNameString(BlueprintView, MVVMExtensionPtr->GetWidgetBlueprint());
+
+				// If the filter text is found in the group name, we keep the entire group.
+				if (IsAllKeywordsInString(EntryString, SearchKeywords))
+				{
+					continue;
+				}
+				for (int32 BindingEntryIndex = GroupEntry->GetChildren().Num() - 1; BindingEntryIndex >= 0; BindingEntryIndex--)
+				{
+					TSharedPtr<FBindingEntry> BindingEntry = GroupEntry->GetChildren()[BindingEntryIndex];
+					EntryString = BindingEntry->GetSearchNameString(BlueprintView, MVVMExtensionPtr->GetWidgetBlueprint());
+					
+					// If the filter text is found in the binding string, we keep the entire binding.
+					if (IsAllKeywordsInString(EntryString, SearchKeywords))
+					{
+						continue;
+					}
+
+					bool IsParameterSearched = false;
+					for (TSharedPtr<FBindingEntry> ParameterEntry : BindingEntry->GetChildren())
+					{
+						EntryString = ParameterEntry->GetSearchNameString(BlueprintView, MVVMExtensionPtr->GetWidgetBlueprint());
+
+						// If the filter text is found in any of the parameter names, it is sufficient to keep the owner binding.
+						if (IsAllKeywordsInString(EntryString, SearchKeywords))
+						{
+							IsParameterSearched = true;
+							break;
+						}
+
+					}
+					if (!IsParameterSearched)
+					{
+						GroupEntry->RemoveChildAt(BindingEntryIndex);
+					}
+				}
+				if (GroupEntry->GetChildren().Num() == 0)
+				{
+					RootGroups.RemoveAt(GroupEntryIndex);
+				}
+			}
+		}
 	}
 }
 
@@ -1206,6 +1302,7 @@ void SBindingsList::Construct(const FArguments& InArgs, TSharedPtr<SBindingsPane
 
 	MVVMExtension->OnBlueprintViewChangedDelegate().AddSP(this, &SBindingsList::Refresh);
 	MVVMExtension->GetBlueprintView()->OnBindingsUpdated.AddSP(this, &SBindingsList::Refresh);
+	MVVMExtension->GetBlueprintView()->OnBindingsAdded.AddSP(this, &SBindingsList::ClearFilterText);
 	MVVMExtension->GetBlueprintView()->OnViewModelsUpdated.AddSP(this, &SBindingsList::Refresh);
 
 	ChildSlot
@@ -1376,6 +1473,7 @@ void SBindingsList::Refresh()
 				}
 			}
 		}
+		Private::FilterBindingsList(FilterText.ToString(), RootGroups, BlueprintView, MVVMExtensionPtr);
 	}
 
 	if (TreeView.IsValid())
@@ -1418,6 +1516,17 @@ TSharedRef<ITableRow> SBindingsList::GenerateEntryRow(TSharedPtr<FBindingEntry> 
 
 	ensureMsgf(false, TEXT("Failed to create binding or widget row."));
 	return SNew(STableRow<TSharedPtr<FBindingEntry>>, OwnerTable);
+}
+
+void SBindingsList::OnFilterTextChanged(const FText& InFilterText)
+{
+	FilterText = InFilterText;
+	Refresh();
+}
+
+void SBindingsList::ClearFilterText()
+{
+	FilterText = FText::GetEmpty();
 }
 
 namespace Private
