@@ -826,7 +826,7 @@ URigVMBlueprint* FRigVMEditor::GetRigVMBlueprint() const
 
 URigVMHost* FRigVMEditor::GetRigVMHost() const
 {
-	if(IsValid(Host))
+	if(Host && IsValid(Host))
 	{
 		return Host;
 	}
@@ -1012,10 +1012,12 @@ void FRigVMEditor::Compile()
 			RigVMHost->GetExtendedExecuteContext().ExecutionHalted().RemoveAll(this);
 		}
 
+		SetHost(nullptr);
 		{
 			TGuardValue<bool> GuardCompileReEntry(bIsCompilingThroughUI, true);
 			FBlueprintEditor::Compile();
 		}
+		UpdateRigVMHost();
 
 		if (URigVMHost* RigVMHost = GetRigVMHost())
 		{
