@@ -238,7 +238,13 @@ struct FBoxCull
 
 	void HZB( FFrustumCullData FrustumCull, bool bClampToPageLevel )
 	{
+		// Our screen rect needs to be in HZB space, which is 0,0-based for all views, unless we're doing multiple views in one nanite pass
+	#if NANITE_MULTI_VIEW
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, FrustumCull, 4 );
+	#else
+		int4 HZBRect = int4( 0, 0, NaniteView.ViewRect.z - NaniteView.ViewRect.x, NaniteView.ViewRect.w - NaniteView.ViewRect.y );
+		FScreenRect Rect = GetScreenRect( HZBRect, FrustumCull, 4 );
+	#endif
 		bIsVisible = bIsVisible && Rect.bOverlapsPixelCenter;
 
 	#if VIRTUAL_TEXTURE_TARGET
