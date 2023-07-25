@@ -42,6 +42,7 @@ struct FFixedZoomLevelsContainerDesignSurface : public FZoomLevelsContainer
 		ZoomLevels.Add(FZoomLevelEntry(0.25f, FText::FromString("1:4"), EGraphRenderingLOD::MediumDetail));
 		ZoomLevels.Add(FZoomLevelEntry(0.333333333333f, FText::FromString("1:3"), EGraphRenderingLOD::MediumDetail));
 		ZoomLevels.Add(FZoomLevelEntry(0.5f, FText::FromString("1:2"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.75f, FText::FromString("1:1.5"), EGraphRenderingLOD::MediumDetail));
 		ZoomLevels.Add(FZoomLevelEntry(1.000f, FText::FromString("1:1"), EGraphRenderingLOD::DefaultDetail));
 		ZoomLevels.Add(FZoomLevelEntry(1.250f, FText::FromString("1.25:1"), EGraphRenderingLOD::DefaultDetail));
 		ZoomLevels.Add(FZoomLevelEntry(1.500f, FText::FromString("1.5:1"), EGraphRenderingLOD::DefaultDetail));

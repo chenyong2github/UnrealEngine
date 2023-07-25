@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/SDMXPixelMappingHierarchyItem.h"
+#include "Widgets/SDMXPixelMappingHierarchyRow.h"
 
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "DMXEditorStyle.h"
@@ -14,9 +14,9 @@
 #include "Views/SDMXPixelMappingHierarchyView.h"
 
 
-#define LOCTEXT_NAMESPACE "SDMXPixelMappingHierarchyItem"
+#define LOCTEXT_NAMESPACE "SDMXPixelMappingHierarchyRow"
 
-void SDMXPixelMappingHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit, const TSharedRef<FDMXPixelMappingHierarchyItem>& InItem)
+void SDMXPixelMappingHierarchyRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit, const TSharedRef<FDMXPixelMappingHierarchyItem>& InItem)
 {
 	WeakToolkit = InWeakToolkit;
 	Item = InItem;
@@ -25,17 +25,16 @@ void SDMXPixelMappingHierarchyItem::Construct(const FArguments& InArgs, const TS
 		FSuperRowType::FArguments()
 		.Padding(0.0f)
 		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SimpleTableView.Row"))
-		.OnDragDetected(this, &SDMXPixelMappingHierarchyItem::OnDraggingWidget)
-		.OnDrop(this, &SDMXPixelMappingHierarchyItem::OnDropWidget),
+		.OnDragDetected(this, &SDMXPixelMappingHierarchyRow::OnRowDragDetected),
 		InOwnerTableView);
 }
 
-void SDMXPixelMappingHierarchyItem::EnterRenameMode()
+void SDMXPixelMappingHierarchyRow::EnterRenameMode()
 {
 	EditableNameTextBox->EnterEditingMode();
 }
 
-TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateWidgetForColumn(const FName& ColumnName)
+TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
 	if (ColumnName == SDMXPixelMappingHierarchyView::FColumnIds::EditorColor)
 	{
@@ -73,7 +72,7 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateWidgetForColumn(const
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateEditorColorWidget()
+TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GenerateEditorColorWidget()
 {
 	if (Item.IsValid() && Item->HasEditorColor())
 	{
@@ -95,7 +94,7 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateEditorColorWidget()
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateComponentNameWidget()
+TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GenerateComponentNameWidget()
 {
 	return
 		SNew(SBorder)
@@ -111,7 +110,7 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateComponentNameWidget()
 		];
 }
 
-TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateFixtureIDWidget()
+TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GenerateFixtureIDWidget()
 {
 	return
 		SNew(SBorder)
@@ -127,7 +126,7 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GenerateFixtureIDWidget()
 		];
 }
 
-TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GeneratePatchWidget()
+TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GeneratePatchWidget()
 {
 	return
 		SNew(SBorder)
@@ -143,7 +142,7 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyItem::GeneratePatchWidget()
 		];
 }
 
-void SDMXPixelMappingHierarchyItem::OnNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo)
+void SDMXPixelMappingHierarchyRow::OnNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo)
 {
 	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
 	const UDMXPixelMappingBaseComponent* Component = Item.IsValid() ? Item->GetComponent() : nullptr;
@@ -156,78 +155,28 @@ void SDMXPixelMappingHierarchyItem::OnNameTextCommited(const FText& InText, ETex
 	}
 }
 
-FReply SDMXPixelMappingHierarchyItem::OnDraggingWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SDMXPixelMappingHierarchyRow::OnRowDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	UDMXPixelMappingBaseComponent* Component = Item.IsValid() ? Item->GetComponent() : nullptr;
-	if (Component)
+	// SMultiColumnTableRow for some reason does not provide the mouse key, so testing for LeftMouseButton is not required.
+	if (!WeakToolkit.IsValid())
 	{
-		TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;
-		DraggedComponents.Add(Component);
-
-		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, DraggedComponents));
-	};
-
-	return FReply::Unhandled();
-}
-
-FReply SDMXPixelMappingHierarchyItem::OnDropWidget(const FDragDropEvent& InDragDropEvent)
-{
-	const FScopedTransaction Transaction(FText::FromString("MoveComponent"));
-	TSharedPtr<FDMXPixelMappingDragDropOp> ComponentDragDropOp = InDragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
-	if (ComponentDragDropOp.IsValid())
-	{
-		for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& WeakSource : ComponentDragDropOp->GetDraggedComponents())
-		{
-			if (UDMXPixelMappingBaseComponent* Source = WeakSource.Get())
-			{
-				UDMXPixelMappingBaseComponent* Destination = Item->GetComponent();
-
-				UDMXPixelMappingBaseComponent* NewParent = nullptr;
-				if (Source->CanBeMovedTo(Destination))
-				{
-					NewParent = Destination;
-				}
-				else if (Source->CanBeMovedTo(Destination->GetParent()))
-				{
-					NewParent = Destination->GetParent();
-				}
-
-				const bool bOldParentIsNewParent = NewParent == Source->GetParent();
-				if (NewParent && !bOldParentIsNewParent)
-				{
-					// Add to the new parent
-					NewParent->Modify();
-					Source->Modify();
-					NewParent->AddChild(Source);
-
-					// Remove from the old parent
-					if (Source->GetParent())
-					{
-						Source->GetParent()->Modify();
-						Source->GetParent()->RemoveChild(Source);
-					}
-
-					// Adopt location and size of new parent if required
-					if (UDMXPixelMappingOutputComponent* ParentOutputComponent = Cast<UDMXPixelMappingOutputComponent>(NewParent))
-					{
-						if (UDMXPixelMappingOutputComponent* ChildOutputComponent = Cast<UDMXPixelMappingOutputComponent>(Source))
-						{
-							if (!ChildOutputComponent->IsOverParent())
-							{
-								const FVector2D ParentSize = ParentOutputComponent->GetSize();
-								const FVector2D ChildSize = ChildOutputComponent->GetSize();
-								const FVector2D NewChildSize = FVector2D(FMath::Min(ParentSize.X, ChildSize.X), FMath::Min(ParentSize.Y, ChildSize.Y));
-								ChildOutputComponent->SetSize(NewChildSize);
-
-								ChildOutputComponent->SetPosition(ParentOutputComponent->GetPosition());
-							}
-						}
-					}
-				}
-			}
-		}
+		return FReply::Unhandled();
 	}
-	return FReply::Unhandled();
+
+	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = WeakToolkit.Pin()->GetSelectedComponents();
+	TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;
+	Algo::TransformIf(SelectedComponents, DraggedComponents,
+		[](const FDMXPixelMappingComponentReference& ComponentReference)
+		{
+			return ComponentReference.IsValid();
+		},
+		[](const FDMXPixelMappingComponentReference& ComponentReference)
+		{
+			return ComponentReference.GetComponent();
+		}
+	);
+
+	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, DraggedComponents));
 }
 
 #undef LOCTEXT_NAMESPACE

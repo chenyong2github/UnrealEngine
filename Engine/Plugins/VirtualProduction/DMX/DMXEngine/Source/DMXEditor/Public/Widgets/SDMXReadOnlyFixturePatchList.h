@@ -112,7 +112,7 @@ public:
 		SLATE_EVENT(FDMXFixturePatchListRowRetValDelegate, IsRowVisibile)
 
 		/** Delegate executed when a row was dragged */
-		SLATE_EVENT(FOnDragDetected, OnRowDragged)
+		SLATE_EVENT(FOnDragDetected, OnRowDragDetected)
 
 	SLATE_END_ARGS()
 
@@ -167,9 +167,6 @@ protected:
 
 	/** Called to get wheter a row of the list is visible or not */
 	virtual EVisibility GetRowVisibility(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
-
-	/** Called when a row was dragged */
-	FReply OnRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	/** Called when text from searchbox is changed */
 	void OnSearchTextChanged(const FText& SearchText);
@@ -244,5 +241,5 @@ protected:
 	TArray<FDMXEntityFixturePatchRef> ExcludedFixturePatches;
 	FDMXFixturePatchListRowRetValDelegate IsRowEnabledDelegate;
 	FDMXFixturePatchListRowRetValDelegate IsRowVisibleDelegate;
-	FOnDragDetected OnRowDraggedDelegate;
+	FOnDragDetected OnRowDragDetectedDelegate;
 };

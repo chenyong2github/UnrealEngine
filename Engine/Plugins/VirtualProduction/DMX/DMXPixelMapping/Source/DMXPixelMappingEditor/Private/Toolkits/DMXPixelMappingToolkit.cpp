@@ -508,47 +508,47 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 			(
 				FTabManager::NewSplitter()
 				->SetOrientation(Orient_Horizontal)
-				->SetSizeCoefficient(.25f)
 				->Split
 				(
 					FTabManager::NewSplitter()
 					->SetOrientation(Orient_Vertical)
-					->Split
-					(
-						FTabManager::NewStack()
-						->AddTab(HierarchyViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(.618f)
-					)
+					->SetSizeCoefficient(.25f)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(DMXLibraryViewTabID, ETabState::OpenedTab)
 						->SetSizeCoefficient(.382f)
 					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->AddTab(HierarchyViewTabID, ETabState::OpenedTab)
+						->SetSizeCoefficient(.618f)
+					)
 				)
-				->SetSizeCoefficient(.5f)
 				->Split
 				(
 					FTabManager::NewSplitter()
 					->SetOrientation(Orient_Vertical)
+					->SetSizeCoefficient(.5f)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(DesignerViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(.618f)
+						->SetSizeCoefficient(.75f)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->AddTab(PreviewViewTabID, ETabState::OpenedTab)
-						->SetSizeCoefficient(.382f)
+						->SetSizeCoefficient(.25f)
 					)
 				)
-				->SetSizeCoefficient(.25f)
 				->Split
 				(
 					FTabManager::NewSplitter()
 					->SetOrientation(Orient_Vertical)
+					->SetSizeCoefficient(.25f)
 					->Split
 					(
 						FTabManager::NewStack()

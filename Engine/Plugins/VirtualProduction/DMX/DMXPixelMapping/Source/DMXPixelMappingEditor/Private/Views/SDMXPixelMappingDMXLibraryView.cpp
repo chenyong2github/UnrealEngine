@@ -10,7 +10,6 @@
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingComponentReference.h"
-#include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "IDetailsView.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
@@ -181,7 +180,7 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 				.Padding(FMargin(8.f, 2.f, 2.f, 0.f))
 				[
-					SAssignNew(FixturePatchList, SDMXPixelMappingFixturePatchList, Toolkit)
+					SAssignNew(FixturePatchList, SDMXPixelMappingFixturePatchList, Toolkit, ViewModel)
 				]
 			]
 
@@ -379,53 +378,6 @@ FReply SDMXPixelMappingDMXLibraryView::OnAddAllPatchesClicked()
 	return FReply::Handled();
 }
 
-FReply SDMXPixelMappingDMXLibraryView::OnFixturePatchRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	if (!ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
-	{
-		return FReply::Handled();
-	}
-
-	UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = ViewModel->GetFixtureGroupComponent();
-	if (!FixtureGroupComponent)
-	{
-		return FReply::Handled();
-	}
-
-	const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedPatches = FixturePatchList->GetSelectedFixturePatchRefs();
-	if (!SelectedPatches.IsEmpty())
-	{
-		TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>> Templates;
-		for (const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef : SelectedPatches)
-		{
-			if (!FixturePatchRef.IsValid())
-			{
-				continue;
-			}
-
-			const UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
-			const UDMXEntityFixtureType* FixtureType = FixturePatch ? FixturePatch->GetFixtureType() : nullptr;
-			const FDMXFixtureMode* ActiveModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
-			if (FixturePatch && FixtureType && ActiveModePtr)
-			{
-				if (ActiveModePtr->bFixtureMatrixEnabled)
-				{
-					TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchMatrixTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixComponent::StaticClass(), *FixturePatchRef);
-					Templates.Add(FixturePatchMatrixTemplate);
-				}
-				else
-				{
-					TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchItemTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), *FixturePatchRef);
-					Templates.Add(FixturePatchItemTemplate);
-				}
-			}
-		}
-		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, Templates, FixtureGroupComponent));
-	}
-
-	return FReply::Unhandled();
-}
-
 TArray<UDMXEntityFixturePatch*> SDMXPixelMappingDMXLibraryView::GetFixturePatchesInDMXLibrary() const
 {
 	if (!ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
@@ -471,6 +423,5 @@ TArray<UDMXEntityFixturePatch*> SDMXPixelMappingDMXLibraryView::GetFixturePatche
 
 	return FixturePatchesInPixelMapping;
 }
-
 
 #undef LOCTEXT_NAMESPACE

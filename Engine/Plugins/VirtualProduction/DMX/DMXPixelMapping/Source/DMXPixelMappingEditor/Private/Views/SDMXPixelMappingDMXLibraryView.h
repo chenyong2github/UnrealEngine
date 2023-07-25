@@ -78,9 +78,6 @@ private:
 	/** Called when the 'Add All Patches' button was clicked */
 	FReply OnAddAllPatchesClicked();
 
-	/** Called when a fixture patch row was dragged */
-	FReply OnFixturePatchRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-
 	/** Helper that returns all fixture patches in use in the pixel mapping */
 	TArray<UDMXEntityFixturePatch*> GetFixturePatchesInDMXLibrary() const;
 

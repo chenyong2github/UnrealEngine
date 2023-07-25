@@ -29,7 +29,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/SDMXPixelMappingHierarchyItem.h"
+#include "Widgets/SDMXPixelMappingHierarchyRow.h"
 #include "Widgets/Views/STreeView.h"
 
 
@@ -382,7 +382,7 @@ void SDMXPixelMappingHierarchyView::OnGetChildItems(TSharedPtr<FDMXPixelMappingH
 
 TSharedRef<ITableRow> SDMXPixelMappingHierarchyView::OnGenerateRow(FDMXPixelMappingHierarchyItemWidgetModelPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SDMXPixelMappingHierarchyItem, OwnerTable, WeakToolkit, Item.ToSharedRef());
+	return SNew(SDMXPixelMappingHierarchyRow, OwnerTable, WeakToolkit, Item.ToSharedRef());
 }
 
 TSharedPtr<SWidget> SDMXPixelMappingHierarchyView::OnContextMenuOpening()
@@ -572,7 +572,7 @@ void SDMXPixelMappingHierarchyView::RenameSelectedComponent()
 		return;
 	}
 
-	StaticCastSharedPtr<SDMXPixelMappingHierarchyItem>(TableRow)->EnterRenameMode();
+	StaticCastSharedPtr<SDMXPixelMappingHierarchyRow>(TableRow)->EnterRenameMode();
 }
 
 void SDMXPixelMappingHierarchyView::DeleteSelectedComponents()

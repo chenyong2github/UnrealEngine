@@ -73,14 +73,9 @@ void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 
 	IsRowEnabledDelegate = InArgs._IsRowEnabled;
 	IsRowVisibleDelegate = InArgs._IsRowVisibile;
+	OnRowDragDetectedDelegate = InArgs._OnRowDragDetected;
 
 	UpdateListItems();
-
-	// Handle Entity changes
-	UDMXLibrary::GetOnEntitiesAdded().AddSP(this, &SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved);
-	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved);
-	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixturePatchChanged);
-	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixtureTypeChanged);
 
 	ChildSlot
 		[
@@ -133,6 +128,13 @@ void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 				.OnMouseButtonDoubleClick(InArgs._OnRowDoubleClicked)
 			]
 		];
+
+
+	// Handle Entity changes
+	UDMXLibrary::GetOnEntitiesAdded().AddSP(this, &SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved);
+	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved);
+	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixturePatchChanged);
+	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixtureTypeChanged);
 
 	InitializeByListDescriptor(InArgs._ListDescriptor);
 }
@@ -353,7 +355,8 @@ TSharedRef<ITableRow> SDMXReadOnlyFixturePatchList::OnGenerateRow(TSharedPtr<FDM
 	const TSharedRef<SDMXReadOnlyFixturePatchListRow> NewRow =
 		SNew(SDMXReadOnlyFixturePatchListRow, OwnerTable, InItem.ToSharedRef())
 		.IsEnabled(this, &SDMXReadOnlyFixturePatchList::IsRowEnabled, InItem)
-		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXReadOnlyFixturePatchList::GetRowVisibility, InItem));
+		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXReadOnlyFixturePatchList::GetRowVisibility, InItem))
+		.OnRowDragDetected(OnRowDragDetectedDelegate);
 
 	return NewRow;
 }

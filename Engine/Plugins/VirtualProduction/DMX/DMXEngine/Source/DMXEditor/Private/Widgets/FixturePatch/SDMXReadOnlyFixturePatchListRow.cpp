@@ -21,7 +21,7 @@ void SDMXReadOnlyFixturePatchListRow::Construct(const FArguments& InArgs, const 
 
 	SMultiColumnTableRow<TSharedPtr<FDMXEntityFixturePatchRef>>::Construct(
 		FSuperRowType::FArguments()
-		.OnDragDetected(InArgs._OnRowDragged)
+		.OnDragDetected(InArgs._OnRowDragDetected)
 		.Style(&FDMXEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("FixturePatchList.Row")),
 		InOwnerTable);
 }

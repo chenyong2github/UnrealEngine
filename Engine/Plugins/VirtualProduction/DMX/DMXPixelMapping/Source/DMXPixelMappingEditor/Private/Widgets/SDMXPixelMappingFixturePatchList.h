@@ -7,6 +7,7 @@
 
 class FDMXPixelMappingToolkit;
 class UDMXEntityFixturePatch;
+class UDMXPixelMappingDMXLibraryViewModel;
 
 
 /** Displays the DMX Library of the currently selected fixture group component */
@@ -22,13 +23,10 @@ public:
 		/** Called when a row of the list is right clicked */
 		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 
-		/** Delegate executed when a row was dragged */
-		SLATE_EVENT(FOnDragDetected, OnRowDragged)
-
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
-	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
+	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit, TWeakObjectPtr<UDMXPixelMappingDMXLibraryViewModel> InDMXLibraryModel);
 
 	/** Selects the first patch after the specified fixture patches */
 	void SelectAfter(const TArray<TSharedPtr<FDMXEntityFixturePatchRef>>& FixturePatches);
@@ -38,8 +36,14 @@ private:
 	virtual void RefreshList() override;
 	//~ End SDMXReadOnlyFixturePatchList interface
 
+	/** Called when a row in the list was dragged */
+	FReply OnRowDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
 	/** Holds the fixutre patches which are hidden the list */
 	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> HiddenFixturePatches;
+
+	/** View model of the displayed dmx library */
+	TWeakObjectPtr<UDMXPixelMappingDMXLibraryViewModel> WeakDMXLibraryViewModel;
 
 	/** The toolkit of the editor that displays this widget */
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;

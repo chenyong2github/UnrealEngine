@@ -15,11 +15,15 @@ class STableViewBase;
 
 
 /** Displays a single item in a hierarchy view */
-class SDMXPixelMappingHierarchyItem final
+class SDMXPixelMappingHierarchyRow final
 	: public SMultiColumnTableRow<TSharedPtr<FDMXPixelMappingHierarchyItem>>
 {
 public:
-	SLATE_BEGIN_ARGS(SDMXPixelMappingHierarchyItem) {}
+	SLATE_BEGIN_ARGS(SDMXPixelMappingHierarchyRow) {}
+
+		/** Delegate executed when a row was dragged */
+		SLATE_EVENT(FOnDragDetected, OnItemDragDetected)
+
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
@@ -49,19 +53,16 @@ private:
 	void OnNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo);
 
 	/** Called when this row was dragged */
-	FReply OnDraggingWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	FReply OnRowDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
-	/** Called when this row was dropped */
-	FReply OnDropWidget(const FDragDropEvent& InDragDropEvent);
+	/** Model of the component being displayed */
+	TSharedPtr<FDMXPixelMappingHierarchyItem> Item;
 
 	/** The editor color image widget */
 	TSharedPtr<SImage> EditorColorImageWidget;
 
 	/** Text box that displays and allows to edit the name */
 	TSharedPtr<SInlineEditableTextBlock> EditableNameTextBox;
-
-	/** Model of the component being displayed */
-	TSharedPtr<FDMXPixelMappingHierarchyItem> Item;
 
 	/** Weak toolkit this widget belongs to */
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
