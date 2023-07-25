@@ -78,6 +78,9 @@ ByteAddressBuffer TileDataOffsetsBuffer;
 ByteAddressBuffer DstTileCoordsBuffer;
 float4 FallbackValueA;
 float4 FallbackValueB;
+uint TileIndexOffset; // Number of tiles that have already been processed in previous dispatches
+uint SrcVoxelDataOffsetA; // Start of the SrcPhysicalTileBufferA SRV. This value needs to be subtracted from any indices used for loads.
+uint SrcVoxelDataOffsetB; // Start of the SrcPhysicalTileBufferB SRV. This value needs to be subtracted from any indices used for loads.
 uint NumTilesToCopy;
 uint BufferTileStep;
 uint NumDispatchedGroups;
@@ -113,7 +116,7 @@ void SparseVolumeTextureUpdateFromSparseBufferCS(uint3 GroupId : SV_GroupID, uin
 	const uint NumOccupancyWordsPerPaddedTile = (NumVoxelsPerPaddedTile + 31u) / 32u;
 
 	// Process one tile per workgroup
-	for (uint TileIdx = GroupIdx; TileIdx < NumTilesToCopy; TileIdx += NumDispatchedGroups)
+	for (uint TileIdx = (GroupIdx + TileIndexOffset); TileIdx < (NumTilesToCopy + TileIndexOffset); TileIdx += NumDispatchedGroups)
 	{
 		const uint PackedDstCoord = DstTileCoordsBuffer.Load(TileIdx << 2u);
 		const uint3 DstBaseCoord = uint3(PackedDstCoord & 0xFFu, (PackedDstCoord >> 8u) & 0xFFu, (PackedDstCoord >> 16u) & 0xFFu) * PaddedTileSize;
@@ -140,6 +143,7 @@ void SparseVolumeTextureUpdateFromSparseBufferCS(uint3 GroupId : SV_GroupID, uin
 
 					bool bValidVoxel = false;
 					const uint LocalLoadIndex = ComputeLocalVoxelDataLoadIndex(VoxelIdx, OccupancyBits, bValidVoxel);
+					const uint VoxelLoadIndex = TileDataOffset + NumReadVoxels + LocalLoadIndex;
 					const uint3 DstCoord = DstBaseCoord + UnflattenCoord(VoxelIdx, PaddedTileSize);
 
 					BRANCH if (TextureIdx == 0)
@@ -147,7 +151,7 @@ void SparseVolumeTextureUpdateFromSparseBufferCS(uint3 GroupId : SV_GroupID, uin
 						float4 Voxel = FallbackValueA;
 						BRANCH if (bValidVoxel)
 						{
-							Voxel = SrcPhysicalTileBufferA.Load(TileDataOffset + NumReadVoxels + LocalLoadIndex);
+							Voxel = SrcPhysicalTileBufferA.Load(VoxelLoadIndex - SrcVoxelDataOffsetA);
 						}
 						DstPhysicalTileTextureA[DstCoord] = Voxel;
 					}
@@ -156,7 +160,7 @@ void SparseVolumeTextureUpdateFromSparseBufferCS(uint3 GroupId : SV_GroupID, uin
 						float4 Voxel = FallbackValueB;
 						BRANCH if (bValidVoxel)
 						{
-							Voxel = SrcPhysicalTileBufferB.Load(TileDataOffset + NumReadVoxels + LocalLoadIndex);
+							Voxel = SrcPhysicalTileBufferB.Load(VoxelLoadIndex - SrcVoxelDataOffsetB);
 						}
 						DstPhysicalTileTextureB[DstCoord] = Voxel;
 					}
