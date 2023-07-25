@@ -4413,7 +4413,11 @@ float SAssetView::GetTileViewTypeNameHeight() const
 		{
 			TypeNameHeight = 25;
 		}
-		else if (ThumbnailSize > EThumbnailSize::Small)
+		else if (ThumbnailSize == EThumbnailSize::Medium)
+		{
+			TypeNameHeight = -5;
+		}
+		else if (ThumbnailSize > EThumbnailSize::Medium)
 		{
 			TypeNameHeight = -25;
 		}

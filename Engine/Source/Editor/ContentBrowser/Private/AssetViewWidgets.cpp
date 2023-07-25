@@ -1881,6 +1881,36 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 	FName ItemShadowBorderName;
 	TSharedRef<SWidget> ItemContents = FAssetViewItemHelper::CreateTileItemContents(this, Thumbnail.ToSharedRef(), ItemShadowBorderName);
 
+	if (bShowType)
+	{
+		SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
+			.Font(this, &SAssetTileItem::GetThumbnailFont)
+			.Text(GetNameText())
+			.OnBeginTextEdit(this, &SAssetTileItem::HandleBeginNameChange)
+			.OnTextCommitted(this, &SAssetTileItem::HandleNameCommitted)
+			.OnVerifyTextChanged(this, &SAssetTileItem::HandleVerifyNameChanged)
+			.HighlightText(InArgs._HighlightText)
+			.IsSelected(InArgs._IsSelectedExclusively)
+			.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
+			.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
+			.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+			.ColorAndOpacity(this, &SAssetTileItem::GetNameAreaTextColor);
+	}
+	else
+	{
+		SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
+			.Font(this, &SAssetTileItem::GetThumbnailFont)
+			.Text(GetNameText())
+			.OnBeginTextEdit(this, &SAssetTileItem::HandleBeginNameChange)
+			.OnTextCommitted(this, &SAssetTileItem::HandleNameCommitted)
+			.OnVerifyTextChanged(this, &SAssetTileItem::HandleVerifyNameChanged)
+			.HighlightText(InArgs._HighlightText)
+			.IsSelected(InArgs._IsSelectedExclusively)
+			.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
+			.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+			.ColorAndOpacity(this, &SAssetTileItem::GetNameAreaTextColor);
+	}
+
 	ChildSlot
 	.Padding(FMargin(0.0f, 0.0f, 4.0f, 4.0f))
 	[				
@@ -1927,18 +1957,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 								SNew(SBox)
 								.MaxDesiredHeight(this, &SAssetTileItem::GetNameAreaMaxDesiredHeight)
 								[
-									SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
-									.Font(this, &SAssetTileItem::GetThumbnailFont)
-									.Text(GetNameText())
-									.OnBeginTextEdit(this, &SAssetTileItem::HandleBeginNameChange)
-									.OnTextCommitted(this, &SAssetTileItem::HandleNameCommitted)
-									.OnVerifyTextChanged(this, &SAssetTileItem::HandleVerifyNameChanged)
-									.HighlightText(InArgs._HighlightText)
-									.IsSelected(InArgs._IsSelectedExclusively)
-									.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
-									.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
-									.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
-									.ColorAndOpacity(this, &SAssetTileItem::GetNameAreaTextColor)
+									InlineRenameWidget.ToSharedRef()
 								]
 							]
 							+ SVerticalBox::Slot()
