@@ -58,6 +58,48 @@ namespace UE::RCControllerPanelList
 		const FName ValueTypeSelection = TEXT("Value Type Selection");
 	}
 
+	const TSet<UScriptStruct*>& GetSupportedStructs()
+	{
+		static const TSet<UScriptStruct*> SupportedStructs = {
+			TBaseStructure<FVector>::Get(),
+			TBaseStructure<FRotator>::Get(),
+			TBaseStructure<FColor>::Get()
+		};
+		
+		return SupportedStructs;
+	}
+
+	const TSet<UClass*>& GetSupportedObjects()
+	{
+		static const TSet<UClass*> SupportedObjects = {
+			UTexture::StaticClass(),
+			UStaticMesh::StaticClass(),
+			UMaterialInterface::StaticClass(),
+		};
+		
+		return SupportedObjects;
+	}
+	
+	bool IsStructPropertyTypeSupported(const FStructProperty* InStructProperty)
+	{
+		if (InStructProperty)
+		{
+			return GetSupportedStructs().Contains(InStructProperty->Struct);
+		}
+
+		return false;
+	}
+
+	bool IsObjectPropertyTypeSupported(const FObjectProperty* InObjectProperty)
+	{
+		if (InObjectProperty)
+		{
+			return GetSupportedObjects().Contains(InObjectProperty->PropertyClass);
+		}
+
+		return false;
+	}
+
 	class SControllerItemListRow : public SMultiColumnTableRow<TSharedRef<FRCControllerModel>>
 	{
 	public:
@@ -727,6 +769,38 @@ static TSharedPtr<FExposedEntityDragDrop> GetExposedEntityDragDrop(TSharedPtr<FD
 	return nullptr;
 }
 
+bool SRCControllerPanelList::IsEntitySupported(const FGuid ExposedEntityId)
+{
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		if (const TSharedPtr<const FRemoteControlProperty>& RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(ExposedEntityId).Pin())
+		{
+			if (RemoteControlProperty->FieldType == EExposedFieldType::Property)
+			{
+				const FProperty* Property = RemoteControlProperty->GetProperty();
+
+				// enums are currently not properly supported by controllers (e.g. C++ enums action binding won't work)
+				if (Property->IsA<FEnumProperty>())
+				{
+					return false;
+				}
+				else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				{
+					return UE::RCControllerPanelList::IsStructPropertyTypeSupported(StructProperty);
+				}
+				else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+				{
+					return UE::RCControllerPanelList::IsObjectPropertyTypeSupported(ObjectProperty);
+				}
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool SRCControllerPanelList::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
 	if (IsListViewHovered())
@@ -739,18 +813,13 @@ bool SRCControllerPanelList::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDrop
 		return false;
 	}
 
-	if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = GetExposedEntityDragDrop(DragDropOperation))
+	if (const TSharedPtr<FExposedEntityDragDrop>& DragDropOp = GetExposedEntityDragDrop(DragDropOperation))
 	{
 		// Fetch the Exposed Entity
 		const FGuid ExposedEntityId = DragDropOp->GetId();
 
-		if (URemoteControlPreset* Preset = GetPreset())
-		{
-			if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(ExposedEntityId).Pin())
-			{
-				return RemoteControlField->FieldType == EExposedFieldType::Property;
-			}
-		}
+		// Check if Entity is supported by controllers
+		return IsEntitySupported(ExposedEntityId);
 	}
 
 	return false;

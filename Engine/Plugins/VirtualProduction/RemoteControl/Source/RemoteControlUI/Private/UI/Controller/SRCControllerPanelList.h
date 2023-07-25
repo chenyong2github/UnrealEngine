@@ -221,6 +221,9 @@ private:
 	/** Set the visibility of the List header the Field Id Column */
 	void ShowFieldIdHeaderColumn(bool bInShowColumn);
 
+	/** Checks whether the provided Entity can be used to create a Controller*/
+	bool IsEntitySupported(FGuid ExposedEntityId);
+
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
 
