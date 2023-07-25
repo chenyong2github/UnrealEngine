@@ -17,6 +17,7 @@ class SInlineEditableTextBlock;
 class FControlRigEditor;
 struct FAssetData;
 class URigVMBlueprint;
+class FRigVMEditor;
 
 class FDisplayedRigCurveInfo
 {
