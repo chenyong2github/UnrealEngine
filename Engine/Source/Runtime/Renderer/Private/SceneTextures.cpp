@@ -78,9 +78,9 @@ static TAutoConsoleVariable<int32> CVarDefaultBackBufferPixelFormat(
 
 RDG_REGISTER_BLACKBOARD_STRUCT(FSceneTextures);
 
-static EPixelFormat GetGBufferFFormat()
+EPixelFormat FSceneTextures::GetGBufferFFormatAndCreateFlags(ETextureCreateFlags& OutCreateFlags)
 {
-	const int32 GBufferFormat = CVarGBufferFormat.GetValueOnRenderThread();
+	const int32 GBufferFormat = CVarGBufferFormat.GetValueOnAnyThread();
 	const bool bHighPrecisionGBuffers = (GBufferFormat >= EGBufferFormat::Force16BitsPerChannel);
 	const bool bEnforce8BitPerChannel = (GBufferFormat == EGBufferFormat::Force8BitsPerChannel);
 	EPixelFormat NormalGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_B8G8R8A8;
@@ -94,6 +94,7 @@ static EPixelFormat GetGBufferFFormat()
 		NormalGBufferFormat = PF_FloatRGBA;
 	}
 
+	OutCreateFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.GBufferF;
 	return NormalGBufferFormat;
 }
 
@@ -579,7 +580,9 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 		// GBufferF is not yet part of the data driven GBuffer info.
 		if (Config.ShadingPath == EShadingPath::Deferred)
 		{
-			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, GetGBufferFFormat(), FClearValueBinding({ 0.5f, 0.5f, 0.5f, 0.5f }), TexCreate_RenderTargetable | TexCreate_ShaderResource | FlagsToAdd | GFastVRamConfig.GBufferF);
+			ETextureCreateFlags GBufferFCreateFlags;
+			EPixelFormat GBufferFPixelFormat = GetGBufferFFormatAndCreateFlags(GBufferFCreateFlags);
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, GBufferFPixelFormat, FClearValueBinding({ 0.5f, 0.5f, 0.5f, 0.5f }), GBufferFCreateFlags | FlagsToAdd);
 			SceneTextures.GBufferF = GraphBuilder.CreateTexture(Desc, TEXT("GBufferF"));
 		}
 	}

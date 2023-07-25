@@ -473,14 +473,18 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 	{
 		return;
 	}
+
+	// Nanite passes always use the forced fixed vertex element and not custom default vertex declaration even if it's provided
+	FPSOPrecacheVertexFactoryData NaniteVertexFactoryData = VertexFactoryData;
+	NaniteVertexFactoryData.CustomDefaultVertexDeclaration = nullptr;
 		
 	{
 		// generate for both skylight enabled/disabled? Or can this be known already at this point?
 		bool bRenderSkyLight = true;
-		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, NaniteVertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
 		
 		bRenderSkyLight = false;
-		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, NaniteVertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
 	}
 
 	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);

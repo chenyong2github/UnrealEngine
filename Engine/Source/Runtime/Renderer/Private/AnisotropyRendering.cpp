@@ -262,6 +262,14 @@ void FAnisotropyMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 		}
 
 		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+		RenderTargetsInfo.NumSamples = 1;
+
+		ETextureCreateFlags GBufferFCreateFlags;
+		EPixelFormat GBufferFPixelFormat = FSceneTextures::GetGBufferFFormatAndCreateFlags(GBufferFCreateFlags);
+		AddRenderTargetInfo(GBufferFPixelFormat, GBufferFCreateFlags, RenderTargetsInfo);
+		SetupDepthStencilInfo(PF_DepthStencil, SceneTexturesConfig.DepthCreateFlags, ERenderTargetLoadAction::ELoad,
+			ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop, RenderTargetsInfo);
+
 		AddGraphicsPipelineStateInitializer(
 			VertexFactoryData,
 			Material,

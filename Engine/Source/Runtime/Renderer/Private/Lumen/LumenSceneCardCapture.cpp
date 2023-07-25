@@ -488,6 +488,10 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 		return;
 	}
 
+	// Nanite passes always use the forced fixed vertex element and not custom default vertex declaration even if it's provided
+	FPSOPrecacheVertexFactoryData NaniteVertexFactoryData = VertexFactoryData;
+	NaniteVertexFactoryData.CustomDefaultVertexDeclaration = nullptr;
+
 	const ERasterizerFillMode MeshFillMode = FM_Solid;
 	const ERasterizerCullMode MeshCullMode = CM_None;
 
@@ -502,7 +506,7 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 	ShaderTypes.AddShaderType<FLumenCardPS<bMultiViewCapture>>();
 
 	FMaterialShaders Shaders;
-	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryData.VertexFactoryType, Shaders))
+	if (!Material.TryGetShaders(ShaderTypes, NaniteVertexFactoryData.VertexFactoryType, Shaders))
 	{
 		return;
 	}
@@ -513,7 +517,7 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 	SetupCardCaptureRenderTargetsInfo(RenderTargetsInfo);
 
 	AddGraphicsPipelineStateInitializer(
-		VertexFactoryData,
+		NaniteVertexFactoryData,
 		Material,
 		PassDrawRenderState,
 		RenderTargetsInfo,
