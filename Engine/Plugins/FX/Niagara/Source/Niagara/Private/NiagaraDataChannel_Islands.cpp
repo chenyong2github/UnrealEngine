@@ -12,64 +12,6 @@
 
 #include "DrawDebugHelpers.h"
 
-//////////////////////////////////////////////////////////////////////////
-
-void UNiagaraDataChannel_Islands::PostLoad()
-{
-	Super::PostLoad();
-	
-	//For now immediately load handler systems but in future we should look at deferring the load until a channel is used.
-	//Sub classes may want to load differently so we'll keep this a soft ptr.
-	AsyncLoadSystems();
-}
-
-TConstArrayView<TObjectPtr<UNiagaraSystem>> UNiagaraDataChannel_Islands::GetSystems()const
-{
-	check(IsInGameThread());
-	return SystemsInternal;
-}
-
-void UNiagaraDataChannel_Islands::AsyncLoadSystems()const
-{
-	if(SystemsInternal.Num() != Systems.Num() && Systems.Num() > 0)
-	{
-		TArray<FSoftObjectPath> Requests;
-		for (const TSoftObjectPtr<UNiagaraSystem>& SoftSys : Systems)
-		{
-			if (SoftSys.IsPending())
-			{
-				Requests.Add(SoftSys.ToSoftObjectPath());
-			}
-		}
-
-		if (Requests.Num() > 0)
-		{
-			UAssetManager::GetStreamableManager().RequestAsyncLoad(Requests
-				, FStreamableDelegate::CreateUObject(this, &UNiagaraDataChannel_Islands::PostLoadSystems)
-				, FStreamableManager::AsyncLoadHighPriority
-				, false
-				, false
-				, TEXT("NiagaraDataChannelIsland_HandlerSystems"));
-		}
-		else
-		{
-			PostLoadSystems();
-		}
-	}
-}
-
-void UNiagaraDataChannel_Islands::PostLoadSystems()const
-{
-	check(IsInGameThread());
-	SystemsInternal.Reset(Systems.Num());
-	for(auto& SoftSys : Systems)
-	{
-		SystemsInternal.Add(SoftSys.Get());
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-
 UNiagaraDataChannelHandler* UNiagaraDataChannel_Islands::CreateHandler(UWorld* OwningWorld)const
 {
 	UNiagaraDataChannelHandler* NewHandler = NewObject<UNiagaraDataChannelHandler_Islands>(OwningWorld);
@@ -95,9 +37,18 @@ void UNiagaraDataChannelHandler_Islands::Init(const UNiagaraDataChannel* InChann
 	Super::Init(InChannel);
 	if (const UNiagaraDataChannel_Islands* IslandChannel = CastChecked<UNiagaraDataChannel_Islands>(InChannel))
 	{
-		IslandChannel->AsyncLoadSystems();
+		//For now immediately load handler systems but in future we should look at deferring the load until a channel is used.
+		for (const TSoftObjectPtr<UNiagaraSystem>& SoftSys : IslandChannel->Systems)
+		{
+			UAssetManager::GetStreamableManager().RequestAsyncLoad(SoftSys.ToSoftObjectPath()
+				, FStreamableDelegate()
+				, FStreamableManager::AsyncLoadHighPriority
+				, false
+				, false
+				, TEXT("NiagaraDataChannelIsland_HandlerSystems"));
+		}
 
-		int32 InitialPoolCount = IslandChannel->GetIslandPoolSize();
+		int32 InitialPoolCount = IslandChannel->IslandPoolSize;
 		ActiveIslands.Reserve(InitialPoolCount);
 		FreeIslands.Reserve(InitialPoolCount);
 		IslandPool.SetNum(InitialPoolCount);
@@ -141,7 +92,7 @@ void UNiagaraDataChannelHandler_Islands::Tick(float DeltaTime, ETickingGroup Tic
 		FNDCIsland& Island = IslandPool[*It];
 		Island.Tick();
 
-		if(IslandChannel->GetDebugDrawSettings().ShowBounds())
+		if(IslandChannel->DebugDrawSettings.ShowBounds())
 		{
 			Island.DebugDrawBounds();
 		}
@@ -222,8 +173,8 @@ FNDCIsland* UNiagaraDataChannelHandler_Islands::FindOrCreateIsland(const FNiagar
 		//Assuming that overall active island count will be low.
 		//If this is not the case then we'll want to add an acceleration structure to speed up this search.
 		FNDCIsland* IslandToUse = nullptr;
-		FVector MaxExtents = IslandChannel->GetMaxExtents();
-		FVector PerElementExtents = IslandChannel->GetPerElementExtents();
+		FVector MaxExtents = IslandChannel->MaxExtents;
+		FVector PerElementExtents = IslandChannel->PerElementExtents;
 		for (int32 i : ActiveIslands)
 		{
 			FNDCIsland& Island = IslandPool[i];
@@ -312,38 +263,38 @@ void FNDCIsland::Init(UNiagaraDataChannelHandler_Islands* InOwner)
 	const UNiagaraDataChannel_Islands* Channel = CastChecked<UNiagaraDataChannel_Islands>(Owner->GetDataChannel());
 
 	Bounds.Origin = FVector::ZeroVector;
-	Bounds.BoxExtent = Channel->GetInitialExtents();
+	Bounds.BoxExtent = Channel->InitialExtents;
 }
 
 void FNDCIsland::OnAcquired(FVector Location)
 {
 	const UNiagaraDataChannel_Islands* Channel = CastChecked<UNiagaraDataChannel_Islands>(Owner->GetDataChannel());
 
-	if(Channel->GetMode() == ENiagraDataChannel_IslandMode::AlignedStatic)
+	if(Channel->Mode == ENiagraDataChannel_IslandMode::AlignedStatic)
 	{
 		//Align our location down to the nearest lower multiple of the max island size to avoid overlapping islands.
 		//TODO: make our padding extents come from the owning component or the handler systems?
-		FVector ActualMaxSize = Channel->GetMaxExtents() + Channel->GetPerElementExtents();
-		FVector BoxSize = Channel->GetMaxExtents() * 2;
+		FVector ActualMaxSize = Channel->MaxExtents + Channel->PerElementExtents;
+		FVector BoxSize = Channel->MaxExtents * 2;
 		FVector BoxN = Location / BoxSize;
 		BoxN.X = FMath::RoundToNegativeInfinity(BoxN.X);
 		BoxN.Y = FMath::RoundToNegativeInfinity(BoxN.Y);
 		BoxN.Z = FMath::RoundToNegativeInfinity(BoxN.Z);
-		Bounds.Origin = BoxN * BoxSize + Channel->GetMaxExtents();
+		Bounds.Origin = BoxN * BoxSize + Channel->MaxExtents;
 		Bounds.BoxExtent = ActualMaxSize;
 	}
 	else
 	{
 		Bounds.Origin = Location;
-		Bounds.BoxExtent = Channel->GetInitialExtents();
+		Bounds.BoxExtent = Channel->InitialExtents;
 	}
 
 	Data->SetLwcTile(FLargeWorldRenderScalar::GetTileFor(Bounds.Origin));
 	//Spawn our handler systems.
 	FBox HandlerSystemBounds(-Bounds.BoxExtent, Bounds.BoxExtent);
-	for (const TObjectPtr<UNiagaraSystem>& Sys : Channel->GetSystems())
+	for (auto& SoftSys : Channel->Systems)
 	{
-		if(Sys)
+		if (UNiagaraSystem* Sys = SoftSys.LoadSynchronous())
 		{
 			FFXSystemSpawnParameters SpawnParams;
 			SpawnParams.bAutoActivate = false;//We must activate AFTER adding this component to our handle system array.
@@ -361,10 +312,10 @@ void FNDCIsland::OnAcquired(FVector Location)
 			}
 		}
 	}
-
-	if (Channel->GetMode() == ENiagraDataChannel_IslandMode::Dynamic)
+	
+	if (Channel->Mode == ENiagraDataChannel_IslandMode::Dynamic)
 	{
-		ensure(TryGrow(Location, Channel->GetPerElementExtents(), Channel->GetMaxExtents()));
+		ensure(TryGrow(Location, Channel->PerElementExtents, Channel->MaxExtents));
 	}
 }
 

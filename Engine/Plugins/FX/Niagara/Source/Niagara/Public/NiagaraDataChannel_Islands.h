@@ -111,26 +111,9 @@ class UNiagaraDataChannel_Islands : public UNiagaraDataChannel
 {
 	GENERATED_BODY()
 
-public:
-
-	//UObject Interface
-	NIAGARA_API virtual void PostLoad()override;
-	//UObject Interface End
+public: 
 
 	NIAGARA_API virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld)const override;
-
-	void AsyncLoadSystems()const;
-
-	ENiagraDataChannel_IslandMode GetMode()const { return Mode; }
-	FVector GetInitialExtents()const { return InitialExtents; }
-	FVector GetMaxExtents()const { return MaxExtents; }
-	FVector GetPerElementExtents()const { return PerElementExtents; }
-
-	TConstArrayView<TObjectPtr<UNiagaraSystem>> GetSystems()const;
-	int32 GetIslandPoolSize()const { return IslandPoolSize; }
-	const FNDCIslandDebugDrawSettings& GetDebugDrawSettings()const { return DebugDrawSettings; }
-
-private:
 
 	/** Controls how islands are placed and sized. */
 	UPROPERTY(EditAnywhere, Category = "Islands")
@@ -175,11 +158,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Debug Rendering")
 	FNDCIslandDebugDrawSettings DebugDrawSettings;
-
-	void PostLoadSystems()const;
-
-	UPROPERTY(Transient)
-	mutable TArray<TObjectPtr<UNiagaraSystem>> SystemsInternal;
 };
 
 UCLASS(Experimental, BlueprintType, MinimalAPI)
