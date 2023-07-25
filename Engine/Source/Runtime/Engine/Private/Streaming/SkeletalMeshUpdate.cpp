@@ -15,13 +15,6 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 #include "Streaming/RenderAssetUpdate.inl"
 #include "RHIResourceUpdates.h"
 
-int32 GStreamingSkeletalMeshIOPriority = (int32)AIOP_Low;
-static FAutoConsoleVariableRef CVarStreamingSkeletalMeshIOPriority(
-	TEXT("r.Streaming.SkeletalMeshIOPriority"),
-	GStreamingSkeletalMeshIOPriority,
-	TEXT("Base I/O priority for loading skeletal mesh LODs"),
-	ECVF_Default);
-
 extern int32 GStreamingMaxReferenceChecks;
 
 template class TRenderAssetUpdate<FSkelMeshUpdateContext>;
@@ -449,7 +442,23 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-		const EAsyncIOPriorityAndFlags Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingSkeletalMeshIOPriority + (bHighPrioIORequest ? 1 : 0), AIOP_Low, AIOP_High);
+		EAsyncIOPriorityAndFlags Priority = AIOP_Low;
+		if (bHighPrioIORequest)
+		{
+			static IConsoleVariable* CVarAsyncLoadingPrecachePriority = IConsoleManager::Get().FindConsoleVariable(TEXT("s.AsyncLoadingPrecachePriority"));
+			const bool bLoadBeforeAsyncPrecache = CVarStreamingLowResHandlingMode.GetValueOnAnyThread() == (int32)FRenderAssetStreamingSettings::LRHM_LoadBeforeAsyncPrecache;
+
+			if (CVarAsyncLoadingPrecachePriority && bLoadBeforeAsyncPrecache)
+			{
+				const int32 AsyncIOPriority = CVarAsyncLoadingPrecachePriority->GetInt();
+				// Higher priority than regular requests but don't go over max
+				Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(AsyncIOPriority + 1, AIOP_BelowNormal, AIOP_MAX);
+			}
+			else
+			{
+				Priority = AIOP_BelowNormal;
+			}
+		}
 
 		Batch.Issue(BulkData, Priority, [this](FBulkDataRequest::EStatus Status)
 		{

@@ -17,13 +17,6 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "RenderUtils.h"
 #endif
 
-int32 GStreamingTextureIOPriority = (int32)AIOP_Low;
-static FAutoConsoleVariableRef CVarStreamingTextureIOPriority(
-	TEXT("r.Streaming.TextureIOPriority"),
-	GStreamingTextureIOPriority,
-	TEXT("Base I/O priority for loading texture mips"),
-	ECVF_Default);
-
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn(InTexture)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
@@ -86,10 +79,28 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			uint32 DestPitch = MipData[MipIndex].Pitch;
 			FTexture2DResource::WarnRequiresTightPackedMip(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), DestPitch);
 
+			EAsyncIOPriorityAndFlags Priority = AIOP_Low;
+			if (bPrioritizedIORequest)
+			{
+				static IConsoleVariable* CVarAsyncLoadingPrecachePriority = IConsoleManager::Get().FindConsoleVariable(TEXT("s.AsyncLoadingPrecachePriority"));
+				const bool bLoadBeforeAsyncPrecache = CVarStreamingLowResHandlingMode.GetValueOnAnyThread() == (int32)FRenderAssetStreamingSettings::LRHM_LoadBeforeAsyncPrecache;
+
+				if (CVarAsyncLoadingPrecachePriority && bLoadBeforeAsyncPrecache)
+				{
+					const int32 AsyncIOPriority = CVarAsyncLoadingPrecachePriority->GetInt();
+					// Higher priority than regular requests but don't go over max
+					Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(AsyncIOPriority + 1, AIOP_BelowNormal, AIOP_MAX);
+				}
+				else
+				{
+					Priority = AIOP_BelowNormal;
+				}
+			}
+
 			IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
 				0,
 				BulkDataSize,
-				(EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingTextureIOPriority + (bPrioritizedIORequest ? 1 : 0), AIOP_Low, AIOP_High) | AIOP_FLAG_DONTCACHE,
+				Priority | AIOP_FLAG_DONTCACHE,
 				&AsyncFileCallBack,
 				(uint8*)MipData[MipIndex].Data);
 		}

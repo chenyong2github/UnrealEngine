@@ -11,8 +11,6 @@ Texture2DMipDataProvider_IO.cpp : Implementation of FTextureMipDataProvider usin
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ContentStreaming.h"
 
-extern int32 GStreamingTextureIOPriority;
-
 FTexture2DMipDataProvider_IO::FTexture2DMipDataProvider_IO(const UTexture* InTexture, bool InPrioritizedIORequest)
 	: FTextureMipDataProvider(InTexture, ETickState::Init, ETickThread::Async)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
@@ -103,11 +101,29 @@ int32 FTexture2DMipDataProvider_IO::GetMips(
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		SyncOptions.Counter->Increment();
 
+		EAsyncIOPriorityAndFlags Priority = AIOP_Low;
+		if (bPrioritizedIORequest)
+		{
+			static IConsoleVariable* CVarAsyncLoadingPrecachePriority = IConsoleManager::Get().FindConsoleVariable(TEXT("s.AsyncLoadingPrecachePriority"));
+			const bool bLoadBeforeAsyncPrecache = CVarStreamingLowResHandlingMode.GetValueOnAnyThread() == (int32)FRenderAssetStreamingSettings::LRHM_LoadBeforeAsyncPrecache;
+
+			if (CVarAsyncLoadingPrecachePriority && bLoadBeforeAsyncPrecache)
+			{
+				const int32 AsyncIOPriority = CVarAsyncLoadingPrecachePriority->GetInt();
+				// Higher priority than regular requests but don't go over max
+				Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(AsyncIOPriority + 1, AIOP_BelowNormal, AIOP_MAX);
+			}
+			else
+			{
+				Priority = AIOP_BelowNormal;
+			}
+		}
+
 		IORequests[StartingMipIndex].BulkDataIORequest.Reset(
 			OwnerMip.BulkData.CreateStreamingRequest(
 				0,
 				OwnerMip.BulkData.GetBulkDataSize(),
-				(EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingTextureIOPriority + (bPrioritizedIORequest ? 1 : 0), AIOP_Low, AIOP_High) | AIOP_FLAG_DONTCACHE,
+				Priority | AIOP_FLAG_DONTCACHE,
 				&AsyncFileCallBack,
 				(uint8*)MipInfo.DestData
 			)

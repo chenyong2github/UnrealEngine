@@ -50,6 +50,7 @@ FStreamingRenderAsset::FStreamingRenderAsset(
 	bUseUnkownRefHeuristic = false;
 	NumMissingMips = 0;
 	bLooksLowRes = false;
+	bMissingTooManyMips = false;
 	VisibleWantedMips = MinAllowedMips;
 	HiddenWantedMips = MinAllowedMips;
 	RetentionPriority = 0;
@@ -487,12 +488,13 @@ int64 FStreamingRenderAsset::GetDropOneMipMemDelta() const
 	return GetSize(BudgetedMips + 1) - GetSize(BudgetedMips);
 }
 
-bool FStreamingRenderAsset::UpdateLoadOrderPriority_Async(int32 MinMipForSplitRequest)
+bool FStreamingRenderAsset::UpdateLoadOrderPriority_Async(const FRenderAssetStreamingSettings& Settings)
 {
 	LoadOrderPriority = 0;
+	bMissingTooManyMips = false;
 
 	// First load the visible mips, then later load the non visible part (does not apply to terrain textures as distance fields update may be waiting).
-	if (ResidentMips < VisibleWantedMips && VisibleWantedMips < BudgetedMips && BudgetedMips >= MinMipForSplitRequest && !bIsTerrainTexture)
+	if (ResidentMips < VisibleWantedMips && VisibleWantedMips < BudgetedMips && BudgetedMips >= Settings.MinMipForSplitRequest && !bIsTerrainTexture)
 	{
 		WantedMips = VisibleWantedMips;
 	}
@@ -509,7 +511,10 @@ bool FStreamingRenderAsset::UpdateLoadOrderPriority_Async(int32 MinMipForSplitRe
 
 		if (WantedMips > RequestedMips)
 		{
-			const bool bMipIsImportant = WantedMips - ResidentMips > (bLooksLowRes ? 1 : 2);
+			const bool bMipIsImportant = WantedMips - ResidentMips > (bLooksLowRes || IsMesh() ? 1 : 2);
+
+			// Only consider visible assets to reduce the number of high priority requests
+			bMissingTooManyMips = bIsVisible && bMipIsImportant && Settings.LowResHandlingMode != FRenderAssetStreamingSettings::LRHM_DoNothing;
 
 			if (bIsVisible)				LoadOrderPriority += 1024;
 			if (bMustLoadFirst)			LoadOrderPriority += 512;
@@ -584,7 +589,7 @@ void FStreamingRenderAsset::StreamWantedMips_Internal(FRenderAssetStreamingManag
 			}
 			else // WantedMips > ResidentMips
 			{
-				const bool bShouldPrioritizeAsyncIORequest = (bLocalForceFullyLoadHeuristic || bIsTerrainTexture || bLoadWithHigherPriority) && LocalWantedMips <= LocalVisibleWantedMips;
+				const bool bShouldPrioritizeAsyncIORequest = (bLocalForceFullyLoadHeuristic || bIsTerrainTexture || bLoadWithHigherPriority || IsMissingTooManyMips()) && LocalWantedMips <= LocalVisibleWantedMips;
 				RenderAsset->StreamIn(LocalWantedMips, bShouldPrioritizeAsyncIORequest);
 			}
 			UpdateStreamingStatus(false);

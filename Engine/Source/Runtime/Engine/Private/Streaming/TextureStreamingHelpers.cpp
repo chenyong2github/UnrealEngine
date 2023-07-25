@@ -267,6 +267,12 @@ ENGINE_API TAutoConsoleVariable<int32> CVarFramesForFullUpdate(
 	5,
 	TEXT("Texture streaming is time sliced per frame. This values gives the number of frames to visit all textures."));
 
+TAutoConsoleVariable<int32> CVarStreamingLowResHandlingMode(
+	TEXT("r.Streaming.LowResHandlingMode"),
+	(int32)FRenderAssetStreamingSettings::LRHM_DoNothing,
+	TEXT("How to handle assets with too many missing MIPs or LODs. 0 (default): do nothing, 1: load before regular streaming requests, 2: load before async loading precache requests."),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> CVarPrioritizeMeshLODRetention(
 	TEXT("r.Streaming.PrioritizeMeshLODRetention"),
 	1,
@@ -320,6 +326,7 @@ void FRenderAssetStreamingSettings::Update()
 	MaxTextureUVDensity = CVarStreamingMaxTextureUVDensity.GetValueOnAnyThread();
 	bUseMaterialData = bUseNewMetrics && CVarStreamingUseMaterialData.GetValueOnAnyThread() != 0;
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
+	LowResHandlingMode = (ELowResHandlingMode)CVarStreamingLowResHandlingMode.GetValueOnAnyThread();
 	bMipCalculationEnablePerLevelList = CVarStreamingMipCalculationEnablePerLevelList.GetValueOnAnyThread() != 0;
 	bPrioritizeMeshLODRetention = CVarPrioritizeMeshLODRetention.GetValueOnAnyThread() != 0;
 	VRAMPercentageClamp = CVarStreamingVRAMPercentageClamp.GetValueOnAnyThread();

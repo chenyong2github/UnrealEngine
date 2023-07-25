@@ -128,7 +128,7 @@ struct FStreamingRenderAsset
 	}
 
 	/** Init load order. Return wether this texture has any load/unload request */
-	bool UpdateLoadOrderPriority_Async(int32 MinMipForSplitRequest);
+	bool UpdateLoadOrderPriority_Async(const FRenderAssetStreamingSettings& Settings);
 
 	void UpdateOptionalMipsState_Async();
 	
@@ -151,6 +151,11 @@ struct FStreamingRenderAsset
 	{
 		// FRenderAssetStreamingManager only handles textures and meshes currently
 		return RenderAssetType != EStreamableRenderAssetType::Texture;
+	}
+
+	bool IsMissingTooManyMips() const
+	{
+		return bMissingTooManyMips;
 	}
 
 	FORCEINLINE int32 GetPerfectWantedMips() const { return FMath::Max<int32>(VisibleWantedMips,  HiddenWantedMips); }
@@ -272,6 +277,8 @@ struct FStreamingRenderAsset
 	uint32			bUseUnkownRefHeuristic : 1;
 	/** (4) Same as force fully load, but takes into account component settings. */
 	uint32			bLooksLowRes : 1;
+	/** (4) Whether too many desired MIPs or LODs are missing. */
+	uint32			bMissingTooManyMips : 1;
 
 	/** (5) */
 	uint32			bCachedForceFullyLoadHeuristic : 1;

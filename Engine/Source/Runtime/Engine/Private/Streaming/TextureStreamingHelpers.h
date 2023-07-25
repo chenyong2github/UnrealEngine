@@ -66,9 +66,18 @@ extern TAutoConsoleVariable<int32> CVarStreamingUseMaterialData;
 extern TAutoConsoleVariable<int32> CVarStreamingNumStaticComponentsProcessedPerFrame;
 extern TAutoConsoleVariable<int32> CVarStreamingDefragDynamicBounds;
 extern TAutoConsoleVariable<float> CVarStreamingMaxTextureUVDensity;
+extern TAutoConsoleVariable<int32> CVarStreamingLowResHandlingMode;
 
 struct FRenderAssetStreamingSettings
 {
+	// How to handle assets with too many missing MIPs or LODs
+	enum ELowResHandlingMode
+	{
+		LRHM_DoNothing,
+		LRHM_LoadBeforeRegular,			// Use higher IO priority than regular streaming requests
+		LRHM_LoadBeforeAsyncPrecache,	// Also ensure that priority is higher than async loading precache requests
+	};
+
 	FRenderAssetStreamingSettings()
 	{
 		// Make sure padding bytes don't have random values
@@ -104,6 +113,7 @@ struct FRenderAssetStreamingSettings
 	float MaxTextureUVDensity;
 	int32 MaterialQualityLevel;
 	int32 FramesForFullUpdate;
+	ELowResHandlingMode LowResHandlingMode;
 	bool bMipCalculationEnablePerLevelList;
 	bool bPrioritizeMeshLODRetention;
 	int32 VRAMPercentageClamp;

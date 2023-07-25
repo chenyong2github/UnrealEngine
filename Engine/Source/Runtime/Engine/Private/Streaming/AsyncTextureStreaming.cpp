@@ -799,18 +799,23 @@ void FRenderAssetStreamingMipCalcTask::UpdateLoadAndCancelationRequests_Async()
 	for (int32 AssetIndex = 0; AssetIndex < StreamingRenderAssets.Num() && !IsAborted(); ++AssetIndex)
 	{
 		FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[AssetIndex];
+		const bool bWasMissingTooManyMips = StreamingRenderAsset.IsMissingTooManyMips();
 
 		// If we need to change the number of resident mips.
-		if (StreamingRenderAsset.UpdateLoadOrderPriority_Async(Settings.MinMipForSplitRequest))
+		if (StreamingRenderAsset.UpdateLoadOrderPriority_Async(Settings))
 		{
 			// If there is no pending update, kick one if the budget allows it.
 			if (StreamingRenderAsset.RequestedMips == StreamingRenderAsset.ResidentMips)
 			{
 				PrioritizedRenderAssets.Add(AssetIndex);
 			}
-			// Otherwise, if the update is trying to load to many mips, or if it is trying to unload required mips, (try to) cancel it.
-			else if (StreamingRenderAsset.RequestedMips > FMath::Max<int32>(StreamingRenderAsset.ResidentMips, StreamingRenderAsset.WantedMips + 1) ||
-					StreamingRenderAsset.RequestedMips < FMath::Min<int32>(StreamingRenderAsset.ResidentMips, StreamingRenderAsset.WantedMips))
+			// Otherwise, if the update is trying to load too many, too few, or unload required MIPs, (try to) cancel it.
+			else if (
+				// If marked as missing too many MIPs, a high priority request was created so be more aggressive on canceling it.
+				StreamingRenderAsset.RequestedMips > FMath::Max<int32>(StreamingRenderAsset.ResidentMips, StreamingRenderAsset.WantedMips + (bWasMissingTooManyMips ? 0 : 1)) ||
+				// If too many missing MIPs, cancel existing request if it is not loading enough so a high priority one can be created.
+				// Otherwise, only cancel if it is trying to unload resident MIPs.
+				StreamingRenderAsset.RequestedMips < (StreamingRenderAsset.IsMissingTooManyMips() ? StreamingRenderAsset.WantedMips : FMath::Min<int32>(StreamingRenderAsset.ResidentMips, StreamingRenderAsset.WantedMips)))
 			{
 				CancelationRequests.Add(AssetIndex);
 			}
