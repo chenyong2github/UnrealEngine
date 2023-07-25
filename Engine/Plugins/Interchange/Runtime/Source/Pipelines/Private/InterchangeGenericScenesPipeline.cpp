@@ -29,9 +29,9 @@
 #include "Engine/RectLight.h"
 #include "Engine/SpotLight.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/World.h"
 
 #if WITH_EDITOR
-#include "Engine/World.h"
 #include "ObjectTools.h"
 #endif
 
