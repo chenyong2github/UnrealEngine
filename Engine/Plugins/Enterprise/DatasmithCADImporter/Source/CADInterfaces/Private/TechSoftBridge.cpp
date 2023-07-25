@@ -239,7 +239,7 @@ UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, FAr
 	}
 
 	TSharedRef<UE::CADKernel::FBody> Body = UE::CADKernel::FEntity::MakeShared<UE::CADKernel::FBody>();
-	AddMetadata(BRepMetaData, *Body);
+	AddMetaData(BRepMetaData, *Body);
 
 	Body->SetDisplayData(ArchiveBody.ColorUId, ArchiveBody.MaterialUId);
 
@@ -330,7 +330,7 @@ void FTechSoftBridge::TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<UE:
 #endif
 
 	Shell->SetDisplayData(*Body);
-	AddMetadata(MetaData, *Shell);
+	AddMetaData(MetaData, *Shell);
 
 	TUniqueTSObj<A3DTopoShellData> ShellData(A3DShell);
 
@@ -936,8 +936,8 @@ void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, UE::CADKernel::EOrient
 		return;
 	}
 
-	AddMetadata(MetaData, *Face);
-	Face->SetDisplayDataIfUndefined(*Shell);
+	AddMetaData(MetaData, *Face);
+	Face->CompleteMetaData();
 
 	Face->SetHostId(ShellIndex);
 	Shell->Add(Face, Orientation);
@@ -1415,7 +1415,7 @@ TSharedPtr<UE::CADKernel::FSurface> FTechSoftBridge::AddSurfaceAsNurbs(const A3D
 
 }
 
-void FTechSoftBridge::AddMetadata(FArchiveCADObject& MetaData, UE::CADKernel::FTopologicalShapeEntity& Entity)
+void FTechSoftBridge::AddMetaData(FArchiveCADObject& MetaData, UE::CADKernel::FTopologicalShapeEntity& Entity)
 {
 	FString* Name = MetaData.MetaData.Find(TEXT("Name"));
 	if (Name != nullptr)

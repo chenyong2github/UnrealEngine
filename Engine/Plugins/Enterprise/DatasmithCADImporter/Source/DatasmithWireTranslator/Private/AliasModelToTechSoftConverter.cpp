@@ -355,6 +355,10 @@ bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, const FColor& C
 		DagNode.localTransformationMatrix(AlMatrix);
 	}
 
+	boolean bAlOrientation;
+	DagNode.getSurfaceOrientation(bAlOrientation);
+	bool bOrientation = !(bool)bAlOrientation;
+
 	TArray<A3DTopoFace*> TSFaces;
 	TSFaces.Reserve(100);
 
@@ -430,7 +434,7 @@ bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, const FColor& C
 	A3DTopoShell* TopoShellPtr = nullptr;
 	{
 		TArray<A3DUns8> FaceOrientations;
-		FaceOrientations.Init(true, TSFaces.Num());
+		FaceOrientations.Init(bOrientation, TSFaces.Num());
 
 		CADLibrary::TUniqueTSObj<A3DTopoShellData> TopoShellData;
 		TopoShellData->m_bClosed = false;

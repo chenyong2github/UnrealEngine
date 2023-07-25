@@ -290,14 +290,15 @@ bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, const FColor& 
 	AlEdge2CADKernelEdge.Empty();
 
 	TSharedRef<UE::CADKernel::FBody> CADKernelBody = UE::CADKernel::FEntity::MakeShared<UE::CADKernel::FBody>();
-	TSharedRef<UE::CADKernel::FShell> CADKernelShell = UE::CADKernel::FEntity::MakeShared<UE::CADKernel::FShell>();
 	uint32 ColorId = (uint32) CADLibrary::BuildColorUId(Color);
-	CADKernelShell->SetColorId(ColorId);
+	CADKernelBody->SetColorId(ColorId);
+
+	TSharedRef<UE::CADKernel::FShell> CADKernelShell = UE::CADKernel::FEntity::MakeShared<UE::CADKernel::FShell>();
 	CADKernelBody->AddShell(CADKernelShell);
 
 	boolean bAlOrientation;
 	DagNode.getSurfaceOrientation(bAlOrientation);
-	bool bOrientation = (bool)bAlOrientation;
+	bool bOrientation = !(bool)bAlOrientation;
 
 	AlMatrix4x4 AlMatrix;
 	if (InObjectReference == EAliasObjectReference::ParentReference)
@@ -340,8 +341,7 @@ bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, const FColor& 
 		break;
 	}
 
-
-	// Create body from faces
+	CADKernelBody->CompleteMetaData();
 	CADKernelSession.GetModel().Add(CADKernelBody);
 
 	return CADKernelShell->FaceCount() > 0;

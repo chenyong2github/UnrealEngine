@@ -125,11 +125,20 @@ public:
 		}
 	}
 
-	virtual void SpreadBodyOrientation() override
+	virtual void CompleteMetaData() override
+	{
+		CompleteMetaDataWithHostMetaData();
+		for (TSharedPtr<FShell>& Shell : Shells)
+		{
+			Shell->CompleteMetaData();
+		}
+	}
+
+	virtual void PropagateBodyOrientation() override
 	{
 		for (const TSharedPtr<FShell>& Shell : Shells)
 		{
-			Shell->SpreadBodyOrientation();
+			Shell->PropagateBodyOrientation();
 		}
 	}
 

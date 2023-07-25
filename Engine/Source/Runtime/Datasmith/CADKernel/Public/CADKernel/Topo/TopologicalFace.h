@@ -171,7 +171,12 @@ public:
 		}
 	}
 
-	virtual void SpreadBodyOrientation() override
+	virtual void CompleteMetaData() override
+	{
+		CompleteMetaDataWithHostMetaData();
+	}
+
+	virtual void PropagateBodyOrientation() override
 	{
 	}
 

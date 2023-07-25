@@ -136,7 +136,9 @@ public:
 
 	virtual void Merge(TSharedPtr<FShell>& Shell);
 
-	virtual void SpreadBodyOrientation() override;
+	virtual void PropagateBodyOrientation() override;
+
+	virtual void CompleteMetaData() override;
 
 	/**
 	 * Update each FOrientedFace::Direction according to FOrientedFace::Entity->IsBackOriented() flag

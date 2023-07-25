@@ -146,7 +146,7 @@ void FShell::Merge(TSharedPtr<FShell>& Shell)
 }
 
 
-void FShell::SpreadBodyOrientation()
+void FShell::PropagateBodyOrientation()
 {
 	const bool bIsOuter = IsOuter();
 	for (FOrientedFace& Face : TopologicalFaces)
@@ -161,6 +161,16 @@ void FShell::SpreadBodyOrientation()
 		}
 	}
 }
+
+void FShell::CompleteMetaData()
+{
+	CompleteMetaDataWithHostMetaData();
+	for (FOrientedFace& Face : TopologicalFaces)
+	{
+		Face.Entity->CompleteMetaData();
+	}
+}
+
 
 void FShell::UpdateShellOrientation()
 {

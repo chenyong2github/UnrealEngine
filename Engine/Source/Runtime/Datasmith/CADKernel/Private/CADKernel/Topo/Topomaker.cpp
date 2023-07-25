@@ -535,8 +535,10 @@ FTopomaker::FTopomaker(FSession& InSession, const FTopomakerOptions& InOptions)
 
 	for (const TSharedPtr<FBody>& Body : Session.GetModel().GetBodies())
 	{
+		Body->CompleteMetaData();
 		for (const TSharedPtr<FShell>& Shell : Body->GetShells())
 		{
+			Shell->PropagateBodyOrientation();
 			Shells.Add(Shell.Get());
 		}
 	}
@@ -552,6 +554,7 @@ FTopomaker::FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& In
 	Shells.Reserve(InShells.Num());
 	for (const TSharedPtr<FShell>& Shell : InShells)
 	{
+		Shell->PropagateBodyOrientation();
 		Shells.Add(Shell.Get());
 	}
 	InitFaces();
@@ -562,27 +565,21 @@ void FTopomaker::InitFaces()
 	int32 FaceCount = 0;
 	for (FShell* Shell : Shells)
 	{
-		Shell->CompleteMetadata();
 		FaceCount += Shell->FaceCount();
 	}
 	Faces.Reserve(FaceCount);
 
 	for (FShell* Shell : Shells)
 	{
-		Shell->SpreadBodyOrientation();
 		for (const FOrientedFace& Face : Shell->GetFaces())
 		{
 			Faces.Add(Face.Entity);
-		}
-		for (const FOrientedFace& Face : Shell->GetFaces())
-		{
-			Face.Entity->CompleteMetadata();
 		}
 	}
 
 	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
 	{
-		Face->ResetMarker2();
+		Face->ResetMarkers();
 	}
 }
 

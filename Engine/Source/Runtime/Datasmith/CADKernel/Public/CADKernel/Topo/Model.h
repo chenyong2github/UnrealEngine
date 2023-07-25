@@ -166,7 +166,9 @@ public:
 		return Bodies;
 	}
 
-	virtual void SpreadBodyOrientation() override;
+	virtual void PropagateBodyOrientation() override;
+
+	virtual void CompleteMetaData() override;
 
 	// Topo functions
 

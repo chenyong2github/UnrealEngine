@@ -40,7 +40,7 @@ public:
 		FTopologicalEntity::Empty();
 	}
 
-	const FMetadataDictionary& GetMetadataDictionary() const
+	const FMetadataDictionary& GetMetaDataDictionary() const
 	{
 		return Dictionary;
 	}
@@ -50,7 +50,8 @@ public:
 		Dictionary.ExtractMetaData(OutMetaData);
 	}
 
-	void CompleteMetadata();
+	virtual void CompleteMetaData() = 0;
+	void CompleteMetaDataWithHostMetaData();
 
 	virtual int32 FaceCount() const = 0;
 	virtual void GetFaces(TArray<FTopologicalFace*>& OutFaces) = 0;
@@ -59,7 +60,7 @@ public:
 	 * Each face of model is set by its orientation. This allow to make oriented mesh and to keep the face orientation in topological function.
 	 * Marker2 of spread face is set. It must be reset after the process
 	 */
-	virtual void SpreadBodyOrientation() = 0;
+	virtual void PropagateBodyOrientation() = 0;
 
 #ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const = 0;
@@ -151,18 +152,6 @@ public:
 	void SetDisplayData(const FTopologicalShapeEntity& DisplayData)
 	{
 		SetDisplayData(DisplayData.GetColorId(), DisplayData.GetMaterialId());
-	}
-
-	void SetDisplayDataIfUndefined(const FTopologicalShapeEntity& DefaultDisplayData)
-	{
-		if (Dictionary.GetColorId() == 0 && DefaultDisplayData.GetColorId())
-		{
-			Dictionary.SetColorId(DefaultDisplayData.GetColorId());
-		}
-		if (Dictionary.GetMaterialId() == 0 && DefaultDisplayData.GetMaterialId())
-		{
-			Dictionary.SetMaterialId(DefaultDisplayData.GetMaterialId());
-		}
 	}
 
 	void SetPatchId(int32 InPatchId)

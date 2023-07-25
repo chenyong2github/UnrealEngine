@@ -4,11 +4,11 @@
 namespace UE::CADKernel
 {
 
-void FTopologicalShapeEntity::CompleteMetadata()
+void FTopologicalShapeEntity::CompleteMetaDataWithHostMetaData()
 {
 	if (HostedBy != nullptr)
 	{
-		Dictionary.CompleteDictionary(HostedBy->GetMetadataDictionary());
+		Dictionary.CompleteDictionary(HostedBy->GetMetaDataDictionary());
 	}
 }
 

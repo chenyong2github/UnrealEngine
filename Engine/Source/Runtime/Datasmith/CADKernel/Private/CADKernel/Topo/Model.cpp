@@ -91,11 +91,19 @@ void FModel::GetFaces(TArray<FTopologicalFace*>& OutFaces)
 	}
 }
 
-void FModel::SpreadBodyOrientation()
+void FModel::PropagateBodyOrientation()
 {
 	for (TSharedPtr<FBody>& Body : Bodies)
 	{
-		Body->SpreadBodyOrientation();
+		Body->PropagateBodyOrientation();
+	}
+}
+
+void FModel::CompleteMetaData()
+{
+	for (TSharedPtr<FBody>& Body : Bodies)
+	{
+		Body->CompleteMetaData();
 	}
 }
 

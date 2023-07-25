@@ -250,7 +250,7 @@ private:
 
 	TSharedPtr<UE::CADKernel::FCurve> AddCurveAsNurbs(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	void AddMetadata(FArchiveCADObject& EntityData, UE::CADKernel::FTopologicalShapeEntity& Entity);
+	void AddMetaData(FArchiveCADObject& EntityData, UE::CADKernel::FTopologicalShapeEntity& Entity);
 };
 }
 

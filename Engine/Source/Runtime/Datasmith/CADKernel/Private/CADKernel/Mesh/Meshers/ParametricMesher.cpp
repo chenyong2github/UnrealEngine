@@ -87,7 +87,7 @@ void FParametricMesher::MeshEntities(TArray<FTopologicalShapeEntity*>& InEntitie
 			continue;
 		}
 
-		TopologicalEntity->SpreadBodyOrientation();
+		TopologicalEntity->PropagateBodyOrientation();
 		TopologicalEntity->GetFaces(Faces);
 	}
 
