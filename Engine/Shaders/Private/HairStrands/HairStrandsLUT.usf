@@ -6,7 +6,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsCommon.ush"
 
-#if SHADER_HAIRLUT
+#if SHADER_HAIRLUT 
 
 #include "../ShadingModels.ush"
 
