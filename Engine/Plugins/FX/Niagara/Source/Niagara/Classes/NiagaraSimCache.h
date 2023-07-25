@@ -190,10 +190,8 @@ struct FNiagaraSimCacheFrame
 	UPROPERTY()
 	float SimulationAge = 0.0f;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 SimulationTickCount = 0;
-#endif
 
 	UPROPERTY()
 	FNiagaraSimCacheSystemFrame SystemData;
@@ -400,10 +398,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
 	ENiagaraSimCacheAttributeCaptureMode GetAttributeCaptureMode() const { return CreateParameters.AttributeCaptureMode; }
 
-	NIAGARA_API bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent * NiagaraComponent);
+	NIAGARA_API bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
 	NIAGARA_API bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext);
+
+	NIAGARA_API bool BeginAppend(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
+	NIAGARA_API bool BeginAppend(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext);
+
 	NIAGARA_API bool WriteFrame(UNiagaraComponent* NiagaraComponent);
 	NIAGARA_API bool WriteFrame(UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext);
+
 	NIAGARA_API bool EndWrite();
 
 	NIAGARA_API bool CanRead(UNiagaraSystem* NiagaraSystem);

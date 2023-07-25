@@ -367,7 +367,7 @@ FReply FNiagaraComponentDetails::OnCaptureSelectedSystem()
 		CaptureParameters.CaptureRate = 1;
 		// A value of 0 would capture until completion. Since this can apply broadly, looping systems would not finish capturing, so don't go below 1.
 		CaptureParameters.NumFrames = FMath::Max(1, GetDefault<UNiagaraSettings>()->QuickSimCacheCaptureFrameCount);
-		CaptureParameters.bManuallyAdvanceSimulation = false;
+		CaptureParameters.bCaptureAllFramesImmediatly = false;
 		
 		if(NiagaraComponentToUse->GetWorld())
 		{

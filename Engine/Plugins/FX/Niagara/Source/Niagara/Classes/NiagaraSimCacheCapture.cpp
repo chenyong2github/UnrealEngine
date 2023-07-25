@@ -7,6 +7,14 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSimCache.h"
 
+FNiagaraSimCacheCapture::~FNiagaraSimCacheCapture()
+{
+	if (TickerHandle.IsValid())
+	{
+		FinishCapture();
+	}
+}
+
 void FNiagaraSimCacheCapture::FinishCapture()
 {
 	if (TickerHandle.IsValid())
@@ -15,39 +23,43 @@ void FNiagaraSimCacheCapture::FinishCapture()
 	}
 
 	UNiagaraSimCache* CaptureSimCache = WeakCaptureSimCache.Get();
-
 	if ( CaptureSimCache != nullptr )
 	{
 		CaptureSimCache->EndWrite();
 	}
 	CaptureComplete.Broadcast(CaptureSimCache);
-
 	WeakCaptureComponent = nullptr;
 }
 
-void FNiagaraSimCacheCapture::CaptureNiagaraSimCache(UNiagaraSimCache* SimCache,
-                                                     FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheCaptureParameters InCaptureParameters)
+void FNiagaraSimCacheCapture::CaptureNiagaraSimCache(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheCaptureParameters InCaptureParameters)
 {
 	WeakCaptureSimCache = SimCache;
 	WeakCaptureComponent = NiagaraComponent;
 	CaptureParameters = InCaptureParameters;
+	CaptureParameters.Sanitize();
 	CaptureFrameCounter = 0;
-
 	if(SimCache == nullptr || NiagaraComponent == nullptr)
 	{
 		FinishCapture();
 		return;
 	}
 	
-	SimCache->BeginWrite(CreateParameters, NiagaraComponent);
+	if (CaptureParameters.bAppendToSimCache)
+	{
+		SimCache->BeginAppend(CreateParameters, NiagaraComponent);
+	}
+	else
+	{
+		SimCache->BeginWrite(CreateParameters, NiagaraComponent);
+	}
 
 	// In this path we are going to manually advance the simulation until we complete
-	if (CaptureParameters.bManuallyAdvanceSimulation)
+	if (CaptureParameters.bCaptureAllFramesImmediatly)
 	{
 		while (WeakCaptureComponent != nullptr && NiagaraComponent != nullptr)
 		{
-			NiagaraComponent->AdvanceSimulation(1, CaptureParameters.AdvanceDeltaTime);
-			OnFrameTick(CaptureParameters.AdvanceDeltaTime);
+			NiagaraComponent->AdvanceSimulation(1, CaptureParameters.ImmediateCaptureDeltaTime);
+			OnFrameTick(CaptureParameters.ImmediateCaptureDeltaTime);
 		}
 	}
 	// In this path we are going to monitor the simulation and capture each frame
@@ -109,7 +121,7 @@ bool FNiagaraSimCacheCapture::OnFrameTick(float DeltaTime)
 			}
 
 			// Make sure we don't keep this alive forever, if we didn't managed to capture anything in 10 ticks something has probably gone wrong so bail
-			if (TimeOutCounter++ > 10)
+			if (CaptureParameters.bUseTimeout && (TimeOutCounter++ > CaptureParameters.TimeoutFrameCount))
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("SimCache Write has failed too many times, abandoning capturing for (%s)"), *GetFullNameSafe(CaptureSimCache));
 				FinishCapture();
@@ -123,7 +135,7 @@ bool FNiagaraSimCacheCapture::OnFrameTick(float DeltaTime)
 
 	// Have we recorded all the frames we need?
 	// Note: the -1 is because T0 was the initial frame
-	if ( (CaptureParameters.NumFrames > 0) && (CaptureFrameCounter > (CaptureParameters.CaptureRate * (CaptureParameters.NumFrames - 1))) )
+	if ( CaptureParameters.bCaptureFixedNumberOfFrames && (CaptureFrameCounter > (CaptureParameters.CaptureRate * (CaptureParameters.NumFrames - 1))) )
 	{
 		FinishCapture();
 		return true;

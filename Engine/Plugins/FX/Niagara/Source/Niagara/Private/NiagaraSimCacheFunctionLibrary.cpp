@@ -11,63 +11,70 @@ void UAsyncNiagaraCaptureSimCache::Activate()
 {
 	Super::Activate();
 
+	bIsRunning = true;
 	SimCacheCapture.OnCaptureComplete().AddUObject(this, &UAsyncNiagaraCaptureSimCache::CaptureFinished);
-	
 	SimCacheCapture.CaptureNiagaraSimCache(CaptureSimCache, CreateParameters, CaptureComponent, CaptureParameters);
-	
+}
+
+void UAsyncNiagaraCaptureSimCache::Cancel()
+{
+	if (bIsRunning)
+	{
+		SimCacheCapture.FinishCapture();
+	}
+
+	Super::Cancel();
 }
 
 void UAsyncNiagaraCaptureSimCache::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
 
-	if ( CaptureSimCache != nullptr )
+	if (bIsRunning)
 	{
-		CaptureSimCache->EndWrite();
+		bIsRunning = false;
+		CaptureComplete.Broadcast(::IsValid(CaptureSimCache) ? CaptureSimCache->IsCacheValid() : false);
+		CaptureComponent = nullptr;
 	}
-	CaptureComplete.Broadcast(CaptureSimCache ? CaptureSimCache->IsCacheValid() : false);
-
-	CaptureComponent = nullptr;
 }
 
-UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCacheMultiFrame(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 NumFrames, int32 CaptureRate, bool bAdvanceSimulation, float AdvanceDeltaTime)
+UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCacheMultiFrame(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 NumFrames, int32 CaptureRate, bool bAdvanceSimulation, float AdvanceDeltaTime)
 {
-	FNiagaraSimCacheCaptureParameters CaptureParameters;
-	
-	CaptureParameters.NumFrames = FMath::Max(1, NumFrames);
-	CaptureParameters.CaptureRate = FMath::Max(1, CaptureRate);
-	CaptureParameters.bManuallyAdvanceSimulation = bAdvanceSimulation;
-	CaptureParameters.AdvanceDeltaTime = AdvanceDeltaTime;
+	FNiagaraSimCacheCaptureParameters InCaptureParameters;
+	InCaptureParameters.NumFrames = FMath::Max(1, NumFrames);
+	InCaptureParameters.CaptureRate = FMath::Max(1, CaptureRate);
+	InCaptureParameters.bCaptureAllFramesImmediatly = bAdvanceSimulation;
+	InCaptureParameters.ImmediateCaptureDeltaTime = AdvanceDeltaTime;
 
-	return CaptureNiagaraSimCacheImpl(SimCache, CreateParameters, NiagaraComponent, OutSimCache, CaptureParameters);
+	return CaptureNiagaraSimCacheImpl(SimCache, InCreateParameters, NiagaraComponent, InCaptureParameters, OutSimCache);
 }
 
-UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCacheImpl(UNiagaraSimCache* SimCache,
-	FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache,
-	FNiagaraSimCacheCaptureParameters InCaptureParameters)
+UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCacheUntilComplete(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 CaptureRate, bool bAdvanceSimulation, float AdvanceDeltaTime)
+{
+	FNiagaraSimCacheCaptureParameters InCaptureParameters;
+	InCaptureParameters.NumFrames = 0;
+	InCaptureParameters.CaptureRate = FMath::Max(1, CaptureRate);
+	InCaptureParameters.bCaptureAllFramesImmediatly = bAdvanceSimulation;
+	InCaptureParameters.ImmediateCaptureDeltaTime = AdvanceDeltaTime;
+
+	return CaptureNiagaraSimCacheImpl(SimCache, InCreateParameters, NiagaraComponent, InCaptureParameters, OutSimCache);
+}
+
+UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCache(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheCaptureParameters InCaptureParameters, UNiagaraSimCache*& OutSimCache)
+{
+	return CaptureNiagaraSimCacheImpl(SimCache, InCreateParameters, NiagaraComponent, InCaptureParameters, OutSimCache);
+}
+
+UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCacheImpl(UNiagaraSimCache* SimCache, const FNiagaraSimCacheCreateParameters& InCreateParameters, UNiagaraComponent* NiagaraComponent, const FNiagaraSimCacheCaptureParameters& InCaptureParameters, UNiagaraSimCache*& OutSimCache)
 {
 	UAsyncNiagaraCaptureSimCache* CaptureAction = NewObject<UAsyncNiagaraCaptureSimCache>();
-
 	CaptureAction->CaptureParameters = InCaptureParameters;
-	CaptureAction->CreateParameters = CreateParameters;
+	CaptureAction->CreateParameters = InCreateParameters;
 	CaptureAction->CaptureSimCache = SimCache;
 	CaptureAction->CaptureComponent = NiagaraComponent;
 	OutSimCache = SimCache;
 
 	return CaptureAction;
-}
-
-UAsyncNiagaraCaptureSimCache* UAsyncNiagaraCaptureSimCache::CaptureNiagaraSimCacheUntilComplete(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 CaptureRate, bool bAdvanceSimulation, float AdvanceDeltaTime)
-{
-	
-	FNiagaraSimCacheCaptureParameters CaptureParameters;
-	
-	CaptureParameters.NumFrames = 0;
-	CaptureParameters.CaptureRate = FMath::Max(1, CaptureRate);
-	CaptureParameters.bManuallyAdvanceSimulation = bAdvanceSimulation;
-	CaptureParameters.AdvanceDeltaTime = AdvanceDeltaTime;
-
-	return CaptureNiagaraSimCacheImpl(SimCache, CreateParameters, NiagaraComponent, OutSimCache, CaptureParameters);
 }
 
 void UAsyncNiagaraCaptureSimCache::CaptureFinished(UNiagaraSimCache* InCapturedSimCache)

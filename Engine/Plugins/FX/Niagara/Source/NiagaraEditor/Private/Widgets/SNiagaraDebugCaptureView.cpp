@@ -344,8 +344,8 @@ void SNiagaraDebugCaptureView::OnMultiFrameSelected()
 		
 		FNiagaraSimCacheCaptureParameters CaptureParameters;
 		CaptureParameters.NumFrames = NumFrames;
-		CaptureParameters.bManuallyAdvanceSimulation = true;
-		CaptureParameters.AdvanceDeltaTime = 0.01666f;
+		CaptureParameters.bCaptureAllFramesImmediatly = true;
+		CaptureParameters.ImmediateCaptureDeltaTime = 0.01666f;
 		
 		bIsCaptureActive = true;
 

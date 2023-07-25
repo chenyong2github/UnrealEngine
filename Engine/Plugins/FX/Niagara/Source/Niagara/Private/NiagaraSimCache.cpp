@@ -257,6 +257,76 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	return true;
 }
 
+bool UNiagaraSimCache::BeginAppend(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent)
+{
+	FNiagaraSimCacheFeedbackContext FeedbackContext;
+	return BeginAppend(InCreateParameters, NiagaraComponent, FeedbackContext);
+}
+
+bool UNiagaraSimCache::BeginAppend(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheFeedbackContext& FeedbackContext)
+{
+	check(PendingCommandsInFlight == 0);
+
+	OnCacheBeginWrite.Broadcast(this);
+
+	FNiagaraSimCacheHelper Helper(NiagaraComponent);
+	if (Helper.HasValidSimulation() == false)
+	{
+		//FeedbackContext.Errors.Emplace(FString::Printf(TEXT("No valid simulation data for %s"), *GetPathNameSafe(Helper.NiagaraSystem)));
+		return false;
+	}
+
+	if (!CacheGuid.IsValid() || SoftNiagaraSystem.Get() != Helper.NiagaraSystem)
+	{
+		return BeginWrite(InCreateParameters, NiagaraComponent);
+	}
+
+	// Are we clearing out all frames
+	const float SimulationAge = Helper.SystemInstance->GetAge();
+	const int32 SimulationTickCount = Helper.SystemInstance->GetTickCount();
+	if (SimulationAge <= StartSeconds || SimulationTickCount == 0)
+	{
+		CacheFrames.Empty();
+	}
+	// Cull any frames that have a later start time or tick count
+	else if (SimulationAge <= StartSeconds + DurationSeconds)
+	{
+		int32 CullFrame = CacheFrames.Num();
+		while (CullFrame > 0)
+		{
+			const FNiagaraSimCacheFrame& Frame = CacheFrames[CullFrame - 1];
+			if (Frame.SimulationAge < SimulationAge && Frame.SimulationTickCount < SimulationTickCount)
+			{
+				break;
+			}
+			--CullFrame;
+		}
+
+		if (CullFrame != CacheFrames.Num())
+		{
+			CacheFrames.SetNum(CullFrame);
+			if (CacheFrames.Num() > 0)
+			{
+				DurationSeconds = CacheFrames.Last().SimulationAge - StartSeconds;
+				CaptureTickCount = CacheFrames.Last().SimulationTickCount;
+			}
+		}
+	}
+
+	if (CacheFrames.Num() == 0)
+	{
+		StartSeconds = 0.0f;
+		DurationSeconds = 0.0f;
+		CaptureTickCount = INDEX_NONE;
+	}
+	else
+	{
+		CaptureTickCount = SimulationTickCount - 1;
+	}
+
+	return true;
+}
+
 bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 {
 	FNiagaraSimCacheFeedbackContext FeedbackContext;
@@ -426,7 +496,6 @@ bool UNiagaraSimCache::EndWrite()
 	{
 		SoftNiagaraSystem.Reset();
 	}
-
 
 	if (DataInterfaceStorage.IsEmpty() == false)
 	{
