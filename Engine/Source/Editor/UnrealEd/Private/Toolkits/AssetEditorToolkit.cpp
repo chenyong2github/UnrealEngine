@@ -692,7 +692,10 @@ void FAssetEditorToolkit::SaveAssetAs_Execute()
 	}
 	for (auto Object : SavedObjects)
 	{
-		ObjectsToReopen.AddUnique(Object);
+		if (ShouldReopenEditorForSavedAsset(Object))
+		{
+			ObjectsToReopen.AddUnique(Object);
+		}
 	}
 	for (auto Object : EditingObjects)
 	{
@@ -701,6 +704,8 @@ void FAssetEditorToolkit::SaveAssetAs_Execute()
 	}
 	AssetEditorSubsystem->OpenEditorForAssets_Advanced(ObjectsToReopen, ToolkitMode, MyToolkitHost.ToSharedRef());
 	// end hack
+
+	OnAssetsSavedAs(SavedObjects);
 }
 
 

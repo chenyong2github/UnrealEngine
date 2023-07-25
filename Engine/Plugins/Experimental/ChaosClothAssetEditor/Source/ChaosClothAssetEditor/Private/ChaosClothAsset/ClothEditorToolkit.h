@@ -85,6 +85,8 @@ private:
 	virtual void PostInitAssetEditor() override;
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
+	virtual bool ShouldReopenEditorForSavedAsset(const UObject* Asset) const override;
+	virtual void OnAssetsSavedAs(const TArray<UObject*>& SavedObjects) override;
 
 	// IAssetEditorInstance
 	virtual bool IsPrimaryEditor() const override { return true; };

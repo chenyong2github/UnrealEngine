@@ -326,6 +326,12 @@ protected:
 	/** Called when "Save As" is clicked for this asset */
 	UNREALED_API virtual void SaveAssetAs_Execute();
 
+	/** Whether to open a new asset editor for the newly-saved Asset. Called from SaveAssetAs_Execute for all newly-saved Assets sequentially. */
+	virtual bool ShouldReopenEditorForSavedAsset(const UObject* Asset) const { return true; }
+
+	/** Called from SaveAssetAs_Execute when assets have been saved */
+	UNREALED_API virtual void OnAssetsSavedAs(const TArray<UObject*>& SavedObjects) {}
+
 	/** Called to test if "Find in Content Browser" should be enabled for this asset */
 	virtual bool CanFindInContentBrowser() const { return true; }
 

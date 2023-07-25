@@ -41,6 +41,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
+#include "FileHelpers.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
@@ -503,6 +504,41 @@ void FChaosClothAssetEditorToolkit::GetSaveableObjects(TArray<UObject*>& OutObje
 	{
 		check(DataflowAsset->IsAsset());
 		OutObjects.Add(DataflowAsset);
+	}
+}
+
+bool FChaosClothAssetEditorToolkit::ShouldReopenEditorForSavedAsset(const UObject* Asset) const
+{
+	// "Save As" will potentially save the Dataflow asset with a new name, along with the cloth asset. 
+	// We don't really want to open a new Dataflow editor in that case, just the cloth editor
+	return Asset->IsA<UChaosClothAsset>();
+}
+
+void FChaosClothAssetEditorToolkit::OnAssetsSavedAs(const TArray<UObject*>& SavedObjects)
+{
+	// Set the Dataflow property on the Cloth object to point to the new DataflowAsset
+	UDataflow* NewDataflowAsset = nullptr;
+	UChaosClothAsset* NewClothAsset = nullptr;
+	for (UObject* const SavedObj : SavedObjects)
+	{
+		if (SavedObj->IsA<UDataflow>())
+		{
+			NewDataflowAsset = Cast<UDataflow>(SavedObj);
+		}
+		else if (SavedObj->IsA<UChaosClothAsset>())
+		{
+			NewClothAsset = Cast<UChaosClothAsset>(SavedObj);
+		}
+	}
+
+	if (NewClothAsset && NewDataflowAsset)
+	{
+		NewClothAsset->DataflowAsset = NewDataflowAsset;
+
+		// Now save the new Cloth asset again since we've updated its Property
+		const TArray<UPackage*> PackagesToSave{NewClothAsset->GetOutermost()};
+		constexpr bool bPromptToSave = false;
+		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirtyOnAssetSave, bPromptToSave);
 	}
 }
 
