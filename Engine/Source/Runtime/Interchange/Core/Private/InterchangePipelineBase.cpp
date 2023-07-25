@@ -411,3 +411,10 @@ void UInterchangePipelineBase::UpdateWeakObjectPtrs()
 		}
 	}
 }
+
+void UInterchangePipelineBase::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	UpdateWeakObjectPtrs();
+}

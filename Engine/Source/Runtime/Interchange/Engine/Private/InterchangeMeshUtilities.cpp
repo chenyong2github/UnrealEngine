@@ -135,7 +135,6 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 			}
 			if (ensure(GeneratedPipeline))
 			{
-				GeneratedPipeline->UpdateWeakObjectPtrs();
 				GeneratedPipeline->AdjustSettingsForContext(ImportType, nullptr);
 				ImportAssetParameters.OverridePipelines.Add(GeneratedPipeline);
 			}

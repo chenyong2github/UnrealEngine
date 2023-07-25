@@ -329,6 +329,10 @@ public:
 	*/
 	INTERCHANGECORE_API void UpdateWeakObjectPtrs();
 
+	/** Begin UObject overrides*/
+	INTERCHANGECORE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	/** End UObject overrides */
+
 protected:
 
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")
