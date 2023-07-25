@@ -143,7 +143,7 @@ void FLevelSequenceCustomization::OnSaveMovieSceneAsClicked()
 void FLevelSequenceCustomization::ImportFBX()
 {
 	FLevelSequenceFBXInterop Interop(WeakSequencer.Pin());
-	Interop.ImportFBXOntoSelectedNodes();
+	Interop.ImportFBX();
 }
 
 void FLevelSequenceCustomization::ExportFBX()
