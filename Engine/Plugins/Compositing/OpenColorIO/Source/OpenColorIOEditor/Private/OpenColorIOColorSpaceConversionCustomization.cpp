@@ -15,6 +15,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/SOpenColorIOColorSpacePicker.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "OpenColorIOColorSpaceConversionCustomization"
 

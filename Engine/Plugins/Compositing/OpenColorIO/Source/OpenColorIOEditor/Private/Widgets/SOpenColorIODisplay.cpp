@@ -13,6 +13,7 @@
 #include "ToolMenuEntry.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
+#include "Widgets/Input/SCheckBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SOpenColorIODisplay"
