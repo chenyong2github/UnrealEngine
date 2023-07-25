@@ -287,6 +287,11 @@ void UPoseableMeshComponent::CopyPoseFromSkeletalComponent(USkeletalMeshComponen
 	if(RequiredBones.IsValid())
 	{
 		TArray<FTransform> LocalTransforms = InComponentToCopy->GetBoneSpaceTransforms();
+		if (LocalTransforms.IsEmpty()) // during incremental unregistering this might be empty
+		{
+			return;
+		}
+
 		if(this->GetSkinnedAsset() == InComponentToCopy->GetSkinnedAsset()
 			&& LocalTransforms.Num() == BoneSpaceTransforms.Num())
 		{
