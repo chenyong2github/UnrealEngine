@@ -755,6 +755,7 @@ void FConcertClientSequencerManager::ApplyOpenEvent(const FConcertSequencerOpenE
 			TEXT("/Engine/Transient.__PendingLevelSequence__"), PendingLevelSequence->GetPathName());
 		FConcertSyncObjectReader Reader(nullptr, MoveTemp(Remapper), nullptr, PendingLevelSequence, InOpenEvent.TakeData.Bytes,
 										MissingObjectDelegate);
+		Reader.SetSerializeNestedObjects(true);
 		Reader.SerializeObject(PendingLevelSequence);
 		#if WITH_EDITOR
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);

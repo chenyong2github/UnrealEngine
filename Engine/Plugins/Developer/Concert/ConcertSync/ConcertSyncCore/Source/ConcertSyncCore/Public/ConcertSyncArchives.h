@@ -109,10 +109,15 @@ public:
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
 
+	void SetSerializeNestedObjects(bool bInSerializeNestedObjects)
+	{
+		bSerializeNestedObjects = bInSerializeNestedObjects;
+	}
 protected:
 	virtual void OnObjectSerialized(const FSoftObjectPath& Obj) {}
 
 private:
+	bool bSerializeNestedObjects = false;
 	UObject* CurrentOuter = nullptr;
 	FConcertSyncWorldRemapper WorldRemapper;
 	FConcertSyncEncounteredMissingObject EncounteredMissingObjectDelegate;

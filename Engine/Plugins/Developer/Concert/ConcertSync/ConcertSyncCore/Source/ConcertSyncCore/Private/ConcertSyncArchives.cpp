@@ -313,9 +313,14 @@ FArchive& FConcertSyncObjectWriter::operator<<(UObject*& Obj)
 		&& PackageName == Obj->GetPackage()->GetPathName()
 		&& !Obj->IsA<UPackage>();
 
-	*this << bDoSerializeObject;
+	if (bSerializeNestedObjects)
+	{
+		*this << bDoSerializeObject;
+	}
+
 	if (bDoSerializeObject)
 	{
+
 		// To prevent stack overflow we need to add to the collected objects first.
 		CollectedObjects.Add(ObjPath.ToString());
 
@@ -463,8 +468,12 @@ FArchive& FConcertSyncObjectReader::operator<<(UObject*& Obj)
 	FSoftObjectPath ObjPath;
 	ObjPath.SerializePath(*this);
 
-	bool bDidSerializeObject;
-	*this << bDidSerializeObject;
+	bool bDidSerializeObject = false;
+	if (bSerializeNestedObjects)
+	{
+		*this << bDidSerializeObject;
+	}
+
 	if (ObjPath.IsNull())
 	{
 		Obj = nullptr;
