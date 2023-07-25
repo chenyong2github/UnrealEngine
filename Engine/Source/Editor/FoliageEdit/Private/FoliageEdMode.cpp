@@ -3180,6 +3180,12 @@ void FEdModeFoliage::PopulateFoliageMeshList()
 				continue;
 			}
 
+			//@todo_ow: have a better filter for cooked assets. For now: filter all of them out.
+			if (MeshPair.Key && MeshPair.Key->GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+			{
+				continue;
+			}
+
 			int32 ElementIdx = FoliageMeshList.IndexOfByPredicate([&](const FFoliageMeshUIInfoPtr& Item)
 			{
 				return Item->Settings == MeshPair.Key;
