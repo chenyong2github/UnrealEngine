@@ -764,7 +764,6 @@ void FVulkanGPUProfiler::PopMarkerForCrash(VkCommandBuffer CmdBuffer, VkBuffer D
 
 void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 {
-#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
 	if (Device->GetOptionalExtensions().HasAMDBufferMarker)
 	{
 		uint32* Entries = (uint32*)BufferData;
@@ -776,40 +775,35 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 			++Entries;
 		}
 	}
-	else
-#endif
+
+	if (Device->GetOptionalExtensions().HasNVDiagnosticCheckpoints)
 	{
-#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
-		if (Device->GetOptionalExtensions().HasNVDiagnosticCheckpoints)
+		struct FCheckpointDataNV : public VkCheckpointDataNV
 		{
-			struct FCheckpointDataNV : public VkCheckpointDataNV
+			FCheckpointDataNV()
 			{
-				FCheckpointDataNV()
-				{
-					ZeroVulkanStruct(*this, VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV);
-				}
-			};
-			TArray<FCheckpointDataNV> Data;
-			uint32 Num = 0;
-			VkQueue QueueHandle = Device->GetGraphicsQueue()->GetHandle();
-			VulkanDynamicAPI::vkGetQueueCheckpointDataNV(QueueHandle, &Num, nullptr);
-			if (Num > 0)
-			{
-				Data.AddDefaulted(Num);
-				VulkanDynamicAPI::vkGetQueueCheckpointDataNV(QueueHandle, &Num, &Data[0]);
-				check(Num == Data.Num());
-				for (uint32 Index = 0; Index < Num; ++Index)
-				{
-					check(Data[Index].sType == VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV);
-					uint32 Value = (uint32)(size_t)Data[Index].pCheckpointMarker;
-					const FString* Frame = CachedStrings.Find(Value);
-					UE_LOG(LogVulkanRHI, Error, TEXT("[VK_NV_device_diagnostic_checkpoints] %i: Stage %s (0x%08x), %s (CRC 0x%x)"), 
-						Index, VK_TYPE_TO_STRING(VkPipelineStageFlagBits, Data[Index].stage), Data[Index].stage, Frame ? *(*Frame) : TEXT("<undefined>"), Value);
-				}
-				GLog->Panic();
+				ZeroVulkanStruct(*this, VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV);
 			}
+		};
+		TArray<FCheckpointDataNV> Data;
+		uint32 Num = 0;
+		VkQueue QueueHandle = Device->GetGraphicsQueue()->GetHandle();
+		VulkanDynamicAPI::vkGetQueueCheckpointDataNV(QueueHandle, &Num, nullptr);
+		if (Num > 0)
+		{
+			Data.AddDefaulted(Num);
+			VulkanDynamicAPI::vkGetQueueCheckpointDataNV(QueueHandle, &Num, &Data[0]);
+			check(Num == Data.Num());
+			for (uint32 Index = 0; Index < Num; ++Index)
+			{
+				check(Data[Index].sType == VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV);
+				uint32 Value = (uint32)(size_t)Data[Index].pCheckpointMarker;
+				const FString* Frame = CachedStrings.Find(Value);
+				UE_LOG(LogVulkanRHI, Error, TEXT("[VK_NV_device_diagnostic_checkpoints] %i: Stage %s (0x%08x), %s (CRC 0x%x)"), 
+					Index, VK_TYPE_TO_STRING(VkPipelineStageFlagBits, Data[Index].stage), Data[Index].stage, Frame ? *(*Frame) : TEXT("<undefined>"), Value);
+			}
+			GLog->Panic();
 		}
-#endif
 	}
 
 	if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
@@ -827,7 +821,7 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 		GLog->Panic();
 	}
 }
-#endif
+#endif // VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 
 #if NV_AFTERMATH
 void AftermathGpuCrashDumpCallback(const void* CrashDump, const uint32 CrashDumpSize, void* UserData)

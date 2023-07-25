@@ -30,13 +30,9 @@
 
 #define ENUM_VK_ENTRYPOINTS_PLATFORM_BASE(EnumMacro)
 
-#define ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(EnumMacro) \
+#define ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(EnumMacro)
 
-#define ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(EnumMacro) \
-    EnumMacro(PFN_vkCmdWriteBufferMarkerAMD, vkCmdWriteBufferMarkerAMD) \
-    EnumMacro(PFN_vkCmdSetCheckpointNV, vkCmdSetCheckpointNV) \
-    EnumMacro(PFN_vkGetQueueCheckpointDataNV, vkGetQueueCheckpointDataNV) \
-	EnumMacro(PFN_vkGetPhysicalDeviceFragmentShadingRatesKHR, vkGetPhysicalDeviceFragmentShadingRatesKHR)
+#define ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(EnumMacro)
 
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"

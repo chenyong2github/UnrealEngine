@@ -267,7 +267,8 @@ void FVulkanLinuxPlatform::WriteCrashMarker(const FOptionalVulkanDeviceExtension
 			VulkanDynamicAPI::vkCmdWriteBufferMarkerAMD(CmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, DestBuffer, (1 + LastIndex) * sizeof(uint32), Entries[LastIndex]);
 		}
 	}
-	else if (OptionalExtensions.HasNVDiagnosticCheckpoints)
+
+	if (OptionalExtensions.HasNVDiagnosticCheckpoints)
 	{
 		if (bAdding)
 		{

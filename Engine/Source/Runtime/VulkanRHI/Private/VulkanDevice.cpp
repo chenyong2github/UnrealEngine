@@ -1203,15 +1203,6 @@ void FVulkanDevice::InitGPU()
 			*Entry = 0;
 			VERIFYVULKANRESULT(VulkanRHI::vkBindBufferMemory(Device, CrashMarker.Buffer, CrashMarker.Allocation->GetHandle(), 0));
 		}
-		else if (OptionalDeviceExtensions.HasNVDiagnosticCheckpoints)
-		{
-			CrashMarker.Allocation = DeviceMemoryManager.Alloc(false, GMaxCrashBufferEntries * sizeof(uint32_t), UINT32_MAX, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, nullptr, VULKAN_MEMORY_MEDIUM_PRIORITY, false, __FILE__, __LINE__);
-			uint32* Entry = (uint32*)CrashMarker.Allocation->Map(VK_WHOLE_SIZE, 0);
-			check(Entry);
-			// Start with 0 entries
-			*Entry = 0;
-		}
 	}
 #endif
 
@@ -1378,26 +1369,22 @@ void FVulkanDevice::Destroy()
 	PipelineStateCache = nullptr;
 	StagingManager.Deinit();
 
+#if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	if (GGPUCrashDebuggingEnabled)
 	{
-#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
-		if (OptionalDeviceExtensions.HasAMDBufferMarker)
+		if (CrashMarker.Buffer != VK_NULL_HANDLE)
 		{
-			CrashMarker.Allocation->Unmap();
 			VulkanRHI::vkDestroyBuffer(Device, CrashMarker.Buffer, VULKAN_CPU_ALLOCATOR);
 			CrashMarker.Buffer = VK_NULL_HANDLE;
-
-			DeviceMemoryManager.Free(CrashMarker.Allocation);
 		}
-#endif
-#if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
-		if (OptionalDeviceExtensions.HasNVDiagnosticCheckpoints)
+
+		if (CrashMarker.Allocation)
 		{
 			CrashMarker.Allocation->Unmap();
 			DeviceMemoryManager.Free(CrashMarker.Allocation);
 		}
-#endif
 	}
+#endif // VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 
 	DeferredDeletionQueue.Clear();
 
