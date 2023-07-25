@@ -375,7 +375,12 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 		bNeedScreenPositionShift = false;
 	}
 
-	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, RootWidget->ComputeFlowDirection());
+	EFlowDirection NewFlowDirection = GSlateFlowDirection;
+	if (RootWidget->GetFlowDirectionPreference() == EFlowDirectionPreference::Inherit)
+	{
+		NewFlowDirection = GSlateFlowDirectionShouldFollowCultureByDefault ? FLayoutLocalization::GetLocalizedLayoutDirection() : RootWidget->ComputeFlowDirection();
+	}
+	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, NewFlowDirection);
 	if (!Context.bAllowFastPathUpdate || bNeedsSlowPath || GSlateIsInInvalidationSlowPath)
 	{
 		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
