@@ -230,6 +230,11 @@ APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
 	return PCGWorldActor;
 }
 
+APCGWorldActor* UPCGSubsystem::FindPCGWorldActor()
+{
+	return PCGWorldActor;
+}
+
 #if WITH_EDITOR
 void UPCGSubsystem::DestroyPCGWorldActor()
 {

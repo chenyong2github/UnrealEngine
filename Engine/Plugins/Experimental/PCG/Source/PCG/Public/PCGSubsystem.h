@@ -73,6 +73,7 @@ public:
 	bool IsInitialized() const { return GraphExecutor != nullptr; }
 
 	APCGWorldActor* GetPCGWorldActor();
+	APCGWorldActor* FindPCGWorldActor();
 #if WITH_EDITOR
 	void DestroyPCGWorldActor();
 #endif
