@@ -370,7 +370,7 @@ void UWaterBodyComponent::UpdateExclusionVolumes()
 	}
 }
 
-void UWaterBodyComponent::UpdateWaterZones()
+void UWaterBodyComponent::UpdateWaterZones(bool bAllowChangesDuringCook /* = false */)
 {
 	if (UWorld* World = GetWorld())
 	{
@@ -382,18 +382,16 @@ void UWaterBodyComponent::UpdateWaterZones()
 		else
 		{
 			// Don't attempt to find a water zone while cooking and just rely on the serialized pointer from the editor.
-			if (IsRunningCookCommandlet())
+			if (IsRunningCookCommandlet() && !bAllowChangesDuringCook)
 			{
 				return;
 			}
 
 			const FBox Bounds3D = Bounds.GetBox();
-			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
-			{
-				const AActor* ActorOwner = GetTypedOuter<AActor>();
-				const ULevel* PreferredLevel = ActorOwner ? ActorOwner->GetLevel() : nullptr;
-				FoundZone = WaterSubsystem->FindWaterZone(FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
-			}
+
+			const AActor* ActorOwner = GetTypedOuter<AActor>();
+			const ULevel* PreferredLevel = ActorOwner ? ActorOwner->GetLevel() : nullptr;
+			FoundZone = UWaterSubsystem::FindWaterZone(World, FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
 		}
 
 		if (OwningWaterZone != FoundZone)
@@ -1456,7 +1454,8 @@ void UWaterBodyComponent::OnPostRegisterAllComponents()
 	{
 		if (OwningWaterZone.IsNull())
 		{
-			UpdateWaterZones();
+			// This needs to happen during a cook commandlet since the asset wasn't ever saved with a valid pointer in the editor.
+			UpdateWaterZones(/** bAllowChangesDuringCook = */ true);
 		}
 	}
 
