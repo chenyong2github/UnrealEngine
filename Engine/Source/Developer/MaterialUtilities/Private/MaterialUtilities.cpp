@@ -1027,9 +1027,9 @@ bool FMaterialUtilities::ExportLandscapeMaterial(const ALandscapeProxy* InLandsc
 		}
 
 		// Include Nanite landscape scene proxy - these are the ones that are actually visible when rendering LS with Nanite support
-		if (InLandscape->NaniteComponent && InLandscape->NaniteComponent->SceneProxy)
+		if (InLandscape->HasNaniteComponents())
 		{
-			ShowOnlyPrimitives.Add(InLandscape->NaniteComponent->SceneProxy->GetPrimitiveComponentId());
+			ShowOnlyPrimitives.Append(InLandscape->GetNanitePrimitiveComponentIds());
 		}
 
 		bExportSuccess = ::ExportLandscapeMaterial(InLandscape, ShowOnlyPrimitives, {}, OutFlattenMaterial);
