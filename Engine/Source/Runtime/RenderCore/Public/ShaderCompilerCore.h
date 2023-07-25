@@ -443,6 +443,7 @@ struct FShaderCompilerInput
 	}
 
 	/** Returns whether this shader input *can* be compiled with the legacy FXC compiler. */
+	UE_DEPRECATED(5.3, "CanCompileWithLegacyFxc doesn't have enough information to correctly flag the input as requiring FXC. Please use internal shader format code instead.")
 	bool CanCompileWithLegacyFxc() const
 	{
 		return !(Target.GetPlatform() == SP_PCD3D_SM6

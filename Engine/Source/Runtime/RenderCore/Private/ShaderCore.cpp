@@ -181,6 +181,18 @@ public:
 			}
 		}
 
+#if WITH_EDITOR
+		for (int i = 0; i < EShaderPlatform::SP_NumPlatforms; ++i)
+		{
+			EShaderPlatform ShaderPlatform = EShaderPlatform(i);
+			if (FDataDrivenShaderPlatformInfo::IsValid(ShaderPlatform) && FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ShaderPlatform))
+			{
+				const EShaderPlatform CompilingPlatform = ShaderFormatNameToShaderPlatform(FDataDrivenShaderPlatformInfo::GetShaderFormat(ShaderPlatform));
+				UpdateIncludeDirectoryForPreviewPlatform(ShaderPlatform, CompilingPlatform);
+			}
+		}
+#endif
+
 		bInitialized = true;
 	}
 
