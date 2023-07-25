@@ -149,8 +149,11 @@ public:
 	EOpenColorIOViewTransformDirection DisplayViewDirection = EOpenColorIOViewTransformDirection::Forward;
 
 	/** Delegate triggered upon changes to the settings. */
+	UE_DEPRECATED(5.3, "This delegate is deprecated.")
 	FOnConversionSettingsChange& OnConversionSettingsChanged() { return ConversionSettingsChanged; }
 public:
+
+	void PostSerialize(const FArchive& Ar);
 
 	/**
 	 * Get a string representation of this conversion.
@@ -162,6 +165,18 @@ public:
 	 * Returns true if the source and destination color spaces are found in the configuration file
 	 */
 	bool IsValid() const;
+
+	/** Returns a string representing the settings' source */
+	FString GetSourceString() const;
+
+	/** Returns a string representing the settings' destination */
+	FString GetDestinationString() const;
+
+	/**
+	* Reset members to default/empty values.
+	* @param InDepth Desired depth in the family string. 0 == First layer. 
+	*/
+	void Reset(bool bResetConfigurationSource = false);
 
 	/**
 	* Ensure that the selected source and destination color spaces are valid, resets them otherwise.
@@ -187,6 +202,14 @@ public:
 private:
 
 	FOnConversionSettingsChange ConversionSettingsChanged;
+};
+
+template<> struct TStructOpsTypeTraits<FOpenColorIOColorConversionSettings> : public TStructOpsTypeTraitsBase2<FOpenColorIOColorConversionSettings>
+{
+	enum
+	{
+		WithPostSerialize = true,
+	};
 };
 
 /**

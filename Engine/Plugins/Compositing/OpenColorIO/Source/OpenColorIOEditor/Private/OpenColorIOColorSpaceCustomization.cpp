@@ -329,7 +329,7 @@ TSharedRef<SWidget> FOpenColorIODisplayViewCustomization::HandleSourceComboButto
 
 			for (int32 i = 0; i < DisplayCount; ++i)
 			{
-				const FOpenColorIODisplayView DisplayViewValue = { ConfigWrapper->GetDisplayName(i), TEXT("<Invalid>")};
+				const FOpenColorIODisplayView DisplayViewValue = { ConfigWrapper->GetDisplayName(i), FStringView{} };
 
 				MenuBuilder.AddSubMenu(
 					FText::FromString(DisplayViewValue.Display),

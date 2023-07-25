@@ -16,7 +16,7 @@ class FViewportClient;
 class SComboButton;
 class UOpenColorIOConfiguration;
 
-DECLARE_DELEGATE_TwoParams(FOnColorSpaceChanged, const FOpenColorIOColorSpace& /*ColorSpace*/, const FOpenColorIODisplayView& /*DisplayView*/);
+DECLARE_DELEGATE_ThreeParams(FOnColorSpaceChanged, const FOpenColorIOColorSpace& /*ColorSpace*/, const FOpenColorIODisplayView& /*DisplayView*/, bool /*bIsDestination*/);
 
 /** Pair of OpenColorIO transform selection objects. */
 struct FOpenColorIOPickerSelection
@@ -37,11 +37,9 @@ class SOpenColorIOColorSpacePicker : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SOpenColorIOColorSpacePicker) {}
 		SLATE_ARGUMENT(TWeakObjectPtr<UOpenColorIOConfiguration>, Config)
-		SLATE_ARGUMENT(FOpenColorIOColorSpace, InitialColorSpace)
-		SLATE_ARGUMENT(FOpenColorIOColorSpace, RestrictedColor)
-		SLATE_ARGUMENT(FOpenColorIODisplayView, InitialDisplayView)
-		SLATE_ARGUMENT(FOpenColorIODisplayView, RestrictedDisplayView)
 		SLATE_ARGUMENT(bool, IsDestination)
+		SLATE_ATTRIBUTE(FText, Selection)
+		SLATE_ATTRIBUTE(FString, SelectionRestriction)
 		SLATE_EVENT(FOnColorSpaceChanged, OnColorSpaceChanged)
 	SLATE_END_ARGS()
 
@@ -50,9 +48,6 @@ public:
 
 	/** Update current configuration asset for this picker */
 	void SetConfiguration(TWeakObjectPtr<UOpenColorIOConfiguration> NewConfiguration);
-
-	/** Update restricted color space for this picker */
-	void SetRestrictions(const FOpenColorIOColorSpace& RestrictedColorSpace, const FOpenColorIODisplayView& RestricedDisplayView);
 
 protected:
 	
@@ -72,10 +67,8 @@ protected:
 protected:
 	TSharedPtr<SComboButton> SelectionButton;
 	TWeakObjectPtr<UOpenColorIOConfiguration> Configuration;
-	FOpenColorIOColorSpace ColorSpaceSelection;
-	FOpenColorIOColorSpace RestrictedColorSpace;
-	FOpenColorIODisplayView DisplayViewSelection;
-	FOpenColorIODisplayView RestrictedDisplayView;
+	TAttribute<FText> Selection;
+	TAttribute<FString> SelectionRestriction;
 	FOnColorSpaceChanged OnColorSpaceChanged;
 	bool bIsDestination = false;
 };

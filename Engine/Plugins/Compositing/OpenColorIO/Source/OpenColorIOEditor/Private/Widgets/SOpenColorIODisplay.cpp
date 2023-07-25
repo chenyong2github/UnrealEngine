@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Framework/Application/SlateApplication.h"
 #include "OpenColorIOConfiguration.h"
+#include "OpenColorIOSettings.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SOpenColorIOColorSpacePicker.h"
 #include "ToolMenu.h"
@@ -61,33 +62,60 @@ void SOpenColorIODisplay::Construct(const FArguments& InArgs)
 		EUserInterfaceActionType::None
 	));
 
-	ApplyConfigurationToSelection();
-
 	// Source color space picker widget
 	TransformPicker[OCIO_Src] =
 		SNew(SOpenColorIOColorSpacePicker)
 		.Config(Configuration.ColorConfiguration.ConfigurationSource)
-		.InitialColorSpace(TransformSelection[OCIO_Src].ColorSpace)
-		.RestrictedColor(TransformSelection[OCIO_Dst].ColorSpace)
-		.InitialDisplayView(TransformSelection[OCIO_Src].DisplayView)
-		.RestrictedDisplayView(TransformSelection[OCIO_Dst].DisplayView)
+		.Selection_Lambda([this]() { return FText::FromString(Configuration.ColorConfiguration.GetSourceString()); })
+		.SelectionRestriction_Lambda([this]() { return Configuration.ColorConfiguration.GetDestinationString(); })
 		.IsDestination(false)
-		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnSourceColorSpaceChanged));
+		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnSelectionChanged));
 
 	// Destination color space picker widget
 	TransformPicker[OCIO_Dst] =
 		SNew(SOpenColorIOColorSpacePicker)
 		.Config(Configuration.ColorConfiguration.ConfigurationSource)
-		.InitialColorSpace(TransformSelection[OCIO_Dst].ColorSpace)
-		.RestrictedColor(TransformSelection[OCIO_Src].ColorSpace)
-		.InitialDisplayView(TransformSelection[OCIO_Dst].DisplayView)
-		.RestrictedDisplayView(TransformSelection[OCIO_Src].DisplayView)
+		.Selection_Lambda([this]() { return FText::FromString(Configuration.ColorConfiguration.GetDestinationString()); })
+		.SelectionRestriction_Lambda([this]() { return Configuration.ColorConfiguration.GetSourceString(); })
 		.IsDestination(true)
-		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnDestinationColorSpaceChanged));
+		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnSelectionChanged));
 	
 	// Note: FText::GetEmpty() would previously result in incorrect indentation.
 	Section.AddEntry(FToolMenuEntry::InitWidget("SourceColor", TransformPicker[OCIO_Src].ToSharedRef(), FText::FromString(TEXT(" ")), false, false));
 	Section.AddEntry(FToolMenuEntry::InitWidget("DestinationColor", TransformPicker[OCIO_Dst].ToSharedRef(), FText::FromString(TEXT(" ")), false, false));
+	
+	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+	if (Settings->bSupportInverseViewTransforms)
+	{
+		TSharedRef<SWidget> InvertCheckbox = SNew(SCheckBox)
+			.IsChecked_Lambda([this]() -> ECheckBoxState
+			{
+				if (Configuration.ColorConfiguration.IsDisplayView())
+				{
+					return Configuration.ColorConfiguration.DisplayViewDirection == EOpenColorIOViewTransformDirection::Inverse ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				}
+				
+				return ECheckBoxState::Undetermined;
+			})
+			.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
+			{
+				Configuration.ColorConfiguration.DisplayViewDirection = (NewState == ECheckBoxState::Checked) ? EOpenColorIOViewTransformDirection::Inverse : EOpenColorIOViewTransformDirection::Forward;
+
+				OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);
+			})
+			.IsEnabled_Lambda([this]()
+			{
+				return Configuration.ColorConfiguration.IsDisplayView();
+			});
+
+		Section.AddEntry(
+			FToolMenuEntry::InitWidget(
+				"InvertViewTransform",
+				InvertCheckbox,
+				LOCTEXT("InvertViewTransform", "Invert View Transform")
+			));
+	}
+
 
 	TSharedRef<SWidget> Widget = UToolMenus::Get()->GenerateWidget(Menu);
 	ChildSlot
@@ -153,6 +181,8 @@ void SOpenColorIODisplay::OnConfigSelected(const FAssetData& AssetData)
 	FSlateApplication::Get().DismissMenuByWidget(ClassPicker.ToSharedRef());
 
 	UOpenColorIOConfiguration* NewConfig = Cast<UOpenColorIOConfiguration>(AssetData.GetAsset());
+	
+	Configuration.ColorConfiguration.Reset();
 	Configuration.ColorConfiguration.ConfigurationSource = NewConfig;
 	TransformPicker[OCIO_Src]->SetConfiguration(NewConfig);
 	TransformPicker[OCIO_Dst]->SetConfiguration(NewConfig);
@@ -178,63 +208,26 @@ bool SOpenColorIODisplay::GetDisplayConfigurationState()
 	return Configuration.bIsEnabled;
 }
 
-void SOpenColorIODisplay::OnSourceColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView)
-{
-	TransformSelection[OCIO_Src].ColorSpace = NewColorSpace;
-	TransformSelection[OCIO_Src].DisplayView = NewDisplayView;
-
-	TransformPicker[OCIO_Dst]->SetRestrictions(NewColorSpace, NewDisplayView);
-
-	ApplySelectionToConfiguration();
-}
-
-void SOpenColorIODisplay::OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView)
-{
-	TransformSelection[OCIO_Dst].ColorSpace = NewColorSpace;
-	TransformSelection[OCIO_Dst].DisplayView = NewDisplayView;
-
-	TransformPicker[OCIO_Src]->SetRestrictions(NewColorSpace, NewDisplayView);
-
-	ApplySelectionToConfiguration();
-}
-
-void SOpenColorIODisplay::ApplyConfigurationToSelection()
-{
-	const FOpenColorIOColorConversionSettings& ConversionSettings = Configuration.ColorConfiguration;
-
-	if (ConversionSettings.DisplayViewDirection == EOpenColorIOViewTransformDirection::Forward)
-	{
-		TransformSelection[OCIO_Src].ColorSpace = ConversionSettings.SourceColorSpace;
-		TransformSelection[OCIO_Src].DisplayView.Reset();
-		TransformSelection[OCIO_Dst].ColorSpace = ConversionSettings.DestinationColorSpace;
-		TransformSelection[OCIO_Dst].DisplayView = ConversionSettings.DestinationDisplayView;
-	}
-	else
-	{
-		TransformSelection[OCIO_Src].ColorSpace.Reset();
-		TransformSelection[OCIO_Src].DisplayView = ConversionSettings.DestinationDisplayView;
-		TransformSelection[OCIO_Dst].ColorSpace = ConversionSettings.SourceColorSpace;
-		TransformSelection[OCIO_Dst].DisplayView.Reset();
-	}
-}
-
-void SOpenColorIODisplay::ApplySelectionToConfiguration()
+void SOpenColorIODisplay::OnSelectionChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView, bool bIsDestination)
 {
 	FOpenColorIOColorConversionSettings& ConversionSettings = Configuration.ColorConfiguration;
 
-	if (TransformSelection[OCIO_Src].DisplayView.IsValid())
+	if (bIsDestination)
 	{
-		ConversionSettings.SourceColorSpace = TransformSelection[OCIO_Dst].ColorSpace;
-		ConversionSettings.DestinationColorSpace.Reset();
-		ConversionSettings.DestinationDisplayView = TransformSelection[OCIO_Src].DisplayView;
-		ConversionSettings.DisplayViewDirection = EOpenColorIOViewTransformDirection::Inverse;
+		if (NewDisplayView.IsValid())
+		{
+			ConversionSettings.DestinationColorSpace.Reset();
+			ConversionSettings.DestinationDisplayView = NewDisplayView;
+		}
+		else
+		{
+			ConversionSettings.DestinationDisplayView.Reset();
+			ConversionSettings.DestinationColorSpace = NewColorSpace;
+		}
 	}
 	else
 	{
-		ConversionSettings.SourceColorSpace = TransformSelection[OCIO_Src].ColorSpace;
-		ConversionSettings.DestinationColorSpace = TransformSelection[OCIO_Dst].ColorSpace;
-		ConversionSettings.DestinationDisplayView = TransformSelection[OCIO_Dst].DisplayView;
-		ConversionSettings.DisplayViewDirection = EOpenColorIOViewTransformDirection::Forward;
+		ConversionSettings.SourceColorSpace = NewColorSpace;
 	}
 
 	OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);

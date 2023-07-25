@@ -19,11 +19,9 @@
 void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 {
 	Configuration = InArgs._Config;
-	ColorSpaceSelection = InArgs._InitialColorSpace;
-	RestrictedColorSpace = InArgs._RestrictedColor;
-	DisplayViewSelection = InArgs._InitialDisplayView;
-	RestrictedDisplayView = InArgs._RestrictedDisplayView;
 	bIsDestination = InArgs._IsDestination;
+	Selection = InArgs._Selection;
+	SelectionRestriction = InArgs._SelectionRestriction;
 	OnColorSpaceChanged = InArgs._OnColorSpaceChanged;
 
 	SelectionButton = SNew(SComboButton)
@@ -31,7 +29,7 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 		.ContentPadding(FMargin(4.0, 2.0));
 
 	ChildSlot
-	[
+		[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
@@ -40,18 +38,12 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 			SNew(STextBlock)
 			.Text(MakeAttributeLambda([this]
 				{
-					if (DisplayViewSelection.IsValid())
+					if (Selection.IsSet() && !Selection.Get().IsEmpty())
 					{
-						return FText::FromString(*DisplayViewSelection.ToString());
+						return Selection.Get();
 					}
-					else if (ColorSpaceSelection.ColorSpaceIndex != INDEX_NONE)
-					{
-						return FText::FromString(*ColorSpaceSelection.ToString());
-					}
-					else
-					{
-						return FText::FromString(TEXT("<Invalid>"));
-					}
+					
+					return LOCTEXT("None", "<None>");
 				}))
 		]
 		+ SHorizontalBox::Slot()
@@ -82,25 +74,12 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 void SOpenColorIOColorSpacePicker::SetConfiguration(TWeakObjectPtr<UOpenColorIOConfiguration> NewConfiguration)
 {
 	Configuration = NewConfiguration;
-
-	// Invalidate current color space selection
-	ColorSpaceSelection.Reset();
-	DisplayViewSelection.Reset();
-}
-
-void SOpenColorIOColorSpacePicker::SetRestrictions(const FOpenColorIOColorSpace& InRestrictedColorSpace, const FOpenColorIODisplayView& InRestricedDisplayView)
-{
-	RestrictedColorSpace = InRestrictedColorSpace;
-	RestrictedDisplayView = InRestricedDisplayView;
 }
 
 void SOpenColorIOColorSpacePicker::SetCurrentColorSpace(const FOpenColorIOColorSpace& NewColorSpace)
 {
-	ColorSpaceSelection = NewColorSpace;
-	DisplayViewSelection.Reset();
-	
 	// Let listeners know selection has changed
-	OnColorSpaceChanged.ExecuteIfBound(ColorSpaceSelection, DisplayViewSelection);
+	OnColorSpaceChanged.ExecuteIfBound(NewColorSpace, {}, bIsDestination);
 
 	//Close our menu
 	if (SelectionButton.IsValid())
@@ -111,11 +90,8 @@ void SOpenColorIOColorSpacePicker::SetCurrentColorSpace(const FOpenColorIOColorS
 
 void SOpenColorIOColorSpacePicker::SetCurrentDisplayView(const FOpenColorIODisplayView& NewDisplayView)
 {
-	ColorSpaceSelection.Reset();
-	DisplayViewSelection = NewDisplayView;
-
 	// Let listeners know selection has changed
-	OnColorSpaceChanged.ExecuteIfBound(ColorSpaceSelection, DisplayViewSelection);
+	OnColorSpaceChanged.ExecuteIfBound({}, NewDisplayView, bIsDestination);
 
 	//Close our menu
 	if (SelectionButton.IsValid())
@@ -128,8 +104,6 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 {
 	if (UOpenColorIOConfiguration* ConfigurationObject = Configuration.Get())
 	{
-		const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
-
 		// generate menu
 		const bool bShouldCloseWindowAfterClosing = false;
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
@@ -141,15 +115,21 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 			for (int32 i = 0; i < ConfigurationObject->DesiredColorSpaces.Num(); ++i)
 			{
 				const FOpenColorIOColorSpace& ColorSpace = ConfigurationObject->DesiredColorSpaces[i];
-				if (ColorSpace == RestrictedColorSpace || !ColorSpace.IsValid())
+				if (!ColorSpace.IsValid())
+				{
+					continue;
+				}
+
+				const FString ColorSpaceStr = ColorSpace.ToString();
+				if (ColorSpaceStr == SelectionRestriction.Get())
 				{
 					continue;
 				}
 
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(ColorSpace.ToString()),
-					FText::FromString(ColorSpace.ToString()),
+					FText::FromString(ColorSpaceStr),
+					FText::FromString(ColorSpaceStr),
 					FSlateIcon(),
 					FUIAction
 					(
@@ -158,9 +138,9 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 							SetCurrentColorSpace(ColorSpace);
 						}),
 						FCanExecuteAction(),
-						FIsActionChecked::CreateLambda([this, ColorSpace]
+						FIsActionChecked::CreateLambda([this, ColorSpaceStr]
 						{
-							return ColorSpaceSelection == ColorSpace;
+							return Selection.Get().ToString() == ColorSpaceStr;
 						})
 						),
 						NAME_None,
@@ -177,7 +157,7 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 		}
 		MenuBuilder.EndSection();
 
-		if (bIsDestination || Settings->bSupportInverseViewTransforms)
+		if (bIsDestination)
 		{
 			MenuBuilder.BeginSection("AvailableDisplayViews", LOCTEXT("AvailableDisplayViews", "Available Display-Views"));
 			{
@@ -186,15 +166,21 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 				for (int32 i = 0; i < ConfigurationObject->DesiredDisplayViews.Num(); ++i)
 				{
 					const FOpenColorIODisplayView& DisplayView = ConfigurationObject->DesiredDisplayViews[i];
-					if (DisplayView == RestrictedDisplayView || !DisplayView.IsValid())
+					if (!DisplayView.IsValid())
+					{
+						continue;
+					}
+					
+					const FString DisplayViewStr = DisplayView.ToString();
+					if (DisplayViewStr == SelectionRestriction.Get())
 					{
 						continue;
 					}
 
 					MenuBuilder.AddMenuEntry
 					(
-						FText::FromString(DisplayView.ToString()),
-						FText::FromString(DisplayView.ToString()),
+						FText::FromString(DisplayViewStr),
+						FText::FromString(DisplayViewStr),
 						FSlateIcon(),
 						FUIAction
 						(
@@ -203,9 +189,9 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 								SetCurrentDisplayView(DisplayView);
 							}),
 							FCanExecuteAction(),
-							FIsActionChecked::CreateLambda([this, DisplayView]
+							FIsActionChecked::CreateLambda([this, DisplayViewStr]
 							{
-								return DisplayViewSelection == DisplayView;
+								return Selection.Get().ToString() == DisplayViewStr;
 							})
 						),
 						NAME_None,
@@ -232,14 +218,21 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 
 FReply SOpenColorIOColorSpacePicker::OnResetToDefault()
 {
-	SetCurrentColorSpace(FOpenColorIOColorSpace());
-	SetCurrentDisplayView(FOpenColorIODisplayView());
+	// Let listeners know selection has changed
+	OnColorSpaceChanged.ExecuteIfBound({}, {}, bIsDestination);
+
+	//Close our menu
+	if (SelectionButton.IsValid())
+	{
+		SelectionButton->SetIsOpen(false);
+	}
+
 	return FReply::Handled();
 }
 
 EVisibility SOpenColorIOColorSpacePicker::ShouldShowResetToDefaultButton() const
 {
-	return (ColorSpaceSelection.IsValid() || DisplayViewSelection.IsValid()) ? EVisibility::Visible : EVisibility::Hidden;
+	return (Selection.IsSet() && !Selection.Get().IsEmpty()) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 #undef LOCTEXT_NAMESPACE

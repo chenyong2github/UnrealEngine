@@ -40,14 +40,9 @@ protected:
 	void ToggleEnableDisplay();
 	bool CanEnableDisplayConfiguration();
 	bool GetDisplayConfigurationState();
-	void OnSourceColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView);
-	void OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView);
-
+	void OnSelectionChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView, bool bIsDestination);
+	
 protected:
-	/** Read configuration settings into local selection objects.*/
-	void ApplyConfigurationToSelection();
-	/** Apply transform selections onto the configuration object.*/
-	void ApplySelectionToConfiguration();
 
 	FViewport* Viewport;
 
@@ -56,8 +51,6 @@ protected:
 
 	/** ColorSpace pickers reference to update them when config asset is changed */
 	TStaticArray<TSharedPtr<SOpenColorIOColorSpacePicker>, 2> TransformPicker;
-	/** Intermediate selection objects. This is done to allow inverted display-view selections (when enabled in settings). */
-	TStaticArray<FOpenColorIOPickerSelection, 2> TransformSelection;
 
 	/** Current configuration */
 	FOpenColorIODisplayConfiguration Configuration;
