@@ -127,6 +127,12 @@ private:
 	/** Returns whether given track is being used by any other source */
 	bool IsTrackAssociatedWithAnySource(UMovieSceneAudioTrack* InAudioTrack);
 
+	/** Build asset name, appending channel name if needed for uniqueness */
+	FString GetUniqueAudioAssetName(ULevelSequence* InSequence) const;
+
+	/** Static, parameterized helper function for buidling unique asset names */	
+	static FString CreateUniqueAudioAssetName(ULevelSequence* InSequence, UTakeRecorderSources* InSources, const FString& InAssetName, const int32 InChannelNumber);
+
 private:
 
 	// Holds the Sequencer audio track for this source
@@ -139,5 +145,5 @@ private:
 	// The user specified directory to store recorded audio assets in
 	FDirectoryPath AudioDirectory;
 	// The name of the UsoundWave asset 
-	FString AssetName;
+	FString AssetFileName;
 };
