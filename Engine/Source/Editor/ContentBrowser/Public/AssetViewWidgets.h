@@ -351,6 +351,9 @@ protected:
 	/** Widget for the source control state */
 	TSharedPtr<SLayeredImage> SCCStateWidget;
 
+	/** Whether the item has a valid scc state brush (not empty) */
+	bool bHasCCStateBrush = false;
+
 	/** Delegate handle for the HandleSourceControlStateChanged function callback */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
 };
@@ -733,6 +736,10 @@ protected:
 	FOptionalSize GetNameAreaMaxDesiredHeight() const;
 
 	int32 GetGenericThumbnailSize() const;
+
+	/** Gets the visibility of the SCC icons */
+	EVisibility GetSCCIconVisibility() const;
+
 
 private:
 	/** If false, the tooltip will not be displayed */

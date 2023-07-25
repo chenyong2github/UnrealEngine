@@ -650,7 +650,9 @@ void SAssetViewItem::HandleSourceControlStateChanged()
 			{
 				if (SCCStateWidget.IsValid())
 				{
-					SCCStateWidget->SetFromSlateIcon(SourceControlState->GetIcon());
+					FSlateIcon SCCIcon = SourceControlState->GetIcon();
+					bHasCCStateBrush = SCCIcon.GetIcon() != nullptr;
+					SCCStateWidget->SetFromSlateIcon(SCCIcon);
 				}
 			}
 		}
@@ -1963,6 +1965,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 									SNew(SBox)
 									.WidthOverride(16.0f)
 									.HeightOverride(16.0f)
+									.Visibility(this, &SAssetTileItem::GetSCCIconVisibility)
 									[
 										GenerateSourceControlIconWidget()
 									]
@@ -2201,6 +2204,13 @@ int32 SAssetTileItem::GetGenericThumbnailSize() const
 {
 	return GenericThumbnailSizes[(int32)CurrentThumbnailSize.Get()];
 }
+
+EVisibility SAssetTileItem::GetSCCIconVisibility() const
+{
+	// Hide the scc state icon when there is no brush or in tiny size since there isn't enough space
+	return bHasCCStateBrush &&  CurrentThumbnailSize.Get() != EThumbnailSize::Tiny ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 
 void SAssetTileItem::InitializeAssetNameHeights()
 {
