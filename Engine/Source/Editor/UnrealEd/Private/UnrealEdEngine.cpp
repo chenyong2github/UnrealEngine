@@ -1509,7 +1509,7 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 		}
 	};
 
-	const int32 SelectedComponentCount = GetSelectedComponents()->Num();
+	const int32 SelectedComponentCount = GetSelectedComponents()->CountSelections<UActorComponent>();
 	if (SelectionThatChanged == GetSelectedActors() && SelectedComponentCount == 0)
 	{
 		// actor selection changed.  Update the list of component visualizers
