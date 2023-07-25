@@ -2110,7 +2110,7 @@ void FUsdLevelSequenceHelperImpl::AddPrim(UUsdPrimTwin& PrimTwin, bool bForceVis
 	{
 		AddCameraTracks(PrimTwin, UsdPrim);
 	}
-	else if (UsdPrim.HasAPI(TEXT("UsdLuxLightAPI")))
+	else if (UsdPrim.HasAPI(TEXT("LightAPI")))
 	{
 		AddLightTracks(PrimTwin, UsdPrim);
 	}
