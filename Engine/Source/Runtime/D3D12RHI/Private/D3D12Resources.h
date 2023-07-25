@@ -149,7 +149,7 @@ private:
 	TRefCountPtr<ID3D12Resource> UAVAccessResource;
 	TRefCountPtr<FD3D12Heap> Heap;
 
-	FD3D12ResidencyHandle ResidencyHandle;
+	TUniquePtr<FD3D12ResidencyHandle> ResidencyHandle;
 
 	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress{};
 	void* ResourceBaseAddress{};
@@ -309,7 +309,7 @@ public:
 
 	FD3D12ResidencyHandle& GetResidencyHandle()
 	{
-		return IsPlacedResource() ? Heap->GetResidencyHandle() : ResidencyHandle;
+		return IsPlacedResource() ? Heap->GetResidencyHandle() : *ResidencyHandle;
 	}
 
 	struct FD3D12ResourceTypeHelper
