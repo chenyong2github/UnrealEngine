@@ -94,12 +94,16 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 				}
 				else
 				{
-					FApp::SetGraphicsRHI(TEXT("Vulkan"));
 					FPlatformApplicationMisc::UsingVulkan();
 
 					FName ShaderFormatName(*TargetedShaderFormats[SfIdx]);
 					EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 					RequestedFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
+
+					FString FeatureLevelName;
+					GetFeatureLevelName(RequestedFeatureLevel, FeatureLevelName);
+					FApp::SetGraphicsRHI(FString::Printf(TEXT("Vulkan (%s)"), *FeatureLevelName));
+
 					break;
 				}
 			}

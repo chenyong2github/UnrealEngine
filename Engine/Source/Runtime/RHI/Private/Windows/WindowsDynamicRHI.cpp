@@ -124,7 +124,12 @@ static FString GetRHINameFromWindowsRHI(EWindowsRHI InWindowsRHI, ERHIFeatureLev
 		GetFeatureLevelName(InFeatureLevel, FeatureLevelName);
 		return FString::Printf(TEXT("DirectX 12 (%s)"), *FeatureLevelName);
 	}
-	case EWindowsRHI::Vulkan: return TEXT("Vulkan");
+	case EWindowsRHI::Vulkan:
+	{
+		FString FeatureLevelName;
+		GetFeatureLevelName(InFeatureLevel, FeatureLevelName);
+		return FString::Printf(TEXT("Vulkan (%s)"), *FeatureLevelName);
+	}
 	case EWindowsRHI::OpenGL: return TEXT("OpenGL");
 	}
 }
