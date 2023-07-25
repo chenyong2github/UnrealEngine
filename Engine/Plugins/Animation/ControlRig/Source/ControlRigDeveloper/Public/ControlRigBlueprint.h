@@ -189,6 +189,10 @@ private:
 	void PatchRigElementKeyCacheOnLoad();
 	void PatchPropagateToChildren();
 
+protected:
+	virtual void CreateMemberVariablesOnLoad() override;
+	virtual void PatchVariableNodesOnLoad() override;
+
 public:
 	void PropagatePoseFromInstanceToBP(UControlRig* InControlRig) const;
 	void PropagatePoseFromBPToInstances() const;

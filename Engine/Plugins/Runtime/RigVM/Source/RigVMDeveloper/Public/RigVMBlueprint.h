@@ -549,15 +549,7 @@ private:
 
 	FOnRigVMCompiledEvent VMCompiledEvent;
 
-	virtual void CreateMemberVariablesOnLoad();
-#if WITH_EDITOR
-	static FName FindHostMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName);
-	static int32 AddHostMemberVariable(URigVMBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue);
-	FName AddHostMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue = FString());
-#endif
-
 	virtual void PatchFunctionReferencesOnLoad();
-	virtual void PatchVariableNodesOnLoad();
 	virtual void PathDomainSpecificContentOnLoad() {}
 	virtual void PatchBoundVariables();
 	virtual void PatchVariableNodesWithIncorrectType();
@@ -565,6 +557,16 @@ private:
 	virtual void PatchLinksWithCast();
 	virtual void PatchFunctionsOnLoad();
 
+protected:
+
+#if WITH_EDITOR
+	static FName FindHostMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName);
+	static int32 AddHostMemberVariable(URigVMBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue);
+	FName AddHostMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue = FString());
+#endif
+	
+	virtual void CreateMemberVariablesOnLoad();
+	virtual void PatchVariableNodesOnLoad();
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;
 
