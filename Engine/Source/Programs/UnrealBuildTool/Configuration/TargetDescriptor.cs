@@ -128,9 +128,47 @@ namespace UnrealBuildTool
 		public bool bRebuild;
 
 		/// <summary>
-		/// The intermediate environment to use. This primarily controls the target's intermediate path.
+		/// Whether to unify C++ code into larger files for faster compilation.
 		/// </summary>
-		public UnrealIntermediateEnvironment IntermediateEnvironment = UnrealIntermediateEnvironment.Default;
+		[CommandLine("-DisableUnity", Value = "false")]
+		public bool bUseUnityBuild = true;
+
+		/// <summary>
+		/// Whether to force C++ source files to be combined into larger files for faster compilation.
+		/// </summary>
+		[CommandLine("-ForceUnity")]
+		public bool bForceUnityBuild = false;
+
+		/// <summary>
+		/// Enables "include what you use" mode.
+		/// </summary>
+		[CommandLine("-IWYU")]
+		public bool bIWYU = false;
+
+		/// <summary>
+		/// Intermediate environment. Determines if the intermediates end up in a different folder than normal.
+		/// </summary>
+		public UnrealIntermediateEnvironment IntermediateEnvironment
+		{
+			get
+			{
+				if (IntermediateEnvironmentOverride.HasValue)
+				{
+					return IntermediateEnvironmentOverride.Value;
+				}
+				if (bIWYU)
+				{
+					return UnrealIntermediateEnvironment.IWYU;
+				}
+				if (!bUseUnityBuild && !bForceUnityBuild)
+				{
+					return UnrealIntermediateEnvironment.NonUnity;
+				}
+				return UnrealIntermediateEnvironment.Default;
+			}
+			set { IntermediateEnvironmentOverride = value; }
+		}
+		private UnrealIntermediateEnvironment? IntermediateEnvironmentOverride;
 
 		/// <summary>
 		/// Constructor
@@ -240,7 +278,10 @@ namespace UnrealBuildTool
 			ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, TargetDescriptors, Logger);
 
 			// apply the intermediate environment from the build configuration
-			TargetDescriptors.ForEach(x => x.IntermediateEnvironment = BuildConfiguration.IntermediateEnvironment);
+			if (BuildConfiguration.IntermediateEnvironment.HasValue)
+			{
+				TargetDescriptors.ForEach(x => x.IntermediateEnvironment = BuildConfiguration.IntermediateEnvironment.Value);
+			}
 
 			return TargetDescriptors;
 		}

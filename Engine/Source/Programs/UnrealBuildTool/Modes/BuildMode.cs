@@ -1067,7 +1067,7 @@ namespace UnrealBuildTool
 			FileReference? MakefileLocation = null;
 			if (BuildConfiguration.bUseUBTMakefiles)
 			{
-				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Architectures, TargetDescriptor.Configuration, BuildConfiguration.IntermediateEnvironment);
+				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Architectures, TargetDescriptor.Configuration, TargetDescriptor.IntermediateEnvironment);
 			}
 
 			// Try to load an existing makefile

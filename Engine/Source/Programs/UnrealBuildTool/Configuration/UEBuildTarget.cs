@@ -1174,7 +1174,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static UEBuildTarget Create(TargetDescriptor Descriptor, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
-			return Create(Descriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.IntermediateEnvironment, Logger);
+			return Create(Descriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, Descriptor.IntermediateEnvironment, Logger);
 		}
 
 		/// <summary>
