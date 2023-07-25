@@ -455,7 +455,9 @@ UE::Interchange::FAssetImportResultRef FReimportManager::ReimportAsync(UObject* 
 				CanReimportHandler->SetAutomatedReimport(bAutomated);
 				EReimportResult::Type Result = CanReimportHandler->Reimport( Obj, SourceFileIndex );
 				CanReimportHandler->SetAutomatedReimport(bOriginalAutomated);
-				if( Result == EReimportResult::Succeeded )
+				// Even if the reimport has been successful, check that the originating object is still valid
+				// The reimport might be a reimport to level which triggered the deletion of the object
+				if( Result == EReimportResult::Succeeded && IsValid(Obj))
 				{
 					Obj->PostEditChange();
 					GEditor->BroadcastObjectReimported(Obj);

@@ -21,13 +21,31 @@ class INTERCHANGEPIPELINES_API UInterchangeGenericLevelPipeline : public UInterc
 {
 	GENERATED_BODY()
 public:
-	/* Allow user to choose the re-import strategy when importing into level. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actors", meta = (AdjustPipelineAndRefreshDetailOnChange = "True"))
-	EReimportStrategyFlags ReimportStrategy = EReimportStrategyFlags::ApplyNoProperties;
+	/* Allow user to choose the re-import strategy when re-importing into level. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Reimport Policy", meta = (SubCategory = "Actors properties", AdjustPipelineAndRefreshDetailOnChange = "True"))
+	EReimportStrategyFlags ReimportPropertyStrategy = EReimportStrategyFlags::ApplyNoProperties;
+
+	/* Enables or not the deletion of actors which were not part of the translation when re-importing into level. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Reimport Policy", meta = (SubCategory = "Reimport Actors"))
+	bool bDeleteMissingActors = false;
+
+	/* Enables or not spawning actors which were deleted in the editor prior to a reimport. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Reimport Policy", meta = (SubCategory = "Reimport Actors"))
+	bool bForceReimportDeletedActors = false;
+
+	/* Enables or not re-creating assets which were deleted in the editor prior to a reimport into level. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Reimport Policy", meta = (SubCategory = "Reimport Assets"))
+	bool bForceReimportDeletedAssets = false;
+
+	/* Enables or not the deletion of assets which were not part of the translation when re-importing into level. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Reimport Policy", meta = (SubCategory = "Reimport Assets"))
+	bool bDeleteMissingAssets = false;
+
+	/** BEGIN UInterchangePipelineBase overrides */
+	virtual void AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset) override;
 
 protected:
 
-	/** BEGIN UInterchangePipelineBase overrides */
 	virtual void ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
 	virtual void ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport) override;
 
@@ -60,6 +78,7 @@ protected:
 	/** Disable this option to not convert Standard(Perspective) to Physical Cameras*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Meshes and Animations")
 	bool bUsePhysicalInsteadOfStandardPerspectiveCamera = true;
+
 protected:
 	UInterchangeBaseNodeContainer* BaseNodeContainer = nullptr;
 #if WITH_EDITORONLY_DATA

@@ -127,12 +127,6 @@ void UInterchangeSceneImportAssetFactory::SetupObject_GameThread(const FSetupObj
 #if WITH_EDITORONLY_DATA
 		using namespace UE::Interchange;
 
-		if (Arguments.bIsReimport)
-		{
-			ensure(SceneImportAsset->AssetImportData);
-			SceneImportAsset->UpdateSceneObjects();
-		}
-
 		FFactoryCommon::FUpdateImportAssetDataParameters Parameters(SceneImportAsset, SceneImportAsset->AssetImportData, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.OriginalPipelines);
 		SceneImportAsset->AssetImportData = Cast<UInterchangeAssetImportData>(FFactoryCommon::UpdateImportAssetData(Parameters));
 #endif

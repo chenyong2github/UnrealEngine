@@ -142,6 +142,7 @@ void UInterchangeAssetImportData::SetNodeContainer(UInterchangeBaseNodeContainer
 void UInterchangeAssetImportData::SetPipelines(const TArray<UObject*>& InPipelines) const
 {
 	TransientPipelines.Reset();
+
 	for (UObject* Pipeline : InPipelines)
 	{
 		TransientPipelines.Add(Pipeline);

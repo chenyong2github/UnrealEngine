@@ -3,6 +3,7 @@
 #include "InterchangeGenericScenesPipeline.h"
 
 #include "InterchangeActorFactoryNode.h"
+#include "InterchangeAssetImportData.h"
 #include "InterchangeCameraNode.h"
 #include "InterchangeCameraFactoryNode.h"
 #include "InterchangeCommonPipelineDataFactoryNode.h"
@@ -28,6 +29,11 @@
 #include "Engine/RectLight.h"
 #include "Engine/SpotLight.h"
 #include "Engine/StaticMeshActor.h"
+
+#if WITH_EDITOR
+#include "Engine/World.h"
+#include "ObjectTools.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGenericScenesPipeline)
 
@@ -81,6 +87,99 @@ namespace UE::Interchange::Private
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	void DeleteAssets(const TArray<UObject*>& AssetsToDelete)
+	{
+		if (AssetsToDelete.IsEmpty())
+		{
+			return;
+		}
+
+		TArray<UObject*> ObjectsToForceDelete;
+		ObjectsToForceDelete.Reserve(AssetsToDelete.Num());
+
+		for (UObject* Asset : AssetsToDelete)
+		{
+			if (Asset)
+			{
+				ObjectsToForceDelete.Add(Asset);
+			}
+		}
+
+		if (ObjectsToForceDelete.IsEmpty())
+		{
+			return;
+		}
+
+		constexpr bool bShowConfirmation = true;
+		constexpr ObjectTools::EAllowCancelDuringDelete AllowCancelDuringDelete = ObjectTools::EAllowCancelDuringDelete::CancelNotAllowed;
+		ObjectTools::DeleteObjects(ObjectsToForceDelete, bShowConfirmation, AllowCancelDuringDelete);
+	}
+#else
+	void DeleteAssets(const TArray<UObject*>& AssetsToDelete)
+	{
+		if (AssetsToDelete.IsEmpty())
+		{
+			return;
+		}
+
+		bool bForceGarbageCollection = false;
+		for (UObject* Asset : AssetsToDelete)
+		{
+			if (Asset)
+			{
+				Asset->Rename(nullptr, GetTransientPackage(), REN_NonTransactional | REN_DontCreateRedirectors);
+
+				if (Asset->IsRooted())
+				{
+					Asset->RemoveFromRoot();
+				}
+
+				Asset->ClearFlags(RF_Public | RF_Standalone);
+				Asset->MarkAsGarbage();
+
+				bForceGarbageCollection = true;
+			}
+		}
+
+		if (bForceGarbageCollection)
+		{
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+		}
+	}
+#endif // WITH_EDITOR
+
+	void DeleteActors(const TArray<AActor*>& ActorsToDelete)
+	{
+		if (ActorsToDelete.IsEmpty())
+		{
+			return;
+		}
+
+		for (AActor* Actor : ActorsToDelete)
+		{
+			if (!Actor)
+			{
+				continue;
+			}
+
+			if (UWorld* OwningWorld = Actor->GetWorld())
+			{
+				OwningWorld->EditorDestroyActor(Actor, true);
+				// Since deletion can be delayed, rename to avoid future name collision
+				// Call UObject::Rename directly on actor to avoid AActor::Rename which unnecessarily sunregister and re-register components
+				Actor->UObject::Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			}
+		}
+	}
+}
+
+void UInterchangeGenericLevelPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
+{
+	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
+	bIsReimportContext = ReimportAsset != nullptr;
 }
 
 void UInterchangeGenericLevelPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
@@ -92,6 +191,15 @@ void UInterchangeGenericLevelPipeline::ExecutePipeline(UInterchangeBaseNodeConta
 	}
 
 	BaseNodeContainer = InBaseNodeContainer;
+
+	// Make sure all factory nodes created for assets have the chosen policy strategy
+	InBaseNodeContainer->IterateNodesOfType<UInterchangeFactoryBaseNode>([this](const FString& NodeUid, UInterchangeFactoryBaseNode* FactoryNode)
+		{
+			if (this->bForceReimportDeletedAssets)
+			{
+				FactoryNode->SetForceNodeReimport();
+			}
+		});
 
 	FTransform GlobalOffsetTransform = FTransform::Identity;
 	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(BaseNodeContainer))
@@ -303,7 +411,11 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 	}
 
 	//Make sure all actor factory nodes and dependencies have the specified strategy
-	Private::UpdateReimportStrategyFlags(*BaseNodeContainer, *ActorFactoryNode, ReimportStrategy);
+	Private::UpdateReimportStrategyFlags(*BaseNodeContainer, *ActorFactoryNode, ReimportPropertyStrategy);
+	if (bForceReimportDeletedActors)
+	{
+		ActorFactoryNode->SetForceNodeReimport();
+	}
 
 #if WITH_EDITORONLY_DATA
 	// Add dependency to newly created factory node
@@ -705,22 +817,92 @@ void UInterchangeGenericLevelPipeline::ExecutePostImportPipeline(const UIntercha
 	Super::ExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
 
 #if WITH_EDITORONLY_DATA
+	using namespace UE::Interchange;
+
 	//We do not use the provided base container since ExecutePreImportPipeline cache it
 	//We just make sure the same one is pass in parameter
-	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
+	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset || !ensure(IsInGameThread()))
 	{
 		return;
 	}
 
 	if (UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(CreatedAsset))
 	{
+		if (!bIsReimportContext || !bDeleteMissingActors)
+		{
+			SceneImportAsset->UpdateSceneObjects();
+			return;
+		}
+
 		const UInterchangeSceneImportAssetFactoryNode* FactoryNode = Cast<UInterchangeSceneImportAssetFactoryNode>(BaseNodeContainer->GetFactoryNode(NodeKey));
 		if (!ensure(FactoryNode))
+		{
+			SceneImportAsset->UpdateSceneObjects();
+			return;
+		}
+
+		// Cache list of objects previously imported in case of a re-import
+		TArray<FSoftObjectPath> PrevSoftObjectPaths;
+		SceneImportAsset->GetSceneSoftObjectPaths(PrevSoftObjectPaths);
+
+		SceneImportAsset->UpdateSceneObjects();
+
+		// Nothing to take care of
+		if (PrevSoftObjectPaths.IsEmpty())
 		{
 			return;
 		}
 
-		SceneImportAsset->UpdateSceneObjects();
+		TArray<FSoftObjectPath> NewSoftObjectPaths;
+		SceneImportAsset->GetSceneSoftObjectPaths(NewSoftObjectPaths);
+
+		TSet<FSoftObjectPath> SoftObjectPathSet(NewSoftObjectPaths);
+		TArray<AActor*> ActorsToDelete;
+		TArray<UObject*> AssetsToForceDelete;
+
+		ActorsToDelete.Reserve(PrevSoftObjectPaths.Num());
+		AssetsToForceDelete.Reserve(PrevSoftObjectPaths.Num());
+
+		for (const FSoftObjectPath& ObjectPath : PrevSoftObjectPaths)
+		{
+			if (!SoftObjectPathSet.Contains(ObjectPath))
+			{
+				if (UObject* Object = ObjectPath.TryLoad())
+				{
+					if (IsValid(Object))
+					{
+						if (Object->GetClass()->IsChildOf<AActor>())
+						{
+							ActorsToDelete.Add(Cast<AActor>(Object));
+						}
+						else
+						{
+							AssetsToForceDelete.Add(Object);
+						}
+					}
+				}
+			}
+		}
+
+		Private::DeleteActors(ActorsToDelete);
+
+		if (!AssetsToForceDelete.IsEmpty())
+		{
+			Private::DeleteAssets(AssetsToForceDelete);
+		}
+
+		// Update newly imported objects with a soft reference to the UInterchangeSceneImportAsset
+		for (const FSoftObjectPath& ObjectPath : NewSoftObjectPaths)
+		{
+			UObject* Object = ObjectPath.TryLoad();
+			if (IsValid(Object) && Object != CreatedAsset)
+			{
+				if (UInterchangeAssetImportData* AssetImportData = UInterchangeAssetImportData::GetFromObject(Object))
+				{
+					AssetImportData->SceneImportAsset = CreatedAsset;
+				}
+			}
+		}
 	}
 #endif
 }

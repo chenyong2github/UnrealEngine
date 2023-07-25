@@ -256,7 +256,11 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 	CachedDetailBuilder = &DetailBuilder;
 	TArray<TWeakObjectPtr<UObject>> EditingObjects;
 	DetailBuilder.GetObjectsBeingCustomized(EditingObjects);
-	check(EditingObjects.Num() == 1);
+
+	if (!ensure(EditingObjects.Num() == 1))
+	{
+		return;
+	}
 
 	InterchangePipeline = Cast<UInterchangePipelineBase>(EditingObjects[0].Get());
 

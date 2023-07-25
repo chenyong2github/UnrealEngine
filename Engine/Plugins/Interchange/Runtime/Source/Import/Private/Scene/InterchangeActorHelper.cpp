@@ -98,14 +98,10 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 		}
 	}
 	// The related actor has been deleted. Check on reimport policy
-	else if (CreateSceneObjectsParams.ReimportFactoryNode)
+	else if (CreateSceneObjectsParams.ReimportFactoryNode && !FactoryNode->ShouldForceNodeReimport())
 	{
 		// if reimport policy does not prioritize new content, do not recreate the actor
-		const EReimportStrategyFlags ReimportStrategyFlags = CreateSceneObjectsParams.FactoryNode->GetReimportStrategyFlags();
-		if (ReimportStrategyFlags != EReimportStrategyFlags::ApplyPipelineProperties)
-		{
-			return nullptr;
-		}
+		return nullptr;
 	}
 
 	if (!SpawnedActor)

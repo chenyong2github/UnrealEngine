@@ -250,3 +250,15 @@ const UInterchangeFactoryBaseNode* UInterchangeSceneImportAsset::GetFactoryNode(
 
 	return nullptr;
 }
+
+void UInterchangeSceneImportAsset::GetSceneSoftObjectPaths(TArray<FSoftObjectPath>& SoftObjectPaths)
+{
+#if WITH_EDITORONLY_DATA
+	SoftObjectPaths.Reserve(SceneObjects.Num());
+
+	for (TPair< FSoftObjectPath, FString >& Entry : SceneObjects)
+	{
+		SoftObjectPaths.Add(Entry.Key);
+	}
+#endif
+}

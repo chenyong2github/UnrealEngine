@@ -89,6 +89,29 @@ public:
 #endif
 #endif
 
+	/** On a level import, set to the UInterchangeSceneImportAsset created during the import */
+	UPROPERTY(EditAnywhere, Category = "Interchange | AssetImportData")
+	FSoftObjectPath SceneImportAsset;
+
+	/** Returns a pointer to the UInterchangeAssetImportData referred by the input object if applicable */
+	static UInterchangeAssetImportData* GetFromObject(UObject* Object)
+	{
+		if (Object)
+		{
+			TArray<UObject*> SubObjects;
+			GetObjectsWithOuter(Object, SubObjects);
+			for (UObject* SubObject : SubObjects)
+			{
+				if (UInterchangeAssetImportData* AssetImportData = Cast<UInterchangeAssetImportData>(SubObject))
+				{
+					return AssetImportData;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
 	/** The Node UID pass to the factory that exist in the graph that was use to create this asset */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
 	FString NodeUniqueID;
@@ -99,7 +122,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
 	INTERCHANGEENGINE_API void SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer) const;
-
 
 	/**
 	* Returns Array of non-null pipelines

@@ -727,7 +727,8 @@ void UE::Interchange::FImportResult::AddReferencedObjects(FReferenceCollector& C
 
 void UE::Interchange::SanitizeObjectPath(FString& ObjectPath)
 {
-	const TCHAR* InvalidChar = INVALID_OBJECTPATH_CHARACTERS;
+	const TCHAR* InvalidChar = INVALID_OBJECTPATH_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS;
+
 	while (*InvalidChar)
 	{
 		ObjectPath.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
@@ -1335,7 +1336,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		Attribs.Add(FAnalyticsEventAttribute(TEXT("SourceExtension"), FPaths::GetExtension(SourceData->GetFilename())));
 	}
 
-	const bool bImportScene = ImportType == UE::Interchange::EImportType::ImportType_Scene;
+	bool bImportScene = ImportType == UE::Interchange::EImportType::ImportType_Scene;
 	const FInterchangeImportSettings& InterchangeImportSettings = FInterchangeProjectSettingsUtils::GetDefaultImportSettings(bImportScene);
 	
 	if (InterchangeImportSettings.PipelineStacks.Num() == 0)
@@ -1354,26 +1355,19 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		MutableInterchangeImportSettings.DefaultPipelineStack = Keys[0];
 	}
 
-	UInterchangeAssetImportData* OriginalAssetImportData = nullptr;
+	UInterchangeAssetImportData* OriginalAssetImportData = UInterchangeAssetImportData::GetFromObject(ImportAssetParameters.ReimportAsset);
 	FString PackageBasePath = ContentPath;
-	if(!ImportAssetParameters.ReimportAsset)
+	if (!ImportAssetParameters.ReimportAsset)
 	{
 		UE::Interchange::SanitizeObjectPath(PackageBasePath);
 	}
 	else
 	{
 		PackageBasePath = FPaths::GetPath(ImportAssetParameters.ReimportAsset->GetPathName());
-		TArray<UObject*> SubObjects;
-		GetObjectsWithOuter(ImportAssetParameters.ReimportAsset, SubObjects);
-		for (UObject* SubObject : SubObjects)
-		{
-			OriginalAssetImportData = Cast<UInterchangeAssetImportData>(SubObject);
-			if(OriginalAssetImportData)
-			{
-				break;
-			}
-		}
 	}
+
+	const bool bIsReimport = OriginalAssetImportData && OriginalAssetImportData->GetPipelines().Num() > 0;
+
 	bool bImportAborted = false; // True when we're unable to go through with the import process
 
 	//Create a task for every source data
@@ -1382,6 +1376,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	TaskData.bFollowRedirectors = ImportAssetParameters.bFollowRedirectors;
 	TaskData.ImportType = ImportType;
 	TaskData.ReimportObject = ImportAssetParameters.ReimportAsset;
+
 	TSharedRef<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = CreateAsyncHelper(TaskData, ImportAssetParameters);
 	AsyncHelper->UniqueId = UniqueId;
 
@@ -1420,21 +1415,19 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	}
 #endif
 	
-	const bool bIsReimport = OriginalAssetImportData && OriginalAssetImportData->GetNumberOfPipelines() > 0;
-	auto AdjustPipelineSettingForContext = [bImportScene, bIsReimport, ImportAssetParameters](UInterchangePipelineBase* Pipeline)
+	auto AdjustPipelineSettingForContext = [bIsReimport, bImportScene, &TaskData](UInterchangePipelineBase* Pipeline)
 	{
 		EInterchangePipelineContext Context;
-		UObject* ReimportObject = nullptr;
 		if (bIsReimport)
 		{
 			Context = bImportScene ? EInterchangePipelineContext::SceneReimport : EInterchangePipelineContext::AssetReimport;
-			ReimportObject = ImportAssetParameters.ReimportAsset;
 		}
 		else
 		{
 			Context = bImportScene ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport;
 		}
-		Pipeline->AdjustSettingsForContext(Context, ReimportObject);
+
+		Pipeline->AdjustSettingsForContext(Context, TaskData.ReimportObject);
 	};
 
 	if ( ImportAssetParameters.OverridePipelines.Num() == 0 )
@@ -1787,7 +1780,7 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 
 	check(AsyncHelper.IsValid());
 	
-	constexpr bool bLogWarningsAndErrors = true;
+	constexpr bool bLogWarningsAndErrors = false;
 
 	bool bSucceeded = false;
 	{

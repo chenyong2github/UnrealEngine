@@ -135,6 +135,7 @@ namespace UE::Interchange
 		static INTERCHANGECORE_API const FString& FactoryDependenciesBaseKey();
 		static INTERCHANGECORE_API const FAttributeKey& ReimportStrategyFlagsKey();
 		static INTERCHANGECORE_API const FAttributeKey& SkipNodeImportKey();
+		static INTERCHANGECORE_API const FAttributeKey& ForceNodeReimportKey();
 	};
 
 } // namespace UE::Interchange
@@ -319,6 +320,25 @@ public:
 	 * @param Object			The object to fill custom attributes' values from, if applicable.
 	 */
 	static INTERCHANGECORE_API UInterchangeFactoryBaseNode* DuplicateWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object);
+
+	/**
+	 * Return whether or not an object should be created even if it has been deleted in the editor.
+	 * Return false by default
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	INTERCHANGECORE_API bool ShouldForceNodeReimport() const;
+
+	/**
+	 * Allow the creation of the unreal object even if it has been previously deleted in the editor.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	INTERCHANGECORE_API bool SetForceNodeReimport();
+
+	/**
+	 * Disallow the creation of the unreal object if it has been previously deleted in the editor.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	INTERCHANGECORE_API bool UnsetForceNodeReimport();
 
 protected:
 	/**

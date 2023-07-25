@@ -81,43 +81,39 @@ namespace UE::Interchange::Private
 		}
 
 		//See if the FactoryNode match the ReimportObject.
-		TArray<UObject*> SubObjects;
-		GetObjectsWithOuter(ReimportObject, SubObjects);
-		for (UObject* SubObject : SubObjects)
+		if (UInterchangeAssetImportData* OriginalAssetImportData = UInterchangeAssetImportData::GetFromObject(ReimportObject))
 		{
-			if(UInterchangeAssetImportData* OriginalAssetImportData = Cast<UInterchangeAssetImportData>(SubObject))
+			if (UInterchangeBaseNodeContainer* OriginalNodeContainer = OriginalAssetImportData->GetNodeContainer())
 			{
-				if (UInterchangeBaseNodeContainer* OriginalNodeContainer = OriginalAssetImportData->GetNodeContainer())
+				//Find the original factory node used by the last ReimportObject import
+				if (UInterchangeFactoryBaseNode* OriginalFactoryNode = OriginalNodeContainer->GetFactoryNode(OriginalAssetImportData->NodeUniqueID))
 				{
-					//Find the original factory node used by the last ReimportObject import
-					if (UInterchangeFactoryBaseNode* OriginalFactoryNode = OriginalNodeContainer->GetFactoryNode(OriginalAssetImportData->NodeUniqueID))
+					//Compare the original factory node UObject class to the factory node UObject class
+					if (OriginalFactoryNode->GetObjectClass()->IsChildOf(FactoryClass))
 					{
-						//Compare the original factory node UObject class to the factory node UObject class
-						if (OriginalFactoryNode->GetObjectClass()->IsChildOf(FactoryClass))
+						//Compare the original factory node, unique id to the factory node unique id
+						if (OriginalFactoryNode->GetUniqueID().Equals(FactoryNode->GetUniqueID()))
 						{
-							//Compare the original factory node, unique id to the factory node unique id
-							if (OriginalFactoryNode->GetUniqueID().Equals(FactoryNode->GetUniqueID()))
+							return true;
+						}
+						//Compare the original factory node, name to the factory node name
+						if (OriginalFactoryNode->GetDisplayLabel().Equals(FactoryNode->GetDisplayLabel()))
+						{
+							FString PackageSubPath;
+							FactoryNode->GetCustomSubPath(PackageSubPath);
+							FString OriginalPackageSubPath;
+							OriginalFactoryNode->GetCustomSubPath(PackageSubPath);
+							//Make sure both sub path are equal
+							if (PackageSubPath.Equals(OriginalPackageSubPath))
 							{
 								return true;
-							}
-							//Compare the original factory node, name to the factory node name
-							if (OriginalFactoryNode->GetDisplayLabel().Equals(FactoryNode->GetDisplayLabel()))
-							{
-								FString PackageSubPath;
-								FactoryNode->GetCustomSubPath(PackageSubPath);
-								FString OriginalPackageSubPath;
-								OriginalFactoryNode->GetCustomSubPath(PackageSubPath);
-								//Make sure both sub path are equal
-								if (PackageSubPath.Equals(OriginalPackageSubPath))
-								{
-									return true;
-								}
 							}
 						}
 					}
 				}
 			}
 		}
+
 		return false;
 	}
 
@@ -197,8 +193,8 @@ namespace UE::Interchange::Private
 		FString AssetName;
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		bool bSkipAsset = false;
-		UObject* ReimportObject = UE::Interchange::FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackageName, AssetName);
-		if (ReimportObject)
+		UObject* ObjectToReimport = UE::Interchange::FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackageName, AssetName);
+		if (ObjectToReimport)
 		{
 			UInterchangeBaseNodeContainer* NodeContainer = nullptr;
 			if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
@@ -206,11 +202,11 @@ namespace UE::Interchange::Private
 				NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 			}
 
-			if (Private::ShouldReimportFactoryNode(FactoryNode, NodeContainer, ReimportObject))
+			if (Private::ShouldReimportFactoryNode(FactoryNode, NodeContainer, ObjectToReimport))
 			{
-				Pkg = ReimportObject->GetPackage();
+				Pkg = ObjectToReimport->GetPackage();
 				PackageName = Pkg->GetPathName();
-				AssetName = ReimportObject->GetName();
+				AssetName = ObjectToReimport->GetName();
 			}
 			else
 			{
@@ -219,25 +215,35 @@ namespace UE::Interchange::Private
 		}
 		else
 		{
-			Pkg = AsyncHelper->GetCreatedPackage(PackageName);
-
-			if (!Pkg)
+			// Check if the object has not been deleted after an import
+			if (const UInterchangeFactoryBaseNode* ReimportFactoryNode = FFactoryCommon::GetFactoryNode(AsyncHelper->TaskData.ReimportObject, PackageName, AssetName))
 			{
-				UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
-				Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
-				Message->DestinationAssetName = AssetName;
-				Message->AssetType = FactoryNode->GetObjectClass();
-				Message->Text = NSLOCTEXT("InternalImportObjectStartup", "BadPackage", "It was not possible to create the asset as its package was not created correctly.");
-				return ErrorImportAssetResult;
+				// if the reimport of the node has not been set, do not recreate the asset
+				bSkipAsset = !FactoryNode->ShouldForceNodeReimport();
 			}
 
-			if (!AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) || !AsyncHelper->Translators.IsValidIndex(SourceIndex))
+			if (!bSkipAsset)
 			{
-				UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
-				Message->DestinationAssetName = AssetName;
-				Message->AssetType = FactoryNode->GetObjectClass();
-				Message->Text = NSLOCTEXT("InternalImportObjectStartup", "SourceDataOrTranslatorInvalid", "It was not possible to create the asset as its translator was not created correctly.");
-				return ErrorImportAssetResult;
+				Pkg = AsyncHelper->GetCreatedPackage(PackageName);
+
+				if (!Pkg)
+				{
+					UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+					Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+					Message->DestinationAssetName = AssetName;
+					Message->AssetType = FactoryNode->GetObjectClass();
+					Message->Text = NSLOCTEXT("InternalImportObjectStartup", "BadPackage", "It was not possible to create the asset as its package was not created correctly.");
+					return ErrorImportAssetResult;
+				}
+
+				if (!AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) || !AsyncHelper->Translators.IsValidIndex(SourceIndex))
+				{
+					UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+					Message->DestinationAssetName = AssetName;
+					Message->AssetType = FactoryNode->GetObjectClass();
+					Message->Text = NSLOCTEXT("InternalImportObjectStartup", "SourceDataOrTranslatorInvalid", "It was not possible to create the asset as its translator was not created correctly.");
+					return ErrorImportAssetResult;
+				}
 			}
 		}
 
@@ -264,7 +270,7 @@ namespace UE::Interchange::Private
 			{
 				CreateAssetParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 			}
-			CreateAssetParams.ReimportObject = ReimportObject;
+			CreateAssetParams.ReimportObject = ObjectToReimport;
 
 			return FactoryOperationLambda(CreateAssetParams);
 		}
@@ -313,13 +319,13 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 	FString AssetName;
 	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 
-	UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackageName, AssetName);
+	UObject* ObjectToReimport = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackageName, AssetName);
 	if (!ensure(!IsGarbageCollecting()))
 	{
 		//Skip this asset
 		UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 		Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
-		Message->DestinationAssetName = ReimportObject ? ReimportObject->GetName() : FactoryNode->GetAssetName();
+		Message->DestinationAssetName = ObjectToReimport ? ObjectToReimport->GetName() : FactoryNode->GetAssetName();
 		Message->AssetType = FactoryNode->GetObjectClass();
 		Message->Text = FText::Format(NSLOCTEXT("FTaskImportObject_GameThread", "GarbageCollectIsRunning_Error", "Cannot import asset '{0}'; the garbage collect is running during the import process.")
 			, FText::FromString(AssetName));
@@ -331,7 +337,7 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 		//Skip this asset
 		UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 		Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
-		Message->DestinationAssetName = ReimportObject ? ReimportObject->GetName() : FactoryNode->GetAssetName();
+		Message->DestinationAssetName = ObjectToReimport ? ObjectToReimport->GetName() : FactoryNode->GetAssetName();
 		Message->AssetType = FactoryNode->GetObjectClass();
 		Message->Text = FText::Format(NSLOCTEXT("FTaskImportObject_GameThread", "InvalidBaseNodeContainer", "Cannot import asset '{0}'; the node container is invalid for this source index.")
 			, FText::FromString(AssetName));
@@ -341,25 +347,34 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 
 	UObject* ExistingAsset = nullptr;
 	//If we do a reimport no need to create a package
-	if (ReimportObject)
+	if (ObjectToReimport)
 	{
-		if (Private::ShouldReimportFactoryNode(FactoryNode, NodeContainer, ReimportObject))
+		if (Private::ShouldReimportFactoryNode(FactoryNode, NodeContainer, ObjectToReimport))
 		{
-			FactoryNode->SetDisplayLabel(ReimportObject->GetName());
-			FactoryNode->SetAssetName(ReimportObject->GetName());
-			Pkg = ReimportObject->GetPackage();
+			FactoryNode->SetDisplayLabel(ObjectToReimport->GetName());
+			FactoryNode->SetAssetName(ObjectToReimport->GetName());
+			Pkg = ObjectToReimport->GetPackage();
 			PackageName = Pkg->GetPathName();
-			AssetName = ReimportObject->GetName();
+			AssetName = ObjectToReimport->GetName();
 		}
 		else
 		{
 			//Skip this asset, reimport object original factory node does not match this factory node
 			return;
 		}
-		ExistingAsset = ReimportObject;
+		ExistingAsset = ObjectToReimport;
 	}
 	else
 	{
+		// Check if the object has not been deleted after an import
+		if (FFactoryCommon::GetFactoryNode(AsyncHelper->TaskData.ReimportObject, PackageName, AssetName))
+		{
+			if (!FactoryNode->ShouldForceNodeReimport())
+			{
+				return;
+			}
+		}
+
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
 		if (FPackageUtils::IsMapPackageAsset(PackageName))
@@ -486,7 +501,7 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 	CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 	CreateAssetParams.Translator = AsyncHelper->Translators[SourceIndex];
 	CreateAssetParams.NodeContainer = NodeContainer;
-	CreateAssetParams.ReimportObject = ReimportObject;
+	CreateAssetParams.ReimportObject = ObjectToReimport;
 	//Make sure the asset UObject is created with the correct type on the main thread
 	UInterchangeFactoryBase::FImportAssetResult ImportAssetResult = Factory->BeginImportAsset_GameThread(CreateAssetParams);
 	if (ImportAssetResult.ImportedObject)
@@ -505,11 +520,11 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 			AssetInfo.ImportedObject = ImportAssetResult.ImportedObject;
 			AssetInfo.Factory = Factory;
 			AssetInfo.FactoryNode = FactoryNode;
-			AssetInfo.bIsReimport = bool(ReimportObject != nullptr);
+			AssetInfo.bIsReimport = bool(ObjectToReimport != nullptr);
 		}
 		// Make sure the destination package is loaded
 		Pkg->FullyLoad();
-		if (!ReimportObject)
+		if (!ObjectToReimport)
 		{
 			AsyncHelper->AddCreatedPackage(PackageName, Pkg);
 		}
@@ -606,8 +621,8 @@ void UE::Interchange::FTaskImportObjectFinalize_GameThread::DoTask(ENamedThreads
 
 				const FString PackagePathName = ImportAssetResult.ImportedObject->GetPathName();
 				const FString AssetName = ImportAssetResult.ImportedObject->GetName();
-				const UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackagePathName, AssetName);
-				AssetInfo.bIsReimport = bool(ReimportObject != nullptr);
+				const UObject* ObjectToReimport = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackagePathName, AssetName);
+				AssetInfo.bIsReimport = bool(ObjectToReimport != nullptr);
 			}
 
 			// Fill in destination asset and type in any results which have been added previously by a translator or pipeline, now that we have a corresponding factory.

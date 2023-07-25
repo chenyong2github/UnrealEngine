@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					{
 						"PhysicsUtilities",
 						"TextureUtilitiesCommon",
+						"UnrealEd",
 					}
 				);
 			}
