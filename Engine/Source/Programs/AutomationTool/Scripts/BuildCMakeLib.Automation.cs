@@ -926,7 +926,7 @@ class MakefileTargetPlatform_IOS : BuildCMakeLib.MakefileTargetPlatform
 		return SysRoot;
 	}
 
-	private string GetSdkName() => Architecture == "x86_64" || Architecture == "i386" ? "iphonesimulator" : "iphoneos";
+	private string GetSdkName() => Architecture == "x86_64" || Architecture == "iossimulator" ? "iphonesimulator" : "iphoneos";
 }
 
 class XcodeTargetPlatform_TVOS : BuildCMakeLib.XcodeTargetPlatform

@@ -18,8 +18,8 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public override string GetXcodeMinVersionParam()
-		{
+		public override string GetXcodeMinVersionParam(UnrealArch Architecture)
+	{
 			return "tvos-version-min";
 		}
 	}

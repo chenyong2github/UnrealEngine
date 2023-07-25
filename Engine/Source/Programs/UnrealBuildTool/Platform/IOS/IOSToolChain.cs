@@ -272,7 +272,10 @@ namespace UnrealBuildTool
 
 			Arguments.Add($"-isysroot \"{Settings.Value.GetSDKPath(CompileEnvironment.Architecture)}\"");
 
-			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
+			if (GetXcodeMinVersionParam(CompileEnvironment.Architecture) != "")
+			{
+				Arguments.Add("-m" + GetXcodeMinVersionParam(CompileEnvironment.Architecture) + "=" + ProjectSettings.RuntimeVersion);
+			}
 
 			// Add additional frameworks so that their headers can be found
 			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
@@ -339,9 +342,9 @@ namespace UnrealBuildTool
 			RunExecutableAndWait("mkdir", String.Format("-p \"{0}\"", Path), out ResultsText);
 		}
 
-		public virtual string GetXcodeMinVersionParam()
+		public virtual string GetXcodeMinVersionParam(UnrealArch Architecture)
 		{
-			return "iphoneos-version-min";
+			return (Architecture != UnrealArch.IOSSimulator) ? "iphoneos-version-min" : "iphonesimulator-version-min";
 		}
 
 		public string GetAdditionalLinkerFlags(CppConfiguration InConfiguration)
@@ -365,7 +368,10 @@ namespace UnrealBuildTool
 				Settings.Value.XcodeDeveloperDir, bIsDevice ? Settings.Value.DevicePlatformName : Settings.Value.SimulatorPlatformName, Settings.Value.IOSSDKVersion));
 
 			Arguments.Add("-dead_strip");
-			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
+			if (GetXcodeMinVersionParam(LinkEnvironment.Architecture) != "") 
+			{
+				Arguments.Add("-m" + GetXcodeMinVersionParam(LinkEnvironment.Architecture) + "=" + ProjectSettings.RuntimeVersion);
+			}
 			Arguments.Add("-Wl-no_pie");
 			Arguments.Add("-stdlib=libc++");
 			Arguments.Add("-ObjC");

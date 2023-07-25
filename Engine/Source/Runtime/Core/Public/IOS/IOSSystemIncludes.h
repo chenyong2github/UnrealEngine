@@ -54,7 +54,7 @@
 #include <malloc/malloc.h>
 
 // SIMD intrinsics
-#if WITH_SIMULATOR
+#if defined(WITH_SIMULATOR_X86)
 #include <xmmintrin.h>
 #else
 #include <arm_neon.h>
