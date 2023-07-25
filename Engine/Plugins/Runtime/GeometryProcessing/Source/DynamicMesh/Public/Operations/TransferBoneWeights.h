@@ -152,13 +152,19 @@ public:
 	bool bUseIntrinsicLaplacian = false;
 
 	/** 
-	 * Optional mask where if ForceInpaint[VertexID] > 0 we want to force the weights for the vertex to be computed  
+	 * Optional mask where if ForceInpaint[VertexID] != 0 we want to force the weights for the vertex to be computed  
 	 * automatically.
 	 * 
 	 * @note Only used when TransferMethod == ETransferBoneWeightsMethod::InpaintWeights.
 	 * 		 The size must be equal to the InSourceMesh.MaxVertexID(), otherwise the mask is ignored.
 	 */
 	TArray<float> ForceInpaint;
+
+	/** 
+	 * Alternatively, if the mask is stored as a target mesh weight map attribute, specify its name. Will be ignored if 
+	 * the ForceInpaint array is not empty and valid.
+	 */
+	FName ForceInpaintWeightMapName = NAME_None;
 
 
 	//

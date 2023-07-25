@@ -291,8 +291,23 @@ bool FTransferBoneWeights::TransferWeightsToMesh(FDynamicMesh3& InOutTargetMesh,
          *      i.e. W(i,j) = KnownWeights(i,j) where i is a vertex for which we found a match on the body.
 		 */
 		
+		// Check if the target mesh contains the user specifed force inpaint weight map 
+		const FDynamicMeshWeightAttribute* ForceInpaintLayer = nullptr;
+		if (!ForceInpaintWeightMapName.IsNone() && (ForceInpaint.IsEmpty() || ForceInpaint.Num() != InOutTargetMesh.MaxVertexID())) // ForceInpaint array takes priority if valid
+		{
+			for (int32 Idx = 0; Idx < InOutTargetMesh.Attributes()->NumWeightLayers(); ++Idx)
+			{	
+				const FDynamicMeshWeightAttribute* WeightLayer = InOutTargetMesh.Attributes()->GetWeightLayer(Idx);
+				if (WeightLayer && WeightLayer->GetName() == ForceInpaintWeightMapName)
+				{
+					ForceInpaintLayer = WeightLayer;
+					break;
+				}
+			}
+		}
+
 		// For every vertex on the target mesh try to find the match on the source mesh using the distance and normal checks
-		ParallelFor(InOutTargetMesh.MaxVertexID(), [&](int32 VertexID)
+		ParallelFor(InOutTargetMesh.MaxVertexID(), [this, &InOutTargetMesh, &ForceInpaintLayer, &TargetBoneToIndex, &TargetSkinWeights](int32 VertexID)
 		{
 			if (Cancelled()) 
 			{
@@ -302,9 +317,18 @@ bool FTransferBoneWeights::TransferWeightsToMesh(FDynamicMesh3& InOutTargetMesh,
 			if (InOutTargetMesh.IsVertex(VertexID)) 
 			{
 				// check if we need to force the vertex to not have a match
-				if (ForceInpaint.Num() == InOutTargetMesh.MaxVertexID() && ForceInpaint[VertexID] > 0)
+				if (ForceInpaint.Num() == InOutTargetMesh.MaxVertexID() && ForceInpaint[VertexID] != 0)
 				{
 					return;
+				}
+				else if (ForceInpaintLayer != nullptr)
+				{
+					float Value;
+					ForceInpaintLayer->GetValue(VertexID, &Value);
+					if (Value != 0)
+					{
+						return;
+					}
 				}
 
 				const FVector3d Point = InOutTargetMesh.GetVertex(VertexID);
