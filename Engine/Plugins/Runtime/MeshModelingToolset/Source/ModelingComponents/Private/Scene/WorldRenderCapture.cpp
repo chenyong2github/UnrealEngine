@@ -68,40 +68,61 @@ FRenderCaptureTypeFlags FRenderCaptureTypeFlags::Single(ERenderCaptureType Captu
 
 void FRenderCaptureTypeFlags::SetEnabled(ERenderCaptureType CaptureType, bool bEnabled)
 {
+	this->operator[](CaptureType) = bEnabled;
+}
+
+/** @return mutable flag corresponding to the given CaptureType */
+bool& FRenderCaptureTypeFlags::operator[](ERenderCaptureType CaptureType)
+{
 	switch (CaptureType)
 	{
 	case ERenderCaptureType::BaseColor:
-		bBaseColor = bEnabled;
-		break;
+		return bBaseColor;
 	case ERenderCaptureType::WorldNormal:
-		bWorldNormal = bEnabled;
-		break;
+		return bWorldNormal;
 	case ERenderCaptureType::Roughness:
-		bRoughness = bEnabled;
-		break;
+		return bRoughness;
 	case ERenderCaptureType::Metallic:
-		bMetallic = bEnabled;
-		break;
+		return bMetallic;
 	case ERenderCaptureType::Specular:
-		bSpecular = bEnabled;
-		break;
+		return bSpecular;
 	case ERenderCaptureType::Emissive:
-		bEmissive = bEnabled;
-		break;
+		return bEmissive;
 	case ERenderCaptureType::CombinedMRS:
-		bCombinedMRS = bEnabled;
-		break;
+		return bCombinedMRS;
+	case ERenderCaptureType::Opacity:
+		return bOpacity;
 	case ERenderCaptureType::SubsurfaceColor:
-		bSubsurfaceColor = bEnabled;
-		break;
+		return bSubsurfaceColor;
 	case ERenderCaptureType::DeviceDepth:
-		bDeviceDepth = bEnabled;
-		break;
+		return bDeviceDepth;
 	default:
-		check(false);
+		ensure(false);
 	}
+	return bBaseColor;
 }
 
+/** @return constant flag corresponding to the given CaptureType */
+const bool& FRenderCaptureTypeFlags::operator[](ERenderCaptureType CaptureType) const
+{
+	return const_cast<FRenderCaptureTypeFlags*>(this)->operator[](CaptureType);
+}
+
+/** @return true if the flags for this object match the Other object and false otherwise */
+bool FRenderCaptureTypeFlags::operator==(const FRenderCaptureTypeFlags& Other) const
+{
+	bool bEqual = true;
+	ForEachCaptureType([this, &Other, &bEqual](ERenderCaptureType CaptureType)
+	{
+		bEqual = bEqual && (this->operator[](CaptureType) == Other[CaptureType]);
+	});
+	return bEqual;
+}
+
+bool FRenderCaptureTypeFlags::operator!=(const FRenderCaptureTypeFlags& Other) const
+{
+	return !this->operator==(Other);
+}
 
 
 namespace UE

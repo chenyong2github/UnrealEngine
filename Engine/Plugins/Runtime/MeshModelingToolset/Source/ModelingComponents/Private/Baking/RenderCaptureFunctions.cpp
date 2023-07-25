@@ -149,7 +149,7 @@ FSceneCapturePhotoSetSampler::FSceneCapturePhotoSetSampler(
 	check(Spatial != nullptr);
 	check(Tangents != nullptr);
 
-	bool bHasDepth = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth);
+	bool bHasDepth = SceneCapture->GetCaptureTypeStatus(ERenderCaptureType::DeviceDepth) == FSceneCapturePhotoSet::ECaptureTypeStatus::Computed;
 	if (bHasDepth)
 	{
 		ensure(ValidSampleDepthThreshold > 0); // We only need the depth capture if this threshold is positive
@@ -205,38 +205,46 @@ bool FSceneCapturePhotoSetSampler::IsValidCorrespondence(const FMeshMapEvaluator
 
 
 
-namespace UE::Geometry
+bool FSceneCaptureConfig::operator==(const FSceneCaptureConfig& Other) const
 {
-namespace
-{
+	return Flags == Other.Flags
+		&& RenderCaptureImageSize == Other.RenderCaptureImageSize
+		&& bAntiAliasing == Other.bAntiAliasing
+		&& FieldOfViewDegrees == Other.FieldOfViewDegrees
+		&& NearPlaneDist == Other.NearPlaneDist;
+}
 
-void UpdateSceneCaptureSettings(
+bool FSceneCaptureConfig::operator!=(const FSceneCaptureConfig& Other) const
+{
+	return !this->operator==(Other);
+}
+
+
+
+
+
+
+void UE::Geometry::ConfigureSceneCapture(
 	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
-	const TArray<AActor*>& Actors,
-	const FRenderCaptureOptions& Options)
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FSceneCaptureConfig& Options,
+	bool bAllowCancel)
 {
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, Options.bBakeDeviceDepth);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::BaseColor,   Options.bBakeBaseColor);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, Options.bBakeNormalMap);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Emissive,    Options.bBakeEmissive);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Opacity,     Options.bBakeOpacity);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor, Options.bBakeSubsurfaceColor);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, Options.bUsePackedMRS);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Metallic,    Options.bBakeMetallic);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Roughness,   Options.bBakeRoughness);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Specular,    Options.bBakeSpecular);
+	if (SceneCapture.IsValid() == false)
+	{
+		ensure(false);
+		return;
+	}
 
-	FRenderCaptureConfig Config;
-	Config.bAntiAliasing = Options.bAntiAliasing;
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::BaseColor,   Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::WorldNormal, Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::CombinedMRS, Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Metallic,    Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Roughness,   Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Specular,    Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Emissive,    Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Opacity,     Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::SubsurfaceColor, Config);
+	ForEachCaptureType([&SceneCapture, &Options](ERenderCaptureType CaptureType)
+	{
+		const bool bCaptureTypeEnabled = Options.Flags[CaptureType];
+		SceneCapture->SetCaptureTypeEnabled(CaptureType, bCaptureTypeEnabled);
+
+		FRenderCaptureConfig Config;
+		Config.bAntiAliasing = (CaptureType == ERenderCaptureType::DeviceDepth ? false : Options.bAntiAliasing);
+		SceneCapture->SetCaptureConfig(CaptureType, Config);
+	});
 
 	UWorld* World = Actors.IsEmpty() ? nullptr : Actors[0]->GetWorld();
 
@@ -251,13 +259,61 @@ void UpdateSceneCaptureSettings(
 		true, true, true, true, true);
 
 	SceneCapture->SetSpatialPhotoParams(SpatialParams);
+
+	SceneCapture->SetAllowCancel(bAllowCancel);
 }
 
-} // namespace
-} // namespace UE::Geometry
+
+
+UE::Geometry::FRenderCaptureTypeFlags UE::Geometry::UpdateSceneCapture(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FSceneCaptureConfig& DesiredConfig,
+	bool bAllowCancel)
+{
+	check(SceneCapture.IsValid());
+
+	const FSceneCapturePhotoSet::FStatus PreConfigStatus = SceneCapture->GetSceneCaptureStatus();
+	ConfigureSceneCapture(SceneCapture, Actors, DesiredConfig, true);
+	const FSceneCapturePhotoSet::FStatus PreComputeStatus = SceneCapture->GetSceneCaptureStatus();
+	SceneCapture->Compute();
+	const FSceneCapturePhotoSet::FStatus PostComputeStatus = SceneCapture->GetSceneCaptureStatus();
+
+	const FSceneCaptureConfig AchievedConfig = GetSceneCaptureConfig(SceneCapture);
+
+	// DesiredConfig and AchievedConfig mismatch iff the SceneCapture was cancelled. Also, the mismatch should only be in the Flags member
+	ensure(SceneCapture->Cancelled() == (AchievedConfig != DesiredConfig));
+	ensure(AchievedConfig.RenderCaptureImageSize == DesiredConfig.RenderCaptureImageSize);
+	ensure(AchievedConfig.FieldOfViewDegrees == DesiredConfig.FieldOfViewDegrees);
+	ensure(AchievedConfig.bAntiAliasing == DesiredConfig.bAntiAliasing);
+	ensure(AchievedConfig.NearPlaneDist == DesiredConfig.NearPlaneDist);
+
+	// Deduce which captures were changed in this scene capture update
+	FRenderCaptureTypeFlags UpdatedCaptures;
+	ForEachCaptureType([&UpdatedCaptures, &PreConfigStatus, &PreComputeStatus, &PostComputeStatus] (ERenderCaptureType CaptureType)
+	{
+		using EStatus = FSceneCapturePhotoSet::ECaptureTypeStatus;
+
+		// This boolean is true in two scenarios:
+		// 1. Computed -> Disabled occurs when the CaptureType was disabled by the DesiredConfig
+		// 2. Computed -> Pending occurs when the SceneCapture was cancelled while/before the CaptureType was computed
+		bool bCleared =  PreConfigStatus[CaptureType]  == EStatus::Computed && PostComputeStatus[CaptureType] != EStatus::Computed;
+
+		// This boolean is true in two scenarios, in both cases the PreComputeStatus of the given CaptureType is Pending
+		// 1. DesiredConfig enabled a new CaptureType
+		// 2. DesiredConfig requires an already computed CaptureType to be recomputed
+		bool bComputed = PreComputeStatus[CaptureType] == EStatus::Pending  && PostComputeStatus[CaptureType] == EStatus::Computed;
+
+		UpdatedCaptures[CaptureType] = bCleared || bComputed;
+	});
+
+	return UpdatedCaptures;
+}
 
 
 
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
 	const TArray<TObjectPtr<AActor>>& Actors,
 	const FRenderCaptureOptions& Options,
@@ -272,99 +328,60 @@ TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
 
 	return SceneCapture;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
 	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
 	const TArray<TObjectPtr<AActor>>& Actors,
 	const FRenderCaptureOptions& Options,
 	bool bAllowCancel)
 {
-	FScopedSlowTask Progress(0.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
-	Progress.MakeDialog(bAllowCancel);
+	FSceneCaptureConfig Config;
+	Config.RenderCaptureImageSize = Options.RenderCaptureImageSize;
+	Config.bAntiAliasing          = Options.bAntiAliasing;
+	Config.FieldOfViewDegrees     = Options.FieldOfViewDegrees;
+	Config.NearPlaneDist          = Options.NearPlaneDist;
+	Config.Flags.bBaseColor       = Options.bBakeBaseColor;
+	Config.Flags.bRoughness       = Options.bBakeRoughness;
+	Config.Flags.bMetallic        = Options.bBakeMetallic;
+	Config.Flags.bSpecular        = Options.bBakeSpecular;
+	Config.Flags.bEmissive        = Options.bBakeEmissive;
+	Config.Flags.bWorldNormal     = Options.bBakeNormalMap;
+	Config.Flags.bOpacity         = Options.bBakeOpacity;
+	Config.Flags.bSubsurfaceColor = Options.bBakeSubsurfaceColor;
+	Config.Flags.bDeviceDepth     = Options.bBakeDeviceDepth;
+	Config.Flags.bCombinedMRS     = Options.bUsePackedMRS;
 
-	// Cache previous SceneCapture settings so these can be restored if the computation is cancelled
-	const FRenderCaptureOptions ComputedOptions = GetComputedPhotoSetOptions(SceneCapture);
-	const TArray<AActor*> ComputedActors = SceneCapture->GetCaptureSceneActors();
+	FRenderCaptureTypeFlags UpdatedCaptures = UpdateSceneCapture(SceneCapture, Actors, Config, bAllowCancel);
 
-	// We track the photo set counts in order to determine which photosets were updated
-	struct FPhotoSetNums
-	{
-		FPhotoSetNums(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture)
-		{
-			NumBaseColor       = SceneCapture->GetBaseColorPhotoSet().Num();
-			NumRoughness       = SceneCapture->GetRoughnessPhotoSet().Num();
-			NumSpecular        = SceneCapture->GetSpecularPhotoSet().Num();
-			NumMetallic        = SceneCapture->GetMetallicPhotoSet().Num();
-			NumPackedMRS       = SceneCapture->GetPackedMRSPhotoSet().Num();
-			NumNormalMap       = SceneCapture->GetWorldNormalPhotoSet().Num();
-			NumEmissive        = SceneCapture->GetEmissivePhotoSet().Num();
-			NumOpacity         = SceneCapture->GetOpacityPhotoSet().Num();
-			NumSubsurfaceColor = SceneCapture->GetSubsurfaceColorPhotoSet().Num();
-			NumDeviceDepth     = SceneCapture->GetDeviceDepthPhotoSet().Num();
-		}
-		
-		int32 NumBaseColor;
-		int32 NumRoughness;
-		int32 NumSpecular;
-		int32 NumMetallic;
-		int32 NumPackedMRS;
-		int32 NumNormalMap;
-		int32 NumEmissive;
-		int32 NumOpacity;
-		int32 NumSubsurfaceColor;
-		int32 NumDeviceDepth;
-	};
+	FRenderCaptureUpdate Updated;
+	Updated.bUpdatedBaseColor   = UpdatedCaptures.bBaseColor;
+	Updated.bUpdatedRoughness   = UpdatedCaptures.bRoughness;
+	Updated.bUpdatedSpecular    = UpdatedCaptures.bSpecular;
+	Updated.bUpdatedMetallic    = UpdatedCaptures.bMetallic;
+	Updated.bUpdatedPackedMRS   = UpdatedCaptures.bCombinedMRS;
+	Updated.bUpdatedNormalMap   = UpdatedCaptures.bWorldNormal;
+	Updated.bUpdatedEmissive    = UpdatedCaptures.bEmissive;
+	Updated.bUpdatedOpacity     = UpdatedCaptures.bOpacity;
+	Updated.bUpdatedDeviceDepth = UpdatedCaptures.bDeviceDepth;
+	Updated.bUpdatedSubsurfaceColor = UpdatedCaptures.bSubsurfaceColor;
 
-	const FPhotoSetNums Step1(SceneCapture);
-
-	// This will clear any photosets that are disabled or need recomputing
-	UpdateSceneCaptureSettings(SceneCapture, Actors, Options);
-
-	const FPhotoSetNums Step2(SceneCapture);
-
-	SceneCapture->SetAllowCancel(bAllowCancel);
-
-	// This will compute newly requested photosets
-	SceneCapture->Compute();
-
-	if (SceneCapture->Cancelled())
-	{
-		// This will clear any newly requested photosets
-		UpdateSceneCaptureSettings(SceneCapture, ComputedActors, ComputedOptions);
-	}
-
-	const FPhotoSetNums Step3(SceneCapture);
-
-	// If the photo sets were cleared/computed/recomputed we consider them updated, use the counts to figure this out
-	FRenderCaptureUpdate Update;
-	Update.bUpdatedBaseColor   = !(Step1.NumBaseColor   == Step2.NumBaseColor   && Step2.NumBaseColor   == Step3.NumBaseColor);
-	Update.bUpdatedRoughness   = !(Step1.NumRoughness   == Step2.NumRoughness   && Step2.NumRoughness   == Step3.NumRoughness);
-	Update.bUpdatedSpecular    = !(Step1.NumSpecular    == Step2.NumSpecular    && Step2.NumSpecular    == Step3.NumSpecular);
-	Update.bUpdatedMetallic    = !(Step1.NumMetallic    == Step2.NumMetallic    && Step2.NumMetallic    == Step3.NumMetallic);
-	Update.bUpdatedPackedMRS   = !(Step1.NumPackedMRS   == Step2.NumPackedMRS   && Step2.NumPackedMRS   == Step3.NumPackedMRS);
-	Update.bUpdatedNormalMap   = !(Step1.NumNormalMap   == Step2.NumNormalMap   && Step2.NumNormalMap   == Step3.NumNormalMap);
-	Update.bUpdatedEmissive    = !(Step1.NumEmissive    == Step2.NumEmissive    && Step2.NumEmissive    == Step3.NumEmissive);
-	Update.bUpdatedOpacity     = !(Step1.NumOpacity     == Step2.NumOpacity     && Step2.NumOpacity     == Step3.NumOpacity);
-	Update.bUpdatedDeviceDepth = !(Step1.NumDeviceDepth == Step2.NumDeviceDepth && Step2.NumDeviceDepth == Step3.NumDeviceDepth);
-	Update.bUpdatedSubsurfaceColor = !(Step1.NumSubsurfaceColor == Step2.NumSubsurfaceColor && Step2.NumSubsurfaceColor == Step3.NumSubsurfaceColor);
-
-	return Update;
+	return Updated;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-FRenderCaptureOptions UE::Geometry::GetComputedPhotoSetOptions(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture)
+// Return the SceneCapture configuration, the Flags in the returned struct are set if the corresponding capture type is computed
+FSceneCaptureConfig UE::Geometry::GetSceneCaptureConfig(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const FSceneCapturePhotoSet::ECaptureTypeStatus QueryStatus)
 {
-	FRenderCaptureOptions Result;
+	FSceneCaptureConfig Result;
 
-	Result.bBakeBaseColor       = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::BaseColor);
-	Result.bBakeNormalMap       = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::WorldNormal);
-	Result.bBakeMetallic        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Metallic);
-	Result.bBakeRoughness       = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Roughness);
-	Result.bBakeSpecular        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Specular);
-	Result.bUsePackedMRS        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS);
-	Result.bBakeEmissive        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Emissive);
-	Result.bBakeOpacity         = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Opacity);
-	Result.bBakeSubsurfaceColor = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor);
-	Result.bBakeDeviceDepth     = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth);
+	ForEachCaptureType([&SceneCapture, &QueryStatus, &Result](ERenderCaptureType CaptureType)
+	{
+		Result.Flags[CaptureType] = (SceneCapture->GetCaptureTypeStatus(CaptureType) == QueryStatus);
+	});
 
 	const TArray<FSpatialPhotoParams> SpatialParams = SceneCapture->GetSpatialPhotoParams();
 
@@ -393,6 +410,32 @@ FRenderCaptureOptions UE::Geometry::GetComputedPhotoSetOptions(const TUniquePtr<
 	return Result;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FRenderCaptureOptions UE::Geometry::GetComputedPhotoSetOptions(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture)
+{
+	FSceneCaptureConfig Config = GetSceneCaptureConfig(SceneCapture);
+
+	FRenderCaptureOptions Options;
+
+	Options.RenderCaptureImageSize = Config.RenderCaptureImageSize;
+	Options.bAntiAliasing          = Config.bAntiAliasing;
+	Options.FieldOfViewDegrees     = Config.FieldOfViewDegrees;
+	Options.NearPlaneDist          = Config.NearPlaneDist;
+	Options.bBakeBaseColor         = Config.Flags.bBaseColor;
+	Options.bBakeRoughness         = Config.Flags.bRoughness;
+	Options.bBakeMetallic          = Config.Flags.bMetallic;
+	Options.bBakeSpecular          = Config.Flags.bSpecular;
+	Options.bBakeEmissive          = Config.Flags.bEmissive;
+	Options.bBakeNormalMap         = Config.Flags.bWorldNormal;
+	Options.bBakeOpacity           = Config.Flags.bOpacity;
+	Options.bBakeSubsurfaceColor   = Config.Flags.bSubsurfaceColor;
+	Options.bBakeDeviceDepth       = Config.Flags.bDeviceDepth;
+	Options.bUsePackedMRS          = Config.Flags.bCombinedMRS;
+
+	return Options;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 
 template <ERenderCaptureType CaptureType>
@@ -401,6 +444,9 @@ MakeColorEvaluator(
 	const FSceneCapturePhotoSet::FSceneSample& DefaultSample,
 	const FSceneCapturePhotoSet* SceneCapture)
 {
+	// Bake will crash if we haven't computed the photo sets corresponding to the CaptureType 
+	check(SceneCapture->GetCaptureTypeStatus(CaptureType) == FSceneCapturePhotoSet::ECaptureTypeStatus::Computed);
+
 	TSharedPtr<FRenderCaptureMapEvaluator<FVector4f>> Evaluator = MakeShared<FRenderCaptureMapEvaluator<FVector4f>>();
 
 	switch (CaptureType) {
@@ -463,7 +509,7 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts,
 	FSceneCapturePhotoSet* SceneCapture,
 	FSceneCapturePhotoSetSampler* Sampler,
-	FRenderCaptureOptions PendingBake,
+	FRenderCaptureTypeFlags PendingBake,
 	int32 TargetUVLayer,
 	EBakeTextureResolution TextureImageSize,
 	EBakeTextureSamplesPerPixel SamplesPerPixel,
@@ -515,9 +561,7 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	DefaultColorSample.Opacity = InvalidColor.X;
 	DefaultColorSample.SubsurfaceColor = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
 	DefaultColorSample.WorldNormal = FVector4f((DefaultNormal + FVector3f::One()) * .5f, InvalidColor.W);
-
-	// We use 0 here since this corresponds to the infinite far plane value. Also, we don't preview the depth texture
-	DefaultColorSample.DeviceDepth = 0;
+	DefaultColorSample.DeviceDepth = 0; // We use 0 here since this corresponds to the infinite far plane value. Also, we don't preview the depth texture
 
 	auto AddColorEvaluator = [&Result, OcclusionHandler] (const TSharedPtr<FRenderCaptureMapEvaluator<FVector4f>>& Evaluator)
 	{
@@ -525,44 +569,47 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 		OcclusionHandler->PushInfillRequired(true);
 	};
 
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth) && PendingBake.bBakeDeviceDepth)
+	if (PendingBake.bDeviceDepth)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::DeviceDepth>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::BaseColor) && PendingBake.bBakeBaseColor)
+	if (PendingBake.bBaseColor)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::BaseColor>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS) && PendingBake.bUsePackedMRS)
+	if (PendingBake.bCombinedMRS)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::CombinedMRS>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Roughness) && PendingBake.bBakeRoughness)
+	if (PendingBake.bRoughness)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Roughness>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Metallic) && PendingBake.bBakeMetallic)
+	if (PendingBake.bMetallic)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Metallic>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Specular) && PendingBake.bBakeSpecular)
+	if (PendingBake.bSpecular)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Specular>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Emissive) && PendingBake.bBakeEmissive)
+	if (PendingBake.bEmissive)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Emissive>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Opacity) && PendingBake.bBakeOpacity)
+	if (PendingBake.bOpacity)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Opacity>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor) && PendingBake.bBakeSubsurfaceColor)
+	if (PendingBake.bSubsurfaceColor)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::SubsurfaceColor>(DefaultColorSample, SceneCapture));
 	}
-	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::WorldNormal) && PendingBake.bBakeNormalMap)
+	if (PendingBake.bWorldNormal)
 	{
+		// Bake will crash if we haven't computed the WorldNormal photo sets
+		check(SceneCapture->GetCaptureTypeStatus(ERenderCaptureType::WorldNormal) == FSceneCapturePhotoSet::ECaptureTypeStatus::Computed);
+
 		TSharedPtr<FRenderCaptureMapEvaluator<FVector3f>> Evaluator = MakeShared<FRenderCaptureMapEvaluator<FVector3f>>();
 
 		Evaluator->Channel = ERenderCaptureChannel::WorldNormal;
@@ -616,6 +663,46 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 
 	return Result;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
+	FDynamicMesh3* BaseMesh,
+	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents,
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts,
+	FSceneCapturePhotoSet* SceneCapture,
+	FSceneCapturePhotoSetSampler* Sampler,
+	FRenderCaptureOptions Options,
+	int32 TargetUVLayer,
+	EBakeTextureResolution TextureImageSize,
+	EBakeTextureSamplesPerPixel SamplesPerPixel,
+	FRenderCaptureOcclusionHandler* OcclusionHandler)
+{
+	FRenderCaptureTypeFlags Flags;
+
+	Flags.bBaseColor       = Options.bBakeBaseColor;
+	Flags.bRoughness       = Options.bBakeRoughness;
+	Flags.bMetallic        = Options.bBakeMetallic;
+	Flags.bSpecular        = Options.bBakeSpecular;
+	Flags.bEmissive        = Options.bBakeEmissive;
+	Flags.bWorldNormal     = Options.bBakeNormalMap;
+	Flags.bOpacity         = Options.bBakeOpacity;
+	Flags.bSubsurfaceColor = Options.bBakeSubsurfaceColor;
+	Flags.bDeviceDepth     = Options.bBakeDeviceDepth;
+	Flags.bCombinedMRS     = Options.bUsePackedMRS;
+
+	return MakeRenderCaptureBaker(
+		BaseMesh,
+		BaseMeshTangents,
+		BaseMeshUVCharts,
+		SceneCapture,
+		Sampler,
+		Flags,
+		TargetUVLayer,
+		TextureImageSize,
+		SamplesPerPixel,
+		OcclusionHandler);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 void UE::Geometry::GetTexturesFromRenderCaptureBaker(const TUniquePtr<FMeshMapBaker>& Baker, FRenderCaptureTextures& TexturesOut)
@@ -719,6 +806,7 @@ void UE::Geometry::GetTexturesFromRenderCaptureBaker(const TUniquePtr<FMeshMapBa
 				case ERenderCaptureChannel::DeviceDepth:
 
 					// Add a null pointer for this evaluator, the depth capture is used internally and not presented to the user
+					// TODO Implemented this, it could be useful for applications outside BakeRC
 					break;
 
 				case ERenderCaptureChannel::WorldNormal:

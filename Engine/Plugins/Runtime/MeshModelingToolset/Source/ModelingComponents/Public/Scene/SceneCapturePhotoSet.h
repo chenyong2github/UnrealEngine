@@ -73,7 +73,31 @@ public:
 	 * If bEnabled == false the corresponding photo set will be cleared
 	 */
 	void SetCaptureTypeEnabled(ERenderCaptureType CaptureType, bool bEnabled);
-	bool GetCaptureTypeEnabled(ERenderCaptureType CaptureType) const;
+
+	/** Status of a given capture type */
+	enum class ECaptureTypeStatus {
+		/** The capture type is not enabled */
+		Disabled = 0,
+
+		/** The capture type is enabled and the photo set is computed for the current scene capture parameters */
+		Computed = 1,
+
+		/**
+		 * The capture type is enabled but the photo set is not computed for the current scene capture parameters.
+		 * Note: This state is encountered if 1) a scene capture parameter which invalidates the photo set is changed
+		 * but Compute has not yet been called or 2) the Compute function was cancelled before the photo set was computed
+		 */
+		Pending = 2
+	};
+
+	/** Returns the current status of the given capture type */
+	ECaptureTypeStatus GetCaptureTypeStatus(ERenderCaptureType CaptureType) const;
+
+	/** Status of the overall scene capture i.e., the combined status of all capture types */
+	using FStatus = TRenderCaptureTypeData<ECaptureTypeStatus>;
+
+	/** Returns the current status of all capture types */
+	FStatus GetSceneCaptureStatus() const;
 
 	/**
 	 * Configure the given capture type
@@ -227,16 +251,7 @@ protected:
 
 	bool bEnforceVisibilityViaUnregister = false;
 
-	bool bEnableBaseColor = true;
-	bool bEnableRoughness = false;
-	bool bEnableSpecular = false;
-	bool bEnableMetallic = false;
-	bool bEnablePackedMRS = true;
-	bool bEnableWorldNormal = true;
-	bool bEnableEmissive = true;
-	bool bEnableOpacity = true;
-	bool bEnableSubsurfaceColor = true;
-	bool bEnableDeviceDepth = true;
+	FStatus PhotoSetStatus;
 
 	FSpatialPhotoSet3f BaseColorPhotoSet;
 	FSpatialPhotoSet1f RoughnessPhotoSet;
@@ -249,16 +264,7 @@ protected:
 	FSpatialPhotoSet3f SubsurfaceColorPhotoSet;
 	FSpatialPhotoSet1f DeviceDepthPhotoSet;
 
-	FRenderCaptureConfig BaseColorConfig;
-	FRenderCaptureConfig RoughnessConfig;
-	FRenderCaptureConfig SpecularConfig;
-	FRenderCaptureConfig MetallicConfig;
-	FRenderCaptureConfig PackedMRSConfig;
-	FRenderCaptureConfig WorldNormalConfig;
-	FRenderCaptureConfig EmissiveConfig;
-	FRenderCaptureConfig OpacityConfig;
-	FRenderCaptureConfig SubsurfaceColorConfig;
-	FRenderCaptureConfig DeviceDepthConfig;
+	TRenderCaptureTypeData<FRenderCaptureConfig> RenderCaptureConfig;
 
 	TArray<FSpatialPhotoParams> PhotoSetParams;
 
@@ -272,6 +278,13 @@ protected:
 	bool bWasCancelled = false;
 
 private:
+
+	FSpatialPhotoSet1f& GetPhotoSet1f(ERenderCaptureType CaptureType);
+
+	FSpatialPhotoSet3f& GetPhotoSet3f(ERenderCaptureType CaptureType);
+
+	void EmptyPhotoSet(ERenderCaptureType CaptureType);
+
 	void EmptyAllPhotoSets();
 };
 

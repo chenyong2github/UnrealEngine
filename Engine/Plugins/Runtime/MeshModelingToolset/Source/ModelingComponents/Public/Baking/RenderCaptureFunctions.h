@@ -94,8 +94,89 @@ private:
 
 
 
+struct MODELINGCOMPONENTS_API FSceneCaptureConfig
+{
+	int32 RenderCaptureImageSize = 1024;
+	bool bAntiAliasing = false;
+	double FieldOfViewDegrees = 45.0;
+	double NearPlaneDist = 1.0;
 
-struct MODELINGCOMPONENTS_API FRenderCaptureOptions
+	FRenderCaptureTypeFlags Flags = FRenderCaptureTypeFlags::None();
+
+	bool operator==(const FSceneCaptureConfig&) const;
+	bool operator!=(const FSceneCaptureConfig&) const;
+};
+
+MODELINGCOMPONENTS_API
+void ConfigureSceneCapture(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FSceneCaptureConfig& Config,
+	bool bAllowCancel);
+
+MODELINGCOMPONENTS_API
+FRenderCaptureTypeFlags UpdateSceneCapture(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FSceneCaptureConfig& DesiredConfig,
+	bool bAllowCancel);
+
+MODELINGCOMPONENTS_API
+FSceneCaptureConfig GetSceneCaptureConfig(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	FSceneCapturePhotoSet::ECaptureTypeStatus QueryStatus = FSceneCapturePhotoSet::ECaptureTypeStatus::Computed);
+
+// Return a render capture baker, note the lifetime of all arguments such match the lifetime of the returned baker
+MODELINGCOMPONENTS_API
+TUniquePtr<FMeshMapBaker> MakeRenderCaptureBaker(
+	FDynamicMesh3* BaseMesh,
+	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents,
+	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts,
+	FSceneCapturePhotoSet* SceneCapture,
+	FSceneCapturePhotoSetSampler* Sampler,
+	FRenderCaptureTypeFlags PendingBake,
+	int32 TargetUVLayer,
+	EBakeTextureResolution TextureImageSize,
+	EBakeTextureSamplesPerPixel SamplesPerPixel,
+	FRenderCaptureOcclusionHandler* OcclusionHandler);
+
+struct MODELINGCOMPONENTS_API FRenderCaptureTextures
+{
+	UTexture2D* BaseColorMap = nullptr;
+	UTexture2D* NormalMap = nullptr;
+	UTexture2D* PackedMRSMap = nullptr;
+	UTexture2D* MetallicMap = nullptr;
+	UTexture2D* RoughnessMap = nullptr;
+	UTexture2D* SpecularMap = nullptr;
+	UTexture2D* EmissiveMap = nullptr;
+	UTexture2D* OpacityMap = nullptr;
+	UTexture2D* SubsurfaceColorMap = nullptr;
+};
+
+// Note: The source data in the textures is *not* updated by this function
+MODELINGCOMPONENTS_API
+void GetTexturesFromRenderCaptureBaker(
+	const TUniquePtr<FMeshMapBaker>& Baker,
+	FRenderCaptureTextures& TexturesOut);
+
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// The following is all deprecated 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+struct UE_DEPRECATED(5.3, "FRenderCaptureOptions is only used by deprecated functions, see those deprecation notes for more info.") MODELINGCOMPONENTS_API FRenderCaptureOptions
 {
 	//
 	// Material approximation settings
@@ -125,7 +206,7 @@ struct MODELINGCOMPONENTS_API FRenderCaptureOptions
 	bool bUsePackedMRS = true;
 };
 
-struct MODELINGCOMPONENTS_API FRenderCaptureUpdate
+struct UE_DEPRECATED(5.3, "FRenderCaptureUpdate is only used by deprecated functions, see those deprecation notes for more info.") MODELINGCOMPONENTS_API FRenderCaptureUpdate
 {
 	// Default to true so that we can use the default value to trigger all update code paths
 	bool bUpdatedBaseColor = true;
@@ -144,6 +225,7 @@ struct MODELINGCOMPONENTS_API FRenderCaptureUpdate
 /**
  * This function computes the SceneCapture for the first time
  */
+UE_DEPRECATED(5.3, "Please use ConfigureSceneCapture and FSceneCapturePhotoSet::Compute instead.")
 MODELINGCOMPONENTS_API
 TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	const TArray<TObjectPtr<AActor>>& Actors,
@@ -159,11 +241,8 @@ TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 * - If the given Options enable a new capture channel then the new photos set are captured and added to the SceneCapture
 * - If the given Actors are different the ones cached in the SceneCapture, or if the given Options changes a parameter
 *   affecting all photo sets (e.g., photo resolution), then all the photo sets are cleared and recomputed
-*   
-* If the SceneCapture computation is cancelled then its state will be identical to how it looked prior to calling this
-* function, which means that queries of the SceneCapture settings (e.g., via the GetXXX() API) will return results which
-* are consistent with the internal photo sets.
 */
+UE_DEPRECATED(5.3, "Please use UpdateSceneCapture instead.")
 MODELINGCOMPONENTS_API
 FRenderCaptureUpdate UpdatePhotoSets(
 	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
@@ -171,11 +250,13 @@ FRenderCaptureUpdate UpdatePhotoSets(
 	const FRenderCaptureOptions& Options,
 	bool bAllowCancel);
 
+UE_DEPRECATED(5.3, "Please use GetSceneCaptureConfig instead.")
 MODELINGCOMPONENTS_API
 FRenderCaptureOptions GetComputedPhotoSetOptions(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture);
 
 
 // Return a render capture baker, note the lifetime of all arguments such match the lifetime of the returned baker
+UE_DEPRECATED(5.3, "Please use the overload where PendingBake has type FRenderCaptureTypeFlags instead.")
 MODELINGCOMPONENTS_API
 TUniquePtr<FMeshMapBaker> MakeRenderCaptureBaker(
 	FDynamicMesh3* BaseMesh,
@@ -189,30 +270,7 @@ TUniquePtr<FMeshMapBaker> MakeRenderCaptureBaker(
 	EBakeTextureSamplesPerPixel SamplesPerPixel,
 	FRenderCaptureOcclusionHandler* OcclusionHandler);
 
-
-
-
-
-
-struct MODELINGCOMPONENTS_API FRenderCaptureTextures
-{
-	UTexture2D* BaseColorMap = nullptr;
-	UTexture2D* NormalMap = nullptr;
-	UTexture2D* PackedMRSMap = nullptr;
-	UTexture2D* MetallicMap = nullptr;
-	UTexture2D* RoughnessMap = nullptr;
-	UTexture2D* SpecularMap = nullptr;
-	UTexture2D* EmissiveMap = nullptr;
-	UTexture2D* OpacityMap = nullptr;
-	UTexture2D* SubsurfaceColorMap = nullptr;
-};
-
-// Note: The source data in the textures is *not* updated by this function
-MODELINGCOMPONENTS_API
-void GetTexturesFromRenderCaptureBaker(
-	const TUniquePtr<FMeshMapBaker>& Baker,
-	FRenderCaptureTextures& TexturesOut);
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 } // end namespace Geometry
 } // end namespace UE

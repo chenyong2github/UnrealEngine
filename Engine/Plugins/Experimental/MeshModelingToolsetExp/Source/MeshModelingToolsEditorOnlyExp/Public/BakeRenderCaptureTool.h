@@ -68,12 +68,14 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
 	TObjectPtr<UTexture2D> SubsurfaceColorMap = nullptr;
 
-	bool IsEmpty() const
-	{
-		return !BaseColorMap &&	!NormalMap && !PackedMRSMap &&
-			!MetallicMap && !RoughnessMap && !SpecularMap &&
-			!EmissiveMap && !OpacityMap && !SubsurfaceColorMap;
-	}
+	/** Device depth is currently unused */
+	UPROPERTY()
+	TObjectPtr<UTexture2D> DeviceDepthMap = nullptr;
+
+	/** Return the texture corresponding to the given CaptureType */
+	const TObjectPtr<UTexture2D>& operator[](UE::Geometry::ERenderCaptureType CaptureType) const;
+
+	bool IsEmpty() const;
 };
 
 
@@ -152,6 +154,11 @@ public:
 	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, AdvancedDisplay)
 	bool bAntiAliasing = false;
 
+	// Whether to generate a texture for the DeviceDepth.  This option is hidden from the user since its set only if the
+	// Bake operation requires a depth map to remove occlusion artefacts, which is determined by ValidSampleDepthThreshold
+	UPROPERTY()
+	bool bDeviceDepthMap = false;
+
 	// These are hidden in the UI right now, we might want to expose them if they turn out to be useful for very large
 	// or very small objects (not tested yet) TODO Figure out if we want to expose these options
 	
@@ -160,32 +167,9 @@ public:
 
 	UPROPERTY(meta = (ClampMin = "0.001", ClampMax = "1000.0"))
 	float NearPlaneDist = 1.0f;
-	
-	UPROPERTY()
-	bool bDeviceDepthMap = false;
 
-	bool operator==(const URenderCaptureProperties& Other) const
-	{
-		return Resolution == Other.Resolution
-			&& bBaseColorMap == Other.bBaseColorMap
-			&& bNormalMap == Other.bNormalMap
-			&& bMetallicMap == Other.bMetallicMap
-			&& bRoughnessMap == Other.bRoughnessMap
-			&& bSpecularMap == Other.bSpecularMap
-			&& bPackedMRSMap == Other.bPackedMRSMap
-			&& bEmissiveMap == Other.bEmissiveMap
-			&& bOpacityMap == Other.bOpacityMap
-			&& bSubsurfaceColorMap == Other.bSubsurfaceColorMap
-			&& bAntiAliasing == Other.bAntiAliasing
-			&& CaptureFieldOfView == Other.CaptureFieldOfView
-			&& NearPlaneDist == Other.NearPlaneDist
-			&& bDeviceDepthMap == Other.bDeviceDepthMap;
-	}
-
-	bool operator != (const URenderCaptureProperties& Other) const
-	{
-		return !(*this == Other);
-	}
+	bool operator==(const URenderCaptureProperties& Other) const;
+	bool operator!=(const URenderCaptureProperties& Other) const;
 };
 
 UCLASS()
@@ -345,7 +329,7 @@ protected:
 
 	void UpdateResult();
 	void UpdateVisualization();
-	void InvalidateResults(UE::Geometry::FRenderCaptureUpdate Update);
+	void InvalidateResults(UE::Geometry::FRenderCaptureTypeFlags ToInvalidate);
 	void InvalidateCompute();
 	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult);
 
@@ -424,6 +408,7 @@ protected:
 	float ComputedValidDepthThreshold;
 	EBakeTextureSamplesPerPixel ComputedSamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 	EBakeTextureResolution ComputedTextureSize = EBakeTextureResolution::Resolution512;
+	FString ComputedTargetUVLayer;
 
 	TMap<int, FText> TargetUVLayerToError;
 
@@ -454,7 +439,4 @@ protected:
 	void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data);
 	void GatherAnalytics(const UE::Geometry::FMeshMapBaker& Result);
 	void RecordAnalytics() const;
-
-private:
-	UE::Geometry::FRenderCaptureUpdate UpdateSceneCapture();
 };

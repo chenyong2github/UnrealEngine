@@ -829,40 +829,36 @@ namespace GeometryScriptBakeLocals
 	}
 
 
-	FRenderCaptureOptions MakeRenderCaptureOptions(FGeometryScriptBakeRenderCaptureOptions BakeOptions)
+	FSceneCaptureConfig GetSceneCaptureConfig(FGeometryScriptBakeRenderCaptureOptions BakeOptions)
 	{
-		FRenderCaptureOptions Options;
+		FSceneCaptureConfig Parameters;
 
-		Options.bBakeDeviceDepth = BakeOptions.CleanupTolerance > 0 &&
-			(
-			BakeOptions.bBaseColorMap ||
-			BakeOptions.bNormalMap    ||
-			BakeOptions.bEmissiveMap  ||
-			BakeOptions.bOpacityMap ||
-			BakeOptions.bSubsurfaceColorMap ||
-			BakeOptions.bPackedMRSMap ||
-			BakeOptions.bMetallicMap  ||
-			BakeOptions.bRoughnessMap ||
-			BakeOptions.bSpecularMap
-			);
+		Parameters.Flags.bBaseColor = BakeOptions.bBaseColorMap;
+		Parameters.Flags.bWorldNormal = BakeOptions.bNormalMap;
+		Parameters.Flags.bEmissive = BakeOptions.bEmissiveMap;
+		Parameters.Flags.bOpacity = BakeOptions.bOpacityMap;
+		Parameters.Flags.bSubsurfaceColor = BakeOptions.bSubsurfaceColorMap;
 
-		Options.RenderCaptureImageSize = GeometryScriptBakeLocals::GetDimensions(BakeOptions.RenderCaptureResolution).GetHeight();
-		Options.bAntiAliasing = BakeOptions.bRenderCaptureAntiAliasing;
-		Options.FieldOfViewDegrees = BakeOptions.FieldOfViewDegrees;
-		Options.NearPlaneDist = BakeOptions.NearPlaneDist;
-		Options.bBakeBaseColor = BakeOptions.bBaseColorMap;
-		Options.bBakeEmissive = BakeOptions.bEmissiveMap;
-		Options.bBakeOpacity = BakeOptions.bOpacityMap;
-		Options.bBakeSubsurfaceColor = BakeOptions.bSubsurfaceColorMap;
-		Options.bBakeNormalMap = BakeOptions.bNormalMap;
+		// TODO Maybe its better UX if we ignore the precondition below, it makes sense to do it in the BakeRC tool but
+		// in GS it is easy to add it manually and users may be surprised to not get the textures they requested
 
 		// Enforce the PackedMRS precondition here
-		Options.bUsePackedMRS =  BakeOptions.bPackedMRSMap;
-		Options.bBakeMetallic =  BakeOptions.bPackedMRSMap ? false : BakeOptions.bMetallicMap;
-		Options.bBakeRoughness = BakeOptions.bPackedMRSMap ? false : BakeOptions.bRoughnessMap;
-		Options.bBakeSpecular =  BakeOptions.bPackedMRSMap ? false : BakeOptions.bSpecularMap;
+		Parameters.Flags.bCombinedMRS = BakeOptions.bPackedMRSMap;
+		Parameters.Flags.bMetallic    = BakeOptions.bPackedMRSMap ? false : BakeOptions.bMetallicMap;
+		Parameters.Flags.bRoughness   = BakeOptions.bPackedMRSMap ? false : BakeOptions.bRoughnessMap;
+		Parameters.Flags.bSpecular    = BakeOptions.bPackedMRSMap ? false : BakeOptions.bSpecularMap;
 
-		return Options;
+		// Only compute the device depth if we compute at least one other channel, the DeviceDepth is used to eliminate
+		// occlusion artefacts from the other channels
+		Parameters.Flags.bDeviceDepth =
+			(BakeOptions.CleanupTolerance > 0) && (Parameters.Flags != FRenderCaptureTypeFlags::None());
+
+		Parameters.RenderCaptureImageSize = GetDimensions(BakeOptions.RenderCaptureResolution).GetHeight();
+		Parameters.bAntiAliasing = BakeOptions.bRenderCaptureAntiAliasing;
+		Parameters.FieldOfViewDegrees = BakeOptions.FieldOfViewDegrees;
+		Parameters.NearPlaneDist = BakeOptions.NearPlaneDist;
+
+		return Parameters;
 	}
 } // end namespace GeometryScriptBakeLocals
 
@@ -1115,9 +1111,9 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 		return {};
 	}
 
-	const FRenderCaptureOptions Options = GeometryScriptBakeLocals::MakeRenderCaptureOptions(BakeOptions);
-	FRenderCaptureUpdate UnusedUpdate;
-	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = CapturePhotoSet(ValidSourceActors, Options, UnusedUpdate, false);
+	const FSceneCaptureConfig Options = GeometryScriptBakeLocals::GetSceneCaptureConfig(BakeOptions);
+	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
+	ConfigureSceneCapture(SceneCapture, ValidSourceActors, Options, false);
 
 	const FDynamicMeshAABBTree3 TargetMeshSpatial(TargetMesh->GetMeshPtr());
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents = MakeShared<FMeshTangentsd>(TargetMesh->GetMeshPtr());
@@ -1134,7 +1130,7 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 
 	FRenderCaptureOcclusionHandler OcclusionHandler(GeometryScriptBakeLocals::GetDimensions(BakeOptions.Resolution));
 
-	const FRenderCaptureOptions PendingBake = Options; // All specified channels need baking
+	const FRenderCaptureTypeFlags PendingBake = Options.Flags; // All specified channels need baking
 	TUniquePtr<FMeshMapBaker> Baker = MakeRenderCaptureBaker(
 		TargetMesh->GetMeshPtr(),
 		TargetMeshTangents,

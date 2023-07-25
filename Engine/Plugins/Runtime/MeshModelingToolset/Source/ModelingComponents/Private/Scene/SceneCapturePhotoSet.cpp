@@ -10,22 +10,32 @@ using namespace UE::Geometry;
 
 FSceneCapturePhotoSet::FSceneCapturePhotoSet()
 {
-	BaseColorConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::BaseColor);
-	WorldNormalConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::WorldNormal);
-	RoughnessConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Roughness);
-	MetallicConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Metallic);
-	SpecularConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Specular);
-	EmissiveConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Emissive);
-	PackedMRSConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::CombinedMRS);
-	OpacityConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Opacity);
-	SubsurfaceColorConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::SubsurfaceColor);
-	DeviceDepthConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::DeviceDepth);
+	// These defaults are chosen so an unfamiliar user doesn't need to call the configuration functions to get a result
+	ForEachCaptureType([this](ERenderCaptureType CaptureType)
+	{
+		bool bIsDisabled = (
+			CaptureType == ERenderCaptureType::DeviceDepth ||
+			CaptureType == ERenderCaptureType::Roughness ||
+			CaptureType == ERenderCaptureType::Specular ||
+			CaptureType == ERenderCaptureType::Metallic);
+		PhotoSetStatus[CaptureType] = bIsDisabled ? ECaptureTypeStatus::Disabled : ECaptureTypeStatus::Pending;
+
+		RenderCaptureConfig[CaptureType] = GetDefaultRenderCaptureConfig(CaptureType);
+	});
 }
 
 void FSceneCapturePhotoSet::SetCaptureSceneActors(UWorld* World, const TArray<AActor*>& Actors)
 {
 	if (this->TargetWorld != World || this->VisibleActors != Actors)
 	{
+		ForEachCaptureType([this](ERenderCaptureType CaptureType)
+		{
+			if (PhotoSetStatus[CaptureType] != ECaptureTypeStatus::Disabled)
+			{
+				PhotoSetStatus[CaptureType] = ECaptureTypeStatus::Pending;
+			}
+		});
+
 		// Empty the photo sets because they rendered different actors
 		EmptyAllPhotoSets();
 
@@ -51,9 +61,15 @@ void FSceneCapturePhotoSet::SetSpatialPhotoParams(const TArray<FSpatialPhotoPara
 	// TODO Discard/reset on a per array element level rather than discarding everything when any viewpoint changed
 	if (PhotoSetParams != SpatialParams)
 	{
-		// Empty the photo sets because they were rendered with different viewpoints
-		EmptyAllPhotoSets();
+		ForEachCaptureType([this](ERenderCaptureType CaptureType)
+		{
+			if (PhotoSetStatus[CaptureType] != ECaptureTypeStatus::Disabled)
+			{
+				PhotoSetStatus[CaptureType] = ECaptureTypeStatus::Pending;
+			}
+		});
 
+		EmptyAllPhotoSets();
 		PhotoSetParams = SpatialParams;
 	}
 }
@@ -64,219 +80,80 @@ const TArray<FSpatialPhotoParams>& FSceneCapturePhotoSet::GetSpatialPhotoParams(
 }
 
 
-void FSceneCapturePhotoSet::SetCaptureConfig(ERenderCaptureType CaptureType, const FRenderCaptureConfig& Config)
+void FSceneCapturePhotoSet::SetCaptureConfig(ERenderCaptureType CaptureType, const FRenderCaptureConfig& NewConfig)
 {
-	auto UpdateCaptureConfig1f = [Config](FRenderCaptureConfig& CaptureConfig, FSpatialPhotoSet1f& PhotoSet)
+	if (RenderCaptureConfig[CaptureType] != NewConfig)
 	{
-		if (CaptureConfig.bAntiAliasing != Config.bAntiAliasing)
+		if (PhotoSetStatus[CaptureType] != ECaptureTypeStatus::Disabled)
 		{
-			// If we're changing the AntiAliasing state we need to remove any existing photos
-			PhotoSet.Empty();
+			PhotoSetStatus[CaptureType] = ECaptureTypeStatus::Pending;
 		}
-		CaptureConfig = Config;
-	};
 
-	auto UpdateCaptureConfig3f = [Config](FRenderCaptureConfig& CaptureConfig, FSpatialPhotoSet3f& PhotoSet)
-	{
-		if (CaptureConfig.bAntiAliasing != Config.bAntiAliasing)
-		{
-			// If we're changing the AntiAliasing state we need to remove any existing photos
-			PhotoSet.Empty();
-		}
-		CaptureConfig = Config;
-	};
-
-	switch (CaptureType)
-	{
-	case ERenderCaptureType::BaseColor:
-		UpdateCaptureConfig3f(BaseColorConfig, BaseColorPhotoSet);
-		break;
-	case ERenderCaptureType::WorldNormal:
-		UpdateCaptureConfig3f(WorldNormalConfig, WorldNormalPhotoSet);
-		break;
-	case ERenderCaptureType::Roughness:
-		UpdateCaptureConfig1f(RoughnessConfig, RoughnessPhotoSet);
-		break;
-	case ERenderCaptureType::Metallic:
-		UpdateCaptureConfig1f(MetallicConfig, MetallicPhotoSet);
-		break;
-	case ERenderCaptureType::Specular:
-		UpdateCaptureConfig1f(SpecularConfig, SpecularPhotoSet);
-		break;
-	case ERenderCaptureType::Emissive:
-		UpdateCaptureConfig3f(EmissiveConfig, EmissivePhotoSet);
-		break;
-	case ERenderCaptureType::CombinedMRS:
-		UpdateCaptureConfig3f(PackedMRSConfig, PackedMRSPhotoSet);
-		break;
-	case ERenderCaptureType::Opacity:
-		UpdateCaptureConfig1f(OpacityConfig, OpacityPhotoSet);
-		break;
-	case ERenderCaptureType::SubsurfaceColor:
-		UpdateCaptureConfig3f(SubsurfaceColorConfig, SubsurfaceColorPhotoSet);
-		break;
-	case ERenderCaptureType::DeviceDepth:
-		if (DeviceDepthConfig.bAntiAliasing != Config.bAntiAliasing)
-		{
-			// If we're disabling DeviceDepth we need to remove any existing photos as well as the cached view matrices
-			DeviceDepthPhotoSet.Empty();
-			PhotoViewMatricies.Empty();
-		}
-		DeviceDepthConfig = Config;
-		break;
-	default:
-		ensure(false);
+		EmptyPhotoSet(CaptureType);
+		RenderCaptureConfig[CaptureType] = NewConfig;
 	}
 }
 
 FRenderCaptureConfig FSceneCapturePhotoSet::GetCaptureConfig(ERenderCaptureType CaptureType) const
 {
-	switch (CaptureType)
-	{
-	case ERenderCaptureType::BaseColor:
-			return BaseColorConfig;
-		case ERenderCaptureType::WorldNormal:
-			return WorldNormalConfig;
-		case ERenderCaptureType::Roughness:
-			return RoughnessConfig;
-		case ERenderCaptureType::Metallic:
-			return MetallicConfig;
-		case ERenderCaptureType::Specular:
-			return SpecularConfig;
-		case ERenderCaptureType::Emissive:
-			return EmissiveConfig;
-		case ERenderCaptureType::CombinedMRS:
-			return PackedMRSConfig;
-		case ERenderCaptureType::Opacity:
-			return OpacityConfig;
-		case ERenderCaptureType::SubsurfaceColor:
-			return SubsurfaceColorConfig;
-		case ERenderCaptureType::DeviceDepth:
-			return DeviceDepthConfig;
-		default:
-			ensure(false);
-	}
-	return BaseColorConfig;
+	return RenderCaptureConfig[CaptureType];
 }
 
 void FSceneCapturePhotoSet::DisableAllCaptureTypes()
 {
-	SetCaptureTypeEnabled(ERenderCaptureType::BaseColor, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::Roughness, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::Metallic, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::Specular, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::Emissive, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::Opacity, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, false);
-	SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, false);
+	ForEachCaptureType([this](ERenderCaptureType CaptureType)
+	{
+		SetCaptureTypeEnabled(CaptureType, false);
+	});
 }
 
 
-void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType, bool bEnabled)
+void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType, bool bEnable)
 {
-	auto UpdateCaptureType1f = [bEnabled](bool& bCaptureEnabled, FSpatialPhotoSet1f& PhotoSet)
+	if (bEnable)
 	{
-		if (!bEnabled)
+		if (PhotoSetStatus[CaptureType] == ECaptureTypeStatus::Disabled)
 		{
-			// If we're disabling a CaptureType we need to remove any existing photos
-			PhotoSet.Empty();
+			PhotoSetStatus[CaptureType] = ECaptureTypeStatus::Pending;
 		}
-		bCaptureEnabled = bEnabled;
-	};
-
-	auto UpdateCaptureType3f = [bEnabled](bool& bCaptureEnabled, FSpatialPhotoSet3f& PhotoSet)
+	}
+	else
 	{
-		if (!bEnabled)
-		{
-			// If we're disabling a CaptureType we need to remove any existing photos
-			PhotoSet.Empty();
-		}
-		bCaptureEnabled = bEnabled;
-	};
-
-	switch (CaptureType)
-	{
-	case ERenderCaptureType::BaseColor:
-		UpdateCaptureType3f(bEnableBaseColor, BaseColorPhotoSet);
-		break;
-	case ERenderCaptureType::WorldNormal:
-		UpdateCaptureType3f(bEnableWorldNormal, WorldNormalPhotoSet);
-		break;
-	case ERenderCaptureType::Roughness:
-		UpdateCaptureType1f(bEnableRoughness, RoughnessPhotoSet);
-		break;
-	case ERenderCaptureType::Metallic:
-		UpdateCaptureType1f(bEnableMetallic, MetallicPhotoSet);
-		break;
-	case ERenderCaptureType::Specular:
-		UpdateCaptureType1f(bEnableSpecular, SpecularPhotoSet);
-		break;
-	case ERenderCaptureType::Emissive:
-		UpdateCaptureType3f(bEnableEmissive, EmissivePhotoSet);
-		break;
-	case ERenderCaptureType::CombinedMRS:
-		UpdateCaptureType3f(bEnablePackedMRS, PackedMRSPhotoSet);
-		break;
-	case ERenderCaptureType::Opacity:
-		UpdateCaptureType1f(bEnableOpacity, OpacityPhotoSet);
-		break;
-	case ERenderCaptureType::SubsurfaceColor:
-		UpdateCaptureType3f(bEnableSubsurfaceColor, SubsurfaceColorPhotoSet);
-		break;
-	case ERenderCaptureType::DeviceDepth:
-		if (bEnableDeviceDepth != bEnabled)
-		{
-			// If we're disabling DeviceDepth we need to remove any existing photos as well as the cached view matrices
-			DeviceDepthPhotoSet.Empty();
-			PhotoViewMatricies.Empty();
-		}
-		bEnableDeviceDepth = bEnabled;
-		break;
-	default:
-		ensure(false);
+		PhotoSetStatus[CaptureType] = ECaptureTypeStatus::Disabled;
+		EmptyPhotoSet(CaptureType);
 	}
 }
 
-bool FSceneCapturePhotoSet::GetCaptureTypeEnabled(ERenderCaptureType CaptureType) const
+FSceneCapturePhotoSet::ECaptureTypeStatus FSceneCapturePhotoSet::GetCaptureTypeStatus(ERenderCaptureType CaptureType) const
 {
-	switch (CaptureType)
-	{
-	case ERenderCaptureType::BaseColor:
-			return bEnableBaseColor;
-		case ERenderCaptureType::WorldNormal:
-			return bEnableWorldNormal;
-		case ERenderCaptureType::Roughness:
-			return bEnableRoughness;
-		case ERenderCaptureType::Metallic:
-			return bEnableMetallic;
-		case ERenderCaptureType::Specular:
-			return bEnableSpecular;
-		case ERenderCaptureType::Emissive:
-			return bEnableEmissive;
-		case ERenderCaptureType::Opacity:
-			return bEnableOpacity;
-		case ERenderCaptureType::SubsurfaceColor:
-			return bEnableSubsurfaceColor;
-		case ERenderCaptureType::CombinedMRS:
-			return bEnablePackedMRS;
-		case ERenderCaptureType::DeviceDepth:
-			return bEnableDeviceDepth;
-		default:
-			ensure(false);
-	}
-	return false;
+	return PhotoSetStatus[CaptureType];
+}
+
+FSceneCapturePhotoSet::FStatus FSceneCapturePhotoSet::GetSceneCaptureStatus() const
+{
+	return PhotoSetStatus;
 }
 
 void FSceneCapturePhotoSet::Compute()
 {
+	int NumPending = 0;
+	ForEachCaptureType([this, &NumPending](ERenderCaptureType CaptureType)
+	{
+		NumPending += static_cast<int>(PhotoSetStatus[CaptureType] == ECaptureTypeStatus::Pending);
+	});
+
+	if (NumPending == 0)
+	{
+		return;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
+	FScopedSlowTask Progress(static_cast<float>(NumPending), LOCTEXT("CapturingScene", "Capturing Scene..."));
+	Progress.MakeDialog(bAllowCancel);
+
 	check(this->TargetWorld != nullptr);
 
 	bWasCancelled = false;
-
-	FScopedSlowTask Progress(PhotoSetParams.Num(), LOCTEXT("ComputingViewpoints", "Computing Viewpoints..."));
-	Progress.MakeDialog(bAllowCancel);
 
 	// Unregister all components to remove unwanted proxies from the scene. This was previously the only way to "hide" nanite meshes, now optional.
 	TSet<AActor*> VisibleActorsSet(VisibleActors);
@@ -311,105 +188,84 @@ void FSceneCapturePhotoSet::Compute()
 		RenderCapture.SetEnableWriteDebugImage(true, 0, DebugImagesFolderName);
 	}
 
-	for (const FSpatialPhotoParams& Params : PhotoSetParams)
+	auto CapturePhoto3f = [this, &RenderCapture](ERenderCaptureType CaptureType, const FSpatialPhotoParams& Params)
 	{
-		Progress.EnterProgressFrame(1.f);
-		if (Progress.ShouldCancel())
-		{
-			bWasCancelled = true;
-			return;
-		}
+		FSpatialPhoto3f NewPhoto;
+		NewPhoto.Frame = Params.Frame;
+		NewPhoto.NearPlaneDist = Params.NearPlaneDist;
+		NewPhoto.HorzFOVDegrees = Params.HorzFOVDegrees;
+		NewPhoto.Dimensions = Params.Dimensions;
 
+		// TODO Do something with the success boolean returned by RenderCapture.CaptureFromPosition
+		FImageAdapter Image(&NewPhoto.Image);
+		FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
 		RenderCapture.SetDimensions(Params.Dimensions);
+		RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
+		GetPhotoSet3f(CaptureType).Add(MoveTemp(NewPhoto));
+	};
 
-		auto CaptureImageTypeFunc_3f = [this, &Progress, &RenderCapture, &Params]
-			(ERenderCaptureType CaptureType, FSpatialPhotoSet3f& PhotoSet)
+	auto CapturePhoto1f = [this, &RenderCapture](ERenderCaptureType CaptureType, const FSpatialPhotoParams& Params)
+	{
+		FSpatialPhoto1f NewPhoto;
+		NewPhoto.Frame = Params.Frame;
+		NewPhoto.NearPlaneDist = Params.NearPlaneDist;
+		NewPhoto.HorzFOVDegrees = Params.HorzFOVDegrees;
+		NewPhoto.Dimensions = Params.Dimensions;
+
+		// TODO Do something with the success boolean returned by RenderCapture.CaptureFromPosition
+		FImageAdapter Image(&NewPhoto.Image);
+		FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
+		RenderCapture.SetDimensions(Params.Dimensions);
+		RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
+		GetPhotoSet1f(CaptureType).Add(MoveTemp(NewPhoto));
+
+		if (CaptureType == ERenderCaptureType::DeviceDepth)
 		{
-			if (PhotoSet.Num() < PhotoSetParams.Num())
-			{
-				FSpatialPhoto3f NewPhoto;
-				NewPhoto.Frame = Params.Frame;
-				NewPhoto.NearPlaneDist = Params.NearPlaneDist;
-				NewPhoto.HorzFOVDegrees = Params.HorzFOVDegrees;
-				NewPhoto.Dimensions = Params.Dimensions;
+			PhotoViewMatricies.Add(RenderCapture.GetLastCaptureViewMatrices());
+		}
+	};
 
-				// TODO Do something with the success boolean returned by RenderCapture.CaptureFromPosition
-				FImageAdapter Image(&NewPhoto.Image);
-				FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
-				RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
-				PhotoSet.Add(MoveTemp(NewPhoto));
+	// Iterate by channel computing all the photos rather than by photo/viewpoint computing all the channels.
+	// Note: This ordering means that some captures may have computed even if the computation is cancelled.
+	auto CapturePhotoSet = [this, &Progress](
+		TFunctionRef<void(ERenderCaptureType, const FSpatialPhotoParams&)> CapturePhoto,
+		ERenderCaptureType CaptureType,
+		const FText& TaskMessage)
+	{
+		if (PhotoSetStatus[CaptureType] == ECaptureTypeStatus::Pending)
+		{
+			Progress.EnterProgressFrame(1.f);
+			FScopedSlowTask PhotoSetProgress(PhotoSetParams.Num(), TaskMessage);
+
+			EmptyPhotoSet(CaptureType);
+			for (const FSpatialPhotoParams& Params : PhotoSetParams)
+			{
+				if (Progress.ShouldCancel())
+				{
+					UE_LOG(LogGeometry, Display, TEXT("FSceneCapturePhotoSet: The pending '%s' step was cancelled"), *TaskMessage.ToString());
+					bWasCancelled = true;
+					return;
+				}
+
+				PhotoSetProgress.EnterProgressFrame(1.f);
+				CapturePhoto(CaptureType, Params);
+				Progress.TickProgress();
 			}
 
-			Progress.TickProgress();
-		};
+			PhotoSetStatus[CaptureType] = ECaptureTypeStatus::Computed;
+		}
+	};
 
-		auto CaptureImageTypeFunc_1f = [this, &Progress, &RenderCapture, &Params]
-			(ERenderCaptureType CaptureType, FSpatialPhotoSet1f& PhotoSet)
-		{
-			// Testing NumDirections is how we currently determine if we need to compute this photo
-			if (PhotoSet.Num() < PhotoSetParams.Num())
-			{
-				FSpatialPhoto1f NewPhoto;
-				NewPhoto.Frame = Params.Frame;
-				NewPhoto.NearPlaneDist = Params.NearPlaneDist;
-				NewPhoto.HorzFOVDegrees = Params.HorzFOVDegrees;
-				NewPhoto.Dimensions = Params.Dimensions;
-
-				// TODO Do something with the success boolean returned by RenderCapture.CaptureFromPosition
-				FImageAdapter Image(&NewPhoto.Image);
-				FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
-				RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
-				PhotoSet.Add(MoveTemp(NewPhoto));
-			}
-
-			Progress.TickProgress();
-		};
-
-		if (bEnableDeviceDepth)
-		{
-			CaptureImageTypeFunc_1f(ERenderCaptureType::DeviceDepth, DeviceDepthPhotoSet);
-			if (PhotoViewMatricies.Num() < PhotoSetParams.Num())
-			{
-				PhotoViewMatricies.Add(RenderCapture.GetLastCaptureViewMatrices());
-			}
-		}
-		if (bEnableBaseColor)
-		{
-			CaptureImageTypeFunc_3f(ERenderCaptureType::BaseColor, BaseColorPhotoSet);
-		}
-		if (bEnableRoughness)
-		{
-			CaptureImageTypeFunc_1f(ERenderCaptureType::Roughness, RoughnessPhotoSet);
-		}
-		if (bEnableSpecular)
-		{
-			CaptureImageTypeFunc_1f(ERenderCaptureType::Specular, SpecularPhotoSet);
-		}
-		if (bEnableMetallic)
-		{
-			CaptureImageTypeFunc_1f(ERenderCaptureType::Metallic, MetallicPhotoSet);
-		}
-		if (bEnablePackedMRS)
-		{
-			CaptureImageTypeFunc_3f(ERenderCaptureType::CombinedMRS, PackedMRSPhotoSet);
-		}
-		if (bEnableWorldNormal)
-		{
-			CaptureImageTypeFunc_3f(ERenderCaptureType::WorldNormal, WorldNormalPhotoSet);
-		}
-		if (bEnableEmissive)
-		{
-			CaptureImageTypeFunc_3f(ERenderCaptureType::Emissive, EmissivePhotoSet);
-		}
-		if (bEnableOpacity)
-		{
-			CaptureImageTypeFunc_1f(ERenderCaptureType::Opacity, OpacityPhotoSet);
-		}
-		if (bEnableSubsurfaceColor)
-		{
-			CaptureImageTypeFunc_3f(ERenderCaptureType::SubsurfaceColor, SubsurfaceColorPhotoSet);
-		}
-	} // end directions loop
+	CapturePhotoSet(CapturePhoto1f, ERenderCaptureType::DeviceDepth,     LOCTEXT("CapturingScene", "Capturing Device Depth"));
+	CapturePhotoSet(CapturePhoto3f, ERenderCaptureType::BaseColor,       LOCTEXT("CapturingScene", "Capturing Base Color"));
+	CapturePhotoSet(CapturePhoto3f, ERenderCaptureType::WorldNormal,     LOCTEXT("CapturingScene", "Capturing World Normal"));
+	CapturePhotoSet(CapturePhoto3f, ERenderCaptureType::CombinedMRS,     LOCTEXT("CapturingScene", "Capturing Packed MRS"));
+	CapturePhotoSet(CapturePhoto1f, ERenderCaptureType::Metallic,        LOCTEXT("CapturingScene", "Capturing Metallic"));
+	CapturePhotoSet(CapturePhoto1f, ERenderCaptureType::Roughness,       LOCTEXT("CapturingScene", "Capturing Roughness"));
+	CapturePhotoSet(CapturePhoto1f, ERenderCaptureType::Specular,        LOCTEXT("CapturingScene", "Capturing Specular"));
+	CapturePhotoSet(CapturePhoto3f, ERenderCaptureType::Emissive,        LOCTEXT("CapturingScene", "Capturing Emissive"));
+	CapturePhotoSet(CapturePhoto1f, ERenderCaptureType::Opacity,         LOCTEXT("CapturingScene", "Capturing Opacity"));
+	CapturePhotoSet(CapturePhoto3f, ERenderCaptureType::SubsurfaceColor, LOCTEXT("CapturingScene", "Capturing Subsurface Color"));
 }
 
 
@@ -584,7 +440,7 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 			Progress.TickProgress();
 		};
 
-		if (bEnableDeviceDepth)
+		if (PhotoSetStatus[ERenderCaptureType::DeviceDepth] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_1f(ERenderCaptureType::DeviceDepth, DeviceDepthPhotoSet);
 			if (PhotoViewMatricies.Num() < NumDirections)
@@ -592,39 +448,39 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 				PhotoViewMatricies.Add(RenderCapture.GetLastCaptureViewMatrices());
 			}
 		}
-		if (bEnableBaseColor)
+		if (PhotoSetStatus[ERenderCaptureType::BaseColor] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::BaseColor, BaseColorPhotoSet);
 		}
-		if (bEnableRoughness)
+		if (PhotoSetStatus[ERenderCaptureType::Roughness] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_1f(ERenderCaptureType::Roughness, RoughnessPhotoSet);
 		}
-		if (bEnableSpecular)
+		if (PhotoSetStatus[ERenderCaptureType::Specular] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_1f(ERenderCaptureType::Specular, SpecularPhotoSet);
 		}
-		if (bEnableMetallic)
+		if (PhotoSetStatus[ERenderCaptureType::Metallic] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_1f(ERenderCaptureType::Metallic, MetallicPhotoSet);
 		}
-		if (bEnablePackedMRS)
+		if (PhotoSetStatus[ERenderCaptureType::CombinedMRS] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::CombinedMRS, PackedMRSPhotoSet);
 		}
-		if (bEnableWorldNormal)
+		if (PhotoSetStatus[ERenderCaptureType::WorldNormal] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::WorldNormal, WorldNormalPhotoSet);
 		}
-		if (bEnableEmissive)
+		if (PhotoSetStatus[ERenderCaptureType::Emissive] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::Emissive, EmissivePhotoSet);
 		}
-		if (bEnableOpacity)
+		if (PhotoSetStatus[ERenderCaptureType::Opacity] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_1f(ERenderCaptureType::Opacity, OpacityPhotoSet);
 		}
-		if (bEnableSubsurfaceColor)
+		if (PhotoSetStatus[ERenderCaptureType::SubsurfaceColor] == ECaptureTypeStatus::Pending)
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::SubsurfaceColor, SubsurfaceColorPhotoSet);
 		}
@@ -912,19 +768,10 @@ void FSceneCapturePhotoSet::SetEnableVisibilityByUnregisterMode(bool bEnable)
 
 void FSceneCapturePhotoSet::EmptyAllPhotoSets()
 {
-	BaseColorPhotoSet.Empty();
-	RoughnessPhotoSet.Empty();
-	SpecularPhotoSet.Empty();
-	MetallicPhotoSet.Empty();
-	PackedMRSPhotoSet.Empty();
-	WorldNormalPhotoSet.Empty();
-	EmissivePhotoSet.Empty();
-	OpacityPhotoSet.Empty();
-	SubsurfaceColorPhotoSet.Empty();
-
-	// For the device depth photo set we have two containers to empty
-	DeviceDepthPhotoSet.Empty();
-	PhotoViewMatricies.Empty();
+	ForEachCaptureType([this](ERenderCaptureType CaptureType)
+	{
+		EmptyPhotoSet(CaptureType);
+	});
 }
 
 void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString FolderName)
@@ -933,6 +780,89 @@ void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString Fold
 	if (FolderName.Len() > 0)
 	{
 		DebugImagesFolderName = FolderName;
+	}
+}
+
+FSpatialPhotoSet1f& FSceneCapturePhotoSet::GetPhotoSet1f(ERenderCaptureType CaptureType)
+{
+	switch (CaptureType)
+	{
+	case ERenderCaptureType::Roughness:
+		return RoughnessPhotoSet;
+	case ERenderCaptureType::Metallic:
+		return MetallicPhotoSet;
+	case ERenderCaptureType::Specular:
+		return SpecularPhotoSet;
+	case ERenderCaptureType::Opacity:
+		return OpacityPhotoSet;
+	case ERenderCaptureType::DeviceDepth:
+		return DeviceDepthPhotoSet;
+	default:
+		ensure(false);
+	}
+	return RoughnessPhotoSet;
+}
+
+FSpatialPhotoSet3f& FSceneCapturePhotoSet::GetPhotoSet3f(ERenderCaptureType CaptureType)
+{
+	switch (CaptureType)
+	{
+	case ERenderCaptureType::BaseColor:
+		return BaseColorPhotoSet;
+	case ERenderCaptureType::CombinedMRS:
+		return PackedMRSPhotoSet;
+	case ERenderCaptureType::WorldNormal:
+		return WorldNormalPhotoSet;
+	case ERenderCaptureType::Emissive:
+		return EmissivePhotoSet;
+	case ERenderCaptureType::SubsurfaceColor:
+		return SubsurfaceColorPhotoSet;
+	default:
+		ensure(false);
+	}
+	return BaseColorPhotoSet;
+}
+
+
+void FSceneCapturePhotoSet::EmptyPhotoSet(ERenderCaptureType CaptureType)
+{
+	// Set the functions to empty the photo sets
+	switch (CaptureType)
+	{
+	case ERenderCaptureType::BaseColor:
+		BaseColorPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::WorldNormal:
+		WorldNormalPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::Roughness:
+		RoughnessPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::Metallic:
+		MetallicPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::Specular:
+		SpecularPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::Emissive:
+		EmissivePhotoSet.Empty();
+		break;
+	case ERenderCaptureType::CombinedMRS:
+		PackedMRSPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::Opacity:
+		OpacityPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::SubsurfaceColor:
+		SubsurfaceColorPhotoSet.Empty();
+		break;
+	case ERenderCaptureType::DeviceDepth:
+		// For the device depth photo set we have two containers to empty
+		DeviceDepthPhotoSet.Empty();
+		PhotoViewMatricies.Empty();
+		break;
+	default:
+		ensure(false);
 	}
 }
 

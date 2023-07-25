@@ -30,11 +30,37 @@ enum class ERenderCaptureType
 	SubsurfaceColor = 512
 };
 
+// Call the given Function for each capture type/channel
+template <typename FunctionType>
+void ForEachCaptureType(const FunctionType& Function)
+{
+	Function(ERenderCaptureType::BaseColor);
+	Function(ERenderCaptureType::Roughness);
+	Function(ERenderCaptureType::Specular);
+	Function(ERenderCaptureType::Metallic);
+	Function(ERenderCaptureType::CombinedMRS);
+	Function(ERenderCaptureType::WorldNormal);
+	Function(ERenderCaptureType::Emissive);
+	Function(ERenderCaptureType::Opacity);
+	Function(ERenderCaptureType::SubsurfaceColor);
+	Function(ERenderCaptureType::DeviceDepth);
+}
+
 struct MODELINGCOMPONENTS_API FRenderCaptureConfig
 {
 	// You might want to disable this if you're using FMeshMapBaker because it supports multi-sampling in a way which
 	// will avoid blending pixels at different depths. This option is ignored for ERenderCaptureType::DeviceDepth
 	bool bAntiAliasing = true;
+
+	bool operator==(const FRenderCaptureConfig& Other) const
+	{
+		return bAntiAliasing == Other.bAntiAliasing;
+	}
+
+	bool operator!=(const FRenderCaptureConfig& Other) const
+	{
+		return !operator==(Other);
+	}
 };
 
 FRenderCaptureConfig MODELINGCOMPONENTS_API GetDefaultRenderCaptureConfig(ERenderCaptureType CaptureType);
@@ -72,6 +98,71 @@ struct MODELINGCOMPONENTS_API FRenderCaptureTypeFlags
 
 	/** Set the indicated CaptureType to enabled */
 	void SetEnabled(ERenderCaptureType CaptureType, bool bEnabled);
+
+	/** @return mutable flag corresponding to the given CaptureType */
+	bool& operator[](ERenderCaptureType CaptureType);
+
+	/** @return constant flag corresponding to the given CaptureType */
+	const bool& operator[](ERenderCaptureType CaptureType) const;
+
+	/** @return true if the flags for this object match the Other object and false otherwise */
+	bool operator==(const FRenderCaptureTypeFlags& Other) const;
+	bool operator!=(const FRenderCaptureTypeFlags& Other) const;
+};
+
+template <typename T>
+struct MODELINGCOMPONENTS_API TRenderCaptureTypeData
+{
+	// FRenderCaptureTypeFlags uses the correct member naming convention and has additional boolean helpers
+	static_assert(std::is_same_v<T, bool> == false, "Use FRenderCaptureTypeFlags instead");
+
+	T BaseColor;
+	T Roughness;
+	T Specular;
+	T Metallic;
+	T CombinedMRS;
+	T WorldNormal;
+	T Emissive;
+	T Opacity;
+	T SubsurfaceColor;
+	T DeviceDepth;
+
+	/** @return mutable data corresponding to the given CaptureType */
+	FORCEINLINE T& operator[](ERenderCaptureType CaptureType)
+	{
+		switch (CaptureType)
+		{
+		case ERenderCaptureType::BaseColor:
+			return BaseColor;
+		case ERenderCaptureType::WorldNormal:
+			return WorldNormal;
+		case ERenderCaptureType::Roughness:
+			return Roughness;
+		case ERenderCaptureType::Metallic:
+			return Metallic;
+		case ERenderCaptureType::Specular:
+			return Specular;
+		case ERenderCaptureType::Emissive:
+			return Emissive;
+		case ERenderCaptureType::CombinedMRS:
+			return CombinedMRS;
+		case ERenderCaptureType::Opacity:
+			return Opacity;
+		case ERenderCaptureType::SubsurfaceColor:
+			return SubsurfaceColor;
+		case ERenderCaptureType::DeviceDepth:
+			return DeviceDepth;
+		default:
+			ensure(false);
+		}
+		return BaseColor;
+	}
+
+	/** @return constant data corresponding to the given CaptureType */
+	FORCEINLINE const T& operator[](ERenderCaptureType CaptureType) const
+	{
+		return const_cast<TRenderCaptureTypeData<T>*>(this)->operator[](CaptureType);
+	}
 };
 
 

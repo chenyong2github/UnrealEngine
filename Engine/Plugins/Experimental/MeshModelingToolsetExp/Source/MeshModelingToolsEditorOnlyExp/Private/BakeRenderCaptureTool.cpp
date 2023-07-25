@@ -44,33 +44,122 @@ static FString NormalTexParamName = TEXT("NormalMap");
 static FString PackedMRSTexParamName = TEXT("PackedMRS");
 
 
-FRenderCaptureOptions
-MakeRenderCaptureOptions(const URenderCaptureProperties& RenderCaptureProperties)
+FSceneCaptureConfig GetSceneCaptureConfig(const URenderCaptureProperties& Properties)
 {
-	FRenderCaptureOptions Options;
+	FSceneCaptureConfig Config;
 
-	Options.bBakeBaseColor = RenderCaptureProperties.bBaseColorMap;
-	Options.bBakeNormalMap = RenderCaptureProperties.bNormalMap;
-	Options.bBakeEmissive =  RenderCaptureProperties.bEmissiveMap;
-	Options.bBakeOpacity = RenderCaptureProperties.bOpacityMap;
-	Options.bBakeSubsurfaceColor = RenderCaptureProperties.bSubsurfaceColorMap;
-	Options.bBakeDeviceDepth = RenderCaptureProperties.bDeviceDepthMap;
-	
-	// Enforce the PackedMRS precondition here so we don't have to check it at each usage site.  Note: We don't
-	// apply this precondition on the RenderCaptureProperties because we don't want the user to have to re-enable
-	// options which enabling PackedMRS disabled.
-	Options.bUsePackedMRS =  RenderCaptureProperties.bPackedMRSMap;
-	Options.bBakeMetallic =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bMetallicMap;
-	Options.bBakeRoughness = RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bRoughnessMap;
-	Options.bBakeSpecular =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bSpecularMap;
+	Config.Flags.bBaseColor       = Properties.bBaseColorMap;
+	Config.Flags.bWorldNormal     = Properties.bNormalMap;
+	Config.Flags.bEmissive        = Properties.bEmissiveMap;
+	Config.Flags.bOpacity         = Properties.bOpacityMap;
+	Config.Flags.bSubsurfaceColor = Properties.bSubsurfaceColorMap;
+	Config.Flags.bDeviceDepth     = Properties.bDeviceDepthMap;
 
-	Options.RenderCaptureImageSize = static_cast<int32>(RenderCaptureProperties.Resolution);
-	Options.bAntiAliasing = RenderCaptureProperties.bAntiAliasing;
-	Options.FieldOfViewDegrees = RenderCaptureProperties.CaptureFieldOfView;
-	Options.NearPlaneDist = RenderCaptureProperties.NearPlaneDist;
+	// When we convert Properties (controls the tool UI) to Config (controls what is computed in SceneCapture) we make
+	// sure that the PackedMRS and the separate Metallic/Roughness/Specular captures are mutually exclusive. These
+	// captures are intended to be used in different materials so we assume the user will want one or the other. Also,
+	// for high resolution captures with lots of viewpoints each enabled capture takes up a lot of memory. We could
+	// enforce this mutually exclusive behaviour in Properties but doing it Config improves the UX because enabling the
+	// PackedMRS checkbox can just clear the Metallic/Roughness/Specular textures and photosets and disable the
+	// corresponding checkboxes while leaving the checkbox state unchanged. See :HandlingPackedMRS
+	Config.Flags.bCombinedMRS = Properties.bPackedMRSMap;
+	Config.Flags.bMetallic    = Properties.bPackedMRSMap ? false : Properties.bMetallicMap;
+	Config.Flags.bRoughness   = Properties.bPackedMRSMap ? false : Properties.bRoughnessMap;
+	Config.Flags.bSpecular    = Properties.bPackedMRSMap ? false : Properties.bSpecularMap;
 
-	return Options;
+	Config.RenderCaptureImageSize = static_cast<int32>(Properties.Resolution);
+	Config.bAntiAliasing          = Properties.bAntiAliasing;
+	Config.FieldOfViewDegrees     = Properties.CaptureFieldOfView;
+	Config.NearPlaneDist          = Properties.NearPlaneDist;
+
+	return Config;
 }
+
+void SetSceneCaptureConfig(URenderCaptureProperties& Properties, const FSceneCaptureConfig& Config)
+{
+	Properties.bBaseColorMap       = Config.Flags.bBaseColor;
+	Properties.bNormalMap          = Config.Flags.bWorldNormal;
+	Properties.bEmissiveMap        = Config.Flags.bEmissive;
+	Properties.bOpacityMap         = Config.Flags.bOpacity;
+	Properties.bSubsurfaceColorMap = Config.Flags.bSubsurfaceColor;
+	Properties.bDeviceDepthMap     = Config.Flags.bDeviceDepth;
+
+	// When we convert Config (controls what is computed in SceneCapture) to Properties (controls the tool UI) we
+	// can directly copy the MRS booleans since Properties must always reflect the state of the computed SceneCapture
+	// channels. The reverse conversion in GetSceneCaptureConfig (see comment tagged :HandlingPackedMRS) ensures that
+	// the PackedMRS and separate Metallic/Roughness/Specular captures are mutually exclusive.
+	Properties.bPackedMRSMap = Config.Flags.bCombinedMRS;
+	Properties.bMetallicMap  = Config.Flags.bMetallic;
+	Properties.bRoughnessMap = Config.Flags.bRoughness;
+	Properties.bSpecularMap  = Config.Flags.bSpecular;
+
+	Properties.Resolution         = static_cast<EBakeTextureResolution>(Config.RenderCaptureImageSize);
+	Properties.bAntiAliasing      = Config.bAntiAliasing;
+	Properties.CaptureFieldOfView = Config.FieldOfViewDegrees;
+	Properties.NearPlaneDist      = Config.NearPlaneDist;
+}
+
+
+//
+// Tool Properties
+//
+
+bool UBakeRenderCaptureResults::IsEmpty() const
+{
+	bool bEmpty = true;
+	ForEachCaptureType([this, &bEmpty](ERenderCaptureType CaptureType)
+	{
+		bEmpty = bEmpty && (this->operator[](CaptureType) == nullptr);
+	});
+	return bEmpty;
+}
+
+const TObjectPtr<UTexture2D>& UBakeRenderCaptureResults::operator[](ERenderCaptureType CaptureType) const
+{
+	switch (CaptureType)
+	{
+	case ERenderCaptureType::BaseColor:
+		return BaseColorMap;
+	case ERenderCaptureType::WorldNormal:
+		return NormalMap;
+	case ERenderCaptureType::Roughness:
+		return RoughnessMap;
+	case ERenderCaptureType::Metallic:
+		return MetallicMap;
+	case ERenderCaptureType::Specular:
+		return SpecularMap;
+	case ERenderCaptureType::Emissive:
+		return EmissiveMap;
+	case ERenderCaptureType::CombinedMRS:
+		return PackedMRSMap;
+	case ERenderCaptureType::Opacity:
+		return OpacityMap;
+	case ERenderCaptureType::SubsurfaceColor:
+		return SubsurfaceColorMap;
+	case ERenderCaptureType::DeviceDepth:
+		ensure(DeviceDepthMap == nullptr); // DeviceDepth is unused and shouldn't change from the default
+		return DeviceDepthMap;
+	default:
+		ensure(false);
+	}
+	return DeviceDepthMap;
+}
+
+bool URenderCaptureProperties::operator==(const URenderCaptureProperties& Other) const
+{
+	const FSceneCaptureConfig Config = GetSceneCaptureConfig(*this);
+	const FSceneCaptureConfig OtherConfig = GetSceneCaptureConfig(Other);
+	return Config == OtherConfig;
+}
+
+bool URenderCaptureProperties::operator!=(const URenderCaptureProperties& Other) const
+{
+	return !(*this == Other);
+}
+
+
+
+
 
 
 //
@@ -91,7 +180,8 @@ public:
 	FSceneCapturePhotoSet* SceneCapture = nullptr;
 
 	// Used to pass the channels which need baking via the bBakeXXX and bUsePackedMRS members
-	FRenderCaptureOptions PendingBake;
+	// PendingBake allows us to skip baking for computed capture types previously baked
+	FRenderCaptureTypeFlags PendingBake;
 
 	// Begin TGenericDataOperator interface
 	virtual void CalculateResult(FProgressCancel* Progress) override;
@@ -227,21 +317,9 @@ void UBakeRenderCaptureTool::Setup()
 	Settings->WatchProperty(Settings->TextureSize, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->ValidSampleDepthThreshold, [this](float ValidSampleDepthThreshold)
 	{
-		// Only compute the device depth if we compute at least one other channel, the DeviceDepth is used to eliminate
-		// occlusion artefacts from the other channels
-		RenderCaptureProperties->bDeviceDepthMap = (ValidSampleDepthThreshold > 0) &&
-			(
-			RenderCaptureProperties->bBaseColorMap ||
-			RenderCaptureProperties->bNormalMap    ||
-			RenderCaptureProperties->bEmissiveMap  ||
-			RenderCaptureProperties->bOpacityMap   ||
-			RenderCaptureProperties->bSubsurfaceColorMap ||
-			RenderCaptureProperties->bPackedMRSMap ||
-			RenderCaptureProperties->bMetallicMap  ||
-			RenderCaptureProperties->bRoughnessMap ||
-			RenderCaptureProperties->bSpecularMap
-			);
-
+		// The depth capture channel is enabled implicitly when the following parameter is greater than 0.
+		// To disable the depth capture we need to set the value to 0. See :EnableDisableDeviceDepthMap 
+		RenderCaptureProperties->bDeviceDepthMap = (ValidSampleDepthThreshold > 0);
 		OpState |= EBakeOpState::Evaluate;
 	});
 
@@ -302,6 +380,8 @@ void UBakeRenderCaptureTool::Setup()
 	{
 		UE::ToolTarget::HideSourceObject(Targets[Idx]);
 	}
+
+	SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
 
 	// Make sure we trigger SceneCapture computation in UpdateResult
 	OpState |= EBakeOpState::Evaluate;
@@ -396,13 +476,6 @@ void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 		Compute->Shutdown();
 	}
 
-	// Restore visibility of source meshes
-	const int NumTargets = Targets.Num();
-	for (int Idx = 1; Idx < NumTargets; ++Idx)
-	{
-		UE::ToolTarget::ShowSourceObject(Targets[Idx]);
-	}
-	
 	if (ShutdownType == EToolShutdownType::Accept && ResultSettings->IsEmpty() == false)
 	{
 		// TODO Support skeletal meshes here---see BakeMeshAttributeMapsTool::OnShutdown
@@ -415,7 +488,15 @@ void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 	// Clear actors on shutdown so that their lifetime is not tied to the lifetime of the tool
 	Actors.Empty();
 
+	// Restore visibility of the target mesh
 	UE::ToolTarget::ShowSourceObject(Targets[0]);
+
+	// Restore visibility of source meshes
+	const int NumTargets = Targets.Num();
+	for (int Idx = 1; Idx < NumTargets; ++Idx)
+	{
+		UE::ToolTarget::ShowSourceObject(Targets[Idx]);
+	}
 }
 
 void UBakeRenderCaptureTool::CreateAssets(UWorld* SourceWorld, UObject* SourceAsset)
@@ -644,6 +725,7 @@ void UBakeRenderCaptureTool::CreateAssets(UWorld* SourceWorld, UObject* SourceAs
 
 
 
+// Return false if the user requested a texture but it is not yet baked, or if the tool is in an invalid state
 bool UBakeRenderCaptureTool::CanAccept() const
 {
 	if ((OpState & EBakeOpState::Invalid) == EBakeOpState::Invalid)
@@ -671,11 +753,12 @@ bool UBakeRenderCaptureTool::CanAccept() const
 	{
 		return false;
 	}
-	
-	// We need different code paths based on PackedMRS here because we don't want to uncheck the separate channels
-	// when PackedMRS is enabled to give the user a better UX (they don't have to re-check them after disabling
-	// PackedMRS). In other place we can test the PackedMRS and separate channel booleans in series and avoid the
-	// complexity of nested if statements.
+
+	// For reasons explained in the comment tagged :HandlingPackedMRS the Metallic/Roughness/Specular checkboxes can
+	// be enabled when the correponding photo sets in SceneCapture and textures in ResultSettings are empty. This means
+	// we should only check the checkboxes/textures (RenderCaptureProperties/ResultSettings resp.) if we are not using
+	// the PackedMRS option In other places we can test the PackedMRS and separate channel booleans in series and avoid
+	// the complexity of nested if statements.
 	if (RenderCaptureProperties->bPackedMRSMap)
 	{
 		if (ResultSettings->PackedMRSMap == nullptr)
@@ -704,6 +787,7 @@ bool UBakeRenderCaptureTool::CanAccept() const
 
 
 
+// This function gets called via UBakeRenderCaptureTool::InvalidateCompute
 TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewOperator()
 {
 	// We should not have requested a bake if we don't have a SceneCapture
@@ -720,22 +804,17 @@ TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewO
 	Op->SamplesPerPixel = Settings->SamplesPerPixel;
 	Op->SceneCapture = SceneCapture.Get();
 
-	auto IsPendingBake = [this](UTexture *CurrentResult, ERenderCaptureType CaptureType) -> bool
+	ForEachCaptureType([this, &Op](ERenderCaptureType CaptureType)
 	{
-		const bool bRequested = SceneCapture->GetCaptureTypeEnabled(CaptureType);
-		const bool bBaked = (CurrentResult != nullptr);
-		return (bRequested && !bBaked);
-	};
+		using EStatus = FSceneCapturePhotoSet::ECaptureTypeStatus;
 
-	Op->PendingBake.bBakeBaseColor = IsPendingBake(ResultSettings->BaseColorMap, ERenderCaptureType::BaseColor);
-	Op->PendingBake.bBakeRoughness = IsPendingBake(ResultSettings->RoughnessMap, ERenderCaptureType::Roughness);
-	Op->PendingBake.bBakeMetallic =  IsPendingBake(ResultSettings->MetallicMap,  ERenderCaptureType::Metallic);
-	Op->PendingBake.bBakeSpecular =  IsPendingBake(ResultSettings->SpecularMap,  ERenderCaptureType::Specular);
-	Op->PendingBake.bUsePackedMRS =  IsPendingBake(ResultSettings->PackedMRSMap, ERenderCaptureType::CombinedMRS);
-	Op->PendingBake.bBakeEmissive =  IsPendingBake(ResultSettings->EmissiveMap,  ERenderCaptureType::Emissive);
-	Op->PendingBake.bBakeNormalMap = IsPendingBake(ResultSettings->NormalMap,    ERenderCaptureType::WorldNormal);
-	Op->PendingBake.bBakeOpacity =   IsPendingBake(ResultSettings->OpacityMap,   ERenderCaptureType::Opacity);
-	Op->PendingBake.bBakeSubsurfaceColor = IsPendingBake(ResultSettings->SubsurfaceColorMap, ERenderCaptureType::SubsurfaceColor);
+		const bool bComputed = SceneCapture->GetCaptureTypeStatus(CaptureType) == EStatus::Computed;
+		const bool bBaked = (*ResultSettings)[CaptureType] != nullptr;
+		const bool bPendingBake = bComputed && !bBaked;
+
+		// The BakeRC tool does not bake the DeviceDepth, this channel is queried via the SceneCapture when baking the other channels
+		Op->PendingBake[CaptureType] = (CaptureType == ERenderCaptureType::DeviceDepth ? false : bPendingBake);
+	});
 
 	return Op;
 }
@@ -750,8 +829,7 @@ void UBakeRenderCaptureTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& NewR
 	GetTexturesFromRenderCaptureBaker(NewResult, TexturesOut);
 
 	// The NewResult will contain the newly baked textures so we only update those and not overwrite any already baked
-	// valid results. Note that if results are invalidated by some parameter change they are cleared by the
-	// InvalidateResults function, by comparing/syncing with the enabled capture types in SceneCapture
+	// valid TexturesOut. If a texture is invalidated by some tool property change it will null on entry to this function
 	if (TexturesOut.BaseColorMap)
 	{
 		ResultSettings->BaseColorMap = TexturesOut.BaseColorMap;
@@ -971,66 +1049,7 @@ void UBakeRenderCaptureTool::InvalidateCompute()
 	OpState = EBakeOpState::Clean;
 }
 
-FRenderCaptureUpdate UBakeRenderCaptureTool::UpdateSceneCapture()
-{
-	for (int Idx = 1; Idx < Targets.Num(); ++Idx)
-	{
-		UE::ToolTarget::ShowSourceObject(Targets[Idx]);
-	}
-
-	FRenderCaptureUpdate Update;
-
-	if (!SceneCapture)
-	{
-		const FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties);
-
-		constexpr bool bAllowCancel = false;
-		SceneCapture = CapturePhotoSet(Actors, Options, Update, bAllowCancel);
-	}
-	else
-	{
-		// Get already computed options from the existing SceneCapture so we can restore them if the capture is cancelled
-		const FRenderCaptureOptions ComputedOptions = GetComputedPhotoSetOptions(SceneCapture);
-
-		const FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties);
-
-		constexpr bool bAllowCancel = true;
-		Update = UpdatePhotoSets(SceneCapture, Actors, Options, bAllowCancel);
-
-		if (SceneCapture->Cancelled())
-		{
-			// Restore the settings present before the change that invoked the scene capture recompute
-			// Note UpdatePhotoSets will have restored the SceneCapture settings to their values prior to the cancel
-			RenderCaptureProperties->bBaseColorMap      = ComputedOptions.bBakeBaseColor;
-			RenderCaptureProperties->bNormalMap         = ComputedOptions.bBakeNormalMap;
-			RenderCaptureProperties->bMetallicMap       = ComputedOptions.bBakeMetallic;
-			RenderCaptureProperties->bRoughnessMap      = ComputedOptions.bBakeRoughness;
-			RenderCaptureProperties->bSpecularMap       = ComputedOptions.bBakeSpecular;
-			RenderCaptureProperties->bPackedMRSMap      = ComputedOptions.bUsePackedMRS;
-			RenderCaptureProperties->bEmissiveMap       = ComputedOptions.bBakeEmissive;
-			RenderCaptureProperties->bOpacityMap        = ComputedOptions.bBakeOpacity;
-			RenderCaptureProperties->bSubsurfaceColorMap = ComputedOptions.bBakeSubsurfaceColor;
-			RenderCaptureProperties->bDeviceDepthMap    = ComputedOptions.bBakeDeviceDepth;
-			RenderCaptureProperties->bAntiAliasing      = ComputedOptions.bAntiAliasing;
-			RenderCaptureProperties->CaptureFieldOfView = ComputedOptions.FieldOfViewDegrees;
-			RenderCaptureProperties->NearPlaneDist      = ComputedOptions.NearPlaneDist;
-			RenderCaptureProperties->Resolution         = static_cast<EBakeTextureResolution>(ComputedOptions.RenderCaptureImageSize);
-
-			// Silently make the above updates so we don't overwrite the change to OpState below and call this function again
-			RenderCaptureProperties->SilentUpdateWatched();
-			Settings->SilentUpdateWatched();
-		}
-	}
-
-	for (int Idx = 1; Idx < Targets.Num(); ++Idx)
-	{
-		UE::ToolTarget::HideSourceObject(Targets[Idx]);
-	}
-
-	return Update;
-}
-
-// Process dirty props and update background compute. Called by Render
+// Process dirty props and update background compute. Called by UBakeRenderCaptureTool::Render
 void UBakeRenderCaptureTool::UpdateResult()
 {
 	// Return if the bake is already launched/complete.
@@ -1098,7 +1117,7 @@ void UBakeRenderCaptureTool::UpdateResult()
 	if (bIsInvalid)
 	{
 		// Clear all results and wait for user to fix the invalid tool inputs
-		InvalidateResults(FRenderCaptureUpdate{});
+		InvalidateResults(FRenderCaptureTypeFlags::All(true));
 
 		// Only call UpdateVisualization when we first detect the invalid inputs
 		const bool bWasValid = static_cast<bool>(OpState & EBakeOpState::Invalid) == false;
@@ -1112,27 +1131,69 @@ void UBakeRenderCaptureTool::UpdateResult()
 	}
 	else
 	{
-		FRenderCaptureUpdate Update = UpdateSceneCapture();
+		const FSceneCaptureConfig DesiredConfig = GetSceneCaptureConfig(*RenderCaptureProperties);
 
-		const bool bInvalidateAll =
-			ComputedTextureSize != Settings->TextureSize ||
-			ComputedSamplesPerPixel != Settings->SamplesPerPixel ||
-			ComputedValidDepthThreshold != Settings->ValidSampleDepthThreshold;
+		// Update the scene capture and get the capture types that were updated so we can bake them
+		FRenderCaptureTypeFlags UpdatedChannels;
+		{
+			// Show the source meshes. If we don't do this the renderer doesn't see anything and we get a blank capture
+			// TODO FSceneCapturePhotoSet should probably ensure the visibility its Actors so that we don't need to do
+			// this visibility thing here in the tool
+			for (int Idx = 1; Idx < Targets.Num(); ++Idx)
+			{
+				UE::ToolTarget::ShowSourceObject(Targets[Idx]);
+			}
 
-		// Invalidate any results which need re-baking because the SceneCapture was updated, or
-		// Invalidate all results if the any baking parameters were changed
-		InvalidateResults(bInvalidateAll ? FRenderCaptureUpdate{} : Update);
+			UpdatedChannels = UpdateSceneCapture(SceneCapture, Actors, DesiredConfig, false);
 
-		// Update the preview mesh material with the (possibly invalidated) bake results
-		UpdateVisualization();
+			// Hide the source meshes after the render capture so they don't occlude the preview
+			for (int Idx = 1; Idx < Targets.Num(); ++Idx)
+			{
+				UE::ToolTarget::HideSourceObject(Targets[Idx]);
+			}
 
-		// Start another bake operation
-		InvalidateCompute();
+			const FSceneCaptureConfig AchievedConfig = GetSceneCaptureConfig(SceneCapture);
+			ensure(SceneCapture->Cancelled() == (AchievedConfig != DesiredConfig));
 
-		// Cache computed parameters which are used to determine if results need re-baking
-		ComputedTextureSize = Settings->TextureSize;
-		ComputedSamplesPerPixel = Settings->SamplesPerPixel;
-		ComputedValidDepthThreshold = Settings->ValidSampleDepthThreshold;
+			// If the scene capture was cancelled make sure the tool properties are consistent with the computed captures
+			if (SceneCapture->Cancelled())
+			{
+				SetSceneCaptureConfig(*RenderCaptureProperties, AchievedConfig);
+				RenderCaptureProperties->SilentUpdateWatched();
+
+				if (AchievedConfig.Flags.bDeviceDepth == false)
+				{
+					// See :EnableDisableDeviceDepthMap
+					Settings->ValidSampleDepthThreshold = 0.f;
+					Settings->SilentUpdateWatched();
+				}
+			}
+		}
+
+		// Update/Bake the result textures
+		{
+			const bool bInvalidateAll =
+				ComputedTargetUVLayer != InputMeshSettings->TargetUVLayer ||
+				ComputedTextureSize != Settings->TextureSize ||
+				ComputedSamplesPerPixel != Settings->SamplesPerPixel ||
+				ComputedValidDepthThreshold != Settings->ValidSampleDepthThreshold;
+
+			// Invalidate any results corresponding to SceneCapture Channels that got updated, or
+			// Invalidate all results if the any baking parameters were changed
+			InvalidateResults(bInvalidateAll ? FRenderCaptureTypeFlags::All(true) : UpdatedChannels);
+
+			// Update the preview mesh material with the (possibly invalidated) bake results
+			UpdateVisualization();
+
+			// Start another bake operation, this will bake the computed captures with invalidated/null texture results
+			InvalidateCompute();
+
+			// Cache computed parameters which are used to determine if results need re-baking
+			ComputedTargetUVLayer = InputMeshSettings->TargetUVLayer;
+			ComputedTextureSize = Settings->TextureSize;
+			ComputedSamplesPerPixel = Settings->SamplesPerPixel;
+			ComputedValidDepthThreshold = Settings->ValidSampleDepthThreshold;
+		}
 	}
 }
 
@@ -1225,44 +1286,44 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 }
 
 
-void UBakeRenderCaptureTool::InvalidateResults(FRenderCaptureUpdate Update)
+void UBakeRenderCaptureTool::InvalidateResults(FRenderCaptureTypeFlags Invalidate)
 {
 	// Note that the bake operation, Compute, updates ResultSettings when results are available via the
 	// Compute->OnResultUpdated delegate.
 
-	if (Update.bUpdatedBaseColor)
+	if (Invalidate.bBaseColor)
 	{
 		ResultSettings->BaseColorMap = nullptr;
 	}
-	if (Update.bUpdatedRoughness)
+	if (Invalidate.bRoughness)
 	{
 		ResultSettings->RoughnessMap = nullptr;
 	}
-	if (Update.bUpdatedMetallic)
+	if (Invalidate.bMetallic)
 	{
 		ResultSettings->MetallicMap = nullptr;
 	}
-	if (Update.bUpdatedSpecular)
+	if (Invalidate.bSpecular)
 	{
 		ResultSettings->SpecularMap = nullptr;
 	}
-	if (Update.bUpdatedEmissive)
+	if (Invalidate.bEmissive)
 	{
 		ResultSettings->EmissiveMap = nullptr;
 	}
-	if (Update.bUpdatedNormalMap)
+	if (Invalidate.bWorldNormal)
 	{
 		ResultSettings->NormalMap = nullptr;
 	}
-	if (Update.bUpdatedOpacity)
+	if (Invalidate.bOpacity)
 	{
 		ResultSettings->OpacityMap = nullptr;
 	}
-	if (Update.bUpdatedSubsurfaceColor)
+	if (Invalidate.bSubsurfaceColor)
 	{
 		ResultSettings->SubsurfaceColorMap = nullptr;
 	}
-	if (Update.bUpdatedPackedMRS)
+	if (Invalidate.bCombinedMRS)
 	{
 		ResultSettings->PackedMRSMap = nullptr;
 	}
