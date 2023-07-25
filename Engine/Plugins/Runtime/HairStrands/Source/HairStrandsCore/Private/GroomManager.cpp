@@ -460,7 +460,7 @@ static void RunInternalHairStrandsInterpolation(
 			if (Instance->GeometryType == EHairGeometryType::NoneGeometry)
 				continue;
 
- 			ComputeHairStrandsInterpolation(
+			ComputeHairStrandsInterpolation(
 				GraphBuilder, 
 				ShaderMap,
 				ViewUniqueID,
