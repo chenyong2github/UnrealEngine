@@ -2718,7 +2718,11 @@ namespace ObjectTools
 
 				for (UPackage* Package : World->GetOutermost()->GetExternalPackages())
 				{
-					ObjectsToDelete.AddUnique(Package);
+					// Don't include newly created packages
+					if (!Package->HasAnyPackageFlags(PKG_NewlyCreated))
+					{
+						ObjectsToDelete.AddUnique(Package);
+					}
 				}
 			}
 		}
