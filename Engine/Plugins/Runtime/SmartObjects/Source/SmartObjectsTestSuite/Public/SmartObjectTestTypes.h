@@ -8,7 +8,7 @@
 /**
  * Concrete definition class for testing purposes
  */
-UCLASS(HideDropdown)
+UCLASS(HideDropdown, NotBlueprintType)
 class SMARTOBJECTSTESTSUITE_API USmartObjectTestBehaviorDefinition : public USmartObjectBehaviorDefinition
 {
 	GENERATED_BODY()
@@ -17,7 +17,7 @@ class SMARTOBJECTSTESTSUITE_API USmartObjectTestBehaviorDefinition : public USma
 /**
  * Test-time SmartObjectSubsystem override, aimed at encapsulating test-time smart object instances and functionality
  */
-UCLASS(HideDropdown)
+UCLASS(HideDropdown, NotBlueprintType)
 class USmartObjectTestSubsystem : public USmartObjectSubsystem
 {
 	GENERATED_BODY()
@@ -36,7 +36,7 @@ protected:
 /**
  * Test-time ASmartObjectPersistentCollection override, aimed at encapsulating test-time smart object instances and functionality
  */
-UCLASS(HideDropdown)
+UCLASS(HideDropdown, NotBlueprintType)
 class ASmartObjectTestCollection : public ASmartObjectPersistentCollection
 {
 	GENERATED_BODY()
