@@ -384,6 +384,14 @@ void UBaseMeshProcessingTool::OnSelectedWeightMapChanged(bool bInvalidate)
 	{
 		NewWeightMap->InvertWeightMap();
 	}
+
+	// This will automatically reset the weightmap to None if the new value doesn't exist. This could easily occur during a preset load, for instance, and we 
+	// don't want to pollute the value with garbage from a preset value that doesn't apply to the active target.
+	if (!bFound)
+	{
+		WeightMapPropertySet->SetSelectedFromWeightMapIndex(-1);
+	}
+
 	ActiveWeightMap = NewWeightMap;
 
 	if (bInvalidate)

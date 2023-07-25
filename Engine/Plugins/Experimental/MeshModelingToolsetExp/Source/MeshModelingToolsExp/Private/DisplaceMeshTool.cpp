@@ -1467,12 +1467,22 @@ void UDisplaceMeshTool::UpdateActiveWeightMap()
 	{
 		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> NewWeightMap = MakeShared<FIndexedWeightMap, ESPMode::ThreadSafe>();
 		const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Target);
-		UE::WeightMaps::GetVertexWeightMap(MeshDescription, CommonProperties->WeightMap, *NewWeightMap, 1.0f);
+		bool bFound = UE::WeightMaps::GetVertexWeightMap(MeshDescription, CommonProperties->WeightMap, *NewWeightMap, 1.0f);
 		if (CommonProperties->bInvertWeightMap)
 		{
 			NewWeightMap->InvertWeightMap();
 		}
-		ActiveWeightMap = NewWeightMap;
+		// We'll check for invalid weightmaps here and reset to None if they aren't valid. This helps in cases where values are set externally,
+		// for example from preset loading, where the weightmap values incoming might not have any relation to the current target mesh.
+		if (bFound)
+		{
+			ActiveWeightMap = NewWeightMap;
+		}
+		else
+		{
+			CommonProperties->WeightMap = FName(CommonProperties->WeightMapsList[0]);
+			ActiveWeightMap = nullptr;
+		}
 	}
 }
 
