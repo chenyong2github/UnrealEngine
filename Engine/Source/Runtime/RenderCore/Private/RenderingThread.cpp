@@ -970,42 +970,23 @@ bool IsRenderingThreadHealthy()
 
 static FGraphEventRef BundledCompletionEvent;
 static FGraphEventRef BundledCompletionEventPrereq; // We fire this when we are done, which queues the actual fence
-static uint32 BundlingRecursionDepth = 0; // accessed only by GT
-
-DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.FenceRenderCommandBundled"),
-	STAT_FNullGraphTask_FenceRenderCommandBundled,
-	STATGROUP_TaskGraphTasks);
-
-void CheckRenderCommandFenceBundler()
-{
-	check(BundlingRecursionDepth > 0);
-	check(BundledCompletionEvent.GetReference());
-	check(!BundledCompletionEvent->IsComplete());
-	check(BundledCompletionEventPrereq.GetReference());
-	check(!BundledCompletionEventPrereq->IsComplete());
-}
 
 void StartRenderCommandFenceBundler()
 {
-	check(IsInGameThread());
-
 	if (!GIsThreadedRendering)
 	{
 		return;
 	}
 
-	++BundlingRecursionDepth;
-
-	if (BundlingRecursionDepth > 1)
-	{
-		CheckRenderCommandFenceBundler();
-		return;
-	}
-
+	check(IsInGameThread() && !BundledCompletionEvent.GetReference() && !BundledCompletionEventPrereq.GetReference()); // can't use this in a nested fashion
 	BundledCompletionEventPrereq = FGraphEvent::CreateGraphEvent();
 
 	FGraphEventArray Prereqs;
 	Prereqs.Add(BundledCompletionEventPrereq);
+
+	DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.FenceRenderCommandBundled"),
+	STAT_FNullGraphTask_FenceRenderCommandBundled,
+		STATGROUP_TaskGraphTasks);
 
 	BundledCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(
 		GET_STATID(STAT_FNullGraphTask_FenceRenderCommandBundled), ENamedThreads::GetRenderThread());
@@ -1013,52 +994,16 @@ void StartRenderCommandFenceBundler()
 	StartBatchedRelease();
 }
 
-void FlushRenderCommandFenceBundler()
-{
-	check(IsInGameThread());
-
-	if (BundledCompletionEvent.GetReference())
-	{
-		CheckRenderCommandFenceBundler();
-
-		// prepare the new bundle
-		FGraphEventRef LocalBundledCompletionEventPrereq = BundledCompletionEventPrereq;
-		BundledCompletionEventPrereq = FGraphEvent::CreateGraphEvent();
-
-		FGraphEventArray Prereqs;
-		Prereqs.Add(BundledCompletionEventPrereq);
-
-		BundledCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(
-			GET_STATID(STAT_FNullGraphTask_FenceRenderCommandBundled), ENamedThreads::GetRenderThread());
-
-		// release the old bundle
-		LocalBundledCompletionEventPrereq->DispatchSubsequents();
-	}
-}
-
 void StopRenderCommandFenceBundler()
 {
-	check(IsInGameThread());
-
-	if (!GIsThreadedRendering)
+	if (!GIsThreadedRendering || !BundledCompletionEvent.GetReference())
 	{
-		return;
-	}
-
-	CheckRenderCommandFenceBundler();
-
-	--BundlingRecursionDepth;
-
-	if (BundlingRecursionDepth > 0)
-	{
-		FlushRenderCommandFenceBundler();
 		return;
 	}
 
 	EndBatchedRelease();
-
+	checkf(IsInGameThread() && BundledCompletionEvent.GetReference() && !BundledCompletionEvent->IsComplete() && BundledCompletionEventPrereq.GetReference() && !BundledCompletionEventPrereq->IsComplete(), TEXT("IsInGameThread: %d, BundledCompletionEvent is completed: %d, BundledCompletionEventPrereq is completed: %d"), IsInGameThread(), BundledCompletionEvent->IsComplete(), BundledCompletionEventPrereq->IsComplete()); // can't use this in a nested fashion
 	BundledCompletionEventPrereq->DispatchSubsequents();
-
 	BundledCompletionEventPrereq = nullptr;
 	BundledCompletionEvent = nullptr;
 }
@@ -1347,7 +1292,7 @@ void FRenderCommandFence::Wait(bool bProcessGameThreadTasks) const
 {
 	if (!IsFenceComplete())
 	{
-		FlushRenderCommandFenceBundler();
+		StopRenderCommandFenceBundler();
 #if 0
 		// on most platforms this is a better solution because it doesn't spin
 		// windows needs to pump messages
