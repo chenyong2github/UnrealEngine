@@ -183,6 +183,10 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 		AssetRegistryModule.GetRegistry().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/NiagaraEditor"), TEXT("NiagaraParameterDefinitions")), ParameterDefinitionsAssetData);
 		for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
 		{
+			if (!ParameterDefinitionsAssetDatum.IsUAsset() || !ParameterDefinitionsAssetDatum.IsAssetLoaded())
+			{
+				continue;
+			}
 			UNiagaraParameterDefinitionsBase* ParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(ParameterDefinitionsAssetDatum.GetAsset());
 			if (ParameterDefinitions == nullptr)
 			{

@@ -4716,6 +4716,10 @@ TArray<const UNiagaraScriptVariable*> FNiagaraParameterDefinitionsUtilities::Fin
 	const TArray<TWeakObjectPtr<UNiagaraParameterDefinitions>>& CachedParameterDefinitionsAssets = NiagaraEditorModule.GetCachedParameterDefinitionsAssets();
 	for (const TWeakObjectPtr<UNiagaraParameterDefinitions>& CachedParameterDefinitionsAsset : CachedParameterDefinitionsAssets)
 	{
+		if (!CachedParameterDefinitionsAsset.IsValid())
+		{
+			continue;
+		}
 		for (const UNiagaraScriptVariable* ScriptVar : CachedParameterDefinitionsAsset->GetParametersConst())
 		{
 			if (ScriptVar->Variable.GetName() == ParameterName)

@@ -300,6 +300,7 @@ private:
 				{
 					if (AssetType* Asset = Cast<AssetType>(AssetDatum.GetAsset()))
 					{
+						Asset->ConditionalPostLoad();
 						CachedAssets.Add(MakeWeakObjectPtr(Asset));
 					}
 				}
