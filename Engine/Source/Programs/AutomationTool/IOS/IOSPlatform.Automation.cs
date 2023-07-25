@@ -1839,7 +1839,15 @@ public class IOSPlatform : ApplePlatform
 		string AppToDeploy;
 		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
-			AppToDeploy = FileReference.Combine(SC.StageDirectory, SC.StageExecutables[0] + ".app").FullName;
+			// modern uses a project-name for the content-only .app, but the StageExecutable is UnrealGame-IOS-Shipping or similar, so
+			// fix up the Unreal part
+			string AppBaseName = SC.StageExecutables[0];
+			if (!SC.IsCodeBasedProject)
+			{
+				TargetReceipt Target = SC.StageTargets[0].Receipt;
+				AppBaseName = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Target.Platform, Target.Configuration, Target.Architectures, UnrealTargetConfiguration.Development, null);
+			}
+			AppToDeploy = FileReference.Combine(SC.StageDirectory, AppBaseName + ".app").FullName;
 
 			// @todo: deal with iterative deploy - we have the uncombined .app in the Staged dir inin Binaries/IOS
 			if (Params.IterativeDeploy)

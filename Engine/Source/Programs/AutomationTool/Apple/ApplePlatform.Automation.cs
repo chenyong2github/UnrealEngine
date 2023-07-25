@@ -98,7 +98,9 @@ public abstract class ApplePlatform : Platform
 					$"UE_OVERRIDE_STAGE_DIR=\"{SC.StageDirectory}\"";
 				if (!Params.IsCodeBasedProject)
 				{
-					ExtraOptions += $" PRODUCT_NAME={Params.ShortProjectName}";
+					// instead of staging an UnrealGame.app, stage something with the project name, like say MyProjectClient-IOS-Shipping.app
+					string ProductName = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Target.Platform, Target.Configuration, Target.Architectures, UnrealTargetConfiguration.Development, null);
+					ExtraOptions += $" PRODUCT_NAME={ProductName}";
 				}
 
 				AppleExports.BuildWithStubXcodeProject(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, AppleExports.XcodeBuildMode.Stage, Logger, ExtraOptions);
@@ -141,6 +143,15 @@ public abstract class ApplePlatform : Platform
 
 	private DirectoryReference GetFinalAppPath(StageTarget Target, DeploymentContext SC)
 	{
+		// content only projects have to not use the executable, but make a path to a .app 
+		if (!SC.IsCodeBasedProject)
+		{
+			string AppBundleName = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Target.Receipt.Platform, Target.Receipt.Configuration, 
+				Target.Receipt.Architectures, UnrealTargetConfiguration.Development, ".app");
+
+			return DirectoryReference.Combine(SC.ProjectRoot, "Binaries", Target.Receipt.Platform.ToString(), AppBundleName);
+		}
+
 		DirectoryReference AppDir;
 		// get the executable from the receipt
 		FileReference Executable = Target.Receipt.BuildProducts.First(x => x.Type == BuildProductType.Executable).Path;

@@ -333,6 +333,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public FileReference? UProjectFileLocation = null;
 		public DirectoryReference XcodeProjectFileLocation;
 		public DirectoryReference ProductDirectory;
+		public DirectoryReference? ConfigDirectory = null;
 
 		// settings read from project configs
 		public IOSProjectSettings? IOSProjectSettings;
@@ -450,21 +451,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			InitializeUProjectFileLocation(ProjectFile);
 
-			// setup BundleIdentifier from ini file (if there's a specified plist file with one, that will override this)
-			if (String.IsNullOrEmpty(BundleIdentifier))
-			{
-				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
-				Ini.GetString($"/Script/MacTargetPlatform.XcodeProjectSettings", "BundleIdentifier", out BundleIdentifier);
-			}
-			if (String.IsNullOrEmpty(BundleIdentifier))
-			{
-				BundleIdentifier = "$(UE_SIGNING_PREFIX).$(UE_PRODUCT_NAME_STRIPPED)";
-			}
-
 			// make sure ProjectDir is something good
 			if (UProjectFileLocation != null)
 			{
 				ProductDirectory = UProjectFileLocation.Directory;
+				ConfigDirectory = ProductDirectory;
 			}
 			else if (ProjectFile.ProjectTargets[0].TargetRules!.Type == TargetType.Program)
 			{
@@ -481,8 +472,20 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					if (DirectoryReference.Exists(ProgramFinder))
 					{
 						ProductDirectory = ProgramFinder;
+						ConfigDirectory = ProductDirectory;
 					}
 				}
+			}
+
+			// setup BundleIdentifier from ini file (if there's a specified plist file with one, that will override this)
+			if (String.IsNullOrEmpty(BundleIdentifier))
+			{
+				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, UnrealTargetPlatform.Mac);
+				Ini.GetString($"/Script/MacTargetPlatform.XcodeProjectSettings", "BundleIdentifier", out BundleIdentifier);
+			}
+			if (String.IsNullOrEmpty(BundleIdentifier))
+			{
+				BundleIdentifier = "$(UE_SIGNING_PREFIX).$(UE_PRODUCT_NAME_STRIPPED)";
 			}
 
 			InitializeMetadata(Logger);
@@ -526,7 +529,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 
 			// read setings from the configs, now that we have a project
-			ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
+			ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, UnrealTargetPlatform.Mac);
 			SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bUseAutomaticSigning);
 
 			Metadata = new Metadata(ProductDirectory, XcodeProjectFileLocation, SharedPlatformIni, bSupportsMac, bSupportsIOS || bSupportsTVOS, Logger);
@@ -1604,11 +1607,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			// get ini file for the platform
-			ConfigHierarchy PlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UnrealData.UProjectFileLocation?.Directory, Platform);
+			ConfigHierarchy PlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UnrealData.ConfigDirectory, Platform);
 
 			// settings for all platforms
 			bool bAutomaticSigning;
 			bool bMacSignToRunLocally;
+			bool bUseEntitlementsForPrograms;
 			string? SigningTeam;
 			string? SigningPrefix;
 			string? AppCategory;
@@ -1625,6 +1629,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// get signing settings
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bAutomaticSigning);
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseEntitlementsForPrograms", out bUseEntitlementsForPrograms);
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bMacSignToRunLocally", out bMacSignToRunLocally);
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "CodeSigningTeam", out SigningTeam);
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "CodeSigningPrefix", out SigningPrefix);
@@ -1836,7 +1841,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				string ProductName = ExecutableName;
 				string ExecutableKey = $"UE_{Platform.ToString().ToUpper()}_EXECUTABLE_NAME";
 
-				MetadataItem EntitlementsMetadata = UnrealData.Metadata!.EntitlementsFiles[MetadataPlatform];
+				MetadataItem? EntitlementsMetadata = UnrealData.Metadata!.EntitlementsFiles[MetadataPlatform];
 
 				// if we have shipping specified, use it instead
 				if (Config.BuildConfig == UnrealTargetConfiguration.Shipping)
@@ -1848,6 +1853,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					}
 				}
 
+				// programs almost never want entitlements, so handle them specially
+				if (UnrealData.TargetRules.Type == TargetType.Program && !bUseEntitlementsForPrograms)
+				{
+					EntitlementsMetadata = null;
+				}
+
 				ConfigXcconfig.AppendLine("// pull in the shared settings for all configs for this target");
 				ConfigXcconfig.AppendLine($"#include \"{Xcconfig.Name}.xcconfig\"");
 				ConfigXcconfig.AppendLine("");
@@ -1856,7 +1867,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				ConfigXcconfig.AppendLine($"UE_UBT_BINARY_SUBPATH = {ExetuableSubPath}");
 				ConfigXcconfig.AppendLine($"{ExecutableKey} = {ExecutableName}");
 				ConfigXcconfig.AppendLine($"PRODUCT_NAME = {ProductName}");
-				if (EntitlementsMetadata.Mode == MetadataMode.UsePremade)
+				if (EntitlementsMetadata != null && EntitlementsMetadata.Mode == MetadataMode.UsePremade)
 				{
 					ConfigXcconfig.AppendLine($"CODE_SIGN_ENTITLEMENTS = {EntitlementsMetadata.XcodeProjectRelative}");
 				}
