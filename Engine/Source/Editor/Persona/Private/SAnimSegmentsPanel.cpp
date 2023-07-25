@@ -36,13 +36,14 @@ void SAnimSegmentsPanel::Construct(const FArguments& InArgs)
 	ViewInputMin = InArgs._ViewInputMin;
 	ViewInputMax = InArgs._ViewInputMax;
 
-	OnAnimSegmentNodeClickedDelegate	= InArgs._OnAnimSegmentNodeClicked;
-	OnPreAnimUpdateDelegate				= InArgs._OnPreAnimUpdate;
-	OnPostAnimUpdateDelegate			= InArgs._OnPostAnimUpdate;
-	OnAnimSegmentRemovedDelegate		= InArgs._OnAnimSegmentRemoved;
-	OnAnimReplaceMapping				= InArgs._OnAnimReplaceMapping;
-	OnDiffFromParentAsset				= InArgs._OnDiffFromParentAsset;
-	OnGetNodeColor						= InArgs._OnGetNodeColor;
+	OnAnimSegmentNodeClickedDelegate		= InArgs._OnAnimSegmentNodeClicked;
+	OnAnimSegmentNodeDoubleClickedDelegate	= InArgs._OnAnimSegmentNodeDoubleClicked;
+	OnPreAnimUpdateDelegate					= InArgs._OnPreAnimUpdate;
+	OnPostAnimUpdateDelegate				= InArgs._OnPostAnimUpdate;
+	OnAnimSegmentRemovedDelegate			= InArgs._OnAnimSegmentRemoved;
+	OnAnimReplaceMapping					= InArgs._OnAnimReplaceMapping;
+	OnDiffFromParentAsset					= InArgs._OnDiffFromParentAsset;
+	OnGetNodeColor							= InArgs._OnGetNodeColor;
 
 	bChildAnimMontage = InArgs._bChildAnimMontage;
 
@@ -147,6 +148,7 @@ void SAnimSegmentsPanel::Construct(const FArguments& InArgs)
 				.OnTrackNodeDropped(this, &SAnimSegmentsPanel::OnSegmentDropped, SegmentIdx)
 				.OnNodeRightClickContextMenu(this, &SAnimSegmentsPanel::SummonSegmentNodeContextMenu, SegmentIdx)
 				.OnTrackNodeClicked(this, &SAnimSegmentsPanel::OnAnimSegmentNodeClicked, SegmentIdx)
+				.OnTrackNodeDoubleClicked(this, &SAnimSegmentsPanel::OnAnimSegmentNodeDoubleClicked, SegmentIdx)
 				.NodeSelectionSet(InArgs._NodeSelectionSet)
 			);
 		}
@@ -511,6 +513,18 @@ void SAnimSegmentsPanel::OnTrackDragDrop( TSharedPtr<FDragDropOperation> DragDro
 void SAnimSegmentsPanel::OnAnimSegmentNodeClicked(int32 SegmentIdx)
 {
 	OnAnimSegmentNodeClickedDelegate.ExecuteIfBound(SegmentIdx);
+}
+
+void SAnimSegmentsPanel::OnAnimSegmentNodeDoubleClicked(int32 SegmentIdx)
+{
+	if (OnAnimSegmentNodeDoubleClickedDelegate.IsBound())
+	{
+		OnAnimSegmentNodeDoubleClickedDelegate.ExecuteIfBound(SegmentIdx);
+	}
+	else
+	{
+		OpenAsset(SegmentIdx);
+	}
 }
 
 void SAnimSegmentsPanel::RemoveSelectedAnimSegments()

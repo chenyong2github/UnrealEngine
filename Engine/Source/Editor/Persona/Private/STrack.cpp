@@ -112,6 +112,7 @@ void STrackNode::Construct(const FArguments& InArgs)
 	OnTrackNodeDropped = InArgs._OnTrackNodeDropped;
 	OnNodeRightClickContextMenu = InArgs._OnNodeRightClickContextMenu;
 	OnTrackNodeClicked = InArgs._OnTrackNodeClicked;
+	OnTrackNodeDoubleClicked = InArgs._OnTrackNodeDoubleClicked;
 	bCenterOnPosition = InArgs._CenterOnPosition;
 	
 	NodeSelectionSet = InArgs._NodeSelectionSet;
@@ -222,6 +223,18 @@ FReply STrackNode::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerE
 	{
 		Select();
 		OnTrackNodeClicked.ExecuteIfBound();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply STrackNode::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		OnTrackNodeDoubleClicked.ExecuteIfBound();
+
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
