@@ -29,7 +29,7 @@ namespace UnrealBuildTool.Rules
 					"MsQuicRuntime"
 				}
 			);
-			
+
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"MessagingCommon",
@@ -39,11 +39,9 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"QuicMessaging/Private",
 					"QuicMessaging/Private/Transport",
 					"QuicMessaging/Private/Serialization",
 					"QuicMessaging/Public/Shared",
-					"QuicMessaging/Public",
 				}
 			);
 
@@ -52,7 +50,8 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (Target.Type == TargetType.Editor) {
+			if (Target.Type == TargetType.Editor)
+			{
 
 				DynamicallyLoadedModuleNames.AddRange(
 					new string[] {

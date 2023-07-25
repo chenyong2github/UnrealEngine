@@ -11,7 +11,6 @@ public class LiveLinkXR : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
-				"LiveLinkXR/Private",
 				"LiveLinkXROpenXRExt/Private",
 			}
 		);
