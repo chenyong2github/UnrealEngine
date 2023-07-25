@@ -14,7 +14,7 @@ void UMassEntitySpawnDataGeneratorBase::BuildResultsFromEntityTypes(const int32 
 
 	if (TotalProportion <= 0)
 	{
-		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined porportion of all the entity types needs to be greater than 0.0f."));
+		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined proportion of all the entity types needs to be greater than 0."));
 		return;
 	}
 

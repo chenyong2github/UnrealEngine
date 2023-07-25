@@ -300,7 +300,7 @@ void AMassSpawner::DoSpawning()
 
 	if (TotalProportion <= 0.0f)
 	{
-		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined porportion of all the generator needs to be greater than 0.0f."));
+		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined proportion of all the generator needs to be greater than 0."));
 		return;
 	}
 	
