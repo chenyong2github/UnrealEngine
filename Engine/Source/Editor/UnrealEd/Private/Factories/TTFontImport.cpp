@@ -2227,7 +2227,7 @@ bool UTrueTypeFontFactory::ImportTrueTypeFont(
 		uint16 j = MinRangeCharacter;
 		uint16 Min = std::numeric_limits<uint16>::max();
 		uint16 Max = 0;
-		for( uint16 i = MinRangeCharacter; i <= std::numeric_limits<uint16>::max(); ++i )
+		for( uint16 i = MinRangeCharacter; i < std::numeric_limits<uint16>::max(); ++i )
 		{
 			if( Chars[i] )
 			{

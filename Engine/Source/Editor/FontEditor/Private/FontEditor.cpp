@@ -491,6 +491,7 @@ void FFontEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChanged
 
 			// If we changed the font cache type, then we need to update the UI to hide the invalid tabs and spawn the new ones
 			UpdateLayout();
+			FontProperties->ForceRefresh();
 		}
 		else
 		{
