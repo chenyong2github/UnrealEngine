@@ -271,7 +271,7 @@ namespace GLTF
 				default:
 					if (!ensure(false))
 					{
-						Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("Material.Extension not supported: %s"), *ToString(Extension)));
+						Messages.Emplace(RuntimeWarningSeverity(), FString::Printf(TEXT("Material.Extension not supported: %s"), *ToString(Extension)));
 					}
 					break;
 			}
@@ -352,7 +352,7 @@ namespace GLTF
 				default:
 					if (!ensure(false))
 					{
-						Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("Primitive.Extension not supported: %s"), *ToString(Extension)));
+						Messages.Emplace(RuntimeWarningSeverity(), FString::Printf(TEXT("Primitive.Extension not supported: %s"), *ToString(Extension)));
 					}
 					break;
 			}
@@ -433,7 +433,7 @@ namespace GLTF
 		{
 			if (ExtensionsSupported.Find(StrValuePair.Get<0>()) == INDEX_NONE)
 			{
-				Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("Extension is not supported: %s"), *StrValuePair.Get<0>()));
+				Messages.Emplace(RuntimeWarningSeverity(), FString::Printf(TEXT("Extension is not supported: %s"), *StrValuePair.Get<0>()));
 			}
 		}
 	}
@@ -466,7 +466,7 @@ namespace GLTF
 		else if (Type == TEXT("directional"))
 			Light.Type = FLight::EType::Directional;
 		else
-			Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("Light has no type specified: %s"), *Light.Name));
+			Messages.Emplace(RuntimeWarningSeverity(), FString::Printf(TEXT("Light has no type specified: %s"), *Light.Name));
 	}
 
 }  // namespace GLTF

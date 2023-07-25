@@ -149,3 +149,19 @@ public:
 
 	virtual FText GetText() const override { return NSLOCTEXT("InterchangeResultNS", "UInterchangeResultError_ReimportFail_GetText", "Re-import Fail, see log for more detail."); }
 };
+
+/**
+* Used for Successful imports with messages with lower than Warning priorities (for ep Display)
+*/
+UCLASS(MinimalAPI)
+class UInterchangeResultDisplay_Generic : public UInterchangeResultSuccess
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual FText GetText() const override { return Text; }
+
+	UPROPERTY()
+	FText Text;
+};

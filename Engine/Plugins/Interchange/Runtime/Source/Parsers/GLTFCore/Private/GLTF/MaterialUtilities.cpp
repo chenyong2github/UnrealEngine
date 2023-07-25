@@ -45,7 +45,7 @@ namespace GLTF
 						const FString ExtensionName = SupportedTextureInfoExtensionsStringified[Index];
 						if (!ExtensionsObj.HasTypedField<EJson::Object>(ExtensionName))
 						{
-							OutMessages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("Extension is not supported: %s"), *ExtensionName));
+							OutMessages.Emplace(RuntimeWarningSeverity(), FString::Printf(TEXT("Extension is not supported: %s"), *ExtensionName));
 							continue;
 						}
 

@@ -719,13 +719,20 @@ bool UInterchangeGLTFTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			}
 			break;
 		case GLTF::EMessageSeverity::Warning:
-		default:
 			{
 				UInterchangeResultWarning_Generic* WarningResult = AddMessage< UInterchangeResultWarning_Generic >();
 				WarningResult->Text = FText::FromString(LogMessage.Get<1>());
 				Result = WarningResult;
 			}
-
+			break;
+		case GLTF::EMessageSeverity::Display:
+			{
+				UInterchangeResultDisplay_Generic* DisplayResult = AddMessage< UInterchangeResultDisplay_Generic >();
+				DisplayResult->Text = FText::FromString(LogMessage.Get<1>());
+				Result = DisplayResult;
+			}
+			break;
+		default:
 			break;
 		}
 
