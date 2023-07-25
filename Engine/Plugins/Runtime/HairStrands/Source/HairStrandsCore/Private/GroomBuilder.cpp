@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r41f");
+	return TEXT("v8r43");
 }
 
 namespace FHairStrandsDecimation
@@ -3073,8 +3073,9 @@ static void BuildClusterData(
 		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
 			const float Lambda = InSettings.LODs[LODIt].CurveDecimation;
-			Out.LODInfos[LODIt].RadiusScale  = (1.f - FMath::Pow(1.f - r, 1.f / Lambda)) / r;
-			Out.LODInfos[LODIt].RadiusScale *= InSettings.LODs[LODIt].ThicknessScale;
+			// For now, for legacy reason, do not use Stochastic simplification, but rather use manual thickness compensation if provided (default=1.f)
+			//Out.LODInfos[LODIt].RadiusScale = (1.f - FMath::Pow(1.f - r, 1.f / Lambda)) / r;
+			Out.LODInfos[LODIt].RadiusScale = InSettings.LODs[LODIt].ThicknessScale;
 		}
 	}
 
