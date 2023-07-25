@@ -153,7 +153,7 @@ void AMoviePipelineFunctionalTestBase::CompareRenderOutputToGroundTruth(FMoviePi
 	check(OutputSetting);
 
 	// Build screenshot data for this test. This contains a lot of metadata about RHI, Platform, etc that we'll use to generate the output folder name.
-	FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(GetWorld()->GetName(), TestLabel, OutputSetting->OutputResolution.X, OutputSetting->OutputResolution.Y);
+	FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(GetWorld(), TestLabel, OutputSetting->OutputResolution.X, OutputSetting->OutputResolution.Y);
 
 	// Convert the Screenshot Data into Metadata
 	FAutomationScreenshotMetadata MetaData(Data);

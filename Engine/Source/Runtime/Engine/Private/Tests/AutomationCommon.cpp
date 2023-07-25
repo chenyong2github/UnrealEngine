@@ -367,6 +367,20 @@ namespace AutomationCommon
 
 		return nullptr;
 	}
+	
+	FString GetWorldContext(UWorld* InWorld)
+	{
+		FString Result = InWorld->GetName();
+
+		// Rely on the package loading path to avoid FName case inconsistencies with individual level names.
+		if (UPackage* Package = InWorld->GetPackage())
+		{
+			Result = FPaths::GetBaseFilename(Package->GetLoadedPath().GetPackageName());
+			checkf(FCString::Stricmp(*InWorld->GetName(), *Result) == 0, TEXT("Unexpected inconsistency between world and package path: expected \"%s\" got \"%s\""), *InWorld->GetName(), *Result);
+		}
+
+		return Result;
+	}
 }
 
 #if WITH_AUTOMATION_TESTS

@@ -447,7 +447,7 @@ public:
 
 		if (World.IsValid())
 		{
-			FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(World->GetName(), ScreenShotName, InSizeX, InSizeY);
+			FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(World.Get(), ScreenShotName, InSizeX, InSizeY);
 
 			// Copy the relevant data into the metadata for the screenshot.
 			Data.bHasComparisonRules = true;
@@ -773,6 +773,11 @@ FAutomationScreenshotData UAutomationBlueprintFunctionLibrary::BuildScreenshotDa
 #else
 	return FAutomationScreenshotData();
 #endif
+}
+
+FAutomationScreenshotData UAutomationBlueprintFunctionLibrary::BuildScreenshotData(UWorld* InWorld, const FString& ScreenShotName, int32 Width, int32 Height)
+{
+	return BuildScreenshotData(AutomationCommon::GetWorldContext(InWorld), ScreenShotName, Width, Height);
 }
 
 bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& ScreenShotName, const FString& Notes, FAutomationScreenshotOptions Options)

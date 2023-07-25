@@ -149,9 +149,11 @@ void AScreenshotFunctionalTestBase::OnScreenShotCaptured(int32 InSizeX, int32 In
 	GameViewportClient->OnScreenshotCaptured().RemoveAll(this);
 
 #if WITH_AUTOMATION_TESTS
-	TArray<uint8> CapturedFrameTrace = AutomationCommon::CaptureFrameTrace(GetWorld()->GetName(), TestLabel);
+	const FString Context = AutomationCommon::GetWorldContext(GetWorld());
 
-	FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(GetWorld()->GetName(), TestLabel, InSizeX, InSizeY);
+	TArray<uint8> CapturedFrameTrace = AutomationCommon::CaptureFrameTrace(Context, TestLabel);
+
+	FAutomationScreenshotData Data = UAutomationBlueprintFunctionLibrary::BuildScreenshotData(Context, TestLabel, InSizeX, InSizeY);
 
 	// Copy the relevant data into the metadata for the screenshot.
 	Data.bHasComparisonRules = true;

@@ -80,6 +80,7 @@ public:
 	static bool TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& ScreenShotName, const FString& Notes, FAutomationScreenshotOptions Options);
 
 	static FAutomationScreenshotData BuildScreenshotData(const FString& MapOrContext, const FString& ScreenShotName, int32 Width, int32 Height);
+	static FAutomationScreenshotData BuildScreenshotData(UWorld* InWorld, const FString& ScreenShotName, int32 Width, int32 Height);
 
 	static FIntPoint GetAutomationScreenshotSize(const FAutomationScreenshotOptions& Options);
 

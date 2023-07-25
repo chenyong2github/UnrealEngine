@@ -65,6 +65,9 @@ namespace AutomationCommon
 
 #endif
 	ENGINE_API UGameViewportClient* GetAnyGameViewportClient();
+
+	/* Get the adjusted World name to use for screenshot paths */
+	ENGINE_API FString GetWorldContext(UWorld* InWorld);
 }
 
 #if WITH_AUTOMATION_TESTS
