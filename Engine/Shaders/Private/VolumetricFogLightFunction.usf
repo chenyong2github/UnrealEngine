@@ -53,7 +53,7 @@ void Main(
 	float4 Hom = mul(float4(TranslatedWorldPosition.xyz, 1), LightFunctionTranslatedWorldToLight);
 	LightVector = Hom.xyz / Hom.w;
 
-#else //LIGHT_TYPE == 2	// Directional and Rect light
+#elif LIGHT_TYPE == 2		// Rect light
 
 	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize - float2(0.5f, 0.5f)) * float2(2, 2);
 	ScreenPosition.xy = frac(ScreenPosition.xy);
@@ -68,6 +68,18 @@ void Main(
 	LightVector = Hom.xyz / Hom.w;
 
 	LightVector.xyz = LightVector.zyx;	// Swap to match UV convention
+
+#else //LIGHT_TYPE == 3		// Directional light
+
+	// Directional light
+	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize - float2(0.5f, 0.5f)) * float2(2, -2);
+
+	// make SvPosition appear to be rasterized with the depth from the depth buffer
+	TranslatedWorldPosition = mul(float4(ScreenPosition, Depth, 1), ShadowToTranslatedWorld);
+	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
+
+	float4 Hom = mul(float4(TranslatedWorldPosition.xyz, 1), LightFunctionTranslatedWorldToLight);
+	LightVector = Hom.xyz / Hom.w;
 
 #endif
 	

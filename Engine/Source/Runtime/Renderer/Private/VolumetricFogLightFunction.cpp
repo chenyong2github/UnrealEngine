@@ -54,7 +54,7 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 {
 	DECLARE_SHADER_TYPE(FVolumetricFogLightFunctionPS, Material);
 
-	class FLightType : SHADER_PERMUTATION_INT("LIGHT_TYPE", 3);
+	class FLightType : SHADER_PERMUTATION_INT("LIGHT_TYPE", 4);
 	using FPermutationDomain = TShaderPermutationDomain< FLightType >;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -315,7 +315,7 @@ void FSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 					check(DirectionalLightSceneInfo->Proxy->GetLightType() == LightType_Directional)
 					FVolumetricFogLightFunctionPS::FPermutationDomain PermutationVector;
-					PermutationVector.Set<FVolumetricFogLightFunctionPS::FLightType>(2);
+					PermutationVector.Set<FVolumetricFogLightFunctionPS::FLightType>(3);
 					TShaderRef<FVolumetricFogLightFunctionPS> PixelShader = MaterialShaderMap->GetShader<FVolumetricFogLightFunctionPS>(PermutationVector);
 
 					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
