@@ -1279,11 +1279,9 @@ int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSh
 		ensure(GameplayTag.GetTagName() == FullTag);
 
 		{
-#if WITH_EDITOR
-			// This critical section is to handle an editor-only issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
+			// This critical section is to handle an issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
 			// This function is not generically threadsafe.
 			FScopeLock Lock(&GameplayTagMapCritical);
-#endif
 			GameplayTagNodeMap.Add(GameplayTag, TagNode);
 		}
 	}
@@ -1949,11 +1947,9 @@ FGameplayTag UGameplayTagsManager::RequestGameplayTag(FName TagName, bool ErrorI
 {
 	SCOPE_CYCLE_COUNTER(STAT_UGameplayTagsManager_RequestGameplayTag);
 
-#if WITH_EDITOR
-	// This critical section is to handle and editor-only issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
+	// This critical section is to handle an issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
 	// This function is not generically threadsafe.
 	FScopeLock Lock(&GameplayTagMapCritical);
-#endif
 
 	FGameplayTag PossibleTag(TagName);
 
@@ -2045,11 +2041,9 @@ bool UGameplayTagsManager::IsValidGameplayTagString(const FString& TagString, FT
 
 FGameplayTag UGameplayTagsManager::FindGameplayTagFromPartialString_Slow(FString PartialString) const
 {
-#if WITH_EDITOR
-	// This critical section is to handle and editor-only issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
+	// This critical section is to handle an issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
 	// This function is not generically threadsafe.
 	FScopeLock Lock(&GameplayTagMapCritical);
-#endif
 
 	// Exact match first
 	FGameplayTag PossibleTag(*PartialString);

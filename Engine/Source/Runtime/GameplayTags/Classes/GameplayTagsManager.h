@@ -604,7 +604,7 @@ public:
 
 	const TArray<TSharedPtr<FGameplayTagNode>>& GetNetworkGameplayTagNodeIndex() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndex; }
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGameplayTagLoaded, const FGameplayTag& /*Tag*/)
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnGameplayTagLoaded, const FGameplayTag& /*Tag*/)
 	FOnGameplayTagLoaded OnGameplayTagLoadedDelegate;
 
 	/** Numbers of bits to use for replicating container size. This can be set via config. */
@@ -863,11 +863,11 @@ private:
 	/** String with outlawed characters inside tags */
 	FString InvalidTagCharacters;
 
-#if WITH_EDITOR
-	// This critical section is to handle an editor-only issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
+	// This critical section is to handle an issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
 	// This class is not generically threadsafe.
 	mutable FCriticalSection GameplayTagMapCritical;
 
+#if WITH_EDITOR
 	// Transient editor-only tags to support quick-iteration PIE workflows
 	TSet<FName> TransientEditorTags;
 
