@@ -113,6 +113,9 @@ public:
 	/** Pin from which data is passed through when this node is disabled. */
 	virtual const UPCGPin* GetPassThroughInputPin() const;
 
+	/** Pin to which data is passed through when this node is disabled. */
+	virtual const UPCGPin* GetPassThroughOutputPin() const;
+
 	/** True if the pin is being used by the node. UI will gray out unused pins. */
 	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const;
 

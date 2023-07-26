@@ -254,17 +254,22 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 		return;
 	}
 
-	const UPCGPin* PassThroughPin = Context->Node->GetPassThroughInputPin();
-	if (PassThroughPin == nullptr)
+	const UPCGPin* PassThroughInputPin = Context->Node->GetPassThroughInputPin();
+	const UPCGPin* PassThroughOutputPin = Context->Node->GetPassThroughOutputPin();
+	if (!PassThroughInputPin || !PassThroughOutputPin)
 	{
-		// No pin to grab pass through data from
+		// No pin to grab pass through data from or to pass data to.
 		return;
 	}
 
-	// Grab data from pass-through pin
-	Context->OutputData.TaggedData = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
+	const EPCGDataType OutputType = PassThroughOutputPin->GetCurrentTypes();
 
-	const EPCGDataType OutputType = Context->Node->GetOutputPins()[0]->GetCurrentTypes();
+	// Grab data from pass-through pin, push it all to output pin
+	Context->OutputData.TaggedData = Context->InputData.GetInputsByPin(PassThroughInputPin->Properties.Label);
+	for (FPCGTaggedData& Data : Context->OutputData.TaggedData)
+	{
+		Data.Pin = PassThroughOutputPin->Properties.Label;
+	}
 
 	// Pass through input data if it is not params, and if the output type supports it (e.g. if we have a incoming
 	// surface connected to an input pin of type Any, do not pass the surface through to an output pin of type Point).
@@ -286,7 +291,7 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	if (Settings->OnlyPassThroughOneEdgeWhenDisabled())
 	{
 		// Find first incoming non-params data that is coming through the pass through pin
-		TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
+		TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughInputPin->Properties.Label);
 		const int FirstNonParamsDataIndex = InputsOnFirstPin.IndexOfByPredicate(InputDataShouldPassThrough);
 
 		if (FirstNonParamsDataIndex != INDEX_NONE)
@@ -309,7 +314,7 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	else
 	{
 		// Remove any incoming non-params data that is coming through the pass through pin
-		TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
+		TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughInputPin->Properties.Label);
 		for (int Index = InputsOnFirstPin.Num() - 1; Index >= 0; --Index)
 		{
 			const FPCGTaggedData& Data = InputsOnFirstPin[Index];

@@ -440,14 +440,13 @@ int32 UPCGNode::GetInboundEdgesNum() const
 
 const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 {
-	// No outputs means nothing will be passed through
-	if (GetOutputPins().Num() == 0)
+	const UPCGPin* PassThroughOutput = GetPassThroughOutputPin();
+	if (!PassThroughOutput)
 	{
 		return nullptr;
 	}
 
-	const EPCGDataType OutputType = GetOutputPins()[0]->GetCurrentTypes();
-
+	const EPCGDataType OutputType = PassThroughOutput->GetCurrentTypes();
 	// We assume a node whose primary output is params is a param processing node.
 	const bool bNodeOutputsParams = (OutputType == EPCGDataType::Param);
 
@@ -486,6 +485,12 @@ const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 
 		return nullptr;
 	}
+}
+
+const UPCGPin* UPCGNode::GetPassThroughOutputPin() const
+{
+	const int32 PrimaryOutputPinIndex = 0;
+	return GetOutputPins().Num() > PrimaryOutputPinIndex ? GetOutputPins()[PrimaryOutputPinIndex] : nullptr;
 }
 
 bool UPCGNode::IsPinUsedByNodeExecution(const UPCGPin* InPin) const
