@@ -63,6 +63,7 @@
 #include "MaterialDomain.h"
 #include "Dataflow/DataflowSNode.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "ChaosClothAsset/ClothEditorToolBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -134,8 +135,12 @@ void UChaosClothAssetEditorMode::AddToolTargetFactories()
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UClothComponentToolTargetFactory>(GetToolManager()));
 }
 
-
-void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, UEditorInteractiveToolsContext* const ToolsContext, EToolsContextScope ToolScope)
+void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, 
+	FString ToolIdentifier, 
+	UInteractiveToolBuilder* Builder, 
+	const UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder* ClothToolBuilder,
+	UEditorInteractiveToolsContext* const ToolsContext, 
+	EToolsContextScope ToolScope)
 {
 	if (!Toolkit.IsValid())
 	{
@@ -158,8 +163,18 @@ void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UI
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 
 	CommandList->MapAction(UICommand,
-		FExecuteAction::CreateWeakLambda(ToolsContext, [this, ToolsContext, ToolIdentifier]()
+		FExecuteAction::CreateWeakLambda(ToolsContext, [this, ToolsContext, ToolIdentifier, ClothToolBuilder]()
 		{
+			TArray<UE::Chaos::ClothAsset::EClothPatternVertexType> SupportedModes;
+			ClothToolBuilder->GetSupportedViewModes(SupportedModes);
+
+			if (SupportedModes.Num() > 0 && !SupportedModes.Contains(this->GetConstructionViewMode()))
+			{
+				// Need to switch view modes before starting the tool
+				SavedConstructionViewMode = this->GetConstructionViewMode();	// remember the current view mode so we can restore it later
+				this->SetConstructionViewMode(SupportedModes[0]);
+			}
+
 			ActiveToolsContext = ToolsContext;
 			ToolsContext->StartTool(ToolIdentifier);
 		}),
@@ -212,15 +227,16 @@ void UChaosClothAssetEditorMode::RegisterTools()
 
 	UEditorInteractiveToolsContext* const ConstructionViewportToolsContext = GetInteractiveToolsContext();
 
-	RegisterClothTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>(), ConstructionViewportToolsContext);
-
-	RegisterClothTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>(), ConstructionViewportToolsContext);
+	UClothEditorWeightMapPaintToolBuilder* WeightMapPaintToolBuilder = NewObject<UClothEditorWeightMapPaintToolBuilder>();
+	RegisterClothTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, WeightMapPaintToolBuilder, WeightMapPaintToolBuilder, ConstructionViewportToolsContext);
 	RegisterAddNodeCommand(CommandInfos.AddWeightMapNode, FChaosClothAssetAddWeightMapNode::StaticType(), CommandInfos.BeginWeightMapPaintTool);
 
-	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), ConstructionViewportToolsContext);
+	UClothTransferSkinWeightsToolBuilder* TransferToolBuilder = NewObject<UClothTransferSkinWeightsToolBuilder>();
+	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, TransferToolBuilder, TransferToolBuilder, ConstructionViewportToolsContext);
 	RegisterAddNodeCommand(CommandInfos.AddTransferSkinWeightsNode, FChaosClothAssetTransferSkinWeightsNode::StaticType(), CommandInfos.BeginTransferSkinWeightsTool);
 
-	RegisterClothTool(CommandInfos.BeginMeshSelectionTool, FChaosClothAssetEditorCommands::BeginMeshSelectionToolIdentifier, NewObject<UClothMeshSelectionToolBuilder>(), ConstructionViewportToolsContext);
+	UClothMeshSelectionToolBuilder* SelectionToolBuilder = NewObject<UClothMeshSelectionToolBuilder>();
+	RegisterClothTool(CommandInfos.BeginMeshSelectionTool, FChaosClothAssetEditorCommands::BeginMeshSelectionToolIdentifier, SelectionToolBuilder, SelectionToolBuilder, ConstructionViewportToolsContext);
 	RegisterAddNodeCommand(CommandInfos.AddMeshSelectionNode, FChaosClothAssetSelectionNode::StaticType(), CommandInfos.BeginMeshSelectionTool);
 }
 
@@ -260,6 +276,12 @@ void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager,
 void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
+
+	if (SavedConstructionViewMode)
+	{
+		SetConstructionViewMode(*SavedConstructionViewMode);
+		SavedConstructionViewMode.Reset();
+	}
 
 	bCanChangeConstructionViewMode = true;
 
@@ -754,6 +776,21 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 		bShouldClearTeleportFlag = true;		// clear the flag next tick
 	}
 
+
+	if (!NodeTypeForPendingToolStart.IsNone() && !GetToolManager()->HasActiveTool(EToolSide::Left))
+	{
+		const TSharedRef<FUICommandList> CommandList = Toolkit->GetToolkitCommands();
+		const UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands& CommandInfos = UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::Get();
+
+		if (const TSharedPtr<const FUICommandInfo>* const Command = NodeTypeToToolCommandMap.Find(NodeTypeForPendingToolStart))
+		{
+			CommandList->TryExecuteAction(Command->ToSharedRef());
+		}
+
+		NodeTypeForPendingToolStart = FName();
+	}
+
+
 	if (PreviewScene->GetWorld())
 	{
 		PreviewScene->GetWorld()->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
@@ -910,20 +947,12 @@ void UChaosClothAssetEditorMode::SetDataflowGraphEditor(TSharedPtr<SDataflowGrap
 
 void UChaosClothAssetEditorMode::StartToolForSelectedNode(const UObject* SelectedNode)
 {
-	// Start the tool associated with the selected node, if any
-
-	const TSharedRef<FUICommandList> CommandList = Toolkit->GetToolkitCommands();
-	const UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands& CommandInfos = UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::Get();
-
 	if (const UDataflowEdNode* const EdNode = Cast<UDataflowEdNode>(SelectedNode))
 	{
 		if (const TSharedPtr<const FDataflowNode> DataflowNode = EdNode->GetDataflowNode())
 		{
-			const FName DataflowNodeName = DataflowNode->GetType();
-			if (const TSharedPtr<const FUICommandInfo>* const Command = NodeTypeToToolCommandMap.Find(DataflowNodeName))
-			{
-				CommandList->TryExecuteAction(Command->ToSharedRef());
-			}
+			const FName DataflowNodeType = DataflowNode->GetType();
+			NodeTypeForPendingToolStart = DataflowNodeType;
 		}
 	}
 }

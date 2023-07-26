@@ -5,6 +5,7 @@
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "ModelingOperators.h"
 #include "Transforms/TransformGizmoDataBinder.h"
+#include "ChaosClothAsset/ClothEditorToolBuilder.h"
 #include "ClothTransferSkinWeightsTool.generated.h"
 
 
@@ -43,12 +44,13 @@ public:
 
 
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolBuilder : public USingleSelectionMeshEditingToolBuilder, public UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder
 {
 	GENERATED_BODY()
 
 private:
 
+	virtual void GetSupportedViewModes(TArray<UE::Chaos::ClothAsset::EClothPatternVertexType>& Modes) const override;
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;	
 
 };

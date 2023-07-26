@@ -35,6 +35,7 @@ class FChaosClothPreviewScene;
 class FChaosClothAssetEditorModeToolkit;
 class FChaosClothAssetEditorToolkit;
 class FChaosClothEditorRestSpaceViewportClient;
+class IChaosClothAssetEditorToolBuilder;
 }
 class UEdGraphNode;
 
@@ -117,7 +118,8 @@ private:
 	// Use this function to register tools rather than UEdMode::RegisterTool() because we need to specify the ToolsContext
 	void RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, 
 		FString ToolIdentifier, 
-		UInteractiveToolBuilder* Builder, 
+		UInteractiveToolBuilder* Builder,
+		const UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder* ClothToolBuilder,
 		UEditorInteractiveToolsContext* UseToolsContext, 
 		EToolsContextScope ToolScope = EToolsContextScope::Default);
 
@@ -214,6 +216,12 @@ private:
 
 	UE::Chaos::ClothAsset::EClothPatternVertexType ConstructionViewMode;
 	bool bCanChangeConstructionViewMode = true;
+
+	// The Construction view mode that was active before starting the current tool. When the tool ends, restore this view mode
+	TOptional<UE::Chaos::ClothAsset::EClothPatternVertexType> SavedConstructionViewMode;
+
+	// Dataflow node type whose corresponding tool should be started on the next Tick
+	FName NodeTypeForPendingToolStart;
 
 	bool bConstructionViewWireframe = false;
 

@@ -15,6 +15,7 @@
 #include "InteractiveToolObjects.h"
 #include "MeshOpPreviewHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "ChaosClothAsset/ClothPatternVertexType.h"
 
 #define LOCTEXT_NAMESPACE "ClothTransferSkinWeightsTool"
 
@@ -42,6 +43,11 @@ namespace UE::Chaos::ClothAsset::Private
 }
 
 // ------------------- Builder -------------------
+
+void UClothTransferSkinWeightsToolBuilder::GetSupportedViewModes(TArray<UE::Chaos::ClothAsset::EClothPatternVertexType>& Modes) const
+{
+	Modes.Add(UE::Chaos::ClothAsset::EClothPatternVertexType::Sim3D);
+}
 
 USingleSelectionMeshEditingTool* UClothTransferSkinWeightsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {

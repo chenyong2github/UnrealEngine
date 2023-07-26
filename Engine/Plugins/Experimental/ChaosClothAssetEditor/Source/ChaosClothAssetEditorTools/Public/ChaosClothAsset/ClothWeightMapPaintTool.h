@@ -22,7 +22,7 @@
 #include "TransformTypes.h"
 #include "ToolDataVisualizer.h"
 #include "GroupTopology.h"
-
+#include "ChaosClothAsset/ClothEditorToolBuilder.h"
 #include "ClothWeightMapPaintTool.generated.h"
 
 class UMeshElementsVisualizer;
@@ -54,11 +54,12 @@ DECLARE_CYCLE_STAT(TEXT("WeightMapPaintTool_Normals_Compute"), WeightMapPaintToo
  * Tool Builder
  */
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder, public UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder
 {
 	GENERATED_BODY()
 
-public:
+private:
+	virtual void GetSupportedViewModes(TArray<UE::Chaos::ClothAsset::EClothPatternVertexType>& Modes) const override;
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "ChaosClothAsset/ClothEditorToolBuilder.h"
 #include "ClothMeshSelectionTool.generated.h"
 
 class UPolygonSelectionMechanic;
@@ -16,12 +17,13 @@ namespace UE::Geometry
 }
 
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothMeshSelectionToolBuilder : public UInteractiveToolWithToolTargetsBuilder
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothMeshSelectionToolBuilder : public UInteractiveToolWithToolTargetsBuilder, public UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder
 {
 	GENERATED_BODY()
 
 private:
 
+	virtual void GetSupportedViewModes(TArray<UE::Chaos::ClothAsset::EClothPatternVertexType>& Modes) const override;
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;

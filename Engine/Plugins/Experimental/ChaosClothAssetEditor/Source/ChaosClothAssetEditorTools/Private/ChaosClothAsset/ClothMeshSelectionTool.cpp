@@ -26,6 +26,13 @@
 
 // ------------------- Builder -------------------
 
+void UClothMeshSelectionToolBuilder::GetSupportedViewModes(TArray<UE::Chaos::ClothAsset::EClothPatternVertexType>& Modes) const
+{
+	Modes.Add(UE::Chaos::ClothAsset::EClothPatternVertexType::Sim3D);
+	Modes.Add(UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D);
+	Modes.Add(UE::Chaos::ClothAsset::EClothPatternVertexType::Render);
+}
+
 const FToolTargetTypeRequirements& UClothMeshSelectionToolBuilder::GetTargetRequirements() const
 {
 	static FToolTargetTypeRequirements TypeRequirements(

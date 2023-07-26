@@ -1030,9 +1030,15 @@ void FChaosClothAssetEditorToolkit::OnNodeSingleClicked(UObject* ClickedNode) co
 	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
 	if (ClothMode)
 	{
-		// Start the corresponding tool
+		// Close any running tool
 		UEditorInteractiveToolsContext* const ToolsContext = ClothMode->GetInteractiveToolsContext();
 		checkf(ToolsContext, TEXT("No valid ToolsContext found for FChaosClothAssetEditorToolkit"));
+		if (ToolsContext->HasActiveTool())
+		{
+			ToolsContext->EndTool(EToolShutdownType::Completed);
+		}
+
+		// Start the corresponding tool
 		ClothMode->StartToolForSelectedNode(ClickedNode);
 	}
 }
