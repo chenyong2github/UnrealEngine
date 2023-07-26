@@ -23416,6 +23416,8 @@ void UMaterialExpressionStrataLegacyConversion::GatherStrataMaterialInfo(FStrata
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_VolumetricFogCloud))	{ StrataMaterialInfo.AddShadingModel(SSM_VolumetricFogCloud); }
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Hair))					{ StrataMaterialInfo.AddShadingModel(SSM_Hair); }
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Eye))					{ StrataMaterialInfo.AddShadingModel(SSM_Eye); }
+	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Cloth))					{ StrataMaterialInfo.AddShadingModel(SSM_Cloth); }
+	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_ClearCoat))				{ StrataMaterialInfo.AddShadingModel(SSM_ClearCoat); }
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))		{ StrataMaterialInfo.AddShadingModel(SSM_SingleLayerWater); }
 	if (SubsurfaceProfile)														{ StrataMaterialInfo.AddSubsurfaceProfile(SubsurfaceProfile); }
 	if (ConvertedStrataMaterialInfo.HasShadingModelFromExpression())			{ StrataMaterialInfo.SetShadingModelFromExpression(true); }
@@ -23426,13 +23428,13 @@ FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMateri
 	// Note Thickness has no meaning/usage in the context of StrataLegacyConversionNode
 	int32 ThicknessIndex = Compiler->StrataThicknessStackGetThicknessIndex();
 
-	auto AddDefaultWorstCase = [&](bool bSSS)
+	auto AddDefaultWorstCase = [&](bool bSSS, bool bFuzz)
 	{
 		FStrataOperator& SlabOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, Compiler->StrataTreeStackGetPathUniqueId(), this, Parent, Compiler->StrataTreeStackGetParentPathUniqueId());
 		SlabOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
-		SlabOperator.bBSDFHasSSS = true;
-		SlabOperator.bBSDFHasMFPPluggedIn = true;
-		SlabOperator.bBSDFHasFuzz = true;
+		SlabOperator.bBSDFHasSSS = bSSS;
+		SlabOperator.bBSDFHasMFPPluggedIn = bSSS;
+		SlabOperator.bBSDFHasFuzz = bFuzz;
 		SlabOperator.bBSDFHasAnisotropy = Anisotropy.IsConnected();
 		SlabOperator.ThicknessIndex = ThicknessIndex;
 
@@ -23442,7 +23444,7 @@ FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMateri
 	// Logic about shading models and complexity should match UMaterialExpressionStrataLegacyConversion::Compile.
 	if (ConvertedStrataMaterialInfo.CountShadingModels() > 1 || ConvertedStrataMaterialInfo.HasShadingModelFromExpression())
 	{
-		return AddDefaultWorstCase(true);
+		return AddDefaultWorstCase(true, true);
 	}
 	// else
 	{
@@ -23457,11 +23459,24 @@ FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMateri
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_DefaultLit))
 		{
-			return AddDefaultWorstCase(false);
+			return AddDefaultWorstCase(false, false);
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit))
 		{
-			return AddDefaultWorstCase(true);
+			return AddDefaultWorstCase(true, false);
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Cloth))
+		{
+			return AddDefaultWorstCase(false, true);
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_ClearCoat))
+		{
+			FStrataOperator& Operator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, Compiler->StrataTreeStackGetPathUniqueId(), this, Parent, Compiler->StrataTreeStackGetParentPathUniqueId());
+			Operator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+			Operator.ThicknessIndex = ThicknessIndex;
+			Operator.bBSDFHasSecondRoughnessOrSimpleClearCoat = true;
+			Operator.bBSDFHasAnisotropy = Anisotropy.IsConnected();
+			return &Operator;
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Hair))
 		{

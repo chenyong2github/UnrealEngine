@@ -701,6 +701,8 @@ enum EStrataShadingModel : int
 	SSM_VolumetricFogCloud		UMETA(DisplayName = "VolumetricFogCloud"),
 	SSM_Hair					UMETA(DisplayName = "Hair"),
 	SSM_Eye						UMETA(DisplayName = "Eye"),
+	SSM_Cloth					UMETA(DisplayName = "Cloth"),
+	SSM_ClearCoat				UMETA(DisplayName = "ClearCoat"),
 	SSM_SingleLayerWater		UMETA(DisplayName = "SingleLayerWater"),
 	SSM_LightFunction			UMETA(DisplayName = "LightFunction"),
 	SSM_PostProcess				UMETA(DisplayName = "PostProcess"),
