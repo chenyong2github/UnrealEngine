@@ -957,6 +957,8 @@ void FLowLevelMemTracker::TickInternal()
 	FLLMTracker& DefaultTracker = *Trackers[static_cast<int32>(ELLMTracker::Default)];
 	FLLMTracker& PlatformTracker = *Trackers[static_cast<int32>(ELLMTracker::Platform)];
 
+	const int64 TrackedTotal = DefaultTracker.GetTrackedTotal();
+
 	// Cache the amount of memory used early, since some of these functions (FindOrAddTagData) can
 	// cause allocations, which will throw the numbers off slightly.
 	FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
@@ -996,7 +998,6 @@ void FLowLevelMemTracker::TickInternal()
 	int64 UnusedRHIAmount = PlatformRHIAmount - DefaultRHIAmount;
 	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::RHIUnused), UnusedRHIAmount, true);
 
-	const int64 TrackedTotal = DefaultTracker.GetTrackedTotal();
 	// Compare memory the platform thinks we have allocated to what we have tracked, including the program memory
 	const int64 PlatformTrackedTotal = PlatformTracker.GetTrackedTotal();
 	MemoryUsagePlatformTotalUntracked = FMath::Max<int64>(0, PlatformProcessMemory - PlatformTrackedTotal);
