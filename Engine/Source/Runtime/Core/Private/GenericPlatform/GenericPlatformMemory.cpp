@@ -82,16 +82,6 @@ namespace UE::Memory::Private
 }
 #endif
 
-struct TUnalignedTester
-{
-	FGenericPlatformMemory::TUnaligned<uint8> A;
-	FGenericPlatformMemory::TUnaligned<uint16> B;
-	TUnalignedTester()
-	{
-		static_assert(STRUCT_OFFSET(TUnalignedTester, B) == 1, "TUnaligned failure.");
-	}
-};
-
 TRACE_DECLARE_MEMORY_COUNTER(PlatformMemoryTotalPhysical, TEXT("PlatformMemory/TotalPhysical"));
 TRACE_DECLARE_MEMORY_COUNTER(PlatformMemoryTotalVirtual, TEXT("PlatformMemory/TotalVirtual"));
 TRACE_DECLARE_MEMORY_COUNTER(PlatformMemoryPageSize, TEXT("PlatformMemory/PageSize"));
