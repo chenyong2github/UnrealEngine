@@ -139,7 +139,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetWindowInfo(JNIEn
 {
 	ClearCachedWindowRects();
 	GWindowOrientation = orientation;
-	bool bIsPortrait = GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_0 || GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_180;
+	bool bIsPortrait = GWindowOrientation == EAndroidConfigurationOrientation::ORIENTATION_PORTRAIT;
 	GAndroidIsPortrait = bIsPortrait == JNI_TRUE;
 	GAndroidDepthBufferPreference = DepthBufferPreference;
 	GAndroidPropagateAlpha = PropagateAlpha;
@@ -172,6 +172,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetSafezoneInfo(JNI
 	}
 
 	GAndroidSafezoneRequiresUpdate = true;
+	UE_LOG(LogAndroid, Log, TEXT("nativeSetSafezoneInfo bIsPortrait=%d, left=%f, top=%f, right=%f, bottom=%f"), bIsPortrait ? 1 : 0, left, top, right, bottom);
 }
 #endif
 
@@ -565,7 +566,7 @@ bool FAndroidWindow::OnWindowOrientationChanged(int Orientation)
 	if (GWindowOrientation != Orientation)
 	{
 		GWindowOrientation = Orientation;
-		bool bIsPortrait = GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_0 || GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_180;
+		bool bIsPortrait = GWindowOrientation == EAndroidConfigurationOrientation::ORIENTATION_PORTRAIT;
 		UE_LOG(LogAndroid, Log, TEXT("Window orientation changed: %s"), bIsPortrait ? TEXT("Portrait") : TEXT("Landscape"));
 		GAndroidIsPortrait = bIsPortrait;
 		return true;

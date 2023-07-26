@@ -594,9 +594,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		// onConfigurationChanged won't be called if orientation changes from landscape/portrait to reverse landscape/portrait
 		// use this function instead of caching DeviceRotation
-		int orientation = AndroidThunkJava_GetDeviceOrientation();
+		int rotation = AndroidThunkJava_GetDeviceRotation();
 
-		switch (orientation)
+		switch (rotation)
 		{
 			case Surface.ROTATION_0:	return 0;
 			case Surface.ROTATION_90:	return 90;
@@ -2940,8 +2940,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		nativeSetGlobalActivity(UseExternalFilesDir, PublicLogFiles, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, APKPath);
 
 		// tell the engine if this is a portrait app
-		int orientation = AndroidThunkJava_GetDeviceOrientation();
-		nativeSetWindowInfo(orientation, DepthBufferPreference, PropagateAlpha);
+		nativeSetWindowInfo(getResources().getConfiguration().orientation, DepthBufferPreference, PropagateAlpha);
 
 		// get the full language code, like en-US
 		// note: this may need to be Locale.getDefault().getLanguage()
@@ -3384,8 +3383,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// invalidate window cache
-		int orientation = AndroidThunkJava_GetDeviceOrientation();
-		nativeSetWindowInfo(orientation, DepthBufferPreference, PropagateAlpha);
+		nativeSetWindowInfo(getResources().getConfiguration().orientation, DepthBufferPreference, PropagateAlpha);
 
 		// only do this on KitKat and above
 		if (ShouldHideUI)
@@ -3880,8 +3878,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		super.onConfigurationChanged(newConfig);
 		//$${gameActivityonConfigurationChangedAdditions}$$
 		// forward the orientation
-		int orientation = AndroidThunkJava_GetDeviceOrientation();
-		nativeOnConfigurationChanged(orientation);
+		nativeOnConfigurationChanged(newConfig.orientation);
 	}
 
 	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
@@ -6786,9 +6783,14 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return "";
 	}
 
-	public int AndroidThunkJava_GetDeviceOrientation() 
+	public int AndroidThunkJava_GetDeviceRotation() 
 	{
 		return getWindowManager().getDefaultDisplay().getRotation();
+	}
+
+	public int AndroidThunkJava_GetConfigurationOrientation()
+	{
+		return getResources().getConfiguration().orientation;
 	}
 
 	@SuppressWarnings("deprecation")
