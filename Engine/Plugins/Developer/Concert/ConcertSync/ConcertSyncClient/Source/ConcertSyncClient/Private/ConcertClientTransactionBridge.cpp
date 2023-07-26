@@ -449,7 +449,16 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 			{
 				if (bIsSnapshot)
 				{
-					TransactionObject->PreEditChange(TransactionProp);
+					if (!GIsEditor)
+					{
+						// Only call the base implementation for -game nodes as we want to avoid FlushRenderingCommands()
+						// during interactive changes. 
+						Cast<UObject>(TransactionObject)->PreEditChange(TransactionProp);
+					}
+					else 
+					{
+						TransactionObject->PreEditChange(TransactionProp);
+					}
 				}
 
 				FEditPropertyChain PropertyChain;
