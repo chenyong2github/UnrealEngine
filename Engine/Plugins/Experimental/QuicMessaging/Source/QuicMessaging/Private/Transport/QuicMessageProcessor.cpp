@@ -10,7 +10,6 @@
 #include "Serialization/ArrayWriter.h"
 #include "Math/UnrealMathUtility.h"
 #include "UObject/Class.h"
-#include "Interfaces/IPluginManager.h"
 
 #include "Backends/CborStructSerializerBackend.h"
 #include "StructSerializer.h"
@@ -68,17 +67,8 @@ FQuicMessageProcessor::FQuicMessageProcessor()
         FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
     });
 
-	const ELoadingPhase::Type LoadingPhase = IPluginManager::Get().GetLastCompletedLoadingPhase();
-
-	if (LoadingPhase == ELoadingPhase::PostDefault || LoadingPhase == ELoadingPhase::PostEngineInit)
-	{
-		StartThread();
-	}
-	else
-	{
-		IPluginManager::Get().OnLoadingPhaseComplete().AddRaw(
-			this, &FQuicMessageProcessor::OnPluginLoadingPhaseComplete);
-	}
+    Thread = FRunnableThread::Create(this, *FString::Printf(TEXT("FQuicMessageProcessor-%d"), FMath::RandRange(0, 10)), 128 * 4096,
+        TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 
 	UE_LOG(LogQuicMessaging, Verbose, TEXT("[MessageProcessor] Started message processor."));
 }
@@ -86,33 +76,9 @@ FQuicMessageProcessor::FQuicMessageProcessor()
 
 FQuicMessageProcessor::~FQuicMessageProcessor()
 {
-	if (Thread.IsValid())
-	{
-		Thread->Kill();
-		Thread.Reset();
-	}
-}
-
-
-void FQuicMessageProcessor::StartThread()
-{
-	const uint32 ProcessorThreadStackSize = 128 * 4096;
-
-	Thread = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FQuicMessageProcessor"),
-		ProcessorThreadStackSize, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
-}
-
-
-void FQuicMessageProcessor::OnPluginLoadingPhaseComplete(
-	ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful)
-{
-	check(!Thread);
-
-	if (LoadingPhase == ELoadingPhase::PostDefault)
-	{
-		IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
-		StartThread();
-	}
+    Thread->Kill(true);
+    delete Thread;
+    Thread = nullptr;
 }
 
 
