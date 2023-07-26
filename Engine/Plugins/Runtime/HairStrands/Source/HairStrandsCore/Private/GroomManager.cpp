@@ -215,7 +215,14 @@ static int32 GetCacheGeometryLODIndex(const FCachedGeometry& In)
 	return MeshLODIndex;
 }
 
-static void RunInternalHairStrandsInterpolation(
+enum class EHairInterpolationPassType
+{
+	Strands,
+	CardsAndMeshes,
+	Guides
+};
+
+static void RunInternalHairInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FSceneInterface* Scene,
 	const FSceneView* View,
@@ -223,7 +230,7 @@ static void RunInternalHairStrandsInterpolation(
 	const FHairStrandsInstances& Instances,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap, 
-	EHairStrandsInterpolationType Type,
+	EHairInterpolationPassType PassType,
 	FHairStrandClusterData* ClusterData)
 {
 	check(IsInRenderingThread());
@@ -272,7 +279,7 @@ static void RunInternalHairStrandsInterpolation(
 			const bool bGlobalDeformationEnable = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(HairLODIndex);
 			check(InstanceBindingType == BindingType);
 
-			if (EHairStrandsInterpolationType::RenderStrands == Type)
+			if (EHairInterpolationPassType::Strands == PassType)
 			{
 				if (InstanceGeometryType == EHairGeometryType::Strands)
 				{
@@ -282,12 +289,12 @@ static void RunInternalHairStrandsInterpolation(
 						check(Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex));
 
 						AddHairStrandUpdateMeshTrianglesPass(
-							GraphBuilder, 
-							ShaderMap, 
-							MeshLODIndex, 
-							HairStrandsTriangleType::DeformedPose, 
-							MeshDataLOD, 
-							Instance->Strands.RestRootResource, 
+							GraphBuilder,
+							ShaderMap,
+							MeshLODIndex,
+							HairStrandsTriangleType::DeformedPose,
+							MeshDataLOD,
+							Instance->Strands.RestRootResource,
 							Instance->Strands.DeformedRootResource);
 
 						AddHairStrandUpdatePositionOffsetPass(
@@ -309,7 +316,10 @@ static void RunInternalHairStrandsInterpolation(
 							Instance->Strands.DeformedResource);
 					}
 				}
-				else if (InstanceGeometryType == EHairGeometryType::Cards)
+			}
+			else if (EHairInterpolationPassType::CardsAndMeshes == PassType)
+			{
+				if (InstanceGeometryType == EHairGeometryType::Cards)
 				{
 					if (Instance->Cards.IsValid(HairLODIndex))
 					{
@@ -353,7 +363,7 @@ static void RunInternalHairStrandsInterpolation(
 					// Nothing to do
 				}
 			}
-			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
+			else if (EHairInterpolationPassType::Guides == PassType)
 			{
 				// Guide update need to run only if simulation is enabled, or if RBF is enabled (since RFB are transfer through guides)
 				if (bGlobalDeformationEnable || bSimulationEnable || bDeformationEnable)
@@ -435,7 +445,7 @@ static void RunInternalHairStrandsInterpolation(
 	}
 
 	// Reset deformation
-	if (EHairStrandsInterpolationType::SimulationStrands == Type)
+	if (EHairInterpolationPassType::Guides == PassType)
 	{
 		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
@@ -449,7 +459,7 @@ static void RunInternalHairStrandsInterpolation(
 	}
 
 	// Hair interpolation
-	if (EHairStrandsInterpolationType::RenderStrands == Type)
+	if (EHairInterpolationPassType::Strands == PassType || EHairInterpolationPassType::CardsAndMeshes == PassType)
 	{
 		check(View);
 		const FVector& TranslatedWorldOffset = View->ViewMatrices.GetPreViewTranslation();
@@ -457,20 +467,23 @@ static void RunInternalHairStrandsInterpolation(
 		{
 			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-			if (Instance->GeometryType == EHairGeometryType::NoneGeometry)
-				continue;
-
-			ComputeHairStrandsInterpolation(
-				GraphBuilder, 
-				ShaderMap,
-				ViewUniqueID,
-				ViewRayTracingMask,
-				ViewMode,
-				TranslatedWorldOffset,
-				ShaderPrintData,
-				Instance,
-				Instance->Debug.MeshLODIndex,
-				ClusterData);
+			const bool bGeometryCompatibleWithPassType = 
+				(EHairInterpolationPassType::Strands == PassType && Instance->GeometryType == EHairGeometryType::Strands) ||
+				(EHairInterpolationPassType::CardsAndMeshes == PassType && (Instance->GeometryType == EHairGeometryType::Cards || Instance->GeometryType == EHairGeometryType::Meshes));
+			if (bGeometryCompatibleWithPassType)
+			{
+				ComputeHairStrandsInterpolation(
+					GraphBuilder, 
+					ShaderMap,
+					ViewUniqueID,
+					ViewRayTracingMask,
+					ViewMode,
+					TranslatedWorldOffset,
+					ShaderPrintData,
+					Instance,
+					Instance->Debug.MeshLODIndex,
+					ClusterData);
+			}
 		}
 	}
 }
@@ -490,7 +503,7 @@ static void RunHairStrandsInterpolation_Guide(
 	RDG_EVENT_SCOPE(GraphBuilder, "HairGuideInterpolation");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairGuideInterpolation);
 
-	RunInternalHairStrandsInterpolation(
+	RunInternalHairInterpolation(
 		GraphBuilder,
 		Scene,
 		View,
@@ -498,7 +511,7 @@ static void RunHairStrandsInterpolation_Guide(
 		Instances,
 		ShaderPrintData,
 		ShaderMap,
-		EHairStrandsInterpolationType::SimulationStrands,
+		EHairInterpolationPassType::Guides,
 		nullptr);
 }
 
@@ -554,7 +567,7 @@ static void RunHairStrandsInterpolation_Strands(
 		}
 	}
 
-	RunInternalHairStrandsInterpolation(
+	RunInternalHairInterpolation(
 		GraphBuilder,
 		Scene,
 		View,
@@ -562,8 +575,36 @@ static void RunHairStrandsInterpolation_Strands(
 		Instances,
 		ShaderPrintData,
 		ShaderMap,
-		EHairStrandsInterpolationType::RenderStrands,
+		EHairInterpolationPassType::Strands,
 		&ClusterData);
+}
+
+static void RunHairStrandsInterpolation_Cards(
+	FRDGBuilder& GraphBuilder,
+	FSceneInterface* Scene,
+	const TArray<const FSceneView*>& Views, 
+	const FSceneView* View,
+	const uint32 ViewUniqueID,
+	const FHairStrandsInstances& Instances,
+	const FShaderPrintData* ShaderPrintData,
+	FGlobalShaderMap* ShaderMap)
+{
+	check(IsInRenderingThread());
+
+	DECLARE_GPU_STAT(HairCardsInterpolation);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairCardsInterpolation");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairCardsInterpolation);
+
+	RunInternalHairInterpolation(
+		GraphBuilder,
+		Scene,
+		View,
+		ViewUniqueID,
+		Instances,
+		ShaderPrintData,
+		ShaderMap,
+		EHairInterpolationPassType::CardsAndMeshes,
+		nullptr);
 }
 
 // Return the LOD which should be used for a given screen size and LOD bias value
@@ -1259,7 +1300,7 @@ void ProcessHairStrandsBookmark(
 
 	const bool bCulling =
 		IsInstanceFrustumCullingEnable() && (
-			Bookmark == EHairStrandsBookmark::ProcessGatherCluster ||
+			Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation ||
 			Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation ||
 			Bookmark == EHairStrandsBookmark::ProcessDebug);
 	FHairStrandsInstances& Instances = bCulling ? Parameters.VisibleInstances : *Parameters.Instances;
@@ -1311,6 +1352,19 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Guide(
 			*GraphBuilder,
 			Parameters.Scene,
+			Parameters.View,
+			Parameters.ViewUniqueID,
+			Instances,
+			Parameters.ShaderPrintData,
+			Parameters.ShaderMap);
+	}
+	else if (Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation)
+	{
+		check(GraphBuilder);
+		RunHairStrandsInterpolation_Cards(
+			*GraphBuilder,
+			Parameters.Scene,
+			Parameters.AllViews,
 			Parameters.View,
 			Parameters.ViewUniqueID,
 			Instances,

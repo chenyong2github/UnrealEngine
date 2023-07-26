@@ -477,7 +477,7 @@ enum class EHairStrandsBookmark : uint8
 	ProcessTasks,
 	ProcessLODSelection,
 	ProcessGuideInterpolation,
-	ProcessGatherCluster,
+	ProcessCardsAndMeshesInterpolation,
 	ProcessStrandsInterpolation,
 	ProcessDebug,
 	ProcessEndOfFrame

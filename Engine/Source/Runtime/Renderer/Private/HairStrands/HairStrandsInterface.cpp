@@ -53,7 +53,7 @@ static TAutoConsoleVariable<int32> CVarHairStrandsSimulation(
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarHairStrandsNonVisibleShadowCasting(
-	TEXT("r.HairStrands.Shadow.CastShadowWhenNonVisible"), 0,
+	TEXT("r.HairStrands.Shadow.CastShadowWhenNonVisible"), 1,
 	TEXT("Enable shadow casting for hair strands even when culled out from the primary view"),
 	ECVF_RenderThreadSafe);
 
