@@ -792,7 +792,7 @@ namespace UnrealBuildTool
 			}
 
 			// set up the directories
-			string ZipWorkingDir = String.Format(bUseModernXcode ? "{0}.app/" : "Payload/{0}.app/", GameName);
+			string ZipWorkingDir = String.Format("Payload/{0}.app/", GameName);
 			string ZipSourceDir = String.Format(bUseModernXcode ? "{0}/{1}.app" : "{0}/Payload/{1}.app", BinaryPath, GameName);
 
 			// create the file
@@ -1596,16 +1596,7 @@ namespace UnrealBuildTool
 						ConfigName += " " + Target.TargetType.ToString();
 					}
 
-					string SchemeName;
-					if (AppName == "UnrealGame" || AppName == "UnrealClient")
-					{
-
-						SchemeName = "UnrealGame";
-					}
-					else
-					{
-						SchemeName = Target.TargetName;
-					}
+					string SchemeName = Target.TargetName;
 
 					Console.WriteLine("Provisioning: {0}, {1}, {2}, {3}", MobileProvisionFile, MobileProvisionFile.GetFileName(), MobileProvisionUUID, BundleID);
 
