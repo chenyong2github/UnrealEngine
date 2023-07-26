@@ -207,25 +207,29 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	// turn off default bone rendering (we do our own in the IK Rig editor)
 	EditorController->SkelMeshComponent->SkeletonDrawMode = ESkeletonDrawMode::Hidden;
 
-	// setup an apply an anim instance to the skeletal mesh component
+	// setup and apply an anim instance to the skeletal mesh component
 	UIKRigAnimInstance* AnimInstance = NewObject<UIKRigAnimInstance>(EditorController->SkelMeshComponent, TEXT("IKRigAnimScriptInstance"));
 	EditorController->AnimInstance = AnimInstance;
 	AnimInstance->SetIKRigAsset(EditorController->AssetController->GetAsset());
+
+	// must set the animation mode to "AnimationCustomMode" to prevent USkeletalMeshComponent::InitAnim() from
+	// replacing the custom ik rig anim instance with a generic preview anim instance.
 	EditorController->SkelMeshComponent->PreviewInstance = AnimInstance;
-	AnimInstance->InitializeAnimation();
+    EditorController->SkelMeshComponent->SetAnimationMode(EAnimationMode::AnimationCustomMode);
+    
+    // must call AddComponent() BEFORE assigning the mesh to prevent auto-assignment of a default anim instance
+    InPersonaPreviewScene->AddComponent(EditorController->SkelMeshComponent, FTransform::Identity);
 
-	// set the skeletal mesh on the component
-	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-	USkeletalMesh* Mesh = EditorController->AssetController->GetSkeletalMesh();
-	EditorController->SkelMeshComponent->SetSkeletalMesh(Mesh);
-
-	// apply mesh to the preview scene
+	// apply mesh component to the preview scene
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorController->SkelMeshComponent);
 	InPersonaPreviewScene->SetAllowMeshHitProxies(false);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
 	EditorController->SkelMeshComponent->bSelectable = false;
-	InPersonaPreviewScene->SetPreviewMesh(Mesh);
-	InPersonaPreviewScene->AddComponent(EditorController->SkelMeshComponent, FTransform::Identity);
+	
+	// set the skeletal mesh on the component
+    // NOTE: this must be done AFTER setting the PreviewInstance so that it assigns it as the main anim instance
+    USkeletalMesh* Mesh = EditorController->AssetController->GetSkeletalMesh();
+    InPersonaPreviewScene->SetPreviewMesh(Mesh);
 }
 
 void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const
