@@ -442,6 +442,14 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 	const UClass* SourceClass = FBlueprintEditorUtils::GetMostUpToDateClass(InSourceClass);
 	const UFunction* Function = FBlueprintEditorUtils::GetMostUpToDateFunction(InFunction);
 
+	// Transient Conversion function are only added to generated class and not to the skeletal class.
+	bool bTransientConversionFunction = false;
+	if (Function == nullptr && InFunction && InFunction->GetTypedOuter<UClass>() == InSourceClass)
+	{
+		Function = InFunction;
+		bTransientConversionFunction = true;
+	}
+
 	if (SourceClass == nullptr)
 	{
 		return MakeError(LOCTEXT("SourceClassInvalid", "The source class is invalid."));
@@ -460,7 +468,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 
 	if (!Function->HasAllFunctionFlags(FUNC_Static))
 	{
-		if (!SourceClass->IsChildOf(Function->GetOuterUClass()))
+		if (!SourceClass->IsChildOf(Function->GetOuterUClass()) && !bTransientConversionFunction)
 		{
 			return MakeError(FText::Format(LOCTEXT("FunctionHasInvalidSelf", "Function {0} is going to be executed with an invalid self."), Function->GetDisplayNameText()));
 		}

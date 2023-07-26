@@ -2,6 +2,7 @@
 
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMBlueprintViewConversionFunction.h"
 #include "MVVMViewBlueprintCompiler.h"
 #include "View/MVVMViewClass.h"
 
@@ -53,6 +54,17 @@ void UMVVMWidgetBlueprintExtension_View::HandlePreloadObjectsForCompilation(UBlu
 			if (AvailableViewModel.GetViewModelClass())
 			{
 				UBlueprint::ForceLoad(AvailableViewModel.GetViewModelClass());
+			}
+		}
+		for (FMVVMBlueprintViewBinding& Binding : BlueprintView->GetBindings())
+		{
+			if (Binding.Conversion.DestinationToSourceConversion)
+			{
+				UBlueprint::ForceLoad(Binding.Conversion.DestinationToSourceConversion);
+			}
+			if (Binding.Conversion.SourceToDestinationConversion)
+			{
+				UBlueprint::ForceLoad(Binding.Conversion.SourceToDestinationConversion);
 			}
 		}
 	}

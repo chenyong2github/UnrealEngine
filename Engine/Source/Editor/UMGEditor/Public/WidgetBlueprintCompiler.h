@@ -12,6 +12,7 @@
 #include "Components/WidgetComponent.h"
 
 class FProperty;
+class UEdGraph;
 class UWidget;
 class UWidgetAnimation;
 class UWidgetGraphSchema;
@@ -69,7 +70,7 @@ protected:
 	/** Validates the Desired Focus name to make sure it's part of the Widget Tree. */
 	void ValidateDesiredFocusWidgetName();
 
-	// FKismetCompilerContext
+	//~ Begin FKismetCompilerContext
 	virtual UEdGraphSchema_K2* CreateSchema() override;
 	virtual void CreateFunctionList() override;
 	virtual void SpawnNewClass(const FString& NewClassName) override;
@@ -83,7 +84,7 @@ protected:
 	virtual void FinishCompilingClass(UClass* Class) override;
 	virtual bool ValidateGeneratedClass(UBlueprintGeneratedClass* Class) override;
 	virtual void OnPostCDOCompiled(const UObject::FPostCDOCompiledContext& Context) override;
-	// End FKismetCompilerContext
+	//~ End FKismetCompilerContext
 
 	void SanitizeBindings(UBlueprintGeneratedClass* Class);
 
@@ -99,6 +100,7 @@ public:
 	{
 	public:
 		FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type) const;
+		void AddGeneratedFunctionGraph(UEdGraph* Graph) const;
 		UWidgetBlueprint* GetWidgetBlueprint() const;
 		UWidgetBlueprintGeneratedClass* GetSkeletonGeneratedClass() const;
 		EKismetCompileType::Type GetCompileType() const;

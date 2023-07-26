@@ -12,6 +12,7 @@
 #include "Framework/Views/TableViewMetadata.h"
 #include "Misc/MessageDialog.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMBlueprintViewConversionFunction.h"
 #include "MVVMEditorSubsystem.h"
 #include "MVVMDeveloperProjectSettings.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
@@ -1338,9 +1339,6 @@ void SBindingsList::GetChildrenOfEntry(TSharedPtr<FBindingEntry> Entry, TArray<T
 
 void SBindingsList::Refresh()
 {
-	UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get();
-	UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr ? MVVMExtensionPtr->GetBlueprintView() : nullptr;
-
 	struct FPreviousGroup
 	{
 		TSharedPtr<FBindingEntry> Group;
@@ -1370,6 +1368,10 @@ void SBindingsList::Refresh()
 
 	TArray<TSharedPtr<FBindingEntry>> NewEntries;
 
+	UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get();
+	UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr ? MVVMExtensionPtr->GetBlueprintView() : nullptr;
+	UWidgetBlueprint* WidgetBlueprint = MVVMExtensionPtr ? MVVMExtensionPtr->GetWidgetBlueprint() : nullptr;
+
 	// generate our entries
 	// for each widget with bindings, create an entry at the root level
 	// then add all bindings that reference that widget as its children
@@ -1379,6 +1381,16 @@ void SBindingsList::Refresh()
 		for (int32 BindingIndex = 0; BindingIndex < Bindings.Num(); ++BindingIndex)
 		{
 			const FMVVMBlueprintViewBinding& Binding = Bindings[BindingIndex];
+
+			// Make sure the graph for the bindings is generated
+			if (Binding.Conversion.SourceToDestinationConversion)
+			{
+				Binding.Conversion.SourceToDestinationConversion->GetOrCreateWrapperGraph(WidgetBlueprint);
+			}
+			if (Binding.Conversion.DestinationToSourceConversion)
+			{
+				Binding.Conversion.DestinationToSourceConversion->GetOrCreateWrapperGraph(WidgetBlueprint);
+			}
 			
 			FName GroupName;
 			if (Binding.DestinationPath.IsFromWidget())

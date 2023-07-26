@@ -6,11 +6,66 @@
 #include "Bindings/MVVMConversionFunctionHelper.h"
 #include "K2Node_CallFunction.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMBlueprintViewConversionFunction.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
+
+#include "MVVMFunctionGraphHelper.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintViewBinding)
 
 #define LOCTEXT_NAMESPACE "MVVMBlueprintViewBinding"
+
+void FMVVMBlueprintViewConversionPath::GenerateWrapper(UBlueprint* Blueprint)
+{
+	if (DestinationToSourceConversion)
+	{
+		DestinationToSourceConversion->GetOrCreateWrapperGraph(Blueprint);
+	}
+	if (SourceToDestinationConversion)
+	{
+		SourceToDestinationConversion->GetOrCreateWrapperGraph(Blueprint);
+	}
+}
+
+void FMVVMBlueprintViewConversionPath::SavePinValues(UBlueprint* Blueprint)
+{
+	if (DestinationToSourceConversion)
+	{
+		DestinationToSourceConversion->SavePinValues(Blueprint);
+	}
+	if (SourceToDestinationConversion)
+	{
+		SourceToDestinationConversion->SavePinValues(Blueprint);
+	}
+}
+
+void FMVVMBlueprintViewConversionPath::DeprecateViewConversionFunction(UBlueprint* Blueprint)
+{
+	auto Deprecate = [Blueprint](FName& Wrapper, FMemberReference& Reference, TObjectPtr<UMVVMBlueprintViewConversionFunction>& ConversionFunction)
+	{
+		if (!Wrapper.IsNone())
+		{
+			TObjectPtr<UEdGraph>* GraphPtr = Blueprint->FunctionGraphs.FindByPredicate([Wrapper](const UEdGraph* Other) { return Other->GetFName() == Wrapper; });
+			if (GraphPtr)
+			{
+				ConversionFunction = NewObject<UMVVMBlueprintViewConversionFunction>(Blueprint);
+				ConversionFunction->InitializeFromWrapperGraph(Blueprint, *GraphPtr);
+			}
+		}
+		else if (!Reference.GetMemberName().IsNone())
+		{
+			ConversionFunction = NewObject<UMVVMBlueprintViewConversionFunction>(Blueprint);
+			ConversionFunction->InitializeFromMemberReference(Blueprint, Reference);
+		}
+		Wrapper = FName();
+		Reference = FMemberReference();
+	};
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Deprecate(DestinationToSourceWrapper_DEPRECATED, DestinationToSourceFunction_DEPRECATED, DestinationToSourceConversion);
+	Deprecate(SourceToDestinationWrapper_DEPRECATED, SourceToDestinationFunction_DEPRECATED, SourceToDestinationConversion);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 FName FMVVMBlueprintViewBinding::GetFName() const
 {
@@ -169,31 +224,37 @@ namespace UE::MVVM::Private
 
 		TStringBuilder<256> NameBuilder;
 
-		if (UEdGraph* Graph = ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bIsSource))
+		auto AddPath = [&](const FMVVMBlueprintPropertyPath& ArgumentPath)
 		{
-			if (const UK2Node_CallFunction* CallFunctionNode = ConversionFunctionHelper::GetFunctionNode(Graph))
+			if (ArgumentPath.IsFromViewModel())
 			{
-				if (bUseDisplayName)
-				{
-					if (UFunction* TargetFunction = CallFunctionNode->GetTargetFunction())
-					{
-						NameBuilder << TargetFunction->GetDisplayNameText().ToString();
-					}
-					else
-					{
-						NameBuilder << CallFunctionNode->GetFunctionName();
-					}
-				}
-				else
-				{
-					NameBuilder << CallFunctionNode->GetFunctionName();
-				}
+				AppendViewModelPathString(WidgetBlueprint, BlueprintView, ArgumentPath, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+			}
+			else
+			{
+				AppendWidgetPathString(WidgetBlueprint, ArgumentPath, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
+			}
+		};
 
-				if (bAppendFunctionKeywords)
+		if (UMVVMBlueprintViewConversionFunction* ViewConversionFunction = Binding.Conversion.GetConversionFunction(bIsSource))
+		{
+			TVariant<const UFunction*, TSubclassOf<UK2Node>> ConversionFunction = ViewConversionFunction->GetConversionFunction(WidgetBlueprint->SkeletonGeneratedClass);
+			if (ConversionFunction.IsType<const UFunction*>())
+			{
+				if (const UFunction* ConversionFunctionPtr = ConversionFunction.Get<const UFunction*>())
 				{
-					if (UFunction* TargetFunction = CallFunctionNode->GetTargetFunction())
+					if (bUseDisplayName)
 					{
-						FString FunctionKeywords = TargetFunction->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
+						NameBuilder << ConversionFunctionPtr->GetDisplayNameText().ToString();
+					}
+					else 
+					{
+						NameBuilder << ConversionFunctionPtr->GetFName();
+					}
+
+					if (bAppendFunctionKeywords)
+					{
+						FString FunctionKeywords = ConversionFunctionPtr->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
 						if (!FunctionKeywords.IsEmpty())
 						{
 							FunctionKeywordsBuilder << TEXT(".");
@@ -201,107 +262,72 @@ namespace UE::MVVM::Private
 						}
 					}
 				}
-
-				NameBuilder << TEXT("(");
-
-				bool bFirst = true;
-
-				for (const UEdGraphPin* Pin : CallFunctionNode->Pins)
+				else
 				{
-					if (Pin->PinName == UEdGraphSchema_K2::PN_Self || 
-						Pin->Direction != EGPD_Input)
+					NameBuilder << TEXT("<ERROR>");
+				}
+			}
+			else
+			{
+				TSubclassOf<UK2Node> ConversionFunctionNode = ConversionFunction.Get<TSubclassOf<UK2Node>>();
+				if (ConversionFunctionNode.Get())
+				{
+					if (bUseDisplayName)
 					{
-						continue;
-					}
-
-					if (!bFirst)
-					{
-						NameBuilder << TEXT(", ");
-					}
-
-					FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName(), true);
-					if (!ArgumentPath.IsEmpty())
-					{
-						if (ArgumentPath.IsFromViewModel())
-						{
-							AppendViewModelPathString(WidgetBlueprint, BlueprintView, ArgumentPath, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
-						}
-						else
-						{
-							AppendWidgetPathString(WidgetBlueprint, ArgumentPath, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
-						}
+						NameBuilder << ConversionFunctionNode->GetDisplayNameText().ToString();
 					}
 					else
 					{
-						NameBuilder << Pin->GetDefaultAsString();
+						NameBuilder << ConversionFunctionNode->GetFName();
 					}
+				}
+				else
+				{
+					NameBuilder << TEXT("<ERROR>");
+				}
+			}
 
-					bFirst = false;
+			// AddPins
+			{
+				NameBuilder << TEXT("(");
+
+				if (ViewConversionFunction->NeedsWrapperGraph())
+				{
+					bool bFirst = true;
+					for (const FMVVMBlueprintPin& Pin : ViewConversionFunction->GetPins())
+					{
+						if (!bFirst)
+						{
+							NameBuilder << TEXT(", ");
+						}
+
+
+
+						if (Pin.UsedPathAsValue())
+						{
+							AddPath(Pin.GetPath());
+						}
+						else
+						{
+							NameBuilder << Pin.GetValueAsString(WidgetBlueprint->SkeletonGeneratedClass);
+						}
+
+						bFirst = false;
+					}
+				}
+				else
+				{
+					const FMVVMBlueprintPropertyPath& Path = bIsSource ? Binding.SourcePath : Binding.DestinationPath;
+					AddPath(Path);
 				}
 
 				NameBuilder << TEXT(")");
 			}
-			else
-			{
-				NameBuilder << TEXT("<error>");
-			}
 		}
 		else
 		{
-			const FMVVMBlueprintPropertyPath Path = bIsSource ? Binding.SourcePath : Binding.DestinationPath;
-			const FMemberReference FunctionReference = bIsSource ? Binding.Conversion.SourceToDestinationFunction : Binding.Conversion.DestinationToSourceFunction;
-			if (!FunctionReference.GetMemberName().IsNone())
-			{
-				if (const UFunction* Function = FunctionReference.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass))
-				{
-					NameBuilder << Function->GetName();
-
-					if (bAppendFunctionKeywords)
-					{
-						FString FunctionKeywords = Function->GetMetaData(FBlueprintMetadata::MD_FunctionKeywords);
-						if (!FunctionKeywords.IsEmpty())
-						{
-							FunctionKeywordsBuilder << TEXT(".");
-							FunctionKeywordsBuilder << FunctionKeywords;
-						}
-					}
-
-					NameBuilder << TEXT("(");
-
-					if (Path.IsFromViewModel())
-					{
-						AppendViewModelPathString(WidgetBlueprint, BlueprintView, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
-
-					}
-					else
-					{
-						AppendWidgetPathString(WidgetBlueprint, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
-					}
-
-					NameBuilder << TEXT(")");
-				}
-				else
-				{
-					NameBuilder << FunctionReference.GetMemberName();
-					NameBuilder << TEXT("()");
-				}
-			}
-			else
-			{
-				if (!Path.IsEmpty())
-				{
-					if (Path.IsFromViewModel())
-					{
-						AppendViewModelPathString(WidgetBlueprint, BlueprintView, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
-
-					}
-					else
-					{
-						AppendWidgetPathString(WidgetBlueprint, Path, NameBuilder, FunctionKeywordsBuilder, bUseDisplayName, bAppendFunctionKeywords);
-					}
-				}
-			} 
-
+			const FMVVMBlueprintPropertyPath& PropertyPath = bIsSource ? Binding.DestinationPath : Binding.SourcePath;
+			AddPath(PropertyPath);
 		}
 
 		FString Name = NameBuilder.ToString();

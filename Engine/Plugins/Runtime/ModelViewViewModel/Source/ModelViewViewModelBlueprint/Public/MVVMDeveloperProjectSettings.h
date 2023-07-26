@@ -120,6 +120,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	bool bShowDetailViewOptionInBindingPanel = true;
 
+	/** When a conversion function requires a wrapper graph, add and save the generated graph to the blueprint. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	bool bAllowConversionFunctionGeneratedGraphInEditor = true;
+
 	/** Permission list for filtering which execution mode is allowed. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	EMVVMDeveloperConversionFunctionFilterType ConversionFunctionFilter = EMVVMDeveloperConversionFunctionFilterType::BlueprintActionRegistry;

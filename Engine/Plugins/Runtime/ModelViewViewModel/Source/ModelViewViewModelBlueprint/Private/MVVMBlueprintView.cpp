@@ -4,6 +4,7 @@
 
 #include "Components/Widget.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "MVVMBlueprintViewConversionFunction.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "WidgetBlueprint.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -112,6 +113,15 @@ void UMVVMBlueprintView::RemoveBindingAt(int32 Index)
 {
 	if (Bindings.IsValidIndex(Index))
 	{
+		if (Bindings[Index].Conversion.SourceToDestinationConversion)
+		{
+			Bindings[Index].Conversion.SourceToDestinationConversion->RemoveWrapperGraph(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
+		}
+		if (Bindings[Index].Conversion.DestinationToSourceConversion)
+		{
+			Bindings[Index].Conversion.DestinationToSourceConversion->RemoveWrapperGraph(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
+		}
+
 		Bindings.RemoveAt(Index);
 		OnBindingsUpdated.Broadcast();
 	}
@@ -232,6 +242,7 @@ void UMVVMBlueprintView::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);	
 }
 
+#if WITH_EDITOR
 void UMVVMBlueprintView::PostLoad()
 {
 	Super::PostLoad();
@@ -244,14 +255,13 @@ void UMVVMBlueprintView::PostLoad()
 		}
 	}
 
-#if WITH_EDITOR
+	GetOuterUMVVMWidgetBlueprintExtension_View()->ConditionalPostLoad();
+	GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint()->ConditionalPostLoad();
+
 	// Make sure all bindings uses the skeletal class
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::MVVMConvertPropertyPathToSkeletalClass)
 	{
-		GetOuterUMVVMWidgetBlueprintExtension_View()->ConditionalPostLoad();
-		GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint()->ConditionalPostLoad();
 		const UWidgetBlueprint* ThisWidgetBlueprint = GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint();
-
 		for (FMVVMBlueprintViewBinding& Binding : Bindings)
 		{
 			for (const FMVVMBlueprintFieldPath& FieldPath : Binding.SourcePath.GetFieldPaths())
@@ -264,17 +274,23 @@ void UMVVMBlueprintView::PostLoad()
 			}
 		}
 	}
-#endif
+
+	for (FMVVMBlueprintViewBinding& Binding : Bindings)
+	{
+		Binding.Conversion.DeprecateViewConversionFunction(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
+	}
 }
 
-#if WITH_EDITOR
-
-/*
-void UMVVMBlueprintView::PostEditUndo() 
+void UMVVMBlueprintView::PreSave(FObjectPreSaveContext Context)
 {
-	OnBindingsUpdated.Broadcast();
-	OnViewModelsUpdated.Broadcast();
-}*/
+	UWidgetBlueprint* WidgetBlueprint = GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint();
+	for (FMVVMBlueprintViewBinding& Binding : Bindings)
+	{
+		Binding.Conversion.SavePinValues(WidgetBlueprint);
+	}
+
+	Super::PreSave(Context);
+}
 
 void UMVVMBlueprintView::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

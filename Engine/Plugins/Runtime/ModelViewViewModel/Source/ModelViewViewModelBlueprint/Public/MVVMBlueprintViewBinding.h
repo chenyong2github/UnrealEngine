@@ -10,6 +10,7 @@
 
 class UWidgetBlueprint;
 class UMVVMBlueprintView;
+class UMVVMBlueprintViewConversionFunction;
 
 /**
 *
@@ -19,19 +20,68 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewConversionPath
 {
 	GENERATED_BODY()
 
-	/** The Conversion function when converting the value from the destination to the source. */
-	UPROPERTY(VisibleAnywhere, Category = "Viewmodel", AdvancedDisplay)
-	FMemberReference DestinationToSourceFunction;
+	UE_DEPRECATED(5.3, "DestinationToSourceFunction was moved to MVVMBlueprintViewConversionFunction.")
+	/**
+	 * The Conversion function when converting the value from the destination to the source.
+	 * @note if a wrapper is needed, this is the function that is wrapped.
+	 */
+	UPROPERTY()
+	FMemberReference DestinationToSourceFunction_DEPRECATED;
 	
+	UE_DEPRECATED(5.3, "DestinationToSourceWrapper was moved to MVVMBlueprintViewConversionFunction.")
+	/**
+	 * The name of the graph that contains the conversion function when converting the value from the destination to the source.
+	 * Valid when the function needs a wrapper and when the graph is generated on the fly.
+	 */
 	UPROPERTY()
-	FName DestinationToSourceWrapper;
+	FName DestinationToSourceWrapper_DEPRECATED;
 
-	/** The Conversion function when converting the value from the source to the destination. */
-	UPROPERTY(VisibleAnywhere, Category = "Viewmodel", AdvancedDisplay)
-	FMemberReference SourceToDestinationFunction;
-
+	UE_DEPRECATED(5.3, "SourceToDestinationFunction was moved to MVVMBlueprintViewConversionFunction.")
+	/**
+	 * The Conversion function when converting the value from the source to the destination.
+	 * @note if a wrapper is needed, this is the function that is wrapped.
+	 */
 	UPROPERTY()
-	FName SourceToDestinationWrapper;
+	FMemberReference SourceToDestinationFunction_DEPRECATED;
+
+	UE_DEPRECATED(5.3, "SourceToDestinationWrapper was moved to MVVMBlueprintViewConversionFunction.")
+	/**
+	 * The name of the graph that contains the conversion function when converting the value from the source to the destination.
+	 * When the function needs a wrapper. Valid also when the graph is generated on the fly.
+	 */
+	UPROPERTY()
+	FName SourceToDestinationWrapper_DEPRECATED;
+
+	/**
+	 * The graph that contains the conversion function when converting the value from the destination to the source.
+	 * When the function doesn't need a wrapper.
+	 */
+	UPROPERTY(Instanced)
+	TObjectPtr<UMVVMBlueprintViewConversionFunction> DestinationToSourceConversion;
+
+	/**
+	 * The graph that contains the conversion function when converting the value from the source to the destination.
+	 * When the function doesn't need a wrapper.
+	 */
+	UPROPERTY(Instanced)
+	TObjectPtr<UMVVMBlueprintViewConversionFunction> SourceToDestinationConversion;
+
+public:
+	UMVVMBlueprintViewConversionFunction* GetConversionFunction(bool bSourceToDestination) const
+	{
+		return bSourceToDestination ? SourceToDestinationConversion : DestinationToSourceConversion;
+	}
+
+	void GenerateWrapper(UBlueprint* Blueprint);
+	void SavePinValues(UBlueprint* Blueprint);
+	void DeprecateViewConversionFunction(UBlueprint* Blueprint);
+
+public:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FMVVMBlueprintViewConversionPath() = default;
+	FMVVMBlueprintViewConversionPath(const FMVVMBlueprintViewConversionPath&) = default;
+	FMVVMBlueprintViewConversionPath& operator=(const FMVVMBlueprintViewConversionPath&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 /**

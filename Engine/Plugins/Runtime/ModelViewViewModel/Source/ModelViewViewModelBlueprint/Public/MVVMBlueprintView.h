@@ -86,8 +86,8 @@ public:
 	void ResetBindingMessages();
 
 #if WITH_EDITOR
-//	virtual void PostEditUndo() override;
-
+	virtual void PostLoad() override;
+	virtual void PreSave(FObjectPreSaveContext Context) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent) override;
 
@@ -95,7 +95,6 @@ public:
 	void WidgetRenamed(FName OldObjectName, FName NewObjectName);
 #endif
 
-	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 
 	DECLARE_EVENT(UMVVMBlueprintView, FOnBindingsUpdated);

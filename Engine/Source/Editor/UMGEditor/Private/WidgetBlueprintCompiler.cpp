@@ -44,6 +44,11 @@ FProperty* FWidgetBlueprintCompilerContext::FCreateVariableContext::CreateVariab
 	return Context.CreateVariable(Name, Type);
 }
 
+void FWidgetBlueprintCompilerContext::FCreateVariableContext::AddGeneratedFunctionGraph(UEdGraph* Graph) const
+{
+	Context.GeneratedFunctionGraphs.Add(Graph);
+}
+
 UWidgetBlueprint* FWidgetBlueprintCompilerContext::FCreateVariableContext::GetWidgetBlueprint() const
 {
 	return Context.WidgetBlueprint();
