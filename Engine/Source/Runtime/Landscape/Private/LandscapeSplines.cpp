@@ -1909,8 +1909,16 @@ FName ULandscapeSplineControlPoint::GetBestConnectionTo(FVector Destination) con
 			FVector SocketLocation = SocketTransform.GetTranslation();
 			FRotator SocketRotation = SocketTransform.GetRotation().Rotator();
 
-			const double Score = (Destination - Location).Size() - (Destination - SocketLocation).Size() // Score closer sockets higher
-				* FMath::Abs(FVector::DotProduct((Destination - SocketLocation), SocketRotation.Vector())); // score closer rotation higher
+			const double DistanceToCP = (Destination - Location).Size();
+
+			// score closer locations higher
+			const FVector SocketDelta = Destination - SocketLocation;
+			const double DistanceToSocket = SocketDelta.Size();
+
+			// score closer rotations higher
+			const double DirectionWeight = FMath::Abs(FVector::DotProduct(SocketDelta, SocketRotation.Vector()));
+
+			const double Score = (DistanceToCP - DistanceToSocket) * DirectionWeight;
 
 			if (Score > BestScore)
 			{
