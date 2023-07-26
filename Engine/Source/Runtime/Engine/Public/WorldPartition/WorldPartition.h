@@ -534,6 +534,7 @@ private:
 	ENGINE_API void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	ENGINE_API void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void OnContentBundleRemovedContent(const FContentBundleEditor* ContentBundle);
+	bool IsStreamingEnabledInEditor() const;
 
 public:
 	// Editor loader adapters management
