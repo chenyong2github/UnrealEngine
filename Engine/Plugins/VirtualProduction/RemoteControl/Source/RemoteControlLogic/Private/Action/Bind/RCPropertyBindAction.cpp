@@ -252,10 +252,12 @@ void URCPropertyBindAction::Execute() const
 			}
 
 			// Numeric to Byte/Enum
-			if (RemoteControlProperty->IsA(FByteProperty::StaticClass()))
+			if (RemoteControlProperty->IsA(FByteProperty::StaticClass()) ||
+				RemoteControlProperty->IsA(FEnumProperty::StaticClass()))
 			{
 				Handle->SetValue((uint8)NumericValue);
 			}
+			
 			// Numeric To Numeric
 			if (RemoteControlProperty->IsA(FNumericProperty::StaticClass()))
 			{

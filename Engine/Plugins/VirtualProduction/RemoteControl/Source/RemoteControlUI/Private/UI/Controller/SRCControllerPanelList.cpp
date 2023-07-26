@@ -807,11 +807,17 @@ bool SRCControllerPanelList::IsEntitySupported(const FGuid ExposedEntityId)
 			if (RemoteControlProperty->FieldType == EExposedFieldType::Property)
 			{
 				const FProperty* Property = RemoteControlProperty->GetProperty();
-
-				// enums are currently not properly supported by controllers (e.g. C++ enums action binding won't work)
-				if (Property->IsA<FEnumProperty>())
+				
+				if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 				{
-					return false;
+					if (const UEnum* Enum = EnumProperty->GetEnum())
+					{
+						const int64 MaxEnumValue = Enum->GetMaxEnumValue();
+						const uint32 NeededBits = FMath::RoundUpToPowerOfTwo(MaxEnumValue);
+
+						// 8 bits enums only
+						return NeededBits <= 256;
+					}
 				}
 				else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 				{

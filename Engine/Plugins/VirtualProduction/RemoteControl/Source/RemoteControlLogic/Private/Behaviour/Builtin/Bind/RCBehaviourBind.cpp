@@ -161,6 +161,19 @@ bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedR
 		return false; // Unbound Property
 	}
 
+	// Enums with base other than 8bits should be ignored, so let's make sure of that
+	if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(RemoteControlProperty))
+	{
+		if (const UEnum* Enum = EnumProperty->GetEnum())
+		{
+			const int64 MaxEnumValue = Enum->GetMaxEnumValue();
+			const uint32 NeededBits = FMath::RoundUpToPowerOfTwo(MaxEnumValue);
+
+			// 8 bits enums only
+			return NeededBits <= 256;
+		}
+	}
+	
 	// Indirect Binding (related types)
 	//
 	const static TMap<FFieldClass*, TArray<FFieldClass*>> SupportedIndirectBindsMap =
@@ -168,7 +181,7 @@ bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedR
 		/* Controller Type */                           /* Supported Remote Control Property Types */
 
 		{ FStrProperty::StaticClass(),      /* --> */   { FTextProperty::StaticClass(),     FNameProperty::StaticClass()}},
-		{ FNumericProperty::StaticClass(),  /* --> */   { FNumericProperty::StaticClass(),  FBoolProperty::StaticClass(),  FByteProperty::StaticClass() } },
+		{ FNumericProperty::StaticClass(),  /* --> */   { FNumericProperty::StaticClass(),  FBoolProperty::StaticClass(),  FByteProperty::StaticClass(), FEnumProperty::StaticClass() } },
 		{ FBoolProperty::StaticClass(),     /* --> */   { FFloatProperty::StaticClass(),    FIntProperty::StaticClass(),   FBoolProperty::StaticClass() } }
 	};
 
