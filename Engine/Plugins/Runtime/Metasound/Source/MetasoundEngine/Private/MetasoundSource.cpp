@@ -866,7 +866,7 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 			const FName ElementTypeName = CreateElementTypeNameFromArrayTypeName(TypeName);
 			for (const UObject* Object : InParameter.ArrayObjectParam)
 			{
-				bIsValid = IDataTypeRegistry::Get().IsValidUObjectForDataType(ElementTypeName, InParameter.ObjectParam);
+				bIsValid = IDataTypeRegistry::Get().IsValidUObjectForDataType(ElementTypeName, Object);
 				if (!bIsValid)
 				{
 					break;
