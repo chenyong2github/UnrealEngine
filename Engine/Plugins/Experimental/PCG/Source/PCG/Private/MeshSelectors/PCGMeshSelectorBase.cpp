@@ -62,8 +62,8 @@ void FPCGMeshMaterialOverrideHelper::Initialize(FPCGContext& InContext)
 		{
 			if (!Metadata->HasAttribute(MaterialOverrideAttributeName))
 			{
-				PCGE_LOG_C(Error, GraphAndLog, &InContext, FText::Format(LOCTEXT("AttributeMissing", "Attribute '{0}' for material overrides is not present in the metadata"), FText::FromName(MaterialOverrideAttributeName)));
-				return;
+				PCGE_LOG_C(Warning, GraphAndLog, &InContext, FText::Format(LOCTEXT("AttributeMissing", "Attribute '{0}' for material overrides is not present in the metadata"), FText::FromName(MaterialOverrideAttributeName)));
+				continue;
 			}
 
 			const FPCGMetadataAttributeBase* MaterialAttributeBase = Metadata->GetConstAttribute(MaterialOverrideAttributeName);
