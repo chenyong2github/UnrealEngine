@@ -9,6 +9,8 @@
 #include "ToolElementRegistry.h"
 #include "ToolkitStyle.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Layout/SeparatorBuilder.h"
+#include "Layout/SeparatorTemplates.h"
 #include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "ToolkitBuilder"
@@ -428,7 +430,6 @@ void FToolkitBuilder::CreatePaletteWidget(FToolPalette& Palette, FToolElement& E
 		];
 }
 
-
 TSharedRef<SWidget> FToolkitBuilder::GetToolPaletteWidget() const
 {
 	return ToolPaletteWidget->AsShared();
@@ -515,11 +516,14 @@ void FToolkitBuilder::DefineWidget()
 
 	TSharedPtr<SHorizontalBox> ToolNameHeaderBox;
 
-	ToolkitWidgetContainerVBox = SNew(SVerticalBox);
+	ToolkitWidgetContainerVBox = SNew(SVerticalBox)
+	+ SVerticalBox::Slot().AutoHeight() [ *FSeparatorTemplates::SmallHorizontalPanelNoBorder()  ]
+	+ SVerticalBox::Slot().AutoHeight() [ *FSeparatorTemplates::SmallHorizontalBackgroundNoBorder() ];
 
 	ToolkitWidgetVBox = SNew(SVerticalBox);
 	TSharedPtr<SWidget> MainSplitter = 
 		SNew(SSplitter)
+		.PhysicalSplitterHandleSize(2.0f)
 		+ SSplitter::Slot()
 		.Resizable(false)
 		.SizeRule(SSplitter::SizeToContent)
@@ -561,12 +565,17 @@ void FToolkitBuilder::DefineWidget()
 
 	ToolkitWidgetVBox->AddSlot()
 		.AutoHeight()
+		[ *FSeparatorTemplates::SmallHorizontalBackgroundNoBorder().BindVisibility(
+			TAttribute<EVisibility>::CreateLambda([this] () { return ActivePaletteButtonVisibility; }))];
+	
+	ToolkitWidgetVBox->AddSlot()
+		.AutoHeight()
 		.HAlign(HAlign_Fill)
 		.Padding(0)
 		[
 			SNew(SBorder)
 			.HAlign(HAlign_Fill)
-			.Padding(Style.ActiveToolTitleBorderPadding)
+			.Padding(Style.ActiveToolTitleBorderPadding)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 			.BorderImage(&Style.ToolDetailsBackgroundBrush)
 			[
 				SNew(SBorder)
@@ -620,7 +629,7 @@ void FToolkitBuilder::DefineWidget()
 			[
 			SNew(SBorder)
 			.BorderImage(&Style.ToolDetailsBackgroundBrush)
-			.Padding(8.f, 2.f, 0.f, 2.f)
+			.Padding(0.f, 2.f, 0.f, 2.f)
 				[
 					ToolkitSections->DetailsView->AsShared()
 				]

@@ -29,12 +29,12 @@ void FToolkitStyle::Initialize()
 	
 	FToolkitWidgetStyle Style;
 
-	Style.SetTitleBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Header, 0.f, FLinearColor(0, 0, 0, .8), 0.5))
-		 .SetToolDetailsBackgroundBrush( FSlateRoundedBoxBrush(FStyleColors::Background, 0.f, FLinearColor(0, 0, 0, .8), 0.5))
+	Style.SetTitleBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Header, 0.f, FLinearColor(0, 0, 0, .8), 0))
+		 .SetToolDetailsBackgroundBrush( FSlateRoundedBoxBrush(FStyleColors::Background, 0.f, FLinearColor(0, 0, 0, .8), 0))
 		 .SetTitleForegroundColor(FStyleColors::Foreground)
 		 .SetTitlePadding(FMargin(16.f, 4.f))
 	 	 .SetTitleFont(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-		 .SetActiveToolTitleBorderPadding(FMargin(0.f, 8.f, 0.f, 0.f))
+		 .SetActiveToolTitleBorderPadding(FMargin(0.f, 0.f, 0.f, 0.f))
 		 .SetToolContextTextBlockPadding(FMargin(16.f, 4.f));
 
 	StyleSet->Set("FToolkitWidgetStyle", Style);
@@ -63,6 +63,7 @@ const ISlateStyle& FToolkitStyle::Get()
 {
 	return *StyleSet;
 }
+
 
 #undef LOCAL_IMAGE_BRUSH
 #undef IMAGE_PLUGIN_BRUSH

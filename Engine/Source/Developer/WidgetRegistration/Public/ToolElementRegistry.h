@@ -10,7 +10,8 @@ class FToolElementRegistry;
 enum class EToolElement : uint32
 {
 	Toolbar = 0,
-	Toolkit
+	Toolkit,
+	Separator
 };
 
 /** A class which provides the data necessary to generate a widget. This class should be
