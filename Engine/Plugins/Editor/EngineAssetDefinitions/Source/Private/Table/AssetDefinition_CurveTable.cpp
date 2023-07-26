@@ -157,15 +157,19 @@ namespace MenuExtension_CurveTable
 		const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
 		
 		TArray<FString> ImportPaths;
+
 		for (const FAssetData& Asset : Context->SelectedAssets)
 		{
-			UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(Asset)->GetSourceFiles(Asset, [&ImportPaths](const FAssetImportInfo& AssetImportInfo)
-			{
-				for (const auto& SourceFile : AssetImportInfo.SourceFiles)
+			FAssetSourceFilesArgs GetSourceFilesArgs;
+			GetSourceFilesArgs.Assets = TConstArrayView<FAssetData>(&Asset, 1);
+			if (const UAssetDefinition* AssetDefination = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(Asset))
+			{ 
+				AssetDefination->GetSourceFiles(GetSourceFilesArgs, [&ImportPaths](const FAssetSourceFilesResult& AssetImportInfo)
 				{
-					ImportPaths.Add(SourceFile.RelativeFilename);
-				}
-			});
+					ImportPaths.Add(AssetImportInfo.FilePath);
+					return true;
+				});
+			}
 		}
 
 		TArray<FString> PotentialFileExtensions;
@@ -184,13 +188,16 @@ namespace MenuExtension_CurveTable
 		TArray<FString> ImportPaths;
 		for (const FAssetData& Asset : Context->SelectedAssets)
 		{
-			UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(Asset)->GetSourceFiles(Asset, [&ImportPaths](const FAssetImportInfo& AssetImportInfo)
+			FAssetSourceFilesArgs GetSourceFilesArgs;
+			GetSourceFilesArgs.Assets = TConstArrayView<FAssetData>(&Asset, 1);
+			if (const UAssetDefinition* AssetDefination = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(Asset))
 			{
-				for (const auto& SourceFile : AssetImportInfo.SourceFiles)
+				AssetDefination->GetSourceFiles(GetSourceFilesArgs, [&ImportPaths](const FAssetSourceFilesResult& AssetImportInfo)
 				{
-					ImportPaths.Add(SourceFile.RelativeFilename);
-				}
-			});
+					ImportPaths.Add(AssetImportInfo.FilePath);
+					return true;
+				});
+			}
 		}
 
 		TArray<FString> PotentialFileExtensions;

@@ -861,17 +861,29 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 			FAssetData AssetData(Obj);
 			const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(AssetData);
 
-			TArray<FAssetImportInfo::FSourceFile> OutSourceAssets;
-			AssetDefinition->GetSourceFiles(AssetData, [&OutSourceAssets](const FAssetImportInfo& ImportInfo)
+			FAssetSourceFilesArgs GetSourceFilesArgs;
+			GetSourceFilesArgs.Assets = TConstArrayView<FAssetData>(&AssetData, 1);
+			GetSourceFilesArgs.FilePathFormat = EPathUse::Display;
+
+			int32 SourceFileCount = 0;
+			FString SourceDisplayLabel;
+			AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&SourceFileCount, &SourceDisplayLabel, SourceFileIndex](const FAssetSourceFilesResult& AssetImportInfo)
 			{
-				OutSourceAssets.Append(ImportInfo.SourceFiles);
+				++SourceFileCount;
+				if (SourceFileIndex < SourceFileCount)
+				{
+					SourceDisplayLabel = AssetImportInfo.FilePath;
+					return false;
+				}
+
+				return true;
 			});
 			
-			if (OutSourceAssets.IsValidIndex(SourceFileIndex))
+			if (SourceFileIndex >= 0 && SourceFileIndex < SourceFileCount)
 			{
 				Title = FString::Printf(TEXT("%s %s %s: %s"),
 					*NSLOCTEXT("ReimportManager", "ImportDialogTitleLabelPart1", "Select").ToString(),
-					*OutSourceAssets[SourceFileIndex].DisplayLabelName,
+					*SourceDisplayLabel,
 					*NSLOCTEXT("ReimportManager", "ImportDialogTitleLabelPart2", "Source File For").ToString(),
 					*Obj->GetName());
 			}

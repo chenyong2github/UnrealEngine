@@ -1223,27 +1223,40 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 	if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(SelectedAssets[0]))
 	{
 		FAssetData SelectedAsset = SelectedAssets[0];
-		
-		AssetDefinition->GetSourceFiles(SelectedAsset, [&](const FAssetImportInfo& AssetImportInfo)
+
+		FAssetSourceFilesArgs GetSourceFilesArgs;
+		GetSourceFilesArgs.Assets = TConstArrayView<FAssetData>(&SelectedAsset, 1);
+
+		// Doesn't need to resolve the paths so it is a bit quicker
+		GetSourceFilesArgs.FilePathFormat = EPathUse::Display;
+
+		int32 SourceFileCount = 0;
+		AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&SourceFileCount, SourceFileIndex](const FAssetSourceFilesResult& AssetImportInfo)
 		{
-			int32 SourceFileIndexToReplace = SourceFileIndex;
-			//Check if the data is valid
-			if (SourceFileIndex == INDEX_NONE)
+			++SourceFileCount;
+			if (SourceFileIndex < SourceFileCount)
 			{
-				if (AssetImportInfo.SourceFiles.Num() > 1)
-				{
-					//Ask for a new file for the index 0
-					SourceFileIndexToReplace = 0;
-				}
-			}
-			else
-			{
-				check(AssetImportInfo.SourceFiles.IsValidIndex(SourceFileIndex));
+				return false;
 			}
 
-			TArray<UObject*> LoadedAssets = { SelectedAsset.GetAsset() };
-			FReimportManager::Instance()->ValidateAllSourceFileAndReimport(LoadedAssets, true, SourceFileIndexToReplace, true);
+			return true;
 		});
+
+		int32 SourceFileIndexToReplace = SourceFileIndex;
+		//Check if the data is valid
+		if (SourceFileIndex == INDEX_NONE)
+		{
+			//Ask for a new file for the index 0
+			SourceFileIndexToReplace = 0;
+		}
+		else
+		{
+			// Validate that the index is validate
+			check(SourceFileIndex >= 0 && SourceFileIndex < SourceFileCount);
+		}
+
+		TArray<UObject*> LoadedAssets = { SelectedAsset.GetAsset() };
+		FReimportManager::Instance()->ValidateAllSourceFileAndReimport(LoadedAssets, true, SourceFileIndexToReplace, true);
 	}
 }
 
@@ -1291,18 +1304,21 @@ void FAssetFileContextMenu::GetSelectedAssetSourceFilePaths(TArray<FString>& Out
 	{
 		if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForClass(AssetsByClassPair.Key))
 		{
-			for (const FAssetData& Asset : AssetsByClassPair.Value)
+			FAssetSourceFilesArgs GetSourceFilesArgs;
+			GetSourceFilesArgs.Assets = TConstArrayView<FAssetData>(AssetsByClassPair.Value);
+
+			AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&OutFilePaths](const FAssetSourceFilesResult& AssetImportInfo)
 			{
-				AssetDefinition->GetSourceFiles(Asset, [&](const FAssetImportInfo& AssetImportInfo)
-				{
-					OutValidSelectedAssetCount++;
-					for (const auto& SourceFile : AssetImportInfo.SourceFiles)
-					{
-						OutFilePaths.Add(SourceFile.RelativeFilename);
-						OutUniqueSourceFileLabels.AddUnique(SourceFile.DisplayLabelName);
-					}
-				});
-			}
+				OutFilePaths.Add(AssetImportInfo.FilePath);
+				return true;
+			});
+
+			GetSourceFilesArgs.FilePathFormat = EPathUse::Display;
+			AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&OutUniqueSourceFileLabels](const FAssetSourceFilesResult& AssetImportInfo)
+			{
+				OutUniqueSourceFileLabels.Add(AssetImportInfo.FilePath);
+				return true;
+			});
 		}
 	}
 }

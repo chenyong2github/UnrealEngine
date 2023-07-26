@@ -76,6 +76,45 @@ TConstArrayView<FAssetCategoryPath> UAssetDefinition::GetAssetCategories() const
 	return Categories;
 }
 
+EAssetCommandResult UAssetDefinition::GetSourceFiles(const FAssetSourceFilesArgs& InArgs, TFunctionRef<bool(const FAssetSourceFilesResult& InSourceFile)> SourceFileFunc) const
+{
+	bool bFoundSomeData = false;
+
+	FString SourceFileTagData;
+	FAssetSourceFilesResult Result;
+	for (const FAssetData& Asset : InArgs.Assets)
+	{
+		if (Asset.GetTagValue(UObject::SourceFileTagName(), SourceFileTagData))
+		{
+			TOptional<FAssetImportInfo> ImportInfoOptional = FAssetImportInfo::FromJson(SourceFileTagData);
+			if (ImportInfoOptional.IsSet())
+			{
+				bFoundSomeData = true;
+				FAssetImportInfo& ImportInfo = ImportInfoOptional.GetValue();
+
+				for (FAssetImportInfo::FSourceFile& SourceFiles : ImportInfo.SourceFiles)
+				{
+					Result.FilePath = MoveTemp(SourceFiles.RelativeFilename);
+					Result.Timestamp = MoveTemp(SourceFiles.Timestamp);
+					Result.FileHash = MoveTemp(SourceFiles.FileHash);
+				
+					if (InArgs.FilePathFormat == EPathUse::AbsolutePath)
+					{
+						Result.FilePath = UAssetImportData::ResolveImportFilename(FStringView(Result.FilePath), Asset.PackageName.ToString());
+					}
+
+					if (!SourceFileFunc(Result))
+					{
+						return EAssetCommandResult::Handled;
+					}
+				}
+			}
+		}
+	}
+
+	return bFoundSomeData ? EAssetCommandResult::Handled : EAssetCommandResult::Unhandled;
+}
+
 EAssetCommandResult UAssetDefinition::GetSourceFiles(const FAssetData& InAsset, TFunctionRef<void(const FAssetImportInfo& AssetImportData)> SourceFileFunc) const
 {
 	FString SourceFileTagData;

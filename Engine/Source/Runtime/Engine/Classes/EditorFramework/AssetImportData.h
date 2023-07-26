@@ -155,6 +155,7 @@ public:
 
 	/** Resolve a filename that is relative to either the specified package, BaseDir() or absolute */
 	static ENGINE_API FString ResolveImportFilename(const FString& InRelativePath, const UPackage* Outermost);
+	static ENGINE_API FString ResolveImportFilename(FStringView InRelativePath, FStringView OutermostPath);
 
 	/** Convert an absolute import path so that it's relative to either this object's package, BaseDir() or leave it absolute */
 	static ENGINE_API FString SanitizeImportFilename(const FString& InPath, const UPackage* Outermost);

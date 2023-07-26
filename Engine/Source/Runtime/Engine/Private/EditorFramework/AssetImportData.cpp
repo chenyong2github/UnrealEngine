@@ -3,6 +3,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/PackageName.h"
 #include "Serialization/JsonSerializer.h"
 #include "UObject/Package.h"
@@ -351,17 +352,31 @@ FString UAssetImportData::SanitizeImportFilename(const FString& InPath, const FS
 FString UAssetImportData::ResolveImportFilename(const FString& InRelativePath, const UPackage* Outermost)
 {
 	if (Outermost)
+	{ 
+		return ResolveImportFilename(InRelativePath, FStringView(Outermost->GetPathName()));
+	}
+
+	return ResolveImportFilename(InRelativePath, FStringView());
+}
+
+FString UAssetImportData::ResolveImportFilename(FStringView InRelativePath, FStringView OutermostPath)
+{
+	if (!OutermostPath.IsEmpty())
 	{
 		// Relative to the package filename?
-		const FString PathRelativeToPackage = FPaths::GetPath(FPackageName::LongPackageNameToFilename(Outermost->GetPathName())) / InRelativePath;
-		FString FullConvertPath = FPaths::ConvertRelativePathToFull(PathRelativeToPackage);
-		if (FPaths::FileExists(FullConvertPath))
+		FStringBuilderBase Path;
+		FPathViews::Append(Path, FPathViews::GetPath(FPackageName::LongPackageNameToFilename(FString(OutermostPath))), InRelativePath);
+
+		
+		FPathViews::ToAbsolutePathInline(Path);
+		FString ResolvedFile = Path.ToString();
+		if (FPaths::FileExists(ResolvedFile))
 		{
 			//FileExist return true when testing Path like c:/../folder1/filename. ConvertRelativePathToFull specify having .. in front of a drive letter is an error.
 			//It is relative to package only if the conversion to full path is successful.
-			if (FullConvertPath.Find(TEXT("..")) == INDEX_NONE)
+			if (ResolvedFile.Find(TEXT("..")) == INDEX_NONE)
 			{
-				return FullConvertPath;
+				return ResolvedFile;
 			}
 		}
 	}
@@ -388,7 +403,9 @@ FString UAssetImportData::ResolveImportFilename(const FString& InRelativePath, c
 #endif
 
 	// Convert relative paths
-	return FPaths::ConvertRelativePathToFull(InRelativePath);
+	FStringBuilderBase Path;
+	FPathViews::ToAbsolutePath(InRelativePath, Path);
+	return Path.ToString();
 }
 
 FString UAssetImportData::ResolveImportFilename(const FString& InRelativePath) const

@@ -47,6 +47,21 @@ enum class EAssetMergeResult : uint8
 	Cancelled,
 };
 
+enum class EPathUse : uint8
+{
+	/**
+	 * Present the file in a UI friendly format. 
+	 * Note that the path might not always be relative.
+	 * It cannot be used for other purposes then presenting it to the user since the details of how to resolve that path might change based on the asset implementation.
+	 */
+	Display,
+
+	/**
+	 * Resolve the path into an absolute path.
+	 */
+	AbsolutePath
+};
+
 struct FAssetArgs
 {
 	FAssetArgs() { }
@@ -116,10 +131,21 @@ struct FAssetActivateArgs : public FAssetArgs
 	EAssetActivationMethod ActivationMethod;
 };
 
-struct FAssetSourceFile
+struct FAssetSourceFilesArgs : public FAssetArgs
 {
-	FString DisplayLabelName;
-	FString RelativeFilename;
+	EPathUse FilePathFormat = EPathUse::AbsolutePath;
+};
+
+struct FAssetSourceFilesResult
+{
+	/** The file path in the format requested. */
+	FString FilePath;
+
+	/** The timestamp of the file when it was imported (as UTC). 0 when unknown. */
+	FDateTime Timestamp;
+
+	/** The MD5 hash of the file when it was imported. Invalid when unknown. */
+	FMD5Hash FileHash;
 };
 
 struct FAssetMergeResults
@@ -493,6 +519,15 @@ public:
 	}
 
 	// Source Files
+
+	/**
+	 * Return the source files that was used to generate/import the asset
+	 * @param InArgs The asset data of the assets we want the source files from and in which format we want the file path to be.
+	 * @param SourceFileFunc A function that is called for each source file found. The call back must return true to continue the enumeration.
+	 */
+	virtual EAssetCommandResult GetSourceFiles(const FAssetSourceFilesArgs& InArgs, TFunctionRef<bool(const FAssetSourceFilesResult& InSourceFile)> SourceFileFunc) const;
+
+	UE_DEPRECATED(5.3, "This override will be removed because it doesn't account that the resolution of a relative path to its absolute path may varies based on the asset implementation.")
 	virtual EAssetCommandResult GetSourceFiles(const FAssetData& InAsset, TFunctionRef<void(const FAssetImportInfo& AssetImportData)> SourceFileFunc) const;
 
 	// Diffing Assets
