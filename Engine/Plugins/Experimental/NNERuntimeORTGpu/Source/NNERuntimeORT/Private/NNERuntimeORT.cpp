@@ -52,6 +52,11 @@ TArray<uint8> UNNERuntimeORTGpuImpl::CreateModelData(FString FileType, TConstArr
 	return Result;
 }
 
+FString UNNERuntimeORTGpuImpl::GetModelDataIdentifier(FString FileType, TConstArrayView<uint8> FileData, FGuid FileId, const ITargetPlatform* TargetPlatform)
+{
+	return FileId.ToString(EGuidFormats::Digits) + "-" + UNNERuntimeORTGpuImpl::GUID.ToString(EGuidFormats::Digits) + "-" + FString::FromInt(UNNERuntimeORTGpuImpl::Version);
+}
+
 void UNNERuntimeORTGpuImpl::Init(ENNERuntimeORTGpuProvider InProvider)
 {
 	check(!ORTEnvironment.IsValid());

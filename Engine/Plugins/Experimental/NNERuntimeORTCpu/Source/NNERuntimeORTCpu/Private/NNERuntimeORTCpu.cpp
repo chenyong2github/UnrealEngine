@@ -50,6 +50,11 @@ TArray<uint8> UNNERuntimeORTCpuImpl::CreateModelData(FString FileType, TConstArr
 	return Result;
 }
 
+FString UNNERuntimeORTCpuImpl::GetModelDataIdentifier(FString FileType, TConstArrayView<uint8> FileData, FGuid FileId, const ITargetPlatform* TargetPlatform)
+{
+	return FileId.ToString(EGuidFormats::Digits) + "-" + UNNERuntimeORTCpuImpl::GUID.ToString(EGuidFormats::Digits) + "-" + FString::FromInt(UNNERuntimeORTCpuImpl::Version);
+}
+
 bool UNNERuntimeORTCpuImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const
 {
 	check(ModelData != nullptr);

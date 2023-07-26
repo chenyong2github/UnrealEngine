@@ -35,17 +35,25 @@ FCustomVersionRegistration NNEModelDataVersion(UNNEModelData::GUID, LatestVersio
 
 #if WITH_EDITOR
 
-inline UE::DerivedData::FCacheKey CreateCacheKey(const FGuid& FileId, const FString& RuntimeName)
+inline FString GetDDCRequestId(const FString& FileId, const FString& RuntimeName, const FString& ModelDataIdentifier)
 {
-	FString GuidString = FileId.ToString(EGuidFormats::Digits);
-	return { UE::DerivedData::FCacheBucket(FWideStringView(*GuidString)), FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(RuntimeName))) };
+	//RuntimeName and FileId are embedded to the id to ensure no potential collision between the runtime/assets
+	return RuntimeName + "-" + FileId + "-" + ModelDataIdentifier;
 }
 
-inline FSharedBuffer GetFromDDC(const FGuid& FileId, const FString& RuntimeName)
+inline UE::DerivedData::FCacheKey CreateCacheKey(const FString& FileId, const FString& RequestId)
 {
+	return { UE::DerivedData::FCacheBucket(FWideStringView(*FileId)), FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(RequestId))) };
+}
+
+inline FSharedBuffer GetFromDDC(const FGuid& FileId, const FString& RuntimeName, const FString& ModelDataIdentifier)
+{
+	FString FileIdStr = FileId.ToString(EGuidFormats::Digits);
+	FString RequestId = GetDDCRequestId(FileIdStr, RuntimeName, ModelDataIdentifier);
+
 	UE::DerivedData::FCacheGetValueRequest GetRequest;
-	GetRequest.Name = FString("Get-") + RuntimeName + FString("-") + FileId.ToString(EGuidFormats::Digits);
-	GetRequest.Key = CreateCacheKey(FileId,  RuntimeName);
+	GetRequest.Name = FString("Get-") + RequestId;
+	GetRequest.Key = CreateCacheKey(FileIdStr, RequestId);
 	FSharedBuffer RawDerivedData;
 	UE::DerivedData::FRequestOwner BlockingGetOwner(UE::DerivedData::EPriority::Blocking);
 	UE::DerivedData::GetCache().GetValue({ GetRequest }, BlockingGetOwner, [&RawDerivedData](UE::DerivedData::FCacheGetValueResponse&& Response)
@@ -56,11 +64,14 @@ inline FSharedBuffer GetFromDDC(const FGuid& FileId, const FString& RuntimeName)
 	return RawDerivedData;
 }
 
-inline void PutIntoDDC(const FGuid& FileId, const FString& RuntimeName, FSharedBuffer& Data)
+inline void PutIntoDDC(const FGuid& FileId, const FString& RuntimeName, const FString& ModelDataIdentifier, FSharedBuffer& Data)
 {
+	FString FileIdStr = FileId.ToString(EGuidFormats::Digits);
+	FString RequestId = GetDDCRequestId(FileIdStr, RuntimeName, ModelDataIdentifier);
+
 	UE::DerivedData::FCachePutValueRequest PutRequest;
-	PutRequest.Name = FString("Put-") + RuntimeName + FString("-") + FileId.ToString(EGuidFormats::Digits);
-	PutRequest.Key = CreateCacheKey(FileId, RuntimeName);
+	PutRequest.Name = FString("Put-") + RequestId;
+	PutRequest.Key = CreateCacheKey(FileIdStr, RequestId);
 	PutRequest.Value = UE::DerivedData::FValue::Compress(Data);
 	UE::DerivedData::FRequestOwner BlockingPutOwner(UE::DerivedData::EPriority::Blocking);
 	UE::DerivedData::GetCache().PutValue({ PutRequest }, BlockingPutOwner);
@@ -135,8 +146,22 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	}
 	
 #if WITH_EDITOR
-	// Check if we have a remote cache hit
-	FSharedBuffer RemoteData = GetFromDDC(FileId, RuntimeName);
+	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNE::GetRuntime<INNERuntime>(RuntimeName);
+	if (!NNERuntime.IsValid())
+	{
+		UE_LOG(LogNNE, Error, TEXT("UNNEModelData: Runtime '%s' is among the target runtimes but instance is invalid."), *RuntimeName);
+		return {};
+	}
+
+	FString ModelDataIdentifier = NNERuntime->GetModelDataIdentifier(FileType, FileData, FileId, nullptr);
+	if (ModelDataIdentifier.Len() == 0)
+	{
+		UE_LOG(LogNNE, Error, TEXT("UNNEModelData: Runtime '%s' returned an empty string as a ModelDataIdentifier. GetModelDataIdentifier should always return a valid identifier."), *RuntimeName);
+		return {};
+	}
+	
+	// Check if we have a DDC cache hit
+	FSharedBuffer RemoteData = GetFromDDC(FileId, RuntimeName, ModelDataIdentifier);
 	if (RemoteData.GetSize() > 0)
 	{
 		ModelData.Add(RuntimeName, TArray<uint8>((uint8*)RemoteData.GetData(), RemoteData.GetSize()));
@@ -159,7 +184,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 #if WITH_EDITOR
 	// And put it into DDC
 	FSharedBuffer SharedBuffer = MakeSharedBufferFromArray(MoveTemp(CreatedData));
-	PutIntoDDC(FileId, RuntimeName, SharedBuffer);
+	PutIntoDDC(FileId, RuntimeName, ModelDataIdentifier, SharedBuffer);
 #endif //WITH_EDITOR
 	
 	TArray<uint8>* CachedCreatedData = ModelData.Find(RuntimeName);
@@ -196,8 +221,24 @@ void UNNEModelData::Serialize(FArchive& Ar)
 			{
 				ModelData.Add(RuntimeName, CreatedData);
 #if WITH_EDITOR
-				FSharedBuffer SharedBuffer = MakeSharedBufferFromArray(MoveTemp(CreatedData));
-				PutIntoDDC(FileId, RuntimeName, SharedBuffer);
+				TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNE::GetRuntime<INNERuntime>(RuntimeName);
+				if (NNERuntime.IsValid())
+				{
+					FString ModelDataIdentifier = NNERuntime->GetModelDataIdentifier(FileType, FileData, FileId, Ar.GetArchiveState().CookingTarget());
+					if (ModelDataIdentifier.Len() > 0)
+					{
+						FSharedBuffer SharedBuffer = MakeSharedBufferFromArray(MoveTemp(CreatedData));
+						PutIntoDDC(FileId, RuntimeName, ModelDataIdentifier, SharedBuffer);
+					}
+					else
+					{
+						UE_LOG(LogNNE, Warning, TEXT("UNNEModelData: Runtime '%s' returned an empty string as a ModelDataIdentifier while cooking. GetModelDataIdentifier should always return a valid identifier."), *RuntimeName);
+					}
+				}
+				else
+				{
+					UE_LOG(LogNNE, Warning, TEXT("UNNEModelData: Runtime '%s' is among the cooked runtimes but instance is invalid."), *RuntimeName);
+				}
 #endif //WITH_EDITOR
 			}
 		}
