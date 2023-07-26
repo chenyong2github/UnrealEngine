@@ -28,10 +28,12 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("Both -modernxcode and -legacyxcode were specified, please use one or the other.");
 				}
+				Log.TraceInformationOnce("Forcing MDOERN XCODE with -modernxcode");
 				return true;
 			}
 			if (bForceLegacyXcode)
 			{
+				Log.TraceInformationOnce("Forcing LEGACY XCODE with -legacyxcode");
 				return false;
 			}
 
@@ -41,6 +43,11 @@ namespace UnrealBuildTool
 			{
 				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
 				Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
+				Log.TraceInformationOnce("Choosing {0} XCODE based on .ini settings", bUseModernXcode ? "MODERN" : "LEGACY");
+			}
+			else
+			{
+				Log.TraceInformationOnce("Forcing LEGACY XCODE because host OS is not Mac");
 			}
 			return bUseModernXcode;
 		}
@@ -69,6 +76,30 @@ namespace UnrealBuildTool
 			}
 
 			return new FileReference(FilePath);
+		}
+
+		/// <summary>
+		/// Convert UnrealTargetPlatform to the platform that Xcode uses for -destination
+		/// </summary>
+		/// <param name="Platform"></param>
+		/// <param name="Architectures">The architecture we are targeting (really, this is for Simulators)</param>
+		/// <returns></returns>
+		public static string GetDestinationPlatform(UnrealTargetPlatform Platform, UnrealArchitectures Architectures)
+		{
+			if (Platform == UnrealTargetPlatform.Mac)
+			{
+				return "macOS";
+			}
+			else if (Platform == UnrealTargetPlatform.IOS)
+			{
+				return Architectures.SingleArchitecture == UnrealArch.IOSSimulator ? "iOS Simulator" : "iOS";
+			}
+			else if (Platform == UnrealTargetPlatform.TVOS)
+			{
+				return Architectures.SingleArchitecture == UnrealArch.TVOSSimulator ? "tvOS Simulator" : "tvOS";
+			}
+
+			throw new BuildException($"Unknown plaform {Platform}");
 		}
 
 		/// <summary>
@@ -103,14 +134,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Project to build</param>
 		/// <param name="Platform">Platform to build</param>
+		/// <param name="Architectures">The architecture we are targeting (really, this is for Simulator to pass in the -destination field)</param>
 		/// <param name="Configuration">Configuration to build</param>
 		/// <param name="TargetName">Target to build</param>
 		/// <param name="BuildMode">Sets an envvar used inside the xcode project to control certain features</param>
 		/// <param name="Logger"></param>
 		/// <param name="ExtraOptions">Any extra options to pass to xcodebuild</param>
+		/// <param name="bForceDummySigning">If true, force signing with the - identity</param>
 		/// <returns>xcode's exit code</returns>
-		public static int BuildWithStubXcodeProject(FileReference? ProjectFile, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration,
-			string TargetName, XcodeBuildMode BuildMode, ILogger Logger, string ExtraOptions = "")
+		public static int BuildWithStubXcodeProject(FileReference? ProjectFile, UnrealTargetPlatform Platform, UnrealArchitectures Architectures, UnrealTargetConfiguration Configuration,
+			string TargetName, XcodeBuildMode BuildMode, ILogger Logger, string ExtraOptions = "", bool bForceDummySigning=false)
 		{
 			DirectoryReference? GeneratedProjectFile;
 			// we don't use distro flag when making a modern project
@@ -121,35 +154,42 @@ namespace UnrealBuildTool
 				return 1;
 			}
 
-			// look for the special app store connect key information
-			ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
-			bool bUseAutomaticCodeSigning;
-			SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bUseAutomaticCodeSigning);
-			if (bUseAutomaticCodeSigning)
+			if (bForceDummySigning)
 			{
-				ExtraOptions += " -allowProvisioningUpdates";
-
-				// handle AppStore Connect settings
-				bool bUseAppStoreConnect;
-				SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAppStoreConnect", out bUseAppStoreConnect);
-				if (bUseAppStoreConnect)
+				ExtraOptions += " CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=-";
+			}
+			else
+			{
+				// look for the special app store connect key information
+				ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
+				bool bUseAutomaticCodeSigning;
+				SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bUseAutomaticCodeSigning);
+				if (bUseAutomaticCodeSigning)
 				{
-					string? IssuerID, KeyID, KeyPath;
-					if (SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectIssuerID", out IssuerID) &&
-						SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectKeyID", out KeyID) &&
-						SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectKeyPath", out KeyPath))
+					ExtraOptions += " -allowProvisioningUpdates";
+	
+					// handle AppStore Connect settings
+					bool bUseAppStoreConnect;
+					SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAppStoreConnect", out bUseAppStoreConnect);
+					if (bUseAppStoreConnect)
 					{
-						FileReference KeyFile = ConvertFilePath(ProjectFile?.Directory, KeyPath);
-						ExtraOptions += $" -authenticationKeyIssuerID {IssuerID}";
-						ExtraOptions += $" -authenticationKeyID {KeyID}";
-						ExtraOptions += $" -authenticationKeyPath \"{KeyFile}\"";
+						string? IssuerID, KeyID, KeyPath;
+						if (SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectIssuerID", out IssuerID) &&
+							SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectKeyID", out KeyID) &&
+							SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectKeyPath", out KeyPath))
+						{
+							FileReference KeyFile = ConvertFilePath(ProjectFile?.Directory, KeyPath);
+							ExtraOptions += $" -authenticationKeyIssuerID {IssuerID}";
+							ExtraOptions += $" -authenticationKeyID {KeyID}";
+							ExtraOptions += $" -authenticationKeyPath \"{KeyFile}\"";
+						}
 					}
 				}
 			}
 
 			// run xcodebuild on the generated project to make the .app
 			string XcodeBuildAction = BuildMode == XcodeBuildMode.Distribute ? "archive" : "build";
-			return AppleExports.FinalizeAppWithXcode(GeneratedProjectFile!, Platform, TargetName, Configuration.ToString(), XcodeBuildAction, ExtraOptions + $" UE_XCODE_BUILD_MODE={BuildMode}", Logger);
+			return AppleExports.FinalizeAppWithXcode(GeneratedProjectFile!, Platform, Architectures, TargetName, Configuration.ToString(), XcodeBuildAction, ExtraOptions + $" UE_XCODE_BUILD_MODE={BuildMode}", Logger);
 		}
 
 		/// <summary>
@@ -171,15 +211,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="XcodeProject">The .xcworkspace file to build</param>
 		/// <param name="Platform">THe platform to make the .app for</param>
+		/// <param name="Architectures">The architecture we are targeting (really, this is for Simulator to pass in the -destination field)</param>
 		/// <param name="SchemeName">The name of the scheme (basically the target on the .xcworkspace)</param>
 		/// <param name="Configuration">Which configuration to make (Debug, etc)</param>
 		/// <param name="Action">Action (build, archive, etc)</param>
 		/// <param name="ExtraOptions">Extra options to pass to xcodebuild</param>
 		/// <param name="Logger">Logging object</param>
 		/// <returns>xcode's exit code</returns>
-		public static int FinalizeAppWithXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string Action, string ExtraOptions, ILogger Logger)
+		public static int FinalizeAppWithXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, UnrealArchitectures Architectures, string SchemeName, string Configuration, string Action, string ExtraOptions, ILogger Logger)
 		{
-			return AppleToolChain.FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, Action, ExtraOptions, Logger);
+			return AppleToolChain.FinalizeAppWithXcode(XcodeProject, Platform, Architectures, SchemeName, Configuration, Action, ExtraOptions, Logger);
 		}
 
 		/// <summary>

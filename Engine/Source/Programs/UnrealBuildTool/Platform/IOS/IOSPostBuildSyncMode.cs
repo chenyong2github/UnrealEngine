@@ -13,6 +13,7 @@ namespace UnrealBuildTool
 	class IOSPostBuildSyncTarget
 	{
 		public UnrealTargetPlatform Platform;
+		public UnrealArchitectures Architectures;
 		public UnrealTargetConfiguration Configuration;
 		public FileReference? ProjectFile;
 		public string TargetName;
@@ -34,6 +35,7 @@ namespace UnrealBuildTool
 		public IOSPostBuildSyncTarget(ReadOnlyTargetRules Target, FileReference OutputPath, DirectoryReference? ProjectIntermediateDirectory, List<string> UPLScripts, VersionNumber SdkVersion, Dictionary<string, DirectoryReference> FrameworkNameToSourceDir)
 		{
 			Platform = Target.Platform;
+			Architectures = Target.Architectures;
 			Configuration = Target.Configuration;
 			ProjectFile = Target.ProjectFile;
 			TargetName = Target.Name;
