@@ -6,6 +6,7 @@
 #include "CoreTypes.h"
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
+#include "ModuleDescriptor.h"
 #include "HAL/Runnable.h"
 #include "IMessageTransport.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
@@ -75,6 +76,15 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~FQuicMessageProcessor();
+
+private:
+
+	/** Start the message processor thread. */
+	void StartThread();
+
+	/** Delegate invoked when a plugin phase has been completed. */
+	void OnPluginLoadingPhaseComplete(
+		ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
 
 public:
 
@@ -189,7 +199,7 @@ private:
 	EQuicMessageFormat MessageFormat;
 
 	/** Holds the thread object. */
-	FRunnableThread* Thread;
+	TUniquePtr<FRunnableThread> Thread;
 
 	/** Holds an event signaling that outbound messages need to be processed. */
 	TSharedPtr<FEvent, ESPMode::ThreadSafe> SerializeWorkEvent;
