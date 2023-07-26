@@ -123,6 +123,13 @@ public:
 	}
 
 	/**
+	 * Checks whether the tokens expiration timestamp is in the past.
+	 *
+	 * @return Whether the token has expired
+	 */
+	bool HasExpired() const;
+
+	/**
 	 * Deprecated method to signature validate the JWT.
 	 *
 	 * @return False
