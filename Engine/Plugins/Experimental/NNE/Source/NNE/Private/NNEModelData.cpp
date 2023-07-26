@@ -35,17 +35,17 @@ FCustomVersionRegistration NNEModelDataVersion(UNNEModelData::GUID, LatestVersio
 
 #if WITH_EDITOR
 
-inline UE::DerivedData::FCacheKey CreateCacheKey(const FGuid& FileDataId, const FString& RuntimeName)
+inline UE::DerivedData::FCacheKey CreateCacheKey(const FGuid& FileId, const FString& RuntimeName)
 {
-	FString GuidString = FileDataId.ToString(EGuidFormats::Digits);
+	FString GuidString = FileId.ToString(EGuidFormats::Digits);
 	return { UE::DerivedData::FCacheBucket(FWideStringView(*GuidString)), FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(RuntimeName))) };
 }
 
-inline FSharedBuffer GetFromDDC(const FGuid& FileDataId, const FString& RuntimeName)
+inline FSharedBuffer GetFromDDC(const FGuid& FileId, const FString& RuntimeName)
 {
 	UE::DerivedData::FCacheGetValueRequest GetRequest;
-	GetRequest.Name = FString("Get-") + RuntimeName + FString("-") + FileDataId.ToString(EGuidFormats::Digits);
-	GetRequest.Key = CreateCacheKey(FileDataId,  RuntimeName);
+	GetRequest.Name = FString("Get-") + RuntimeName + FString("-") + FileId.ToString(EGuidFormats::Digits);
+	GetRequest.Key = CreateCacheKey(FileId,  RuntimeName);
 	FSharedBuffer RawDerivedData;
 	UE::DerivedData::FRequestOwner BlockingGetOwner(UE::DerivedData::EPriority::Blocking);
 	UE::DerivedData::GetCache().GetValue({ GetRequest }, BlockingGetOwner, [&RawDerivedData](UE::DerivedData::FCacheGetValueResponse&& Response)
@@ -56,11 +56,11 @@ inline FSharedBuffer GetFromDDC(const FGuid& FileDataId, const FString& RuntimeN
 	return RawDerivedData;
 }
 
-inline void PutIntoDDC(const FGuid& FileDataId, const FString& RuntimeName, FSharedBuffer& Data)
+inline void PutIntoDDC(const FGuid& FileId, const FString& RuntimeName, FSharedBuffer& Data)
 {
 	UE::DerivedData::FCachePutValueRequest PutRequest;
-	PutRequest.Name = FString("Put-") + RuntimeName + FString("-") + FileDataId.ToString(EGuidFormats::Digits);
-	PutRequest.Key = CreateCacheKey(FileDataId, RuntimeName);
+	PutRequest.Name = FString("Put-") + RuntimeName + FString("-") + FileId.ToString(EGuidFormats::Digits);
+	PutRequest.Key = CreateCacheKey(FileId, RuntimeName);
 	PutRequest.Value = UE::DerivedData::FValue::Compress(Data);
 	UE::DerivedData::FRequestOwner BlockingPutOwner(UE::DerivedData::EPriority::Blocking);
 	UE::DerivedData::GetCache().PutValue({ PutRequest }, BlockingPutOwner);
@@ -69,12 +69,12 @@ inline void PutIntoDDC(const FGuid& FileDataId, const FString& RuntimeName, FSha
 
 #endif
 
-inline TArray<uint8> CreateRuntimeDataBlob(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData)
+inline TArray<uint8> CreateRuntimeDataBlob(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData, FGuid FileId)
 {
 	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNE::GetRuntime<INNERuntime>(RuntimeName);
 	if (NNERuntime.IsValid())
 	{
-		return NNERuntime->CreateModelData(FileType, FileData);
+		return NNERuntime->CreateModelData(FileType, FileData, FileId);
 	}
 	else
 	{
@@ -92,8 +92,23 @@ void UNNEModelData::Init(const FString& Type, TConstArrayView<uint8> Buffer)
 {
 	FileType = Type;
 	FileData = Buffer;
-	FPlatformMisc::CreateGuid(FileDataId);
+	FPlatformMisc::CreateGuid(FileId);
 	ModelData.Empty();
+}
+
+FString UNNEModelData::GetFileType()
+{
+	return FileType;
+}
+
+TConstArrayView<uint8> UNNEModelData::GetFileData()
+{
+	return FileData;
+}
+
+FGuid UNNEModelData::GetFileId()
+{
+	return FileId;
 }
 
 TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
@@ -121,7 +136,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	
 #if WITH_EDITOR
 	// Check if we have a remote cache hit
-	FSharedBuffer RemoteData = GetFromDDC(FileDataId, RuntimeName);
+	FSharedBuffer RemoteData = GetFromDDC(FileId, RuntimeName);
 	if (RemoteData.GetSize() > 0)
 	{
 		ModelData.Add(RuntimeName, TArray<uint8>((uint8*)RemoteData.GetData(), RemoteData.GetSize()));
@@ -132,7 +147,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 #endif //WITH_EDITOR
 
 	// Try to create the model
-	TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData);
+	TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData, FileId);
 	if (CreatedData.Num() < 1)
 	{
 		return {};
@@ -144,7 +159,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 #if WITH_EDITOR
 	// And put it into DDC
 	FSharedBuffer SharedBuffer = MakeSharedBufferFromArray(MoveTemp(CreatedData));
-	PutIntoDDC(FileDataId, RuntimeName, SharedBuffer);
+	PutIntoDDC(FileId, RuntimeName, SharedBuffer);
 #endif //WITH_EDITOR
 	
 	TArray<uint8>* CachedCreatedData = ModelData.Find(RuntimeName);
@@ -176,13 +191,13 @@ void UNNEModelData::Serialize(FArchive& Ar)
 
 		for (const FString& RuntimeName : CookedRuntimeNames)
 		{
-			TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData);
+			TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData, FileId);
 			if (CreatedData.Num() > 0)
 			{
 				ModelData.Add(RuntimeName, CreatedData);
 #if WITH_EDITOR
 				FSharedBuffer SharedBuffer = MakeSharedBufferFromArray(MoveTemp(CreatedData));
-				PutIntoDDC(FileDataId, RuntimeName, SharedBuffer);
+				PutIntoDDC(FileId, RuntimeName, SharedBuffer);
 #endif //WITH_EDITOR
 			}
 		}
@@ -195,7 +210,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 
 		Ar << FileType;
 		Ar << EmptyData;
-		Ar << FileDataId;
+		Ar << FileId;
 		Ar << NumItems;
 
 		for (int i = 0; i < NumItems; i++)
@@ -224,7 +239,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 
 		Ar << FileType;
 		Ar << FileData;
-		Ar << FileDataId;
+		Ar << FileId;
 		Ar << NumItems;
 
 		if (Ar.IsLoading())

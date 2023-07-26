@@ -31,6 +31,33 @@ public:
 	void Init(const FString& Type, TConstArrayView<uint8> Buffer);
 
 	/**
+	 * Get the type of data inside FileData.
+	 *
+	 * The FileType identifies the type of data inside FileData and typically is the extension of the file used to create the asset.
+	 *
+	 * @return The FileType.
+	 */
+	FString GetFileType();
+
+	/**
+	 * Get read only access to FileData.
+	 *
+	 * The FileData contains the binary data of the file which has been used to create the asset.
+	 *
+	 * @return The FileData.
+	 */
+	TConstArrayView<uint8> GetFileData();
+
+	/**
+	 * Get the FGuid identifying the FileData.
+	 *
+	 * The FileId is created on import of an asset. It can be used to identify the FileData, e.g. when putting corresponding data into the DDC or caching data locally.
+	 *
+	 * @return The FileId.
+	 */
+	FGuid GetFileId();
+
+	/**
 	 * Get the cached (editor) or cooked (game) optimized model data for a given runtime.
 	 *
 	 * This function is used by runtimes when creating a model. In editor, the function will create the optimized model data with the passed runtime in case it has not been cached in the DCC yet. In game, the cooked data is accessed.
@@ -99,7 +126,7 @@ private:
 	/**
 	 * A Guid that uniquely identifies this model. This is used to cache optimized models in the editor.
 	 */
-	FGuid FileDataId;
+	FGuid FileId;
 
 	/**
 	 * The processed / optimized model data for the different runtimes.
