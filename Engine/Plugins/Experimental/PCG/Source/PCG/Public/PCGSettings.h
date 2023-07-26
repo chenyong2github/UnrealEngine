@@ -323,6 +323,9 @@ public:
 	FText Description;
 #endif
 
+	// Holds the original settings used to duplicate this object if it was overridden
+	const UPCGSettings* OriginalSettings = nullptr;
+
 protected:
 	// Returns an array of all the input pin properties. You should not add manually a "params" pin, it is handled automatically by FillOverridableParamsPins
 	virtual TArray<FPCGPinProperties> InputPinProperties() const;

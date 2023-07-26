@@ -292,6 +292,10 @@ namespace PCGAttributeAccessorHelpers
 		{
 			return Functor(Signature<FPCGPropertySoftPtrAccessor>{}, SoftObjectProperty);
 		}
+		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+		{
+			return Functor(Signature<FPCGPropertyObjectPtrAccessor>{}, ObjectProperty);
+		}
 		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			if (StructProperty->Struct == TBaseStructure<FVector>::Get())

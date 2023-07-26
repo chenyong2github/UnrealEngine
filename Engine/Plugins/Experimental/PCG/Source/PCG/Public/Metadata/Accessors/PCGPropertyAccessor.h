@@ -295,3 +295,42 @@ public:
 private:
 	const FSoftObjectProperty* Property = nullptr;
 };
+
+/**
+* Templated accessor class for object/class ptr properties.
+* Do not instantiate it manually, use PCGAttributeAccessorHelpers::CreatePropertyAccessor.
+* Will always convert to FString for PCG
+* Key supported: Generic object
+*/
+class FPCGPropertyObjectPtrAccessor : public IPCGAttributeAccessorT<FPCGPropertyObjectPtrAccessor>
+{
+public:
+	using Type = FString;
+	using Super = IPCGAttributeAccessorT<FPCGPropertyObjectPtrAccessor>;
+
+	FPCGPropertyObjectPtrAccessor(const FObjectProperty* InProperty)
+		: Super(/*bInReadOnly=*/ false)
+		, Property(InProperty)
+	{
+		check(Property);
+	}
+
+	bool GetRangeImpl(TArrayView<Type> OutValues, int32 Index, const IPCGAttributeAccessorKeys& Keys) const
+	{
+		return PCGPropertyAccessor::IterateGet(Property, OutValues, Index, Keys, [this](const void* PropertyAddressData) -> Type
+		{
+			return Property->GetPropertyValue(PropertyAddressData).GetPath();
+		});
+	}
+
+	bool SetRangeImpl(TArrayView<const Type> InValues, int32 Index, IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags)
+	{
+		return PCGPropertyAccessor::IterateSet(Property, InValues, Index, Keys, [this](void* PropertyAddressData, const Type& Value) -> void
+		{
+			Property->SetPropertyValue(PropertyAddressData, FSoftObjectPath(Value).TryLoad());
+		});
+	}
+
+private:
+	const FObjectProperty* Property = nullptr;
+};

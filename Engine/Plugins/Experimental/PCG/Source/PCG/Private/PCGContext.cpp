@@ -135,6 +135,7 @@ void FPCGContext::InitializeSettings()
 
 				// Force seed copy to prevent issue due to delta serialization vs. Seed being initialized in the constructor only for new nodes
 				SettingsWithOverride->Seed = NodeSettings->Seed;
+				SettingsWithOverride->OriginalSettings = NodeSettings;
 			}
 		}
 	}

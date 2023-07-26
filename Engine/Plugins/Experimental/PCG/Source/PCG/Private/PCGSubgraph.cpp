@@ -13,6 +13,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubgraph)
 
+#define LOCTEXT_NAMESPACE "PCGSubgraphElement"
+
 namespace PCGSubgraphSettings
 {
 	void RemoveAdvancedModeOnConnectedPins(const UPCGGraph* Subgraph, TArray<FPCGPinProperties>& InOutPinProperties, const bool bIsInput)
@@ -265,6 +267,19 @@ void UPCGSubgraphSettings::PostLoad()
 }
 
 #if WITH_EDITOR
+void UPCGSubgraphSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, SubgraphInstance))
+	{
+		// Also rebuild the overrides
+		InitializeCachedOverridableParams(/*bReset=*/true);
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
+#if WITH_EDITOR
 UObject* UPCGSubgraphSettings::GetJumpTargetForDoubleClick() const
 {
 	// Note that there is a const_cast done behind the scenes in Cast.
@@ -282,6 +297,39 @@ bool UPCGSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) con
 FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
 {
 	return MakeShared<FPCGSubgraphElement>();
+}
+
+bool UPCGSubgraphSettings::IsDynamicGraph() const
+{
+	UPCGNode* Node = Cast<UPCGNode>(GetOuter());
+
+	if (!Node && OriginalSettings)
+	{
+		Node = Cast<UPCGNode>(OriginalSettings->GetOuter());
+
+	}
+
+	if (!Node)
+	{
+		return false;
+	}
+
+	const FName PropertyName = GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, SubgraphOverride);
+
+	const FPCGSettingsOverridableParam* Param = CachedOverridableParams.FindByPredicate([PropertyName](const FPCGSettingsOverridableParam& ParamToCheck)
+	{
+		return !ParamToCheck.PropertiesNames.IsEmpty() && ParamToCheck.PropertiesNames[0] == PropertyName;
+	});
+
+	if (Param)
+	{
+		if (const UPCGPin* Pin = Node->GetInputPin(Param->Label))
+		{
+			return Pin->IsConnected();
+		}
+	}
+
+	return false;
 }
 
 TObjectPtr<UPCGGraph> UPCGBaseSubgraphNode::GetSubgraph() const
@@ -410,12 +458,26 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 	const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
 	check(Settings);
 
+	// TODO: only prevents A->A recursion, not A->B->A or cycles in general
+	if (Context->SourceComponent->GetGraph() == Settings->GetSubgraph())
+	{
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("FailedRecursiveSubgraph", "PCGGraph cannot include itself as a subgraph, subgraph will not be executed."));
+		return true;
+	}
+
 	if (Settings->IsDynamicGraph())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSubgraphElement::Execute);
 
 		if (!Context->bScheduledSubgraph)
 		{
+			if (Settings->SubgraphInstance)
+			{
+				// If OriginalSettings is null, then we ARE the original settings, and writing over the existing graph is incorrect (and potentially a race condition)
+				check(Settings->OriginalSettings);
+				Settings->SubgraphInstance->SetGraph(Settings->SubgraphOverride);
+			}
+
 			UPCGGraph* Subgraph = Settings->GetSubgraph();
 			UPCGSubsystem* Subsystem = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetSubsystem() : nullptr;
 
@@ -532,3 +594,5 @@ bool FPCGInputForwardingElement::ExecuteInternal(FPCGContext* Context) const
 	Context->OutputData = Input;
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

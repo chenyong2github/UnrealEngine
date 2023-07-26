@@ -73,6 +73,9 @@ public:
 protected:
 	//~Begin UObject interface implementation
 	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//~End UObject interface implementation
 
 public:
@@ -95,6 +98,7 @@ protected:
 	//~Begin UPCGBaseSubgraphSettings interface
 public:
 	virtual UPCGGraphInterface* GetSubgraphInterface() const override { return SubgraphInstance.Get(); }
+	virtual bool IsDynamicGraph() const override;
 protected:
 	virtual void SetSubgraphInternal(UPCGGraphInterface* InGraph) override;
 #if WITH_EDITOR
@@ -105,6 +109,9 @@ protected:
 public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties, Instanced, meta = (NoResetToDefault))
 	TObjectPtr<UPCGGraphInstance> SubgraphInstance;
+
+	UPROPERTY(BlueprintReadOnly, Category = Properties, meta = (PCG_Overridable))
+	TObjectPtr<UPCGGraphInterface> SubgraphOverride;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
