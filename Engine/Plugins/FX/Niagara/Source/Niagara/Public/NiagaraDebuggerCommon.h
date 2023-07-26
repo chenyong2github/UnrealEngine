@@ -441,7 +441,7 @@ struct FNiagaraDebugHUDSettingsData
 	i.e. we will look for NaN or other invalidate data  inside it
 	Note: This will have an impact on performance.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Debug General")
+	UPROPERTY(EditAnywhere, Category = "Debug Validation")
 	bool bValidateSystemSimulationDataBuffers = false;
 
 	/**
@@ -449,8 +449,23 @@ struct FNiagaraDebugHUDSettingsData
 	i.e. we will look for NaN or other invalidate data  inside it
 	Note: This will have an impact on performance.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Debug General")
+	UPROPERTY(EditAnywhere, Category = "Debug Validation")
 	bool bValidateParticleDataBuffers = false;
+
+	/**
+	When enabled all validation errors will be sent to the log as warnings.
+	This can be useful to try and narrow down the exact source of an invalid value in the data buffers as often
+	they will cascade from the first frame where one is generated into other attributes in the subsequent frames.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Debug Validation")
+	bool bValidationLogErrors = false;
+
+	/**
+	When > 0 this is the maximum number of attributes we will display that contain a NaN,
+	there could be more but the display will be truncated to this amount.  This is to reduce generating long strings.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Debug Validation")
+	int32 ValidationAttributeDisplayTruncate = 3;
 
 	/** When enabled the overview display will be enabled. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Enabled"))

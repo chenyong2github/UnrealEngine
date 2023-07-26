@@ -130,7 +130,9 @@ namespace NiagaraDebugLocal
 			}
 		),
 		MakeTuple(TEXT("ValidateSystemSimulationDataBuffers="), TEXT("Enable or disable validation on system data buffers"), [](FString Arg) {Settings.bValidateSystemSimulationDataBuffers = FCString::Atoi(*Arg) != 0; }),
-		MakeTuple(TEXT("bValidateParticleDataBuffers="), TEXT("Enable or disable validation on particle data buffers"), [](FString Arg) {Settings.bValidateParticleDataBuffers = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("ValidateParticleDataBuffers="), TEXT("Enable or disable validation on particle data buffers"), [](FString Arg) {Settings.bValidateParticleDataBuffers = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("ValidationLogErrors="), TEXT("When enabled validation errors will be logged as we as on screen"), [](FString Arg) {Settings.bValidationLogErrors = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("ValidationAttributeDisplayTruncate="), TEXT("When > 0 limits the number of attributes we log"), [](FString Arg) {Settings.ValidationAttributeDisplayTruncate = FCString::Atoi(*Arg); }),
 
 		MakeTuple(TEXT("OverviewEnabled="), TEXT("Enable or disable the main overview display"), [](FString Arg) {Settings.bOverviewEnabled = FCString::Atoi(*Arg) != 0; }),
 		MakeTuple(TEXT("OverviewMode="), TEXT("Change the mode of the debug overivew"), [](FString Arg) {Settings.OverviewMode = (ENiagaraDebugHUDOverviewMode)FCString::Atoi(*Arg); }),
@@ -2603,7 +2605,7 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 			for (auto EmitterIt=ErrorInfo.ParticleVariablesWithErrors.CreateConstIterator(); EmitterIt; ++EmitterIt)
 			{
 				const TArray<FName>& EmitterVariables = EmitterIt.Value();
-				const int32 NumVariables = FMath::Min(EmitterVariables.Num(), 3);
+				const int32 NumVariables = Settings.ValidationAttributeDisplayTruncate > 0 ? FMath::Min(EmitterVariables.Num(), Settings.ValidationAttributeDisplayTruncate) : EmitterVariables.Num();
 				if (NumVariables > 0)
 				{
 					for (int32 iVariable = 0; iVariable < NumVariables; ++iVariable)
@@ -2623,6 +2625,7 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 						ErrorString.Append(TEXT(", ..."));
 					}
 					ErrorString.Append(TEXT("\n"));
+
 				}
 			}
 		}
@@ -2641,6 +2644,11 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 			TextLocation.Y += fAdvanceHeight;
 
 			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, ErrorString.ToString(), Font, Settings.MessageErrorTextColor);
+
+			if (Settings.bValidationLogErrors)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Validation Errors - %s"), ErrorString.ToString());
+			}
 		}
 	}
 }
