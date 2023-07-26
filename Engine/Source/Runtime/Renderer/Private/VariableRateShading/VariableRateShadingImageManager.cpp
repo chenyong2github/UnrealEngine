@@ -279,10 +279,14 @@ IMPLEMENT_GLOBAL_SHADER(FDebugVariableRateShadingPS, "/Engine/Private/VariableRa
 FVariableRateShadingImageManager::FVariableRateShadingImageManager()
 	: FRenderResource()
 {
-	ImageGenerators.Add(MakeUnique<FFoveatedImageGenerator>());
-	ImageGenerators.Add(MakeUnique<FContrastAdaptiveImageGenerator>());
+	InternalGenerators.Add(MakeUnique<FFoveatedImageGenerator>());
+	InternalGenerators.Add(MakeUnique<FContrastAdaptiveImageGenerator>());
 
-	// TODO: Add more generators or allow registration from plugins
+	FWriteScopeLock GeneratorsLock(GeneratorsMutex);
+	for (const TUniquePtr<IVariableRateShadingImageGenerator>& Generator : InternalGenerators)
+	{
+		ImageGenerators.Add(Generator.Get());
+	}
 }
 
 FVariableRateShadingImageManager::~FVariableRateShadingImageManager() {}
@@ -380,17 +384,20 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 	// Otherwise collate all internal sources
 	TArray<FRDGTextureRef> InternalVRSSources;
 
-	for (TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
 	{
-		FRDGTextureRef Image = nullptr;
-		if (Generator->IsEnabledForView(ViewInfo) && !EnumHasAnyFlags(VRSTypesToExclude, Generator->GetType()))
+		FReadScopeLock GeneratorsLock(GeneratorsMutex);	
+		for (IVariableRateShadingImageGenerator* const Generator : ImageGenerators)
 		{
-			Image = Generator->GetImage(GraphBuilder, ViewInfo, ImageType);
-		}
+			FRDGTextureRef Image = nullptr;
+			if (Generator->IsEnabledForView(ViewInfo) && !EnumHasAnyFlags(VRSTypesToExclude, Generator->GetType()))
+			{
+				Image = Generator->GetImage(GraphBuilder, ViewInfo, ImageType);
+			}
 
-		if (Image)
-		{
-			InternalVRSSources.Add(Image);
+			if (Image)
+			{
+				InternalVRSSources.Add(Image);
+			}
 		}
 	}
 
@@ -447,18 +454,22 @@ void FVariableRateShadingImageManager::PrepareImageBasedVRS(FRDGBuilder& GraphBu
 	}
 
 	// Invoke image generators
-	for (TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
 	{
-		if (Generator->IsEnabledForView(*ViewFamily.Views[0]))
+		FReadScopeLock GeneratorsLock(GeneratorsMutex);
+		for (IVariableRateShadingImageGenerator* const Generator : ImageGenerators)
 		{
-			Generator->PrepareImages(GraphBuilder, ViewFamily, SceneTextures);
+			if (Generator->IsEnabledForView(*ViewFamily.Views[0]))
+			{
+				Generator->PrepareImages(GraphBuilder, ViewFamily, SceneTextures);
+			}
 		}
 	}
 }
 
-bool FVariableRateShadingImageManager::IsTypeEnabledForView(const FSceneView& View, FVariableRateShadingImageManager::EVRSSourceType Type) const
+bool FVariableRateShadingImageManager::IsTypeEnabledForView(const FSceneView& View, FVariableRateShadingImageManager::EVRSSourceType Type)
 {
-	for (const TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
+	FReadScopeLock GeneratorsLock(GeneratorsMutex);
+	for (IVariableRateShadingImageGenerator* const Generator : ImageGenerators)
 	{
 		if (EnumHasAnyFlags(Type, Generator->GetType()) && Generator->IsEnabledForView(View))
 		{
@@ -501,17 +512,20 @@ void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilde
 			{
 				TArray<FRDGTextureRef> InternalVRSSources;
 
-				for (TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
 				{
-					FRDGTextureRef Image = nullptr;
-					if (Generator->IsEnabledForView(*View))
+					FReadScopeLock GeneratorsLock(GeneratorsMutex);
+					for (IVariableRateShadingImageGenerator* const Generator : ImageGenerators)
 					{
-						Image = Generator->GetDebugImage(GraphBuilder, *ViewInfo, PreviewImageType);
-					}
+						FRDGTextureRef Image = nullptr;
+						if (Generator->IsEnabledForView(*View))
+						{
+							Image = Generator->GetDebugImage(GraphBuilder, *ViewInfo, PreviewImageType);
+						}
 
-					if (Image)
-					{
-						InternalVRSSources.Add(Image);
+						if (Image)
+						{
+							InternalVRSSources.Add(Image);
+						}
 					}
 				}
 
@@ -571,6 +585,27 @@ void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilde
 
 }
 
+void FVariableRateShadingImageManager::RegisterExternalImageGenerator(IVariableRateShadingImageGenerator* ExternalGenerator)
+{
+	if (ExternalGenerator == nullptr)
+	{
+		UE_LOG(LogVRS, Warning, TEXT("Trying to register a null VRS generator. Generator will be ignored."));
+		return;
+	}
+	FWriteScopeLock GeneratorsLock(GeneratorsMutex);
+	ImageGenerators.Add(ExternalGenerator);
+}
+
+void FVariableRateShadingImageManager::UnregisterExternalImageGenerator(IVariableRateShadingImageGenerator* ExternalGenerator)
+{
+	if (ExternalGenerator == nullptr)
+	{
+		UE_LOG(LogVRS, Warning, TEXT("Trying to unregister a null VRS generator. Generator will be ignored."));
+		return;
+	}
+	FWriteScopeLock GeneratorsLock(GeneratorsMutex);
+	ImageGenerators.Remove(ExternalGenerator);
+}
 
 /**
  * Private functions

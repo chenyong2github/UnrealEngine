@@ -16,13 +16,14 @@
 #include "IHeadMountedDisplayVulkanExtensions.h"
 #include "IOpenXRExtensionPluginDelegates.h"
 #include "Misc/EnumClassFlags.h"
-#include "VariableRateShadingImageManager.h"
 
 #include <openxr/openxr.h>
 
 class APlayerController;
 class FSceneView;
 class FSceneViewFamily;
+class FFBFoveationImageGenerator;
+class FOpenXRSwapchain;
 class UCanvas;
 class FOpenXRRenderBridge;
 class IOpenXRInputModule;
@@ -39,7 +40,6 @@ class FOpenXRHMD
 	, public FOpenXRAssetManager
 	, public TStereoLayerManager<FOpenXRLayer>
 	, public IOpenXRExtensionPluginDelegates
-	, public IVariableRateShadingImageGenerator
 {
 private:
 
@@ -371,19 +371,6 @@ public:
 	/** IStereoLayers */
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
 
-	/** IVariableRateShadingImageGenerator interface for XR_FB_foveation */
-	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) override;
-	virtual void PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures) override;
-	virtual bool IsEnabledForView(const FSceneView& View) const override;
-	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) override;
-	virtual FVariableRateShadingImageManager::EVRSSourceType GetType() const override
-	{
-		return FVariableRateShadingImageManager::EVRSSourceType::FixedFoveation;
-	}
-
-	void UpdateFoveationImages();
-
-
 	/** IOpenXRExtensionPluginDelegates */
 public:
 	virtual FApplyHapticFeedbackAddChainStructsDelegate& GetApplyHapticFeedbackAddChainStructsDelegate() override { return ApplyHapticFeedbackAddChainStructsDelegate; }
@@ -427,7 +414,7 @@ public:
 
 	/** Returns shader platform the plugin is currently configured for, in the editor it can change due to preview platforms. */
 	EShaderPlatform GetConfiguredShaderPlatform() const { check(ConfiguredShaderPlatform != EShaderPlatform::SP_NumPlatforms); return ConfiguredShaderPlatform; }
-
+	FOpenXRSwapchain* GetColorSwapchain_RenderThread();
 private:
 
 	TArray<XrEnvironmentBlendMode> RetrieveEnvironmentBlendModes() const;
@@ -477,7 +464,6 @@ private:
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
 	XrInstanceProperties    InstanceProperties;
-	XrSystemHandTrackingPropertiesEXT SystemHandTrackingProperties;
 	XrSystemProperties      SystemProperties;
 
 	FPipelinedFrameState	PipelinedFrameStateGame;
@@ -512,15 +498,9 @@ private:
 	TArray<IStereoLayers::FLayerDesc> EmulatedFaceLockedLayers;
 	TArray<FOpenXRLayer>			  NativeLayers;
 
-	// XR_FB_foveation
+	TUniquePtr<FFBFoveationImageGenerator> FBFoveationImageGenerator;
 	bool					bFoveationExtensionSupported;
-	XrFoveationLevelFB		FoveationLevel;
-	float					VerticalOffset;
-	XrFoveationDynamicFB	FoveationDynamic;
-	TArray<FTextureRHIRef>	FoveationImages;
-	PFN_xrCreateFoveationProfileFB	xrCreateFoveationProfileFB;
-	PFN_xrUpdateSwapchainFB			xrUpdateSwapchainFB;
-	PFN_xrDestroyFoveationProfileFB xrDestroyFoveationProfileFB;
+	bool					bRuntimeFoveationSupported;
 };
 
 ENUM_CLASS_FLAGS(FOpenXRHMD::EOpenXRLayerStateFlags);

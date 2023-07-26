@@ -4,6 +4,7 @@
 #include "OpenXRHMD_Layer.h"
 #include "OpenXRHMD_RenderBridge.h"
 #include "OpenXRHMD_Swapchain.h"
+#include "OpenXRHMDSettings.h"
 #include "OpenXRCore.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "IOpenXRHMDModule.h"
@@ -37,6 +38,7 @@
 #include "ScreenRendering.h"
 #include "StereoRenderUtils.h"
 #include "DefaultStereoLayers.h"
+#include "FBFoveationImageGenerator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -101,32 +103,6 @@ static TAutoConsoleVariable<bool> CVarOpenXRAllowDepthLayer(
 	true,
 	TEXT("Enables the depth composition layer if the XR_KHR_composition_layer_depth extension is supported.\n"),
 	ECVF_Default);
-
-static TAutoConsoleVariable<int32> CVarOpenXRFBFoveationLevel(
-	TEXT("xr.OpenXRFBFoveationLevel"),
-	0,
-	TEXT("Possible foveation levels as specified by the XrFoveationLevelFB enumeration.\n")
-	TEXT("0 = None, 1 = Low , 2 = Medium, 3 = High.\n"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<bool> CVarOpenXRFBFoveationDynamic(
-	TEXT("xr.OpenXRFBFoveationDynamic"),
-	false,
-	TEXT("Whether dynamic changing foveation based on performance headroom is enabled.\n"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<float> CVarOpenXRFBFoveationVerticalOffset(
-	TEXT("xr.OpenXRFBFoveationVerticalOffset"),
-	0,
-	TEXT("Desired vertical offset in degrees for the center of the foveation pattern.\n"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<int32> CVarFBFoveationPreview(
-	TEXT("xr.OpenXRFBFoveation.Preview"),
-	1,
-	TEXT("Whether to include FB foveation in VRS preview overlay. This is currently not implemented.")
-	TEXT("0 - off, 1 - on (default)"),
-	ECVF_RenderThreadSafe);
 
 namespace {
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
@@ -1328,9 +1304,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProperties));
 	InstanceProperties.runtimeName[XR_MAX_RUNTIME_NAME_SIZE - 1] = 0; // Ensure the name is null terminated.
 
-	SystemHandTrackingProperties = { XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
-	SystemProperties = XrSystemProperties{ XR_TYPE_SYSTEM_PROPERTIES, &SystemHandTrackingProperties };
-
 	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) && CheckPlatformDepthExtensionSupport(InstanceProperties);
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
 		!FCStringAnsi::Strstr(InstanceProperties.runtimeName, "Oculus");
@@ -1347,22 +1320,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 	bFoveationExtensionSupported &= IsExtensionEnabled(XR_FB_FOVEATION_VULKAN_EXTENSION_NAME) && GRHISupportsAttachmentVariableRateShading;
 #endif
-
-	if(bFoveationExtensionSupported)
-	{
-		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrCreateFoveationProfileFB", (PFN_xrVoidFunction*)&xrCreateFoveationProfileFB));
-		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrUpdateSwapchainFB", (PFN_xrVoidFunction*)&xrUpdateSwapchainFB));
-		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrDestroyFoveationProfileFB", (PFN_xrVoidFunction*)&xrDestroyFoveationProfileFB));
-
-		int32 SanitisedFoveationLevel = FMath::Clamp(CVarOpenXRFBFoveationLevel->GetInt(), 0, 3);
-		bool bFoveationDynamic = CVarOpenXRFBFoveationDynamic->GetBool();
-		float SanitisedVerticalOffset = CVarOpenXRFBFoveationVerticalOffset->GetFloat();
-		SanitisedVerticalOffset = SanitisedVerticalOffset >= 0 ? SanitisedVerticalOffset : 0;
-
-		FoveationLevel = static_cast<XrFoveationLevelFB>(SanitisedFoveationLevel);
-		VerticalOffset = SanitisedVerticalOffset;
-		FoveationDynamic = bFoveationDynamic ? XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB : XR_FOVEATION_DYNAMIC_DISABLED_FB;
-	}
 
 #if PLATFORM_HOLOLENS || PLATFORM_ANDROID
 	bIsStandaloneStereoOnlyDevice = IStereoRendering::IsStartInVR();
@@ -1726,8 +1683,10 @@ bool FOpenXRHMD::OnStereoStartup()
 	}
 
 	// Retrieve system properties and check for hand tracking support
+	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties = { XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
+	SystemProperties = XrSystemProperties{ XR_TYPE_SYSTEM_PROPERTIES, &HandTrackingSystemProperties };
 	XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
-	bSupportsHandTracking = SystemHandTrackingProperties.supportsHandTracking == XR_TRUE;
+	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
 
 	// Some runtimes aren't compliant with their number of layers supported.
 	// We support a fallback by emulating non-facelocked layers
@@ -2203,10 +2162,24 @@ void FOpenXRHMD::OnBeginPlay(FWorldContext& InWorldContext)
 {
 	bOpenXRForceStereoLayersEmulationCVarCachedValue = CVarOpenXRForceStereoLayerEmulation.GetValueOnGameThread();
 	bOpenXRInvertAlphaCvarCachedValue = CVarOpenXRInvertAlpha.GetValueOnGameThread();
+
+	const UOpenXRHMDSettings* Settings = GetDefault<UOpenXRHMDSettings>();
+	ensure(Settings);
+	bRuntimeFoveationSupported = bFoveationExtensionSupported && Settings->bIsFBFoveationEnabled;
+	if (bRuntimeFoveationSupported)
+	{
+		FBFoveationImageGenerator = MakeUnique<FFBFoveationImageGenerator>(bRuntimeFoveationSupported, Instance, this, bIsMobileMultiViewEnabled);
+		GVRSImageManager.RegisterExternalImageGenerator(FBFoveationImageGenerator.Get());
+	}
 }
 
 void FOpenXRHMD::OnEndPlay(FWorldContext& InWorldContext)
 {
+	if (bRuntimeFoveationSupported)
+	{
+		GVRSImageManager.UnregisterExternalImageGenerator(FBFoveationImageGenerator.Get());
+		FBFoveationImageGenerator.Reset();
+	}
 }
 
 IStereoRenderTargetManager* FOpenXRHMD::GetRenderTargetManager()
@@ -2266,7 +2239,7 @@ bool FOpenXRHMD::AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 
 	}
 	ETextureCreateFlags AuxiliaryCreateFlags = ETextureCreateFlags::None;
 
-	if(bFoveationExtensionSupported)
+	if(FBFoveationImageGenerator && FBFoveationImageGenerator->IsFoveationExtensionEnabled())
 	{
 		AuxiliaryCreateFlags |= TexCreate_Foveation;
 	}
@@ -2301,11 +2274,9 @@ bool FOpenXRHMD::AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 
 				Swapchain->IncrementSwapChainIndex_RHIThread();
 			});
 		}
-		if (bFoveationExtensionSupported)
+		if (FBFoveationImageGenerator && FBFoveationImageGenerator->IsFoveationExtensionEnabled())
 		{
-			UpdateFoveationImages();
-			FOpenXRSwapchain* ColorSwapchain = static_cast<FOpenXRSwapchain*>(Swapchain.Get());
-			ColorSwapchain->GetFragmentDensityMaps(FoveationImages, bIsMobileMultiViewEnabled);
+			FBFoveationImageGenerator->UpdateFoveationImages();
 		}
 	}
 
@@ -3950,72 +3921,14 @@ void FOpenXRHMD::UpdateLayer(FOpenXRLayer& ManagerLayer, uint32 LayerId, bool bI
 	});
 }
 
-//---------------------------------------------------
-// IVariableRateShadingImageGenerator interface for XR_FB_foveation Implementation
-//---------------------------------------------------
-
-FRDGTextureRef FOpenXRHMD::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
+FOpenXRSwapchain* FOpenXRHMD::GetColorSwapchain_RenderThread()
 {
-	if (!bFoveationExtensionSupported)
+	if (PipelinedLayerStateRendering.ColorSwapchain != nullptr)
 	{
-		return nullptr;
+		return static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get());
 	}
-	if (PipelinedLayerStateRendering.ColorSwapchain != nullptr && !FoveationImages.IsEmpty())
-	{
-		FOpenXRSwapchain* ColorSwapchain = static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get());
-		
-		FTextureRHIRef SwapchainTexture = FoveationImages[ColorSwapchain->GetSwapChainIndex_RHIThread()];
-		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget = CreateRenderTarget(SwapchainTexture, *SwapchainTexture->GetName().ToString());
 
-		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, *SwapchainTexture->GetName().ToString(), ERDGTextureFlags::SkipTracking);
-	}
-	else 
-	{
-		UE_LOG(LogHMD, Error, TEXT("No valid color swapchain to get foveation images from."));
-		return nullptr;
-	}
-}
-
-void FOpenXRHMD::PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
-{
-	return; //Currently not implemented as the images are prepared only when the color swapchain is reallocated.
-}
-
-bool FOpenXRHMD::IsEnabledForView(const FSceneView& View) const
-{
-	return IsStereoEnabled() && bFoveationExtensionSupported && View.StereoPass != EStereoscopicPass::eSSP_FULL;
-}
-
-// This is currently not implemented.
-FRDGTextureRef FOpenXRHMD::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
-{
 	return nullptr;
-}
-
-void FOpenXRHMD::UpdateFoveationImages()
-{
-	XrFoveationLevelProfileCreateInfoFB FoveationLevelProfileInfo{ XR_TYPE_FOVEATION_LEVEL_PROFILE_CREATE_INFO_FB };
-	FoveationLevelProfileInfo.next = nullptr;
-	FoveationLevelProfileInfo.level = FoveationLevel;
-	FoveationLevelProfileInfo.verticalOffset = VerticalOffset;
-	FoveationLevelProfileInfo.dynamic = FoveationDynamic;
-
-	XrFoveationProfileCreateInfoFB FoveationCreateInfo{ XR_TYPE_FOVEATION_PROFILE_CREATE_INFO_FB };
-	FoveationCreateInfo.next = &FoveationLevelProfileInfo;
-
-	XrFoveationProfileFB FoveationProfile = XR_NULL_HANDLE;
-	XR_ENSURE(xrCreateFoveationProfileFB(Session, &FoveationCreateInfo, &FoveationProfile));
-
-	XrSwapchainStateFoveationFB SwapchainFoveationState{ XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB };
-	SwapchainFoveationState.flags = 0; // As per OpenXR specification.
-	SwapchainFoveationState.next = nullptr;
-	SwapchainFoveationState.profile = FoveationProfile;
-
-	FOpenXRSwapchain* ColorSwapchain = static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get());
-
-	XR_ENSURE(xrUpdateSwapchainFB(ColorSwapchain->GetHandle(), reinterpret_cast<const XrSwapchainStateBaseHeaderFB*>(&SwapchainFoveationState)));
-
-	XR_ENSURE(xrDestroyFoveationProfileFB(FoveationProfile));
 }
 
 //---------------------------------------------------

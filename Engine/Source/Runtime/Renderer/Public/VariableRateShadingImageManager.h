@@ -96,7 +96,10 @@ public:
 	/**
 	 * Returns true if any generator among the given types is enabled, false otherwise.
 	 */
-	bool IsTypeEnabledForView(const FSceneView& View, EVRSSourceType Type) const;
+	bool IsTypeEnabledForView(const FSceneView& View, EVRSSourceType Type);
+
+	RENDERER_API void RegisterExternalImageGenerator(IVariableRateShadingImageGenerator* ExternalGenerator);
+	RENDERER_API void UnregisterExternalImageGenerator(IVariableRateShadingImageGenerator* ExternalGenerator);
 
 	static bool IsVRSSupportedByRHI();
 	static bool IsVRSEnabled();
@@ -110,7 +113,13 @@ public:
 
 private:
 	TRefCountPtr<IPooledRenderTarget> MobileHMDFixedFoveationOverrideImage;
-	TArray<TUniquePtr<IVariableRateShadingImageGenerator>> ImageGenerators;
+	// Used to access the generators functionalities.
+	TArray<IVariableRateShadingImageGenerator*> ImageGenerators;
+	// This is used only to own the memory of generators created in the FVariableRateShadingImageManager constructor.
+	TArray<TUniquePtr<IVariableRateShadingImageGenerator>> InternalGenerators;
+	// Guards ImageGenerators because most of the calls of the manager are on the render thread but the 
+	// Register/UnregisterExternalImageGenerator could come from the game thread.
+	FRWLock	GeneratorsMutex;
 
 	FRDGTextureRef CombineShadingRateImages(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, TArray<FRDGTextureRef> Sources);
 	FRDGTextureRef GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex = 0, EVRSImageType ImageType = EVRSImageType::Full);
