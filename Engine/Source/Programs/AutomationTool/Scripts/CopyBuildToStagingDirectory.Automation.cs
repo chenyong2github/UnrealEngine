@@ -2113,6 +2113,9 @@ namespace AutomationScripts
 		{
 			if (Mapping.Count > 0)
 			{
+				int NumItems = Mapping.Count;
+				Logger.LogInformation("DumpManifest: {Filename}, NumItems: {NumItems}", Filename, NumItems);
+
 				List<string> Lines = new List<string>();
 				foreach (KeyValuePair<StagedFileReference, FileReference> Pair in Mapping)
 				{
