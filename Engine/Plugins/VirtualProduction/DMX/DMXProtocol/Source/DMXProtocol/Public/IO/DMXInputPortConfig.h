@@ -117,7 +117,7 @@ protected:
 	FString PortName;
 
 	/** DMX Protocol */
-	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Protocol Type"))
 	FName ProtocolName = FDMXProtocolModule::DefaultProtocolArtNetName;
 
 	/** The type of communication used with this port */
