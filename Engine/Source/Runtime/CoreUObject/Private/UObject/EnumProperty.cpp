@@ -415,7 +415,7 @@ bool FEnumProperty::SameType(const FProperty* Other) const
 	return Super::SameType(Other) && static_cast<const FEnumProperty*>(Other)->Enum == Enum;
 }
 
-EConvertFromTypeResult FEnumProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot , uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FEnumProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot , uint8* Data, UStruct* DefaultsStruct, const uint8* Defaults)
 {
 	if ((Enum == nullptr) || (UnderlyingProp == nullptr))
 	{

@@ -39,7 +39,7 @@ struct FPropertyTag
 
 	// Constructors.
 	FPropertyTag() {}
-	FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InIndex, uint8* Value, uint8* Defaults );
+	FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InIndex, uint8* Value, const uint8* Defaults );
 
 	// Set optional property guid
 	void SetPropertyGuid(const FGuid& InPropertyGuid);
@@ -49,8 +49,8 @@ struct FPropertyTag
 	friend void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag);
 
 	// Property serializer.
-	void SerializeTaggedProperty( FArchive& Ar, FProperty* Property, uint8* Value, uint8* Defaults ) const;
-	void SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, uint8* Defaults) const;
+	void SerializeTaggedProperty( FArchive& Ar, FProperty* Property, uint8* Value, const uint8* Defaults ) const;
+	void SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, const uint8* Defaults) const;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

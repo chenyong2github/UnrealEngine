@@ -274,7 +274,7 @@ void LoadFromType(FBoolProperty* Property, const FPropertyTag& Tag, FStructuredA
 	}
 }
 
-EConvertFromTypeResult FBoolProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FBoolProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, const uint8* Defaults)
 {
 	if (Tag.Type == NAME_IntProperty)
 	{

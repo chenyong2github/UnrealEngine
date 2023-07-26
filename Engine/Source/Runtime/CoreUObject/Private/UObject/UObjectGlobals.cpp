@@ -74,6 +74,7 @@
 #include "Serialization/AsyncPackageLoader.h"
 #include "Containers/VersePath.h"
 #include "AutoRTFM/AutoRTFM.h"
+#include "UObject/PropertyOptional.h"
 
 #if UE_USE_VERSE_PATHS
 #include "Interfaces/IPluginManager.h"
@@ -4839,6 +4840,21 @@ void CollectSetReferences(FReferenceCollector& Collector, FSetProperty& Property
 	}
 }
 
+template<EPropertyCollectFlags CollectFlags>
+void CollectOptionalReference(FReferenceCollector& Collector, FOptionalProperty& Property, void* Instance, const UObject* Referencer)
+{
+	FProperty& InnerProperty = *Property.GetValueProperty();
+	EClassCastFlags InnerCastFlags = static_cast<EClassCastFlags>(InnerProperty.GetClass()->GetCastFlags());
+	if (MayContainStrongReference(InnerCastFlags))
+	{
+		if (void* ValueInstance = Property.GetValuePointerForReplaceIfSet(Instance))
+		{
+			CollectPropertyReferences<CollectFlags>(Collector, InnerProperty, ValueInstance, Referencer);			
+		}
+	}
+}
+
+
 // Process FObjectProperty or FObjectPtrProperty reference
 template<EPropertyCollectFlags CollectFlags>
 FORCEINLINE_DEBUGGABLE void CollectObjectReference(FReferenceCollector& Collector, FProperty& Property, void* Value, const UObject* Referencer)
@@ -4939,6 +4955,10 @@ void CollectPropertyReferences(FReferenceCollector& Collector, FProperty& Proper
 		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FInterfaceProperty))
 		{	
 			CollectInterfaceReference(Collector, static_cast<FInterfaceProperty&>(Property), *reinterpret_cast<FScriptInterface*>(Value), Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FOptionalProperty))
+		{
+			CollectOptionalReference<CollectFlags>(Collector, static_cast<FOptionalProperty&>(Property), Value, Referencer);
 		}
 		else
 		{

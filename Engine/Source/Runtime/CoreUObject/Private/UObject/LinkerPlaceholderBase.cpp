@@ -3,6 +3,7 @@
 #include "UObject/LinkerPlaceholderBase.h"
 
 #include "UObject/LinkerPlaceholderExportObject.h"
+#include "UObject/PropertyOptional.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UnrealTypePrivate.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -185,6 +186,22 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<FField
 		{
 			// With FProperties this should never happen
 			check(false);
+		}
+		else if (const FOptionalProperty* OptionalProperty = Property.Get<FOptionalProperty>())
+		{
+#if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
+			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1].Get<FProperty>();
+			check(NextProperty == OptionalProperty->GetValueProperty());
+#endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
+
+			if (void* SetValueAddress = OptionalProperty->GetValuePointerForReplaceIfSet(ValueAddress))
+			{
+				ReplacementCount += ResolvePlaceholderValues(PropertyChain, PropertyIndex - 1, static_cast<uint8*>(SetValueAddress), OldValue, ReplacementValue);
+			}
+
+			// the above recursive call chewed through the rest of the
+			// PropertyChain, no need to keep on here
+			break;
 		}
 		else if (const FProperty* NextProperty = PropertyChain[PropertyIndex - 1].Get<FProperty>())
 		{

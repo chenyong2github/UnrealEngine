@@ -38,6 +38,7 @@
 #include "UObject/FieldPathProperty.h"
 #include "UObject/GarbageCollectionHistory.h"
 #include "UObject/GarbageCollectionTesting.h"
+#include "UObject/PropertyOptional.h"
 
 #include <atomic>
 
@@ -5039,6 +5040,24 @@ bool FMulticastDelegateProperty::ContainsObjectReference(TArray<const FStructPro
 	return !!(InReferenceType & EPropertyObjectReferenceType::Weak);
 }
 
+void FOptionalProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
+{
+	using namespace UE::GC;
+	if (IsValueNonNullablePointer())
+	{
+		ValueProperty->EmitReferenceInfo(Schema, BaseOffset + GetOffset_ForGC(), EncounteredStructProps, DebugPath);
+	}
+	else if (ValueProperty->ContainsObjectReference(EncounteredStructProps))
+	{
+		FSchemaBuilder InnerSchema(ValueProperty->GetSize());
+		{
+			FPropertyStackScope PropertyScope(DebugPath, ValueProperty);
+			ValueProperty->EmitReferenceInfo(InnerSchema, 0, EncounteredStructProps, DebugPath);
+		}
+		Schema.Add(DeclareMember(DebugPath, BaseOffset + GetOffset_ForGC(), EMemberType::Optional, InnerSchema.Build()));
+	}
+}
+
 void FProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
 }
@@ -5174,6 +5193,11 @@ void FFieldPathProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32
 	{
 		Schema.Add(UE::GC::DeclareMember(DebugPath, Offset + Idx * sizeof(FFieldPath), UE::GC::EMemberType::FieldPath));
 	}
+}
+
+bool FOptionalProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType) const
+{
+	return ValueProperty->ContainsObjectReference(EncounteredStructProps, InReferenceType);
 }
 
 /** Both game thread and async loading can assemble schemas */

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "UObject/CoreNet.h"
+#include "UObject/PropertyOptional.h"
 #include "UObject/UnrealType.h"
 #include "Misc/EngineNetworkCustomVersion.h"
 
@@ -108,6 +109,12 @@ uint32 FClassNetCacheMgr::GetPropertyChecksum( const FProperty* Property, uint32
 			Checksum = SortedStructFieldsChecksum( StructProperty->Struct, Checksum );
 
 			const_cast< FClassNetCacheMgr* >( this )->DebugChecksumIndent--;
+		}
+
+		// Evolve checksum on optional inner
+		if (const FOptionalProperty* OptionalProperty = CastField<FOptionalProperty>(Property))
+		{
+			return GetPropertyChecksum(OptionalProperty->GetValueProperty(), Checksum, bIncludeChildren);
 		}
 	}
 

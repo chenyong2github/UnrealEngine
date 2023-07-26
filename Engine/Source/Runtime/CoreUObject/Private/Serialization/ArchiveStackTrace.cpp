@@ -23,6 +23,7 @@
 #include "Misc/ScopeExit.h"
 #include "Compression/CompressionUtil.h"
 #include "Serialization/ZenPackageHeader.h"
+#include "UObject/PropertyOptional.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogArchiveDiff, Log, All);
 
@@ -712,6 +713,11 @@ namespace
 			{
 				return true;
 			}
+		}
+
+		if (FOptionalProperty* OptionalProp = CastField<FOptionalProperty>(Prop))
+		{
+			return ShouldDumpPropertyValueState(OptionalProp->GetValueProperty());
 		}
 
 		return false;

@@ -902,7 +902,7 @@ bool FSetProperty::SameType(const FProperty* Other) const
 	return Super::SameType(Other) && ElementProp && ElementProp->SameType(SetProp->ElementProp);
 }
 
-EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, const uint8* Defaults)
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
@@ -945,7 +945,7 @@ EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 				TempElementStorage = (uint8*)FMemory::Malloc(SetLayout.Size);
 				ElementProp->InitializeValue(TempElementStorage);
 
-				if (ElementProp->ConvertFromType(InnerPropertyTag, ElementsToRemoveArray.EnterElement(), TempElementStorage, DefaultsStruct) == EConvertFromTypeResult::Converted)
+				if (ElementProp->ConvertFromType(InnerPropertyTag, ElementsToRemoveArray.EnterElement(), TempElementStorage, DefaultsStruct, nullptr) == EConvertFromTypeResult::Converted)
 				{
 					int32 Found = ScriptSetHelper.FindElementIndex(TempElementStorage);
 					if (Found != INDEX_NONE)
@@ -955,7 +955,7 @@ EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 					for (int32 I = 1; I < NumElementsToRemove; ++I)
 					{
-						verify(ElementProp->ConvertFromType(InnerPropertyTag, ElementsToRemoveArray.EnterElement(), TempElementStorage, DefaultsStruct) == EConvertFromTypeResult::Converted);
+						verify(ElementProp->ConvertFromType(InnerPropertyTag, ElementsToRemoveArray.EnterElement(), TempElementStorage, DefaultsStruct, nullptr) == EConvertFromTypeResult::Converted);
 
 						Found = ScriptSetHelper.FindElementIndex(TempElementStorage);
 						if (Found != INDEX_NONE)
@@ -986,7 +986,7 @@ EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 					// and read the first entry, we have to check for conversion possibility again because 
 					// NumElementsToRemove may not have run (in fact, it likely did not):
-					if (ElementProp->ConvertFromType(InnerPropertyTag, ElementsArray.EnterElement(), TempElementStorage, DefaultsStruct) == EConvertFromTypeResult::Converted)
+					if (ElementProp->ConvertFromType(InnerPropertyTag, ElementsArray.EnterElement(), TempElementStorage, DefaultsStruct, nullptr) == EConvertFromTypeResult::Converted)
 					{
 						if (ScriptSetHelper.FindElementIndex(TempElementStorage) == INDEX_NONE)
 						{
@@ -1001,7 +1001,7 @@ EConvertFromTypeResult FSetProperty::ConvertFromType(const FPropertyTag& Tag, FS
 						for (int32 I = 1; I < Num; ++I)
 						{
 							// Read key into temporary storage
-							verify(ElementProp->ConvertFromType(InnerPropertyTag, ElementsArray.EnterElement(), TempElementStorage, DefaultsStruct) == EConvertFromTypeResult::Converted);
+							verify(ElementProp->ConvertFromType(InnerPropertyTag, ElementsArray.EnterElement(), TempElementStorage, DefaultsStruct, nullptr) == EConvertFromTypeResult::Converted);
 
 							// Add a new entry if the element doesn't currently exist in the set
 							if (ScriptSetHelper.FindElementIndex(TempElementStorage) == INDEX_NONE)

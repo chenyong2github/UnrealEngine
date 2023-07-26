@@ -8,12 +8,13 @@
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/BlueprintsObjectVersion.h"
+#include "UObject/PropertyOptional.h"
 
 /*-----------------------------------------------------------------------------
 FPropertyTag
 -----------------------------------------------------------------------------*/
 
-FPropertyTag::FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InIndex, uint8* Value, uint8* Defaults )
+FPropertyTag::FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InIndex, uint8* Value, const uint8* Defaults )
 	: Prop      (Property)
 	, Type      (Property->GetID())
 	, Name      (Property->GetFName())
@@ -71,6 +72,10 @@ FPropertyTag::FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InInd
 		else if (FBoolProperty* Bool = CastField<FBoolProperty>(Property))
 		{
 			BoolVal = Bool->GetPropertyValue(Value);
+		}
+		else if (FOptionalProperty* OptionalProp = CastField<FOptionalProperty>(Property))
+		{
+			InnerType = OptionalProp->GetValueProperty()->GetID();
 		}
 	}
 }
@@ -176,13 +181,18 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 		{
 			Slot << SA_ATTRIBUTE(TEXT("EnumName"), Tag.EnumName);
 		}
-		// only need to serialize this for arrays
+		// need to serialize the InnerType for arrays
 		else if (TagType == NAME_ArrayProperty)
 		{
 			if (Version >= VAR_UE4_ARRAY_PROPERTY_INNER_TAGS)
 			{
 				Slot << SA_ATTRIBUTE(TEXT("InnerType"), Tag.InnerType);
 			}
+		}
+		// need to serialize the InnerType for optionals.
+		else if (TagType == NAME_OptionalProperty)
+		{
+			Slot << SA_ATTRIBUTE(TEXT("InnerType"), Tag.InnerType);
 		}
 		else if (Version >= VER_UE4_PROPERTY_TAG_SET_MAP_SUPPORT)
 		{
@@ -218,12 +228,12 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 }
 
 // Property serializer.
-void FPropertyTag::SerializeTaggedProperty(FArchive& Ar, FProperty* Property, uint8* Value, uint8* Defaults) const
+void FPropertyTag::SerializeTaggedProperty(FArchive& Ar, FProperty* Property, uint8* Value, const uint8* Defaults) const
 {
 	SerializeTaggedProperty(FStructuredArchiveFromArchive(Ar).GetSlot(), Property, Value, Defaults);
 }
 
-void FPropertyTag::SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, uint8* Defaults) const
+void FPropertyTag::SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, const uint8* Defaults) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	const int64 StartOfProperty = UnderlyingArchive.Tell();

@@ -35,6 +35,7 @@
 #include "UObject/Interface.h"
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderFunction.h"
+#include "UObject/PropertyOptional.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/StructScriptLoader.h"
 #include "UObject/PropertyHelper.h"
@@ -1250,7 +1251,7 @@ void UStruct::LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8
 
 					if (!(BreakRecursionIfFullyLoad && BreakRecursionIfFullyLoad->HasAllFlags(RF_LoadCompleted)))
 					{
-						switch (Property->ConvertFromType(Tag, ItemSlot.GetValue(), Data, DefaultsStruct))
+						switch (Property->ConvertFromType(Tag, ItemSlot.GetValue(), Data, DefaultsStruct, Defaults))
 						{
 						case EConvertFromTypeResult::Converted:
 							break;
@@ -1475,7 +1476,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 					{
 						FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(TEXT("Value"));
 
-						switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct))
+						switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct, Defaults))
 						{
 							case EConvertFromTypeResult::Converted:
 								bAdvanceProperty = true;
@@ -2420,10 +2421,11 @@ bool FindConstructorUninitialized(UStruct* BaseClass,uint8* Data,uint8* Defaults
 		int32 Size = P->GetSize();
 		bool bProblem = false;
 		check(Size);
-		FBoolProperty*   PB     = CastField<FBoolProperty>(P);
-		FStructProperty* PS     = CastField<FStructProperty>(P);
-		FStrProperty*    PStr   = CastField<FStrProperty>(P);
-		FArrayProperty*  PArray = CastField<FArrayProperty>(P);
+		FBoolProperty*     PB        = CastField<FBoolProperty>(P);
+		FStructProperty*   PS        = CastField<FStructProperty>(P);
+		FStrProperty*      PStr      = CastField<FStrProperty>(P);
+		FArrayProperty*    PArray    = CastField<FArrayProperty>(P);
+		FOptionalProperty* POptional = CastField<FOptionalProperty>(P);
 		if(PStr)
 		{
 			// string that actually have data would be false positives, since they would point to the same string, but actually be different pointers
@@ -2455,6 +2457,10 @@ bool FindConstructorUninitialized(UStruct* BaseClass,uint8* Data,uint8* Defaults
 		else if (PArray)
 		{
 			bProblem = !PArray->Identical_InContainer(Data, Defaults);
+		}
+		else if (POptional)
+		{
+			bProblem = !POptional->Identical_InContainer(Data, Defaults);
 		}
 		else
 		{

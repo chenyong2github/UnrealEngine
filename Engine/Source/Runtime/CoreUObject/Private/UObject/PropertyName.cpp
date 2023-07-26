@@ -73,7 +73,7 @@ const TCHAR* FNameProperty::ImportText_Internal( const TCHAR* Buffer, void* Cont
 	return Buffer;
 }
 
-EConvertFromTypeResult FNameProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FNameProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, const uint8* Defaults)
 {
 	if (Tag.Type == NAME_StrProperty)
 	{

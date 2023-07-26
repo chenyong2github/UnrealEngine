@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/UnrealType.h"
+#include "UObject/PropertyOptional.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
 DEFINE_LOG_CATEGORY(LogType);
@@ -35,10 +36,11 @@ FPropertyValueIterator::EPropertyValueFlags FPropertyValueIterator::GetPropertyV
 	if (RecursionFlags == EPropertyValueIteratorFlags::FullRecursion)
 	{
 		uint64 CastFlags = Property->GetClass()->GetCastFlags();
-		Flags = EPropertyValueFlags(  !!(CastFlags & CASTCLASS_FArrayProperty)	* uint32(EPropertyValueFlags::IsArray)
-									| !!(CastFlags & CASTCLASS_FMapProperty)	* uint32(EPropertyValueFlags::IsMap)
-									| !!(CastFlags & CASTCLASS_FSetProperty)	* uint32(EPropertyValueFlags::IsSet)
-									| !!(CastFlags & CASTCLASS_FStructProperty)	* uint32(EPropertyValueFlags::IsStruct));
+		Flags = EPropertyValueFlags(  !!(CastFlags & CASTCLASS_FArrayProperty)    * uint32(EPropertyValueFlags::IsArray)
+									| !!(CastFlags & CASTCLASS_FMapProperty)      * uint32(EPropertyValueFlags::IsMap)
+									| !!(CastFlags & CASTCLASS_FSetProperty)      * uint32(EPropertyValueFlags::IsSet)
+									| !!(CastFlags & CASTCLASS_FStructProperty)   * uint32(EPropertyValueFlags::IsStruct)
+									| !!(CastFlags & CASTCLASS_FOptionalProperty) * uint32(EPropertyValueFlags::IsOptional));
 	}
 	if (bMatchAll || Property->IsA(PropertyClass))
 	{
@@ -100,8 +102,21 @@ FORCEINLINE_DEBUGGABLE bool FPropertyValueIterator::NextValue(EPropertyValueIter
 		if (InRecursionFlags == EPropertyValueIteratorFlags::FullRecursion)
 		{
 			FPropertyValueStackEntry NewEntry(PropertyValue);
-
-			if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsArray))
+			
+			if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsOptional))
+			{
+				const FOptionalProperty* OptionalProperty = CastFieldChecked<FOptionalProperty>(Property);
+				const FProperty* InnerProperty = OptionalProperty->GetValueProperty();
+				EPropertyValueFlags InnerFlags = GetPropertyValueFlags(InnerProperty);
+				if (InnerFlags != EPropertyValueFlags::None)
+				{
+					if (const void* InnerValue = OptionalProperty->GetValuePointerForReadIfSet(PropertyValue))
+					{
+						NewEntry.ValueArray.Emplace(BasePairType(InnerProperty, InnerValue), InnerFlags);
+					}
+				}
+			}
+			else if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsArray))
 			{
 				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(Property);
 				const FProperty* InnerProperty = ArrayProperty->Inner;
@@ -236,7 +251,12 @@ FString FPropertyValueIterator::GetPropertyPathDebugString() const
 
 		if (NextStackIndex < PropertyIteratorStack.Num())
 		{
-			if (CastField<FArrayProperty>(Property))
+			if (CastField<FOptionalProperty>(Property))
+			{
+				PropertyPath.Append(TEXT("?"));
+				StackIndex++;
+			}
+			else if (CastField<FArrayProperty>(Property))
 			{
 				const FPropertyValueStackEntry& NextEntry = PropertyIteratorStack[StackIndex+1];
 			

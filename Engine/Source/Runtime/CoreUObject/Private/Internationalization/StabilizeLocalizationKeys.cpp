@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/StabilizeLocalizationKeys.h"
+#include "UObject/PropertyOptional.h"
 #include "UObject/TextProperty.h"
 
 #if WITH_EDITOR
@@ -177,6 +178,24 @@ void StabilizeLocalizationKeys::StabilizeLocalizationKeysForProperty(FProperty* 
 			}
 		}
 		return;
+	}
+
+	if (FOptionalProperty* OptionalProp = CastField<FOptionalProperty>(InProp))
+	{
+		FProperty* OptionalValueProp = OptionalProp->GetValueProperty();
+		if (ShouldStabilizeInnerProperty(OptionalValueProp))
+		{
+			if (void* ValueData = OptionalProp->GetValuePointerForReplaceIfSet(InPropData))
+			{
+				StabilizeLocalizationKeysForProperty(
+					OptionalValueProp,
+					ValueData,
+					InNamespace,
+					PropKeyRoot,
+					/*bAppendPropertyNameToKey*/false
+					);
+			}
+		}
 	}
 }
 

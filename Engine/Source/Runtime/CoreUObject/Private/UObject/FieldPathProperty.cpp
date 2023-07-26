@@ -28,7 +28,7 @@ FFieldPathProperty::FFieldPathProperty(UField* InField)
 }
 #endif // WITH_EDITORONLY_DATA
 
-EConvertFromTypeResult FFieldPathProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FFieldPathProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, const uint8* Defaults)
 {
 	// Convert UProperty object to TFieldPath
 	if (Tag.Type == NAME_ObjectProperty)

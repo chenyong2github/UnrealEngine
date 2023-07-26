@@ -17,7 +17,7 @@ FTextProperty::FTextProperty(FFieldVariant InOwner, const UECodeGen_Private::FTe
 {
 }
 
-EConvertFromTypeResult FTextProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FTextProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, const uint8* Defaults)
 {
 	// Convert serialized string to text.
 	if (Tag.Type==NAME_StrProperty)

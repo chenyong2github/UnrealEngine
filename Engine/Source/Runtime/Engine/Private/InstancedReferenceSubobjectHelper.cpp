@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstancedReferenceSubobjectHelper.h"
+#include "UObject/PropertyOptional.h"
 #include "UObject/Package.h"
 #include "UObject/Package.h"
 	
@@ -89,6 +90,18 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 			{
 				ValuePtr = MapHelper.GetValuePtr(TargetIndex);
 				CurrentProp = MapProperty->ValueProp;
+			}
+			else
+			{
+				CurrentProp = nullptr;
+			}
+		}
+		else if(const FOptionalProperty* OptionalProperty = CastField<FOptionalProperty>(CurrentProp))
+		{
+			if(const uint8* InnerValuePtr = static_cast<const uint8*>(OptionalProperty->GetValuePointerForReadIfSet(ValuePtr)))
+			{
+				ValuePtr = InnerValuePtr;
+				CurrentProp = OptionalProperty->GetValueProperty();
 			}
 			else
 			{
@@ -192,6 +205,21 @@ void FFindInstancedReferenceSubobjectHelper::ForEachInstancedSubObject(FInstance
 
 				++LogicalIndex;
 			}
+		}
+	}
+	else if (const FOptionalProperty* OptionalProperty = CastField<FOptionalProperty>(TargetProp))
+	{
+		// Exit early if the optional does not contain any instanced references.
+		if (!OptionalProperty->HasAnyPropertyFlags(CPF_ContainsInstancedReference))
+		{
+			return;
+		}
+		
+		if (T ValueAddress = static_cast<T>(OptionalProperty->GetValuePointerForReadOrReplaceIfSet(ContainerAddress)))
+		{
+			PropertyPath.Push(OptionalProperty->GetValueProperty());
+			ForEachInstancedSubObject(PropertyPath, ValueAddress, ObjRefFunc);
+			PropertyPath.Pop();
 		}
 	}
 	else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(TargetProp))
