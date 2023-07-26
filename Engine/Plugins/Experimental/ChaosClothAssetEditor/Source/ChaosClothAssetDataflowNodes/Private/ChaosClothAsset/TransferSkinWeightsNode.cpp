@@ -47,7 +47,7 @@ namespace UE::Chaos::ClothAsset::Private
 		// Convert the sim mesh to DynamicMesh. 
 		// @todo: FTransferBoneWeights should accept raw data arrays (vertices/triangles) to avoid this conversion
 		FClothPatternToDynamicMesh PatternToDynamicMesh;
-		constexpr bool bDisableAttributes = true;
+		constexpr bool bDisableAttributes = false;
 		PatternToDynamicMesh.Convert(ClothCollection, INDEX_NONE, EClothPatternVertexType::Sim3D, WeldedSimMesh, bDisableAttributes);
 
 		WeldedSimMesh.EnableAttributes();
@@ -74,6 +74,7 @@ namespace UE::Chaos::ClothAsset::Private
 		const double SmoothingStrength,
 		bool bUseParallel,
 		const TSharedRef<FManagedArrayCollection>& ClothCollection,
+		const FString& InpaintMaskWeightMapName,
 		UE::Geometry::FTransferBoneWeights& TransferBoneWeights)
 	{
 		using namespace UE::Geometry;
@@ -100,6 +101,7 @@ namespace UE::Chaos::ClothAsset::Private
 		TransferBoneWeights.NumSmoothingIterations = NumSmoothingIterations;
 		TransferBoneWeights.SmoothingStrength = SmoothingStrength;
 		TransferBoneWeights.LayeredMeshSupport = true; // multilayerd clothing
+		TransferBoneWeights.ForceInpaintWeightMapName = FName(InpaintMaskWeightMapName);
 
 		if (!ensure(TransferBoneWeights.Validate() == EOperationValidationResult::Ok))
 		{
@@ -312,6 +314,7 @@ FChaosClothAssetTransferSkinWeightsNode::FChaosClothAssetTransferSkinWeightsNode
 {
 	RegisterInputConnection(&Collection);
 	RegisterOutputConnection(&Collection, &Collection);
+	RegisterInputConnection(&InpaintMask.WeightMap, GET_MEMBER_NAME_CHECKED(FChaosClothAssetWeightedValueNonAnimatableNoLowHighRange, WeightMap));
 }
 
 void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
@@ -340,6 +343,8 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 				return;
 			}
 
+			InpaintMask.WeightMap_Override = GetValue<FString>(Context, &InpaintMask.WeightMap, FString());
+
 			//
 			// Convert source Skeletal Mesh to Dynamic Mesh.
 			//
@@ -365,7 +370,8 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			bool bTransferResult = false;
 			if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights)
 			{
-				bTransferResult = TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, TransferBoneWeights);
+				const FString& InpainMaskWeightMapName = GetValue<FString>(Context, &InpaintMask.WeightMap);
+				bTransferResult = TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, InpainMaskWeightMapName, TransferBoneWeights);
 			}
 			else if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::ClosestPointOnSurface)
 			{

@@ -107,6 +107,7 @@ void FChaosClothAssetDataflowNodesModule::StartupModule()
 	{
 		PropertyModule->RegisterCustomPropertyTypeLayout("ChaosClothAssetWeightedValue", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWeightedValueCustomization::MakeInstance));
 		PropertyModule->RegisterCustomPropertyTypeLayout("ChaosClothAssetWeightedValueNonAnimatable", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWeightedValueCustomization::MakeInstance));
+		PropertyModule->RegisterCustomPropertyTypeLayout("ChaosClothAssetWeightedValueNonAnimatableNoLowHighRange", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWeightedValueCustomization::MakeInstance));
 	}
 }
 
@@ -117,6 +118,7 @@ void FChaosClothAssetDataflowNodesModule::ShutdownModule()
 	{
 		PropertyModule->UnregisterCustomPropertyTypeLayout("ChaosClothAssetWeightedValue");
 		PropertyModule->UnregisterCustomPropertyTypeLayout("ChaosClothAssetWeightedValueNonAnimatable");
+		PropertyModule->UnregisterCustomPropertyTypeLayout("ChaosClothAssetWeightedValueNonAnimatableNoLowHighRange");
 	}
 }
 
