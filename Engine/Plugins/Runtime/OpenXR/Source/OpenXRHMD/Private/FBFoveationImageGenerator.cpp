@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FBFoveationImageGenerator.h"
+#include "SceneView.h"
 #include "OpenXRHMD.h"
 #include "OpenXRHMD_Swapchain.h"
 #include "RenderGraphBuilder.h"

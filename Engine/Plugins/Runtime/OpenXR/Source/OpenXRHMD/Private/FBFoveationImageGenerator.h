@@ -8,6 +8,7 @@
 
 class FRGDBuilder;
 class FOpenXRHMD;
+class FSceneView;
 
 class FFBFoveationImageGenerator : public IVariableRateShadingImageGenerator
 {
