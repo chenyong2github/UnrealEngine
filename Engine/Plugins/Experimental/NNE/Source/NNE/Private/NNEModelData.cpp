@@ -69,12 +69,12 @@ inline void PutIntoDDC(const FGuid& FileId, const FString& RuntimeName, FSharedB
 
 #endif
 
-inline TArray<uint8> CreateRuntimeDataBlob(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData, FGuid FileId)
+inline TArray<uint8> CreateRuntimeDataBlob(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData, FGuid FileId, const ITargetPlatform* TargetPlatform)
 {
 	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNE::GetRuntime<INNERuntime>(RuntimeName);
 	if (NNERuntime.IsValid())
 	{
-		return NNERuntime->CreateModelData(FileType, FileData, FileId);
+		return NNERuntime->CreateModelData(FileType, FileData, FileId, TargetPlatform);
 	}
 	else
 	{
@@ -147,7 +147,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 #endif //WITH_EDITOR
 
 	// Try to create the model
-	TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData, FileId);
+	TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData, FileId, nullptr);
 	if (CreatedData.Num() < 1)
 	{
 		return {};
@@ -191,7 +191,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 
 		for (const FString& RuntimeName : CookedRuntimeNames)
 		{
-			TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData, FileId);
+			TArray<uint8> CreatedData = CreateRuntimeDataBlob(RuntimeName, FileType, FileData, FileId, Ar.GetArchiveState().CookingTarget());
 			if (CreatedData.Num() > 0)
 			{
 				ModelData.Add(RuntimeName, CreatedData);

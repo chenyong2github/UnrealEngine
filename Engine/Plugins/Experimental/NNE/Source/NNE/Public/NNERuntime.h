@@ -7,6 +7,8 @@
 
 #include "NNERuntime.generated.h"
 
+class ITargetPlatform;
+
 UINTERFACE()
 class NNE_API UNNERuntime : public UInterface
 {
@@ -49,9 +51,10 @@ public:
 	 * @param FileType The type of file inside FileData. Corresponds to the file extension (e.g. 'onnx').
 	 * @param FileData The raw binary file of a neural network model.
 	 * @param FileId The unique identifier representing FileData.
+	 * @param TargetPlatform The Interface identifying the target platform for which the data needs to be created. A null pointer indicates the currently compiled/running platform.
 	 * @return True if the runtime is able to create model data, false otherwise.
 	 */
-	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData, FGuid FileId) const = 0;
+	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData, FGuid FileId, const ITargetPlatform* TargetPlatform) const = 0;
 
 	/**
 	 * Create model data given some raw file data.
@@ -59,7 +62,8 @@ public:
 	 * @param FileType The type of file inside FileData. Corresponds to the file extension (e.g. 'onnx').
 	 * @param FileData The raw binary file of a neural network model.
 	 * @param FileId The unique identifier representing FileData.
+	 * @param TargetPlatform The Interface identifying the target platform for which the data needs to be created. A null pointer indicates the currently compiled/running platform.
 	 * @return Data representing the runtime specific representation of the model to be stored by UNNEModelData on success or an empty array otherwise.
 	 */
-	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData, FGuid FileId) = 0;
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData, FGuid FileId, const ITargetPlatform* TargetPlatform) = 0;
 };
