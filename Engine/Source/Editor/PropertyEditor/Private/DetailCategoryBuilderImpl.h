@@ -56,6 +56,8 @@ struct FDetailLayoutCustomization
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	/** @return The row to display from this customization */
 	FDetailWidgetRow GetWidgetRow() const;
+	/** @return properties being customized */
+	TArrayView<TSharedPtr<IPropertyHandle>> GetPropertyHandles() const;
 	/** Whether or not this customization is considered an advanced property. */
 	bool bAdvanced { false };
 	/** Whether or not this customization is custom or a default one. */

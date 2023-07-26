@@ -231,6 +231,17 @@ FDetailWidgetRow FDetailPropertyRow::GetWidgetRow()
 	}
 }
 
+TArrayView<TSharedPtr<IPropertyHandle>> FDetailPropertyRow::GetPropertyHandles() const
+{
+	if (CustomPropertyWidget)
+	{
+		return CustomPropertyWidget->PropertyHandles;
+	}
+
+	// view single item as a c-array of size one
+	return TArrayView<TSharedPtr<IPropertyHandle>>(const_cast<TSharedPtr<IPropertyHandle>*>(&PropertyHandle), 1);
+}
+
 static bool IsHeaderRowRequired(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 {
 	TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();

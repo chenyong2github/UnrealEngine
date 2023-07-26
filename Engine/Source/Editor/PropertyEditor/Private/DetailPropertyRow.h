@@ -86,6 +86,9 @@ public:
 	/** @return The widget row that should be displayed for this property row */
 	FDetailWidgetRow GetWidgetRow();
 
+	/** returns only the widget for editing this property. Use GetWidgetRow to get the full row with property name */
+	TArrayView<TSharedPtr<IPropertyHandle>> GetPropertyHandles() const;
+
 	/**
 	 * @return The property node for this row
 	 */

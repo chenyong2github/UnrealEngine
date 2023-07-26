@@ -888,7 +888,7 @@ void FDetailItemNode::GetAllPropertyNodes(TArray<TSharedRef<FPropertyNode>>& Out
 		OutNodes.Add(Node.ToSharedRef());
 	}
 
-	for (const TSharedPtr<IPropertyHandle>& CurPropertyHandle : Customization.GetWidgetRow().PropertyHandles)
+	for (const TSharedPtr<IPropertyHandle>& CurPropertyHandle : Customization.GetPropertyHandles())
 	{
 		const TSharedPtr<FPropertyHandleBase>& Handle = StaticCastSharedPtr<FPropertyHandleBase>(CurPropertyHandle);
 		if (const TSharedPtr<FPropertyNode> Node = Handle->GetPropertyNode())

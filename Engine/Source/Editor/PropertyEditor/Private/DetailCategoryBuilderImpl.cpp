@@ -123,6 +123,27 @@ FDetailWidgetRow FDetailLayoutCustomization::GetWidgetRow() const
 	}
 }
 
+TArrayView<TSharedPtr<IPropertyHandle>> FDetailLayoutCustomization::GetPropertyHandles() const
+{
+	if (HasCustomWidget())
+	{
+		return WidgetDecl->PropertyHandles;
+	}
+	else if (HasCustomBuilder())
+	{
+		return CustomBuilderRow->GetWidgetRow()->PropertyHandles;
+	}
+	else if (HasPropertyNode())
+	{
+		return PropertyRow->GetPropertyHandles();
+	}
+	else if (DetailGroup->GetHeaderPropertyRow())
+	{
+		return DetailGroup->GetHeaderPropertyRow()->GetPropertyHandles();
+	}
+	return TArrayView<TSharedPtr<IPropertyHandle>>();
+}
+
 const IDetailLayoutRow* FDetailLayoutCustomization::GetDetailLayoutRow() const
 {
 	if (HasCustomWidget())
