@@ -368,7 +368,7 @@ void UE::FStallTimer::Resume(const double InSeconds)
 	if (--PauseCount == 0)
 	{
 		// We should be paused!
-		//ensure(LastCheckSeconds == InvalidSeconds);
+		ensure(LastCheckSeconds == InvalidSeconds);
 
 		// Resume checking from this time, we don't need atomics here as this thread is the only one that should issue this write (we were paused which means the StallDetectorThread won't Check())
 		LastCheckSeconds = InSeconds;
