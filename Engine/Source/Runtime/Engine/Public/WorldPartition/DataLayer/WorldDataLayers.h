@@ -255,12 +255,22 @@ DEFINE_ACTORDESC_TYPE(AWorldDataLayers, FWorldDataLayersActorDesc);
 
 #if WITH_EDITOR
 
+template <typename T, typename = int>
+struct HasDataLayerInstanceClass : std::false_type {};
+
+template <typename T>
+struct HasDataLayerInstanceClass<T, decltype(&T::GetDataLayerInstanceClass, 0)> : std::true_type {};
+
 template<class DataLayerInstanceType, typename ...CreationsArgs>
 DataLayerInstanceType* AWorldDataLayers::CreateDataLayer(CreationsArgs... InCreationArgs)
 {
 	Modify();
 
-	DataLayerInstanceType* NewDataLayer = NewObject<DataLayerInstanceType>(this, DataLayerInstanceType::MakeName(Forward<CreationsArgs>(InCreationArgs)...), RF_Transactional | RF_NoFlags);
+	UClass* ClassToUse = DataLayerInstanceType::StaticClass();
+	if constexpr (HasDataLayerInstanceClass<DataLayerInstanceType>::value)
+		ClassToUse = DataLayerInstanceType::GetDataLayerInstanceClass();
+
+	DataLayerInstanceType* NewDataLayer = NewObject<DataLayerInstanceType>(this, ClassToUse, DataLayerInstanceType::MakeName(Forward<CreationsArgs>(InCreationArgs)...), RF_Transactional | RF_NoFlags);
 	check(NewDataLayer != nullptr);
 	NewDataLayer->OnCreated(Forward<CreationsArgs>(InCreationArgs)...);
 	DataLayerInstances.Add(NewDataLayer);

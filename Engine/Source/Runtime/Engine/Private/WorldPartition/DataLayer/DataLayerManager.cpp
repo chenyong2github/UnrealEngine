@@ -607,8 +607,19 @@ TSubclassOf<UDataLayerLoadingPolicy> UDataLayerManager::GetDataLayerLoadingPolic
 	}
 	if (!DataLayerLoadingPolicyClassValue)
 	{
-		// Default on UDataLayerLoadingPolicy class
+		// Default to UDataLayerLoadingPolicy class
 		DataLayerLoadingPolicyClassValue = UDataLayerLoadingPolicy::StaticClass();
+	}
+	return DataLayerLoadingPolicyClassValue;
+}
+
+TSubclassOf<UDataLayerInstanceWithAsset> UDataLayerManager::GetDataLayerInstanceWithAssetClass()
+{
+	UClass* DataLayerLoadingPolicyClassValue = GetDefault<UDataLayerManager>()->DataLayerInstanceWithAssetClass.Get();
+	if (!DataLayerLoadingPolicyClassValue)
+	{
+		// Default to UDataLayerInstanceWithAsset class
+		DataLayerLoadingPolicyClassValue = UDataLayerInstanceWithAsset::StaticClass();
 	}
 	return DataLayerLoadingPolicyClassValue;
 }

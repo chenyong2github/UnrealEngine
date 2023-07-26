@@ -171,6 +171,8 @@ private:
 	ENGINE_API bool ResolveIsLoadedInEditor(const TArray<FName>& InDataLayerInstanceNames) const;
 	//~ End Editor loading
 
+	ENGINE_API static TSubclassOf<UDataLayerInstanceWithAsset> GetDataLayerInstanceWithAssetClass();
+
 	// Helper
 	ENGINE_API TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
 
@@ -207,6 +209,9 @@ private:
 private:
 	UPROPERTY(Config)
 	TSoftClassPtr<UDataLayerLoadingPolicy> DataLayerLoadingPolicyClass;
+
+	UPROPERTY(Config)
+	TSoftClassPtr<UDataLayerInstanceWithAsset> DataLayerInstanceWithAssetClass;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UDataLayerLoadingPolicy> DataLayerLoadingPolicy;

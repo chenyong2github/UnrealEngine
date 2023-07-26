@@ -25,6 +25,11 @@ FName UDataLayerInstanceWithAsset::MakeName(const UDataLayerAsset* DeprecatedDat
 	return FName(FString::Format(TEXT("DataLayer_{0}"), { FGuid::NewGuid().ToString() }));
 }
 
+TSubclassOf<UDataLayerInstanceWithAsset> UDataLayerInstanceWithAsset::GetDataLayerInstanceClass()
+{
+	return UDataLayerManager::GetDataLayerInstanceWithAssetClass();
+}
+
 void UDataLayerInstanceWithAsset::OnCreated(const UDataLayerAsset* Asset)
 {
 	check(!GetOuterWorldDataLayers()->HasDeprecatedDataLayers() || IsRunningCommandlet());

@@ -16,6 +16,7 @@ class UDataLayerInstanceWithAsset : public UDataLayerInstance
 public:
 #if WITH_EDITOR
 	static ENGINE_API FName MakeName(const UDataLayerAsset* DeprecatedDataLayer);
+	static ENGINE_API TSubclassOf<UDataLayerInstanceWithAsset> GetDataLayerInstanceClass();
 	ENGINE_API void OnCreated(const UDataLayerAsset* Asset);
 
 	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const;
