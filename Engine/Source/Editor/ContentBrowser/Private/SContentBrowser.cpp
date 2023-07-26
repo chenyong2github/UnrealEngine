@@ -2465,25 +2465,27 @@ bool SContentBrowser::OnHasCrumbDelimiterContent(const FString& CrumbData) const
 	}
 	else if (SourcesData.HasVirtualPaths())
 	{
-		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
-
-		FContentBrowserDataFilter SubItemsFilter;
-		SubItemsFilter.ItemTypeFilter = EContentBrowserItemTypeFilter::IncludeFolders;
-		SubItemsFilter.bRecursivePaths = false;
-		SubItemsFilter.ItemCategoryFilter = PathViewPtr->GetContentBrowserItemCategoryFilter();
-		SubItemsFilter.ItemAttributeFilter = PathViewPtr->GetContentBrowserItemAttributeFilter();
-
-		bool bHasSubItems = false;
-		if (ContentBrowser::bCrumbsEnumerate)
+		// The subsystems may get Deinitialize before the slate windows are close when exiting the editor
+		if (UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem())
 		{
-			ContentBrowserData->EnumerateItemsUnderPath(*CrumbData, SubItemsFilter, [&bHasSubItems](FContentBrowserItemData&& InSubItem)
-			{
-				bHasSubItems = true;
-				return false;
-			});
-		}
+			FContentBrowserDataFilter SubItemsFilter;
+			SubItemsFilter.ItemTypeFilter = EContentBrowserItemTypeFilter::IncludeFolders;
+			SubItemsFilter.bRecursivePaths = false;
+			SubItemsFilter.ItemCategoryFilter = PathViewPtr->GetContentBrowserItemCategoryFilter();
+			SubItemsFilter.ItemAttributeFilter = PathViewPtr->GetContentBrowserItemAttributeFilter();
 
-		return bHasSubItems;
+			bool bHasSubItems = false;
+			if (ContentBrowser::bCrumbsEnumerate)
+			{
+				ContentBrowserData->EnumerateItemsUnderPath(*CrumbData, SubItemsFilter, [&bHasSubItems](FContentBrowserItemData&& InSubItem)
+					{
+						bHasSubItems = true;
+				return false;
+					});
+			}
+
+			return bHasSubItems;
+		}
 	}
 
 	return false;
