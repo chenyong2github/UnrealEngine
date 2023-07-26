@@ -967,6 +967,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	FrameReplicationStats.Reset();
 
 	bWasConnectionSaturated = false;
+	bWasConnectionFastPathSaturated = false;
 
 	TSet<UNetConnection*> ConnectionsToClose;
 
@@ -1073,6 +1074,9 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		{
 			NetConnection->TrackReplicationForAnalytics(bWasConnectionSaturated);
 			bWasConnectionSaturated = false;
+
+			ConnectionManager->TrackReplicationForAnalytics(bWasConnectionFastPathSaturated);
+			bWasConnectionFastPathSaturated = false;
 		};
 
 		const FReplicationGraphDestructionSettings DestructionSettings(DestructInfoMaxDistanceSquared, CVar_RepGraph_OutOfRangeDistanceCheckRatio * DestructInfoMaxDistanceSquared);
@@ -1718,7 +1722,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_FastShared(UNetReplica
 #endif
 			if (TotalBitsWritten > MaxBits)
 			{
-				NotifyConnectionSaturated(*ConnectionManager);
+				NotifyConnectionFastPathSaturated();
 				return;
 			}
 		}
@@ -2492,6 +2496,11 @@ void UReplicationGraph::NotifyConnectionSaturated(UNetReplicationGraphConnection
 	++GNumSaturatedConnections;
 }
 
+void UReplicationGraph::NotifyConnectionFastPathSaturated()
+{
+	bWasConnectionFastPathSaturated = true;
+}
+
 void UReplicationGraph::SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor)
 {
 	if (!DestroyedActor)
@@ -2891,6 +2900,16 @@ void UNetReplicationGraphConnection::CleanupNodeCaches(const UReplicationGraphNo
 {
 	NodesVisibleCells.Remove(Node);
 	PrevDormantActorListPerNode.Remove(Node);
+}
+
+void UNetReplicationGraphConnection::TrackReplicationForAnalytics(bool bFastPathSaturated)
+{
+	FastPathSaturationAnalytics.TrackReplication(bFastPathSaturated);
+}
+
+void UNetReplicationGraphConnection::ResetSaturationAnalytics()
+{
+	FastPathSaturationAnalytics = FRepGraphConnectionSaturationAnalytics();
 }
 
 void UNetReplicationGraphConnection::GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const
@@ -3988,7 +4007,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 			// Bandwidth Cap
 			if (BitsWritten > MaxBits && CVar_RepGraph_DynamicSpatialFrequency_UncapBandwidth == 0)
 			{
-				RepGraph->NotifyConnectionSaturated(Params.ConnectionManager);
+				Params.ConnectionManager.NotifyDSFNodeSaturated(this);
 				break;
 			}
 		}

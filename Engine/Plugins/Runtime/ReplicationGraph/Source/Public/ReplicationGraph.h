@@ -1024,6 +1024,8 @@ public:
 
 	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
 
+	void NotifyConnectionFastPathSaturated();
+
 	void SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor);
 
 	uint16 GetReplicationPeriodFrameForFrequency(float NetUpdateFrequency) const
@@ -1101,6 +1103,9 @@ protected:
 private:
 	/** Whether or not a connection was saturated during an update. */
 	bool bWasConnectionSaturated = false;
+
+	/** Whether or not all fast shared replication budget has been used during replication. */
+	bool bWasConnectionFastPathSaturated = false;
 
 protected:
 	/** Default Replication Path */
@@ -1188,6 +1193,28 @@ struct FLastLocationGatherInfo
 	bool operator==(UNetConnection* Other) const
 	{
 		return Connection == Other;
+	}
+};
+
+struct FRepGraphConnectionSaturationAnalytics
+{
+	uint32 LongestRunOfSaturatedReplications = 0;
+	uint32 CurrentRunOfSaturatedReplications = 0;
+
+	void TrackReplication(bool bIsSaturated)
+	{
+		if (bIsSaturated)
+		{
+			++CurrentRunOfSaturatedReplications;
+			if (CurrentRunOfSaturatedReplications > LongestRunOfSaturatedReplications)
+			{
+				LongestRunOfSaturatedReplications = CurrentRunOfSaturatedReplications;
+			}
+		}
+		else
+		{
+			CurrentRunOfSaturatedReplications = 0;
+		}
 	}
 };
 
@@ -1297,6 +1324,13 @@ public:
 
 	void CleanupNodeCaches(const UReplicationGraphNode* Node);
 
+	virtual void NotifyDSFNodeSaturated(const UReplicationGraphNode_DynamicSpatialFrequency* Node) {}
+
+	virtual void TrackReplicationForAnalytics(bool bFastPathSaturated);
+
+	virtual void ResetSaturationAnalytics();
+
+	FRepGraphConnectionSaturationAnalytics FastPathSaturationAnalytics;
 private:
 
 	// Stored list of dormant actors in a previous cell when it's been left - this is for
