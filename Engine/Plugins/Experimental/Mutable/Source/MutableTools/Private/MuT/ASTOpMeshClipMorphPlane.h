@@ -24,7 +24,7 @@ struct FProgram;
 
 		FShape morphShape;
 		FShape selectionShape;
-		string vertexSelectionBone;
+		uint16 vertexSelectionBone;
 
 		OP::MeshClipMorphPlaneArgs::VERTEX_SELECTION_TYPE vertexSelectionType = OP::MeshClipMorphPlaneArgs::VS_NONE;
 

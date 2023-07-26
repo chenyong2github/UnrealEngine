@@ -1147,16 +1147,15 @@ void UnserialiseLegacySurfaces(InputArchive& arch, TArray<MESH_SURFACE>& OutMesh
 	const int32 NumSurfaces = LegacyMeshSurfaces.Num();
 	OutMeshSurfaces.SetNumZeroed(NumSurfaces);
 
-	MESH_SURFACE* Surfaces = OutMeshSurfaces.GetData();
-	FMeshSurfaceLegacy* LegacySurfaces = LegacyMeshSurfaces.GetData();
-
 	for (int32 SurfaceIndex = 0; SurfaceIndex < NumSurfaces; ++SurfaceIndex)
 	{
-		Surfaces->m_firstVertex = LegacySurfaces->m_firstVertex;
-		Surfaces->m_vertexCount = LegacySurfaces->m_vertexCount;
-		Surfaces->m_firstIndex = LegacySurfaces->m_firstIndex;
-		Surfaces->m_indexCount = LegacySurfaces->m_indexCount;
-		Surfaces->m_id = LegacySurfaces->m_id;
+		FMeshSurfaceLegacy& LegacySurface = LegacyMeshSurfaces[SurfaceIndex];
+		MESH_SURFACE& Surface = OutMeshSurfaces[SurfaceIndex];
+		Surface.m_firstVertex = LegacySurface.m_firstVertex;
+		Surface.m_vertexCount = LegacySurface.m_vertexCount;
+		Surface.m_firstIndex = LegacySurface.m_firstIndex;
+		Surface.m_indexCount = LegacySurface.m_indexCount;
+		Surface.m_id = LegacySurface.m_id;
 	}
 }
 

@@ -64,7 +64,7 @@ namespace mu
         uint8_t m_vertexSelectionType;
 		vec3f m_selectionBoxOrigin;
 		vec3f m_selectionBoxRadius;
-		string m_vertexSelectionBone;
+		uint16 m_vertexSelectionBone;
 
 		TArray<mu::string> m_tags;
 
@@ -75,7 +75,7 @@ namespace mu
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 3;
+            uint32_t ver = 4;
 			arch << ver;
 
 			arch << m_pSource;
@@ -113,7 +113,17 @@ namespace mu
 			arch >> m_selectionBoxOrigin;
 			arch >> m_selectionBoxRadius;
 			arch >> m_tags;
-			arch >> m_vertexSelectionBone;
+
+			if (ver >= 4)
+			{
+				arch >> m_vertexSelectionBone;
+			}
+			else
+			{
+				string OldVertexSelectionBone;
+				arch >> OldVertexSelectionBone;
+				m_vertexSelectionBone = 0;
+			}
 			arch >> m_maxEffectRadius;
 		}
 

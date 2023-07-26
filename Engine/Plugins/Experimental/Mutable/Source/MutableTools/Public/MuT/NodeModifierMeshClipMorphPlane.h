@@ -61,7 +61,7 @@ namespace mu
 
 		//! Define the root bone of the subhierarchy of the mesh that will be affected.
 		//! Only one of Box or Bone Hierarchy can be used (the last one set)
-		void SetVertexSelectionBone(const char* strBoneName, float maxEffectRadius);
+		void SetVertexSelectionBone(uint16 BoneId, float maxEffectRadius);
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

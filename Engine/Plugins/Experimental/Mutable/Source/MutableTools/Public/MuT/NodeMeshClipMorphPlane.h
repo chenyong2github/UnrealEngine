@@ -66,7 +66,7 @@ namespace mu
 
 		//! Define the root bone of the subhierarchy of the mesh that will be affected.
 		//! Only one of Box or Bone Hierarchy can be used (the last one set)
-		void SetVertexSelectionBone(const char* strBoneName, float maxEffectRadius);
+		void SetVertexSelectionBone(uint16 BoneId, float maxEffectRadius);
 
 		//! Add a tag to the clip morph operation, which will only affect surfaces with the same tag
 		void AddTag(const char* tagName);

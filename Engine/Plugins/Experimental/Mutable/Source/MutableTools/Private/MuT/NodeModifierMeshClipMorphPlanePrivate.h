@@ -59,7 +59,7 @@ namespace mu
         uint8_t m_vertexSelectionType;
         vec3f m_selectionBoxOrigin;
         vec3f m_selectionBoxRadius;
-        string m_vertexSelectionBone;
+        uint16 m_vertexSelectionBone;
 
 		// Max distance a vertex can have to the bone in order to be affected. A negative value
 		// means no limit.
@@ -70,7 +70,7 @@ namespace mu
         {
             NodeModifier::Private::Serialise(arch);
 
-			uint32_t ver = 2;
+			uint32_t ver = 3;
             arch << ver;
 
             arch << m_origin;
@@ -94,7 +94,7 @@ namespace mu
 
             uint32_t ver;
             arch >> ver;
-            check(ver==2);
+            check(ver>=2);
 
             arch >> m_origin;
             arch >> m_normal;
@@ -106,7 +106,16 @@ namespace mu
             arch >> m_vertexSelectionType;
             arch >> m_selectionBoxOrigin;
             arch >> m_selectionBoxRadius;
-			arch >> m_vertexSelectionBone;
+			if (ver >= 3)
+			{
+				arch >> m_vertexSelectionBone;
+			}
+			else
+			{
+				string OldVertexSelectionBone;
+				arch >> OldVertexSelectionBone;
+				m_vertexSelectionBone = 0;
+			}
 			arch >> m_maxEffectRadius;
         }
 

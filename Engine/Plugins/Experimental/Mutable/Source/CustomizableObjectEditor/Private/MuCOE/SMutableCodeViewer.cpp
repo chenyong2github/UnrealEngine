@@ -2317,16 +2317,6 @@ bool SMutableCodeViewer::IsConstantResourceUsedByOperation(const int32 IndexOnCo
 				{
 					bResourceLocated = IndexOnConstantsArray == InProgram.GetOpArgs<mu::OP::InstanceAddArgs>(OperationAddress).name;
 				}
-				else if (OperationType == mu::OP_TYPE::ME_CLIPMORPHPLANE)
-				{
-					const mu::OP::MeshClipMorphPlaneArgs Arguments = InProgram.GetOpArgs<mu::OP::MeshClipMorphPlaneArgs>(OperationAddress);
-
-					// treat the data as if it was a bone name
-					if (Arguments.vertexSelectionType == mu::OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
-					{
-						bResourceLocated = IndexOnConstantsArray == InProgram.GetOpArgs<mu::OP::MeshClipMorphPlaneArgs>(OperationAddress).vertexSelectionShapeOrBone;
-					}
-				}
 				else if (OperationType == mu::OP_TYPE::ME_BINDSHAPE)
 				{
 					mu::OP::MeshBindShapeArgs Arguments = InProgram.GetOpArgs<mu::OP::MeshBindShapeArgs>(OperationAddress);

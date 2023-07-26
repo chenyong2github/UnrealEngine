@@ -123,10 +123,10 @@ namespace mu
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshClipMorphPlane::SetVertexSelectionBone(const char* strBoneName, float maxEffectRadius)
+	void NodeMeshClipMorphPlane::SetVertexSelectionBone(uint16 BoneId, float maxEffectRadius)
 	{
 		m_pD->m_vertexSelectionType = Private::VS_BONE_HIERARCHY;
-		m_pD->m_vertexSelectionBone = strBoneName;
+		m_pD->m_vertexSelectionBone = BoneId;
 		m_pD->m_maxEffectRadius = maxEffectRadius;
 	}
 

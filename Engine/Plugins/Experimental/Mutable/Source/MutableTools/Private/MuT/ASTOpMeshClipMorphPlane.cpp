@@ -93,7 +93,7 @@ namespace mu
 			args.vertexSelectionType = (uint8_t)vertexSelectionType;
 			if (vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
 			{
-				args.vertexSelectionShapeOrBone = program.AddConstant(vertexSelectionBone);
+				args.vertexSelectionShapeOrBone = vertexSelectionBone;
 			}
 			else if (vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_SHAPE)
 			{
