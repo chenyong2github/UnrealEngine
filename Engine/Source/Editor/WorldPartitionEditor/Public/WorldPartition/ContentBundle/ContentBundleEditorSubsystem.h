@@ -137,22 +137,9 @@ public:
 	virtual void PushContentBundleEditing() override;
 	virtual void PopContentBundleEditing() override;
 
-	DECLARE_EVENT_OneParam(UContentBundleEditorSubsystem, FOnContentBundleChanged, const FContentBundleEditor*);
-	FOnContentBundleChanged& OnContentBundleChanged() { return ContentBundleChanged; }
-
-	DECLARE_EVENT_OneParam(UContentBundleEditorSubsystem, FOnContentBundleAdded, const FContentBundleEditor*);
-	FOnContentBundleAdded& OnContentBundleAdded() { return ContentBundleAdded; }
-
-	DECLARE_EVENT_OneParam(UContentBundleEditorSubsystem, FOnContentBundleRemoved, const FContentBundleEditor*);
-	FOnContentBundleRemoved& OnContentBundleRemoved() { return ContentBundleRemoved; }
-
 private:
 	void SelectActorsInternal(FContentBundleEditor& EditorContentBundle, bool bSelect);
 
 	UPROPERTY()
 	TObjectPtr<UContentBundleEditingSubmodule> ContentBundleEditingSubModule;
-
-	FOnContentBundleChanged ContentBundleChanged;
-	FOnContentBundleAdded ContentBundleAdded;
-	FOnContentBundleRemoved ContentBundleRemoved;
 };

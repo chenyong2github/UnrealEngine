@@ -288,6 +288,7 @@ void UContentBundleEditorSubsystem::NotifyContentBundleRemovedContent(const FCon
 		GetEditingSubmodule()->DeactivateCurrentContentBundleEditing();
 	}
 
+	OnContentBundleRemovedContent().Broadcast(ContentBundle);
 	NotifyContentBundleChanged(ContentBundle);
 }
 

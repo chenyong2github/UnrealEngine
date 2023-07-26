@@ -52,6 +52,7 @@ public:
 	ENGINE_API void ReferenceAllActors();
 	ENGINE_API void UnreferenceAllActors();
 
+	const TWeakObjectPtr<UActorDescContainer>& GetActorDescContainer() const { return ActorDescContainer; };
 	ENGINE_API void GenerateStreaming(TArray<FString>* OutPackageToGenerate, bool bIsPIE);
 
 	URuntimeHashExternalStreamingObjectBase* GetStreamingObject() const { return ExternalStreamingObject; }
