@@ -1655,8 +1655,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 
 UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, const UPCGComponent* Component, bool bParseActor)
 {
-	auto AcceptAllData = [](EPCGDataType InDataType) { return true; };
-	FPCGDataCollection Collection = CreateActorPCGDataCollection(Actor, Component, AcceptAllData, bParseActor);
+	FPCGDataCollection Collection = CreateActorPCGDataCollection(Actor, Component, EPCGDataType::Any, bParseActor);
 	if (Collection.TaggedData.Num() > 1)
 	{
 		UPCGUnionData* Union = NewObject<UPCGUnionData>();
@@ -1677,7 +1676,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, const UPCGComponent* 
 	}
 }
 
-FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, const UPCGComponent* Component, const TFunction<bool(EPCGDataType)>& InDataFilter, bool bParseActor)
+FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, const UPCGComponent* Component, EPCGDataType InDataFilter, bool bParseActor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateActorPCGData);
 	FPCGDataCollection Collection;
@@ -1695,10 +1694,10 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 	// Some actor types we will forego full parsing to build strictly on the actor existence, such as partition actors, volumes and landscape
 	// TODO: add factory for extensibility
 	// TODO: review the !bParseActor cases - it might make sense to have just a point for a partition actor, even if we preintersect it.
-	APCGPartitionActor* PartitionActor = InDataFilter(EPCGDataType::Spatial) ? Cast<APCGPartitionActor>(Actor) : nullptr;
-	ALandscapeProxy* LandscapeActor = InDataFilter(EPCGDataType::Landscape) ? Cast<ALandscapeProxy>(Actor) : nullptr;
-	AVolume* VolumeActor = InDataFilter(EPCGDataType::Volume) ? Cast<AVolume>(Actor) : nullptr;
-	if (!bParseActor && InDataFilter(EPCGDataType::Point))
+	APCGPartitionActor* PartitionActor = (!!(InDataFilter & EPCGDataType::Spatial) || !!(InDataFilter & EPCGDataType::Volume)) ? Cast<APCGPartitionActor>(Actor) : nullptr;
+	ALandscapeProxy* LandscapeActor = !!(InDataFilter & EPCGDataType::Landscape) ? Cast<ALandscapeProxy>(Actor) : nullptr;
+	AVolume* VolumeActor = !!(InDataFilter & EPCGDataType::Volume) ? Cast<AVolume>(Actor) : nullptr;
+	if (!bParseActor && !!(InDataFilter & EPCGDataType::Point))
 	{
 		UPCGPointData* Data = NewObject<UPCGPointData>();
 		Data->InitializeFromActor(Actor);
@@ -1711,15 +1710,28 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 	{
 		check(!Component || Component->GetOwner() == Actor); // Invalid processing otherwise because of the this usage
 
-		UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
-		Data->Initialize(PartitionActor->GetFixedBounds());
+		UPCGVolumeData* VolumeData = NewObject<UPCGVolumeData>();
+		UPCGSpatialData* Result = VolumeData;
+		if (InDataFilter == EPCGDataType::Volume)
+		{
+			VolumeData->Initialize(PCGHelpers::GetGridBounds(Actor, Component));
+		}
+		else
+		{
+			VolumeData->Initialize(PartitionActor->GetFixedBounds());
 
-		UPCGComponent* OriginalComponent = Component ? PartitionActor->GetOriginalComponent(Component) : nullptr;
-		// Important note: we do NOT call the collection version here, as we want to have a union if that's the case
-		const UPCGSpatialData* OriginalComponentSpatialData = OriginalComponent ? Cast<const UPCGSpatialData>(OriginalComponent->GetActorPCGData()) : nullptr;
+			UPCGComponent* OriginalComponent = Component ? PartitionActor->GetOriginalComponent(Component) : nullptr;
+			// Important note: we do NOT call the collection version here, as we want to have a union if that's the case
+			const UPCGSpatialData* OriginalComponentSpatialData = OriginalComponent ? Cast<const UPCGSpatialData>(OriginalComponent->GetActorPCGData()) : nullptr;
+
+			if (OriginalComponentSpatialData)
+			{
+				Result = Result->IntersectWith(OriginalComponentSpatialData);
+			}
+		}
 
 		FPCGTaggedData& TaggedData = Collection.TaggedData.Emplace_GetRef();
-		TaggedData.Data = OriginalComponentSpatialData ? Cast<UPCGData>(Data->IntersectWith(OriginalComponentSpatialData)) : Cast<UPCGData>(Data);
+		TaggedData.Data = Result;
 		// No need to keep partition actor tags, though we might want to push PCG grid GUID at some point
 	}
 	else if (LandscapeActor)
@@ -1802,7 +1814,7 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 		RemovePCGGeneratedEntries(Shapes);
 		RemoveDuplicatesFromPrimitives(Shapes);
 
-		if (InDataFilter(EPCGDataType::Spline))
+		if (!!(InDataFilter & EPCGDataType::Spline))
 		{
 			for (ULandscapeSplinesComponent* SplineComponent : LandscapeSplines)
 			{
@@ -1827,7 +1839,7 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 			}
 		}
 
-		if (InDataFilter(EPCGDataType::Primitive))
+		if (!!(InDataFilter & EPCGDataType::Primitive))
 		{
 			for (UShapeComponent* ShapeComponent : Shapes)
 			{
@@ -1873,7 +1885,7 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 	}
 
 	// Finally, if it's not a special actor and there are not parsed components, then return a single point at the actor position
-	if (Collection.TaggedData.IsEmpty() && InDataFilter(EPCGDataType::Point))
+	if (Collection.TaggedData.IsEmpty() && !!(InDataFilter & EPCGDataType::Point))
 	{
 		UPCGPointData* Data = NewObject<UPCGPointData>();
 		Data->InitializeFromActor(Actor);

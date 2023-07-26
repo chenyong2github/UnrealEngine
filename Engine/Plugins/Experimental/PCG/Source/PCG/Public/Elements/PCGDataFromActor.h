@@ -56,7 +56,7 @@ public:
 
 public:
 	/** Override this to filter what kinds of data should be retrieved from the actor(s). */
-	virtual bool DataFilter(EPCGDataType InDataType) const { return true; }
+	virtual EPCGDataType GetDataFilter() const { return EPCGDataType::Any; }
 
 	/** Override this to change the default value the selector will revert to when changing the actor selection type */
 	virtual TSubclassOf<AActor> GetDefaultActorSelectorClass() const;

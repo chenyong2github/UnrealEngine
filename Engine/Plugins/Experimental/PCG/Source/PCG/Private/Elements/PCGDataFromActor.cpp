@@ -6,6 +6,7 @@
 #include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
+#include "Data/PCGVolumeData.h"
 #include "Elements/PCGMergeElement.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGHelpers.h"
@@ -304,14 +305,13 @@ void FPCGDataFromActorElement::MergeActorsIntoPointData(FPCGContext* Context, co
 	else // Stripped-down version of the normal code path with bParseActor = false
 	{
 		FPCGDataCollection DataToMerge;
-		auto DataFilter = [](EPCGDataType InDataType) { return true; };
 		const bool bParseActor = false;
 
 		for (AActor* Actor : FoundActors)
 		{
 			if (Actor)
 			{
-				FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(Actor, Context->SourceComponent.Get(), DataFilter, bParseActor);
+				FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(Actor, Context->SourceComponent.Get(), EPCGDataType::Any, bParseActor);
 				DataToMerge.TaggedData += Collection.TaggedData;
 			}
 		}
@@ -440,8 +440,7 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 	else
 	{
 		const bool bParseActor = (Settings->Mode != EPCGGetDataFromActorMode::GetSinglePoint);
-		auto DataFilter = [Settings](EPCGDataType InDataType) { return Settings->DataFilter(InDataType); };
-		FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(FoundActor, Context->SourceComponent.Get(), DataFilter, bParseActor);
+		FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(FoundActor, Context->SourceComponent.Get(), Settings->GetDataFilter(), bParseActor);
 		Outputs += Collection.TaggedData;
 	}
 }

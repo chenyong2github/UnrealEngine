@@ -32,7 +32,7 @@ protected:
 
 public:
 	//~Begin UPCGDataFromActorSettings interface
-	virtual bool DataFilter(EPCGDataType InDataType) const override { return !!(InDataType & EPCGDataType::Landscape); }
+	virtual EPCGDataType GetDataFilter() const override { return EPCGDataType::Landscape; }
 	virtual TSubclassOf<AActor> GetDefaultActorSelectorClass() const override;
 	//~End UPCGDataFromActorSettings
 
@@ -72,7 +72,7 @@ protected:
 
 public:
 	//~Begin UPCGDataFromActorSettings interface
-	virtual bool DataFilter(EPCGDataType InDataType) const override { return !!(InDataType & EPCGDataType::PolyLine); }
+	virtual EPCGDataType GetDataFilter() const override { return EPCGDataType::PolyLine; }
 	//~End UPCGDataFromActorSettings
 };
 
@@ -98,7 +98,7 @@ protected:
 
 public:
 	//~Begin UPCGDataFromActorSettings interface
-	virtual bool DataFilter(EPCGDataType InDataType) const override { return !!(InDataType & EPCGDataType::Volume); }
+	virtual EPCGDataType GetDataFilter() const override { return EPCGDataType::Volume; }
 	//~End UPCGDataFromActorSettings
 };
 
@@ -124,6 +124,6 @@ protected:
 
 public:
 	//~Begin UPCGDataFromActorSettings interface
-	virtual bool DataFilter(EPCGDataType InDataType) const override { return !!(InDataType & EPCGDataType::Primitive); }
+	virtual EPCGDataType GetDataFilter() const override { return EPCGDataType::Primitive; }
 	//~End UPCGDataFromActorSettings
 };
