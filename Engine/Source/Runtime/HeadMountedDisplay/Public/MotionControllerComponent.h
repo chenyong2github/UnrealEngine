@@ -157,6 +157,19 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
 	HEADMOUNTEDDISPLAY_API FVector GetHandJointPosition(int jointIndex, bool& bValueFound);
 
+	/** If the motion tracking system provides linear velocity at this time the vector will be that velocity in cm/s in unreal world space and the function will return true.  If velocity is unavailable it will return false.  */
+	UFUNCTION(BlueprintPure, Category = "Motion Controller Update")
+	HEADMOUNTEDDISPLAY_API bool GetLinearVelocity(FVector &OutLinearVelocity) const;
+
+	/** If the motion tracking system provides angular velocity at this time OutAngularVelocity will be that velocity in deg/s in unreal world space and the function will return true. Note that it is not difficult to rotate a controller at more than 0.5 or 1 rotation per second briefly and some mathmatical operations(such as conversion to quaternion) lose rotations beyond 180 degrees or 360 degrees..  In some cases that is OK becuase the resulting final rotation is the same, but in some cases it would generate incorrect results.   If angular velocity is unavailable it will return false.*/
+	UFUNCTION(BlueprintPure, Category = "Motion Controller Update")
+	HEADMOUNTEDDISPLAY_API bool GetAngularVelocity(FRotator& OutAngularVelocity) const;
+
+	/** If the motion tracking system provides linear acceleration at this time the vector will be that acceleration in cm/(s^2) in unreal world space and the function will return true.  If acceleration is unavailable it will return false.  */
+	UFUNCTION(BlueprintPure, Category = "Motion Controller Update")
+	HEADMOUNTEDDISPLAY_API bool GetLinearAcceleration(FVector& OutLinearAcceleration) const;
+
+
 private:
 
 	/** Whether or not this component had a valid tracked controller associated with it this frame*/
@@ -165,13 +178,29 @@ private:
 	/** Whether or not this component has authority within the frame*/
 	bool bHasAuthority;
 
+	// Velocity and acceleration data for the motion controller, if available.
+	bool bProvidedLinearVelocity;
+	bool bProvidedAngularVelocity;
+	bool bProvidedLinearAcceleration;
+	// Note: these values are in tracking space, which is also the space relative to the parent of the motioncontroller component, and still need to be converted to unreal space by the TrackingToWorldTransform for use.
+	// They are in the unreal coordinate system and world scaled.
+	// Also we do not late-update these values.
+	FVector LinearVelocity;
+	FVector AngularVelocityAsAxisAndLength; // This vector represents an axis of rotation and its length is the magnitude of the rotation in radians per second.  Be careful turning it into a quaternion because those cannot represent more than 0.5 revolution per second. See UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime2 for an example of how this can be turned into an FRotator without losing rotation speed beyond 180 degrees/second.
+	FVector LinearAcceleration;
+
 	/** If true, the Position and Orientation args will contain the most recent controller state */
+	UE_DEPRECATED(5.3, "PollControllerState has been deprecated.  Please update to use PollControllerState_GameThread or PollControllerState_RenderThread, as appropriate.")
 	HEADMOUNTEDDISPLAY_API bool PollControllerState(FVector& Position, FRotator& Orientation, float WorldToMetersScale);
+	HEADMOUNTEDDISPLAY_API bool PollControllerState_GameThread(FVector& Position, FRotator& Orientation, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale);
+	HEADMOUNTEDDISPLAY_API bool PollControllerState_RenderThread(FVector& Position, FRotator& Orientation, float WorldToMetersScale);
 
 	HEADMOUNTEDDISPLAY_API void OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature);
 	IMotionController* PolledMotionController_GameThread;
 	IMotionController* PolledMotionController_RenderThread;
-	FCriticalSection PolledMotionControllerMutex;
+	bool bPolledHMD_GameThread;
+	bool bPolledHMD_RenderThread;
+	FCriticalSection PolledMotionControllerMutex; // Used to protect PolledMotionController_GameThread and bPolledHMD_GameThread which are written on the game thread and copied on the render thread.
 
 
 	FTransform RenderThreadRelativeTransform;

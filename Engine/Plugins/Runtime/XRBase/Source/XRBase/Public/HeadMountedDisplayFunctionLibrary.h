@@ -365,14 +365,31 @@ class XRBASE_API UHeadMountedDisplayFunctionLibrary : public UBlueprintFunctionL
 	/**
 	* Get the transform and potentially velocity data at a specified time near the current frame in unreal world space.
 	* This is intended for use with sub-frame input action timing data from SetXRTimedInputActionDelegate, or future support for timestamps in the core input system.
+	* The valid time window is platform dependent, but the intention per OpenXR is to fetch transforms for times from, at most, the previous few frames in the past or future.
+	* The OpenXR spec suggests that 50ms in the past should return an accurate result.  There is no guarantee for the future, but the underlying system is likely to have been
+	* designed to predict out to about 50ms as well.
+	* On some platforms this  will always just return a cached position and rotation, ignoring time.  bTimeWasUsed will be false in that case.
+	* AngularVelocity is a Rotator in degrees/second.  
+	* Be aware that this Rotator may have windings (rotations greater than 360 degrees) and some mathmatical operations (such as conversion to quaternion) will remove the windings.
+	* In some cases that is OK becuase the resulting final rotation is the same, but in some cases it would generate incorrect results.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static bool GetControllerTransformForTime2(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FRotator& AngularVelocity, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration);
+
+	/**
+	* Get the transform and potentially velocity data at a specified time near the current frame in unreal world space.
+	* This is intended for use with sub-frame input action timing data from SetXRTimedInputActionDelegate, or future support for timestamps in the core input system.
 	* The valid time window is platform dependent, but the intention per OpenXR is to fetch transforms for times from, at most, the previous few frames in the past or future.  
 	* The OpenXR spec suggests that 50ms in the past should return an accurate result.  There is no guarantee for the future, but the underlying system is likely to have been
 	* designed to predict out to about 50ms as well.
 	* On some platforms this  will always just return a cached position and rotation, ignoring time.  bTimeWasUsed will be false in that case.
-	* AngularVelocityRadPerSec is a vector whose direction is the axis of rotation and whoes length is the speed of rotation in radians per second.
+	* 
+	* AngularVelocityRadPerSec is a vector where direction is the axis of rotation and length is the speed of rotation in radians per second. 
+	* Note that it is not difficult to rotate a controller at more than 0.5 or 1 rotation per second briefly and some mathmatical operations (such as conversion to quaternion) lose rotations beyond 180 degrees or 360 degrees.  
+	* In some cases that is OK becuase the resulting final rotation is the same, but in some cases it would generate incorrect results.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
-	static bool GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration);
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking", meta = (DeprecatedFunction, DeprecationMessage = "Use new GetControllerTransformForTime2 which represents angular velocity as an FRotator rather than in the non-standard way this function represented it."))
+	static bool GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityAsAxisAndLength, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration);
 
 	/**
 	 * Get the bounds of the area where the user can freely move while remaining tracked centered around the specified origin

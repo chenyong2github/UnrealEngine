@@ -530,7 +530,7 @@ void UHeadMountedDisplayFunctionLibrary::ClearXRTimedInputActionDelegate(const F
 	OnXRTimedInputActionDelegateMap.Remove(ActionName);
 }
 
-bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration)
+bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime2(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FRotator& AngularVelocity, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration)
 {
 	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
 	for (auto MotionController : MotionControllers)
@@ -542,7 +542,58 @@ bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* 
 
 		const float WorldToMetersScale = WorldContext ? WorldContext->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
 
-		const bool bGotTransform = MotionController->GetControllerOrientationAndPositionForTime(ControllerIndex, MotionSource, Time, bTimeWasUsed, Orientation, Position, bProvidedLinearVelocity, LinearVelocity, bProvidedAngularVelocity, AngularVelocityRadPerSec, bProvidedLinearAcceleration, LinearAcceleration, WorldToMetersScale);
+		FVector AngularVelocityAsAxisAndLength;
+		const bool bGotTransform = MotionController->GetControllerOrientationAndPositionForTime(ControllerIndex, MotionSource, Time, bTimeWasUsed, Orientation, Position, bProvidedLinearVelocity, LinearVelocity, bProvidedAngularVelocity, AngularVelocityAsAxisAndLength, bProvidedLinearAcceleration, LinearAcceleration, WorldToMetersScale);
+
+		if (bGotTransform)
+		{
+			// transform to world space
+			const FTransform TrackingToWorld = GetTrackingToWorldTransform(WorldContext);
+
+			Position = TrackingToWorld.TransformPosition(Position);
+			Orientation = TrackingToWorld.TransformRotation(FQuat(Orientation)).Rotator();
+
+			if (bProvidedLinearVelocity)
+			{
+				LinearVelocity = TrackingToWorld.TransformVector(LinearVelocity);
+			}
+
+			if (bProvidedAngularVelocity)
+			{
+				FVector WorldAngularVelocityAsAxisAndLength = TrackingToWorld.TransformVector(AngularVelocityAsAxisAndLength);
+				// Note: the rotator may contain rotations greater than 180 or 360 degrees, and some mathmatical operations (eg conversion to quaternion) would lose those.
+				AngularVelocity = IMotionController::AngularVelocityAsAxisAndLengthToRotator(WorldAngularVelocityAsAxisAndLength);
+			}
+			
+			if (bProvidedLinearAcceleration)
+			{
+				LinearAcceleration = TrackingToWorld.TransformVector(LinearAcceleration);
+			}
+
+			return true;
+		}
+		else
+		{
+			// Note: the rotator may contain rotations greater than 180 or 360 degrees, and some mathmatical operations (eg conversion to quaternion) would lose those.
+			AngularVelocity = IMotionController::AngularVelocityAsAxisAndLengthToRotator(AngularVelocityAsAxisAndLength);
+		}
+	}
+	return false;
+}
+
+bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityAsAxisAndLength, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration)
+{
+	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+	for (auto MotionController : MotionControllers)
+	{
+		if (MotionController == nullptr)
+		{
+			continue;
+		}
+
+		const float WorldToMetersScale = WorldContext ? WorldContext->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+
+		const bool bGotTransform = MotionController->GetControllerOrientationAndPositionForTime(ControllerIndex, MotionSource, Time, bTimeWasUsed, Orientation, Position, bProvidedLinearVelocity, LinearVelocity, bProvidedAngularVelocity, AngularVelocityAsAxisAndLength, bProvidedLinearAcceleration, LinearAcceleration, WorldToMetersScale);
 		
 		if (bGotTransform)
 		{
@@ -559,9 +610,14 @@ bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* 
 			
 			if (bProvidedAngularVelocity)
 			{
-				AngularVelocityRadPerSec = TrackingToWorld.TransformVector(AngularVelocityRadPerSec);
+				AngularVelocityAsAxisAndLength = TrackingToWorld.TransformVector(AngularVelocityAsAxisAndLength);
 			}
-
+			
+			if (bProvidedLinearAcceleration)
+			{
+				LinearAcceleration = TrackingToWorld.TransformVector(LinearAcceleration);
+			}
+			
 			return true;
 		}
 	}

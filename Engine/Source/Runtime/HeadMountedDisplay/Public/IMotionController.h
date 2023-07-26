@@ -76,7 +76,25 @@ public:
 	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const = 0;
 
 	/**
-	* Returns the calibration-space orientation of the requested controller's hand at the specified time for potentially improved temporal precision, particularly fetching the controller transform when a button was pressed
+	 * Returns the calibration-space orientation of the requested controller's hand.
+	 *
+	 * @param ControllerIndex	The Unreal controller (player) index of the controller set
+	 * @param MotionSource		Which source, within the motion controller to get the orientation and position for
+	 * @param OutOrientation	(out) If tracked, the orientation (in calibrated-space) of the controller in the specified hand
+	 * @param OutPosition		(out) If tracked, the position (in calibrated-space) of the controller in the specified hand
+	 * @param OutbProvidedLinearVelocity     (out) True if linear velocity was provided.
+	 * @param OutLinearVelocity              (out) The Linear velocity of the controller.
+	 * @param OutbProvidedAngularVelocity    (out) True if angular velocity was provided.
+	 * @param OutAngularVelocityAsAxisAndLength    (out) The angular velocity of the controller represented as an axis of rotation who's magnitude is the velocity in radians per second.  See UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime2 for an example of how this can be turned into an FRotator without losing rotation speed beyond 180 degrees/second.
+	 * @param OutbProvidedLinearAcceleration (out) True if linear acceleration was provided.
+	 * @param OutLinearAcceleration          (out) The Linear acceleration of the controller.
+	 * @param WorldToMetersScale The world scaling factor.
+	 *
+	 * @return					True if the device requested is valid and tracked, false otherwise
+	 */
+	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const = 0;
+
+	/** Returns the calibration-space orientation of the requested controller's hand at the specified time for potentially improved temporal precision, particularly fetching the controller transform when a button was pressed
 	* on a platform that provides sub-frame timing for button presses.  This is only intended to work with times very near the current frame.  In general it should be called immediatly after receiving the button press. 
 	* On many platforms this functionality is not supported and this function will set OutTimeWasUsed to false and then call GetControllerOrientationAndPosition, ignoring Time.
 	*
@@ -89,14 +107,22 @@ public:
 	* @param OutbProvidedLinearVelocity     (out) True if linear velocity was provided.
 	* @param OutLinearVelocity              (out) The Linear velocity of the controller.
 	* @param OutbProvidedAngularVelocity    (out) True if angular velocity was provided.
-	* @param OutAngularVelocityRadPerSec    (out) The angular velocity of the controller in Radians per Second.
+	* @param OutAngularVelocityAsAxisAndLength    (out) The angular velocity of the controller represented as an axis of rotation who's magnitude is the velocity in radians per second.  See UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime2 for an example of how this can be turned into an FRotator without losing rotation speed beyond 180 degrees/second.
 	* @param OutbProvidedLinearAcceleration (out) True if linear acceleration was provided.
 	* @param OutLinearAcceleration          (out) The Linear acceleration of the controller.
 	* @param WorldToMetersScale             The world scaling factor.
 	*
 	* @return								True if the device requested is valid and tracked, false otherwise
 	*/
-	virtual bool GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const = 0;
+	virtual bool GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const = 0;
+
+	static FORCEINLINE FRotator AngularVelocityAsAxisAndLengthToRotator(const FVector AngularVelocityAsAxisAndLength)
+	{
+		FVector Direction;
+		double Angle;
+		AngularVelocityAsAxisAndLength.ToDirectionAndLength(Direction, Angle);
+		return FQuat(Direction, 1.0).Rotator() * Angle; // Note FQuat cannot represent >180 degree roration, so we build a quaternion of the correct axis for 1 radian and then scale the resulting rotator by the actual number of radians.
+	}
 
 	/**
 	 * Returns the tracking status (e.g. not tracked, intertial-only, fully tracked) of the specified controller

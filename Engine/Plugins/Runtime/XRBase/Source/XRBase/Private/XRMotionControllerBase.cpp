@@ -29,7 +29,43 @@ namespace XRMotionControllerBase_Impl
 	};
 }
 
-bool FXRMotionControllerBase::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const
+/* // Sample overrides of these functions for controllers that do support velocity and/or acceleration and where getting velocity.
+// Be aware that these functions can be called from the game thread or the render thread!
+// One might squeeze some efficiency out by providing an implementation of GetControllerOrientationAndPosition without velocity data that does less work rather than
+// using the implementations below..
+bool YOURCLASS::GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
+{
+	bool Unused_bProvidedLinearVelocity;
+	bool Unused_OutbProvidedAngularVelocity;
+	bool Unused_OutbProvidedLinearAcceleration;
+	FVector Unused_LinearVelocity;
+	FVector Unused_AngularVelocity;
+	FVector Unused_LinearAcceleration;
+	return GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, Unused_bProvidedLinearVelocity, Unused_LinearVelocity, Unused_OutbProvidedAngularVelocity, Unused_AngularVelocity, Unused_OutbProvidedLinearAcceleration, Unused_LinearAcceleration, WorldToMetersScale);
+}
+bool YOURCLASS::GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const
+{
+	// FTimespan initializes to 0 and GetControllerOrientationAndPositionForTime with time 0 will return the latest data.
+	FTimespan Time;
+	bool OutTimeWasUsed = false;
+	return GetControllerOrientationAndPositionForTime(ControllerIndex, MotionSource, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityAsAxisAndLength, OutbProvidedLinearAcceleration, OutLinearAcceleration, WorldToMetersScale);
+}
+bool YOURCLASS::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const
+{
+	// Do the actual implementation, and ensure that Time 0 returns the latest data.
+}
+*/
+
+bool FXRMotionControllerBase::GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const
+{
+	// Default implementation so that the vr implementations that do not support velocity, etc, do not have to implement this function.
+	OutbProvidedLinearVelocity = false;
+	OutbProvidedAngularVelocity = false;
+	OutbProvidedLinearAcceleration = false;
+	return GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+}
+
+bool FXRMotionControllerBase::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityAsAxisAndLength, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const
 {
 	// Default implementation simply ignores the Timespan, no additional accuracy is provided by this call, velocities are not provided.
 	OutTimeWasUsed = false;
