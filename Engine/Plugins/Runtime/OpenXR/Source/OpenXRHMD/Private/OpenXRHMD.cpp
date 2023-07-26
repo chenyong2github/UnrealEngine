@@ -2168,8 +2168,7 @@ void FOpenXRHMD::OnBeginPlay(FWorldContext& InWorldContext)
 	bOpenXRInvertAlphaCvarCachedValue = CVarOpenXRInvertAlpha.GetValueOnGameThread();
 
 	const UOpenXRHMDSettings* Settings = GetDefault<UOpenXRHMDSettings>();
-	ensure(Settings);
-	bRuntimeFoveationSupported = bFoveationExtensionSupported && Settings->bIsFBFoveationEnabled;
+	bRuntimeFoveationSupported = bFoveationExtensionSupported && (Settings != nullptr ? Settings->bIsFBFoveationEnabled : false);
 	if (bRuntimeFoveationSupported)
 	{
 		FBFoveationImageGenerator = MakeUnique<FFBFoveationImageGenerator>(bRuntimeFoveationSupported, Instance, this, bIsMobileMultiViewEnabled);
