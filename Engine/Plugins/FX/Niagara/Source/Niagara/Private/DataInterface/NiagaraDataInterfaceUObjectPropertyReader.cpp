@@ -124,7 +124,7 @@ namespace NDIUObjectPropertyReaderLocal
 					const uint32 NumElements = InstanceData_FromGT->PropertyData.Num() / 4;
 					if (NumElements > 0)
 					{
-						InstanceData_RT->PropertyData.Initialize(RHICmdList, TEXT("NiagaraUObjectPropertyReader"), sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT);
+						InstanceData_RT->PropertyData.Initialize(RHICmdList, TEXT("NiagaraUObjectPropertyReader"), sizeof(float), NumElements, EPixelFormat::PF_R32_UINT);
 					}
 				}
 				if (InstanceData_RT->PropertyData.NumBytes > 0)
