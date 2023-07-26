@@ -108,6 +108,15 @@ public:
 	bool IsTraining() const;
 
 	/**
+	 * Returns true if the trainer has failed to communicate with the external training process. This can be used in
+	 * combination with RunTraining to avoid filling the logs with errors.
+	 *
+	 * @returns				True if the training has failed. Otherwise, false.
+	 */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	bool HasTrainingFailed() const;
+
+	/**
 	 * Begins the training process with the provided settings.
 	 * @param InPolicy The policy to train.
 	 * @param Recording The data to train on.
@@ -162,6 +171,13 @@ private:
 	/** True if training is currently in-progress. Otherwise, false. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsTraining = false;
+
+	/**
+	 * True if trainer encountered an unrecoverable error during training (e.g. the trainer process timed out). Otherwise, false.
+	 * This exists mainly to keep the editor from locking up if something goes wrong during training.
+	 */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	bool bHasTrainingFailed = false;
 
 	float TrainerTimeout = 10.0f;
 

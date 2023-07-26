@@ -519,6 +519,15 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
 	bool IsCompleted(const int32 AgentId, ELearningAgentsCompletion& OutCompletion) const;
+
+	/**
+	 * Returns true if the trainer has failed to communicate with the external training process. This can be used in
+	 * combination with RunTraining to avoid filling the logs with errors.
+	 *
+	 * @returns				True if the training has failed. Otherwise, false.
+	 */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	bool HasTrainingFailed() const;
 	
 // ----- Private Data ----- 
 private:
@@ -538,6 +547,13 @@ private:
 	/** True if training is currently in-progress. Otherwise, false. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsTraining = false;
+
+	/**
+	 * True if trainer encountered an unrecoverable error during training (e.g. the trainer process timed out). Otherwise, false.
+	 * This exists mainly to keep the editor from locking up if something goes wrong during training.
+	 */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	bool bHasTrainingFailed = false;
 
 	/** The list of current reward objects. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")

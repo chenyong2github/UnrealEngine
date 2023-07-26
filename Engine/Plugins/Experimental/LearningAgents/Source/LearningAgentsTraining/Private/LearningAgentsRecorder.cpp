@@ -259,12 +259,6 @@ void ULearningAgentsRecorder::EndRecording()
 		}
 	}
 
-	// Save Recording to Intermediate Directory
-
-	FFilePath RecordingFilePath;
-	RecordingFilePath.FilePath = RecordingDirectory / FString::Printf(TEXT("%s_%s.bin"), *GetName(), *FDateTime::Now().ToFormattedString(TEXT("%Y-%m-%d_%H-%M-%S")));
-	SaveRecordingToFile(RecordingFilePath);
-
 	bIsRecording = false;
 }
 

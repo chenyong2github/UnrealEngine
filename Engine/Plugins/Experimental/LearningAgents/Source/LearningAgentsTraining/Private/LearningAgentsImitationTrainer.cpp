@@ -198,6 +198,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 	if (Response != UE::Learning::ETrainerResponse::Success)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Error sending or receiving policy from trainer: %s. Check log for errors."), *GetName(), UE::Learning::Trainer::GetResponseString(Response));
+		bHasTrainingFailed = true;
 		ImitationTrainer->Terminate();
 		return;
 	}
@@ -211,6 +212,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 	if (Response != UE::Learning::ETrainerResponse::Success)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Error sending experience to trainer: %s. Check log for errors."), *GetName(), UE::Learning::Trainer::GetResponseString(Response));
+		bHasTrainingFailed = true;
 		ImitationTrainer->Terminate();
 		return;
 	}
@@ -266,6 +268,7 @@ void ULearningAgentsImitationTrainer::IterateTraining()
 		else if (Response != UE::Learning::ETrainerResponse::Success)
 		{
 			UE_LOG(LogLearning, Error, TEXT("%s: Error receiving policy from trainer. Check log for errors."), *GetName());
+			bHasTrainingFailed = true;
 			EndTraining();
 			return;
 		}
@@ -280,6 +283,12 @@ void ULearningAgentsImitationTrainer::RunTraining(
 	const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings,
 	const bool bReinitializePolicyNetwork)
 {
+	if (bHasTrainingFailed)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Training has failed. Check log for errors."), *GetName());
+		return;
+	}
+
 	// If we aren't training yet, then start training and do the first inference step.
 	if (!IsTraining())
 	{
@@ -305,4 +314,9 @@ void ULearningAgentsImitationTrainer::RunTraining(
 bool ULearningAgentsImitationTrainer::IsTraining() const
 {
 	return bIsTraining;
+}
+
+bool ULearningAgentsImitationTrainer::HasTrainingFailed() const
+{
+	return bHasTrainingFailed;
 }

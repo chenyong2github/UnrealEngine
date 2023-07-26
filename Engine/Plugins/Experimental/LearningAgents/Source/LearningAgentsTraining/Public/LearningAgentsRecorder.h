@@ -109,7 +109,7 @@ public:
 	void LoadRecordingFromFile(const FFilePath& File);
 
 	/** Saves the current recording object to a file */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "LearningAgents", meta = (RelativePath))
 	void SaveRecordingToFile(const FFilePath& File) const;
 
 	/** Append to the current recording object from a file. */

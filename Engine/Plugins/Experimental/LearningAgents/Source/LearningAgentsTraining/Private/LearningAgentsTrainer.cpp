@@ -553,6 +553,7 @@ void ULearningAgentsTrainer::BeginTraining(
 	if (Response != UE::Learning::ETrainerResponse::Success)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Error sending or receiving policy from trainer: %s. Check log for errors."), *GetName(), UE::Learning::Trainer::GetResponseString(Response));
+		bHasTrainingFailed = true;
 		Trainer->Terminate();
 		return;
 	}
@@ -576,6 +577,7 @@ void ULearningAgentsTrainer::BeginTraining(
 		if (Response != UE::Learning::ETrainerResponse::Success)
 		{
 			UE_LOG(LogLearning, Error, TEXT("%s: Error sending or receiving critic from trainer: %s. Check log for errors."), *GetName(), UE::Learning::Trainer::GetResponseString(Response));
+			bHasTrainingFailed = true;
 			Trainer->Terminate();
 			return;
 		}
@@ -938,6 +940,7 @@ void ULearningAgentsTrainer::ProcessExperience()
 			if (Response != UE::Learning::ETrainerResponse::Success)
 			{
 				UE_LOG(LogLearning, Error, TEXT("%s: Error waiting to push experience to trainer. Check log for errors."), *GetName());
+				bHasTrainingFailed = true;
 				EndTraining();
 				return;
 			}
@@ -957,6 +960,7 @@ void ULearningAgentsTrainer::ProcessExperience()
 			else if (Response != UE::Learning::ETrainerResponse::Success)
 			{
 				UE_LOG(LogLearning, Error, TEXT("%s: Error waiting for policy from trainer. Check log for errors."), *GetName());
+				bHasTrainingFailed = true;
 				EndTraining();
 				return;
 			}
@@ -970,6 +974,7 @@ void ULearningAgentsTrainer::ProcessExperience()
 				if (Response != UE::Learning::ETrainerResponse::Success)
 				{
 					UE_LOG(LogLearning, Error, TEXT("%s: Error waiting for critic from trainer. Check log for errors."), *GetName());
+					bHasTrainingFailed = true;
 					EndTraining();
 					return;
 				}
@@ -995,6 +1000,12 @@ void ULearningAgentsTrainer::RunTraining(
 	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
+		return;
+	}
+
+	if (bHasTrainingFailed)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Training has failed. Check log for errors."), *GetName());
 		return;
 	}
 
@@ -1085,6 +1096,12 @@ bool ULearningAgentsTrainer::IsCompleted(const int32 AgentId, ELearningAgentsCom
 		return true;
 	}
 }
+
+bool ULearningAgentsTrainer::HasTrainingFailed() const
+{
+	return bHasTrainingFailed;
+}
+
 void ULearningAgentsTrainer::ResetEpisodes_Implementation(const TArray<int32>& AgentId)
 {
 	// Can be overridden to reset agent without blueprints
