@@ -386,7 +386,7 @@ public:
 	}
 
 	/** Accesses parameters needed for rendering the light. */
-	virtual void GetLightShaderParameters(FLightRenderParameters& LightParameters) const override
+	virtual void GetLightShaderParameters(FLightRenderParameters& LightParameters, uint32 Flags=0) const override
 	{
 		LightParameters.WorldPosition = FVector::ZeroVector;
 		LightParameters.InvRadius = 0.0f;

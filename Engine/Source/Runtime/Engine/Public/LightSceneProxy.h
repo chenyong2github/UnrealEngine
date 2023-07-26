@@ -22,6 +22,11 @@ class FLightSceneInfo;
 class UTextureLightProfile;
 class FTexture;
 
+enum ELightShaderParameterFlags
+{
+	RectAsSpotLight=1,
+};
+
 /**
  * Encapsulates the data which is used to render a light by the rendering thread.
  * The constructor is called from the game thread, and after that the rendering thread owns the object.
@@ -66,7 +71,7 @@ public:
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const { return 0.0f; }
 
 	/** Accesses parameters needed for rendering the light. */
-	virtual void GetLightShaderParameters(FLightRenderParameters& OutLightParameters) const {}
+	virtual void GetLightShaderParameters(FLightRenderParameters& OutLightParameters, uint32 Flags=0) const {}
 
 	virtual FVector2D GetDirectionalLightDistanceFadeParameters(ERHIFeatureLevel::Type InFeatureLevel, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const
 	{

@@ -33,7 +33,7 @@ void FLocalLightSceneProxy::UpdateRadius_GameThread(float ComponentRadius)
 }
 
 /** Accesses parameters needed for rendering the light. */
-void FPointLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& LightParameters) const
+void FPointLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& LightParameters, uint32 Flags) const
 {
 	LightParameters.WorldPosition = GetOrigin();
 	LightParameters.InvRadius = InvRadius;

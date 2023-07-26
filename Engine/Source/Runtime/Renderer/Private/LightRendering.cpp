@@ -489,12 +489,12 @@ static void RenderLight(
 	FRDGTextureRef ShadowMaskBits = nullptr,
 	int32 VirtualShadowMapId = INDEX_NONE);
 
-FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo)
+FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo, uint32 LightFlags)
 {
 	FDeferredLightUniformStruct Out;
 
 	FLightRenderParameters LightParameters;
-	LightSceneInfo.Proxy->GetLightShaderParameters(LightParameters);
+	LightSceneInfo.Proxy->GetLightShaderParameters(LightParameters, LightFlags);
 	LightParameters.MakeShaderParameters(View.ViewMatrices, View.GetLastEyeAdaptationExposure(), Out.LightParameters);
 
 	const bool bIsRayTracedLight = ShouldRenderRayTracingShadowsForLight(*LightSceneInfo.Proxy);

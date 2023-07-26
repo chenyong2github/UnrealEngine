@@ -226,7 +226,7 @@ bool FRectLightSceneProxy::HasSourceTexture() const
 }
 
 /** Accesses parameters needed for rendering the light. */
-void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& LightParameters) const
+void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& LightParameters, uint32 Flags) const
 {
 	FLinearColor LightColor = GetColor();
 	LightColor /= 0.5f * SourceWidth * SourceHeight;
@@ -260,8 +260,8 @@ void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Ligh
 		GetSceneInterface()->GetRectLightAtlasSlot(this, &LightParameters);
 	}
 	
-	// Render RectLight approximately as SpotLight on mobile
-	const bool bRenderAsSpotLight = (SceneInterface && IsMobilePlatform(SceneInterface->GetShaderPlatform()));
+	// Render RectLight approximately as SpotLight if the requester does not support rect light (e.g., translucent light grid or mobile)
+	const bool bRenderAsSpotLight = !!(Flags & ELightShaderParameterFlags::RectAsSpotLight) || (SceneInterface && IsMobilePlatform(SceneInterface->GetShaderPlatform()));
 	if (bRenderAsSpotLight)
 	{
 		float ClampedOuterConeAngle = FMath::DegreesToRadians(89.001f);
@@ -305,4 +305,3 @@ bool FRectLightSceneProxy::GetWholeSceneProjectedShadowInitializer(const FSceneV
 
 	return false;
 }
-
