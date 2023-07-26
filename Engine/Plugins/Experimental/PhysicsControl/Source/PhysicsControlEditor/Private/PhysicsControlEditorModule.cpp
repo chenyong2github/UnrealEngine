@@ -63,6 +63,6 @@ void FPhysicsControlEditorModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FPhysicsControlEditorModule, PhysicsControl)
+IMPLEMENT_MODULE(FPhysicsControlEditorModule, PhysicsControlEditor)
 
 
