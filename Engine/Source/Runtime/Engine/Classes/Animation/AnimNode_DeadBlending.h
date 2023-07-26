@@ -103,6 +103,34 @@ private:
 	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"), DisplayName = "Maximum Extrapolation Half Life")
 	float ExtrapolationHalfLifeMax = 1.0f;
 
+	/**
+	 * The maximum velocity to allow for extrapolation of bone translations in centimeters per second. Smaller values 
+	 * may help prevent the pose breaking during blending but too small values can make the blend less smooth.
+	 */
+	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"))
+	float MaximumTranslationVelocity = 500.0f;
+
+	/**
+	 * The maximum velocity to allow for extrapolation of bone rotations in degrees per second. Smaller values
+	 * may help prevent the pose breaking during blending but too small values can make the blend less smooth.
+	 */
+	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"))
+	float MaximumRotationVelocity = 360.0f;
+
+	/**
+	 * The maximum velocity to allow for extrapolation of bone scales. Smaller values may help prevent the pose 
+	 * breaking during blending but too small values can make the blend less smooth.
+	 */
+	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"))
+	float MaximumScaleVelocity = 4.0f;
+
+	/**
+	 * The maximum velocity to allow for extrapolation of curves. Smaller values may help prevent extreme curve values 
+	 * during blending but too small values can make the blending of curves less smooth.
+	 */
+	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"))
+	float MaximumCurveVelocity = 100.0f;
+
 #if WITH_EDITORONLY_DATA
 	
 	// This setting can be used to show what the extrapolation of the animation looks like.

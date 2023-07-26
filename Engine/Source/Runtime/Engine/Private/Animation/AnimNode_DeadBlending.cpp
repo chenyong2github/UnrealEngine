@@ -314,6 +314,12 @@ void FAnimNode_DeadBlending::InitFrom(
 			BoneRotationVelocities[SkeletonPoseBoneIndex] = RotationDiff.ToRotationVector() / SrcPoseCurr.DeltaTime;
 			BoneScaleVelocities[SkeletonPoseBoneIndex] = UE::Anim::DeadBlending::Private::VectorLogSafe(ScaleDiff) / SrcPoseCurr.DeltaTime;
 
+			// Clamp Maximum Velocity
+
+			BoneTranslationVelocities[SkeletonPoseBoneIndex] = BoneTranslationVelocities[SkeletonPoseBoneIndex].GetClampedToMaxSize(MaximumTranslationVelocity);
+			BoneRotationVelocities[SkeletonPoseBoneIndex] = BoneRotationVelocities[SkeletonPoseBoneIndex].GetClampedToMaxSize(FMath::DegreesToRadians(MaximumRotationVelocity));
+			BoneScaleVelocities[SkeletonPoseBoneIndex] = BoneScaleVelocities[SkeletonPoseBoneIndex].GetClampedToMaxSize(MaximumScaleVelocity);
+
 			// Compute Decay HalfLives
 
 			const FTransform DstTransform = InPose[BoneIndex];
@@ -365,7 +371,7 @@ void FAnimNode_DeadBlending::InitFrom(
 	if (SrcPoseCurr.DeltaTime > UE_SMALL_NUMBER)
 	{
 		UE::Anim::FNamedValueArrayUtils::Union(CurveData, SrcPosePrev.Curves.BlendedCurve,
-			[DeltaTime = SrcPoseCurr.DeltaTime](FDeadBlendingCurveElement& OutResultElement, const UE::Anim::FCurveElement& InElement1, UE::Anim::ENamedValueUnionFlags InFlags)
+			[this, DeltaTime = SrcPoseCurr.DeltaTime](FDeadBlendingCurveElement& OutResultElement, const UE::Anim::FCurveElement& InElement1, UE::Anim::ENamedValueUnionFlags InFlags)
 			{
 				bool bSrcCurrValid = (bool)(InFlags & UE::Anim::ENamedValueUnionFlags::ValidArg0);
 				bool bSrcPrevValid = (bool)(InFlags & UE::Anim::ENamedValueUnionFlags::ValidArg1);
@@ -373,6 +379,7 @@ void FAnimNode_DeadBlending::InitFrom(
 				if (bSrcCurrValid && bSrcPrevValid)
 				{
 					OutResultElement.Velocity = (OutResultElement.Value - InElement1.Value) / DeltaTime;
+					OutResultElement.Velocity = FMath::Clamp(OutResultElement.Velocity, -MaximumCurveVelocity, MaximumCurveVelocity);
 				}
 			});
 	}
