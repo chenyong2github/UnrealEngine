@@ -100,7 +100,7 @@ static TAutoConsoleVariable<int32> CVarLandscapeApplyPhysicalMaterialChangesImme
 
 static TAutoConsoleVariable<bool> CVarLandscapeMarchingSquaresVisibility(
 	TEXT("landscape.Nanite.MarchingSquaresVisibility"),
-	false,
+	true,
 	TEXT("Use Marching Squares to make the visibility edges more accurate"));
 
 #if WITH_EDITOR
