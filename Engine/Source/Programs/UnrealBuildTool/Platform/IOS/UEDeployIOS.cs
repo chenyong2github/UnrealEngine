@@ -804,7 +804,7 @@ namespace UnrealBuildTool
 
 			Text.AppendLine("\t<key>CFBundleSupportedPlatforms</key>");
 			Text.AppendLine("\t<array>");
-			Text.AppendLine("\t\t<string>iPhoneOS</string>");
+			Text.AppendLine("\t\t<string>iPhoneOS iPhoneSimulator</string>");
 			Text.AppendLine("\t</array>");
 			Text.AppendLine("\t<key>MinimumOSVersion</key>");
 			Text.AppendLine(String.Format("\t<string>{0}</string>", MinVersion));

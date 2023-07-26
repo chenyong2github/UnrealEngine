@@ -66,8 +66,12 @@ fi
 
 # Convert platform to UBT terms
 case $PLATFORM in
-	"iphoneos"|"IOS"|"iphonesimulator")
+	"iphoneos"|"IOS")
 		PLATFORM="IOS"
+	;;
+	"iphonesimulator"|"iossimulator")
+		PLATFORM="IOS"
+		ARCHS="iossimulator" 
 	;;
 	"appletvos")
 		PLATFORM="TVOS"
