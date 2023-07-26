@@ -1668,16 +1668,16 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 				if (Platform == UnrealTargetPlatform.IOS)
 				{
-					if (TargetRules.Architecture == UnrealArch.IOSSimulator)
-					{
-						SDKRoot = "iphonesimulator";
-						SupportedPlatforms = "iphonesimulator";
-					}
-					else
-					{	
+					// if (TargetRules.Architecture == UnrealArch.IOSSimulator)
+					// {
+					// 	SDKRoot = "iphonesimulator";
+					// 	SupportedPlatforms = "iphonesimulator";
+					// }
+					// else
+					// {	
 						SDKRoot = "iphoneos";
 						SupportedPlatforms = "iphoneos";
-					}
+					// }
 				
 					DeploymentTargetKey = "IPHONEOS_DEPLOYMENT_TARGET";
 					SupportedDevices = UnrealData.IOSProjectSettings!.RuntimeDevices;
