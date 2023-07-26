@@ -44,6 +44,7 @@ class UCanvas;
 class ULevel;
 class FAutoConsoleVariableRef;
 class FWorldPartitionDraw2DContext;
+class FContentBundleEditor;
 
 struct IWorldPartitionStreamingSourceProvider;
 
@@ -96,6 +97,42 @@ public:
 	virtual bool Delete(const FString& PackageName) const =0;
 	virtual bool Delete(UPackage* Package) const =0;
 	virtual bool Save(UPackage* Package) const =0;
+};
+
+struct ENGINE_API FDirtyActor
+{
+	FDirtyActor()
+		: ActorPtr(nullptr)
+	{}
+
+	FDirtyActor(AActor* InActor)
+		: ActorPtr(InActor)
+	{
+	}
+
+	FDirtyActor(const FWorldPartitionReference& InWorldPartitionRef, AActor* InActor)
+		: WorldPartitionRef(InWorldPartitionRef)
+		, ActorPtr(InActor)
+	{
+	}
+
+	TOptional<FWorldPartitionReference> WorldPartitionRef;
+	TWeakObjectPtr<AActor>	ActorPtr;		// TWeakObjectPtr is for undo support.
+
+	bool operator == (const FDirtyActor& InDirtyActor) const
+	{
+		return WorldPartitionRef == InDirtyActor.WorldPartitionRef && ActorPtr == InDirtyActor.ActorPtr;
+	}
+
+	friend uint32 GetTypeHash(const FDirtyActor& InDirtyActor)
+	{
+		uint32 Hash = GetTypeHash(InDirtyActor.ActorPtr);
+		if (InDirtyActor.WorldPartitionRef.IsSet())
+		{
+			Hash = HashCombine(Hash, GetTypeHash(InDirtyActor.WorldPartitionRef.GetValue()));
+		}
+		return Hash;
+	}
 };
 #endif
 
@@ -318,7 +355,7 @@ public:
 
 	bool IsEnablingStreamingJustified() const { return bEnablingStreamingJustified; }
 
-	const TMap<FWorldPartitionReference, AActor*>& GetDirtyActors() const { return ObjectPtrDecay(DirtyActors); }
+	const TSet<FDirtyActor>& GetDirtyActors() const { return DirtyActors; }
 #endif
 
 public:
@@ -434,7 +471,7 @@ private:
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;
 
-	TMap<FWorldPartitionReference, TObjectPtr<AActor>> DirtyActors;
+	TSet<FDirtyActor> DirtyActors;
 
 	TSet<FString> GeneratedStreamingPackageNames;
 
@@ -496,8 +533,7 @@ private:
 #if WITH_EDITOR
 	ENGINE_API void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	ENGINE_API void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
-	ENGINE_API void HashActorDescContainer(UActorDescContainer* ActorDescContainer);
-	ENGINE_API void UnhashActorDescContainer(UActorDescContainer* ActorDescContainer);
+	void OnContentBundleRemovedContent(const FContentBundleEditor* ContentBundle);
 
 public:
 	// Editor loader adapters management

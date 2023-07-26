@@ -1074,15 +1074,18 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 	// they will never get an actor descriptor so they will never appear in the world partition editor. Also include unsaved, newly created actors for convenience.
 	for (auto& [Reference, Actor] : GetWorldPartition()->GetDirtyActors())
 	{
-		if (!GetWorldPartition()->GetActorDesc(Actor->GetActorGuid()) && Actor->Implements<UWorldPartitionActorLoaderInterface>())
+		if (Actor.IsValid())
 		{
-			if (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter())
+			if (!GetWorldPartition()->GetActorDesc(Actor->GetActorGuid()) && Actor->Implements<UWorldPartitionActorLoaderInterface>())
 			{
-				ShownLoaderInterfaces.Add(Actor);
+				if (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter())
+				{
+					ShownLoaderInterfaces.Add(Actor.Get());
+				}
 			}
-		}
 
-		DirtyActorGuids.Add(Actor->GetActorGuid());
+			DirtyActorGuids.Add(Actor->GetActorGuid());
+		}
 	}
 
 	FLoaderInterfaceSet LastHoveredLoaderInterfaces = MoveTemp(HoveredLoaderInterfaces);
