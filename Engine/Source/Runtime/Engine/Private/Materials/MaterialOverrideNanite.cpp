@@ -33,7 +33,7 @@ bool FMaterialOverrideNanite::FixupLegacySoftReference(UObject* OptionalOwner)
 	if (OverrideMaterialEditor->HasAnyFlags(RF_NeedLoad))
 	{
 		const FString LongPackageName = OverrideMaterialRef.GetLongPackageName();
-		UE_LOG(LogMaterial, Display, TEXT("Async loading NaniteOverrideMaterial '%s'"), *LongPackageName);
+		UE_LOG(LogMaterial, Display, TEXT("Async loading NaniteOverrideMaterial '%s' for owner '%s'."), *LongPackageName, OptionalOwner ? *OptionalOwner->GetPathName() : TEXT("UNKNOWN"));
 		LoadPackageAsync(LongPackageName, FLoadPackageAsyncDelegate::CreateLambda(
 			[WeakOverrideMaterial = MakeWeakObjectPtr(OverrideMaterialEditor)](const FName&, UPackage*, EAsyncLoadingResult::Type)
 			{
