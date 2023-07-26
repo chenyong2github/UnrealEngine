@@ -26,7 +26,7 @@
  *
  * - A Low Priority task will not be launched if one of the follow conditions is true (in order):
  *     1. There is a task Low Priority task running.
- *     2. Flag bLaunchMutableTaskLowPriority is false (unless time limit).
+ *     2. Flag bLaunchMutableTaskLowPriority is false.
  *     3. There is a Normal Priority task running (unless time limit).
  */
 class FMutableTaskGraph

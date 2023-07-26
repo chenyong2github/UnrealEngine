@@ -155,7 +155,7 @@ void FMutableTaskGraph::TryLaunchMutableTaskLowPriority(bool bFromMutableTask)
 			return;		
 		}
 		
-		if (!IsTaskCompleted(LastMutableTaskLowPriority)) // Also check inside the lock since we will be writing it
+		if (!IsTaskCompleted(LastMutableTaskLowPriority)) // Check #1 // Also check inside the lock since we will be writing it
 		{
 			return;
 		}
@@ -166,9 +166,8 @@ void FMutableTaskGraph::TryLaunchMutableTaskLowPriority(bool bFromMutableTask)
 		TimeElapsed = FPlatformTime::Seconds() - NextTask.CreationTime;
 
 		bTimeLimit = TimeElapsed >= TimeLimit;
-		if (!bTimeLimit && (
-				!bAllowLaunchMutableTaskLowPriority ||
-				(bFromMutableTask && IsTaskCompleted(LastMutableTask))))
+		if (!bAllowLaunchMutableTaskLowPriority || // Check #2
+			bFromMutableTask && IsTaskCompleted(LastMutableTask) && !bTimeLimit) // Check #3
 		{			
 			return;
 		}

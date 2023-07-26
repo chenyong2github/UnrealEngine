@@ -1772,8 +1772,6 @@ namespace impl
 		uint32 EndCycles = FPlatformTime::Cycles();
 		OperationData->MutableRuntimeCycles += EndCycles - StartCycles;
 #endif
-
-		UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(true, true);
 	}
 
 
@@ -1802,6 +1800,8 @@ namespace impl
 		{
 			MutableSystem->ClearWorkingMemory();
 		}
+
+		UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(true, true);
 	}
 
 
