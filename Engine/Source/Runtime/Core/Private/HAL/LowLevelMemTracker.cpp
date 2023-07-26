@@ -206,6 +206,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Overhead"), STAT_PlatformOverheadLLM, STATGROUP_LL
 DECLARE_LLM_MEMORY_STAT(TEXT("OS Available"), STAT_PlatformOSAvailableLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("FMalloc"), STAT_FMallocLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("FMalloc Unused"), STAT_FMallocUnusedLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("RHI Unused"), STAT_RHIUnusedLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("ThreadStack"), STAT_ThreadStackLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("ThreadStackPlatform"), STAT_ThreadStackPlatformLLM, STATGROUP_LLMPlatform);
 DECLARE_LLM_MEMORY_STAT(TEXT("Program Size"), STAT_ProgramSizePlatformLLM, STATGROUP_LLMPlatform);
@@ -956,25 +957,9 @@ void FLowLevelMemTracker::TickInternal()
 	FLLMTracker& DefaultTracker = *Trackers[static_cast<int32>(ELLMTracker::Default)];
 	FLLMTracker& PlatformTracker = *Trackers[static_cast<int32>(ELLMTracker::Platform)];
 
-	// calculate FMalloc unused stat and set it in the Default tracker
-	const int64 FMallocAmount = DefaultTracker.GetAllocTypeAmount(ELLMAllocType::FMalloc);
-	const int64 FMallocPlatformAmount = PlatformTracker.GetTagAmount(FindOrAddTagData(ELLMTag::FMalloc));
-	int64 FMallocUnused = FMallocPlatformAmount - FMallocAmount;
-	if (FMallocPlatformAmount == 0)
-	{
-		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using
-		// internally. Set unused to 0 for this case.
-		FMallocUnused = 0;
-	}
-	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::FMallocUnused), FMallocUnused, true);
-
-	const int64 StaticOverhead = sizeof(FLowLevelMemTracker);
-	MemoryUsageCurrentOverhead = StaticOverhead + Allocator.GetTotal();
-	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformOverhead), MemoryUsageCurrentOverhead, !FPlatformMemory::TracksLLMAllocations());
-
-	const int64 TrackedTotal = DefaultTracker.GetTrackedTotal();
-	// Compare memory the platform thinks we have allocated to what we have tracked, including the program memory
-	const FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
+	// Cache the amount of memory used early, since some of these functions (FindOrAddTagData) can
+	// cause allocations, which will throw the numbers off slightly.
+	FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
 #if PLATFORM_DESKTOP
 	// virtual is working set + paged out memory.
 	const int64 PlatformProcessMemory = static_cast<int64>(PlatformStats.UsedVirtual);
@@ -988,14 +973,37 @@ void FLowLevelMemTracker::TickInternal()
 	const int64 PlatformProcessMemory = static_cast<int64>(PlatformStats.TotalPhysical) -
 		static_cast<int64>(PlatformStats.AvailablePhysical);
 #endif
+	// Update how much overhead LLM is using. Note we used to also added sizeof(FLowLevelMemTracker), but this
+	// isn't allocated and is in the data segment. So adding it throws the numbers off.
+	MemoryUsageCurrentOverhead = Allocator.GetTotal();
+	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformOverhead), MemoryUsageCurrentOverhead, !FPlatformMemory::TracksLLMAllocations());
+
+	// Calculate FMalloc unused stat and set it in the Default tracker.
+	const int64 FMallocAmount = DefaultTracker.GetAllocTypeAmount(ELLMAllocType::FMalloc);
+	const int64 FMallocPlatformAmount = PlatformTracker.GetTagAmount(FindOrAddTagData(ELLMTag::FMalloc));
+	int64 FMallocUnused = FMallocPlatformAmount - FMallocAmount;
+	if (FMallocPlatformAmount == 0)
+	{
+		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using
+		// internally. Set unused to 0 for this case.
+		FMallocUnused = 0;
+	}
+	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::FMallocUnused), FMallocUnused, true);
+
+	// Determine the UnusedRHI amount by finding the difference between the Platform and Default tracker.
+	int64 PlatformRHIAmount = PlatformTracker.GetAllocTypeAmount(ELLMAllocType::RHI);
+	int64 DefaultRHIAmount = DefaultTracker.GetAllocTypeAmount(ELLMAllocType::RHI);
+	int64 UnusedRHIAmount = PlatformRHIAmount - DefaultRHIAmount;
+	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::RHIUnused), UnusedRHIAmount, true);
+
+	const int64 TrackedTotal = DefaultTracker.GetTrackedTotal();
+	// Compare memory the platform thinks we have allocated to what we have tracked, including the program memory
 	const int64 PlatformTrackedTotal = PlatformTracker.GetTrackedTotal();
 	MemoryUsagePlatformTotalUntracked = FMath::Max<int64>(0, PlatformProcessMemory - PlatformTrackedTotal);
 
 	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformTotal), PlatformProcessMemory, false);
-	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformUntracked),
-		MemoryUsagePlatformTotalUntracked, false);
-	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformOSAvailable),
-		PlatformStats.AvailablePhysical, false);
+	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformUntracked), MemoryUsagePlatformTotalUntracked, false);
+	PlatformTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::PlatformOSAvailable), PlatformStats.AvailablePhysical, false);
 
 	// remove the MemoryUsageCurrentOverhead from the "Total" for the default LLM as it's not something anyone needs
 	// to investigate when finding what to reduce the platform LLM will have the info 
