@@ -110,10 +110,10 @@ bool FDisplayClusterProjectionCameraPolicy::ImplGetProjectionMatrix(const float 
 	if (InViewport)
 	{
 		// Support inner camera custom frustum
-		const float HalfFOVH = 0.5 * ClampedCameraFOV;
+		const float HalfFOVH = ZNear * FMath::Tan(FMath::DegreesToRadians(0.5 * ClampedCameraFOV));
 		const float HalfFOVV = HalfFOVH / InCameraAspectRatio;
 
-		InViewport->CalculateProjectionMatrix(InContextNum, -HalfFOVH, HalfFOVH, HalfFOVV, -HalfFOVV, ZNear, ZFar, true);
+		InViewport->CalculateProjectionMatrix(InContextNum, -HalfFOVH, HalfFOVH, HalfFOVV, -HalfFOVV, ZNear, ZFar, false);
 		OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
 	}
 	else
