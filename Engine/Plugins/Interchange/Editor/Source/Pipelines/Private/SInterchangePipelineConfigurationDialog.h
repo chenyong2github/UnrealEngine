@@ -98,6 +98,9 @@ private:
 
 	void SaveAllPipelineSettings() const;
 
+	/** Internal utility function to properly display pipeline's name */
+	static FString GetPipelineDisplayName(const UInterchangePipelineBase* Pipeline);
+
 private:
 	TWeakPtr< SWindow > OwnerWindow;
 	TWeakObjectPtr<UInterchangeSourceData> SourceData;

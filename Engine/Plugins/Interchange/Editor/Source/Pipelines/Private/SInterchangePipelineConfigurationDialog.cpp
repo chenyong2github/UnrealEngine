@@ -25,6 +25,29 @@
 #define LOCTEXT_NAMESPACE "InterchangePipelineConfiguration"
 
 const FName ReimportStackName = TEXT("ReimportPipeline");
+const FString ReimportPipelinePrefix = TEXT("reimport_");
+
+ // Pipelines are renamed with the reimport prefix to avoid conflicts with the duplicates of the original pipelines that end up in the same package.
+ // As this is the name displayed in the Dialog, conflicts won't matter.
+FString SInterchangePipelineConfigurationDialog::GetPipelineDisplayName(const UInterchangePipelineBase* Pipeline)
+{
+	static int32 RightChopIndex = ReimportPipelinePrefix.Len();
+
+	FString PipelineDisplayName = Pipeline->GetName();
+	if (PipelineDisplayName.StartsWith(ReimportPipelinePrefix))
+	{
+		PipelineDisplayName = PipelineDisplayName.RightChop(RightChopIndex);
+	}
+
+	FString StackName;
+	FString DisplayName;
+	if (PipelineDisplayName.Split("_", &StackName, &DisplayName))
+	{
+		return DisplayName;
+	}
+
+	return PipelineDisplayName;
+}
 
 void SInterchangePipelineItem::Construct(
 	const FArguments& InArgs,
@@ -134,7 +157,7 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 			for (const TObjectPtr<UInterchangePipelineBase>& DefaultPipeline : Stack.Pipelines)
 			{
 				check(DefaultPipeline);
-				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline))
+				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline, CurrentStackName.ToString()))
 				{
 					GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
 					if (Stack.StackName == ReimportStackName)
@@ -150,7 +173,7 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 						GeneratedPipeline->PreDialogCleanup(Stack.StackName);
 					}
 
-					PipelineListViewItems.Add(MakeShareable(new FInterchangePipelineItemType{ DefaultPipeline.GetName(), GeneratedPipeline}));
+					PipelineListViewItems.Add(MakeShareable(new FInterchangePipelineItemType{ GetPipelineDisplayName(DefaultPipeline), GeneratedPipeline}));
 				}
 			}
 			SelectedStack = StackNamePtr;
@@ -482,7 +505,7 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 
 							if (PipelineElement.Get() == Pipeline)
 							{
-								if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline))
+								if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline, CurrentStackName.ToString()))
 								{
 									GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
 									//Switch the pipeline the element point on
@@ -557,6 +580,12 @@ void SInterchangePipelineConfigurationDialog::ClosePipelineConfiguration(const E
 		//Fill the OutPipelines array
 		for (TSharedPtr<FInterchangePipelineItemType> PipelineElement : PipelineListViewItems)
 		{
+			if (!bReimport)
+			{
+				// Create a name that would not cause conflict when this asset maybe reimported.
+				FString NewPipelineName = ReimportPipelinePrefix + PipelineElement->DisplayName;
+				PipelineElement->Pipeline->Rename(*NewPipelineName);
+			}
 			OutPipelines->Add(PipelineElement->Pipeline);
 		}
 	}
@@ -640,7 +669,7 @@ void SInterchangePipelineConfigurationDialog::OnStackSelectionChanged(TSharedPtr
 		for (const TObjectPtr<UInterchangePipelineBase>& DefaultPipeline : Stack.Pipelines)
 		{
 			check(DefaultPipeline);
-			if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline))
+			if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline, CurrentStackName.ToString()))
 			{
 				GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
 				if (Stack.StackName != ReimportStackName)
@@ -649,7 +678,7 @@ void SInterchangePipelineConfigurationDialog::OnStackSelectionChanged(TSharedPtr
 					GeneratedPipeline->LoadSettings(Stack.StackName);
 					GeneratedPipeline->PreDialogCleanup(Stack.StackName);
 				}
-				PipelineListViewItems.Add(MakeShareable(new FInterchangePipelineItemType{ DefaultPipeline->GetName(), GeneratedPipeline}));
+				PipelineListViewItems.Add(MakeShareable(new FInterchangePipelineItemType{ GetPipelineDisplayName(DefaultPipeline), GeneratedPipeline}));
 			}
 		}
 	}
