@@ -12,13 +12,6 @@ rmdir /s /q obj
 if errorlevel 1 goto :eof
 
 echo.
-echo Building for osx-x64...
-rmdir /s /q bin
-rmdir /s /q obj
-"%DOTNET_ROOT%\dotnet" publish GitDependencies.csproj -r osx-x64 -c Release --output "..\..\..\Binaries\DotNET\GitDependencies\osx-x64" --nologo --self-contained
-if errorlevel 1 goto :eof
-
-echo.
 echo Building for linux-x64...
 rmdir /s /q bin
 rmdir /s /q obj
