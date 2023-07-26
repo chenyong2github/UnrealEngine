@@ -190,6 +190,13 @@ namespace UnrealBuildTool
 		TargetRules Target;
 
 		/// <summary>
+		/// If -PGOOptimize is specified but the linker flags have changed since the last -PGOProfile, this will emit a warning and build without PGO instead of failing during link with LNK1268. 
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-IgnoreStalePGOData")]
+		public bool bIgnoreStalePGOData = false;
+
+		/// <summary>
 		/// If specified along with -PGOProfile, then /FASTGENPROFILE will be used instead of /GENPROFILE. This usually means that the PGO data is generated faster, but the resulting data may not yield as efficient optimizations during -PGOOptimize
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
@@ -638,6 +645,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		#region Read-only accessor properties 
 #pragma warning disable CS1591
+
+		public bool bIgnoreStalePGOData => Inner.bIgnoreStalePGOData;
 
 		public bool bUseFastGenProfile => Inner.bUseFastGenProfile;
 
