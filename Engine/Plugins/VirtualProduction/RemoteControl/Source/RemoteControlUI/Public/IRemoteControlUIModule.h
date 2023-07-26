@@ -123,6 +123,44 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDisplayExposeIcon, const FRCExposesPro
  */
 DECLARE_DELEGATE_FourParams(FOnCustomizeMetadataEntry, URemoteControlPreset* /*Preset*/, const FGuid& /*DisplayedEntityId*/, IDetailLayoutBuilder& /*LayoutBuilder*/, IDetailCategoryBuilder& /*CategoryBuilder*/);
 
+/** A struct used for controllers list items columns customization */
+struct FRCControllerExtensionWidgetsInfo
+{
+	FRCControllerExtensionWidgetsInfo(URCVirtualPropertyBase* InController)
+		: Controller(InController)
+	{
+	}
+
+	/** Add a new widget, and associate it to the specified custom column */
+	bool AddColumnWidget(const FName& InColumnName, const TSharedRef<SWidget>& InWidget)
+	{
+		if (CustomWidgetsMap.Contains(InColumnName))
+		{
+			return false;
+		}
+		
+		CustomWidgetsMap.Add(InColumnName, InWidget);
+
+		return true;
+	}
+
+	/** The controller being customized */
+	URCVirtualPropertyBase* Controller;
+
+	/** A map associating each column with a widget */
+	TMap<FName, TSharedRef<SWidget>> CustomWidgetsMap;
+};
+
+/**
+ * Callback called to customize the extensible widget for controllers in controllers list
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateControllerExtensionsWidgets, FRCControllerExtensionWidgetsInfo& /*OutWidgetsInfo*/);
+
+/**
+ * Called when setting up / resetting the Controller panel list. Register to add custom column.
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAddControllerExtensionColumn, TArray<FName>& /*OutColumnNames*/);
+
 /**
  * A Remote Control module that allows exposing objects and properties from the editor.
  */
@@ -145,6 +183,12 @@ public:
 	/** Delegate called when a Remote Control Preset panel is created/opened for the specified Remote Control Preset */
     DECLARE_MULTICAST_DELEGATE_OneParam(FOnRemoteControlPresetOpened, URemoteControlPreset* /*RemoteControlPreset*/);
     virtual FOnRemoteControlPresetOpened& OnRemoteControlPresetOpened() = 0;
+
+	/** Delegate called when a Remote Control Preset panel is created/opened for the specified Remote Control Preset */
+	virtual FOnGenerateControllerExtensionsWidgets& OnGenerateControllerExtensionsWidgets() = 0;
+
+	/** Delegate called when a Remote Control Preset panel is created/opened for the specified Remote Control Preset */
+	virtual FOnAddControllerExtensionColumn& OnAddControllerExtensionColumn() = 0;
 	
 	/** 
 	 * Get the toolbar extension generators.

@@ -51,6 +51,9 @@ public:
 	/** Retrieve the widget for a custom controller */
 	TSharedRef<SWidget> GetCustomControllerWidget(const FString& InCustomControllerTypeName) const;
 
+	/** The widget allowing controller columns customization */
+	TSharedRef<SWidget> GetControllerExtensionWidget(const FName& InColumnName) const;
+	
 	/**
 	 * Specify if this is a MultiController handling other hidden controllers.
 	 * MultiControllers will setup and show a Type Selection Widget.

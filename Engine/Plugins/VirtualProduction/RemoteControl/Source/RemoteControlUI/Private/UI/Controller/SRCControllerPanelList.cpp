@@ -14,6 +14,7 @@
 #include "IPropertyRowGenerator.h"
 #include "IRemoteControlModule.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Materials/MaterialInterface.h"
 #include "RCControllerModel.h"
 #include "RCMultiController.h"
 #include "RCVirtualProperty.h"
@@ -155,6 +156,13 @@ namespace UE::RCControllerPanelList
 					];
 
 				return WrapWithDropTarget(DragHandleWidget, EDragDropSupportedModes::ReorderOnly /*Allow reorder operation only*/);
+			}
+			else if (const TSharedPtr<SRCControllerPanelList> ControlPanelList = ControllerPanelListWeakPtr.Pin())
+			{
+				if (ControlPanelList->GetCustomColumns().Contains(ColumnName))
+				{
+					return ControllerItem->GetControllerExtensionWidget(ColumnName);
+				}
 			}
 
 			return SNullWidget::NullWidget;
@@ -515,6 +523,27 @@ void SRCControllerPanelList::Reset()
 
 	ShowFieldIdHeaderColumn(bShowFieldIdsColumn);
 	ShowValueTypeHeaderColumn(bIsInMultiControllerMode);
+
+	// Handle custom additional columns
+	CustomColumns.Empty();
+	IRemoteControlUIModule::Get().OnAddControllerExtensionColumn().Broadcast(CustomColumns);
+	for (const FName& ColumnName : CustomColumns)
+	{
+		if (ControllersHeaderRow.IsValid())
+		{
+			const bool bColumnIsGenerated = ControllersHeaderRow->IsColumnGenerated(ColumnName);
+			if (!bColumnIsGenerated)
+			{
+				ControllersHeaderRow->AddColumn(
+					SHeaderRow::FColumn::FArguments()
+					.ColumnId(ColumnName)
+					.DefaultLabel(FText::FromName(ColumnName))
+					.FillWidth(0.2f)
+					.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+				);
+			}			
+		}
+	}
 	
 	ListView->RebuildList();
 }
@@ -1028,6 +1057,11 @@ void SRCControllerPanelList::ShowFieldIdHeaderColumn(bool bInShowColumn)
 			ControllersHeaderRow->RemoveColumn(UE::RCControllerPanelList::Columns::FieldId);
 		}
 	}
+}
+
+void SRCControllerPanelList::AddColumn(const FName& InColumnName)
+{
+	CustomColumns.AddUnique(InColumnName);
 }
 
 void SRCControllerPanelList::SetMultiControllerMode(bool bIsUniqueModeOn)

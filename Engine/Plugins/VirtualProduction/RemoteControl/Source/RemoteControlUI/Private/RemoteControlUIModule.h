@@ -48,6 +48,8 @@ public:
 	//~ Begin IRemoteControlUIModule interface
 	virtual FOnGenerateExtensions& GetExtensionGenerators() override { return ExtensionsGenerator; }
 	virtual FOnRemoteControlPresetOpened& OnRemoteControlPresetOpened() override { return RemoteControlPresetOpenedDelegate; }
+	virtual FOnGenerateControllerExtensionsWidgets& OnGenerateControllerExtensionsWidgets() override { return GenerateControllerExtensionsWidgetsDelegate; }
+	virtual FOnAddControllerExtensionColumn& OnAddControllerExtensionColumn() override { return OnAddControllerExtensionColumnDelegate; }
 	virtual FDelegateHandle AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon) override;
 	virtual void RemovePropertyFilter(const FDelegateHandle& FilterDelegateHandle) override;
 	virtual void RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback) override;
@@ -244,6 +246,12 @@ private:
 
 	/** Delegate called when a Remote Control Preset panel is created for the specified Remote Control Preset */
 	FOnRemoteControlPresetOpened RemoteControlPresetOpenedDelegate;
+
+	/** Called when setting up/resetting the Controller panel list. Register to add custom column. */
+	FOnAddControllerExtensionColumn OnAddControllerExtensionColumnDelegate;
+	
+	/** Delegate called when a Remote Control Preset panel is created/opened for the specified Remote Control Preset */
+	FOnGenerateControllerExtensionsWidgets GenerateControllerExtensionsWidgetsDelegate;
 
 	/** Filters added by other plugins queried to determine if a property should display an expose icon. */
 	TMap<FDelegateHandle, FOnDisplayExposeIcon> ExternalFilterDelegates;

@@ -133,6 +133,21 @@ TSharedRef<SWidget> FRCControllerModel::GetCustomControllerWidget(const FString&
 	return SNullWidget::NullWidget;
 }
 
+TSharedRef<SWidget> FRCControllerModel::GetControllerExtensionWidget(const FName& InColumnName) const
+{
+	FRCControllerExtensionWidgetsInfo ExtensionWidgetsInfo(GetVirtualProperty());
+	
+	IRemoteControlUIModule::Get().OnGenerateControllerExtensionsWidgets().Broadcast(ExtensionWidgetsInfo);
+
+	const TMap<FName, TSharedRef<SWidget>>& WidgetsMap = ExtensionWidgetsInfo.CustomWidgetsMap;
+	if (WidgetsMap.Contains(InColumnName))
+	{
+		return WidgetsMap[InColumnName];
+	}
+	
+	return SNullWidget::NullWidget;
+}
+
 void FRCControllerModel::SetMultiController(bool bInIsMultiController)
 {
 	bIsMultiController = bInIsMultiController;

@@ -142,6 +142,9 @@ public:
 	/** Enable/disable MultiController Mode */
 	void SetMultiControllerMode(bool bIsUniqueModeOn);
 
+	/** Return the current list of custom columns names, if any */
+	TConstArrayView<FName> GetCustomColumns() const { return CustomColumns; } 
+
 	/** Flag that facilitates usage of two mutually exclusive drag-drop zones within a single panel 
 	* 
 	* The first drag-drop zone is empty panel space for "Bind To New Controller"
@@ -221,6 +224,9 @@ private:
 	/** Set the visibility of the List header the Field Id Column */
 	void ShowFieldIdHeaderColumn(bool bInShowColumn);
 
+	/** Add a custom column */
+	void AddColumn(const FName& InColumnName);
+
 	/** Checks whether the provided Entity can be used to create a Controller*/
 	bool IsEntitySupported(FGuid ExposedEntityId);
 
@@ -234,5 +240,8 @@ private:
 
 	/** Storing the header so we can add/remove columns */
 	TSharedPtr<SHeaderRow> ControllersHeaderRow;
+
+	/** List of custom columns names */
+	TArray<FName> CustomColumns;
 };
 
