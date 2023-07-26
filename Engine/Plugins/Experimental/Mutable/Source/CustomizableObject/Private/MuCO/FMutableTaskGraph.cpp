@@ -167,7 +167,7 @@ void FMutableTaskGraph::TryLaunchMutableTaskLowPriority(bool bFromMutableTask)
 
 		bTimeLimit = TimeElapsed >= TimeLimit;
 		if (!bAllowLaunchMutableTaskLowPriority || // Check #2
-			bFromMutableTask && IsTaskCompleted(LastMutableTask) && !bTimeLimit) // Check #3
+			(bFromMutableTask && IsTaskCompleted(LastMutableTask) && !bTimeLimit)) // Check #3
 		{			
 			return;
 		}
