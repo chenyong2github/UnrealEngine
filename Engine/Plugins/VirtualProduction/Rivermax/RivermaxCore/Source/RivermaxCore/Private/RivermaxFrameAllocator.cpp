@@ -2,6 +2,7 @@
 
 #include "RivermaxFrameAllocator.h"
 
+#include "Async/ParallelFor.h"
 #include "CudaModule.h"
 #include "RivermaxLog.h"
 #include "ID3D12DynamicRHI.h"
@@ -9,7 +10,23 @@
 
 namespace UE::RivermaxCore::Private
 {
-	bool FGPUAllocator::Allocate(int32 FrameCount)
+	static TAutoConsoleVariable<int32> CVarRivermaxOutputEnableParallelCopy(
+		TEXT("Rivermax.Output.EnableParallelCopy"), 0,
+		TEXT("Parallel"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarRivermaxOutputParallelCopyThreadCount(
+		TEXT("Rivermax.Output.ParallelCopyThreadCount"), 8,
+		TEXT("Parallel"),
+		ECVF_Default);
+
+	FGPUAllocator::FGPUAllocator(int32 InDesiredFrameSize, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate)
+		: Super(InDesiredFrameSize, InOnDataCopiedDelegate)
+	{
+
+	}
+
+	bool FGPUAllocator::Allocate(int32 FrameCount, bool bAlignFrameMemory)
 	{
 		// Allocate a single memory space that will contain all frame buffers
 		TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::GPUAllocation);
@@ -126,13 +143,20 @@ namespace UE::RivermaxCore::Private
 		}
 
 		AllocatedFrameCount = FrameCount;
-		AllocatedFrameSize = CudaAlignedFrameSize;
+
+		if (bAlignFrameMemory)
+		{
+			AllocatedFrameSize = CudaAlignedFrameSize;
+		}
+		else
+		{
+			AllocatedFrameSize = DesiredFrameSize;
+		}
 
 		for (int32 Index = 0; Index < AllocatedFrameCount; ++Index)
 		{
 			TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index);
 			Frame->VideoBuffer = GetFrameAddress(Index);
-			Frames.Add(MoveTemp(Frame));
 		}
 
 		CudaModule.DriverAPI()->cuCtxPopCurrent(nullptr);
@@ -176,7 +200,6 @@ namespace UE::RivermaxCore::Private
 			}
 			GPUStream = nullptr;
 			AllocatedFrameCount = 0;
-			Frames.Empty();
 
 			CudaModule.DriverAPI()->cuCtxPopCurrent(nullptr);
 		}
@@ -192,63 +215,80 @@ namespace UE::RivermaxCore::Private
 		return nullptr;
 	}
 
-	bool FGPUAllocator::CopyData(const FRivermaxOutputVideoFrameInfo& NewFrame, const TSharedPtr<FRivermaxOutputFrame>& DestinationFrame)
+	bool FGPUAllocator::CopyData(const FCopyArgs& Args)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::GPUCopyStart);
-		check(NewFrame.GPUBuffer);
+		check(Args.RHISourceMemory || Args.SourceMemory);
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::CudaCopyStart);
 		{
 			FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
 			CUresult Result = CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContext());
 
-			void* MappedPointer = GetMappedAddress(NewFrame.GPUBuffer);
-			if (MappedPointer == nullptr)
+			ON_SCOPE_EXIT
 			{
-				UE_LOG(LogRivermax, Error, TEXT("Failed to find a mapped memory address for captured buffer. Stopping capture."));
+				FCUDAModule::CUDA().cuCtxPopCurrent(nullptr); 
+			};
+
+			// If source memory is rhi memory, we need to go through mapping, otherwise, it's already cuda located
+			void* SourceMemory = Args.SourceMemory;
+			if (SourceMemory == nullptr)
+			{
+				SourceMemory = GetMappedAddress(Args.RHISourceMemory);
+				if (SourceMemory == nullptr)
+				{
+					UE_LOG(LogRivermax, Error, TEXT("Failed to find a mapped memory address for captured buffer. Stopping capture."));
+					return false;
+				}
+			}
+
+			const CUdeviceptr DestinationCudaPointer = reinterpret_cast<CUdeviceptr>(Args.DestinationMemory);
+			const CUdeviceptr BaseCudaPointer = reinterpret_cast<CUdeviceptr>(CudaAllocatedMemoryBaseAddress);
+			if(DestinationCudaPointer < BaseCudaPointer || DestinationCudaPointer >= (BaseCudaPointer + CudaAllocatedMemory))
+			{
+				UE_LOG(LogRivermax, Error, TEXT("Trying to copy data outside of allocated buffer."));
 				return false;
 			}
 
-			const CUdeviceptr CudaMemoryPointer = reinterpret_cast<CUdeviceptr>(MappedPointer);
-			Result = CudaModule.DriverAPI()->cuMemcpyDtoDAsync(reinterpret_cast<CUdeviceptr>(DestinationFrame->VideoBuffer), CudaMemoryPointer, DesiredFrameSize, reinterpret_cast<CUstream>(GPUStream));
-			if (Result != CUDA_SUCCESS)
 			{
-				UE_LOG(LogRivermax, Error, TEXT("Failed to copy captured bufer to cuda memory. Stopping capture. Error: %d"), Result);
-				return false;
+				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::CudaMemcopyAsync);
+				const CUdeviceptr CudaMemoryPointer = reinterpret_cast<CUdeviceptr>(SourceMemory);
+				Result = CudaModule.DriverAPI()->cuMemcpyDtoDAsync(reinterpret_cast<CUdeviceptr>(Args.DestinationMemory), CudaMemoryPointer, Args.SizeToCopy, reinterpret_cast<CUstream>(GPUStream));
+				if (Result != CUDA_SUCCESS)
+				{
+					UE_LOG(LogRivermax, Error, TEXT("Failed to copy captured buffer to cuda memory. Stopping capture. Error: %d"), Result);
+					return false;
+				}
 			}
+			
 
 			// Callback called by Cuda when stream work has completed on cuda engine (MemCpy -> Callback)
 			// Once Memcpy has been done, we know we can mark that memory as available to be sent. 
 
-			auto CudaCallback = [](void* userData)
+			auto CudaCallback = [](void* UserData)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::GPUCopyDone);
+				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::CudaCopyDone);
 
-				FGPUAllocator* Allocator = reinterpret_cast<FGPUAllocator*>(userData);
-				TOptional<TSharedPtr<FRivermaxOutputFrame>> FrameCopied = Allocator->PendingCopies.Dequeue();
-				if (FrameCopied.IsSet())
+				FGPUAllocator* Allocator = reinterpret_cast<FGPUAllocator*>(UserData);
+				TOptional<TSharedPtr<FBaseDataCopySideCar>> Sidecar = Allocator->PendingCopies.Dequeue();
+				if (Sidecar.IsSet())
 				{
-					FrameCopied.GetValue()->bIsVideoBufferReady = true;
-					Allocator->OnDataCopiedDelegate.ExecuteIfBound(FrameCopied.GetValue());
+					Allocator->OnDataCopiedDelegate.ExecuteIfBound(Sidecar.GetValue());
 				}
 			};
 
-			// Add pending frame for cuda callback 
-			PendingCopies.Enqueue(DestinationFrame);
+			// Add pending payload for cuda callback 
+			PendingCopies.Enqueue(Args.SideCar);
 
 			// Schedule a callback to make the frame available
-			CudaModule.DriverAPI()->cuLaunchHostFunc(reinterpret_cast<CUstream>(GPUStream), CudaCallback, this);
-
-			FCUDAModule::CUDA().cuCtxPopCurrent(nullptr);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::CudaLaunchHost);
+				CudaModule.DriverAPI()->cuLaunchHostFunc(reinterpret_cast<CUstream>(GPUStream), CudaCallback, this);
+			}
 
 			return true;
 		}
 
 		return false;
-	}
-
-	FGPUAllocator::FGPUAllocator(FIntPoint InFrameResolution, uint32 InStride, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate)
-		: Super(InFrameResolution, InStride, InOnDataCopiedDelegate)
-	{
-
 	}
 
 	void* FGPUAllocator::GetMappedAddress(const FBufferRHIRef& InBuffer)
@@ -332,27 +372,18 @@ namespace UE::RivermaxCore::Private
 		return BufferCudaMemoryMap[InBuffer];
 	}
 
-	bool FSystemAllocator::Allocate(int32 FrameCount)
+	bool FSystemAllocator::Allocate(int32 FrameCount, bool bAlignFrameMemory)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::SystemAllocation);
 
 		constexpr uint32 CacheLineSize = PLATFORM_CACHE_LINE_SIZE;
 
-		AllocatedFrameSize = Align(DesiredFrameSize, CacheLineSize);
-		const size_t NeededSystemMemory = Align(AllocatedFrameSize * FrameCount, CacheLineSize);
+		AllocatedFrameSize = bAlignFrameMemory ? Align(DesiredFrameSize, CacheLineSize) : DesiredFrameSize;
 		SystemMemoryBaseAddress = FMemory::Malloc(AllocatedFrameSize * FrameCount, CacheLineSize);
 
 		if (SystemMemoryBaseAddress)
 		{
 			AllocatedFrameCount = FrameCount;
-
-			for (int32 Index = 0; Index < AllocatedFrameCount; ++Index)
-			{
-				TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index);
-				Frame->VideoBuffer = GetFrameAddress(Index);
-				Frames.Add(MoveTemp(Frame));
-			}
-
 			return true;
 		}
 
@@ -366,7 +397,6 @@ namespace UE::RivermaxCore::Private
 			FMemory::Free(SystemMemoryBaseAddress);
 			SystemMemoryBaseAddress = nullptr;
 			AllocatedFrameCount = 0;
-			Frames.Empty();
 		}
 	}
 
@@ -380,38 +410,52 @@ namespace UE::RivermaxCore::Private
 		return nullptr;
 	}
 
-	FSystemAllocator::FSystemAllocator(FIntPoint InFrameResolution, uint32 InStride, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate)
-		: Super(InFrameResolution, InStride, InOnDataCopiedDelegate)
+	FSystemAllocator::FSystemAllocator(int32 InDesiredFrameSize, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate)
+		: Super(InDesiredFrameSize, InOnDataCopiedDelegate)
 	{
-
+		bUseParallelFor = CVarRivermaxOutputEnableParallelCopy.GetValueOnAnyThread() != 0;
+		ParallelForThreadCount = FMath::Clamp(CVarRivermaxOutputParallelCopyThreadCount.GetValueOnAnyThread(), 1, 100);
 	}
 
-	bool FSystemAllocator::CopyData(const FRivermaxOutputVideoFrameInfo& NewFrame, const TSharedPtr<FRivermaxOutputFrame>& DestinationFrame)
+	bool FSystemAllocator::CopyData(const FCopyArgs& Args)
 	{
-		FMemory::Memcpy(DestinationFrame->VideoBuffer, NewFrame.VideoBuffer, DesiredFrameSize);
+		// GPU memory copy shouldn't happen for system allocator
+		if (Args.RHISourceMemory != nullptr)
+		{
+			ensure(false);
+			return false;
+		}
 
-		DestinationFrame->bIsVideoBufferReady = true;
-		OnDataCopiedDelegate.ExecuteIfBound(DestinationFrame);
+
+		if(bUseParallelFor)
+		{
+			const int32 ThreadCount = ParallelForThreadCount;
+			const uint32 SizePerThread = 1 + ((Args.SizeToCopy - 1) / ThreadCount);
+			ParallelFor(ThreadCount, [SizePerThread, &Args](int32 BlockIndex)
+			{
+				const uint32 Offset = BlockIndex * SizePerThread;
+				const uint32 MaxSize = Args.SizeToCopy - Offset;
+				const uint32 CopySize = FMath::Min(SizePerThread, MaxSize);
+				uint8* SourceAddress = reinterpret_cast<uint8*>(Args.SourceMemory) + Offset;
+				uint8* DestinationAddress = reinterpret_cast<uint8*>(Args.DestinationMemory) + Offset;
+				FMemory::Memcpy(DestinationAddress, SourceAddress, CopySize);
+			});
+		}
+		else
+		{
+			FMemory::Memcpy(Args.DestinationMemory, Args.SourceMemory, Args.SizeToCopy);
+		}
+		
+		OnDataCopiedDelegate.ExecuteIfBound(Args.SideCar);
 
 		return true;
 	}
 
-	FBaseFrameAllocator::FBaseFrameAllocator(FIntPoint InFrameResolution, uint32 InStride, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate)
-		: FrameResolution(InFrameResolution)
-		, Stride(InStride)
-		, DesiredFrameSize(FrameResolution.Y * Stride)
+	FBaseFrameAllocator::FBaseFrameAllocator(int32 InDesiredFrameSize, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate)
+		: DesiredFrameSize(InDesiredFrameSize)
 		, OnDataCopiedDelegate(MoveTemp(InOnDataCopiedDelegate))
 	{
 
-	}
-
-	const TSharedPtr<FRivermaxOutputFrame> FBaseFrameAllocator::GetFrame(int32 Index) const
-	{
-		if (Frames.IsValidIndex(Index))
-		{
-			return Frames[Index];
-		}
-		return nullptr;
 	}
 }
 

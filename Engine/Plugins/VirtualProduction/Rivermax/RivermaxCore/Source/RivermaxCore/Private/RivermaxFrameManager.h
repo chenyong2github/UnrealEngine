@@ -18,6 +18,7 @@ namespace UE::RivermaxCore
 namespace UE::RivermaxCore::Private
 {
 	class FBaseFrameAllocator;
+	struct FBaseDataCopySideCar;
 
 	/** Where frame memory is allocated */
 	enum class EFrameMemoryLocation : uint8
@@ -45,6 +46,12 @@ namespace UE::RivermaxCore::Private
 
 		/** Stride of a line of video frame */
 		uint32 Stride = 0;
+
+		/** Desired size for a frame. Can be greater than what is needed to align with Rivermax's chunks */
+		uint32 FrameDesiredSize = 0;
+
+		/** Whether allocator will align each frame to desired alignment or the entire block */
+		bool bAlignEachFrameAlloc = false;
 
 		/** Number of video frames required */
 		uint8 NumberOfFrames = 0;
@@ -134,7 +141,7 @@ namespace UE::RivermaxCore::Private
 	private:
 
 		/** Called back when copy request was completed by allocator */
-		void OnDataCopied(const TSharedPtr<FRivermaxOutputFrame>& Frame);
+		void OnDataCopied(const TSharedPtr<FBaseDataCopySideCar>& Sidecar);
 
 	private:
 
@@ -152,6 +159,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Frame allocator dealing with memory operation */
 		TUniquePtr<FBaseFrameAllocator> FrameAllocator;
+
+		/** List of allocated frames. */
+		TArray<TSharedPtr<FRivermaxOutputFrame>> Frames;
 
 		/** Delegate triggered when a frame is free to use */
 		FOnFreeFrameDelegate OnFreeFrameDelegate;

@@ -56,13 +56,23 @@ namespace UE::RivermaxCore::Private
 		/** Timestamp of this frame  */
 		double TimestampTicks = 0.0;
 
-		/** Pointers retrieved from Rivermax for the next chunk */
+		/** Payload (data) pointer retrieved from Rivermax for the next chunk */
 		void* PayloadPtr = nullptr;
+		
+		/** Header pointer retrieved from Rivermax for the next chunk */
 		void* HeaderPtr = nullptr;
+		
+		/** Cached address of beginning of frame in Rivermax's memblock. Used when using intermediate buffer/ */
+		void* FrameStartPtr = nullptr;
+		
+		/** Offset in the frame where we are at to copy next block of data */
+		uint32 Offset = 0;
+		
+		/** Time covered by memcopies. Not used for now but it could be used to detect if memory will be used before it's actually copied. */
+		uint64 ScheduleTimeCopied = 0;
 
 		/** Time at which this frame was made available to be sent */
 		uint64 ReadyTimestamp = 0;
-
 	};
 }
 

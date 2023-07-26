@@ -17,46 +17,60 @@ namespace UE::RivermaxCore
 
 namespace UE::RivermaxCore::Private
 {
+	/** Sidecar base struct given back to callback after data has been copied */
+	struct FBaseDataCopySideCar
+	{
+		virtual ~FBaseDataCopySideCar() = default;
+	};
+
+	/** Arguments describing memcopy operation required from allocator */
+	struct FCopyArgs
+	{
+		/** RHI source memory that will be mapped to cuda */
+		FBufferRHIRef RHISourceMemory;
+		
+		/** Source memory that doesn't need to be mapped since it's in the same space as destination*/
+		void* SourceMemory = nullptr;
+		
+		/** Destination memory where data has to be copied */
+		void* DestinationMemory = nullptr;
+		
+		/** Bytes needed to be copied */
+		uint32 SizeToCopy = 0;
+		
+		/** Sidecar to be re-provided on callback after memory has been copied */
+		TSharedPtr<FBaseDataCopySideCar> SideCar;
+	};
+
 	struct FRivermaxOutputFrame;
 
 	/** Delegate triggered when data has been copied into a given frame */
-	DECLARE_DELEGATE_OneParam(FOnFrameDataCopiedDelegate, const TSharedPtr<FRivermaxOutputFrame>&);
+	DECLARE_DELEGATE_OneParam(FOnFrameDataCopiedDelegate, const TSharedPtr<FBaseDataCopySideCar>&);
 
 	/** Base class for frame allocation. Currently supports GPU allocation using CUDA and System memory */
 	class FBaseFrameAllocator
 	{
 	public:
-		FBaseFrameAllocator(FIntPoint FrameResolution, uint32 Stride, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate);
+		FBaseFrameAllocator(int32 InDesiredFrameSize, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate);
 		virtual ~FBaseFrameAllocator() = default;
 
-		/** Allocates memory to hold FrameCount frames */
-		virtual bool Allocate(int32 FrameCount) = 0;
+		/** Allocates memory to hold FrameCount frames. 
+		 *  If bAlignFrameMemory is true, aligns each frame memory size to allocator alignment
+		 *  If not, aligns entire memory block instead
+		 */
+		virtual bool Allocate(int32 FrameCount, bool bAlignFrameMemory) = 0;
 
 		/** Deallocate memory */
 		virtual void Deallocate() = 0;
 
-		/** Initiate a copy into a given frame */
-		virtual bool CopyData(const FRivermaxOutputVideoFrameInfo& NewFrame, const TSharedPtr<FRivermaxOutputFrame>& DestinationFrame) = 0;
-		
-		/** Returns allocated frame for a given index */
-		const TSharedPtr<FRivermaxOutputFrame> GetFrame(int32 Index) const;
-
-	protected:
+		/** Initiate a copy into a given frame using Args description of the operation */
+		virtual bool CopyData(const FCopyArgs& Args) = 0;
 		
 		/** Returns buffer address of a given frame */
 		virtual void* GetFrameAddress(int32 FrameIndex) const = 0;
 
 	protected:
 
-		/** List of allocated frames. */
-		TArray<TSharedPtr<FRivermaxOutputFrame>> Frames;
-
-		/** Resolution of frames to be allocated */
-		FIntPoint FrameResolution = FIntPoint::ZeroValue;
-
-		/** Stride of a line */
-		uint32 Stride = 0;
-		
 		/** Total desired size of a frame */
 		int32 DesiredFrameSize = 0;
 
@@ -69,15 +83,15 @@ namespace UE::RivermaxCore::Private
 		using Super = FBaseFrameAllocator;
 
 	public:
-		FGPUAllocator(FIntPoint FrameResolution, uint32 Stride, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate);
+		FGPUAllocator(int32 InDesiredFrameSize, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate);
 
 		//~ Begin FBaseFrameAllocator interface
-		virtual bool Allocate(int32 FrameCount) override;
+		virtual bool Allocate(int32 FrameCount, bool bAlignFrameMemory) override;
 		virtual void Deallocate() override;
-		virtual bool CopyData(const FRivermaxOutputVideoFrameInfo& NewFrame, const TSharedPtr<FRivermaxOutputFrame>& DestinationFrame) override;
+		virtual bool CopyData(const FCopyArgs& Args) override;
+		virtual void* GetFrameAddress(int32 FrameIndex) const override;
 	
 	protected:
-		virtual void* GetFrameAddress(int32 FrameIndex) const override;
 		//~ End FBaseFrameAllocator interface
 
 	private:
@@ -104,8 +118,8 @@ namespace UE::RivermaxCore::Private
 		/** Map between buffer we are sending and their mapped address in gpu space */
 		TMap<FBufferRHIRef, void*> BufferCudaMemoryMap;
 
-		/** Frames that are waiting for a cuda memcopy. Will be dequeued when our cuda task has completed */
-		TSpscQueue<TSharedPtr<FRivermaxOutputFrame>> PendingCopies;
+		/** Sidecar for data copied callback that are waiting for a cuda memcopy. Will be dequeued when our cuda task has completed */
+		TSpscQueue<TSharedPtr<FBaseDataCopySideCar>> PendingCopies;
 	};
 
 	class FSystemAllocator : public FBaseFrameAllocator
@@ -113,14 +127,12 @@ namespace UE::RivermaxCore::Private
 		using Super = FBaseFrameAllocator;
 
 	public:
-		FSystemAllocator(FIntPoint FrameResolution, uint32 Stride, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate);
+		FSystemAllocator(int32 InDesiredFrameSize, FOnFrameDataCopiedDelegate InOnDataCopiedDelegate);
 		
 		//~ Begin FBaseFrameAllocator interface
-		virtual bool Allocate(int32 FrameCount) override;
+		virtual bool Allocate(int32 FrameCount, bool bAlignFrameMemory) override;
 		virtual void Deallocate() override;
-		virtual bool CopyData(const FRivermaxOutputVideoFrameInfo& NewFrame, const TSharedPtr<FRivermaxOutputFrame>& DestinationFrame) override;
-	
-	protected:
+		virtual bool CopyData(const FCopyArgs& Args) override;
 		virtual void* GetFrameAddress(int32 FrameIndex) const override;
 		//~ End FBaseFrameAllocator interface
 	
@@ -137,6 +149,12 @@ namespace UE::RivermaxCore::Private
 
 		/** Allocated memory base address used when it's time to free */
 		void* SystemMemoryBaseAddress = nullptr;
+
+		/** Cached value for cvar controlling whether parallelfor is used to memcopy */
+		bool bUseParallelFor = false;
+
+		/** Cached value for cvar controlling number of threads to use when doing parallelfor memcopy */
+		int32 ParallelForThreadCount = 4;
 	};
 }
 

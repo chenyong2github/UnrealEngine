@@ -8,6 +8,12 @@
 
 namespace UE::RivermaxCore::Private
 {
+	/** Sidecar used when initiating memcopy. We provide the frame involved to update its state. */
+	struct FFrameBufferCopyInfo : public FBaseDataCopySideCar
+	{
+		TSharedPtr<FRivermaxOutputFrame> CopiedFrame;
+	};
+
 	FFrameManager::~FFrameManager()
 	{
 		Cleanup();
@@ -24,13 +30,12 @@ namespace UE::RivermaxCore::Private
 		OnCriticalErrorDelegate = Args.OnCriticalErrorDelegate;
 		FrameResolution = Args.Resolution;
 		TotalFrameCount = Args.NumberOfFrames;
-		const uint32 FrameSize = FrameResolution.Y * Args.Stride;
 		FOnFrameDataCopiedDelegate OnDataCopiedDelegate = FOnFrameDataCopiedDelegate::CreateRaw(this, &FFrameManager::OnDataCopied);
 
 		if (Args.bTryGPUAllocation)
 		{
-			FrameAllocator = MakeUnique<FGPUAllocator>(FrameResolution, Args.Stride, OnDataCopiedDelegate);
-			if (FrameAllocator->Allocate(TotalFrameCount))
+			FrameAllocator = MakeUnique<FGPUAllocator>(Args.FrameDesiredSize, OnDataCopiedDelegate);
+			if (FrameAllocator->Allocate(TotalFrameCount, Args.bAlignEachFrameAlloc))
 			{
 				MemoryLocation = EFrameMemoryLocation::GPU;
 			}
@@ -38,8 +43,8 @@ namespace UE::RivermaxCore::Private
 
 		if (MemoryLocation == EFrameMemoryLocation::None)
 		{
-			FrameAllocator = MakeUnique<FSystemAllocator>(FrameResolution, Args.Stride, OnDataCopiedDelegate);
-			if (FrameAllocator->Allocate(TotalFrameCount))
+			FrameAllocator = MakeUnique<FSystemAllocator>(Args.FrameDesiredSize, OnDataCopiedDelegate);
+			if (FrameAllocator->Allocate(TotalFrameCount, Args.bAlignEachFrameAlloc))
 			{
 				MemoryLocation = EFrameMemoryLocation::System;
 			}
@@ -55,6 +60,11 @@ namespace UE::RivermaxCore::Private
 			{
 				// All frames default to being available
 				FreeFrames.Add(Index);
+
+				/** Create actual frames and assign their video memory address from allocator */
+				TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index);
+				Frame->VideoBuffer = FrameAllocator->GetFrameAddress(Index);
+				Frames.Add(MoveTemp(Frame));
 			}
 		}
 
@@ -75,7 +85,7 @@ namespace UE::RivermaxCore::Private
 		FScopeLock Lock(&ContainersCritSec);
 		if (!FreeFrames.IsEmpty())
 		{
-			return FrameAllocator->GetFrame(FreeFrames[0]);
+			return Frames[FreeFrames[0]];
 		}
 
 		return nullptr;
@@ -119,7 +129,7 @@ namespace UE::RivermaxCore::Private
 		{
 			for (const uint32 FrameIndex : PendingFrames)
 			{
-				TSharedPtr<FRivermaxOutputFrame> Frame = FrameAllocator->GetFrame(FrameIndex);
+				TSharedPtr<FRivermaxOutputFrame> Frame = Frames[FrameIndex];
 				if (Frame->FrameIdentifier == FrameIdentifier)
 				{
 					// We found a reserved / pending frame corresponding to next frame identifier
@@ -136,7 +146,7 @@ namespace UE::RivermaxCore::Private
 		if (!ReadyFrames.IsEmpty())
 		{
 			const uint32 NextReadyFrame = ReadyFrames[0];
-			return FrameAllocator->GetFrame(NextReadyFrame);
+			return Frames[NextReadyFrame];
 		}
 	
 		return nullptr;
@@ -186,7 +196,7 @@ namespace UE::RivermaxCore::Private
 
 	const TSharedPtr<FRivermaxOutputFrame> FFrameManager::GetFrame(int32 Index) const
 	{
-		return FrameAllocator->GetFrame(Index);
+		return Frames[Index];
 	}
 
 	bool FFrameManager::SetFrameData(const FRivermaxOutputVideoFrameInfo& NewFrameInfo)
@@ -194,31 +204,49 @@ namespace UE::RivermaxCore::Private
 		bool bSuccess = false;
 		if (TSharedPtr<FRivermaxOutputFrame> NextFrame = GetNextFrame(NewFrameInfo.FrameIdentifier))
 		{
-			 bSuccess = FrameAllocator->CopyData(NewFrameInfo, NextFrame);
-			 if (!bSuccess)
-			 {
-				 OnCriticalErrorDelegate.ExecuteIfBound();
-			 }
+			TSharedPtr<FFrameBufferCopyInfo> Sidecar = MakeShared<FFrameBufferCopyInfo>();
+			Sidecar->CopiedFrame = NextFrame;
+
+			FCopyArgs Args;
+			Args.RHISourceMemory = NewFrameInfo.GPUBuffer;
+			Args.SourceMemory = NewFrameInfo.VideoBuffer;
+			Args.DestinationMemory = NextFrame->VideoBuffer;
+			Args.SizeToCopy = NewFrameInfo.Height * NewFrameInfo.Stride;
+			Args.SideCar = MoveTemp(Sidecar);
+
+			bSuccess = FrameAllocator->CopyData(Args);
+
+			if (!bSuccess)
+			{
+				OnCriticalErrorDelegate.ExecuteIfBound();
+			}
 			 
 		}
 		return bSuccess;
 	}
 
-	void FFrameManager::OnDataCopied(const TSharedPtr<FRivermaxOutputFrame>& Frame)
+	void FFrameManager::OnDataCopied(const TSharedPtr<FBaseDataCopySideCar>& Payload)
 	{
-		OnPreFrameReadyDelegate.ExecuteIfBound();
-
-		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextFrame(Frame->FrameIdentifier))
+		TSharedPtr<FFrameBufferCopyInfo> CopyInfo = StaticCastSharedPtr<FFrameBufferCopyInfo>(Payload);
+		if (ensure(CopyInfo && CopyInfo->CopiedFrame))
 		{
-			if (AvailableFrame->IsReadyToBeSent())
+			OnPreFrameReadyDelegate.ExecuteIfBound();
+
+			if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextFrame(CopyInfo->CopiedFrame->FrameIdentifier))
 			{
-				const FString TraceName = FString::Format(TEXT("Rmax::FrameReady {0}"), { AvailableFrame->FrameIndex });
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %u"), AvailableFrame->FrameIdentifier));
-				
-				MarkAsReady(AvailableFrame);
+				// Video frame has been copied, update frame's state
+				AvailableFrame->bIsVideoBufferReady = true;
+				if (AvailableFrame->IsReadyToBeSent())
+				{
+					const FString TraceName = FString::Format(TEXT("Rmax::FrameReady {0}"), { AvailableFrame->FrameIndex });
+					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %u"), AvailableFrame->FrameIdentifier));
+
+					MarkAsReady(AvailableFrame);
+				}
 			}
 		}
+		
 	}
 }
 
