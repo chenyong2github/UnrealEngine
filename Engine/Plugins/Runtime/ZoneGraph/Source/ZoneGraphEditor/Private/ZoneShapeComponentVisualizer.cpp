@@ -1125,7 +1125,7 @@ bool FZoneShapeComponentVisualizer::HandleSnapTo(const bool bInAlign, const bool
 void FZoneShapeComponentVisualizer::EndEditing()
 {
 	// Ignore if there is an undo/redo operation in progress
-	if (!GIsTransacting)
+	if (GIsTransacting)
 	{
 		return;
 	}
