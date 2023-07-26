@@ -136,6 +136,8 @@ FSceneCapturePhotoSet::FStatus FSceneCapturePhotoSet::GetSceneCaptureStatus() co
 
 void FSceneCapturePhotoSet::Compute()
 {
+	bWasCancelled = false;
+
 	int NumPending = 0;
 	ForEachCaptureType([this, &NumPending](ERenderCaptureType CaptureType)
 	{
@@ -152,8 +154,6 @@ void FSceneCapturePhotoSet::Compute()
 	Progress.MakeDialog(bAllowCancel);
 
 	check(this->TargetWorld != nullptr);
-
-	bWasCancelled = false;
 
 	// Unregister all components to remove unwanted proxies from the scene. This was previously the only way to "hide" nanite meshes, now optional.
 	TSet<AActor*> VisibleActorsSet(VisibleActors);
