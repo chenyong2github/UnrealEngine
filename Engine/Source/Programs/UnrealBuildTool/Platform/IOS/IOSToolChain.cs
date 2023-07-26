@@ -1604,7 +1604,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						SchemeName = Target.ProjectFile!.GetFileNameWithoutExtension();
+						SchemeName = Target.TargetName;
 					}
 
 					Console.WriteLine("Provisioning: {0}, {1}, {2}, {3}", MobileProvisionFile, MobileProvisionFile.GetFileName(), MobileProvisionUUID, BundleID);
