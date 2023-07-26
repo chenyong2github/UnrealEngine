@@ -316,7 +316,7 @@ namespace GLTF
 		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
 		StaticMeshAttributes.Register();
 
-		FMatrix TotalMatrix = ConvertMat(MeshGlobalTransform.ToMatrixWithScale());
+		FMatrix TotalMatrix = MeshGlobalTransform.ToMatrixWithScale();
 
 		TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
 		TEdgeAttributesRef<bool>  EdgeHardnesses = StaticMeshAttributes.GetEdgeHardnesses();
@@ -444,7 +444,7 @@ namespace GLTF
 		//	When the base mesh primitive does not specify normals, client implementations MUST calculate flat normals for each morph target; the provided tangents and their displacements (if present) MUST be ignored.
 		bool bIgnoreTangents = false;
 
-		FMatrix TotalMatrix = ConvertMat(MeshGlobalTransform.ToMatrixWithScale());
+		FMatrix TotalMatrix = MeshGlobalTransform.ToMatrixWithScale();
 		FMatrix TotalMatrixForNormal;
 		TotalMatrixForNormal = TotalMatrix.Inverse();
 		TotalMatrixForNormal = TotalMatrixForNormal.GetTransposed();
