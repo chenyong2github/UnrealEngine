@@ -136,6 +136,10 @@ URigVMBlueprint::URigVMBlueprint(const FObjectInitializer& ObjectInitializer)
 	VMCompileSettings.ASTSettings.ReportDelegate.BindUObject(this, &URigVMBlueprint::HandleReportFromCompiler);
 
 #if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		CompileLog.bSilentMode = true;
+	}
 	CompileLog.SetSourcePath(GetPathName());
 	CompileLog.bLogDetailedResults = false;
 	CompileLog.EventDisplayThresholdMs = false;
