@@ -801,6 +801,8 @@ bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 	return Super::Modify(bAlwaysMarkDirty);
 }
 
+ENGINE_API bool GFlushRenderingCommandsOnPreEditChange = true;
+
 void UActorComponent::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
@@ -825,9 +827,11 @@ void UActorComponent::PreEditChange(FProperty* PropertyThatWillChange)
 			WorldPrivate = nullptr;
 		}
 	}
-
 	// Flush rendering commands to ensure the rendering thread processes the component detachment before it is modified.
-	FlushRenderingCommands();
+	if (GFlushRenderingCommandsOnPreEditChange)
+	{
+		FlushRenderingCommands();
+	}
 }
 
 void UActorComponent::PreEditUndo()

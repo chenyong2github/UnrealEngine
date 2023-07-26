@@ -27,6 +27,8 @@
 LLM_DEFINE_TAG(Concert_ConcertClientTransactionBridge);
 #define LOCTEXT_NAMESPACE "ConcertClientTransactionBridge"
 
+extern ENGINE_API bool GFlushRenderingCommandsOnPreEditChange;
+
 namespace ConcertClientTransactionBridgeUtil
 {
 
@@ -265,6 +267,7 @@ struct FEditorTransactionNotification
 };
 #endif
 
+
 void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& WorldRemapper, const bool bIncludeEditorOnlyProperties)
 {
 	// Transactions are applied in multiple-phases...
@@ -449,16 +452,9 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 			{
 				if (bIsSnapshot)
 				{
-					if (!GIsEditor)
-					{
-						// Only call the base implementation for -game nodes as we want to avoid FlushRenderingCommands()
-						// during interactive changes. 
-						Cast<UObject>(TransactionObject)->PreEditChange(TransactionProp);
-					}
-					else 
-					{
-						TransactionObject->PreEditChange(TransactionProp);
-					}
+					// Prevent FlushRenderingCommands from running when in -game. It can cause performance issues / hitching during user interaction.
+					TGuardValue<bool> ShouldFlushRenderingCommands(GFlushRenderingCommandsOnPreEditChange, GIsEditor);					
+					TransactionObject->PreEditChange(TransactionProp);
 				}
 
 				FEditPropertyChain PropertyChain;
