@@ -115,6 +115,18 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 	CreateLinks(GraphNode, bCreateInbound, bCreateOutbound, GraphNodeToPCGNodeMap);
 }
 
+void UPCGEditorGraph::UpdateGridSizeVisualization(UPCGComponent* InPCGComponentBeingInspected)
+{
+	for (UEdGraphNode* EditorNode : Nodes)
+	{
+		UPCGEditorGraphNodeBase* PCGEditorNode = Cast<UPCGEditorGraphNodeBase>(EditorNode);
+		if (PCGEditorNode && PCGEditorNode->UpdateGridSizeVisualization(InPCGComponentBeingInspected) != EPCGChangeType::None)
+		{
+			PCGEditorNode->ReconstructNode();
+		}
+	}
+}
+
 void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCreateInbound, bool bCreateOutbound, const TMap<UPCGNode*, UPCGEditorGraphNodeBase*>& GraphNodeToPCGNodeMap)
 {
 	check(GraphNode);

@@ -64,7 +64,7 @@ public:
 	EPCGChangeType UpdateErrorsAndWarnings();
 
 	/** If the currently inspected grid size is smaller than the grid size of this node, display transparent. */
-	EPCGChangeType UpdateGridSizeVisualisation(class UPCGComponent* InComponentBeingDebugged);
+	EPCGChangeType UpdateGridSizeVisualization(class UPCGComponent* InComponentBeingDebugged);
 
 	/** Puts node title on node body, reducing overall node size */
 	bool ShouldDrawCompact() const;

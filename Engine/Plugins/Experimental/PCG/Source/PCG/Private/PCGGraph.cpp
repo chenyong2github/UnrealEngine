@@ -878,10 +878,16 @@ void UPCGGraph::NotifyGraphParametersChanged(EPCGGraphParameterEvent InChangeTyp
 
 void UPCGGraph::OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType)
 {
-	if (ChangeType != EPCGChangeType::Cosmetic)
+	if (!!(ChangeType & EPCGChangeType::Structural) && Cast<UPCGHiGenGridSizeSettings>(InNode->GetSettings()))
 	{
-		FWriteScopeLock ScopedWriteLock(NodeToGridSizeLock);
-		NodeToGridSize.Reset();
+		// Update node to grid size map for grid size changes.
+		{
+			FWriteScopeLock ScopedWriteLock(NodeToGridSizeLock);
+			NodeToGridSize.Reset();
+		}
+
+		// Broadcast so that grid size visualization can be updated editor-side.
+		OnGraphGridSizesChangedDelegate.Broadcast(this);
 	}
 
 	if ((ChangeType & ~EPCGChangeType::Cosmetic) != EPCGChangeType::None)
@@ -1087,8 +1093,15 @@ uint32 UPCGGraph::GetNodeGenerationGridSize(const UPCGNode* InNode, uint32 InDef
 
 uint32 UPCGGraph::CalculateNodeGridSizeRecursive_Unsafe(const UPCGNode* InNode, uint32 InDefaultGridSize) const
 {
+	if (const uint32* CachedGridSize = NodeToGridSize.Find(InNode))
+	{
+		return *CachedGridSize;
+	}
+
 	uint32 GridSize = PCGHiGenGrid::UninitializedGridSize();
-	if (const UPCGHiGenGridSizeSettings* GridSizeSettings = Cast<UPCGHiGenGridSizeSettings>(InNode->GetSettings()))
+
+	const UPCGHiGenGridSizeSettings* GridSizeSettings = Cast<UPCGHiGenGridSizeSettings>(InNode->GetSettings());
+	if (GridSizeSettings && GridSizeSettings->bEnabled)
 	{
 		GridSize = GridSizeSettings->GetGridSize();
 	}
@@ -1145,6 +1158,7 @@ void UPCGGraphInstance::PostLoad()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
 		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
 	}
 #endif // WITH_EDITOR
@@ -1156,6 +1170,7 @@ void UPCGGraphInstance::BeginDestroy()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
 		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
 	}
 #endif // WITH_EDITOR
@@ -1176,6 +1191,7 @@ void UPCGGraphInstance::PreEditChange(FProperty* InProperty)
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
 		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
 	}
 }
@@ -1192,6 +1208,7 @@ void UPCGGraphInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
 		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
 
 		RefreshParameters(EPCGGraphParameterEvent::GraphChanged);
@@ -1209,6 +1226,7 @@ void UPCGGraphInstance::PreEditUndo()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
 		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
 	}
 
@@ -1222,6 +1240,7 @@ void UPCGGraphInstance::PostEditUndo()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
 		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
 	}
 }
@@ -1231,6 +1250,14 @@ void UPCGGraphInstance::OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeTy
 	if (InGraph == Graph)
 	{
 		OnGraphChangedDelegate.Broadcast(this, ChangeType);
+	}
+}
+
+void UPCGGraphInstance::OnGraphGridSizesChanged(UPCGGraphInterface* InGraph)
+{
+	if (InGraph == Graph)
+	{
+		OnGraphGridSizesChangedDelegate.Broadcast(this);
 	}
 }
 
@@ -1259,6 +1286,7 @@ void UPCGGraphInstance::TeardownCallbacks()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
 		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
 	}
 }
@@ -1271,6 +1299,7 @@ void UPCGGraphInstance::FixCallbacks()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
 		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
 	}
 }
@@ -1294,6 +1323,7 @@ void UPCGGraphInstance::SetGraph(UPCGGraphInterface* InGraph)
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
 		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
 	}
 #endif // WITH_EDITOR
@@ -1304,6 +1334,7 @@ void UPCGGraphInstance::SetGraph(UPCGGraphInterface* InGraph)
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
 		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
 	}
 #endif // WITH_EDITOR

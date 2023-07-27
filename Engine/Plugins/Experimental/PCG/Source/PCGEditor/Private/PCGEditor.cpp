@@ -81,6 +81,11 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 {
 	PCGGraphBeingEdited = InPCGGraph;
 
+	if (PCGGraphBeingEdited)
+	{
+		PCGGraphBeingEdited->OnGraphGridSizesChangedDelegate.AddRaw(this, &FPCGEditor::OnGraphGridSizesChanged);
+	}
+
 	PCGEditorGraph = NewObject<UPCGEditorGraph>(PCGGraphBeingEdited, UPCGEditorGraph::StaticClass(), NAME_None, RF_Transactional | RF_Transient);
 	PCGEditorGraph->Schema = UPCGEditorGraphSchema::StaticClass();
 	PCGEditorGraph->InitFromNodeGraph(InPCGGraph);
@@ -197,13 +202,14 @@ void FPCGEditor::SetComponentAndStackBeingInspected(UPCGComponent* InPCGComponen
 			PCGComponentBeingInspected->EnableInspection();
 		}
 
+		check(PCGEditorGraph);
 		for (UEdGraphNode* Node : PCGEditorGraph->Nodes)
 		{
 			if (UPCGEditorGraphNodeBase* PCGNode = Cast<UPCGEditorGraphNodeBase>(Node))
 			{
 				// Update now that component has changed. Will fire OnNodeChanged if necessary.
 				EPCGChangeType ChangeType = PCGNode->UpdateErrorsAndWarnings();
-				ChangeType |= PCGNode->UpdateGridSizeVisualisation(InPCGComponent);
+				ChangeType |= PCGNode->UpdateGridSizeVisualization(InPCGComponent);
 
 				if (ChangeType != EPCGChangeType::None)
 				{
@@ -2124,9 +2130,14 @@ void FPCGEditor::OnClose()
 
 	FAssetEditorToolkit::OnClose();
 
-	if (PCGGraphBeingEdited && PCGGraphBeingEdited->NotificationsForEditorArePausedByUser())
+	if (PCGGraphBeingEdited)
 	{
-		PCGGraphBeingEdited->ToggleUserPausedNotificationsForEditor();
+		if (PCGGraphBeingEdited->NotificationsForEditorArePausedByUser())
+		{
+			PCGGraphBeingEdited->ToggleUserPausedNotificationsForEditor();
+		}
+
+		PCGGraphBeingEdited->OnGraphGridSizesChangedDelegate.RemoveAll(this);
 	}
 }
 
@@ -2331,6 +2342,15 @@ bool FPCGEditor::IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent
 	}
 
 	return true;
+}
+
+void FPCGEditor::OnGraphGridSizesChanged(UPCGGraphInterface* InGraph)
+{
+	check(PCGEditorGraph);
+	if (UPCGComponent* PCGComponent = GetPCGComponentBeingInspected())
+	{
+		PCGEditorGraph->UpdateGridSizeVisualization(PCGComponent);
+	}
 }
 
 UPCGSubsystem* FPCGEditor::GetSubsystem()

@@ -37,6 +37,9 @@ public:
 	void SetEditor(TWeakPtr<const FPCGEditor> InEditor) { PCGEditor = InEditor; }
 	TWeakPtr<const FPCGEditor> GetEditor() const { return PCGEditor; }
 
+	/** Updates the grid size visualization in the editor. */
+	void UpdateGridSizeVisualization(UPCGComponent* InPCGComponentBeingInspected);
+
 protected:
 	void CreateLinks(UPCGEditorGraphNodeBase* InGraphNode, bool bCreateInbound, bool bCreateOutbound, const TMap<UPCGNode*, UPCGEditorGraphNodeBase*>& InGraphNodeToPCGNodeMap);
 

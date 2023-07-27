@@ -273,6 +273,8 @@ private:
 	/** Returns whether a property should be visible (used for instance vs. settings properties) */
 	bool IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const;
 
+	void OnGraphGridSizesChanged(UPCGGraphInterface* InGraph);
+
 	/** Helper to get to the subsystem. */
 	static class UPCGSubsystem* GetSubsystem();
 
