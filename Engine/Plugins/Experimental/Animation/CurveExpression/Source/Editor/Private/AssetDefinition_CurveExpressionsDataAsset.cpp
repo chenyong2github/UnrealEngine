@@ -12,12 +12,8 @@ EAssetCommandResult UAssetDefinition_CurveExpressionsDataAsset::PerformAssetDiff
 	{
 		return EAssetCommandResult::Unhandled;
 	}
-	const TSharedRef<SDetailsDiff> DetailsDiff = SDetailsDiff::CreateDiffWindow(DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision, UCurveExpressionsDataAsset::StaticClass());
-    // allow users to edit NewAsset if it's a local asset
-	if (!FPackageName::IsTempPackage(DiffArgs.NewAsset->GetPackage()->GetName()))
-	{
-		DetailsDiff->SetOutputObject(DiffArgs.NewAsset);
-	}
+	
+	SDetailsDiff::CreateDiffWindow(DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision, UCurveExpressionsDataAsset::StaticClass());
 	return EAssetCommandResult::Handled;
 }
 

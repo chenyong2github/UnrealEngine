@@ -296,16 +296,6 @@ void SDetailsSplitter::AddSlot(const FSlot::FSlotArguments& SlotArgs, int32 Inde
 	}, Index);
 }
 
-SDetailsSplitter::FPanel& SDetailsSplitter::GetPanel(int32 Index)
-{
-	return Panels[Index];
-}
-
-void SDetailsSplitter::AddHighlights(const TMap<FString, TMap<FPropertySoftPath, FLinearColor>>& Highlights)
-{
-	CustomHighlights = Highlights;
-}
-
 SDetailsSplitter::FSlot::FSlotArguments SDetailsSplitter::Slot()
 {
 	return FSlot::FSlotArguments(MakeUnique<FSlot>());
@@ -457,7 +447,7 @@ FReply SDetailsSplitter::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 		
 		const int32 RightIndex = LeftIndex + 1;
 		const FPanel& RightPanel = Panels[RightIndex];
-		if (LeftPanel.IsReadonly.Get(true) && RightPanel.IsReadonly.Get(true))
+		if (LeftPanel.IsReadonly.Get(false) && RightPanel.IsReadonly.Get(false))
 		{
 			continue;
 		}
@@ -491,7 +481,7 @@ FReply SDetailsSplitter::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 					return ETreeTraverseControl::Continue;
 				}
 
-				if (LeftPropertyRect.IsValid() && !RightPanel.IsReadonly.Get(true))
+				if (LeftPropertyRect.IsValid() && !RightPanel.IsReadonly.Get(false))
 				{
 					const FSlateRect CopyButtonZoneLeftToRight = FSlateRect(
 						LeftPropertyRect.Right,
@@ -515,7 +505,7 @@ FReply SDetailsSplitter::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 					}
 				}
 				
-				if (RightPropertyRect.IsValid() && !LeftPanel.IsReadonly.Get(true))
+				if (RightPropertyRect.IsValid() && !LeftPanel.IsReadonly.Get(false))
 				{
 					const FSlateRect CopyButtonZoneRightToLeft = FSlateRect(
 						RightPropertyRect.Left - 15.f,
