@@ -42,7 +42,7 @@ public:
 	UPROPERTY(EditAnywhere, Transient, Category = "SkeletalMesh")
 	TObjectPtr<UAnimationAsset> AnimationAsset;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Transform")
+	UPROPERTY(EditAnywhere, Transient, Category = "Transform", Meta=(DisplayName="Location"))
 	FVector3d Translation = FVector3d::ZeroVector;
 
 	UPROPERTY(EditAnywhere, Transient, Category = "Transform")
