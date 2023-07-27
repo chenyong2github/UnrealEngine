@@ -66,11 +66,10 @@ bool FStateTreeDebuggerInstanceTrack::UpdateInternal()
 			const FStateTreeTraceActiveStatesEvent& Event = Events[EventIndex].Get<FStateTreeTraceActiveStatesEvent>();
 				
 			FString StatePath;
-			const TConstArrayView<FCompactStateTreeState> States = StateTree->GetStates();
 			for (int32 ActiveStateIndex = 0; ActiveStateIndex < Event.ActiveStates.Num(); ActiveStateIndex++)
 			{
-				const FCompactStateTreeState& State = States[Event.ActiveStates[ActiveStateIndex].Index];
-				StatePath.Appendf(TEXT("%s%s"), ActiveStateIndex == 0 ? TEXT("") : TEXT("."), *State.Name.ToString());
+				const FCompactStateTreeState* State = StateTree->GetStateFromHandle(Event.ActiveStates[ActiveStateIndex]);
+				StatePath.Appendf(TEXT("%s%s"), ActiveStateIndex == 0 ? TEXT("") : TEXT("."), State == nullptr ? TEXT("Invalid") : *State->Name.ToString());
 			}
 
 			UE::StateTreeDebugger::FFrameSpan Span = EventCollection.FrameSpans[SpanIndex];

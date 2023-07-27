@@ -21,7 +21,6 @@
 #include "StateTreeEditorData.h"
 #include "StateTreeEditorSettings.h"
 #include "StateTreeEditorStyle.h"
-#include "StateTreeExecutionContext.h"
 #include "StateTreeModule.h"
 #include "StateTreeState.h"
 #include "StateTreeViewModel.h"
@@ -167,6 +166,7 @@ protected:
 					.Text_Lambda([&Event=Item->Event, this]()
 					{
 						FString EventDescription;
+						check(StateTreeViewModel);
 						if (const UStateTree* StateTree = StateTreeViewModel->GetStateTree())
 						{
 							Visit([&EventDescription, StateTree](auto& TypedEvent)
@@ -206,14 +206,12 @@ SStateTreeDebuggerView::~SStateTreeDebuggerView()
 		SelectedNodeDataObject->RemoveFromRoot();
 	}
 
-	if (Debugger)
-	{
-		Debugger->OnScrubStateChanged.Unbind();
-		Debugger->OnBreakpointHit.Unbind();
-		Debugger->OnNewSession.Unbind();
-		Debugger->OnNewInstance.Unbind();
-		Debugger->OnSelectedInstanceCleared.Unbind();
-	}
+	check(Debugger);
+	Debugger->OnScrubStateChanged.Unbind();
+	Debugger->OnBreakpointHit.Unbind();
+	Debugger->OnNewSession.Unbind();
+	Debugger->OnNewInstance.Unbind();
+	Debugger->OnSelectedInstanceCleared.Unbind();
 
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
@@ -226,11 +224,12 @@ void SStateTreeDebuggerView::StartRecording()
 {
 	if (CanStartRecording())
 	{
+		check(Debugger);
 		Debugger->ClearSelection();
 
 		// We give priority to the Editor actions even if an analysis was active (remote process)
 		// This will stop current analysis and connect to the new live trace.
-		bRecording = Debugger->RequestAnalysisOfNextLiveSession();
+		bRecording = Debugger->RequestAnalysisOfEditorSession();
 	}
 }
 
@@ -242,6 +241,10 @@ void SStateTreeDebuggerView::StopRecording()
 		StateTreeModule.StopTraces();
 		
 		bRecording = false;
+
+		// Update max duration from current recording until track data gets reset
+		check(Debugger);
+		MaxTrackRecordingDuration = FMath::Max(MaxTrackRecordingDuration, Debugger->GetRecordingDuration());
 
 		// Mark all tracks from the stopped session as stale to have different look.
 		for (const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& DebugTrack : InstanceOwnerTracks)
@@ -256,31 +259,57 @@ void SStateTreeDebuggerView::StopRecording()
 
 bool SStateTreeDebuggerView::CanToggleDebuggerAnalysis() const
 {
-	return Debugger && Debugger->IsAnalysisSessionActive(); 
+	check(Debugger);
+	return Debugger->IsAnalysisSessionActive(); 
 }
 
 void SStateTreeDebuggerView::ToggleDebuggerAnalysis() const
 {
-	if (Debugger)
+	check(Debugger);
+	if (Debugger->IsAnalysisSessionPaused())
 	{
-		if (Debugger->IsAnalysisSessionPaused())
-		{
-			Debugger->ResumeSessionAnalysis();
-		}
-		else
-		{
-			Debugger->PauseSessionAnalysis();
-		}
+		Debugger->ResumeSessionAnalysis();
+	}
+	else
+	{
+		Debugger->PauseSessionAnalysis();
 	}
 }
 
 FSlateIcon SStateTreeDebuggerView::GetDebuggerAnalysisIcon() const
 {
-	if (Debugger && Debugger->IsAnalysisSessionActive() && !Debugger->IsAnalysisSessionPaused())
+	check(Debugger);
+	if (Debugger->IsAnalysisSessionActive() && !Debugger->IsAnalysisSessionPaused())
 	{
 		return FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(), "StateTreeEditor.PauseDebuggerAnalysis");
 	}
 	return FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(), "StateTreeEditor.ResumeDebuggerAnalysis");
+}
+
+bool SStateTreeDebuggerView::CanResetTracks() const
+{
+	return !InstanceOwnerTracks.IsEmpty();
+}
+
+void SStateTreeDebuggerView::ResetTracks()
+{
+	InstanceOwnerTracks.Reset();
+
+	check(Debugger);
+	Debugger->ResetEventCollections();
+
+	MaxTrackRecordingDuration = 0;
+
+	// Refresh tree view
+	if (InstancesTreeView)
+	{
+		InstancesTreeView->Refresh();
+	}
+
+	if (InstanceTimelinesTreeView)
+	{
+		InstanceTimelinesTreeView->Refresh();
+	}
 }
 
 void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating)
@@ -294,21 +323,26 @@ void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating)
 void SStateTreeDebuggerView::OnPIEStopped(const bool bIsSimulating)
 {
 	StopRecording();
+
+	check(Debugger);
 	Debugger->StopSessionAnalysis();
 }
 
 void SStateTreeDebuggerView::OnPIEPaused(const bool bIsSimulating) const
 {
+	check(Debugger);
 	Debugger->PauseSessionAnalysis();
 }
 
 void SStateTreeDebuggerView::OnPIEResumed(const bool bIsSimulating) const
 {
+	check(Debugger);
 	Debugger->ResumeSessionAnalysis();
 }
 
 void SStateTreeDebuggerView::OnPIESingleStepped(bool bSimulating) const
 {
+	check(Debugger);
 	Debugger->SyncToCurrentSessionDuration();
 }
 
@@ -319,6 +353,8 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	StateTreeEditorData = Cast<UStateTreeEditorData>(InStateTree.EditorData.Get()); 
 
 	Debugger = InStateTreeViewModel->GetDebugger();
+	check(Debugger);
+
 	IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
 	bRecording = StateTreeModule.IsTracing();
 
@@ -376,16 +412,22 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		const FStateTreeDebuggerCommands& DebuggerCommands = FStateTreeDebuggerCommands::Get();
 		LeftToolbar.AddToolBarButton(DebuggerCommands.StartRecording);
 		LeftToolbar.AddToolBarButton(DebuggerCommands.StopRecording);
-		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithStateChange);
-		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithEvents);
-		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithEvents);
-		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithStateChange);
+
 		LeftToolbar.AddSeparator();
+
 		LeftToolbar.AddToolBarButton(DebuggerCommands.ToggleAnalysis,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			TAttribute<FSlateIcon>::CreateSP(this, &SStateTreeDebuggerView::GetDebuggerAnalysisIcon));
+		LeftToolbar.AddToolBarButton(DebuggerCommands.ResetTracks);
+
+		LeftToolbar.AddSeparator();
+
+		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithStateChange);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithEvents);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithEvents);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithStateChange);
 	}
 	LeftToolbar.EndSection();
 
@@ -418,7 +460,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	// Make sure that the active trace contains statetree specific traces
 	if (TraceDescriptors.Num() == 1 && StateTreeModule.IsTracing())
 	{
-		Debugger->StartSessionAnalysis(TraceDescriptors.Last());
+		Debugger->RequestSessionAnalysis(TraceDescriptors.Last());
 	}
 
 	// Trace selection combo
@@ -430,7 +472,8 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			.ToolTipText(LOCTEXT("SelectTraceSession", "Pick trace session to debug"))
 			.Text_Lambda([Debugger = Debugger]()
 			{
-				return Debugger.IsValid() ? Debugger->GetSelectedTraceDescription() : FText::GetEmpty();
+				check(Debugger);
+				return Debugger->GetSelectedTraceDescription();
 			})
 		];
 
@@ -462,7 +505,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		.OnScrolled_Lambda([this](double ScrollOffset) { InstancesTreeView->ScrollTo(ScrollOffset); })
 		.InstanceTracks(&InstanceOwnerTracks)
 		.ViewRange_Lambda([this]() { return ViewRange; })
-		.ClampRange_Lambda([this]() { return TRange<double>(0, Debugger->GetRecordingDuration()); })
+		.ClampRange_Lambda([this]() { return TRange<double>(0, MaxTrackRecordingDuration); })
 		.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
 		.ScrubPosition(ScrubTimeAttribute)
 		.OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing) { OnTimeLineScrubPositionChanged(NewScrubTime, bIsScrubbing); });
@@ -474,6 +517,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			.DefaultLabel(LOCTEXT("FrameDetailsColumnHeader", "Frame Details")))
 			.OnGenerateRow_Lambda([this](const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>& InElement, const TSharedRef<STableViewBase>& InOwnerTableView)
 			{
+				check(StateTreeViewModel);
 				return SNew(SStateTreeDebuggerTableRow, InOwnerTableView, InElement, StateTreeViewModel.ToSharedRef());
 			})
 			.OnGetChildren_Lambda([](const TSharedPtr<const UE::StateTreeDebugger::FEventTreeElement>& InParent, TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& OutChildren)
@@ -507,6 +551,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			{
 				FDetailsViewArgs DetailsViewArgs;
 				DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+				DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
 
 				UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *TypePath, /*ExactClass*/false);
 				if (ScriptStruct == nullptr)
@@ -622,7 +667,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 						.ScrubPosition(ScrubTimeAttribute)
 						.ViewRange_Lambda([this]() { return ViewRange; })
 						.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
-						.ClampRange_Lambda([this]() { return TRange<double>(0, Debugger->GetRecordingDuration()); })
+						.ClampRange_Lambda([this]() { return TRange<double>(0, MaxTrackRecordingDuration); })
 						.OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing) { OnTimeLineScrubPositionChanged(NewScrubTime, bIsScrubbing); })
 					]
 				]
@@ -708,10 +753,16 @@ void SStateTreeDebuggerView::Tick(const FGeometry& AllottedGeometry, const doubl
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_StateTreeDebuggerView_TickView);
 
-	// Stick to most recent data if required
-	if (bAutoScroll && !Debugger->IsAnalysisSessionPaused())
+	check(Debugger);
+	if (Debugger->IsAnalysisSessionActive() && !Debugger->IsAnalysisSessionPaused())
 	{
-		Debugger->SetScrubTime(Debugger->GetRecordingDuration());
+		MaxTrackRecordingDuration = FMath::Max(MaxTrackRecordingDuration, Debugger->GetRecordingDuration());
+
+		// Stick to most recent data if required
+		if (bAutoScroll)
+		{
+			Debugger->SetScrubTime(Debugger->GetRecordingDuration());
+		}
 	}
 	
 	RefreshTracks();
@@ -775,45 +826,64 @@ void SStateTreeDebuggerView::BindDebuggerToolbarCommands(const TSharedRef<FUICom
 		Commands.ToggleAnalysis,
 		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::ToggleDebuggerAnalysis),
 		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanToggleDebuggerAnalysis));
+
+	ToolkitCommands->MapAction(
+		Commands.ResetTracks,
+		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::ResetTracks),
+		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanResetTracks));
+}
+
+bool SStateTreeDebuggerView::CanUseScrubButtons() const
+{
+	check(Debugger);
+	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused() || !Debugger->IsAnalysisSessionActive());
 }
 
 bool SStateTreeDebuggerView::CanStepBackToPreviousStateWithEvents() const
 {
-	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepBackToPreviousStateWithEvents();
+	check(Debugger);
+	return CanUseScrubButtons() && Debugger->CanStepBackToPreviousStateWithEvents();
 }
 
 void SStateTreeDebuggerView::StepBackToPreviousStateWithEvents()
 {
+	check(Debugger);
 	Debugger->StepBackToPreviousStateWithEvents();
 }
 
 bool SStateTreeDebuggerView::CanStepForwardToNextStateWithEvents() const
 {
-	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepForwardToNextStateWithEvents();
+	check(Debugger);
+	return CanUseScrubButtons() && Debugger->CanStepForwardToNextStateWithEvents();
 }
 
 void SStateTreeDebuggerView::StepForwardToNextStateWithEvents()
 {
+	check(Debugger);
 	Debugger->StepForwardToNextStateWithEvents();
 }
 
 bool SStateTreeDebuggerView::CanStepBackToPreviousStateChange() const
 {
-	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepBackToPreviousStateChange();
+	check(Debugger);
+	return CanUseScrubButtons() && Debugger->CanStepBackToPreviousStateChange();
 }
 
 void SStateTreeDebuggerView::StepBackToPreviousStateChange()
 {
+	check(Debugger);
 	Debugger->StepBackToPreviousStateChange();
 }
 
 bool SStateTreeDebuggerView::CanStepForwardToNextStateChange() const
 {
-	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepForwardToNextStateChange();
+	check(Debugger);
+	return CanUseScrubButtons() && Debugger->CanStepForwardToNextStateChange();
 }
 
 void SStateTreeDebuggerView::StepForwardToNextStateChange()
 {
+	check(Debugger);
 	Debugger->StepForwardToNextStateChange();
 }
 
@@ -1014,7 +1084,11 @@ UStateTreeState* SStateTreeDebuggerView::FindStateAssociatedToBreakpoint(FStateT
 
 void SStateTreeDebuggerView::OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing)
 {
-	bAutoScroll = false;
+	check(Debugger);
+	if (Debugger->IsAnalysisSessionActive() && !Debugger->IsAnalysisSessionPaused())
+	{
+		bAutoScroll = false;
+	}
 	Debugger->SetScrubTime(Time);
 }
 
@@ -1135,9 +1209,8 @@ void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId Ins
 	// Extract associated UStateTreeState to focus on it.
 	if (UStateTreeState* AssociatedState = FindStateAssociatedToBreakpoint(Breakpoint))
 	{
-		FStateTreeViewModel* ViewModel = StateTreeViewModel.Get();
-		check(ViewModel);
-		ViewModel->SetSelection(AssociatedState);
+		check(StateTreeViewModel);
+		StateTreeViewModel->SetSelection(AssociatedState);
 	}
 
 	// Find matching event in the tree view and select it
@@ -1164,23 +1237,25 @@ void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId Ins
 
 void SStateTreeDebuggerView::OnNewSession()
 {
-	// Clear tracks
-	InstanceOwnerTracks.Reset();
-
-	// Refresh tree view
-	if (InstancesTreeView)
+	// We clear tracks:
+	//  - analysis is not for an Editor session
+	//  - explicitly set in the settings for Editor sessions
+	//  - if previous analysis was not an Editor session
+	check(Debugger);
+	if (!Debugger->IsAnalyzingEditorSession()
+		|| UStateTreeEditorSettings::Get().bShouldDebuggerResetDataOnNewPIESession
+		|| !Debugger->WasAnalyzingEditorSession())
 	{
-		InstancesTreeView->Refresh();
+		ResetTracks();
 	}
 
-	if (InstanceTimelinesTreeView)
-	{
-		InstanceTimelinesTreeView->Refresh();
-	}
+	// Restore automatic scroll to most recent data.
+	bAutoScroll = true;
 }
 
 void SStateTreeDebuggerView::OnNewInstance(FStateTreeInstanceDebugId InstanceId)
 {
+	check(Debugger);
 	const UE::StateTreeDebugger::FInstanceDescriptor* FoundDescriptor = Debugger->GetInstanceDescriptor(InstanceId);
 	if (!ensureMsgf(FoundDescriptor != nullptr, TEXT("This callback is from the Debugger so we expect to be able to find matching descriptor.")))
 	{
@@ -1239,38 +1314,31 @@ TSharedRef<SWidget> SStateTreeDebuggerView::OnGetDebuggerTracesMenu() const
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection*/true, /*InCommandList*/nullptr);
 
-	if (Debugger.IsValid())
+	TArray<FStateTreeDebugger::FTraceDescriptor> TraceDescriptors;
+
+	check(Debugger);
+	Debugger->GetLiveTraces(TraceDescriptors);
+
+	for (const FStateTreeDebugger::FTraceDescriptor& TraceDescriptor : TraceDescriptors)
 	{
-		TArray<FStateTreeDebugger::FTraceDescriptor> TraceDescriptors;
-		Debugger->GetLiveTraces(TraceDescriptors);
+		const FText Desc = Debugger->DescribeTrace(TraceDescriptor);
 
-		for (const FStateTreeDebugger::FTraceDescriptor& TraceDescriptor : TraceDescriptors)
-		{
-			const FText Desc = Debugger->DescribeTrace(TraceDescriptor);
-
-			FUIAction ItemAction(FExecuteAction::CreateLambda([WeakDebugger = Debugger, TraceDescriptor]()
+		FUIAction ItemAction(FExecuteAction::CreateSPLambda(Debugger.ToSharedRef(), [Debugger = Debugger, TraceDescriptor]()
 			{
-				if (WeakDebugger)
-				{
-					WeakDebugger->StartSessionAnalysis(TraceDescriptor);
-				}
+				Debugger->RequestSessionAnalysis(TraceDescriptor);
 			}));
-			MenuBuilder.AddMenuEntry(Desc, TAttribute<FText>(), FSlateIcon(), ItemAction);
-		}
+		MenuBuilder.AddMenuEntry(Desc, TAttribute<FText>(), FSlateIcon(), ItemAction);
+	}
 
-		// Failsafe when no match
-		if (TraceDescriptors.Num() == 0)
-		{
-			const FText Desc = LOCTEXT("NoLiveSessions","Can't find live trace sessions");
-			FUIAction ItemAction(FExecuteAction::CreateLambda([WeakDebugger = Debugger]()
+	// Failsafe when no match
+	if (TraceDescriptors.Num() == 0)
+	{
+		const FText Desc = LOCTEXT("NoLiveSessions", "Can't find live trace sessions");
+		FUIAction ItemAction(FExecuteAction::CreateSPLambda(Debugger.ToSharedRef(), [Debugger = Debugger]()
 			{
-				if (WeakDebugger)
-				{
-					WeakDebugger->StartSessionAnalysis(FStateTreeDebugger::FTraceDescriptor());
-				}
+				Debugger->RequestSessionAnalysis(FStateTreeDebugger::FTraceDescriptor());
 			}));
-			MenuBuilder.AddMenuEntry(Desc, TAttribute<FText>(), FSlateIcon(), ItemAction);
-		}
+		MenuBuilder.AddMenuEntry(Desc, TAttribute<FText>(), FSlateIcon(), ItemAction);
 	}
 
 	return MenuBuilder.MakeWidget();

@@ -122,6 +122,9 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	 */
 	const UE::StateTreeDebugger::FInstanceEventCollection& GetEventCollection(FStateTreeInstanceDebugId InstanceId) const;
 
+	/** Clears events from all instances. */
+	void ResetEventCollections();
+
 	/** Returns the recording duration in world recorded time. */
 	double GetRecordingDuration() const { return RecordingDuration; }
 
@@ -139,12 +142,31 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	 * This will replace the current analysis session if any.
 	 * @return True if connection was successfully requested or was able to use active trace, false otherwise.
 	 */
-	bool RequestAnalysisOfNextLiveSession();
+	bool RequestAnalysisOfEditorSession();
+	bool IsAnalyzingEditorSession() const
+	{
+		return AnalysisTransitionType == EAnalysisTransitionType::NoneToEditor
+			|| AnalysisTransitionType == EAnalysisTransitionType::EditorToEditor
+			|| AnalysisTransitionType == EAnalysisTransitionType::SelectedToEditor;
+	}
+
+	bool WasAnalyzingEditorSession() const
+	{
+		return AnalysisTransitionType == EAnalysisTransitionType::EditorToSelected
+			|| AnalysisTransitionType == EAnalysisTransitionType::EditorToEditor;
+	}
 
 	bool IsAnalysisSessionActive() const { return GetAnalysisSession() != nullptr; }
 	bool IsAnalysisSessionPaused() const { return bSessionAnalysisPaused; }
 	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
-	bool StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
+
+	/**
+	 * Tries to start an analysis for a given trace descriptor.
+	 * On success this method will execute the OnNewSession delegate.
+	 * @param TraceDescriptor Descriptor of the trace that needs to be analyzed
+	 * @return True if analysis was successfully started, false otherwise.
+	 */
+	bool RequestSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
 	void PauseSessionAnalysis()  { bSessionAnalysisPaused = true; }
 	void ResumeSessionAnalysis() { bSessionAnalysisPaused = false; }
 	void StopSessionAnalysis();
@@ -166,6 +188,28 @@ protected:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FStateTreeDebugger, STATGROUP_Tickables); }
 	
 private:
+	enum class EAnalysisSourceType : uint8
+	{
+		// Analysis selected from available sessions
+		SelectedSession,
+
+		// Analysis automatically started from Editor new recording
+		EditorSession
+	};
+
+	enum class EAnalysisTransitionType : uint8
+	{
+		Unset,
+		NoneToSelected,
+		NoneToEditor,
+		EditorToSelected,
+		EditorToEditor,
+		SelectedToSelected,
+		SelectedToEditor,
+	};
+
+	void UpdateAnalysisTransitionType(EAnalysisSourceType SourceType);
+	
 	void ReadTrace(double ScrubTime);
 	void ReadTrace(uint64 FrameIndex);
 	void ReadTrace(
@@ -193,7 +237,11 @@ private:
 	 * @return True if the analysis was successfully started; false otherwise.
 	 */
 	bool TryStartNewLiveSessionAnalysis(float RetryPollingDuration);
-	
+
+	bool StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
+
+	void SetScrubStateCollectionIndex(int32 EventCollectionIndex);
+
 	/**
 	 * Recompute index of the span that contains the active states change event and update the active states.
 	 * This method handles unselected instances in which case it will reset the active states and set the span index to INDEX_NONE
@@ -270,6 +318,11 @@ private:
 	 * This can be an external explicit request or after hitting a breakpoint.
 	 */
 	bool bSessionAnalysisPaused = false;
+
+	/**
+	 * Indicates the last transition type between two consecutive analyses to manage track cleanup properly.
+	 */
+	EAnalysisTransitionType AnalysisTransitionType = EAnalysisTransitionType::Unset;
 };
 
 #endif // WITH_STATETREE_DEBUGGER

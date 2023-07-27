@@ -69,6 +69,10 @@ private:
 	void OnNewInstance(FStateTreeInstanceDebugId InstanceId);
 	void OnSelectedInstanceCleared();
 
+	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands);
+
+	bool CanUseScrubButtons() const;
+
 	bool CanStartRecording() const { return !IsRecording(); }
 	void StartRecording();
 
@@ -81,7 +85,8 @@ private:
 	void ToggleDebuggerAnalysis() const;
 	FSlateIcon GetDebuggerAnalysisIcon() const;
 
-	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands);
+	bool CanResetTracks() const;
+	void ResetTracks();
 
 	bool CanStepBackToPreviousStateWithEvents() const;
 	void StepBackToPreviousStateWithEvents();
@@ -159,6 +164,9 @@ private:
 
 	/** Object created from the event data when statetree node was holding an object. */
 	TWeakObjectPtr<> SelectedNodeDataObject;
+
+	/** In case tracks are not reset when a new analysis session is started we keep track of the longest duration to adjust our clamp range. */
+	double MaxTrackRecordingDuration = 0;
 
 	/** Indicates that a live session was started (record button or auto record in PIE) to generate StateTree traces. */
 	bool bRecording = false;

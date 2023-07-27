@@ -158,6 +158,10 @@ bool FScrubState::HasPreviousActiveStates() const
 	}
 
 	const TArray<FInstanceEventCollection::FActiveStatesChangePair>& ActiveStatesChanges = EventCollections[EventCollectionIndex].ActiveStatesChanges;
+	if (ScrubTimeBoundState == EScrubTimeBoundState::AfterHigherBound && ActiveStatesChanges.Num() > 0)
+	{
+		return true;
+	}
 
 	if (ActiveStatesChanges.IsValidIndex(ActiveStatesIndex) && ActiveStatesChanges[ActiveStatesIndex].SpanIndex < FrameSpanIndex)
 	{
@@ -170,7 +174,11 @@ bool FScrubState::HasPreviousActiveStates() const
 double FScrubState::GotoPreviousActiveStates()
 {
 	const TArray<FInstanceEventCollection::FActiveStatesChangePair>& ActiveStatesChanges = EventCollections[EventCollectionIndex].ActiveStatesChanges;
-	if (ActiveStatesChanges.IsValidIndex(ActiveStatesIndex) && ActiveStatesChanges[ActiveStatesIndex].SpanIndex < FrameSpanIndex)
+	if (ScrubTimeBoundState == EScrubTimeBoundState::AfterHigherBound)
+	{
+		SetActiveStatesIndex(ActiveStatesChanges.Num()-1);
+	}
+	else if (ActiveStatesChanges.IsValidIndex(ActiveStatesIndex) && ActiveStatesChanges[ActiveStatesIndex].SpanIndex < FrameSpanIndex)
 	{
 		SetActiveStatesIndex(ActiveStatesIndex);
 	}

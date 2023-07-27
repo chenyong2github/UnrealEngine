@@ -28,6 +28,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Debugger")
 	bool bShouldDebuggerAutoRecordOnPIE = true;
 
+	/** If enabled, debugger will clear previous tracks at the start of each PIE session. */
+	UPROPERTY(EditAnywhere, config, Category = "Debugger")
+	bool bShouldDebuggerResetDataOnNewPIESession = false;
+
 protected:
 #if WITH_EDITOR
 	virtual FText GetSectionText() const override;

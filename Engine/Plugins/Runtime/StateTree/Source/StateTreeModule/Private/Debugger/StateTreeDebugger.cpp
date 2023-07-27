@@ -112,7 +112,7 @@ void FStateTreeDebugger::StopSessionAnalysis()
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
 		Session->Stop(true);
-		AnalysisSession.Reset();	
+		AnalysisSession.Reset();
 	}
 
 	bSessionAnalysisPaused = false;
@@ -163,15 +163,12 @@ void FStateTreeDebugger::SelectInstance(const FStateTreeInstanceDebugId Instance
 		OnSelectedInstanceCleared.ExecuteIfBound();
 
 		// Update event collection index for newly debugged instance
-		ScrubState.SetEventCollectionIndex(InstanceId.IsValid() ? EventCollections.IndexOfByPredicate([InstanceId = InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
-			{
-				return Entry.InstanceId == InstanceId;
-			})
+		SetScrubStateCollectionIndex(InstanceId.IsValid()
+			? EventCollections.IndexOfByPredicate([InstanceId = InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
+				{
+					return Entry.InstanceId == InstanceId;
+				})
 			: INDEX_NONE);
-
-		OnScrubStateChanged.Execute(ScrubState);
-
-		RefreshActiveStates();
 	}
 }
 
@@ -201,7 +198,7 @@ void FStateTreeDebugger::UpdateInstances()
 	}
 }
 
-bool FStateTreeDebugger::RequestAnalysisOfNextLiveSession()
+bool FStateTreeDebugger::RequestAnalysisOfEditorSession()
 {
 	// Get snapshot of current trace to help identify the next live one
 	LastLiveSessionId = INDEX_NONE;
@@ -239,7 +236,7 @@ bool FStateTreeDebugger::RequestAnalysisOfNextLiveSession()
 				return Descriptor.TraceId == ActiveTraceId;
 			}))
 		{
-			return StartSessionAnalysis(*Descriptor);
+			return RequestSessionAnalysis(*Descriptor);
 		}
 	}
 
@@ -253,7 +250,18 @@ bool FStateTreeDebugger::TryStartNewLiveSessionAnalysis(const float RetryPolling
 
 	if (Traces.Num() && Traces.Last().TraceId != LastLiveSessionId)
 	{
-		return StartSessionAnalysis(Traces.Last());
+		// Intentional call to StartSessionAnalysis instead of RequestSessionAnalysis since we want
+		// to set 'bIsAnalyzingNextEditorSession' before calling OnNewSession delegate.
+		const bool bStarted = StartSessionAnalysis(Traces.Last());
+		if (bStarted)
+		{
+			UpdateAnalysisTransitionType(EAnalysisSourceType::EditorSession);
+
+			SetScrubStateCollectionIndex(INDEX_NONE);
+			OnNewSession.ExecuteIfBound();
+		}
+
+		return bStarted;
 	}
 	
 	RetryLoadNextLiveSessionTimer = RetryPollingDuration;
@@ -326,13 +334,19 @@ bool FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 		if (AnalysisSession.IsValid())
 		{
 			ActiveSessionTraceDescriptor = TraceDescriptor;
-			EventCollections.Reset();
-			ScrubState.SetEventCollectionIndex(INDEX_NONE);
-			OnNewSession.ExecuteIfBound();
 		}
 	}
 
 	return ActiveSessionTraceDescriptor.IsValid();
+}
+
+void FStateTreeDebugger::SetScrubStateCollectionIndex(const int32 EventCollectionIndex)
+{
+	ScrubState.SetEventCollectionIndex(EventCollectionIndex);
+
+	OnScrubStateChanged.Execute(ScrubState);
+
+	RefreshActiveStates();
 }
 
 void FStateTreeDebugger::GetLiveTraces(TArray<FTraceDescriptor>& OutTraceDescriptors) const
@@ -629,6 +643,49 @@ const TraceServices::IAnalysisSession* FStateTreeDebugger::GetAnalysisSession() 
 	return AnalysisSession.Get();
 }
 
+bool FStateTreeDebugger::RequestSessionAnalysis(const FTraceDescriptor& TraceDescriptor)
+{
+	if (StartSessionAnalysis(TraceDescriptor))
+	{
+		UpdateAnalysisTransitionType(EAnalysisSourceType::SelectedSession);
+		
+		SetScrubStateCollectionIndex(INDEX_NONE);
+		OnNewSession.ExecuteIfBound();
+		return true;
+	}
+	return false;
+}
+
+void FStateTreeDebugger::UpdateAnalysisTransitionType(const EAnalysisSourceType SourceType)
+{
+	switch (AnalysisTransitionType)
+	{
+	case EAnalysisTransitionType::Unset:
+		AnalysisTransitionType = (SourceType == EAnalysisSourceType::SelectedSession)
+				? EAnalysisTransitionType::NoneToSelected
+				: EAnalysisTransitionType::NoneToEditor;
+		break;
+
+	case EAnalysisTransitionType::NoneToSelected:
+	case EAnalysisTransitionType::EditorToSelected:
+	case EAnalysisTransitionType::SelectedToSelected:
+		AnalysisTransitionType = (SourceType == EAnalysisSourceType::SelectedSession)
+				? EAnalysisTransitionType::SelectedToSelected
+				: EAnalysisTransitionType::SelectedToEditor;
+		break;
+
+	case EAnalysisTransitionType::NoneToEditor:
+	case EAnalysisTransitionType::EditorToEditor:
+	case EAnalysisTransitionType::SelectedToEditor:
+		AnalysisTransitionType = (SourceType == EAnalysisSourceType::SelectedSession)
+				? EAnalysisTransitionType::EditorToSelected
+				: EAnalysisTransitionType::EditorToEditor;
+		break;
+	default:
+		ensureMsgf(false, TEXT("Unhandled transition type."));
+	}
+}
+
 UE::Trace::FStoreClient* FStateTreeDebugger::GetStoreClient() const
 {
 	return StateTreeModule.GetStoreClient();
@@ -772,14 +829,14 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 		// Push deferred notification for new instance Id
 		NewInstances.Push(InstanceId);
 
+		ExistingCollection = &EventCollections.Emplace_GetRef(InstanceId);
+
 		// Update the active event collection index when it's newly created for the currently debugged instance.
 		// Otherwise (i.e. EventCollection already exists) it is updated when switching instance (i.e. SelectInstance)
 		if (SelectedInstanceId == InstanceId && ScrubState.GetEventCollectionIndex() == INDEX_NONE)
 		{
-			ScrubState.SetEventCollectionIndex(EventCollections.Num());
+			SetScrubStateCollectionIndex(EventCollections.Num()-1);
 		}
-
-		ExistingCollection = &EventCollections.Emplace_GetRef(InstanceId);
 	}
 
 	check(ExistingCollection);
@@ -837,6 +894,12 @@ const UE::StateTreeDebugger::FInstanceEventCollection& FStateTreeDebugger::GetEv
 	});
 
 	return ExistingCollection != nullptr ? *ExistingCollection : FInstanceEventCollection::Invalid;
+}
+
+void FStateTreeDebugger::ResetEventCollections()
+{
+	EventCollections.Reset();
+	SetScrubStateCollectionIndex(INDEX_NONE);
 }
 
 void FStateTreeDebugger::AddEvents(const double StartTime, const double EndTime, const TraceServices::IFrameProvider& FrameProvider, const IStateTreeTraceProvider& StateTreeTraceProvider)
