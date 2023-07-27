@@ -248,6 +248,7 @@ private:
 	int32 CoreLimit = 0;
 	EShowWorker ShowWorkerOption = EShowWorker::CombinedLogs;
 	ELoadBalanceAlgorithm LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden;
+	bool bAllowLocalCooks = true;
 
 	// Data only accessible from the CommunicationThread (or if the CommunicationThread is inactive)
 	FSocket* WorkerConnectSocket = nullptr;
