@@ -9,6 +9,7 @@
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Customizations/DMXPixelMappingColorSpaceDetails_RGBCMY.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
@@ -16,6 +17,7 @@
 #include "Customizations/DMXPixelMappingDetailCustomization_Screen.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Renderer.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
+#include "Customizations/DMXPixelMappingDetailCustomization_OutputDMX.h"
 #include "DetailsViewArgs.h"
 #include "DMXPixelMappingComponentReference.h"
 #include "IDetailsView.h"
@@ -107,14 +109,17 @@ void SDMXPixelMappingDetailsView::RegisterCustomizations()
 	FOnGetDetailCustomizationInstance FixtureGroupCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_FixtureGroup::MakeInstance, WeakToolkit);
 	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupComponent::StaticClass(), FixtureGroupCustomizationInstance);
 
+	FOnGetDetailCustomizationInstance OutputDMXCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_OutputDMX::MakeInstance, WeakToolkit);
+	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingOutputDMXComponent::StaticClass(), OutputDMXCustomizationInstance);
+
 	FOnGetDetailCustomizationInstance FixtureGroupItemCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_FixtureGroupItem::MakeInstance, WeakToolkit);
 	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), FixtureGroupItemCustomizationInstance);
-	
-	FOnGetDetailCustomizationInstance ScreenCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Screen::MakeInstance, WeakToolkit);
-	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingScreenComponent::StaticClass(), ScreenCustomizationInstance);
 
 	FOnGetDetailCustomizationInstance MatrixCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Matrix::MakeInstance, WeakToolkit);
 	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixComponent::StaticClass(), MatrixCustomizationInstance);
+	
+	FOnGetDetailCustomizationInstance ScreenCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Screen::MakeInstance, WeakToolkit);
+	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingScreenComponent::StaticClass(), ScreenCustomizationInstance);
 
 	FOnGetDetailCustomizationInstance ColorSpaceCustomizationInstance_RGBCMY = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingColorSpaceDetails_RGBCMY::MakeInstance);
 	DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass(), ColorSpaceCustomizationInstance_RGBCMY);
