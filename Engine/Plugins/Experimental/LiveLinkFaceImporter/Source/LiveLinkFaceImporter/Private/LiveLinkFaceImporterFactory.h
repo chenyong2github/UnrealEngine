@@ -7,7 +7,7 @@
 #include "Factories/Factory.h"
 #include "LiveLinkFaceImporterFactory.generated.h"
 
-// Imports a CSV file created by the Live Link Face iOS app when recordin facial animation.
+// Imports a CSV file created by the Live Link Face iOS app when recording facial animation.
 UCLASS()
 class ULiveLinkFaceImporterFactory : public UFactory
 {
@@ -22,5 +22,7 @@ class ULiveLinkFaceImporterFactory : public UFactory
 protected:
 	bool LoadCSV(const FString& FileContent, TArray<FString>& KeyArray, TArray<FString>& LineArray, FString& OutLogMessage);
 	FString CreateSubjectString(const FString& InName);
+	bool ParseTimecode(const FString& InTimecodeString, int32& OutHours, int32& OutMinutes, int32& OutSeconds, double& OutFrames);
+	bool InferFrameRate(const TArray<TArray<FString>>& InLineValuesArray, int8& OutInferredFrameRate);
 };
 
