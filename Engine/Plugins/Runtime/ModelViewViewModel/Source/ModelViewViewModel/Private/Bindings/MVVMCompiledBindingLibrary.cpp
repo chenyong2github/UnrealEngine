@@ -18,6 +18,14 @@ DECLARE_CYCLE_STAT(TEXT("Load Library"), STAT_UMG_Viewmodel_LoadLibrary, STATGRO
 
 #define LOCTEXT_NAMESPACE "MVVMCompiledBindingLibrary"
 
+namespace UE::MVVM::Private
+{
+	bool IsFunctionVirtual(UFunction* Function)
+	{
+		return !Function->HasAnyFunctionFlags(FUNC_Static | FUNC_Final);
+	}
+}
+
 /**
  *
  */
@@ -187,7 +195,7 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 			checkf(TestSource.GetValue().GetObjectVariant().GetData() != nullptr, TEXT("Tested in EvaluateFieldPath"));
 #endif
 
-			TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FinalPath = GetFinalFieldFromPathImpl(InBinding.SourceFieldPath);
+			TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FinalPath = GetFinalFieldFromPathImpl(UE::MVVM::FObjectVariant(InSource), InBinding.SourceFieldPath);
 			if (FinalPath.HasError())
 			{
 				return MakeError(EExecutionFailingReason::InvalidSource);
@@ -363,6 +371,11 @@ TValueOrError<UE::MVVM::FFieldContext, void> FMVVMCompiledBindingLibrary::Evalua
 		{
 			check(LoadedFunctions.IsValidIndex(PathIndex.Index));
 			UFunction* Function = LoadedFunctions[PathIndex.Index];
+			if (Function && UE::MVVM::Private::IsFunctionVirtual(Function) && CurrentContainer.IsUObject())
+			{
+				Function = CurrentContainer.GetUObject()->GetClass()->FindFunctionByName(Function->GetFName());
+			}
+
 			if (!Function)
 			{
 				return MakeError();
@@ -398,7 +411,7 @@ TValueOrError<UE::MVVM::FFieldContext, void> FMVVMCompiledBindingLibrary::Evalua
 		return MakeError();
 	}
 
-	TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FinalPath = GetFinalFieldFromPathImpl(InFieldPath);
+	TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FinalPath = GetFinalFieldFromPathImpl(CurrentContainer, InFieldPath);
 	if (FinalPath.HasError())
 	{
 		return MakeError();
@@ -407,7 +420,7 @@ TValueOrError<UE::MVVM::FFieldContext, void> FMVVMCompiledBindingLibrary::Evalua
 }
 
 
-TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FMVVMCompiledBindingLibrary::GetFinalFieldFromPathImpl(const FMVVMVCompiledFieldPath& InFieldPath) const
+TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FMVVMCompiledBindingLibrary::GetFinalFieldFromPathImpl(UE::MVVM::FObjectVariant CurrentContainer, const FMVVMVCompiledFieldPath& InFieldPath) const
 {
 	const int32 IterationMax = InFieldPath.StartIndex + InFieldPath.Num - 1;
 
@@ -428,6 +441,11 @@ TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FMVVMCompiledBindingLibrary::Ge
 	{
 		check(LoadedFunctions.IsValidIndex(FinalPathIndex.Index));
 		UFunction* Function = LoadedFunctions[FinalPathIndex.Index];
+		if (Function && UE::MVVM::Private::IsFunctionVirtual(Function) && CurrentContainer.IsUObject())
+		{
+			Function = CurrentContainer.GetUObject()->GetClass()->FindFunctionByName(Function->GetFName());
+		}
+
 		if (!Function)
 		{
 			return MakeError();

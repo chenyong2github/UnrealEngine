@@ -626,7 +626,7 @@ void FMVVMViewBlueprintCompiler::CreateFunctionsDeclaration(const FWidgetBluepri
 				SourceCreator.SetterGraph = UE::MVVM::FunctionGraphHelper::CreateIntermediateFunctionGraph(
 					WidgetBlueprintCompilerContext
 					, SourceCreator.SetterFunctionName
-					, (FUNC_BlueprintCallable | FUNC_Public)
+					, (FUNC_BlueprintCallable | FUNC_Public | FUNC_Final)
 					, TEXT("Viewmodel")
 					, false);
 				BlueprintView->TemporaryGraph.Add(SourceCreator.SetterGraph);

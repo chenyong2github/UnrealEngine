@@ -3,6 +3,7 @@
 #pragma once
 
 #include "FieldNotificationId.h" // IWYU pragma: keep
+#include "Types/MVVMObjectVariant.h"
 #include "MVVMCompiledBindingLibrary.generated.h"
 
 namespace UE::FieldNotification { struct FFieldId; }
@@ -168,6 +169,7 @@ struct FMVVMCompiledLoadedPropertyOrFunctionIndex
 	}
 
 private:
+	/** Is the index in LoadedProperties or LoadedFunctions.*/
 	UPROPERTY()
 	int16 Index = INDEX_NONE;
 
@@ -179,7 +181,7 @@ private:
 	UPROPERTY()
 	uint8 bIsScriptStructProperty : 1;
 
-	/** Is the index in LoadedProperties or the index is in LoadedFunctions. */
+	/** Is the index in LoadedProperties or LoadedFunctions. */
 	UPROPERTY()
 	uint8 bIsProperty : 1;
 };
@@ -331,7 +333,7 @@ private:
 	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding, UObject* Source, EConversionFunctionType ConversionType) const;
 	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UE::MVVM::FFieldContext& Source, UE::MVVM::FFieldContext& Destination, UE::MVVM::FFunctionContext& ConversionFunction, EConversionFunctionType ConversionType) const;
 
-	TValueOrError<UE::MVVM::FMVVMFieldVariant, void> GetFinalFieldFromPathImpl(const FMVVMVCompiledFieldPath& FieldPath) const;
+	TValueOrError<UE::MVVM::FMVVMFieldVariant, void> GetFinalFieldFromPathImpl(UE::MVVM::FObjectVariant CurrentContainer, const FMVVMVCompiledFieldPath& FieldPath) const;
 
 private:
 	TArray<FProperty*> LoadedProperties;

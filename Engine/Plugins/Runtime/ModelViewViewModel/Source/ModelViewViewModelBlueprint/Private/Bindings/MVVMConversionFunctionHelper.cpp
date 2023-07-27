@@ -88,7 +88,7 @@ namespace Private
 		FGraphNodeCreator<UK2Node_FunctionEntry> FunctionEntryCreator(*FunctionGraph);
 		UK2Node_FunctionEntry* FunctionEntry = FunctionEntryCreator.CreateNode();
 		FunctionEntry->FunctionReference.SetSelfMember(FunctionGraph->GetFName());
-		FunctionEntry->AddExtraFlags(FUNC_BlueprintCallable | FUNC_BlueprintPure | FUNC_Const | FUNC_Protected);
+		FunctionEntry->AddExtraFlags(FUNC_BlueprintCallable | FUNC_BlueprintPure | FUNC_Const | FUNC_Protected | FUNC_Final);
 		FunctionEntry->bIsEditable = bIsEditable;
 		FunctionEntry->MetaData.Category = FText::FromName(ConversionFunctionCategory.Resolve());
 		FunctionEntry->NodePosX = -500;
