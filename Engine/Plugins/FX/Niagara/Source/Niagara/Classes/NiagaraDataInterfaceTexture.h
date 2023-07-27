@@ -31,6 +31,7 @@ public:
 	NIAGARA_API virtual void PostInitProperties()override;
 	NIAGARA_API virtual void PostLoad() override;
 	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
+	virtual bool CanBeInCluster() const override { return false; }	// Note: Due to BP functionality we can change a UObject property on this DI we can not put into a cluster
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface

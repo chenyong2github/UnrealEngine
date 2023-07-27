@@ -764,6 +764,7 @@ public:
 	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
+	virtual bool CanBeInCluster() const override { return false; }	// Note: Due to BP functionality we can change a UObject property on this DI we can not put into a cluster
 	//~ UObject interface END
 
 
