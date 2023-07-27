@@ -76,23 +76,16 @@ FName FDMXFixtureCategoryCustomization::GetValue() const
 
 void FDMXFixtureCategoryCustomization::SetValue(FName NewValue)
 {
-	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
+	const TSharedPtr<IPropertyHandle> NameHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureCategory, Name));
 
-	TArray<void*> RawData;
-	StructPropertyHandle->AccessRawData(RawData);
-
-	for (void* SingleRawData : RawData)
+	// Avoid recursion
+	FName OldValue;
+	if (NameHandle->GetValue(OldValue) == FPropertyAccess::Success &&
+		OldValue != NewValue)
 	{
-		FDMXFixtureCategory* PreviousValue = reinterpret_cast<FDMXFixtureCategory*>(SingleRawData);
-		FDMXFixtureCategory NewCategoryName;
-		NewCategoryName.Name = NewValue;
-
-		// Export new value to text format that can be imported later
-		FString TextValue;
-		StructProperty->Struct->ExportText(TextValue, &NewCategoryName, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-
-		// Set values on edited property handle from exported text
-		ensure(StructPropertyHandle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		NameHandle->NotifyPreChange();
+		NameHandle->SetValue(NewValue);
+		NameHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 

@@ -120,7 +120,7 @@ TSharedRef<SWidget> FDMXEntityFixturePatchDetails::GenerateActiveModeWidget(cons
 void FDMXEntityFixturePatchDetails::OnParentFixtureTypeChanged(UDMXEntity* NewTemplate) const
 {
 	ParentFixtureTypeHandle->SetValue(Cast<UDMXEntityFixtureType>(NewTemplate));
-	PropertyUtilities->ForceRefresh();
+	PropertyUtilities->RequestRefresh();
 }
 
 void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
@@ -138,7 +138,7 @@ void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixture
 			}
 		}
 	
-		PropertyUtilities->ForceRefresh();
+		PropertyUtilities->RequestRefresh();
 	}
 }
 
