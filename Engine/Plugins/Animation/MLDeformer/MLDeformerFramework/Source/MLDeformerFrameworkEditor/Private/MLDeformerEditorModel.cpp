@@ -1538,6 +1538,7 @@ namespace UE::MLDeformer
 			Model->GetSkeletalMesh() == nullptr ||
 			GetNumTrainingFrames() == 0)
 		{
+			UpdateEditorInputInfo();
 			return false;
 		}
 

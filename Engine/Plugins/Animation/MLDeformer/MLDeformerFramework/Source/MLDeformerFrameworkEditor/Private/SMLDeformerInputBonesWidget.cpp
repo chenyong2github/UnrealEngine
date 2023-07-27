@@ -357,7 +357,7 @@ namespace UE::MLDeformer
 				RefreshTree();
 
 				// Trigger the input widgets events.
-				// This is done AFTER the RefreshList call, because that updates the editor input info.
+				// This is done AFTER the RefreshTree call, because that updates the editor input info.
 				// Some handler code might depend on that to be updated first.
 				InputWidget->OnAddInputBones(BonesAdded);
 			}
