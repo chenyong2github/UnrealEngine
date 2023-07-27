@@ -30,6 +30,10 @@ public:
 		double NumberOfFrames,
 		const FString& Extension
 	);
+	USDCLASSES_API static void SendAnalytics(
+		TArray<FAnalyticsEventAttribute>&& InAttributes,
+		const FString& EventName
+	);
 
 	/**
 	 * Updates HashToUpdate with the Object's package's persistent guid, the corresponding file save

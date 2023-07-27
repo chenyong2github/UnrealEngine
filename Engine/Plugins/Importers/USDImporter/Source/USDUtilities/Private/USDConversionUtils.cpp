@@ -18,7 +18,7 @@
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
-#include "Algo/Copy.h"
+#include "AnalyticsEventAttribute.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
@@ -69,8 +69,6 @@
 	#include "pxr/usd/usdGeom/metrics.h"
 	#include "pxr/usd/usdGeom/primvar.h"
 	#include "pxr/usd/usdGeom/primvarsAPI.h"
-	#include "pxr/usd/usdGeom/scope.h"
-	#include "pxr/usd/usdGeom/xform.h"
 	#include "pxr/usd/usdLux/diskLight.h"
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
@@ -2818,6 +2816,165 @@ FUsdUnrealAssetInfo UsdUtils::GetPrimAssetInfo( const UE::FUsdPrim& Prim )
 #endif // USE_USD_SDK
 
 	return Result;
+}
+
+void UsdUtils::CollectSchemaAnalytics(const UE::FUsdStage& Stage, const FString& EventName)
+{
+#if USE_USD_SDK
+	if (!Stage)
+	{
+		return;
+	}
+
+	TMap<FString, int32> Counts;
+
+	{
+		FScopedUsdAllocs Allocs;
+
+		pxr::UsdPrimRange PrimRange{Stage.GetPseudoRoot(), pxr::UsdTraverseInstanceProxies()};
+		for (pxr::UsdPrimRange::iterator PrimRangeIt = ++PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt)
+		{
+			// It's perfectly fine to have a typeless prim (e.g. "def 'Cube'")
+			if (PrimRangeIt->HasAuthoredTypeName())
+			{
+				const pxr::TfToken& TypeName = PrimRangeIt->GetTypeName();
+				const FString TypeNameStr = UsdToUnreal::ConvertToken(TypeName);
+
+				if (!TypeNameStr.IsEmpty())
+				{
+					Counts.FindOrAdd(TypeNameStr) += 1;
+				}
+			}
+
+			for (const pxr::TfToken& AppliedSchema : PrimRangeIt->GetAppliedSchemas())
+			{
+				std::pair<pxr::TfToken, pxr::TfToken> Pair = pxr::UsdSchemaRegistry::GetTypeNameAndInstance(AppliedSchema);
+				FString TypeName = UsdToUnreal::ConvertToken(Pair.first);
+
+				// These applied schema names shouldn't ever end up as the empty string... but we don't really want to pop
+				// an ensure or show a warning when analytics fails
+				if (!TypeName.IsEmpty())
+				{
+					Counts.FindOrAdd(TypeName) += 1;
+				}
+			}
+		}
+	}
+
+	const static TSet<FString> NativeSchemaNames{
+		"AssetPreviewsAPI",
+		"Backdrop",
+		"BasisCurves",
+		"BlendShape",
+		"Camera",
+		"Capsule",
+		"ClipsAPI",
+		"CollectionAPI",
+		"Cone",
+		"ConnectableAPI",
+		"ControlRigAPI",
+		"CoordSysAPI",
+		"Cube",
+		"Cylinder",
+		"CylinderLight",
+		"DiskLight",
+		"DistantLight",
+		"DomeLight",
+		"Field3DAsset",
+		"GenerativeProcedural",
+		"GeomModelAPI",
+		"GeomSubset",
+		"GeometryLight",
+		"GroomAPI",
+		"GroomBindingAPI",
+		"HermiteCurves",
+		"HydraGenerativeProceduralAPI",
+		"LightAPI",
+		"LightFilter",
+		"LightListAPI",
+		"ListAPI",
+		"LiveLinkAPI",
+		"Material",
+		"MaterialBindingAPI",
+		"Mesh",
+		"MeshLightAPI",
+		"ModelAPI",
+		"MotionAPI",
+		"NodeDefAPI",
+		"NodeGraph",
+		"NodeGraphNodeAPI",
+		"NurbsCurves",
+		"NurbsPatch",
+		"OpenVDBAsset",
+		"PackedJointAnimation",
+		"PhysicsArticulationRootAPI",
+		"PhysicsCollisionAPI",
+		"PhysicsCollisionGroup",
+		"PhysicsDistanceJoint",
+		"PhysicsDriveAPI",
+		"PhysicsFilteredPairsAPI",
+		"PhysicsFixedJoint",
+		"PhysicsJoint",
+		"PhysicsLimitAPI",
+		"PhysicsMassAPI",
+		"PhysicsMaterialAPI",
+		"PhysicsMeshCollisionAPI",
+		"PhysicsPrismaticJoint",
+		"PhysicsRevoluteJoint",
+		"PhysicsRigidBodyAPI",
+		"PhysicsScene",
+		"PhysicsSphericalJoint",
+		"Plane",
+		"PluginLight",
+		"PluginLightFilter",
+		"PointInstancer",
+		"Points",
+		"PortalLight",
+		"PrimvarsAPI",
+		"RectLight",
+		"RenderDenoisePass",
+		"RenderPass",
+		"RenderProduct",
+		"RenderSettings",
+		"RenderVar",
+		"RiMaterialAPI",
+		"RiSplineAPI",
+		"SceneGraphPrimAPI",
+		"Scope",
+		"Shader",
+		"ShadowAPI",
+		"ShapingAPI",
+		"SkelAnimation",
+		"SkelBindingAPI",
+		"SkelRoot",
+		"Skeleton",
+		"SpatialAudio",
+		"Sphere",
+		"SphereLight",
+		"StatementsAPI",
+		"VisibilityAPI",
+		"Volume",
+		"VolumeLightAPI",
+		"Xform",
+		"XformCommonAPI"};
+
+	TArray<FAnalyticsEventAttribute> EventAttributes;
+	EventAttributes.Reserve(Counts.Num());
+
+	for (const TPair<FString, int32>& Pair : Counts)
+	{
+		// We only care about non-native schemas
+		if (!NativeSchemaNames.Contains(Pair.Key))
+		{
+			EventAttributes.Emplace(Pair.Key, Pair.Value);
+		}
+	}
+
+	if (EventAttributes.Num() > 0)
+	{
+		IUsdClassesModule::SendAnalytics(MoveTemp(EventAttributes), FString::Printf(TEXT("%s.NonNativeSchemaCounts"), *EventName));
+	}
+#endif	  // USE_USD_SDK
 }
 
 #if USE_USD_SDK

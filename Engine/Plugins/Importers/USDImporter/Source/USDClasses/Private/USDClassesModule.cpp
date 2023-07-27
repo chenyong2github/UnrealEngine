@@ -214,6 +214,21 @@ void IUsdClassesModule::SendAnalytics( TArray<FAnalyticsEventAttribute>&& InAttr
 	}
 }
 
+void IUsdClassesModule::SendAnalytics(TArray<FAnalyticsEventAttribute>&& InAttributes, const FString& EventName)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> Attributes(InAttributes);
+
+		Attributes.Emplace(TEXT("Platform"), FPlatformProperties::IniPlatformName());
+		Attributes.Emplace(TEXT("EngineVersion"), FEngineVersion::Current().ToString());
+		Attributes.Emplace(TEXT("EngineMode"), FPlatformMisc::GetEngineMode());
+
+		const FString EventText = FString::Printf(TEXT("Engine.Usage.USD.%s"), *EventName);
+		FEngineAnalytics::GetProvider().RecordEvent(EventText, Attributes);
+	}
+}
+
 bool IUsdClassesModule::HashObjectPackage( const UObject* Object, FSHA1& HashToUpdate )
 {
 #if WITH_EDITOR

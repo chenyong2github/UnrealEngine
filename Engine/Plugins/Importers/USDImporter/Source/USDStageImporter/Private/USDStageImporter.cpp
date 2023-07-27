@@ -1876,6 +1876,8 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		UsdStageImporterImpl::SendAnalytics( ImportContext, nullptr, TEXT("Import"), PublishedAssetsAndDependencies, ElapsedSeconds);
 		UE_LOG(LogUsd, Log, TEXT("Imported '%s' in %.3f seconds."), *ImportContext.FilePath, ElapsedSeconds);
+
+		UsdUtils::CollectSchemaAnalytics(ImportContext.Stage, TEXT("Import"));
 	}
 
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
@@ -2040,6 +2042,8 @@ bool UUsdStageImporter::ReimportSingleAsset(
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		UsdStageImporterImpl::SendAnalytics( ImportContext, ReimportedObject, TEXT( "Reimport" ), { ReimportedObject }, ElapsedSeconds );
 		UE_LOG(LogUsd, Log, TEXT("Re-imported '%s' in %.3f seconds."), *ImportContext.FilePath, ElapsedSeconds);
+
+		UsdUtils::CollectSchemaAnalytics(ImportContext.Stage, TEXT("Reimport"));
 	}
 
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );

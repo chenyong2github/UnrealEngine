@@ -2162,6 +2162,10 @@ void AUsdStageActor::SetRootLayer(const FString& RootFilePath)
 	UnloadUsdStage();
 	RootLayer.FilePath = RelativeFilePath;
 	LoadUsdStage();
+
+	// Do this here instead of on OpenUsdStage/LoadUsdStage as those also get called when changing any of
+	// our properties, like render context, material purpose, etc.
+	UsdUtils::CollectSchemaAnalytics(UsdStage, TEXT("Open"));
 }
 
 void AUsdStageActor::SetAssetCache(UUsdAssetCache2* NewCache)

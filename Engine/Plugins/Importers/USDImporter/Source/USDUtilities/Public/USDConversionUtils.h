@@ -448,5 +448,8 @@ namespace UsdUtils
 
 	/** Retrieves from Prim the assetInfo metadata values that we use as export metadata, when exporting Unreal assets */
 	USDUTILITIES_API FUsdUnrealAssetInfo GetPrimAssetInfo( const UE::FUsdPrim& Prim );
+
+	/** Collects how many times each schema shows up on the provided stage and send it as an analytics event */
+	USDUTILITIES_API void CollectSchemaAnalytics(const UE::FUsdStage& Stage, const FString& EventName);
 }
 
