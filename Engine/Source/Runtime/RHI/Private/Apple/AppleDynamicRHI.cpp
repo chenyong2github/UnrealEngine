@@ -76,10 +76,18 @@ static void ComputeRequestedFeatureLevel(const FAppleDynamicRHIOptions& Options,
 
 		if (TargetedShaderFormats.Num() > 0)
 		{
-			// Pick the first one
-			FName ShaderFormatName(*TargetedShaderFormats[0]);
-			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
-			RequestedFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
+            // Pick the highest targeted shader format
+            for(const FString& Format : TargetedShaderFormats)
+            {
+                FName ShaderFormatName(*Format);
+                EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
+                ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
+                
+                if(FeatureLevel > RequestedFeatureLevel || RequestedFeatureLevel == ERHIFeatureLevel::Num)
+                {
+                    RequestedFeatureLevel = FeatureLevel;
+                }
+            }
 		}
 	}
 	else
