@@ -414,15 +414,15 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category= "StereoLayer")
 	int32 Priority;
 
+	/** IStereoLayer id, 0 is unassigned **/
+	uint32 LayerId;
+
 private:
 	/** Dirty state determines whether the stereo layer needs updating **/
 	bool bIsDirty;
 
 	/** Texture needs to be marked for update **/
 	bool bTextureNeedsUpdate;
-
-	/** IStereoLayer id, 0 is unassigned **/
-	uint32 LayerId;
 
 	/** Last transform is cached to determine if the new frames transform has changed **/
 	FTransform LastTransform;
