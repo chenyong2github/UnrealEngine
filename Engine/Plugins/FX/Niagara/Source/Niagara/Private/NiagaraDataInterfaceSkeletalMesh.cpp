@@ -2029,9 +2029,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance) const
 {
-	// Reset if the scene component we've cached has been invalidated
+	// Reset if the scene component we've cached has been invalidated or unregistered
 	USceneComponent* Comp = SceneComponent.Get();
-	if (bComponentValid && !Comp)
+	if (bComponentValid && (!Comp || !Comp->IsRegistered()))
 	{
 		return true;
 	}
