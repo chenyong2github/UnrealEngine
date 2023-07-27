@@ -55,7 +55,7 @@ static int32 GetMaxUpdatesPerFrame(const UNiagaraEffectType* EffectType, int32 I
 
 				if (!AlreadyAdded)
 				{
-					UE_LOG(LogNiagara, Warning, TEXT("NiagaraScalabilityManager needs to process %d updates (will be clamped to %d) for EffectType - %s - (%d items, %f period (s), %f delta (s)"),
+					UE_LOG(LogNiagara, Verbose, TEXT("NiagaraScalabilityManager needs to process %d updates (will be clamped to %d) for EffectType - %s - (%d items, %f period (s), %f delta (s)"),
 						UpdateCount,
 						GScalabilityMaxUpdatesPerFrame,
 						*EffectType->GetName(),
