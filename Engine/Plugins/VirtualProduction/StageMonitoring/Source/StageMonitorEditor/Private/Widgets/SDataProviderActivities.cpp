@@ -199,15 +199,23 @@ void SDataProviderActivities::InsertActivity(FDataProviderActivityPtr Activity)
 	//We might receive messages out of order, make sure we're displaying them in order of source timecode
 	const FStageProviderMessage* ThisActivity = reinterpret_cast<const FStageProviderMessage*>(Activity->Data->GetStructMemory());
 	const double NewFrameSeconds = ThisActivity->FrameTime.AsSeconds();
+	const double NewFrameDay = FMath::Floor(ThisActivity->DateTime.GetJulianDay());
+
 	int32 EntryIndex = 0;
 
-	for (; EntryIndex < FilteredActivities.Num(); ++EntryIndex)
+	// If an activity has a negative timecode, just add it to the top of the list to avoid comparing against all the entries in the list.
+	if (NewFrameSeconds >= 0)
 	{
-		const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(FilteredActivities[EntryIndex]->Data->GetStructMemory());
-		const double ThisFrameSeconds = ThisEntry->FrameTime.AsSeconds();
-		if (NewFrameSeconds >= ThisFrameSeconds)
+		for (; EntryIndex < FilteredActivities.Num(); ++EntryIndex)
 		{
-			break;
+			const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(FilteredActivities[EntryIndex]->Data->GetStructMemory());
+			const double ThisFrameSeconds = ThisEntry->FrameTime.AsSeconds();
+			const double ThisFrameDay = FMath::Floor(ThisEntry->DateTime.GetJulianDay());
+
+			if (NewFrameSeconds >= ThisFrameSeconds || NewFrameDay > ThisFrameDay)
+			{
+				break;
+			}
 		}
 	}
 
@@ -368,7 +376,14 @@ FText SDataProviderActivitiesTableRow::GetTimecode() const
 	{
 		check(Item->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
 		FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->Data->GetStructMemory());
-		return FText::FromString(FTimecode::FromFrameNumber(Data->FrameTime.Time.GetFrame(), Data->FrameTime.Rate).ToString());
+		if (Data->FrameTime.AsSeconds() >= 0)
+		{
+			return FText::FromString(FTimecode::FromFrameNumber(Data->FrameTime.Time.GetFrame(), Data->FrameTime.Rate).ToString());
+		}
+		else
+		{
+			return LOCTEXT("InvalidTimecode", "Invalid Timecode");
+		}
 	}
 
 	return FText::GetEmpty();

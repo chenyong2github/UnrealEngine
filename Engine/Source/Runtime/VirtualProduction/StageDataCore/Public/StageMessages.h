@@ -185,6 +185,10 @@ public:
 	/** FrameTime of the sender. It's expected to have all stage machines using the same timecode provider to play in the same referential*/
 	UPROPERTY()
 	FQualifiedFrameTime FrameTime;
+
+	/** DateTime of the sender. Used to keep track of messages order through Timecode rollover. */
+	UPROPERTY()
+	FDateTime DateTime;
 };
 
 /**

@@ -129,6 +129,8 @@ void FStageMonitorSession::UpdateIdentifierMapping(const FGuid& OldIdentifier, c
 
 void FStageMonitorSession::AddProviderMessage(UScriptStruct* Type, const FStageProviderMessage* MessageData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStageMonitorSession::AddProviderMessage);
+
 	if (MessageData == nullptr)
 	{
 		return;
@@ -325,24 +327,39 @@ void FStageMonitorSession::UpdateProviderLatestEntry(const FGuid& Identifier, US
 
 void FStageMonitorSession::InsertNewEntry(TSharedPtr<FStageDataEntry> NewEntry)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStageMonitorSession::InsertNewEntry);
+
 	const FStageProviderMessage* Message = reinterpret_cast<const FStageProviderMessage*>(NewEntry->Data->GetStructMemory());
 	check(Message);
 
 	//We are always inserting in order so we shouldn't have to navigate in our list much
 	const double NewFrameSeconds = Message->FrameTime.AsSeconds();
-	int32 EntryIndex = Entries.Num() - 1;
-	for (; EntryIndex >= 0; --EntryIndex)
-	{
-		const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(Entries[EntryIndex]->Data->GetStructMemory());
-		const double ThisFrameSeconds = ThisEntry->FrameTime.AsSeconds();
-		if (ThisFrameSeconds <= NewFrameSeconds)
-		{
-			break;
-		}
-	}
+	const double NewFrameDay = FMath::Floor(Message->DateTime.GetJulianDay());
 
-	const int32 InsertIndex = EntryIndex + 1;
-	Entries.Insert(NewEntry, InsertIndex);
+	if (NewFrameSeconds >= 0)
+	{
+		int32 EntryIndex = Entries.Num() - 1;
+		for (; EntryIndex >= 0; --EntryIndex)
+		{
+			const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(Entries[EntryIndex]->Data->GetStructMemory());
+		
+			const double ThisFrameSeconds = ThisEntry->FrameTime.AsSeconds();
+			const double ThisFrameDay = FMath::Floor(ThisEntry->DateTime.GetJulianDay());
+
+			if (ThisFrameSeconds <= NewFrameSeconds || NewFrameDay > ThisFrameDay)
+			{
+				break;
+			}
+		}
+
+		const int32 InsertIndex = EntryIndex + 1;
+		Entries.Insert(NewEntry, InsertIndex);
+	}
+	else
+	{
+		// Invalid entries with negative timecode get added to the end of the list to avoid going through all the list when they're inserted.
+		Entries.Add(NewEntry);
+	}
 }
 
 void FStageMonitorSession::GetAllEntries(TArray<TSharedPtr<FStageDataEntry>>& OutEntries)

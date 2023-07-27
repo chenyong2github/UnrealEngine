@@ -14,6 +14,8 @@ FStageProviderMessage::FStageProviderMessage()
 {
 	//Common setup of timecode for all provider messages
 	TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+	DateTime = FDateTime::Now();
+	
 	if (CurrentFrameTime.IsSet())
 	{
 		FrameTime = CurrentFrameTime.GetValue();
