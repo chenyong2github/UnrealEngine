@@ -181,13 +181,23 @@ struct FPackagePlatformData
 	ECookResult GetCookResults() const { return (ECookResult)CookResults; }
 	bool IsCookAttempted() const { return CookResults != (uint32)ECookResult::NotAttempted; }
 	bool IsCookSucceeded() const { return CookResults == (uint32)ECookResult::Succeeded; }
-	void SetCookResults(ECookResult Value) { CookResults = (uint32)Value; }
+	void SetCookResults(ECookResult Value)
+	{
+		// ECookResult::Invalid is only used in replication and is not allowed in FPackagePlatformData
+		check(Value != ECookResult::Invalid);
+		CookResults = (uint32)Value;
+		SetReportedToDirector(false);
+	}
 
 	/** Return if we need to call SavePackage on it (reachable, cookable, not yet cooked) */
 	bool NeedsCooking(const ITargetPlatform* PlatformItBelongsTo) const;
 
 	bool IsRegisteredForCachedObjectsInOuter() const { return bRegisteredForCachedObjectsInOuter != 0; }
 	void SetRegisteredForCachedObjectsInOuter(bool bValue) { bRegisteredForCachedObjectsInOuter = bValue; }
+
+	/** Only read/written on CookWorkers */
+	bool IsReportedToDirector() { return bReportedToDirector != 0; }
+	void SetReportedToDirector(bool bValue) { bReportedToDirector = (uint32)bValue; }
 
 private:
 	uint32 bReachable : 1;
@@ -198,6 +208,7 @@ private:
 	uint32 bExplorableOverride : 1;
 	uint32 bIterativelySkipped : 1;
 	uint32 bRegisteredForCachedObjectsInOuter : 1;
+	uint32 bReportedToDirector : 1;
 	uint32 CookResults : (int)ECookResult::NumBits;
 };
 

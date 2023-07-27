@@ -205,7 +205,17 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 		ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
 		FPackageRemoteResult::FPlatformResult& PlatformResults = Result->GetPlatforms()[PlatformIndex];
 		FPackagePlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
-		PlatformResults.SetCookResults(PackagePlatformData.GetCookResults());
+		if (!PackagePlatformData.IsCookAttempted() || PackagePlatformData.IsReportedToDirector())
+		{
+			// We didn't attempt to cook this platform for this package, or we cooked it previously and already sent the
+			// information about it
+			PlatformResults.SetCookResults(ECookResult::Invalid);
+		}
+		else
+		{
+			PlatformResults.SetCookResults(PackagePlatformData.GetCookResults());
+			PackagePlatformData.SetReportedToDirector(true);
+		}
 	}
 
 	ReportPackageMessage(PackageName, MoveTemp(ResultOwner));

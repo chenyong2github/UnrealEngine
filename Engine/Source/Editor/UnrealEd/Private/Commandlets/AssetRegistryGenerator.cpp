@@ -2927,6 +2927,11 @@ void FAssetRegistryMPCollector::ClientTickPackage(FMPCollectorClientTickPackageC
 	bool bLoggedWarning = false;
 	for (const FMPCollectorClientTickPackageContext::FPlatformData& ContextPlatformData : Context.GetPlatformDatas())
 	{
+		if (ContextPlatformData.CookResults == ECookResult::Invalid)
+		{
+			continue;
+		}
+
 		const ITargetPlatform* TargetPlatform = ContextPlatformData.TargetPlatform;
 		FPlatformData* PlatformData = COTFS.PlatformManager->GetPlatformData(TargetPlatform);
 		FAssetRegistryReporterRemote& RegistryReporter = static_cast<FAssetRegistryReporterRemote&>(*PlatformData->RegistryReporter);

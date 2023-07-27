@@ -117,6 +117,8 @@ namespace UE::Cook
 		Failed,
 		/** The package is a NeverCook package that needs to be added to cookresults for dependency tracking. */
 		NeverCookPlaceholder,
+		/** No information for this platform (used in CookWorker replication) */
+		Invalid,
 		Count,
 		NumBits= FPlatformMath::ConstExprCeilLogTwo(ECookResult::Count),
 	};
