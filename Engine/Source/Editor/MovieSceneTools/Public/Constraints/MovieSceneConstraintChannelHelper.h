@@ -18,6 +18,7 @@ struct FMovieSceneConstraintChannel;
 struct FFrameNumber;
 struct FConstraintAndActiveChannel;
 enum class EMovieSceneKeyInterpolation : uint8;
+enum class EMovieSceneTransformChannel : uint32;
 
 struct MOVIESCENETOOLS_API FCompensationEvaluator
 {
@@ -169,7 +170,8 @@ public:
 	static  void DeleteTransformTimes(
 		const TArrayView<ChannelType*>& InChannels,
 		const FFrameNumber& StartTime,
-		const FFrameNumber& EndTime);
+		const FFrameNumber& EndTime,
+		EMovieSceneTransformChannel Channels = EMovieSceneTransformChannel::AllTransform);
 
 	/** this will only set the value son channels with keys at the specified time, reusing tangent time etc. */
 	template< typename ChannelType >

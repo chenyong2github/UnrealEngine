@@ -331,16 +331,19 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 		}
 	}
 	//remove transform keys if baking frame
+	const EMovieSceneTransformChannel ChannelsToKey = InConstraint->GetChannelsToKey();
+
 	if (InSettings.IsSet() && InSettings.GetValue().BakingKeySettings == EBakingKeySettings::AllFrames)
 	{
 		if (FloatTransformChannels.Num() > 0)
 		{
-			FMovieSceneConstraintChannelHelper::DeleteTransformTimes(FloatTransformChannels, FramesToBake[0] +1, FramesToBake[FramesToBake.Num() -1]);
+			FMovieSceneConstraintChannelHelper::DeleteTransformTimes(FloatTransformChannels, FramesToBake[0] +1, FramesToBake[FramesToBake.Num() -1],
+				ChannelsToKey);
 		}
 		else if (DoubleTransformChannels.Num() > 0)
 		{
-			FMovieSceneConstraintChannelHelper::DeleteTransformTimes(DoubleTransformChannels, FramesToBake[0] + 1, FramesToBake[FramesToBake.Num() - 1]);
-
+			FMovieSceneConstraintChannelHelper::DeleteTransformTimes(DoubleTransformChannels, FramesToBake[0] + 1, FramesToBake[FramesToBake.Num() - 1],
+				ChannelsToKey);
 		}
 	}
 

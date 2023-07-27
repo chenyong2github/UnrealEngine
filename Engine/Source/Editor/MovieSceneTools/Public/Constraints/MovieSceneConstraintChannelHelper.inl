@@ -357,15 +357,35 @@ template< typename ChannelType >
  void FMovieSceneConstraintChannelHelper::DeleteTransformTimes(
 	 const TArrayView<ChannelType*>& InChannels,
 	 const FFrameNumber& StartTime,
-	 const FFrameNumber& EndTime)
+	 const FFrameNumber& EndTime,
+	 EMovieSceneTransformChannel InChannelsToKey)
 {
 	 TRange<FFrameNumber> WithinRange(0, 0);
 	 WithinRange.SetLowerBoundValue(StartTime);
 	 WithinRange.SetUpperBoundValue(EndTime);
 	 TArray<FFrameNumber> KeyTimes;
 	 TArray<FKeyHandle> KeyHandles;
-	 for (ChannelType* Channel : InChannels)
+
+	 const bool bKeyTranslation = EnumHasAllFlags(InChannelsToKey, EMovieSceneTransformChannel::Translation);
+	 const bool bKeyRotation = EnumHasAllFlags(InChannelsToKey, EMovieSceneTransformChannel::Rotation);
+	 const bool bKeyScale = EnumHasAllFlags(InChannelsToKey, EMovieSceneTransformChannel::Scale);
+
+	 TArray<uint32> ChannelsIndexToKey;
+	 if (bKeyTranslation)
 	 {
+		 ChannelsIndexToKey.Append({ 0,1,2 });
+	 }
+	 if (bKeyRotation)
+	 {
+		 ChannelsIndexToKey.Append({ 3,4,5 });
+	 }
+	 if (bKeyScale)
+	 {
+		 ChannelsIndexToKey.Append({ 6,7,8 });
+	 }
+	 for (const int32 ChannelIndex : ChannelsIndexToKey)
+	 {
+		 ChannelType* Channel = InChannels[ChannelIndex];
 		 TMovieSceneChannelData<typename ChannelType::ChannelValueType> Data = Channel->GetData();
 		 KeyTimes.SetNum(0);
 		 KeyHandles.SetNum(0);
