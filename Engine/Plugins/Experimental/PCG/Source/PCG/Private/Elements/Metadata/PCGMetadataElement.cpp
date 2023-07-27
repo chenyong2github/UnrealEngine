@@ -182,12 +182,14 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 		SampledPoints = Points;
 
 		// If it is attribute to attribute, just copy the attributes, if they exist and are valid
-		if (InputSource.GetSelection() == EPCGAttributePropertySelection::Attribute && InputSource.GetExtraNames().IsEmpty() &&
-			OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute && OutputTarget.GetExtraNames().IsEmpty())
+		// Only do that if it is really attribute to attribute, without any extra accessor. Any extra accessor will behave as a property.
+		const bool bInputHasAnyExtra = !InputSource.GetExtraNames().IsEmpty();
+		const bool bOutputHasAnyExtra = !OutputTarget.GetExtraNames().IsEmpty();
+		if (!bInputHasAnyExtra && !bOutputHasAnyExtra && Settings->InputSource.GetSelection() == EPCGAttributePropertySelection::Attribute && OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
-			if (LocalSourceAttribute == LocalDestinationAttribute)
+			if (!SourceAttributeSet && LocalSourceAttribute == LocalDestinationAttribute)
 			{
-				// Nothing to do...
+				// Nothing to do if we try to copy an attribute into itself in the original point data.
 				continue;
 			}
 			
@@ -214,9 +216,9 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		// If the target is an attribute, only create a new one if the attribute doesn't already exist.
-		// If it exist, it will try to write to it.
-		if (OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute && !SampledData->Metadata->HasAttribute(LocalDestinationAttribute))
+		// If the target is an attribute, only create a new one if the attribute doesn't already exist or we have any extra.
+		// If it exist or have any extra, it will try to write to it.
+		if (!bOutputHasAnyExtra && OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute && !SampledData->Metadata->HasAttribute(LocalDestinationAttribute))
 		{
 			auto CreateAttribute = [SampledData, LocalDestinationAttribute](auto Dummy)
 			{

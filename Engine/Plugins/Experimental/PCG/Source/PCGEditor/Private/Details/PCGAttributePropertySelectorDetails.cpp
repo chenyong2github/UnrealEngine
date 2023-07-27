@@ -2,6 +2,7 @@
 
 #include "Details/PCGAttributePropertySelectorDetails.h"
 
+#include "PCGCommon.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
@@ -76,15 +77,19 @@ void FPCGAttributePropertySelectorDetails::CustomizeHeader(TSharedRef<IPropertyH
 		return (Selector && !Selector->IsValid()) ? FStyleColors::AccentRed : FSlateColor::UseForeground();
 	};
 
+	TSharedRef<SWidget> PropertyNameWidget = PropertyHandle->CreatePropertyNameWidget();
+	PropertyNameWidget->SetEnabled(TAttribute<bool>(this, &FPCGAttributePropertySelectorDetails::IsEnabled));
+
 	HeaderRow
 		.NameContent()
 		[
-			PropertyHandle->CreatePropertyNameWidget()
+			PropertyNameWidget
 		]
 		.ValueContent()
 		.MinDesiredWidth(350.0f)
 		[
 			SNew(SHorizontalBox)
+			.IsEnabled_Raw(this, &FPCGAttributePropertySelectorDetails::IsEnabled)
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SEditableTextBox)
@@ -99,6 +104,7 @@ void FPCGAttributePropertySelectorDetails::CustomizeHeader(TSharedRef<IPropertyH
 			[
 				SNew(SComboButton)
 				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.Visibility_Raw(this, &FPCGAttributePropertySelectorDetails::ExtraMenuVisibility)
 				.OnGetMenuContent(this, &FPCGAttributePropertySelectorDetails::GenerateExtraMenu)
 				.HasDownArrow(false)
 				.ButtonContent()
@@ -111,6 +117,35 @@ void FPCGAttributePropertySelectorDetails::CustomizeHeader(TSharedRef<IPropertyH
 		];
 }
 
+EVisibility FPCGAttributePropertySelectorDetails::ExtraMenuVisibility() const
+{
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(PropertyHandle->GetProperty());
+
+	const bool bIsVisible = StructProperty &&
+		(StructProperty->Struct == FPCGAttributePropertyInputSelector::StaticStruct() ||
+			StructProperty->Struct == FPCGAttributePropertyOutputSelector::StaticStruct() ||
+			!StructProperty->HasMetaData(PCGObjectMetadata::DiscardPropertySelection) ||
+			!StructProperty->HasMetaData(PCGObjectMetadata::DiscardExtraSelection));
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+bool FPCGAttributePropertySelectorDetails::IsEnabled() const
+{
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(PropertyHandle->GetProperty());
+	TArray<UObject*> Outers;
+	PropertyHandle->GetOuterObjects(Outers);
+	for (UObject* Outer : Outers)
+	{
+		if (Outer && !Outer->CanEditChange(StructProperty))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 TSharedRef<SWidget> FPCGAttributePropertySelectorDetails::GenerateExtraMenu()
 {
 	// Clear the focus on the text box. It is preventing from updating the text.
@@ -118,9 +153,10 @@ TSharedRef<SWidget> FPCGAttributePropertySelectorDetails::GenerateExtraMenu()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(PropertyHandle->GetProperty());
+
 	MenuBuilder.BeginSection("Attributes", LOCTEXT("AttributesHeader", "Attributes"));
 	{
-		FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(PropertyHandle->GetProperty());
 		if (StructProperty->Struct == FPCGAttributePropertyInputSelector::StaticStruct())
 		{
 			MenuBuilder.AddMenuEntry(
@@ -147,17 +183,23 @@ TSharedRef<SWidget> FPCGAttributePropertySelectorDetails::GenerateExtraMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("PointProperties", LOCTEXT("PointPropertiesHeader", "Point Properties"));
+	if (!StructProperty->HasMetaData(PCGObjectMetadata::DiscardPropertySelection))
 	{
-		PCGAttributePropertySelectorDetails::BuildMenuSectionFromEnum<EPCGPointProperties>(MenuBuilder, this, &FPCGAttributePropertySelectorDetails::SetPointProperty);
+		MenuBuilder.BeginSection("PointProperties", LOCTEXT("PointPropertiesHeader", "Point Properties"));
+		{
+			PCGAttributePropertySelectorDetails::BuildMenuSectionFromEnum<EPCGPointProperties>(MenuBuilder, this, &FPCGAttributePropertySelectorDetails::SetPointProperty);
+		}
+		MenuBuilder.EndSection();
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("OtherProperties", LOCTEXT("OtherPropertiesHeader", "Other Properties"));
+	if (!StructProperty->HasMetaData(PCGObjectMetadata::DiscardExtraSelection))
 	{
-		PCGAttributePropertySelectorDetails::BuildMenuSectionFromEnum<EPCGExtraProperties>(MenuBuilder, this, &FPCGAttributePropertySelectorDetails::SetExtraProperty);
+		MenuBuilder.BeginSection("OtherProperties", LOCTEXT("OtherPropertiesHeader", "Other Properties"));
+		{
+			PCGAttributePropertySelectorDetails::BuildMenuSectionFromEnum<EPCGExtraProperties>(MenuBuilder, this, &FPCGAttributePropertySelectorDetails::SetExtraProperty);
+		}
+		MenuBuilder.EndSection();
 	}
-	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }

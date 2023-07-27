@@ -50,6 +50,9 @@ struct PCG_API FPCGCustomVersion
 		// Difference node now iterates on the source pin and unions the differences pin
 		DifferenceNodeIterateOnSourceAndUnionDifferences = 13,
 
+		// Update AddAttribute with selectors
+		UpdateAddAttributeWithSelectors = 14,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -104,6 +104,8 @@ namespace PCGObjectMetadata
 	const FName Overridable = TEXT("PCG_Overridable");
 	const FName NotOverridable = TEXT("PCG_NotOverridable");
 	const FName OverrideAliases = TEXT("PCG_OverrideAliases");
+	const FName DiscardPropertySelection = TEXT("PCG_DiscardPropertySelection");
+	const FName DiscardExtraSelection = TEXT("PCG_DiscardExtraSelection");
 
 	// Metadata usable in UPROPERTY for customizing the behavior when displaying the property in a property panel or graph node
 	enum
@@ -116,6 +118,12 @@ namespace PCGObjectMetadata
 
 		/// [PropertyMetadata] Extra names to match for a given property.
 		PCG_OverrideAliases,
+
+		/// [PropertyMetadata] For FPCGAttributePropertySelector, won't display the point property items in the dropdown
+		PCG_DiscardPropertySelection,
+
+		/// [PropertyMetadata] For FPCGAttributePropertySelector, won't display the extra property items in the dropdown
+		PCG_DiscardExtraSelection,
 	};
 }
 
