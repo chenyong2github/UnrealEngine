@@ -1272,7 +1272,24 @@ bool ULevelSequenceEditorSubsystem::BakeTransformWithSettings(const TArray<FMovi
 
 			for (int32 Counter = 0; Counter < KeyTimes.Num(); ++Counter)
 			{
-				FTransform LocalTransform(BakeData.Value.Rotations[Counter], BakeData.Value.Locations[Counter], BakeData.Value.Scales[Counter]);
+				FVector LocalTranslation = DefaultLocation;
+				FVector LocalScale = DefaultScale;
+				FRotator LocalRotation = DefaultRotation.Rotation();
+
+				if (Counter < BakeData.Value.Locations.Num())
+				{
+					LocalTranslation = BakeData.Value.Locations[Counter];
+				}
+				if (Counter < BakeData.Value.Rotations.Num())
+				{
+					LocalRotation = BakeData.Value.Rotations[Counter];
+				}
+				if (Counter < BakeData.Value.Scales.Num())
+				{
+					LocalScale = BakeData.Value.Scales[Counter];
+				}
+
+				FTransform LocalTransform(LocalRotation, LocalTranslation, LocalScale);
 				LocalTranslations[Counter] = LocalTransform.GetTranslation();
 				LocalRotations[Counter] = LocalTransform.GetRotation().Euler();
 				LocalScales[Counter] = LocalTransform.GetScale3D();
