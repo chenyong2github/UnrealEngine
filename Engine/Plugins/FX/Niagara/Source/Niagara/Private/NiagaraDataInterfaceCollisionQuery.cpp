@@ -8,6 +8,7 @@
 #include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
@@ -566,11 +567,7 @@ void UNiagaraDataInterfaceCollisionQuery::SetShaderParameters(const FNiagaraData
 	FGlobalDistanceFieldParameters2* ShaderGDFParameters = Context.GetParameterIncludedStruct<FGlobalDistanceFieldParameters2>();
 	if (Context.IsStructBound(ShaderGDFParameters))
 	{
-		TConstStridedView<FSceneView> SimulationSceneViews = Context.GetComputeDispatchInterface().GetSimulationSceneViews();
-		FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(
-			UE::FXRenderingUtils::GetGlobalDistanceFieldParameterData(SimulationSceneViews),
-			*ShaderGDFParameters
-		);
+		FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(Context.GetComputeDispatchInterface().GetGlobalDistanceFieldData(), *ShaderGDFParameters);
 	}
 }
 

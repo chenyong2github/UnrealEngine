@@ -8,6 +8,7 @@ the same VectorVM byte code / compute shader code
 #pragma once
 
 #include "FXSystem.h"
+#include "GlobalDistanceFieldParameters.h"
 #include "NiagaraCommon.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGPUProfiler.h"
@@ -141,6 +142,7 @@ public:
 	virtual void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion) override;
 
 	virtual bool AddSortedGPUSimulation(FNiagaraGPUSortInfo& SortInfo) override;
+	virtual const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldData() const override;
 
 	void ResetDataInterfaces(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
 	void SetDataInterfaceParameters(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData, const FNiagaraShaderScriptParametersMetadata& NiagaraShaderParametersMetadata, uint8* ParametersStructure) const;
@@ -274,8 +276,21 @@ private:
 		FMatrix		ViewRotationMatrix	= FMatrix::Identity;
 		FMatrix		ProjectionMatrix	= FMatrix::Identity;
 	};
-
 	FCachedViewInitOptions CachedViewInitOptions;
+
+	// Cached info for distance fields
+	struct FCachedDistanceFieldData
+	{
+		bool								bCacheValid = false;
+		bool								bValidForPass = false;
+		FTextureRHIRef						PageAtlasTexture;
+		FTextureRHIRef						CoverageAtlasTexture;
+		TRefCountPtr<FRDGPooledBuffer>		PageObjectGridBuffer;
+		FTextureRHIRef						PageTableTexture;
+		FTextureRHIRef						MipTexture;
+		FGlobalDistanceFieldParameterData	GDFParameterData;
+	};
+	FCachedDistanceFieldData			CachedGDFData;
 
 #if WITH_EDITOR
 	bool bRaisedWarningThisFrame = false;

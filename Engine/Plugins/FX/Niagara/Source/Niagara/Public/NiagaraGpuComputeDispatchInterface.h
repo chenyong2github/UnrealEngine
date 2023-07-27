@@ -9,6 +9,7 @@
 #include "NiagaraGPUInstanceCountManager.h"
 #include "FXSystem.h"
 
+class FGlobalDistanceFieldParameterData;
 class FRDGBuilder;
 class FRDGExternalAccessQueue;
 class FSceneView;
@@ -79,6 +80,12 @@ public:
 	List is only valid during graph building (i.e. during ExecuteTicks) and for simulations in PostInitViews / PostRenderOpaque.
 	*/
 	TConstStridedView<FSceneView> GetSimulationSceneViews() const { return SimulationSceneViews; }
+
+	/**
+	* Get access to the global distance field data
+	* This will return nullptr if you attempt to access at an invalid point (i.e. before GDF is prepared or the GDF is not available)
+	*/
+	NIAGARA_API virtual const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldData() const = 0;
 
 	/** Get access to the instance count manager. */
 	FORCEINLINE FNiagaraGPUInstanceCountManager& GetGPUInstanceCounterManager() { check(IsInRenderingThread()); return GPUInstanceCounterManager; }

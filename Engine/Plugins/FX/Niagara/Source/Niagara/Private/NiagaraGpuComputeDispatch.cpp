@@ -404,7 +404,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			// Make a temporary ViewInfo
 			//-TODO: We could gather some more information here perhaps?
 			FSceneViewFamilyContext ViewFamily(
-				FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
+				FSceneViewFamily::ConstructionValues(nullptr, GetSceneInterface(), FEngineShowFlags(ESFIM_Game))
 				.SetTime(CachedViewInitOptions.GameTime)
 				.SetGammaCorrection(CachedViewInitOptions.GammaCorrection)
 			);
@@ -1822,6 +1822,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Niagara);
+	LLM_SCOPE(ELLMTag::Niagara);
 
 	bIsFirstViewFamily = CurrentFamily ? CurrentFamily == ViewFamilies[0] : true;
 	bIsLastViewFamily = CurrentFamily ? CurrentFamily == ViewFamilies.Last() : true;
@@ -1897,7 +1898,12 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 	}
 #endif
 
-	LLM_SCOPE(ELLMTag::Niagara);
+	// If we during a scene render ensure remove the GDF cache data	to avoid holding onto GDF textures that could be reallocated
+	if (IsOutsideSceneRenderer() == false)
+	{
+		CachedGDFData = FCachedDistanceFieldData();
+	}
+	
 	TotalDispatchesThisFrame = 0;
 
 	// Add pass to begin the gpu profiler frame
@@ -1991,6 +1997,28 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	bAllowGPUParticleUpdate = bAllowGPUParticleUpdate && Views.Num() > 0 && Views[0].AllowGPUParticleUpdate();
+
+	// If we are during a scene render cache the GDF information for any potential tick flushing
+	// This fixes issues with distance field collisions (for example) where we may be scrubbing backwards and are force to flush to avoid TDRs / RDG pass limits
+	// The alternative to this would be to query the FSceneInterface but we currently do not have a clean way to do this as the GDF clipmaps are built transiently plus the ViewStates do not exist
+	if (IsOutsideSceneRenderer() == false)
+	{
+		if (const FGlobalDistanceFieldParameterData* SceneGDFData = UE::FXRenderingUtils::GetGlobalDistanceFieldParameterData(Views))
+		{
+			CachedGDFData.bCacheValid			= true;
+			CachedGDFData.PageAtlasTexture		= SceneGDFData->PageAtlasTexture;
+			CachedGDFData.CoverageAtlasTexture	= SceneGDFData->CoverageAtlasTexture;
+			CachedGDFData.PageObjectGridBuffer	= SceneGDFData->PageObjectGridBuffer;
+			CachedGDFData.PageTableTexture		= SceneGDFData->PageTableTexture;
+			CachedGDFData.MipTexture			= SceneGDFData->MipTexture;
+			CachedGDFData.GDFParameterData		= *SceneGDFData;
+		}
+		else
+		{
+			CachedGDFData						= FCachedDistanceFieldData();
+		}
+	}
+	TGuardValue<bool> GuardGDFValidForPass(CachedGDFData.bValidForPass, CachedGDFData.bCacheValid);
 
 	// Cache view information which will be used if we have to flush simulation commands in the future
 	if ( bAllowGPUParticleUpdate && Views.IsValidIndex(0) )
@@ -2172,6 +2200,11 @@ bool FNiagaraGpuComputeDispatch::AddSortedGPUSimulation(FNiagaraGPUSortInfo& Sor
 	{
 		return false;
 	}
+}
+
+const FGlobalDistanceFieldParameterData* FNiagaraGpuComputeDispatch::GetGlobalDistanceFieldData() const
+{
+	return CachedGDFData.bValidForPass ? &CachedGDFData.GDFParameterData : nullptr;
 }
 
 void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
