@@ -394,7 +394,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-Strict")]
-		public bool bStrictConformanceMode = false;
+		public bool bStrictConformanceMode
+		{
+			get => bStrictConformanceModePrivate ?? Target.DefaultBuildSettings >= BuildSettingsVersion.V4;
+			set => bStrictConformanceModePrivate = value;
+		}
+		private bool? bStrictConformanceModePrivate;
 
 		/// <summary>
 		/// Enables updated __cplusplus macro (/Zc:__cplusplus).

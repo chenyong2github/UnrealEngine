@@ -135,6 +135,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// New defaults for 5.3:
 		/// * TargetRules.CppStandard = CppStandard.Default has changed from Cpp17 to Cpp20
+		/// * TargetRules.WindowsPlatform.bStrictConformanceMode = true
 		/// </summary>
 		V4,
 
@@ -2784,6 +2785,7 @@ namespace UnrealBuildTool
 				if (BuildSettingsVersion.V4 <= LatestVersion && DefaultBuildSettings < BuildSettingsVersion.V4)
 				{
 					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = CppStandardVersion.Default", nameof(CppStandard)), "Updates C++ Standard to C++20 (Previously: CppStandardVersion.Cpp17)."));
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0}.{1} = true", nameof(WindowsPlatform), nameof(WindowsPlatform.bStrictConformanceMode)), "Updates MSVC strict conformance mode to true (Previously: false)."));
 				}
 
 				if (ModifiedSettings.Count > 0)
