@@ -322,11 +322,7 @@ namespace UnrealBuildTool
 
 					// Add the module name to the cmdline
 					TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { $"-BytesPerUnityCPP={UnitySize}", "-DisableModuleNumIncludedBytesPerUnityCPPOverride" });
-
-					if (bDisableUnity)
-					{
-						TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { $"-DisableUnity" });
-					}
+					TargetDescriptor.bUseUnityBuild = !bDisableUnity;
 				}
 
 				using (ISourceFileWorkingSet WorkingSet = new EmptySourceFileWorkingSet())
