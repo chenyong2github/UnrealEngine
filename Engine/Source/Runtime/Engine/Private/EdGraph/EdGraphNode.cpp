@@ -2,7 +2,6 @@
 
 #include "EdGraph/EdGraphNode.h"
 
-#include "DiffUtils.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
@@ -18,6 +17,7 @@
 #include "ScopedTransaction.h"
 #include "FindInBlueprintManager.h"
 #include "DiffResults.h"
+#include "DiffUtils.h"
 #else
 #include "EdGraph/EdGraphPin.h"
 #endif
