@@ -342,6 +342,17 @@ public:
 	bool RenameGraph(
 		UOptimusNodeGraph* InGraph,
 		const FString& InNewName) override;
+
+
+#if WITH_EDITOR
+	// Set the graph view location and zoom, to ensure that the view location is stored between sessions and
+	// graph switching.
+	void SetViewLocationAndZoom(const FVector2D& InViewLocation, float InViewZoom);
+
+	// Returns the graph view location and zoom, if set. If the location has never been set, this function returns
+	// false and the resulting out values are left undefined.
+	bool GetViewLocationAndZoom(FVector2D& OutViewLocation, float& OutViewZoom) const;
+#endif
 	
 protected:
 	friend class UOptimusDeformer;
@@ -398,6 +409,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Overview)
 	EOptimusNodeGraphType GraphType = EOptimusNodeGraphType::Transient;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bViewLocationSet = false;
+	
+	UPROPERTY()
+	FVector2D ViewLocation = {0.0, 0.0};
+
+	UPROPERTY()
+	float ViewZoom = 0.0f;
+#endif
+	
 private:
 	IOptimusPathResolver* GetPathResolver() const;
 	

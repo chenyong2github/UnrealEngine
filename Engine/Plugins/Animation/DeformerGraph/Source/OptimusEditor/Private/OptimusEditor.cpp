@@ -249,6 +249,8 @@ FLinearColor FOptimusEditor::GetWorldCentricTabColorScale() const
 
 void FOptimusEditor::OnClose()
 {
+	StoreCurrentViewLocation();
+	
 	IOptimusEditor::OnClose();
 }
 
@@ -259,12 +261,26 @@ bool FOptimusEditor::SetEditGraph(UOptimusNodeGraph* InNodeGraph)
 	{
 		PreviousEditedNodeGraph = EditorGraph->NodeGraph;
 
+		// Store the location/zoom for the graph we're leaving
+		StoreCurrentViewLocation();
+
 		GraphEditorWidget->ClearSelectionSet();
 
 		EditorGraph->Reset();
 		EditorGraph->InitFromNodeGraph(InNodeGraph);
 
-		// FIXME: Store pan/zoom
+		// If there was a stored view location in the node graph, use that, otherwise just frame
+		// all the nodes.
+		FVector2D Location;
+		float Zoom;
+		if (InNodeGraph->GetViewLocationAndZoom(Location, Zoom))
+		{
+			GraphEditorWidget->SetViewLocation(Location, Zoom);
+		}
+		else
+		{
+			GraphEditorWidget->ZoomToFit(false);
+		}
 
 		RefreshEvent.Broadcast();
 		return true;
@@ -1059,6 +1075,19 @@ TArray<UOptimusNode*> FOptimusEditor::GetSelectedModelNodes() const
 		}
 	}
 	return Nodes;
+}
+
+
+void FOptimusEditor::StoreCurrentViewLocation()
+{
+	if (EditorGraph->NodeGraph)
+	{
+		FVector2D Location;
+		float Zoom;
+		
+		GraphEditorWidget->GetViewLocation(Location, Zoom);
+		EditorGraph->NodeGraph->SetViewLocationAndZoom(Location, Zoom);
+	}
 }
 
 

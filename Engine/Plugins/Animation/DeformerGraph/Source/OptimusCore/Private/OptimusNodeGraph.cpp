@@ -1816,5 +1816,25 @@ bool UOptimusNodeGraph::RenameGraph(
 	return bSuccess;
 }
 
+#if WITH_EDITOR
+void UOptimusNodeGraph::SetViewLocationAndZoom(const FVector2D& InViewLocation, float InViewZoom)
+{
+	bViewLocationSet = true;
+	ViewLocation = InViewLocation;
+	ViewZoom = InViewZoom;
+}
+
+bool UOptimusNodeGraph::GetViewLocationAndZoom(FVector2D& OutViewLocation, float& OutViewZoom) const
+{
+	if (bViewLocationSet)
+	{
+		OutViewLocation = ViewLocation;
+		OutViewZoom = ViewZoom;
+	}
+	return bViewLocationSet;
+}
+
+#endif // WITH_EDITOR
+
 
 #undef LOCTEXT_NAMESPACE

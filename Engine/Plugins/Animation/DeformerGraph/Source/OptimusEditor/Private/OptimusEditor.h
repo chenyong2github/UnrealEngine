@@ -214,6 +214,8 @@ private:
 
 	TArray<UOptimusNode*> GetSelectedModelNodes() const;
 
+	void StoreCurrentViewLocation();
+
 	void OnDeformerModified(
 		EOptimusGlobalNotifyType InNotifyType, 
 		UObject *InModifiedObject
