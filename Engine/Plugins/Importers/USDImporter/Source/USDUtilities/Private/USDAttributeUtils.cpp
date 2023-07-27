@@ -24,14 +24,13 @@
 	#include "pxr/usd/pcp/cache.h"
 	#include "pxr/usd/pcp/primIndex.h"
 	#include "pxr/usd/pcp/propertyIndex.h"
-	#include "pxr/usd/usd/usdFileFormat.h"
-
 	#include "pxr/usd/sdf/layer.h"
 	#include "pxr/usd/sdf/layerUtils.h"
 	#include "pxr/usd/sdf/spec.h"
 	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/stage.h"
+	#include "pxr/usd/usd/usdFileFormat.h"
 #include "USDIncludesEnd.h"
 #endif // #if USE_USD_SDK
 
@@ -283,6 +282,214 @@ void UsdUtils::NotifyIfOverriddenOpinion(const pxr::UsdProperty& Property)
 			break;
 		}
 	}
+}
+
+bool UsdUtils::NotifyIfInstanceProxy(const pxr::UsdPrim& Prim)
+{
+	if (!Prim)
+	{
+		return false;
+	}
+
+	TFunction<void()> RemoveInstanceables = [Prim = UE::FUsdPrim{Prim}]()
+	{
+		UE::FUsdStage Stage = Prim.GetStage();
+		if (!Stage)
+		{
+			return;
+		}
+
+		// We have to track paths and not prims directly, because these will actually be the instance
+		// proxies in case we have an instance parent, and even if the parents are not instances anymore
+		// trying to author to these instance proxies would be an error. If we call GetPrimAtPath *after*
+		// clearing the parent instanceable, then we get a regular prim
+		TArray<UE::FSdfPath> LeafToRoot;
+
+		UE::FUsdPrim Iter = Prim;
+		while (Iter && !Iter.IsPseudoRoot())
+		{
+			LeafToRoot.Add(Iter.GetPrimPath());
+			Iter = Iter.GetParent();
+		}
+
+		// Annoyingly we have to break from root downwards, as otherwise we'd be trying
+		// to author inside instances ourselves!
+		// Note: We also can't use a change block here, because we could have nested instanceables,
+		// and we need USD to fully respond to the outer instanceable being cleared before it lets
+		// us clear the inner one
+		for (int32 Index = LeafToRoot.Num() - 1; Index >= 0; --Index)
+		{
+			const UE::FUsdPrim& SomePrim = Stage.GetPrimAtPath(LeafToRoot[Index]);
+			if (SomePrim.IsInstanceable())
+			{
+				// We force false here instead of just clearing the authored opinion because the instanceable=true
+				// opinion may come from a referenced layer or some other place we can't just clear on our current
+				// edit target
+				SomePrim.SetInstanceable(false);
+			}
+		}
+	};
+
+	if (Prim.IsInstanceProxy())
+	{
+		const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+		if (Settings)
+		{
+			switch (Settings->EditInInstanceableBehavior)
+			{
+				case EUsdEditInInstanceBehavior::Ignore:
+				{
+					UE_LOG(
+						LogUsd,
+						Log,
+						TEXT("Ignoring edits to prim '%s' as it is an instance proxy"),
+						*UsdToUnreal::ConvertPath(Prim.GetPrimPath())
+					);
+					return true;
+					break;
+				}
+				case EUsdEditInInstanceBehavior::RemoveInstanceable:
+				{
+					UE_LOG(LogUsd, Log, TEXT("Removing all instanceable flags from ancestors of prim '%s'"), *UsdToUnreal::ConvertPath(Prim.GetPrimPath()));
+					RemoveInstanceables();
+
+					// We shouldn't be instanceable now, so we can probably author whatever we wanted to author
+					return false;
+					break;
+				}
+				default:
+				case EUsdEditInInstanceBehavior::ShowPrompt:
+				{
+					const FText Text = LOCTEXT("AuthoringInsideInstanceText", "USD: Authoring inside instance");
+
+					FString FirstInstancePath;
+					{
+						FScopedUsdAllocs Allocs;
+						pxr::UsdPrim Iter = Prim;
+						while (Iter && !Iter.IsPseudoRoot())
+						{
+							if (Iter.IsInstance())
+							{
+								break;
+							}
+							Iter = Iter.GetParent();
+						}
+						FirstInstancePath = UsdToUnreal::ConvertPath(Iter.GetPrimPath());
+					}
+
+					const FText SubText = FText::Format(
+						LOCTEXT(
+							"AuthoringInsideInstanceSubText",
+							"Trying to author an opinion at or below prim:\n\n{0}\n\nThis prim is an instance proxy, and so cannot be "
+							"edited directly.\n\nIf you wish to modify just this prim, you can remove the instanceable flag for this prim and try again. If you wish to "
+							"modify all instances, please edit the prims referenced by prim '{1}' directly."
+						),
+						FText::FromString(UsdToUnreal::ConvertPath(Prim.GetPrimPath())),
+						FText::FromString(FirstInstancePath)
+					);
+
+					UE_LOG(LogUsd, Warning, TEXT("%s"), *SubText.ToString().Replace(TEXT("\n\n"), TEXT(" ")));
+
+					static TWeakPtr<SNotificationItem> Notification;
+
+					FNotificationInfo Toast(Text);
+					Toast.SubText = SubText;
+					Toast.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+					Toast.CheckBoxText = LOCTEXT("DontAskAgain", "Don't prompt again");
+					Toast.bUseLargeFont = false;
+					Toast.bFireAndForget = false;
+					Toast.FadeOutDuration = 0.0f;
+					Toast.ExpireDuration = 0.0f;
+					Toast.bUseThrobber = false;
+					Toast.bUseSuccessFailIcons = false;
+					Toast.ButtonDetails.Emplace(
+						LOCTEXT("OverridenOpinionMessageRemove", "Remove instanceable flag"),
+						FText::GetEmpty(),
+						FSimpleDelegate::CreateLambda(
+							[RemoveInstanceables]()
+							{
+								RemoveInstanceables();
+
+								if (TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin())
+								{
+									PinnedNotification->SetCompletionState(SNotificationItem::CS_Success);
+									PinnedNotification->ExpireAndFadeout();
+								}
+
+								if (UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>())
+								{
+									// We'll only set this to "ShowPrompt" if the checkbox to "Don't prompt again" is unchecked
+									if (Settings->EditInInstanceableBehavior != EUsdEditInInstanceBehavior::ShowPrompt)
+									{
+										Settings->EditInInstanceableBehavior = EUsdEditInInstanceBehavior::RemoveInstanceable;
+									}
+									Settings->SaveConfig();
+								}
+							}
+						)
+					);
+					Toast.ButtonDetails.Emplace(
+						LOCTEXT("OverridenOpinionMessageCancel", "Cancel"),
+						FText::GetEmpty(),
+						FSimpleDelegate::CreateLambda(
+							[]()
+							{
+								if (TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin())
+								{
+									PinnedNotification->SetCompletionState(SNotificationItem::CS_Success);
+									PinnedNotification->ExpireAndFadeout();
+								}
+								if (UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>())
+								{
+									if (Settings->EditInInstanceableBehavior != EUsdEditInInstanceBehavior::ShowPrompt)
+									{
+										Settings->EditInInstanceableBehavior = EUsdEditInInstanceBehavior::Ignore;
+									}
+									Settings->SaveConfig();
+								}
+							}
+						)
+					);
+					// This is flipped because the default checkbox message is "Don't prompt again"
+					Toast.CheckBoxState = Settings->EditInInstanceableBehavior == EUsdEditInInstanceBehavior::ShowPrompt
+											  ? ECheckBoxState::Unchecked
+											  : ECheckBoxState::Checked;
+					Toast.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic(
+						[](ECheckBoxState NewState)
+						{
+							if (UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>())
+							{
+								// This is flipped because the default checkbox message is "Don't prompt again"
+								Settings->EditInInstanceableBehavior = (NewState == ECheckBoxState::Unchecked)
+																		   ? EUsdEditInInstanceBehavior::ShowPrompt
+																		   : EUsdEditInInstanceBehavior::Ignore;	// Either would do here, we have
+																													// to press one of the buttons to
+																													// close the prompt, which will
+																													// set the right one
+								Settings->SaveConfig();
+							}
+						}
+					);
+
+					// Only show one at a time
+					if (!Notification.IsValid())
+					{
+						Notification = FSlateNotificationManager::Get().AddNotification(Toast);
+					}
+
+					if (TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin())
+					{
+						PinnedNotification->SetCompletionState(SNotificationItem::CS_Pending);
+					}
+
+					return true;
+					break;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 #endif // #if USE_USD_SDK
 

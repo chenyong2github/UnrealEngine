@@ -389,6 +389,11 @@ bool UnrealToUsd::ConvertLightComponent( const ULightComponentBase& LightCompone
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
+	{
+		return false;
+	}
+
 	if ( pxr::UsdAttribute Attr = LightAPI.CreateIntensityAttr() )
 	{
 		Attr.Set<float>( LightComponent.Intensity, UsdTimeCode );
@@ -443,6 +448,11 @@ bool UnrealToUsd::ConvertDirectionalLightComponent( const UDirectionalLightCompo
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
+	{
+		return false;
+	}
+
 	if ( pxr::UsdAttribute Attr = Light.CreateAngleAttr() )
 	{
 		Attr.Set<float>( LightComponent.LightSourceAngle, UsdTimeCode );
@@ -466,6 +476,11 @@ bool UnrealToUsd::ConvertRectLightComponent( const URectLightComponent& LightCom
 
 	pxr::UsdLuxLightAPI LightAPI( Prim );
 	if ( !LightAPI )
+	{
+		return false;
+	}
+
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
 	{
 		return false;
 	}
@@ -571,6 +586,11 @@ bool UnrealToUsd::ConvertPointLightComponent( const UPointLightComponent& LightC
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
+	{
+		return false;
+	}
+
 	FUsdStageInfo StageInfo( Prim.GetStage() );
 
 	if ( pxr::UsdAttribute Attr = Light.CreateRadiusAttr() )
@@ -645,6 +665,11 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
+	{
+		return false;
+	}
+
 #if WITH_EDITORONLY_DATA
 	FUsdStageInfo StageInfo( Prim.GetStage() );
 
@@ -681,6 +706,11 @@ bool UnrealToUsd::ConvertSpotLightComponent( const USpotLightComponent& LightCom
 
 	pxr::UsdLuxShapingAPI ShapingAPI = pxr::UsdLuxShapingAPI::Apply( Prim );
 	if ( !ShapingAPI )
+	{
+		return false;
+	}
+
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
 	{
 		return false;
 	}

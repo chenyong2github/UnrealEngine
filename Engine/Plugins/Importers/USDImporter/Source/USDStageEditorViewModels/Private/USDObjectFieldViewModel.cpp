@@ -181,6 +181,11 @@ void FUsdObjectFieldsViewModel::SetFieldValue( const FString& FieldName, const U
 		}
 		else if (UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath(UE::FSdfPath(*ObjectPath)))
 		{
+			if (UsdUtils::NotifyIfInstanceProxy(UsdPrim))
+			{
+				return;
+			}
+
 			FScopedUsdAllocs UsdAllocs;
 
 			pxr::UsdPrim PxrUsdPrim{UsdPrim};
@@ -231,6 +236,11 @@ void FUsdObjectFieldsViewModel::SetFieldValue( const FString& FieldName, const U
 				pxr::UsdStageRefPtr PxrUsdStage{UsdStage};
 				if (pxr::UsdPrim Prim = PxrUsdStage->GetPrimAtPath(PxrPrimPath))
 				{
+					if (UsdUtils::NotifyIfInstanceProxy(Prim))
+					{
+						return;
+					}
+
 					if (pxr::UsdProperty Property = Prim.GetProperty(PropertyName))
 					{
 						pxr::TfToken FieldNameToken = UnrealToUsd::ConvertToken(*FieldName).Get();

@@ -3290,6 +3290,11 @@ bool UnrealToUsd::ConvertControlRigSection(
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(OutSkelAnimPrim))
+	{
+		return false;
+	}
+
 	FUsdStageInfo StageInfo( UsdStage );
 
 	double StartTime = FPlatformTime::Cycles64();

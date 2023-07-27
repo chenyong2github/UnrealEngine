@@ -161,6 +161,11 @@ void UnrealToUsd::ConvertLiveLinkProperties( const UActorComponent* InComponent,
 
 	UE::FSdfChangeBlock ChangeBlock;
 
+	if (UsdUtils::NotifyIfInstanceProxy(InOutPrim))
+	{
+		return;
+	}
+
 	// Skeletal LiveLink case
 	if ( const USkeletalMeshComponent* SkeletalComponent = Cast<USkeletalMeshComponent>( InComponent ) )
 	{

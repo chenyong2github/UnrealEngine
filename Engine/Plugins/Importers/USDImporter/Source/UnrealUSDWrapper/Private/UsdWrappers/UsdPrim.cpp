@@ -645,4 +645,144 @@ namespace UE
 		return false;
 #endif // #if USE_USD_SDK
 	}
-}
+
+	bool FUsdPrim::IsInstanceable() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().IsInstanceable();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::SetInstanceable(bool bInstanceable) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().SetInstanceable(bInstanceable);
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::ClearInstanceable() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().ClearInstanceable();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::HasAuthoredInstanceable() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().HasAuthoredInstanceable();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsInstance() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().IsInstance();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsInstanceProxy() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().IsInstanceProxy();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsPrototype() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().IsPrototype();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsInPrototype() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return Impl->PxrUsdPrim.Get().IsInPrototype();
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	FUsdPrim FUsdPrim::GetPrototype() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return UE::FUsdPrim{Impl->PxrUsdPrim.Get().GetPrototype()};
+#else
+		return {};
+#endif	  // USE_USD_SDK
+	}
+
+	FUsdPrim FUsdPrim::GetPrimInPrototype() const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return UE::FUsdPrim{Impl->PxrUsdPrim.Get().GetPrimInPrototype()};
+#else
+		return {};
+#endif	  // USE_USD_SDK
+	}
+
+	TArray<FUsdPrim> FUsdPrim::GetInstances() const
+	{
+		TArray<FUsdPrim> Result;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		std::vector<pxr::UsdPrim> Instances = Impl->PxrUsdPrim.Get().GetInstances();
+		Result.Reserve(Instances.size());
+
+		for (const pxr::UsdPrim& Instance : Instances)
+		{
+			Result.Emplace(Instance);
+		}
+#endif	  // USE_USD_SDK
+
+		return Result;
+	}
+
+	bool FUsdPrim::IsPrototypePath(const FSdfPath& Path)
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return pxr::UsdPrim::IsPrototypePath(Path);
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+	bool FUsdPrim::IsPathInPrototype(const FSdfPath& Path)
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+		return pxr::UsdPrim::IsPathInPrototype(Path);
+#else
+		return false;
+#endif	  // USE_USD_SDK
+	}
+
+}	 // namespace UE

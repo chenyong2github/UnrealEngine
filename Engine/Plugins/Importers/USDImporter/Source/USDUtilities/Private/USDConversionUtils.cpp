@@ -2122,11 +2122,47 @@ bool UsdUtils::CopyPrims( const TArray<UE::FUsdPrim>& Prims )
 		return false;
 	}
 
+	// USD will retain instances and prototypes even when flattening, which is not what we want
+	// so let's disable instancing on our temp stage before we ask it to flatten.
+	// Note how we traverse the entire masked stage here, because we also need to handle the case
+	// where the prim we're duplicating is not instanceable, but has instanceable children
+	TArray<pxr::SdfPath> OldInstanceablePrims;
+	if (TempStage->GetPrototypes().size() > 0)
+	{
+		pxr::UsdEditContext Context{TempStage, TempStage->GetSessionLayer()};
+
+		pxr::UsdPrimRange PrimRange(TempStage->GetPseudoRoot());
+		for (pxr::UsdPrimRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt)
+		{
+			if (PrimRangeIt->IsPseudoRoot())
+			{
+				continue;
+			}
+
+			if (PrimRangeIt->HasAuthoredInstanceable())
+			{
+				PrimRangeIt->SetInstanceable(false);
+				OldInstanceablePrims.Add(PrimRangeIt->GetPrimPath());
+			}
+		}
+	}
+
 	const bool bAddSourceFileComment = false;
 	pxr::SdfLayerRefPtr FlattenedLayer = TempStage->Flatten( bAddSourceFileComment );
 	if ( !FlattenedLayer )
 	{
 		return false;
+	}
+
+	// We may had to force instanceable=false on the prims we duplicated in order to get our session layer
+	// opinion to disable instancing. We don't want those prims to come out with "instanceable=false" on the
+	// flattened copy though, so here we clear that opinion
+	for (const pxr::SdfPath& Path : OldInstanceablePrims)
+	{
+		if (pxr::SdfPrimSpecHandle Spec = FlattenedLayer->GetPrimAtPath(Path))
+		{
+			Spec->ClearInstanceable();
+		}
 	}
 
 	ClipboardRoot->Clear();
@@ -2399,11 +2435,47 @@ TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims
 			return Result;
 		}
 
+		// USD will retain instances and prototypes even when flattening, which is not what we want
+		// so let's disable instancing on our temp stage before we ask it to flatten.
+		// Note how we travere the entire masked stage here, because we also need to handle the case
+		// where the prim we're duplicating is not instanceable, but has instanceable children
+		TArray<pxr::SdfPath> OldInstanceablePrims;
+		if (TempStage->GetPrototypes().size() > 0)
+		{
+			pxr::UsdEditContext Context{TempStage, TempStage->GetSessionLayer()};
+
+			pxr::UsdPrimRange PrimRange(TempStage->GetPseudoRoot());
+			for (pxr::UsdPrimRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt)
+			{
+				if (PrimRangeIt->IsPseudoRoot())
+				{
+					continue;
+				}
+
+				if (PrimRangeIt->HasAuthoredInstanceable())
+				{
+					PrimRangeIt->SetInstanceable(false);
+					OldInstanceablePrims.Add(PrimRangeIt->GetPrimPath());
+				}
+			}
+		}
+
 		const bool bAddSourceFileComment = false;
 		FlattenedLayer = TempStage->Flatten( bAddSourceFileComment );
 		if ( !FlattenedLayer )
 		{
 			return Result;
+		}
+
+		// We may had to force instanceable=false on the prims we duplicated in order to get our session layer
+		// opinion to disable instancing. We don't want those prims to come out with "instanceable=false" on the
+		// flattened copy though, so here we clear that opinion
+		for (const pxr::SdfPath& Path : OldInstanceablePrims)
+		{
+			if (pxr::SdfPrimSpecHandle Spec = FlattenedLayer->GetPrimAtPath(Path))
+			{
+				Spec->ClearInstanceable();
+			}
 		}
 	}
 
@@ -2425,8 +2497,11 @@ TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims
 		std::unordered_set<pxr::SdfLayerHandle, pxr::TfHash> LayersThatWillBeAffected;
 		LayersThatWillBeAffected.reserve( PrimSpecs.size() );
 
-		for ( const pxr::SdfPrimSpecHandle& Spec : PrimSpecs )
+		pxr::SdfPath TargetPath = UsdPrim.GetPrimPath();
+		for (int32 SpecIndex = PrimSpecs.size() - 1; SpecIndex >= 0; --SpecIndex)
 		{
+			const pxr::SdfPrimSpecHandle& Spec = PrimSpecs[SpecIndex];
+
 			// For whatever reason sometimes there are invalid specs in the layer stack, so we need to be careful
 			if ( !Spec )
 			{
@@ -2434,7 +2509,13 @@ TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims
 			}
 
 			pxr::SdfPath SpecPath = Spec->GetPath();
-			if ( !SpecPath.IsPrimPath() )
+
+			// Skip specs that have a different path than the actual prim path. The only way this could happen
+			// is if the prim is referencing this particular path, and if we were to duplicate this spec
+			// we'd essentially end up flattening the referenced prim over the new duplicate prim, which
+			// is not what we want. We'll already get the fact that "prim references this other prim" by copying
+			// the spec at the actual TargetPath however
+			if (!SpecPath.IsPrimPath() || SpecPath.StripAllVariantSelections() != TargetPath)
 			{
 				continue;
 			}
@@ -2536,12 +2617,47 @@ TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims
 					continue;
 				}
 
-				if ( !pxr::SdfCopySpec( SpecLayerHandle, SpecPath, SpecLayerHandle, NewSpecPath ) )
+				pxr::SdfShouldCopyValueFn ShouldCopyValue =
+					[](pxr::SdfSpecType SpecType,
+					   const pxr::TfToken& Field,
+					   const pxr::SdfLayerHandle& SrcLayer,
+					   const pxr::SdfPath& SrcPath,
+					   bool FieldInSrc,
+					   const pxr::SdfLayerHandle& DstLayer,
+					   const pxr::SdfPath& DstPath,
+					   bool FieldInDst,
+					   boost::optional<pxr::VtValue>* ValueToCopy) -> bool
 				{
-					UE_LOG( LogUsd, Warning, TEXT( "Failed to copy spec from path '%s' onto path '%s' within layer '%s'" ),
-						*UsdToUnreal::ConvertPath( SpecPath ),
-						*UsdToUnreal::ConvertPath( NewSpecPath ),
-						*UsdToUnreal::ConvertString( SpecLayerHandle->GetIdentifier() )
+					// Only copy a field over if it has a value. Otherwise it seems to clear the destination spec
+					// for nothing
+					return FieldInSrc;
+				};
+
+				pxr::SdfShouldCopyChildrenFn ShouldCopyChildren =
+					[](const pxr::TfToken& ChildrenField,
+					   const pxr::SdfLayerHandle& SrcLayer,
+					   const pxr::SdfPath& SrcPath,
+					   bool FieldInSrc,
+					   const pxr::SdfLayerHandle& DstLayer,
+					   const pxr::SdfPath& DstPath,
+					   bool FieldInDst,
+					   boost::optional<pxr::VtValue>* SrcChildren,
+					   boost::optional<pxr::VtValue>* DstChildren) -> bool
+				{
+					return true;
+				};
+
+				// We use the advanced version of SdfCopySpec here as otherwise the default behavior is to fully clear
+				// the destination spec before copying stuff, and we may want to copy multiple specs overwriting each other
+				if (!pxr::SdfCopySpec(SpecLayerHandle, SpecPath, SpecLayerHandle, NewSpecPath, ShouldCopyValue, ShouldCopyChildren))
+				{
+					UE_LOG(
+						LogUsd,
+						Warning,
+						TEXT("Failed to copy spec from path '%s' onto path '%s' within layer '%s'"),
+						*UsdToUnreal::ConvertPath(SpecPath),
+						*UsdToUnreal::ConvertPath(NewSpecPath),
+						*UsdToUnreal::ConvertString(SpecLayerHandle->GetIdentifier())
 					);
 				}
 			}

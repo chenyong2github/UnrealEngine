@@ -1441,6 +1441,11 @@ bool UnrealToUsd::ConvertCameraComponent( const UCineCameraComponent& CameraComp
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
+	{
+		return false;
+	}
+
 	FUsdStageInfo StageInfo( Prim.GetStage() );
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
@@ -1958,6 +1963,11 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(UsdPrim))
+	{
+		return false;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	// Transform
@@ -2078,6 +2088,11 @@ bool UnrealToUsd::ConvertHierarchicalInstancedStaticMeshComponent(
 
 	UsdGeomPointInstancer PointInstancer{ UsdPrim };
 	if ( !PointInstancer || !HISMComponent )
+	{
+		return false;
+	}
+
+	if (UsdUtils::NotifyIfInstanceProxy(UsdPrim))
 	{
 		return false;
 	}
@@ -2483,6 +2498,11 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(UsdPrim))
+	{
+		return false;
+	}
+
 	FUsdStageInfo StageInfo( UsdPrim.GetStage() );
 	pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, RelativeTransform );
 
@@ -2566,6 +2586,11 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 
 	UsdGeomPointInstancer PointInstancer{ UsdPrim };
 	if ( !PointInstancer )
+	{
+		return false;
+	}
+
+	if (UsdUtils::NotifyIfInstanceProxy(UsdPrim))
 	{
 		return false;
 	}
@@ -3085,6 +3110,11 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 	pxr::UsdPrim UsdPrim{ Prim };
 	pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
 	FUsdStageInfo StageInfo{ UsdStage };
+
+	if (UsdUtils::NotifyIfInstanceProxy(Prim))
+	{
+		return Result;
+	}
 
 	pxr::UsdAttribute Attr;
 	{

@@ -143,6 +143,12 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 
 				FSimpleDelegate PropertyChanged = FSimpleDelegate::CreateLambda( [AttributeCopy]()
 				{
+					UE::FUsdPrim Prim = AttributeCopy->GetPrim();
+					if (UsdUtils::NotifyIfInstanceProxy(Prim))
+					{
+						return;
+					}
+
 					UUsdIntegrationsPanelPropertyDummy* Dummy = GetMutableDefault<UUsdIntegrationsPanelPropertyDummy>();
 
 					FString Path = ( Dummy && Dummy->AnimBPProperty ) ? Dummy->AnimBPProperty->GetPathName() : FString{};
@@ -203,6 +209,12 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 
 				FSimpleDelegate PropertyChanged = FSimpleDelegate::CreateLambda( [AttributeCopy]()
 				{
+					UE::FUsdPrim Prim = AttributeCopy->GetPrim();
+					if (UsdUtils::NotifyIfInstanceProxy(Prim))
+					{
+						return;
+					}
+
 					UUsdIntegrationsPanelPropertyDummy* Dummy = GetMutableDefault<UUsdIntegrationsPanelPropertyDummy>();
 
 					FString Path = ( Dummy && Dummy->ControlRigProperty ) ? Dummy->ControlRigProperty->GetPathName() : FString{};
@@ -267,6 +279,12 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				})
 				.OnCheckStateChanged_Lambda( [AttributeCopy]( ECheckBoxState NewValue )
 				{
+					UE::FUsdPrim Prim = AttributeCopy->GetPrim();
+					if (UsdUtils::NotifyIfInstanceProxy(Prim))
+					{
+						return;
+					}
+
 					FScopedTransaction Transaction(
 						FText::Format( LOCTEXT( "ControlRigReduceKeysTransaction", "Changed ControlRig reduce keys property to '{0}'" ),
 							FText::FromString( NewValue == ECheckBoxState::Checked ? TEXT( "true" ) : TEXT( "false" ) )
@@ -293,6 +311,12 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				.Font( FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) )
 				.OnValueCommitted_Lambda( [AttributeCopy]( float NewValue, ETextCommit::Type CommitType )
 				{
+					UE::FUsdPrim Prim = AttributeCopy->GetPrim();
+					if (UsdUtils::NotifyIfInstanceProxy(Prim))
+					{
+						return;
+					}
+
 					FScopedTransaction Transaction(
 						FText::Format( LOCTEXT( "ControlRigReduceToleranceTransaction", "Changed ControlRig reduce tolerance to '{0}'" ),
 							NewValue
@@ -358,6 +382,12 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 			})
 			.OnValueChanged_Lambda( [AttributeCopy]( SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue )
 			{
+				UE::FUsdPrim Prim = AttributeCopy->GetPrim();
+				if (UsdUtils::NotifyIfInstanceProxy(Prim))
+				{
+					return;
+				}
+
 				FScopedUsdAllocs UsdAllocs;
 
 				std::string UsdValue = UnrealToUsd::ConvertString( *( NewValue.Subject.ToString() ) ).Get();
@@ -400,6 +430,12 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				})
 				.OnCheckStateChanged_Lambda( [AttributeCopy, AttributeName]( ECheckBoxState NewState )
 				{
+					UE::FUsdPrim Prim = AttributeCopy->GetPrim();
+					if (UsdUtils::NotifyIfInstanceProxy(Prim))
+					{
+						return;
+					}
+
 					FScopedTransaction Transaction(
 						FText::Format( LOCTEXT( "IntegrationBoolTransaction", "Changed attribute '{0}' to " ),
 							FText::FromName( AttributeName ),

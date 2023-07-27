@@ -16,6 +16,14 @@ enum class EUsdSaveDialogBehavior : uint8
 	ShowPrompt
 };
 
+UENUM( BlueprintType )
+enum class EUsdEditInInstanceBehavior : uint8
+{
+	Ignore,
+	RemoveInstanceable,
+	ShowPrompt
+};
+
 // USDImporter and defaultconfig here so this ends up at DefaultUSDImporter.ini in the editor, and is sent to the
 // packaged game as well
 UCLASS(config=USDImporter, defaultconfig, meta=(DisplayName=USDImporter), MinimalAPI)
@@ -74,6 +82,10 @@ public:
 	// Whether to show the warning dialog when authoring opinions that could have no effect on the composed stage
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowOverriddenOpinionsWarning = true;
+
+	// Whether to show the warning dialog when authoring opinions inside an instance or instance proxy
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
+	EUsdEditInInstanceBehavior EditInInstanceableBehavior = EUsdEditInInstanceBehavior::ShowPrompt;
 
 	// Whether to show a warning whenever the "Duplicate All Local Layer Specs" option is picked, and the duplicated
 	// prim has some specs outside the local layer stack that will not be duplicated.

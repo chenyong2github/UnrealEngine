@@ -2881,6 +2881,11 @@ bool UsdUtils::MarkMaterialPrimWithWorldSpaceNormals( const UE::FUsdPrim& Materi
 		return false;
 	}
 
+	if (UsdUtils::NotifyIfInstanceProxy(MaterialPrim))
+	{
+		return false;
+	}
+
 	const bool bCustom = true;
 	pxr::UsdAttribute Attr = UsdPrim.CreateAttribute( UnrealIdentifiers::WorldSpaceNormals, pxr::SdfValueTypeNames->Bool, bCustom );
 	if ( !Attr )

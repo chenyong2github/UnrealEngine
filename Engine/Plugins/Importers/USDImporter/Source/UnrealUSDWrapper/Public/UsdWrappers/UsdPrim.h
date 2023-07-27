@@ -140,6 +140,20 @@ namespace UE
 		FUsdAttribute GetAttribute(const TCHAR* AttrName) const;
 		bool HasAttribute(const TCHAR* AttrName) const;
 
+		bool IsInstanceable() const;
+		bool SetInstanceable(bool bInstanceable) const;
+		bool ClearInstanceable() const;
+		bool HasAuthoredInstanceable() const;
+		bool IsInstance() const;
+		bool IsInstanceProxy() const;
+		bool IsPrototype() const;
+		bool IsInPrototype() const;
+		FUsdPrim GetPrototype() const;
+		FUsdPrim GetPrimInPrototype() const;
+		TArray<FUsdPrim> GetInstances() const;
+		static bool IsPrototypePath(const FSdfPath& Path);
+		static bool IsPathInPrototype(const FSdfPath& Path);
+
 	private:
 		TUniquePtr< Internal::FUsdPrimImpl > Impl;
 	};

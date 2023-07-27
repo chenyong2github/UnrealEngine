@@ -130,6 +130,15 @@ void FUsdPrimViewModel::FillChildren()
 void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 {
 #if USE_USD_SDK
+	// Before we fully abort due to an invalid prim, first check the case that we just need to get a "refreshed prim"
+	// for the same path. This is important for example when setting/clearing the instanceable metadata: If this prim used
+	// to be an instance proxy and now our parent is not an instance anymore, the prim will become "invalid", but that's
+	// just because the instance doesn't exist anymore: The analogous non-instance-proxy prim still may exist on the stage
+	if (!UsdPrim && UsdStage)
+	{
+		UsdPrim = UsdStage.GetPrimAtPath(UsdPrim.GetPrimPath());
+	}
+
 	if ( !UsdPrim )
 	{
 		return;
