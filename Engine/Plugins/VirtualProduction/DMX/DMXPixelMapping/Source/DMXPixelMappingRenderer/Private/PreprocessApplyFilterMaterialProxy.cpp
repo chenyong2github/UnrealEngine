@@ -97,7 +97,7 @@ namespace UE::DMXPixelMapping::Rendering::Preprocess::Private
 		if (MaterialInstanceDynamic && DownsampleRenderTargets.IsEmpty() && ensureMsgf(OutputRenderTarget, TEXT("Cannot apply pixel mapping filter material. Missing output render target.")))
 		{
 			// Render without downsampling
-			MaterialInstanceDynamic->SetTextureParameterValue(InPreprocessRenderer.GetInputTextureParameterName(), InputTexture);
+			MaterialInstanceDynamic->SetTextureParameterValue(InPreprocessRenderer.GetTextureParameterName(), InputTexture);
 			MaterialInstanceDynamic->SetScalarParameterValue(InPreprocessRenderer.GetBlurDistanceParameterName(), InPreprocessRenderer.GetBlurDistance());
 			DrawMaterialCanvas.DrawMaterialToRenderTarget(OutputRenderTarget, MaterialInstanceDynamic);
 		}
@@ -117,7 +117,7 @@ namespace UE::DMXPixelMapping::Rendering::Preprocess::Private
 				const bool bApplyFilterMaterial = MaterialInstanceDynamic && (bApplyFilterMaterialEachDownsamplePass || DownsampleRenderTarget == DownsampleRenderTargets.Last());
 				if (bApplyFilterMaterial)
 				{
-					MaterialInstanceDynamic->SetTextureParameterValue(InPreprocessRenderer.GetInputTextureParameterName(), SourceTexture);
+					MaterialInstanceDynamic->SetTextureParameterValue(InPreprocessRenderer.GetTextureParameterName(), SourceTexture);
 					MaterialInstanceDynamic->SetScalarParameterValue(InPreprocessRenderer.GetBlurDistanceParameterName(), InPreprocessRenderer.GetBlurDistance());
 					DrawMaterialCanvas.DrawMaterialToRenderTarget(DownsampleRenderTarget, MaterialInstanceDynamic);
 				}

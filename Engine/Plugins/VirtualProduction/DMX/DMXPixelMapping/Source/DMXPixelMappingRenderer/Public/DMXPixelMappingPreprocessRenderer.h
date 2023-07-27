@@ -99,10 +99,10 @@ public:
 	/** Returns the blur distance parameter */
 	float GetBlurDistance() const { return BlurDistance; }
 
-	/** Returns the input texture material parameter name */
-	FName GetInputTextureParameterName() const { return InputTextureParameterName; }
+	/** Returns the texture parameter name */
+	FName GetTextureParameterName() const { return TextureParameterName; }
 
-	/** Returns the blur distance material parameter name */
+	/** Returns the blur distance parameter name */
 	FName GetBlurDistanceParameterName() const { return BlurDistanceParamterName; }
 
 	// Property name getters
@@ -152,11 +152,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Filtering", Meta = (UIMin = "0", UIMax = "1", SliderExponent = 2.0, AllowPrivateAccess = true))
 	float BlurDistance = .02f;
 
-	/** Parameter name of the filter material to receive the input texture */
+	/** The texture parameter name in the Filter Material */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Filtering", Meta = (AllowPrivateAccess = true))
-	FName InputTextureParameterName = "InputTexture";
+	FName TextureParameterName = "Texture";
 
-	/** The blur distance parameter name */
+	/** The blur distance parameter name in the Filter Material */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Filtering", Meta = (AllowPrivateAccess = true))
 	FName BlurDistanceParamterName = "BlurDistance";
 
