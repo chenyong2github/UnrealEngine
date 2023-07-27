@@ -712,6 +712,9 @@ struct FNiagaraInputParameterCustomization
 	
 	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="WidgetType == ENiagaraInputWidgetType::EnumStyle", EditConditionHides))
 	TArray<FNiagaraWidgetNamedIntegerInputValue> EnumStyleDropdownValues;
+
+	UPROPERTY()
+	bool bBroadcastValueChangesOnCommitOnly = false;
 	
 	/** If true then the input is also displayed and editable as a 3d widget in the viewport (vector and transform types only). */
 	//UPROPERTY(EditAnywhere, Category="Customization")

@@ -81,7 +81,7 @@ private:
 		.OnBeginSliderMovement(this, &SNiagaraVectorParameterEditorBase::BeginSliderMovement)
 		.OnEndSliderMovement(this, &SNiagaraVectorParameterEditorBase::EndSliderMovement)
 		.TypeInterface(GetTypeInterface<float>(DisplayUnit))
-		.BroadcastValueChangesPerKey(!GetDefault<UNiagaraEditorSettings>()->GetUpdateStackValuesOnCommitOnly())
+		.BroadcastValueChangesPerKey(!GetDefault<UNiagaraEditorSettings>()->GetUpdateStackValuesOnCommitOnly() && !WidgetCustomization.bBroadcastValueChangesOnCommitOnly)
 		.AllowSpin(true)
 		.LabelPadding( FMargin(3) )
 		.LabelLocation( SNumericEntryBox<float>::ELabelLocation::Inside )

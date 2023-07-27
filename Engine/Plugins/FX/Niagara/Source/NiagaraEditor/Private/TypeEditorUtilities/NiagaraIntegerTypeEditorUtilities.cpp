@@ -166,7 +166,7 @@ public:
 				.OnEndSliderMovement(this, &SNiagaraIntegerParameterEditor::EndSliderMovement)
 				.TypeInterface(GetTypeInterface<int32>(DisplayUnit))
 				.AllowSpin(true)
-				.BroadcastValueChangesPerKey(!GetDefault<UNiagaraEditorSettings>()->GetUpdateStackValuesOnCommitOnly())
+				.BroadcastValueChangesPerKey(!GetDefault<UNiagaraEditorSettings>()->GetUpdateStackValuesOnCommitOnly() && !WidgetCustomization.bBroadcastValueChangesOnCommitOnly)
 				.LabelPadding(FMargin(3))
 				.LabelLocation(SNumericEntryBox<int32>::ELabelLocation::Inside)
 				.Label()

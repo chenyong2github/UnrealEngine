@@ -160,7 +160,7 @@ public:
 				.OnEndSliderMovement(this, &SNiagaraFloatParameterEditor::EndSliderMovement)
 				.TypeInterface(GetTypeInterface<float>(DisplayUnit))
 				.AllowSpin(true)
-				.BroadcastValueChangesPerKey(!NiagaraSettings->GetUpdateStackValuesOnCommitOnly())
+				.BroadcastValueChangesPerKey(!NiagaraSettings->GetUpdateStackValuesOnCommitOnly() && !WidgetCustomization.bBroadcastValueChangesOnCommitOnly)
 				.LabelPadding(FMargin(3))
 				.Delta(WidgetCustomization.bHasStepWidth ? WidgetCustomization.StepWidth : 0)
 				.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
