@@ -220,6 +220,11 @@ public:
 		return ColorCorrectRenderProxy;
 	};
 
+	/**
+	* Copy state required for rendering to be consumed by Scene view extension.
+	*/
+	void TransferState();
+
 private:
 
 #if WITH_METADATA
@@ -233,11 +238,6 @@ private:
 	* ActorListChangeType represents EPropertyChangeType
 	*/
 	void HandleAffectedActorsPropertyChange(uint32 ActorListChangeType);
-
-	/**
-	* Copy state required for rendering to be consumed by Scene view extension.
-	*/
-	void TransferState();
 
 private:
 	TWeakObjectPtr<UColorCorrectRegionsSubsystem> ColorCorrectRegionsSubsystem;

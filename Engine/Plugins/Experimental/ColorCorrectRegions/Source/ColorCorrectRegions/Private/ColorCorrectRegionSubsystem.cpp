@@ -326,6 +326,10 @@ void UColorCorrectRegionsSubsystem::RefreshRegions()
 		AColorCorrectRegion* AsRegion = *It;
 		if (IsRegionValid(AsRegion, GetWorld()))
 		{
+			// OnLevelChanged is called when Sublevel is hidden. State needs to be transferred
+			// once per actor on refresh since actors don't tick if sublevel is hidden.
+			AsRegion->TransferState();
+
 			if (!Cast<AColorCorrectionWindow>(AsRegion))
 			{
 				RegionsPriorityBased.Add(AsRegion);
