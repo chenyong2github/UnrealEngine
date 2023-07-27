@@ -45,6 +45,38 @@ DECLARE_CYCLE_STAT(TEXT("DynamicSpriteEmitterData GetDynamicMeshElementsEmitter 
 
 #include "InGamePerformanceTracker.h"
 
+static bool GFXCascadeSpriteRenderingEnabled = true;
+static FAutoConsoleVariableRef CVarFXCascadeSpriteRenderingEnabled(
+	TEXT("fx.Cascade.SpriteRenderingEnabled"),
+	GFXCascadeSpriteRenderingEnabled,
+	TEXT("Controls if sprite rendering is enabled for Cascade"),
+	ECVF_Default
+);
+
+static bool GFXCascadeMeshRenderingEnabled = true;
+static FAutoConsoleVariableRef CVarFXCascadeMeshRenderingEnabled(
+	TEXT("fx.Cascade.MeshRenderingEnabled"),
+	GFXCascadeMeshRenderingEnabled,
+	TEXT("Controls if mesh rendering is enabled for Cascade"),
+	ECVF_Default
+);
+
+static bool GFXCascadeBeamRenderingEnabled = true;
+static FAutoConsoleVariableRef CVarFXCascadeBeamRenderingEnabled(
+	TEXT("fx.Cascade.BeamRenderingEnabled"),
+	GFXCascadeBeamRenderingEnabled,
+	TEXT("Controls if beam rendering is enabled for Cascade"),
+	ECVF_Default
+);
+
+static bool GFXCascadeTrailRenderingEnabled = true;
+static FAutoConsoleVariableRef CVarFXCascadeTrailRenderingEnabled(
+	TEXT("fx.Cascade.TrailRenderingEnabled"),
+	GFXCascadeTrailRenderingEnabled,
+	TEXT("Controls if trail rendering is enabled for Cascade"),
+	ECVF_Default
+);
+
 static int32 GFXAllowParticleMeshLODs = 0;
 static FAutoConsoleVariableRef CVarFXAllowParticleMeshLODs(
 	TEXT("fx.FXAllowParticleMeshLODs"),
@@ -816,7 +848,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 	// Sort and generate particles for this view.
 	const FDynamicSpriteEmitterReplayDataBase* SourceData = GetSourceData();
 
-	if (bValid && SourceData)
+	if (bValid && SourceData && GFXCascadeSpriteRenderingEnabled)
 	{
 		if (SourceData->EmitterRenderMode == ERM_Normal)
 		{
@@ -1309,7 +1341,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 {
 	SCOPE_CYCLE_COUNTER(STAT_MeshRenderingTime);
 
-	if (bValid)
+	if (bValid && GFXCascadeMeshRenderingEnabled)
 	{
 		if (Source.EmitterRenderMode == ERM_Normal)
 		{
@@ -2369,6 +2401,12 @@ void FDynamicBeam2EmitterData::GetDynamicMeshElementsEmitter(const FParticleSyst
 	{
 		return;
 	}
+
+	if (!GFXCascadeBeamRenderingEnabled)
+	{
+		return;
+	}
+
 	FIndexBuffer* IndexBuffer = nullptr;
 	uint32 FirstIndex = 0;
 	int32 OutTriangleCount = 0;
@@ -5123,6 +5161,12 @@ void FDynamicTrailsEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 	{
 		return;
 	}
+
+	if (!GFXCascadeTrailRenderingEnabled)
+	{
+		return;
+	}
+
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 	FIndexBuffer* IndexBuffer = nullptr;
 	uint32 FirstIndex = 0;

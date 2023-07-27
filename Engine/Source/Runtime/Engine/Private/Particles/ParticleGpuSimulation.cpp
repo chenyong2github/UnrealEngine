@@ -69,6 +69,14 @@ FAutoConsoleVariableRef CVarParticleSimulationSizeY(
 	ECVF_ReadOnly
 );
 
+static bool GFXCascadeGpuSpriteRenderingEnabled = true;
+static FAutoConsoleVariableRef CVarFXCascadeGpuSpriteRenderingEnabled(
+	TEXT("fx.Cascade.GpuSpriteRenderingEnabled"),
+	GFXCascadeGpuSpriteRenderingEnabled,
+	TEXT("Controls if gpu sprite rendering is enabled for Cascade"),
+	ECVF_Default
+);
+
 /** The tile size. Texture space is allocated in TileSize x TileSize units. */
 const int32 GParticleSimulationTileSize = 4;
 const int32 GParticlesPerTile = GParticleSimulationTileSize * GParticleSimulationTileSize;
@@ -2654,7 +2662,7 @@ public:
 	{
 		auto FeatureLevel = ViewFamily.GetFeatureLevel();
 
-		if (RHISupportsGPUParticles())
+		if (RHISupportsGPUParticles() && GFXCascadeGpuSpriteRenderingEnabled)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_GPUSpritePreRenderTime);
 
