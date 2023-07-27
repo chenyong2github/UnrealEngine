@@ -29,13 +29,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Source)
 	TObjectPtr<USkeletalMesh> SourceMesh;
 
-	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DisplayName = "Location", EditCondition = "SourceMesh != nullptr"))
 	FVector3d SourceMeshTranslation;
 
-	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DisplayName = "Rotation", EditCondition = "SourceMesh != nullptr"))
 	FVector3d SourceMeshRotation;
 
-	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (DisplayName = "Scale", AllowPreserveRatio, EditCondition = "SourceMesh != nullptr"))
 	FVector3d SourceMeshScale;
 
 	UPROPERTY(EditAnywhere, Category = Source)
@@ -80,7 +80,7 @@ private:
 	FTransform TransformFromProperties() const;
 	void SetSRTPropertiesFromTransform(const FTransform& Transform) const;
 
-	void UpdateSourceMesh();
+	void UpdateSourceMesh(TObjectPtr<USkeletalMesh> Mesh);
 
 	void OpFinishedCallback(const UE::Geometry::FDynamicMeshOperator* Op);
 
