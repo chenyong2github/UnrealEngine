@@ -247,7 +247,7 @@ UE::Net::FNetRefHandle UActorReplicationBridge::BeginReplication(AActor* Actor, 
 	CreateNetRefHandleParams.PollFrequency = Actor->NetUpdateFrequency;
 
 #if !UE_BUILD_SHIPPING
-	ensureAlwaysMsgf(!(Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) || CreateNetRefHandleParams.StaticPriority >= 1.0f, TEXT("Very low NetPriority %.02f for always relevant or owner relevant Actor %s. Set it to 1.0f or higher."), Actor->NetPriority, ToCStr(Actor->GetName()));
+	ensureMsgf(!(Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) || CreateNetRefHandleParams.StaticPriority >= 1.0f, TEXT("Very low NetPriority %.02f for always relevant or owner relevant Actor %s. Set it to 1.0f or higher."), Actor->NetPriority, ToCStr(Actor->GetName()));
 #endif
 
 	FNetRefHandle ActorRefHandle = Super::BeginReplication(Actor, CreateNetRefHandleParams);
@@ -464,7 +464,7 @@ bool UActorReplicationBridge::WriteCreationHeader(UE::Net::FNetSerializationCont
 	using namespace UE::Net::Private;
 
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
-	ensureAlways(IsReplicatedHandle(Handle));
+	ensure(IsReplicatedHandle(Handle));
 	const UObject* Object = GetReplicatedObject(Handle);
 	if (const AActor* Actor = Cast<AActor>(Object))
 	{
@@ -493,7 +493,7 @@ bool UActorReplicationBridge::WriteCreationHeader(UE::Net::FNetSerializationCont
 		return !Writer->IsOverflown();
 	}
 
-	ensureAlwaysMsgf(false, TEXT("UActorReplicationBridge::WriteCreationHeader Failed to write creationHeader for NetRefHandle (Id=%u)"), Handle.GetId());
+	ensureMsgf(false, TEXT("UActorReplicationBridge::WriteCreationHeader Failed to write creationHeader for NetRefHandle (Id=%u)"), Handle.GetId());
 
 	return false;
 }
@@ -793,7 +793,7 @@ void UActorReplicationBridge::DestroyInstanceFromRemote(UObject* Instance, ERepl
 		}
 
 		AActor* Owner = Cast<AActor>(Instance->GetOuter());
-		if (ensureAlwaysMsgf(IsValid(Owner) && !Owner->IsUnreachable(), TEXT("UActorReplicationBridge::DestroyInstanceFromRemote Destroyed subobject after owner %s"), *Instance->GetPathName()))
+		if (ensureMsgf(IsValid(Owner) && !Owner->IsUnreachable(), TEXT("UActorReplicationBridge::DestroyInstanceFromRemote Destroyed subobject after owner %s"), *Instance->GetPathName()))
 		{
 			Owner->OnSubobjectDestroyFromReplication(Instance);
 		}

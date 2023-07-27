@@ -1826,7 +1826,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 	const EReplicatedObjectState State = Info.GetState();
 
 	// As an object might still have subobjects pending destroy in the list of subobjects 
-	if (State == EReplicatedObjectState::Invalid || !ensureAlwaysMsgf(State > EReplicatedObjectState::Invalid && State < EReplicatedObjectState::PendingDestroy, TEXT("Unsupported state %s"), ToCStr(LexToString(State))))
+	if (State == EReplicatedObjectState::Invalid || !ensureMsgf(State > EReplicatedObjectState::Invalid && State < EReplicatedObjectState::PendingDestroy, TEXT("Unsupported state %s"), ToCStr(LexToString(State))))
 	{
 		return EWriteObjectStatus::InvalidState;
 	}
