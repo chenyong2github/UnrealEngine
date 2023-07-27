@@ -18,13 +18,16 @@
 		{
 			"Name": "LiveLinkFaceImporter",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
 		}
 	],
 	"Plugins" : [
 		{
 			"Name": "LiveLink",
 			"Enabled": true
-		}
+		},
 	]
 }
