@@ -113,10 +113,6 @@ const FConfigContext::FPerPlatformDirs& FConfigContext::GetPerPlatformDirs(const
 		FString PluginExtDir;
 		if (bIsForPlugin)
 		{
- 			if (DestIniFilename.Contains(TEXT("Enhanced")))
-			{
-				UE_LOG(LogConfig, Display, TEXT("paper2d"));
-			}
 			// look if there's a plugin extension for this platform, it will have the platform name in the path
 			for (const FString& ChildDir : ChildPluginBaseDirs)
 			{
