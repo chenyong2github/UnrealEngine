@@ -1160,7 +1160,7 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 	if (KeyHash.IsZero())
 	{
 		UE_LOG(LogAnimation, Warning, TEXT("Zero key hash compressed animation data for %s requested platform %s"), *GetName(), *TargetPlatform->PlatformName());
-		return false;
+		return true;
 	}
 
 	if (PollCacheDerivedData(KeyHash))
