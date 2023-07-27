@@ -36,7 +36,7 @@ struct FPhysicsControlRecord
 	 * Creates the constraint (if necessary) and stores it in the state. ConstraintDebugOwner is passed 
 	 * to the constraint on creation. 
 	 */
-	FConstraintInstance* CreateConstraint(UObject* ConstraintDebugOwner);
+	FConstraintInstance* CreateConstraint(UObject* ConstraintDebugOwner, FName ControlName);
 
 	/** Ensures the constraint frame matches the control point in the record. */
 	void UpdateConstraintControlPoint();

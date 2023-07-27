@@ -20,7 +20,7 @@ void FPhysicsControlState::Reset()
 //======================================================================================================================
 // A constraint created with identity frames will just have the child frame at the mesh origin,
 // which is not necessarily where the center of gravity is.
-FConstraintInstance* FPhysicsControlRecord::CreateConstraint(UObject* ConstraintDebugOwner)
+FConstraintInstance* FPhysicsControlRecord::CreateConstraint(UObject* ConstraintDebugOwner, FName ControlName)
 {
 	if (!PhysicsControlState.ConstraintInstance)
 	{
@@ -35,12 +35,18 @@ FConstraintInstance* FPhysicsControlRecord::CreateConstraint(UObject* Constraint
 
 	if (PhysicsControl.ParentMeshComponent && !PhysicsControl.ParentBoneName.IsNone() && !ParentBody)
 	{
-		UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to find expected parent body when making constraint"));
+		UE_LOG(LogPhysicsControlComponent, Warning, 
+			TEXT("Failed to find expected parent body %s when making constraint for control %s"), 
+			*PhysicsControl.ParentBoneName.ToString(),
+			*ControlName.ToString());
 		return nullptr;
 	}
 	if (PhysicsControl.ChildMeshComponent && !PhysicsControl.ChildBoneName.IsNone() && !ChildBody)
 	{
-		UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to find expected child body when making constraint"));
+		UE_LOG(LogPhysicsControlComponent, Warning, 
+			TEXT("Failed to find expected child body %s when making constraint for control %s"), 
+			*PhysicsControl.ChildBoneName.ToString(),
+			*ControlName.ToString());
 		return nullptr;
 	}
 

@@ -112,11 +112,12 @@ void UPhysicsControlComponent::UpdateControls(float DeltaTime)
 	for (TPair<FName, FPhysicsControlRecord>& RecordPair : Implementation->PhysicsControlRecords)
 	{
 		// New constraint requested when one doesn't exist
+		FName ControlName = RecordPair.Key;
 		FPhysicsControlRecord& Record = RecordPair.Value;
 		FConstraintInstance* ConstraintInstance = Record.PhysicsControlState.ConstraintInstance.Get();
 		if (!ConstraintInstance)
 		{
-			ConstraintInstance = Record.CreateConstraint(this);
+			ConstraintInstance = Record.CreateConstraint(this, ControlName);
 		}
 
 		if (ConstraintInstance)
