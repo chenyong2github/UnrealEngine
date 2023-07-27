@@ -137,7 +137,7 @@ void UMVVMBlueprintViewConversionFunction::InitializeFromWrapperGraph(UBlueprint
 		CachedWrapperNode = WrapperNode;
 		SavePinValues(SelfContext);
 
-		if (bWrapperGraphTransient && bWrapperGraphTransient)
+		if (bWrapperGraphTransient && CachedWrapperNode)
 		{
 			SelfContext->FunctionGraphs.RemoveSingle(CachedWrapperGraph);
 		}
