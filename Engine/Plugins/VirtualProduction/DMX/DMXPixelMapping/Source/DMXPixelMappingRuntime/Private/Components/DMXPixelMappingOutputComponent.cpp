@@ -312,35 +312,42 @@ UDMXPixelMappingRendererComponent* UDMXPixelMappingOutputComponent::FindRenderer
 }
 
 #if WITH_EDITOR
-void UDMXPixelMappingOutputComponent::MakeHighestZOrderInComponentRect()
+void UDMXPixelMappingOutputComponent::ZOrderTopmost()
 {
-	if (UDMXPixelMappingRendererComponent* RendererComponent = FindRendererComponent())
+	UDMXPixelMappingRendererComponent* RendererComponent = FindRendererComponent();
+	if (!RendererComponent)
 	{
-		constexpr bool bRecursive = true;
-		RendererComponent->ForEachChildOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* InComponent)
+		return;
+	}
+
+	// Gather all components, sort them by zorder and rebase all
+	constexpr bool bRecursive = true;
+
+	TArray<UDMXPixelMappingOutputComponent*> AllOutputComoponents;
+	RendererComponent->ForEachChildOfClass<UDMXPixelMappingOutputComponent>([&AllOutputComoponents](UDMXPixelMappingOutputComponent* Component)
+		{
+			AllOutputComoponents.Add(Component);
+		}, bRecursive);
+	Algo::SortBy(AllOutputComoponents, &UDMXPixelMappingOutputComponent::GetZOrder);
+
+	int32 NewZOrder = 0;
+	for (UDMXPixelMappingOutputComponent* OutputComponent : AllOutputComoponents)
+	{
+		OutputComponent->SetZOrder(++NewZOrder);
+	}
+
+	// Order this component and its children topmost
+	SetZOrder(++NewZOrder);
+	for (UDMXPixelMappingOutputComponent* OutputComponent : AllOutputComoponents)
+	{
+		// Increment zorder for all children that are a sibling of this component
+		for (UDMXPixelMappingBaseComponent* Parent = OutputComponent->GetParent(); Parent; Parent = Parent->GetParent())
+		{
+			if (Parent == this)
 			{
-				if (InComponent == this)
-				{
-					return;
-				}
-
-				// Exclude children, they're updated when SetZOrder is called below
-				for (UDMXPixelMappingBaseComponent* OtherParent = InComponent->GetParent(); OtherParent; OtherParent = OtherParent->GetParent())
-				{
-					if (OtherParent == this)
-					{
-						return;
-					}
-				}
-
-				if (this->OverlapsComponent(InComponent))
-				{
-					if (InComponent->ZOrder + 1 > ZOrder)
-					{
-						SetZOrder(InComponent->ZOrder + 1);
-					}
-				}
-			}, bRecursive);
+				OutputComponent->SetZOrder(++NewZOrder);
+			}
+		}
 	}
 }
 #endif // WITH_EDITOR

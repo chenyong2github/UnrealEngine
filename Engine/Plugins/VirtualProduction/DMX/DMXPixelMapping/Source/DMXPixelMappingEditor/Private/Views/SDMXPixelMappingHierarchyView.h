@@ -110,7 +110,7 @@ private:
 	void AdoptSelectionFromToolkit();
 
 	/** Adopts the selection from toolkit */
-	bool RecursiveAdoptSelectionFromToolkit(const TSharedRef<FDMXPixelMappingHierarchyItem>& Model);
+	void RecursiveAdoptSelectionFromToolkit(const TSharedRef<FDMXPixelMappingHierarchyItem>& Model);
 
 	/** Returns true if the current selection can to be renamed */
 	bool CanRenameSelectedComponent() const;

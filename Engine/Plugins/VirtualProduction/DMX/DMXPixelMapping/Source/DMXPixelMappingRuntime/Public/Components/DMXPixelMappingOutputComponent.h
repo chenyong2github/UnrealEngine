@@ -123,7 +123,7 @@ public:
 
 #if WITH_EDITOR
 	/** Makes the component the highest ZOrdered of components in the component rectangle, updates childs if needed */
-	void MakeHighestZOrderInComponentRect();
+	void ZOrderTopmost();
 #endif // WITH_EDITOR
 
 public:

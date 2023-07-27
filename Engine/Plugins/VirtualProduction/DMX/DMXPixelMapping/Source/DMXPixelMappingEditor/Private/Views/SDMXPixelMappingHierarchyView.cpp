@@ -513,44 +513,31 @@ void SDMXPixelMappingHierarchyView::AdoptSelectionFromToolkit()
 		return;
 	}
 
-	if (HierarchyTreeView.IsValid())
+	for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& RootItem : AllRootItems)
 	{
-		HierarchyTreeView->ClearSelection();
-	}
-
-	for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& Item : FilteredRootItems)
-	{
-		RecursiveAdoptSelectionFromToolkit(Item.ToSharedRef());
+		RecursiveAdoptSelectionFromToolkit(RootItem.ToSharedRef());
 	}
 }
 
-bool SDMXPixelMappingHierarchyView::RecursiveAdoptSelectionFromToolkit(const TSharedRef<FDMXPixelMappingHierarchyItem>& Item)
+void SDMXPixelMappingHierarchyView::RecursiveAdoptSelectionFromToolkit(const TSharedRef<FDMXPixelMappingHierarchyItem>& Item)
 {
-	if (bIsUpdatingSelection)
+	if (!WeakToolkit.IsValid() || !HierarchyTreeView.IsValid())
 	{
-		return false;
+		return;
 	}
 
-	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
-	if (!Toolkit.IsValid())
+	for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& Child : Item->GetChildren())
 	{
-		return false;
+		RecursiveAdoptSelectionFromToolkit(Child.ToSharedRef());
 	}
 
-	bool bContainsSelection = false;
-	for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& ChildItem : Item->GetChildren())
-	{
-		bContainsSelection |= RecursiveAdoptSelectionFromToolkit(ChildItem.ToSharedRef());
-	}
-
-	const TSet<FDMXPixelMappingComponentReference> SelectedComponents = Toolkit->GetSelectedComponents();
-	if (SelectedComponents.Contains(FDMXPixelMappingComponentReference(Toolkit, Item->GetComponent())))
-	{
-		HierarchyTreeView->RequestScrollIntoView(Item);
-		return true;
-	}
-
-	return bContainsSelection;
+	const bool bSelected = Algo::FindByPredicate(WeakToolkit.Pin()->GetSelectedComponents(),
+		[Item](const FDMXPixelMappingComponentReference& ComponentReference)
+		{
+			return ComponentReference.GetComponent() && ComponentReference.GetComponent() == Item->GetComponent();
+		}) != nullptr;
+	
+	HierarchyTreeView->SetItemSelection(Item, bSelected);
 }
 
 bool SDMXPixelMappingHierarchyView::CanRenameSelectedComponent() const

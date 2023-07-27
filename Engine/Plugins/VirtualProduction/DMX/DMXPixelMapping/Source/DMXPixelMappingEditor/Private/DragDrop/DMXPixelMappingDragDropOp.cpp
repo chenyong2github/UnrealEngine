@@ -13,16 +13,6 @@
 
 FDMXPixelMappingDragDropOp::~FDMXPixelMappingDragDropOp()
 {
-	// Newly added components are highest Z-Order
-	TArray<UDMXPixelMappingOutputComponent*> ChildrenNotOverTheirParent;
-	for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& DraggedComponent : DraggedComponents)
-	{
-		if (UDMXPixelMappingOutputComponent* DraggedOutputComponent = Cast<UDMXPixelMappingOutputComponent>(DraggedComponent.Get()))
-		{
-			DraggedOutputComponent->MakeHighestZOrderInComponentRect();
-		}
-	}
-
 	// End the transaction in any case
 	GEditor->EndTransaction();
 }

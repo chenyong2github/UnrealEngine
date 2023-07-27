@@ -70,6 +70,7 @@ void UDMXPixelMappingDMXLibraryViewModel::CreateAndSetNewFixtureGroup(TWeakPtr<F
 
 		NewFixtureGroupComponent->SetPosition(NewPosition);
 		NewFixtureGroupComponent->SetSize(NewSize);
+		NewFixtureGroupComponent->ZOrderTopmost();
 	}
 
 	UpdateFixtureGroupFromSelection(InWeakToolkit);
@@ -187,7 +188,7 @@ void UDMXPixelMappingDMXLibraryViewModel::AddFixturePatchesEnsured(const TArray<
 void UDMXPixelMappingDMXLibraryViewModel::SaveFixturePatchListDescriptor(const FDMXReadOnlyFixturePatchListDescriptor& NewDescriptor)
 {
 	FixturePatchListDescriptor = NewDescriptor;
-	SaveConfig();
+	SaveConfig();	
 }
 
 void UDMXPixelMappingDMXLibraryViewModel::PostUndo(bool bSuccess)

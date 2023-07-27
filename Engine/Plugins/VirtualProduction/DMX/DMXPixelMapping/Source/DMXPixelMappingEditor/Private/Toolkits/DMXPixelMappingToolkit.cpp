@@ -2,6 +2,8 @@
 
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
+#include "Algo/Sort.h"
+#include "Algo/Transform.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorCommands.h"
 #include "DMXPixelMappingEditorModule.h"
@@ -225,6 +227,23 @@ void FDMXPixelMappingToolkit::SelectComponents(const TSet<FDMXPixelMappingCompon
 		{
 			ActiveOutputComponents.Add(OutputComponent);
 		}
+	}
+
+	// Always order selected components topmost, but keep their relative z-ordering
+	TArray<UDMXPixelMappingOutputComponent*> SelectedOutputComponents;
+	Algo::TransformIf(SelectedComponents, SelectedOutputComponents,
+		[](const FDMXPixelMappingComponentReference& ComponentReference)
+		{
+			return ComponentReference.GetComponent() && ComponentReference.GetComponent()->IsA(UDMXPixelMappingOutputComponent::StaticClass());
+		},
+		[](const FDMXPixelMappingComponentReference& ComponentReference)
+		{
+			return CastChecked<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent());
+		});
+	Algo::SortBy(SelectedOutputComponents, &UDMXPixelMappingOutputComponent::GetZOrder);
+	for (UDMXPixelMappingOutputComponent* SelectedComponent : SelectedOutputComponents)
+	{
+		SelectedComponent->ZOrderTopmost();
 	}
 
 	OnSelectedComponentsChangedDelegate.Broadcast();
