@@ -203,14 +203,61 @@ bool UMetaSoundBuilderBase::ContainsNodeOutput(const FMetaSoundBuilderNodeOutput
 
 void UMetaSoundBuilderBase::ConnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
-	const FMetasoundFrontendEdge* NewEdge = Builder.AddEdge(FMetasoundFrontendEdge
+	using namespace Metasound::Frontend;
+
+	OutResult = EMetaSoundBuilderResult::Failed;
+
+	FMetasoundFrontendEdge NewEdge { NodeOutputHandle.NodeID, NodeOutputHandle.VertexID, NodeInputHandle.NodeID, NodeInputHandle.VertexID };
+	const EInvalidEdgeReason InvalidEdgeReason = Builder.IsValidEdge(NewEdge);
+
+	if (InvalidEdgeReason == Metasound::Frontend::EInvalidEdgeReason::None)
 	{
-		NodeOutputHandle.NodeID,
-		NodeOutputHandle.VertexID,
-		NodeInputHandle.NodeID,
-		NodeInputHandle.VertexID,
-	});
-	OutResult = NewEdge ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+#if !NO_LOGGING
+		const FMetasoundFrontendNode* OldOutputNode = nullptr;
+		const FMetasoundFrontendVertex* OldOutputVertex = nullptr;
+		if (Builder.IsNodeInputConnected(NodeInputHandle.NodeID, NodeInputHandle.VertexID))
+		{
+			OldOutputVertex = Builder.FindNodeOutputConnectedToNodeInput(NodeInputHandle.NodeID, NodeInputHandle.VertexID, &OldOutputNode);
+		}
+#endif // !NO_LOGGING
+
+		const bool bRemovedEdge = Builder.RemoveEdgeToNodeInput(NodeInputHandle.NodeID, NodeInputHandle.VertexID);
+		Builder.AddEdge(MoveTemp(NewEdge));
+
+#if !NO_LOGGING
+		if (bRemovedEdge)
+		{
+			checkf(OldOutputNode, TEXT("MetaSound edge was removed from output but output node not found."));
+			checkf(OldOutputVertex, TEXT("MetaSound edge was removed from output but output vertex not found."));
+
+			const FMetasoundFrontendNode* InputNode = Builder.FindNode(NodeInputHandle.NodeID);
+			checkf(InputNode, TEXT("Edge was deemed valid but input parent node is missing"));
+
+			const FMetasoundFrontendVertex* InputVertex = Builder.FindNodeInput(NodeInputHandle.NodeID, NodeInputHandle.VertexID);
+			checkf(InputVertex, TEXT("Edge was deemed valid but input is missing"));
+
+			const FMetasoundFrontendNode* OutputNode = Builder.FindNode(NodeOutputHandle.NodeID);
+			checkf(OutputNode, TEXT("Edge was deemed valid but output parent node is missing"));
+
+			const FMetasoundFrontendVertex* OutputVertex = Builder.FindNodeOutput(NodeOutputHandle.NodeID, NodeOutputHandle.VertexID);
+			checkf(OutputVertex, TEXT("Edge was deemed valid but output is missing"));
+
+			UE_LOG(LogMetaSound, Verbose, TEXT("Removed connection from node output '%s:%s' to node '%s:%s' in order to connect to node output '%s:%s'"),
+				*OldOutputNode->Name.ToString(),
+				*OldOutputVertex->Name.ToString(),
+				*InputNode->Name.ToString(),
+				*InputVertex->Name.ToString(),
+				*OutputNode->Name.ToString(),
+				*OutputVertex->Name.ToString());
+		}
+#endif // !NO_LOGGING
+
+		OutResult = EMetaSoundBuilderResult::Succeeded;
+	}
+	else
+	{
+		UE_LOG(LogMetaSound, Warning, TEXT("Builder '%s' 'ConnectNodes' failed: '%s'"), *GetName(), *LexToString(InvalidEdgeReason));
+	}
 }
 
 void UMetaSoundBuilderBase::ConnectNodesByInterfaceBindings(const FMetaSoundNodeHandle& FromNodeHandle, const FMetaSoundNodeHandle& ToNodeHandle, EMetaSoundBuilderResult& OutResult)
@@ -255,40 +302,50 @@ TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::ConnectNodeInpu
 
 void UMetaSoundBuilderBase::ConnectNodeOutputToGraphOutput(FName GraphOutputName, const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, EMetaSoundBuilderResult& OutResult)
 {
+	using namespace Metasound::Frontend;
+
 	OutResult = EMetaSoundBuilderResult::Failed;
 
 	if (const FMetasoundFrontendNode* GraphOutputNode = Builder.FindGraphOutputNode(GraphOutputName))
 	{
 		const FMetasoundFrontendVertex& InputVertex = GraphOutputNode->Interface.Inputs.Last();
-		const FMetasoundFrontendEdge* EdgeAdded = Builder.AddEdge(FMetasoundFrontendEdge
+		FMetasoundFrontendEdge NewEdge { NodeOutputHandle.NodeID, NodeOutputHandle.VertexID, GraphOutputNode->GetID(), InputVertex.VertexID };
+		const EInvalidEdgeReason InvalidEdgeReason = Builder.IsValidEdge(NewEdge);
+		if (InvalidEdgeReason == EInvalidEdgeReason::None)
 		{
-			NodeOutputHandle.NodeID,
-			NodeOutputHandle.VertexID,
-			GraphOutputNode->GetID(),
-			InputVertex.VertexID
-		});
-		OutResult = EdgeAdded ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+			Builder.RemoveEdgeToNodeInput(GraphOutputNode->GetID(), InputVertex.VertexID);
+			Builder.AddEdge(MoveTemp(NewEdge));
+			OutResult = EMetaSoundBuilderResult::Succeeded;
+		}
+		else
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Builder '%s' 'ConnectNodeOutputToGraphOutput' failed: '%s'"), *GetName(), *LexToString(InvalidEdgeReason));
+		}
 	}
 }
 
 void UMetaSoundBuilderBase::ConnectNodeInputToGraphInput(FName GraphInputName, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
-	const FMetasoundFrontendNode* GraphInputNode = Builder.FindGraphInputNode(GraphInputName);
-	if (!GraphInputNode)
-	{
-		OutResult = EMetaSoundBuilderResult::Failed;
-		return;
-	}
+	using namespace Metasound::Frontend;
 
-	const FMetasoundFrontendVertex& OutputVertex = GraphInputNode->Interface.Outputs.Last();
-	const FMetasoundFrontendEdge* EdgeAdded = Builder.AddEdge(FMetasoundFrontendEdge
+	OutResult = EMetaSoundBuilderResult::Failed;
+
+	if (const FMetasoundFrontendNode* GraphInputNode = Builder.FindGraphInputNode(GraphInputName))
 	{
-		GraphInputNode->GetID(),
-		OutputVertex.VertexID,
-		NodeInputHandle.NodeID,
-		NodeInputHandle.VertexID
-	});
-	OutResult = EdgeAdded ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+		const FMetasoundFrontendVertex& OutputVertex = GraphInputNode->Interface.Outputs.Last();
+		FMetasoundFrontendEdge NewEdge { GraphInputNode->GetID(), OutputVertex.VertexID, NodeInputHandle.NodeID, NodeInputHandle.VertexID };
+		const EInvalidEdgeReason InvalidEdgeReason = Builder.IsValidEdge(NewEdge);
+		if (InvalidEdgeReason == EInvalidEdgeReason::None)
+		{
+			Builder.RemoveEdgeToNodeInput(NodeInputHandle.NodeID, NodeInputHandle.VertexID);
+			Builder.AddEdge(MoveTemp(NewEdge));
+			OutResult = EMetaSoundBuilderResult::Succeeded;
+		}
+		else
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Builder '%s' 'ConnectNodeInputToGraphInput' failed: '%s'"), *GetName(), *LexToString(InvalidEdgeReason));
+		}
+	}
 }
 
 void UMetaSoundBuilderBase::DisconnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)

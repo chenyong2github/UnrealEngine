@@ -307,7 +307,7 @@ bool FMetaSoundSourceBuilderAuditionLatentCommand::Update()
 		// Each subsequent call should maintain that name to avoid bloating the FName table/breaking references should this auditioned sound
 		// be in anyway referenced.
 		const FName InitClassName = GetComponentSoundClassName();
-		Builder->Audition(nullptr, AudioComponent, { }, true);
+		Builder->Audition(nullptr, AudioComponent, { }, bEnableLiveUpdates);
 		const FName BuiltClassName = GetComponentSoundClassName();
 
 		const bool bInitNameGenerated = InitClassName.IsNone() && !BuiltClassName.IsNone();
@@ -408,7 +408,7 @@ bool FAudioMetasoundSourceBuilderTestSpamAudition::RunTest(const FString& Parame
 			NewValue.Set(FMath::RandRange(220.f, 2200.f));
 			ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderSetLiteralLatentCommand(*this, &Builder, GenInputNodeFreq, NewValue));
 			ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderAuditionLatentCommand(&Builder, AudioComponent, bEnableLiveUpdate));
-			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.01f));
+			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.05f));
 		}
 
 		ADD_LATENT_AUTOMATION_COMMAND(FAudioComponentStopLatentCommand(AudioComponent));
@@ -442,7 +442,6 @@ bool FAudioMetasoundSourceBuilderLiveUpdateNode::RunTest(const FString& Paramete
 		ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(2.f));
 
 		// Disconnect graph audio output from existing sinosc output and connect to added triosc
-		ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderDisconnectInputLatentCommand(*this, &Builder, MonoOutNodeInput));
 		ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderCreateAndConnectTriGeneratorNodeLatentCommand(*this, &Builder, MonoOutNodeInput));
 
 		FName DataTypeName;

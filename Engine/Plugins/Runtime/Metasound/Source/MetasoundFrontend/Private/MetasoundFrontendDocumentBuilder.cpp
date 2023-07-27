@@ -444,6 +444,32 @@ namespace Metasound::Frontend
 		};
 	} // namespace DocumentBuilderPrivate
 
+	FString LexToString(const EInvalidEdgeReason& InReason)
+	{
+		switch (InReason)
+		{
+			case EInvalidEdgeReason::None:
+				return TEXT("No reason");
+
+			case EInvalidEdgeReason::MismatchedAccessType:
+				return TEXT("Mismatched Access Type");
+
+			case EInvalidEdgeReason::MismatchedDataType:
+				return TEXT("Mismatched DataType");
+
+			case EInvalidEdgeReason::MissingInput:
+				return TEXT("Missing Input");
+
+			case EInvalidEdgeReason::MissingOutput:
+				return TEXT("Missing Output");
+
+			default:
+				return TEXT("COUNT");
+		}
+
+		static_assert(static_cast<uint32>(EInvalidEdgeReason::COUNT) == 5, "Potential missing case coverage for EInvalidEdgeReason");
+	}
+
 	FModifyInterfaceOptions::FModifyInterfaceOptions(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd)
 		: InterfacesToRemove(InInterfacesToRemove)
 		, InterfacesToAdd(InInterfacesToAdd)
@@ -533,25 +559,20 @@ const FMetasoundFrontendClass* FMetaSoundFrontendDocumentBuilder::AddDependency(
 	return Dependency;
 }
 
-const FMetasoundFrontendEdge* FMetaSoundFrontendDocumentBuilder::AddEdge(FMetasoundFrontendEdge&& InNewEdge)
+void FMetaSoundFrontendDocumentBuilder::AddEdge(FMetasoundFrontendEdge&& InNewEdge)
 {
 	using namespace Metasound::Frontend;
 
-	if (CanAddEdge(InNewEdge))
-	{
-		FMetasoundFrontendDocument& Document = GetDocument();
-		FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
-		const IDocumentGraphEdgeCache& EdgeCache = DocumentCache->GetEdgeCache();
-		const FMetasoundFrontendEdge& NewEdge = Graph.Edges.Add_GetRef(MoveTemp(InNewEdge));
-		const int32 NewIndex = Graph.Edges.Num() - 1;
-		DocumentDelegates->EdgeDelegates.OnEdgeAdded.Broadcast(NewIndex);
-		return &NewEdge;
-	}
+	checkf(CanAddEdge(InNewEdge), TEXT("Attempted call to AddEdge in MetaSound Builder where not valid."));
 
-	return nullptr;
+	FMetasoundFrontendDocument& Document = GetDocument();
+	FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
+	Graph.Edges.Add(MoveTemp(InNewEdge));
+	const int32 NewIndex = Graph.Edges.Num() - 1;
+	DocumentDelegates->EdgeDelegates.OnEdgeAdded.Broadcast(NewIndex);
 }
 
-bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Frontend::FNamedEdge>& EdgesToMake, TArray<const FMetasoundFrontendEdge*>* OutNewEdges)
+bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Frontend::FNamedEdge>& EdgesToMake, TArray<const FMetasoundFrontendEdge*>* OutNewEdges, bool bReplaceExistingConnections)
 {
 	using namespace Metasound::Frontend;
 
@@ -565,7 +586,14 @@ bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Fron
 
 	bool bSuccess = true;
 
-	TArray<FMetasoundFrontendEdge> EdgesToAdd;
+	struct FNewEdgeData
+	{
+		FMetasoundFrontendEdge NewEdge;
+		const FMetasoundFrontendVertex* OutputVertex = nullptr;
+		const FMetasoundFrontendVertex* InputVertex = nullptr;
+	};
+
+	TArray<FNewEdgeData> EdgesToAdd;
 	for (const FNamedEdge& Edge : EdgesToMake)
 	{
 		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
@@ -575,26 +603,79 @@ bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Fron
 		if (OutputVertex && InputVertex)
 		{
 			FMetasoundFrontendEdge NewEdge = { Edge.OutputNodeID, OutputVertex->VertexID, Edge.InputNodeID, InputVertex->VertexID };
-			if (CanAddEdge(NewEdge))
+			const EInvalidEdgeReason InvalidEdgeReason = IsValidEdge(NewEdge);
+			if (InvalidEdgeReason == EInvalidEdgeReason::None)
 			{
-				EdgesToAdd.Add(MoveTemp(NewEdge));
+				EdgesToAdd.Add(FNewEdgeData { MoveTemp(NewEdge), OutputVertex, InputVertex });
 			}
 			else
 			{
 				bSuccess = false;
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to add connections between MetaSound output '%s' and input '%s': Vertex types either incompatable (eg. construction pin to non-construction pin) or input already connected."), *Edge.OutputName.ToString(), *Edge.InputName.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to add connections between MetaSound output '%s' and input '%s': '%s'."), *Edge.OutputName.ToString(), *Edge.InputName.ToString(), *LexToString(InvalidEdgeReason));
 			}
 		}
 	}
 
 	const TArray<FMetasoundFrontendEdge>& Edges = GetDocument().RootGraph.Graph.Edges;
 	const int32 LastIndex = Edges.Num() - 1;
-	for (FMetasoundFrontendEdge& EdgeToAdd : EdgesToAdd)
+	for (FNewEdgeData& EdgeToAdd : EdgesToAdd)
 	{
-		const FMetasoundFrontendEdge* NewEdge = AddEdge(MoveTemp(EdgeToAdd));
-		if (!ensureAlwaysMsgf(NewEdge, TEXT("Failed to add MetaSound graph edge via DocumentBuilder when prior step validated edge add was valid")))
+		if (bReplaceExistingConnections)
+		{
+#if !NO_LOGGING
+			const FMetasoundFrontendNode* OldOutputNode = nullptr;
+			const FMetasoundFrontendVertex* OldOutputVertex = FindNodeOutputConnectedToNodeInput(EdgeToAdd.NewEdge.ToNodeID, EdgeToAdd.NewEdge.ToVertexID, &OldOutputNode);
+#endif // !NO_LOGGING
+
+			const bool bRemovedEdge = RemoveEdgeToNodeInput(EdgeToAdd.NewEdge.ToNodeID, EdgeToAdd.NewEdge.ToVertexID);
+
+#if !NO_LOGGING
+			if (bRemovedEdge)
+			{
+				checkf(OldOutputNode, TEXT("MetaSound edge was removed from output but output node not found."));
+				checkf(OldOutputVertex, TEXT("MetaSound edge was removed from output but output vertex not found."));
+
+				const FMetasoundFrontendNode* InputNode = FindNode(EdgeToAdd.NewEdge.ToNodeID);
+				checkf(InputNode, TEXT("Edge was deemed valid but input parent node is missing"));
+
+				const FMetasoundFrontendNode* OutputNode = FindNode(EdgeToAdd.NewEdge.FromNodeID);
+				checkf(OutputNode, TEXT("Edge was deemed valid but output parent node is missing"));
+
+				UE_LOG(LogMetaSound, Verbose, TEXT("Removed connection from node output '%s:%s' to node '%s:%s' in order to connect to node output '%s:%s'"),
+					*OldOutputNode->Name.ToString(),
+					*OldOutputVertex->Name.ToString(),
+					*InputNode->Name.ToString(),
+					*EdgeToAdd.InputVertex->Name.ToString(),
+					*OutputNode->Name.ToString(),
+					*EdgeToAdd.OutputVertex->Name.ToString());
+			}
+#endif // !NO_LOGGING
+
+			AddEdge(MoveTemp(EdgeToAdd.NewEdge));
+		}
+		else if (!IsNodeInputConnected(EdgeToAdd.NewEdge.ToNodeID, EdgeToAdd.NewEdge.ToVertexID))
+		{
+			AddEdge(MoveTemp(EdgeToAdd.NewEdge));
+		}
+		else
 		{
 			bSuccess = false;
+
+#if !NO_LOGGING
+			FMetasoundFrontendEdge EdgeToRemove;
+			if (const int32* EdgeIndex = DocumentCache->GetEdgeCache().FindEdgeIndexToNodeInput(EdgeToAdd.NewEdge.ToNodeID, EdgeToAdd.NewEdge.ToVertexID))
+			{
+				EdgeToRemove = Document.RootGraph.Graph.Edges[*EdgeIndex];
+			}
+
+			const FMetasoundFrontendVertex* Input = FindNodeInput(EdgeToAdd.NewEdge.ToNodeID, EdgeToAdd.NewEdge.ToVertexID);
+			checkf(Input, TEXT("Prior loop to check edge validity should protect against missing input vertex"));
+
+			const FMetasoundFrontendVertex* Output = FindNodeOutput(EdgeToAdd.NewEdge.FromNodeID, EdgeToAdd.NewEdge.FromVertexID);
+			checkf(Input, TEXT("Prior loop to check edge validity should protect against missing output vertex"));
+
+			UE_LOG(LogMetaSound, Warning, TEXT("Connection between MetaSound output '%s' and input '%s' not added: Input already connected to '%s'."), *Output->Name.ToString(), *Input->Name.ToString(), *Output->Name.ToString());
+#endif // !NO_LOGGING
 		}
 	}
 
@@ -609,7 +690,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Fron
 	return bSuccess;
 }
 
-bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(const FGuid& InFromNodeID, const FGuid& InToNodeID)
+bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(const FGuid& InFromNodeID, const FGuid& InToNodeID, bool bReplaceExistingConnections)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -621,7 +702,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(con
 		TSet<FNamedEdge> NamedEdges;
 		if (DocumentBuilderPrivate::TryGetInterfaceBoundEdges(InFromNodeID, *FromInterfaceVersions, InToNodeID, *ToInterfaceVersions, NamedEdges))
 		{
-			return AddNamedEdges(NamedEdges);
+			return AddNamedEdges(NamedEdges, nullptr, bReplaceExistingConnections);
 		}
 	}
 
@@ -629,7 +710,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(con
 
 }
 
-bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputsToGraphOutputs(const FGuid& InNodeID, TArray<const FMetasoundFrontendEdge*>& OutEdgesCreated)
+bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputsToGraphOutputs(const FGuid& InNodeID, TArray<const FMetasoundFrontendEdge*>& OutEdgesCreated, bool bReplaceExistingConnections)
 {
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputsToGraphOutputs);
 
@@ -669,10 +750,10 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputs
 		}
 	}
 
-	return AddNamedEdges(EdgesToMake, &OutEdgesCreated);
+	return AddNamedEdges(EdgesToMake, &OutEdgesCreated, bReplaceExistingConnections);
 }
 
-bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsToGraphInputs(const FGuid& InNodeID, TArray<const FMetasoundFrontendEdge*>& OutEdgesCreated)
+bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsToGraphInputs(const FGuid& InNodeID, TArray<const FMetasoundFrontendEdge*>& OutEdgesCreated, bool bReplaceExistingConnections)
 {
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsToGraphInputs);
 
@@ -712,7 +793,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsT
 		}
 	}
 
-	return AddNamedEdges(EdgesToMake, &OutEdgesCreated);
+	return AddNamedEdges(EdgesToMake, &OutEdgesCreated, bReplaceExistingConnections);
 }
 
 const FMetasoundFrontendNode* FMetaSoundFrontendDocumentBuilder::AddGraphInput(const FMetasoundFrontendClassInput& InClassInput)
@@ -1020,22 +1101,7 @@ bool FMetaSoundFrontendDocumentBuilder::CanAddEdge(const FMetasoundFrontendEdge&
 
 	if (!EdgeCache.IsNodeInputConnected(InEdge.ToNodeID, InEdge.ToVertexID))
 	{
-		const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
-		const FMetasoundFrontendVertex* OutputVertex = NodeCache.FindOutputVertex(InEdge.FromNodeID, InEdge.FromVertexID);
-		const FMetasoundFrontendVertex* InputVertex = NodeCache.FindInputVertex(InEdge.ToNodeID, InEdge.ToVertexID);
-		if (OutputVertex && InputVertex)
-		{
-			if (OutputVertex->TypeName == InputVertex->TypeName)
-			{
-				const FMetasoundFrontendClassOutput* ClassOutput = FindNodeOutputClassOutput(InEdge.FromNodeID, InEdge.FromVertexID);
-				const FMetasoundFrontendClassInput* ClassInput = FindNodeInputClassInput(InEdge.ToNodeID, InEdge.ToVertexID);
-				if (ClassInput && ClassOutput)
-				{
-					return FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(ClassOutput->AccessType, ClassInput->AccessType);
-				}
-			}
-		}
+		return IsValidEdge(InEdge) == EInvalidEdgeReason::None;
 	}
 
 	return false;
@@ -1303,72 +1369,6 @@ const FMetasoundFrontendNode* FMetaSoundFrontendDocumentBuilder::FindGraphOutput
 	return nullptr;
 }
 
-const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeInput(const FGuid& InNodeID, const FGuid& InVertexID) const
-{
-	using namespace Metasound::Frontend;
-	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-	return NodeCache.FindInputVertex(InNodeID, InVertexID);
-}
-
-const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeInput(const FGuid& InNodeID, FName InVertexName) const
-{
-	using namespace Metasound::Frontend;
-	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-	return NodeCache.FindInputVertex(InNodeID, InVertexName);
-}
-
-const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeOutput(const FGuid& InNodeID, const FGuid& InVertexID) const
-{
-	using namespace Metasound::Frontend;
-	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-	return NodeCache.FindOutputVertex(InNodeID, InVertexID);
-}
-
-const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeOutput(const FGuid& InNodeID, FName InVertexName) const
-{
-	using namespace Metasound::Frontend;
-	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-	return NodeCache.FindOutputVertex(InNodeID, InVertexName);
-}
-
-const FMetasoundFrontendClassInput* FMetaSoundFrontendDocumentBuilder::FindNodeInputClassInput(const FGuid& InNodeID, const FGuid& InVertexID) const
-{
-	using namespace Metasound::Frontend;
-
-	const FMetasoundFrontendDocument& Document = GetDocument();
-	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-
-	if (const FMetasoundFrontendNode* Node = NodeCache.FindNode(InNodeID))
-	{
-		if (const FMetasoundFrontendClass* Class = DocumentCache->FindDependency(Node->ClassID))
-		{
-			auto InputMatchesVertex = [&InVertexID](const FMetasoundFrontendClassVertex& ClassVertex) { return ClassVertex.VertexID == InVertexID; };
-			return Class->Interface.Inputs.FindByPredicate(InputMatchesVertex);
-		}
-	}
-
-	return nullptr;
-}
-
-const FMetasoundFrontendClassOutput* FMetaSoundFrontendDocumentBuilder::FindNodeOutputClassOutput(const FGuid& InNodeID, const FGuid& InVertexID) const
-{
-	using namespace Metasound::Frontend;
-
-	const FMetasoundFrontendDocument& Document = GetDocument();
-	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
-
-	if (const FMetasoundFrontendNode* Node = NodeCache.FindNode(InNodeID))
-	{
-		if (const FMetasoundFrontendClass* Class = DocumentCache->FindDependency(Node->ClassID))
-		{
-			auto OutputMatchesVertex = [&InVertexID](const FMetasoundFrontendClassVertex& ClassVertex) { return ClassVertex.VertexID == InVertexID; };
-			return Class->Interface.Outputs.FindByPredicate(OutputMatchesVertex);
-		}
-	}
-
-	return nullptr;
-}
-
 const FMetasoundFrontendNode* FMetaSoundFrontendDocumentBuilder::FindNode(const FGuid& InNodeID) const
 {
 	using namespace Metasound::Frontend;
@@ -1396,14 +1396,129 @@ const TSet<FMetasoundFrontendVersion>* FMetaSoundFrontendDocumentBuilder::FindNo
 	return nullptr;
 }
 
+const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeInput(const FGuid& InNodeID, const FGuid& InVertexID) const
+{
+	using namespace Metasound::Frontend;
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+	return NodeCache.FindInputVertex(InNodeID, InVertexID);
+}
+
+const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeInput(const FGuid& InNodeID, FName InVertexName) const
+{
+	using namespace Metasound::Frontend;
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+	return NodeCache.FindInputVertex(InNodeID, InVertexName);
+}
+
+const FMetasoundFrontendClassInput* FMetaSoundFrontendDocumentBuilder::FindNodeInputClassInput(const FGuid& InNodeID, const FGuid& InVertexID) const
+{
+	using namespace Metasound::Frontend;
+
+	const FMetasoundFrontendDocument& Document = GetDocument();
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+
+	if (const FMetasoundFrontendNode* Node = NodeCache.FindNode(InNodeID))
+	{
+		if (const FMetasoundFrontendClass* Class = DocumentCache->FindDependency(Node->ClassID))
+		{
+			auto InputMatchesVertex = [&InVertexID](const FMetasoundFrontendClassVertex& ClassVertex) { return ClassVertex.VertexID == InVertexID; };
+			return Class->Interface.Inputs.FindByPredicate(InputMatchesVertex);
+		}
+	}
+
+	return nullptr;
+}
+
 TArray<const FMetasoundFrontendVertex*> FMetaSoundFrontendDocumentBuilder::FindNodeInputs(const FGuid& InNodeID, FName TypeName) const
 {
 	return DocumentCache->GetNodeCache().FindNodeInputs(InNodeID, TypeName);
 }
 
+TArray<const FMetasoundFrontendVertex*> FMetaSoundFrontendDocumentBuilder::FindNodeInputsConnectedToNodeOutput(const FGuid& InOutputNodeID, const FGuid& InOutputVertexID, TArray<const FMetasoundFrontendNode*>* ConnectedInputNodes) const
+{
+	using namespace Metasound::Frontend;
+
+	const IDocumentGraphEdgeCache& EdgeCache = DocumentCache->GetEdgeCache();
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+
+	const FMetasoundFrontendDocument& Document = GetDocument();
+
+	TArray<const FMetasoundFrontendVertex*> Inputs;
+	if (const TArray<int32>* Indices = EdgeCache.FindEdgeIndicesFromNodeOutput(InOutputNodeID, InOutputVertexID))
+	{
+		Algo::Transform(*Indices, Inputs, [&Document, &NodeCache, &ConnectedInputNodes](const int32& Index)
+		{
+			const FMetasoundFrontendEdge& Edge = Document.RootGraph.Graph.Edges[Index];
+			if (ConnectedInputNodes)
+			{
+				ConnectedInputNodes->Add(NodeCache.FindNode(Edge.ToNodeID));
+			}
+			return NodeCache.FindInputVertex(Edge.ToNodeID, Edge.ToVertexID);
+		});
+	}
+	return Inputs;
+}
+
+const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeOutput(const FGuid& InNodeID, const FGuid& InVertexID) const
+{
+	using namespace Metasound::Frontend;
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+	return NodeCache.FindOutputVertex(InNodeID, InVertexID);
+}
+
+const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeOutput(const FGuid& InNodeID, FName InVertexName) const
+{
+	using namespace Metasound::Frontend;
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+	return NodeCache.FindOutputVertex(InNodeID, InVertexName);
+}
+
+const FMetasoundFrontendClassOutput* FMetaSoundFrontendDocumentBuilder::FindNodeOutputClassOutput(const FGuid& InNodeID, const FGuid& InVertexID) const
+{
+	using namespace Metasound::Frontend;
+
+	const FMetasoundFrontendDocument& Document = GetDocument();
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+
+	if (const FMetasoundFrontendNode* Node = NodeCache.FindNode(InNodeID))
+	{
+		if (const FMetasoundFrontendClass* Class = DocumentCache->FindDependency(Node->ClassID))
+		{
+			auto OutputMatchesVertex = [&InVertexID](const FMetasoundFrontendClassVertex& ClassVertex) { return ClassVertex.VertexID == InVertexID; };
+			return Class->Interface.Outputs.FindByPredicate(OutputMatchesVertex);
+		}
+	}
+
+	return nullptr;
+}
+
 TArray<const FMetasoundFrontendVertex*> FMetaSoundFrontendDocumentBuilder::FindNodeOutputs(const FGuid& InNodeID, FName TypeName) const
 {
 	return DocumentCache->GetNodeCache().FindNodeOutputs(InNodeID, TypeName);
+}
+
+const FMetasoundFrontendVertex* FMetaSoundFrontendDocumentBuilder::FindNodeOutputConnectedToNodeInput(const FGuid& InInputNodeID, const FGuid& InInputVertexID, const FMetasoundFrontendNode** ConnectedOutputNode) const
+{
+	using namespace Metasound::Frontend;
+
+	const IDocumentGraphEdgeCache& EdgeCache = DocumentCache->GetEdgeCache();
+	if (const int32* Index = EdgeCache.FindEdgeIndexToNodeInput(InInputNodeID, InInputVertexID))
+	{
+		const FMetasoundFrontendDocument& Document = GetDocument();
+		const FMetasoundFrontendEdge& Edge = Document.RootGraph.Graph.Edges[*Index];
+		const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+		if (ConnectedOutputNode)
+		{
+			(*ConnectedOutputNode) = NodeCache.FindNode(Edge.FromNodeID);
+		}
+		return NodeCache.FindOutputVertex(Edge.FromNodeID, Edge.FromVertexID);
+	}
+
+	if (ConnectedOutputNode)
+	{
+		*ConnectedOutputNode = nullptr;
+	}
+	return nullptr;
 }
 
 const FTopLevelAssetPath FMetaSoundFrontendDocumentBuilder::GetBuilderClassPath() const
@@ -1629,6 +1744,43 @@ bool FMetaSoundFrontendDocumentBuilder::IsInterfaceDeclared(const FMetasoundFron
 bool FMetaSoundFrontendDocumentBuilder::IsPreset() const
 {
 	return GetDocument().RootGraph.PresetOptions.bIsPreset;
+}
+
+Metasound::Frontend::EInvalidEdgeReason FMetaSoundFrontendDocumentBuilder::IsValidEdge(const FMetasoundFrontendEdge& InEdge) const
+{
+	using namespace Metasound::Frontend;
+
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+
+	const FMetasoundFrontendVertex* OutputVertex = NodeCache.FindOutputVertex(InEdge.FromNodeID, InEdge.FromVertexID);
+	const FMetasoundFrontendVertex* InputVertex = NodeCache.FindInputVertex(InEdge.ToNodeID, InEdge.ToVertexID);
+	if (!OutputVertex)
+	{
+		return EInvalidEdgeReason::MissingOutput;
+	}
+
+	if (!InputVertex)
+	{
+		return EInvalidEdgeReason::MissingInput;
+	}
+
+	if (OutputVertex->TypeName != InputVertex->TypeName)
+	{
+		return EInvalidEdgeReason::MismatchedDataType;
+	}
+
+	const FMetasoundFrontendClassOutput* ClassOutput = FindNodeOutputClassOutput(InEdge.FromNodeID, InEdge.FromVertexID);
+	check(ClassOutput);
+
+	const FMetasoundFrontendClassInput* ClassInput = FindNodeInputClassInput(InEdge.ToNodeID, InEdge.ToVertexID);
+	check(ClassInput);
+
+	if (!FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(ClassOutput->AccessType, ClassInput->AccessType))
+	{
+		return EInvalidEdgeReason::MismatchedAccessType;
+	}
+
+	return EInvalidEdgeReason::None;
 }
 
 bool FMetaSoundFrontendDocumentBuilder::ModifyInterfaces(Metasound::Frontend::FModifyInterfaceOptions&& InOptions)
@@ -2288,8 +2440,7 @@ bool FMetaSoundFrontendDocumentBuilder::SwapGraphInput(const FMetasoundFrontendC
 		FMetasoundFrontendEdge NewEdge = RemovedEdge;
 		NewEdge.FromNodeID = NewInputNode->GetID();
 		NewEdge.FromVertexID = NewInputNode->Interface.Outputs.Last().VertexID;
-		const bool bEdgeAdded = AddEdge(MoveTemp(NewEdge)) != nullptr;
-		checkf(bEdgeAdded, TEXT("Failed to add replacement edge when swapping paired inputs"));
+		AddEdge(MoveTemp(NewEdge));
 	}
 	return true;
 }
@@ -2366,8 +2517,7 @@ bool FMetaSoundFrontendDocumentBuilder::SwapGraphOutput(const FMetasoundFrontend
 		FMetasoundFrontendEdge NewEdge = RemovedEdge;
 		NewEdge.ToNodeID = NewOutputNode->GetID();
 		NewEdge.ToVertexID = NewOutputNode->Interface.Inputs.Last().VertexID;
-		const bool bEdgeAdded = AddEdge(MoveTemp(NewEdge)) != nullptr;
-		checkf(bEdgeAdded, TEXT("Failed to add replacement edge when swapping paired outputs"));
+		AddEdge(MoveTemp(NewEdge));
 	}
 
 	return true;
