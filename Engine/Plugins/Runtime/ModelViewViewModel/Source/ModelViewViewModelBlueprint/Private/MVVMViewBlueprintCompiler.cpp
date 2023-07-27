@@ -553,7 +553,7 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 		if (bIsForwardBinding || bIsBackwardBinding)
 		{
 			const UMVVMBlueprintViewConversionFunction* ConversionFunction = Binding.Conversion.GetConversionFunction(bIsForwardBinding);
-			if (ConversionFunction)
+			if (ConversionFunction && ConversionFunction->GetPins().Num() > 0)
 			{
 				if (Binding.BindingType == EMVVMBindingMode::TwoWay)
 				{
