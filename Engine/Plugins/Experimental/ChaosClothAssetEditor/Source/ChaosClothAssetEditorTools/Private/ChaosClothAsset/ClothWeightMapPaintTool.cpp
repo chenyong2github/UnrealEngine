@@ -211,10 +211,8 @@ void UClothEditorWeightMapPaintTool::Setup()
 		[this](EClothEditorWeightMapPaintInteractionType NewType) { UpdateSubToolType(NewType); });
 	FilterProperties->WatchProperty(FilterProperties->BrushSize,
 		[this](float NewSize) { UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize = NewSize; });
-	FilterProperties->RestoreProperties(this);
 	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize;
-	FilterProperties->Strength = 1.0;
-	FilterProperties->AttributeValue = 1.0;
+	FilterProperties->RestoreProperties(this);
 	AddToolPropertySource(FilterProperties);
 
 	InitializeIndicator();
@@ -516,7 +514,7 @@ void UClothEditorWeightMapPaintTool::OnBeginStroke(const FRay& WorldRay)
 	if (PaintBrushOpProperties)
 	{
 		PaintBrushOpProperties->AttributeValue = FilterProperties->AttributeValue;
-		PaintBrushOpProperties->Strength = FilterProperties->Strength;
+		PaintBrushOpProperties->Strength = FilterProperties->Strength * FilterProperties->Strength;
 	}
 	if (EraseBrushOpProperties)
 	{
@@ -524,7 +522,7 @@ void UClothEditorWeightMapPaintTool::OnBeginStroke(const FRay& WorldRay)
 	}
 	if (SmoothBrushOpProperties)
 	{
-		SmoothBrushOpProperties->Strength = FilterProperties->Strength;
+		SmoothBrushOpProperties->Strength = FilterProperties->Strength * FilterProperties->Strength;
 	}
 
 	// initialize first "Last Stamp", so that we can assume all stamps in stroke have a valid previous stamp

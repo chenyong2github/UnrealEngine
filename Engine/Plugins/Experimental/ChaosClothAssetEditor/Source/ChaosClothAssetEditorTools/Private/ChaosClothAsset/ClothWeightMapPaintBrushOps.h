@@ -111,7 +111,7 @@ public:
 
 	virtual bool IgnoreZeroMovements() const override
 	{
-		return true;
+		return false;
 	}
 
 	virtual void ApplyStampByVertices(
@@ -148,7 +148,7 @@ public:
 
 	virtual bool IgnoreZeroMovements() const override
 	{
-		return true;
+		return false;
 	}
 
 	virtual void ApplyStampByVertices(
