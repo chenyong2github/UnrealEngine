@@ -799,7 +799,11 @@ UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftO
 		GeneratedPipeline->ClearFlags(EObjectFlags::RF_Standalone|EObjectFlags::RF_Public);
 		FString CurrentName = GeneratedPipeline->GetName();
 		FString NewName = FString::Printf(TEXT("%s_%s"), *StackName, *CurrentName);
-		GeneratedPipeline->Rename(*NewName,nullptr, REN_DoNotDirty | REN_NonTransactional);
+		// Temporary fix to unblock the FN team
+		if (GeneratedPipeline->Rename(*NewName, nullptr, REN_Test))
+		{
+			GeneratedPipeline->Rename(*NewName, nullptr, REN_DoNotDirty | REN_NonTransactional);
+		}
 	}
 
 	return GeneratedPipeline;
