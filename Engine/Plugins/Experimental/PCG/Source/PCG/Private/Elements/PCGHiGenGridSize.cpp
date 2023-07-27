@@ -7,6 +7,7 @@
 #include "PCGGraph.h"
 #include "PCGModule.h"
 #include "PCGPin.h"
+#include "Data/PCGVolumeData.h"
 
 #define LOCTEXT_NAMESPACE "PCGHiGenGridSizeElement"
 
@@ -14,6 +15,7 @@ namespace PCGHiGenGridSizeConstants
 {
 	const FName NodeName = TEXT("HiGenGridSize");
 	const FText NodeTitle = LOCTEXT("NodeTitle", "Grid Size");
+	const FName CellVolumeOutputLabel = TEXT("Grid Cell Volume");
 }
 
 #if WITH_EDITOR
@@ -36,7 +38,8 @@ FText UPCGHiGenGridSizeSettings::GetNodeTooltipText() const
 EPCGDataType UPCGHiGenGridSizeSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
 {
 	check(InPin);
-	if (!InPin->IsOutputPin())
+	// Non-dynamically-typed pins
+	if (!InPin->IsOutputPin() || InPin->Properties.Label == PCGHiGenGridSizeConstants::CellVolumeOutputLabel)
 	{
 		return Super::GetCurrentPinTypes(InPin);
 	}
@@ -58,6 +61,12 @@ TArray<FPCGPinProperties> UPCGHiGenGridSizeSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+	PinProperties.Emplace(
+		PCGHiGenGridSizeConstants::CellVolumeOutputLabel,
+		EPCGDataType::Spatial,
+		/*bAllowMultipleConnections=*/true,
+		/*bAllowMultipleData=*/true,
+		LOCTEXT("VolumeOutputPinTooltip", "The volume of the current grid cell."));
 
 	return PinProperties;
 }
@@ -97,9 +106,7 @@ bool UPCGHiGenGridSizeSettings::IsStructuralProperty(const FName& InPropertyName
 
 bool FPCGHiGenGridSizeElement::ExecuteInternal(FPCGContext* Context) const
 {
-	// Trivial pass through. Will only execute on the prescribed grid.
-	Context->OutputData = Context->InputData;
-
+	// Validation
 	if (Context->Node && Context->Node->GetGraph() && !Context->Node->GetGraph()->IsHierarchicalGenerationEnabled())
 	{
 		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("GridSizeUsedInNonHiGenGraph", "Grid Size node used in a non-hierarchical graph. Enable hierarchical generation in the graph settings or remove this node."));
@@ -111,7 +118,38 @@ bool FPCGHiGenGridSizeElement::ExecuteInternal(FPCGContext* Context) const
 		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("NonPartitionedComponent", "Grid Size node used on a non-partitioned component and will have no effect. Is Partitioned must be enabled on the component."));
 	}
 
+	// Trivial pass through. Will only execute on the prescribed grid.
+	Context->OutputData = Context->InputData;
+	for (FPCGTaggedData& Data : Context->OutputData.TaggedData)
+	{
+		Data.Pin = PCGPinConstants::DefaultOutputLabel;
+	}
+
+	UPCGVolumeData* VolumeData = NewObject<UPCGVolumeData>();
+	check(VolumeData);
+	VolumeData->Initialize(Context->SourceComponent->GetGridBounds());
+
+	FPCGTaggedData& VolumeOutput = Context->OutputData.TaggedData.Emplace_GetRef();
+	VolumeOutput.Data = VolumeData;
+	VolumeOutput.Pin = PCGHiGenGridSizeConstants::CellVolumeOutputLabel;
+
 	return true;
+}
+
+void FPCGHiGenGridSizeElement::GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const
+{
+	FPCGCrc Crc;
+	FSimplePCGElement::GetDependenciesCrc(InInput, InSettings, InComponent, Crc);
+
+	// The grid cell volume output depends on the component transform.
+	// NOTE: It might be interesting to only incorporate the transform if the cell volume output pin is connected (and if we have a node obviously).
+	const UPCGData* ActorData = InComponent ? InComponent->GetActorPCGData() : nullptr;
+	if (ActorData)
+	{
+		Crc.Combine(ActorData->GetOrComputeCrc(/*bFullDataCrc=*/false));
+	}
+
+	OutCrc = Crc;
 }
 
 #undef LOCTEXT_NAMESPACE
