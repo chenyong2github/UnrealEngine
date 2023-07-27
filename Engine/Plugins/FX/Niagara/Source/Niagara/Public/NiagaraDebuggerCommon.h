@@ -406,6 +406,23 @@ enum class ENiagaraDebugHUDPerfSampleMode
 	PerInstanceAverage,	
 };
 
+UENUM()
+enum class ENiagaraDebugHUDDOverviewSort
+{
+	/** Lexical sort on system name */
+	Name,
+	/** Sort by the number currently registered. */
+	NumberRegistered,
+	/** Sort by the number currently active. */
+	NumberActive,
+	/** Sort by the number currently managed by scalability. */
+	NumberScalability,
+	/** Sort by approximate memory usage. */
+	MemoryUsage,
+	/** Sort by when the system was recently visible. */
+	RecentlyVisibilty,
+};
+
 /** Settings for Niagara debug HUD. Contained in it's own struct so that we can pass it whole in a message to the debugger client. */
 USTRUCT()
 struct FNiagaraDebugHUDSettingsData
@@ -477,6 +494,9 @@ struct FNiagaraDebugHUDSettingsData
 
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Mode"))
 	ENiagaraDebugHUDOverviewMode OverviewMode = ENiagaraDebugHUDOverviewMode::Overview;
+
+	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Sort Mode"))
+	ENiagaraDebugHUDDOverviewSort OverviewSortMode = ENiagaraDebugHUDDOverviewSort::Name;
 
 	/** Overview display font to use. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Font", EditCondition = "bOverviewEnabled"))
