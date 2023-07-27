@@ -386,7 +386,7 @@ namespace BuildPatchServices
 
 	void FFileManifestList::OnPostLoad()
 	{
-		Algo::SortBy(FileList, [](const FFileManifest& FileManifest){ return FileManifest.Filename; }, TLess<FString>());
+		Algo::SortBy(FileList, [](const FFileManifest& FileManifest) -> const FString& { return FileManifest.Filename; }, TLess<FString>());
 
 		for (FFileManifest& FileManifest : FileList)
 		{
