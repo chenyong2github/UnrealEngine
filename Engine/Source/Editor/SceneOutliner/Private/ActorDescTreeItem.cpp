@@ -256,7 +256,7 @@ FSceneOutlinerTreeItemID FActorDescTreeItem::ComputeTreeItemID(FGuid InActorGuid
 
 bool FActorDescTreeItem::ShouldDisplayInOutliner(const FWorldPartitionActorDesc* ActorDesc)
 {
-	return ActorDesc && (ActorDesc->GetActorIsRuntimeOnly() || ActorDesc->IsEditorRelevant());
+	return ActorDesc && ActorDesc->IsListedInSceneOutliner() && (ActorDesc->GetActorIsRuntimeOnly() || ActorDesc->IsEditorRelevant());
 }
 
 FSceneOutlinerTreeItemID FActorDescTreeItem::GetID() const

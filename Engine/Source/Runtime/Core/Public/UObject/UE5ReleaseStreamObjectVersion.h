@@ -147,6 +147,9 @@ struct FUE5ReleaseStreamObjectVersion
 
 		// Changed default Local Exposure Contrast Scale from 1.0 to 0.8
 		LocalExposureDefaultChangeFrom1,
+
+		// Serialize bActorIsListedInSceneOutliner in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeActorIsListedInSceneOutliner,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

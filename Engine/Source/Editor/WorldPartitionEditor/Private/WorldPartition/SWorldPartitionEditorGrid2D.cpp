@@ -1052,7 +1052,7 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 	{
 		if (bShowActors)
 		{
-			if (!GetWorldPartition()->IsStreamingEnabled() || ActorDesc->GetIsSpatiallyLoaded())
+			if (ActorDesc->IsListedInSceneOutliner() && (!GetWorldPartition()->IsStreamingEnabled() || ActorDesc->GetIsSpatiallyLoaded()))
 			{
 				ShownActorGuids.Add(ActorDesc->GetGuid());
 			}

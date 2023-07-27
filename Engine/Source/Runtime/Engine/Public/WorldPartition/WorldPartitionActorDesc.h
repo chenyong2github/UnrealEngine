@@ -269,6 +269,7 @@ public:
 	static ENGINE_API void RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator);
 
 	ENGINE_API bool IsMainWorldOnly() const;
+	ENGINE_API bool IsListedInSceneOutliner() const;
 protected:
 	ENGINE_API FWorldPartitionActorDesc();
 
@@ -300,6 +301,7 @@ protected:
 	bool							bActorIsRuntimeOnly;
 	bool							bActorIsMainWorldOnly;
 	bool							bActorIsHLODRelevant;
+	bool							bActorIsListedInSceneOutliner;
 	bool							bIsUsingDataLayerAsset; // Used to know if DataLayers array represents DataLayers Asset paths or the FNames of the deprecated version of Data Layers
 	bool							bIsBoundsValid;
 	FSoftObjectPath					HLODLayer;

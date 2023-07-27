@@ -45,6 +45,7 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, bActorIsRuntimeOnly(false)
 	, bActorIsMainWorldOnly(false)
 	, bActorIsHLODRelevant(false)
+	, bActorIsListedInSceneOutliner(true)
 	, bIsUsingDataLayerAsset(false)
 	, bIsBoundsValid(false)
 	, SoftRefCount(0)
@@ -97,6 +98,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bActorIsRuntimeOnly = InActor->IsRuntimeOnly();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
+	bActorIsListedInSceneOutliner = InActor->IsListedInSceneOutliner();
 	bActorIsMainWorldOnly = InActor->bIsMainWorldOnly;
 	HLODLayer = InActor->GetHLODLayer() ? FSoftObjectPath(InActor->GetHLODLayer()->GetPathName()) : FSoftObjectPath();
 	
@@ -266,6 +268,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		bActorIsRuntimeOnly == Other->bActorIsRuntimeOnly &&
 		bActorIsMainWorldOnly == Other->bActorIsMainWorldOnly &&
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant &&
+		bActorIsListedInSceneOutliner == Other->bActorIsListedInSceneOutliner &&
 		bIsUsingDataLayerAsset == Other->bIsUsingDataLayerAsset &&
 		HLODLayer == Other->HLODLayer &&
 		FolderPath == Other->FolderPath &&
@@ -404,7 +407,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 		}
 
 		Result.Appendf(
-			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s RuntimeOnly:%s HLODRelevant:%s IsMainWorldOnly:%s"),
+			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s RuntimeOnly:%s HLODRelevant:%s ListedInSceneOutliner:%s IsMainWorldOnly:%s"),
 			*BaseClass.ToString(), 
 			*NativeClass.ToString(), 
 			*GetActorName().ToString(),
@@ -415,6 +418,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 			GetBoolStr(bActorIsEditorOnly),
 			GetBoolStr(bActorIsRuntimeOnly),
 			GetBoolStr(bActorIsHLODRelevant),
+			GetBoolStr(bActorIsListedInSceneOutliner),
 			GetBoolStr(IsMainWorldOnly())
 		);
 
@@ -674,6 +678,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << TDeltaSerialize<bool>(bActorIsMainWorldOnly);
 	}
 
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeActorIsListedInSceneOutliner)
+	{
+		Ar << TDeltaSerialize<bool>(bActorIsListedInSceneOutliner);
+	}
+
 	// Fixup redirected data layer asset paths
 	if (Ar.IsLoading() && bIsUsingDataLayerAsset)
 	{
@@ -739,6 +748,11 @@ void FWorldPartitionActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* 
 bool FWorldPartitionActorDesc::IsMainWorldOnly() const
 {
 	return bActorIsMainWorldOnly || CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->IsMainWorldOnly();
+}
+
+bool FWorldPartitionActorDesc::IsListedInSceneOutliner() const
+{
+	return bActorIsListedInSceneOutliner;
 }
 
 bool FWorldPartitionActorDesc::IsEditorRelevant() const
