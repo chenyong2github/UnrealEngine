@@ -226,7 +226,8 @@ public:
 	//~ UObject interface
 	NIAGARA_API void PostInitProperties();
 	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
-	NIAGARA_API virtual void PostLoad() override; 
+	NIAGARA_API virtual void PostLoad() override;
+	NIAGARA_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool CanBeClusterRoot() const override { return true; }
 	NIAGARA_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITORONLY_DATA

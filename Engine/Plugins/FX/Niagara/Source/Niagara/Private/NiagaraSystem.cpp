@@ -1033,6 +1033,16 @@ void UNiagaraSystem::PostLoad()
 	PrecachePSOs();
 }
 
+void UNiagaraSystem::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+#if WITH_EDITOR
+	// The assumption here is that whatever is being duplicated was already postloaded - but duplication clears out the non-uproperty fields.
+	// Also, this only needs to be done in editor, otherwise postload does everything in one go.
+	EnsureFullyLoaded();
+#endif
+}
+
 void UNiagaraSystem::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
