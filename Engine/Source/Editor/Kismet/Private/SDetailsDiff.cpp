@@ -378,24 +378,58 @@ SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 	const TWeakPtr<FDetailsDiffControl> WeakDiffControl = NewDiffControl;
 	OnOutputObjectSetEvent.AddLambda([WeakSplitter, WeakDiffControl, this]()
 	{
+		const UObject* OutputDetailObject = Redirector ? Redirector(OutputObject) : OutputObject;
+		
 		const TSharedPtr<SDetailsSplitter> Splitter = WeakSplitter.Pin();
 		const TSharedPtr<FDetailsDiffControl> DiffControl = WeakDiffControl.Pin();
 		if (Splitter && DiffControl)
 		{
-			TSharedRef<IDetailsView> DetailsView = DiffControl->InsertObject(OutputObjectModified, false, 1);
+			// if output object is already in panel, don't insert a new one
+			TSharedPtr<IDetailsView> DetailsView = DiffControl->TryGetDetailsWidget(OutputDetailObject);
+			if (DetailsView)
+			{
+				// update readonly status in splitter so that property merge buttons appear
+				const int32 Index = DiffControl->IndexOfObject(OutputDetailObject);
+				Splitter->GetPanel(Index).IsReadonly = false;
+			}
+			else
+			{
+				DetailsView = DiffControl->InsertObject(OutputDetailObject, false, 1);
+				// insert the output object as a central panel
+				Splitter->AddSlot(
+					SDetailsSplitter::Slot()
+						.DetailsView(DetailsView)
+						.Value(0.5f)
+						.IsReadonly(false)
+						.DifferencesWithRightPanel(DiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, (const UObject*)OutputDetailObject),
+					1 // insert between left and right panel (index 1)
+				);
+			}
 
 			// allow user to edit the output panel
 			DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([]{return true; }));
 			
-			// insert the output object as a central panel
-			Splitter->AddSlot(
-				SDetailsSplitter::Slot()
-					.DetailsView(DiffControl->GetDetailsWidget(OutputObjectModified))
-					.Value(0.5f)
-					.IsReadonly(false)
-					.DifferencesWithRightPanel(DiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, (const UObject*)OutputObjectModified),
-				1 // insert between left and right panel (index 1)
-			);
+			// highlight merge conflicts
+			TMap<FString, TMap<FPropertySoftPath, FLinearColor>> Highlights;
+			for (auto& [ObjectPath, Properties] : MergeConflicts)
+			{
+				for (auto& [propertyPath, Diff] : Properties)
+				{
+					switch(Diff)
+					{
+					case ETreeDiffResult::MissingFromTree1: // fall through
+					case ETreeDiffResult::MissingFromTree2: // fall through
+					case ETreeDiffResult::DifferentValues:
+						// color is intentionally using values greater than 1 so that it stays very saturated
+						Highlights.FindOrAdd(ObjectPath).Add(propertyPath, FLinearColor(1.5f, 0.3f, 0.3f));
+						break;
+					
+					default:; // ignore identical and invalid
+					}
+				}
+			}
+			
+			Splitter->AddHighlights(Highlights);
 		}
 	});
 

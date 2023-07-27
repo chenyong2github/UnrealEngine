@@ -73,7 +73,12 @@ void FAssetTypeActions_DataAsset::GetActions(const TArray<UObject*>& InObjects, 
 
 void FAssetTypeActions_DataAsset::PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision) const
 {
-	SDetailsDiff::CreateDiffWindow(OldAsset, NewAsset, OldRevision, NewRevision, GetSupportedClass());
+	const TSharedRef<SDetailsDiff> DetailsDiff = SDetailsDiff::CreateDiffWindow(OldAsset, NewAsset, OldRevision, NewRevision, GetSupportedClass());
+	// allow users to edit NewAsset if it's a local asset
+	if (!FPackageName::IsTempPackage(NewAsset->GetPackage()->GetName()))
+	{
+		DetailsDiff->SetOutputObject(NewAsset);
+	}
 }
 
 void FAssetTypeActions_DataAsset::ExecuteChangeDataAssetClass(TArray<TWeakObjectPtr<UDataAsset>> InDataAssets)

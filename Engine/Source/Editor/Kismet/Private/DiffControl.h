@@ -104,8 +104,10 @@ public:
 
 	TSharedRef<IDetailsView> InsertObject(const UObject* Object, bool bScrollbarOnLeft = false, int32 Index = INDEX_NONE);
 	TSharedRef<IDetailsView> GetDetailsWidget(const UObject* Object) const;
+	TSharedPtr<IDetailsView> TryGetDetailsWidget(const UObject* Object) const;
 	TSharedPtr<FAsyncDetailViewDiff> GetDifferencesWithLeft(const UObject* Object) const;
 	TSharedPtr<FAsyncDetailViewDiff> GetDifferencesWithRight(const UObject* Object) const;
+	int32 IndexOfObject(const UObject* Object) const;
 
 	// to support comment posting, set this to the tree view that contains the comments.
 	virtual void EnableComments(TWeakPtr<STreeView<TSharedPtr<FBlueprintDifferenceTreeEntry>>> TreeView) override;
