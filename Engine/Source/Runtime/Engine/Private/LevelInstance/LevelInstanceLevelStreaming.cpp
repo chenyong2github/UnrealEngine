@@ -124,7 +124,8 @@ void ULevelStreamingLevelInstance::OnLoadedActorPreAddedToLevel(const TArray<AAc
 void ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel(AActor& InActor)
 {
 	check(LevelInstanceEditorInstanceActor.IsValid());
-	PrepareLevelInstanceLoadedActor(InActor, GetLevelInstance(), true);
+	// If bResetLoadersCalled is false, wait for ResetLevelInstanceLoaders call to do the ResetLoaders calls
+	PrepareLevelInstanceLoadedActor(InActor, GetLevelInstance(), bResetLoadersCalled);
 }
 
 void ULevelStreamingLevelInstance::ResetLevelInstanceLoaders()
