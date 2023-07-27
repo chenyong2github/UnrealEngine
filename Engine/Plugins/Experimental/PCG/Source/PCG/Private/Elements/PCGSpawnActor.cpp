@@ -292,6 +292,12 @@ void UPCGSpawnActorSettings::PostLoad()
 		bGenerationTrigger_DEPRECATED = EPCGSpawnActorGenerationTrigger::Default;
 	}
 
+	// Since the template actor editing is set to false by default, this needs to be corrected on post-load for proper deprecation
+	if (TemplateActor)
+	{
+		bAllowTemplateActorEditing = true;
+	}
+
 	SetupBlueprintEvent();
 
 	if (TemplateActorClass)
@@ -300,9 +306,9 @@ void UPCGSpawnActorSettings::PostLoad()
 		{
 			TemplateActor->ConditionalPostLoad();
 		}
-
-		RefreshTemplateActor();
 	}
+
+	RefreshTemplateActor();
 #endif // WITH_EDITOR
 }
 
@@ -342,6 +348,10 @@ void UPCGSpawnActorSettings::PostEditChangeProperty(FPropertyChangedEvent& Prope
 			SetupBlueprintEvent();
 			RefreshTemplateActor();
 		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGSpawnActorSettings, bAllowTemplateActorEditing))
+		{
+			RefreshTemplateActor();
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -372,23 +382,46 @@ void UPCGSpawnActorSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
 
 void UPCGSpawnActorSettings::RefreshTemplateActor()
 {
-	if (TemplateActorClass)
+	// Implementation note: this is similar to the child actor component implementation
+	if (TemplateActorClass && bAllowTemplateActorEditing)
 	{
-		AActor* NewTemplateActor = NewObject<AActor>(this, TemplateActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public);
+		const bool bCreateNewTemplateActor = (!TemplateActor || TemplateActor->GetClass() != TemplateActorClass);
 
-		if (TemplateActor)
+		if (bCreateNewTemplateActor)
 		{
-			UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
-			Options.bNotifyObjectReplacement = true;
-			UEngine::CopyPropertiesForUnrelatedObjects(TemplateActor, NewTemplateActor, Options);
+			AActor* NewTemplateActor = NewObject<AActor>(GetTransientPackage(), TemplateActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public);
 
-			TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			if (TemplateActor)
+			{
+				UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+				Options.bNotifyObjectReplacement = true;
+				UEngine::CopyPropertiesForUnrelatedObjects(TemplateActor, NewTemplateActor, Options);
+
+				TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+
+				TMap<UObject*, UObject*> OldToNew;
+				OldToNew.Emplace(TemplateActor, NewTemplateActor);
+				GEngine->NotifyToolsOfObjectReplacement(OldToNew);
+
+				TemplateActor->MarkAsGarbage();
+			}
+
+			TemplateActor = NewTemplateActor;
+
+			// Record initial object state in case we're in a transaction context.
+			TemplateActor->Modify();
+
+			// Outer to this object
+			TemplateActor->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
-
-		TemplateActor = NewTemplateActor;
 	}
 	else
 	{
+		if (TemplateActor)
+		{
+			TemplateActor->MarkAsGarbage();
+		}
+
 		TemplateActor = nullptr;
 	}
 }
@@ -430,7 +463,7 @@ bool FPCGSpawnActorElement::SpawnAndPrepareSubgraphs(FPCGSubgraphContext* Contex
 			return true;
 		}
 
-		if (!ensure(Settings->TemplateActor && Settings->TemplateActor->IsA(Settings->TemplateActorClass)))
+		if (!ensure(!Settings->TemplateActor || Settings->TemplateActor->IsA(Settings->TemplateActorClass)))
 		{
 			return true;
 		}
@@ -785,7 +818,14 @@ void FPCGSpawnActorElement::SpawnActors(FPCGSubgraphContext* Context, AActor* Ta
 	}
 	else
 	{
-		TemplateActor = NewObject<AActor>(GetTransientPackage(), InTemplateActorClass, NAME_None, RF_ArchetypeObject);
+		if (Settings->ActorOverrides.IsEmpty())
+		{
+			TemplateActor = Cast<AActor>(InTemplateActorClass->GetDefaultObject());
+		}
+		else
+		{
+			TemplateActor = NewObject<AActor>(GetTransientPackage(), InTemplateActorClass, NAME_None, RF_ArchetypeObject);
+		}
 	}
 
 	check(TemplateActor);
