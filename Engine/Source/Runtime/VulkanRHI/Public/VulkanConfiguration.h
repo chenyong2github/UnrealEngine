@@ -202,22 +202,6 @@ struct VkAllocationCallbacks;
 #endif
 #endif
 
-#ifndef VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-	#ifdef VK_EXT_fragment_density_map
-		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP			1
-	#else
-		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP			0
-	#endif
-#endif
-
-#ifndef VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-	#ifdef VK_EXT_fragment_density_map2
-		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2			1
-	#else
-		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2			0
-	#endif
-#endif
-
 #ifndef VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	#ifdef VK_KHR_fragment_shading_rate
 		#define VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE 1

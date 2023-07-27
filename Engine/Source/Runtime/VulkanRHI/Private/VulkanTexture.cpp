@@ -340,12 +340,10 @@ void FVulkanTexture::GenerateImageCreateInfo(
 		}
 #endif
 
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
 		{
 			ImageCreateInfo.usage |= VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT;
 		}
-#endif
 	}
 	
 	if (EnumHasAnyFlags(UEFlags, TexCreate_UAV))
@@ -1726,12 +1724,10 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 				}
 #endif
 
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 				if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
 				{
 					InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
 				}
-#endif
 
 				bOnlyAddToLayoutManager = true;
 				bDoInitialClear = false;

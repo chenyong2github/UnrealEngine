@@ -163,10 +163,10 @@ void FVulkanQueue::FillSupportedStageBits()
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 		SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
 #endif
-
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
-#endif
+		if (Device->GetOptionalExtensions().HasEXTFragmentDensityMap)
+		{
+			SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
+		}
 	}
 
 	if (VKHasAnyFlags(QueueProps.queueFlags, VK_QUEUE_COMPUTE_BIT))

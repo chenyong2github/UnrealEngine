@@ -908,12 +908,7 @@ inline bool ValidateShadingRateDataType()
 #endif
 
 	case VRSImage_Fractional:
-#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 		return true;
-#else
-		checkf(false, TEXT("GRHIVariableRateShadingImageDataType was specified as VRSImage_Fractional, but the VK_EXT_fragment_density_map extension is not supported on this platform."));
-		break;
-#endif
 
 	case VRSImage_NotSupported:
 		checkf(false, TEXT("A texture was marked as a shading rate source but attachment VRS is not supported on this device. Ensure GRHISupportsAttachmentVariableRateShading and GRHIAttachmentVariableRateShadingEnabled are true before specifying a shading rate attachment."));

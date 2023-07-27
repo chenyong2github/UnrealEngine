@@ -563,7 +563,7 @@ class FVulkanEXTFragmentDensityMapExtension : public FVulkanDeviceExtension
 public:
 
 	FVulkanEXTFragmentDensityMapExtension(FVulkanDevice* InDevice)
-		: FVulkanDeviceExtension(InDevice, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME, VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
 	{
 		bEnabledInCode = bEnabledInCode && GRHIVariableRateShadingEnabled;
 	}
@@ -628,7 +628,7 @@ class FVulkanEXTFragmentDensityMap2Extension : public FVulkanDeviceExtension
 public:
 
 	FVulkanEXTFragmentDensityMap2Extension(FVulkanDevice* InDevice)
-		: FVulkanDeviceExtension(InDevice, VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME, VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
 	{
 		bEnabledInCode = bEnabledInCode && GRHIVariableRateShadingEnabled;
 	}
