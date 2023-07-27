@@ -6251,12 +6251,6 @@ void UCustomizableObjectInstance::SetMinMaxLODToLoad(FMutableInstanceUpdateMap& 
 }
 
 
-void UCustomizableObjectInstance::SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades)
-{
-	SetRequestedLODs(NewMinLOD, NewMaxLOD, Descriptor.RequestedLODLevels);
-}
-
-
 int32 UCustomizableObjectInstance::GetNumComponents() const
 {
 	return GetCustomizableObject() ? GetCustomizableObject()->GetComponentCount() : 0;
@@ -6404,12 +6398,6 @@ void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLO
 
 		InOutRequestedUpdates.Add(this, MutableUpdateCandidate);
 	}
-}
-
-
-void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLOD, const TArray<uint16>& InRequestedLODsPerComponent)
-{
-	// Remove this method after CL 25973936 is propagated to all streams
 }
 
 

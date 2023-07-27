@@ -7,8 +7,6 @@
 
 typedef TMap<const class UCustomizableObjectInstance*, class FMutableUpdateCandidate> FMutableInstanceUpdateMap;
 
-#define NEW_MUTABLE_PLUGIN_QUEUE_SYSTEM
-
 // This is an abstract base class, override it to create a new Instance LOD management system and register with UCustomizableObjectSystem::SetInstanceLODManagement
 UCLASS(Blueprintable, BlueprintType)
 class CUSTOMIZABLEOBJECT_API UCustomizableInstanceLODManagementBase : public UObject
@@ -20,8 +18,6 @@ public:
 
 	// WARNING! The following methods must be overriden in derived classes
 	virtual void UpdateInstanceDistsAndLODs(FMutableInstanceUpdateMap& InOutRequestedUpdates) { check(0); };
-	// Remove the following method after CL 25973936 is propagated to all streams
-	virtual void UpdateInstanceDistsAndLODs() { check(0); };
 	virtual int32 GetNumGeneratedInstancesLimitFullLODs() const { check(0); return 0; };
 	virtual int32 GetNumGeneratedInstancesLimitLOD1() const { check(0); return 0; };
 	virtual int32 GetNumGeneratedInstancesLimitLOD2() const { check(0); return 0; };
