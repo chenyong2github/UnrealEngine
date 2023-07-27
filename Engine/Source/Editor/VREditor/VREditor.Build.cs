@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
 				    "Slate",
 					"SlateCore",
-                    
+                    "RenderCore",
 					"EditorFramework",
 					"UnrealEd",
 					"UMG",

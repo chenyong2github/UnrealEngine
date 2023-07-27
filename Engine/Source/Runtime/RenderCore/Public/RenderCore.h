@@ -172,3 +172,5 @@ RENDERCORE_API int32 GetCVarForceLOD_AnyThread();
 
 RENDERCORE_API int32 GetCVarForceLODShadow();
 RENDERCORE_API int32 GetCVarForceLODShadow_AnyThread();
+
+RENDERCORE_API void SetNearClipPlaneGlobals(float NewNearClipPlane);

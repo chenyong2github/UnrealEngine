@@ -11,6 +11,7 @@
 #include "LevelViewportActions.h"
 #include "Modules/ModuleManager.h"
 #include "SLevelViewport.h"
+#include "RenderCore.h"
 
 
 namespace VREd
@@ -150,7 +151,8 @@ void UVREditorModeBase::StartViewport(TSharedPtr<SLevelViewport> Viewport)
 
 	// Force tiny near clip plane distance, because user can scale themselves to be very small.
 	SavedEditorState.NearClipPlane = GNearClippingPlane;
-	GNearClippingPlane = VREd::DefaultVRNearClipPlane->GetFloat();
+
+	SetNearClipPlaneGlobals(VREd::DefaultVRNearClipPlane->GetFloat());
 
 	SavedEditorState.bOnScreenMessages = GAreScreenMessagesEnabled;
 	GAreScreenMessagesEnabled = false;
@@ -225,7 +227,8 @@ void UVREditorModeBase::CloseViewport( const bool bShouldDisableStereo )
 
 		VRViewportClient.SetRealtime(SavedEditorState.bRealTime);
 
-		GNearClippingPlane = SavedEditorState.NearClipPlane;
+		SetNearClipPlaneGlobals(SavedEditorState.NearClipPlane);
+
 		GAreScreenMessagesEnabled = SavedEditorState.bOnScreenMessages;
 
 		if (bActuallyUsingVR)

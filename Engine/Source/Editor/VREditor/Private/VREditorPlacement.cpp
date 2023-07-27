@@ -30,6 +30,8 @@
 #include "SLevelViewport.h"
 #include "LevelEditorActions.h"
 
+#include "RenderCore.h"
+
 #define LOCTEXT_NAMESPACE "VREditor"
 
 
@@ -99,7 +101,8 @@ void UVREditorPlacement::UpdateNearClipPlaneOnScaleChange(const float NewWorldTo
 {
 	// Adjust the clipping plane for the user's scale, but don't let it be larger than the engine default
 	const float DefaultWorldToMetersScale = VRMode->GetSavedEditorState().WorldToMetersScale;
-	GNearClippingPlane = FMath::Min((VRMode->GetDefaultVRNearClipPlane()) * (NewWorldToMetersScale / DefaultWorldToMetersScale), VRMode->GetSavedEditorState().NearClipPlane);
+
+	SetNearClipPlaneGlobals(FMath::Min((VRMode->GetDefaultVRNearClipPlane()) * (NewWorldToMetersScale / DefaultWorldToMetersScale), VRMode->GetSavedEditorState().NearClipPlane));
 }
 
 

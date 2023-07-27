@@ -120,6 +120,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GPUSkinCache.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/PlatformMemoryHelpers.h"
+#include "RenderCore.h"
 #include <exception>
 
 #if UE_WITH_IRIS
@@ -2028,7 +2029,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	// Update Script Maximum loop iteration count
 	FBlueprintCoreDelegates::SetScriptMaximumLoopIterations( GEngine->MaximumLoopIterationCount );
 
-	GNearClippingPlane = NearClipPlane;
+	SetNearClipPlaneGlobals(NearClipPlane);
 
 	UTextRenderComponent::InitializeMIDCache();
 
@@ -17152,8 +17153,9 @@ static void SetNearClipPlane(const TArray<FString>& Args)
 	{
 		NewClipPlane = FCString::Atof(*Args[0]);
 	}
-	FlushRenderingCommands();
-	GNearClippingPlane = FMath::Max(NewClipPlane,MinClipPlane);
+
+	SetNearClipPlaneGlobals(FMath::Max(NewClipPlane, MinClipPlane));
+
 }
 FAutoConsoleCommand GSetNearClipPlaneCmd(TEXT("r.SetNearClipPlane"),TEXT("Set the near clipping plane (in cm)"),FConsoleCommandWithArgsDelegate::CreateStatic(SetNearClipPlane));
 

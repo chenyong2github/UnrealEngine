@@ -1069,7 +1069,7 @@ FMatrix FOpenXRHMD::GetStereoProjectionMatrix(const int32 ViewIndex) const
 	Fov.angleLeft = tan(Fov.angleLeft);
 	Fov.angleRight = tan(Fov.angleRight);
 
-	float ZNear = GNearClippingPlane;
+	float ZNear = GNearClippingPlane_RenderThread;
 	float SumRL = (Fov.angleRight + Fov.angleLeft);
 	float SumTB = (Fov.angleUp + Fov.angleDown);
 	float InvRL = (1.0f / (Fov.angleRight - Fov.angleLeft));
@@ -1153,7 +1153,7 @@ void FOpenXRHMD::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FS
 {
 	check(IsInRenderingThread());
 
-	const float NearZ = GNearClippingPlane / GetWorldToMetersScale();
+	const float NearZ = GNearClippingPlane_RenderThread / GetWorldToMetersScale();
 
 	for (int32 ViewIndex = 0; ViewIndex < PipelinedLayerStateRendering.ColorImages.Num(); ViewIndex++)
 	{

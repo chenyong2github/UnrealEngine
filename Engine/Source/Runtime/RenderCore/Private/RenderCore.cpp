@@ -13,6 +13,7 @@
 #include "RHI.h"
 #include "RenderTimer.h"
 #include "RenderCounters.h"
+#include "RenderingThread.h"
 
 void UpdateShaderDevelopmentMode();
 
@@ -322,6 +323,19 @@ RENDERCORE_API int32 GetCVarForceLODShadow_AnyThread()
 #endif // EXPOSE_FORCE_LOD
 
 	return Ret;
+}
+
+//Setter function to keep GNearClippingPlane and GNearClippingPlane_RenderThread in sync
+RENDERCORE_API void SetNearClipPlaneGlobals(float NewNearClipPlane)
+{
+	GNearClippingPlane = NewNearClipPlane;
+
+	//Set GNearClippingPlane_RenderThread in a render command to be RT safe
+	ENQUEUE_RENDER_COMMAND(SetNearClipPlane_RenderThread)(
+		[NewNearClipPlane](FRHICommandListImmediate& RHICmdList)
+		{
+			GNearClippingPlane_RenderThread = NewNearClipPlane;
+		});
 }
 
 // Note: Enables or disables HDR support for a project. Typically this would be set on a per-project/per-platform basis in defaultengine.ini

@@ -412,6 +412,7 @@ extern CORE_API FString GDeviceProfilesIni;
 extern CORE_API FString GGameplayTagsIni;
 
 extern CORE_API float GNearClippingPlane;
+extern CORE_API float GNearClippingPlane_RenderThread;
 
 extern CORE_API bool GExitPurge;
 extern CORE_API TCHAR GInternalProjectName[64];
