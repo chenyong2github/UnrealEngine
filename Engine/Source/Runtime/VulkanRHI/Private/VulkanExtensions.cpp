@@ -485,7 +485,7 @@ class FVulkanKHRFragmentShadingRateExtension : public FVulkanDeviceExtension
 public:
 
 	FVulkanKHRFragmentShadingRateExtension(FVulkanDevice* InDevice)
-		: FVulkanDeviceExtension(InDevice, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE)
+		: FVulkanDeviceExtension(InDevice, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
 	{
 		bEnabledInCode = bEnabledInCode && GRHIVariableRateShadingEnabled;
 	}

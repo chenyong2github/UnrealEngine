@@ -1128,13 +1128,11 @@ FArchive& operator << (FArchive& Ar, FGfxPipelineDesc& Entry)
 #endif
 	Ar << Entry.RenderTargets;
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	uint8 ShadingRate = static_cast<uint8>(Entry.ShadingRate);
 	uint8 Combiner = static_cast<uint8>(Entry.Combiner);
 	
 	Ar << ShadingRate;
 	Ar << Combiner;
-#endif
 
 	Ar << Entry.UseAlphaToCoverage;
 
@@ -1165,7 +1163,6 @@ FVulkanPSOKey FGfxPipelineDesc::CreateKey2() const
 	return Result;
 }
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 // Map Unreal VRS combiner operation enums to Vulkan enums.
 static const TMap<uint8, VkFragmentShadingRateCombinerOpKHR> FragmentCombinerOpMap
 {
@@ -1176,7 +1173,6 @@ static const TMap<uint8, VkFragmentShadingRateCombinerOpKHR> FragmentCombinerOpM
 	{ VRSRB_Sum,			VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MAX_KHR },		// No concept of Sum in Vulkan - fall back to max.
 	// @todo: Add "VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MUL_KHR"?
 };
-#endif
 
 FString FVulkanPipelineStateCacheManager::ShaderHashesToString(FVulkanShader* Shaders[ShaderStage::NumStages])
 {
@@ -1357,9 +1353,8 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 
 	PipelineInfo.pDynamicState = &DynamicState;
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	VkPipelineFragmentShadingRateStateCreateInfoKHR PipelineFragmentShadingRate;
-	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled)
+	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled && GRHIVariableRateShadingImageDataType == VRSImage_Palette)
 	{
 		const VkExtent2D FragmentSize = Device->GetBestMatchedFragmentSize(PSO->Desc.ShadingRate);
 		VkFragmentShadingRateCombinerOpKHR PipelineToPrimitiveCombinerOperation = FragmentCombinerOpMap[(uint8)PSO->Desc.Combiner];
@@ -1371,7 +1366,6 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 
 		PipelineInfo.pNext = (void*)&PipelineFragmentShadingRate;
 	}
-#endif
 
 	if (Device->SupportsBindless())
 	{

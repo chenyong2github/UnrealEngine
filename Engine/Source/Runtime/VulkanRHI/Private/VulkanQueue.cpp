@@ -159,10 +159,10 @@ void FVulkanQueue::FillSupportedStageBits()
 		{
 			SupportedStages |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 		}
-
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-		SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
-#endif
+		if (Device->GetOptionalExtensions().HasKHRFragmentShadingRate)
+		{
+			SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+		}
 		if (Device->GetOptionalExtensions().HasEXTFragmentDensityMap)
 		{
 			SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;

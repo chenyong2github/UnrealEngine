@@ -167,7 +167,6 @@ static void LoadValidationCache(VkDevice Device, VkValidationCacheEXT& OutValida
 }
 #endif
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 static VkExtent2D GetBestMatchedShadingRateExtents(uint32 ShadingRate, const TArray<VkPhysicalDeviceFragmentShadingRateKHR>& FragmentShadingRates)
 {
 	// Given that for Vulkan we need to query available device shading rates, we're not guaranteed to have everything that's in our enum;
@@ -200,7 +199,6 @@ static VkExtent2D GetBestMatchedShadingRateExtents(uint32 ShadingRate, const TAr
 
 	return BestMatchedExtent;
 }
-#endif
 
 
 void FVulkanPhysicalDeviceFeatures::Query(VkPhysicalDevice PhysicalDevice, uint32 APIVersion)
@@ -484,8 +482,7 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 		}
 	}
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	// Enumerate the available shading rates if it's supported
+	// Enumerate the available shading rates
 	if (OptionalDeviceExtensions.HasKHRFragmentShadingRate)
 	{
 		uint32 FragmentShadingRateCount = 0;
@@ -506,7 +503,6 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 			}
 		}
 	}
-#endif // VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Using %d device layers%s"), DeviceLayers.Num(), DeviceLayers.Num() ? TEXT(":") : TEXT("."));
 	for (const ANSICHAR* Layer : DeviceLayers)

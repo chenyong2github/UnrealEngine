@@ -473,7 +473,6 @@ struct FGfxPipelineDesc
 			return false;
 		}
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 		if (ShadingRate != In.ShadingRate)
 		{
 			return false;
@@ -483,7 +482,6 @@ struct FGfxPipelineDesc
 		{
 			return false;
 		}
-#endif
 
 		return true;
 	}

@@ -333,12 +333,10 @@ void FVulkanTexture::GenerateImageCreateInfo(
 
 	if (EnumHasAnyFlags(UEFlags, TexCreate_Foveation) && ValidateShadingRateDataType())
 	{
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 		if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
 		{
 			ImageCreateInfo.usage |= VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
 		}
-#endif
 
 		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
 		{
@@ -1717,12 +1715,10 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 			else if (EnumHasAnyFlags(InCreateDesc.Flags, TexCreate_Foveation) && ValidateShadingRateDataType())
 			{
 				// If it's a shading rate attachment texture, do not clear but add to layoutmgr, and set correct shading rate layout.
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 				if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
 				{
 					InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
 				}
-#endif
 
 				if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
 				{

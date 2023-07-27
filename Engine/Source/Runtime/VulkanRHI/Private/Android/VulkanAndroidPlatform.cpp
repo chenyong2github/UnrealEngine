@@ -812,9 +812,6 @@ void HandleGraphicsPipelineCreatePNext(const VkGraphicsPipelineCreateInfo* Pipel
 	// FSR Create Info
 	bool bHasFSRCreateInfo = false;
 
-#if !VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	COPY_TO_BUFFER(MemoryStream, &bHasFSRCreateInfo, sizeof(bool));
-#else
 	const void** Struct = VkStructs.Find(VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR);
 	bHasFSRCreateInfo = Struct != nullptr;
 	COPY_TO_BUFFER(MemoryStream, &bHasFSRCreateInfo, sizeof(bool));
@@ -828,7 +825,6 @@ void HandleGraphicsPipelineCreatePNext(const VkGraphicsPipelineCreateInfo* Pipel
 		COPY_TO_BUFFER(MemoryStream, FSRCreateInfo, sizeof(VkPipelineFragmentShadingRateStateCreateInfoKHR));
 		HandledCount++;
 	} 
-#endif
 
 	check(HandledCount == VkStructs.Num());
 }
@@ -869,9 +865,6 @@ void HandleSubpassDescriptionPNext(VkSubpassDescription2* SubpassDescription, TA
 	// FSR Create Info 
 	bool bHasFSRAttachmentCreateInfo = false;
 
-#if !VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	COPY_TO_BUFFER(MemoryStream, &bHasFSRAttachmentCreateInfo, sizeof(bool));
-#else
 	const void** Struct = VkStructs.Find(VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
 	bHasFSRAttachmentCreateInfo = Struct != nullptr;
 	COPY_TO_BUFFER(MemoryStream, &bHasFSRAttachmentCreateInfo, sizeof(bool));
@@ -885,7 +878,6 @@ void HandleSubpassDescriptionPNext(VkSubpassDescription2* SubpassDescription, TA
 		COPY_TO_BUFFER(MemoryStream, &FragmentShadingRateCreateInfo->shadingRateAttachmentTexelSize, sizeof(VkExtent2D));
 		HandledCount++;
 	}
-#endif
 
 	check(HandledCount == VkStructs.Num());
 }

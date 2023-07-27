@@ -759,12 +759,10 @@ VkImageLayout FVulkanRenderTargetLayout::GetVRSImageLayout() const
 {
 	if (ValidateShadingRateDataType())
 	{
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 		if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
 		{
 			return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
 		}
-#endif
 		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
 		{
 			return VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;

@@ -900,12 +900,7 @@ inline bool ValidateShadingRateDataType()
 	switch (GRHIVariableRateShadingImageDataType)
 	{
 	case VRSImage_Palette:
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 		return true;
-#else
-		checkf(false, TEXT("GRHIVariableRateShadingImageDataType was specified as VRSImage_Palette, but the VK_KHR_fragment_shading_rate extension is not supported on this platform."));
-		break;
-#endif
 
 	case VRSImage_Fractional:
 		return true;

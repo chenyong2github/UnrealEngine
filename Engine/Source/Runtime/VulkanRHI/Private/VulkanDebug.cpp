@@ -3870,7 +3870,6 @@ void FWrapLayer::GetPhysicalDeviceFeatures2(VkResult Result, VkPhysicalDevice Ph
 	}
 }
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 void FWrapLayer::GetPhysicalDeviceFragmentShadingRatesKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32* FragmentShadingRateCount, VkPhysicalDeviceFragmentShadingRateKHR* FragmentShadingRates)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
@@ -3880,7 +3879,6 @@ void FWrapLayer::GetPhysicalDeviceFragmentShadingRatesKHR(VkResult Result, VkPhy
 #endif
 	}
 }
-#endif
 
 void FWrapLayer::CmdSetDepthBias(VkResult Result, VkCommandBuffer CommandBuffer, float DepthBiasConstantFactor, float DepthBiasClamp, float DepthBiasSlopeFactor)
 {

@@ -202,14 +202,6 @@ struct VkAllocationCallbacks;
 #endif
 #endif
 
-#ifndef VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	#ifdef VK_KHR_fragment_shading_rate
-		#define VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE 1
-	#else
-		#define VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE 0
-	#endif
-#endif
-
 #ifndef VULKAN_SUPPORTS_RENDERPASS2
 	#ifdef VK_KHR_create_renderpass2
 		#define VULKAN_SUPPORTS_RENDERPASS2 1

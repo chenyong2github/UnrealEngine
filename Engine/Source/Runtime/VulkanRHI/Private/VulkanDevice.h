@@ -303,12 +303,10 @@ public:
 		return GpuProps;
 	}
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	inline VkExtent2D GetBestMatchedFragmentSize(EVRSShadingRate Rate) const
 	{
 		return FragmentSizeMap[Rate];
 	}
-#endif
 
 	inline const VkPhysicalDeviceLimits& GetLimits() const
 	{
@@ -586,10 +584,8 @@ private:
 	VkPhysicalDevice Gpu;
 	VkPhysicalDeviceProperties GpuProps;
 
-#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	TArray<VkPhysicalDeviceFragmentShadingRateKHR> FragmentShadingRates;
 	TStaticArray<VkExtent2D, (EVRSShadingRate::VRSSR_Last+1)> FragmentSizeMap;
-#endif
 
 	// Extension specific properties
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
