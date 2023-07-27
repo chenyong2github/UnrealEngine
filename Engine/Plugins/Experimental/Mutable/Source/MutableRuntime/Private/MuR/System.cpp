@@ -621,14 +621,17 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void System::Private::BeginBuild(const TSharedPtr<const Model>& pModel)
+	void System::Private::BeginBuild(const TSharedPtr<const Model>& InModel)
 	{
 		// We don't have a FLiveInstance, let's create the memory
 		// \TODO: There is no clear moment to remove this... EndBuild?
 		WorkingMemoryManager.CurrentInstanceCache = MakeShared<FProgramCache>();
-		WorkingMemoryManager.CurrentInstanceCache->Init(pModel->GetPrivate()->m_program.m_opAddress.Num());
+		WorkingMemoryManager.CurrentInstanceCache->Init(InModel->GetPrivate()->m_program.m_opAddress.Num());
 
-		PrepareCache(pModel.Get(), -1);
+		// Ensure the model cache has been created
+		WorkingMemoryManager.FindOrAddModelCache(InModel);
+
+		PrepareCache(InModel.Get(), -1);
 	}
 
 

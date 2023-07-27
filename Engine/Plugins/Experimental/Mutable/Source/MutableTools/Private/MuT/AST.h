@@ -1121,12 +1121,5 @@ namespace mu
         }
     };
 
-
-    //
-    extern void DebugLogAST(const Ptr<ASTOp>& at,
-                            int indent=0,
-                            ASTOpList* done=nullptr,
-                            const char* label=nullptr);
-
 }
 
