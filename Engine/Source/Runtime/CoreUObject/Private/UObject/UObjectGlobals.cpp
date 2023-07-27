@@ -3812,11 +3812,7 @@ void FObjectInitializer::PostConstructInit()
 		InitProperties(Obj, BaseClass, Defaults, bCopyTransientsFromClassDefaults);
 	}
 
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	const bool bAllowInstancing = IsInstancingAllowed() && !bIsDeferredInitializer;
-#else
 	const bool bAllowInstancing = IsInstancingAllowed();
-#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	bool bNeedSubobjectInstancing = InitSubobjectProperties(bAllowInstancing);
 
 	// Restore class information if replacing native class.
