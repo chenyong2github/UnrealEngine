@@ -452,18 +452,20 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 	// We couldn't find the target prim, do a full refresh instead
 	else
 	{
-		Refresh( UsdStage );
+		FWriteScopeLock StageTreeViewLock{RefreshStateLock};
+		bNeedsFullUpdate = true;
 	}
 
 	if ( bResync )
 	{
-		RequestTreeRefresh();
+		FWriteScopeLock StageTreeViewLock{RefreshStateLock};
+		bNeedsFullUpdate = true;
 	}
 }
 
 FUsdPrimViewModelPtr SUsdStageTreeView::GetItemFromPrimPath( const FString& PrimPath )
 {
-	FScopedUnrealAllocs UnrealAllocs; // RefreshPrim can be called by a delegate for which we don't know the active allocator
+	FScopedUnrealAllocs UnrealAllocs;
 
 	UE::FSdfPath UsdPrimPath( *PrimPath );
 

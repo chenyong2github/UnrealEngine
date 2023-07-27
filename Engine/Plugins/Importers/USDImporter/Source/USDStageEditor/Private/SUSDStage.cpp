@@ -395,10 +395,13 @@ void SUsdStage::Construct( const FArguments& InArgs )
 
 	SetupStageActorDelegates();
 
+	// Pre tick so that we setup/refresh our widgets before Slate renders on this frame
+	FSlateApplication::Get().OnPreTick().AddSP(this, &SUsdStage::OnSlateTick);
+
 	// We're opening the USD Stage editor for the first time and we already have a stage: Display it immediately
 	if ( UsdStage )
 	{
-		Refresh();
+		RequestFullRefresh();
 	}
 }
 
@@ -512,7 +515,7 @@ void SUsdStage::AttachToStageActor( AUsdStageActor* InUsdStageActor, bool bFlash
 
 	// Refresh here because we may be receiving an actor that has a stage already loaded,
 	// like during undo/redo
-	Refresh();
+	RequestFullRefresh();
 }
 
 void SUsdStage::SetupStageActorDelegates()
@@ -522,47 +525,14 @@ void SUsdStage::SetupStageActorDelegates()
 	if ( ViewModel.UsdStageActor.IsValid() )
 	{
 		OnPrimChangedHandle = ViewModel.UsdStageActor->OnPrimChanged.AddLambda(
-			[ this ]( const FString& PrimPath, bool bResync )
+			[this](const FString& PrimPath, bool bResync)
 			{
-				// The USD notices may come from a background USD TBB thread, but we should only update slate from the main/slate threads.
-				// We can't retrieve the FSlateApplication singleton here (because that can also only be used from the main/slate threads),
-				// so we must use core tickers here
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-					[this, PrimPath, bResync](float Time)
-					{
-						if (bEditorIsShuttingDown)
-						{
-							return false;
-						}
+				if (UsdStageTreeView)
+				{
+					FWriteScopeLock StageTreeViewLock{UsdStageTreeView->RefreshStateLock};
 
-						if ( this->UsdStageTreeView )
-						{
-							this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
-							this->UsdStageTreeView->RequestTreeRefresh();
-						}
-
-						const bool bViewingTheUpdatedPrim = SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase );
-						const bool bViewingStageProperties = SelectedPrimPath.IsEmpty() || SelectedPrimPath == TEXT("/");
-						const bool bStageUpdated = PrimPath == TEXT("/");
-
-						if ( this->UsdPrimInfoWidget &&
-							 ViewModel.UsdStageActor.IsValid() &&
-							 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
-						{
-							this->UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *PrimPath);
-						}
-
-						// If we resynced our selected prim or our ancestor and have selection sync enabled, try to refresh it so that we're
-						// still selecting the same actor/component that corresponds to the prim we have currently selected
-						if ( bResync && SelectedPrimPath.StartsWith( PrimPath ) )
-						{
-							OnPrimSelectionChanged( { SelectedPrimPath } );
-						}
-
-						// Returning false means this is a one-off, and won't repeat
-						return false;
-					}
-				));
+					UsdStageTreeView->PrimsToRefresh.Emplace(PrimPath, bResync);
+				}
 			}
 		);
 
@@ -570,39 +540,15 @@ void SUsdStage::SetupStageActorDelegates()
 		OnStageChangedHandle = ViewModel.UsdStageActor->OnStageChanged.AddLambda(
 			[this]()
 			{
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-					[this](float Time)
+				if (UsdStageTreeView)
+				{
 					{
-						if (bEditorIsShuttingDown)
-						{
-							return false;
-						}
-
-						// So we can reset even if our actor is being destroyed right now
-						const bool bEvenIfPendingKill = true;
-						if (ViewModel.UsdStageActor.IsValid(bEvenIfPendingKill))
-						{
-							// Reset our selection to the stage root
-							SelectedPrimPath = TEXT("/");
-
-							if (this->UsdPrimInfoWidget)
-							{
-								this->UsdPrimInfoWidget->SetPrimPath(GetCurrentStage(), TEXT("/"));
-							}
-
-							if (this->UsdStageTreeView)
-							{
-								this->UsdStageTreeView->ClearSelection();
-								this->UsdStageTreeView->RequestTreeRefresh();
-							}
-						}
-
-						this->Refresh();
-
-						// Returning false means this is a one-off, and won't repeat
-						return false;
+						FWriteScopeLock StageTreeViewLock{UsdStageTreeView->RefreshStateLock};
+						UsdStageTreeView->PrimsToRefresh.Reset();
 					}
-				));
+
+					RequestFullRefresh();
+				}
 			}
 		);
 
@@ -615,113 +561,26 @@ void SUsdStage::SetupStageActorDelegates()
 				// (and control flow returned to the game thread) which can lead to some weird results (and break automated tests).
 				// We could get around this on the Python script's side by just yielding, but there may be other scenarios
 				ClearStageActorDelegates();
-				this->ViewModel.CloseStage();
-
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-					[this](float Time)
-					{
-						if (bEditorIsShuttingDown)
-						{
-							return false;
-						}
-
-						this->Refresh();
-
-						// Returning false means this is a one-off, and won't repeat
-						return false;
-					}
-				));
+				ViewModel.CloseStage();
+				RequestFullRefresh();
 			}
 		);
 
-		OnStageEditTargetChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnStageEditTargetChanged().AddLambda(
-			[ this ]()
-			{
-				FTSTicker::GetCoreTicker().AddTicker(
-					FTickerDelegate::CreateLambda( [this]( float Time )
-					{
-						if (bEditorIsShuttingDown)
-						{
-							return false;
-						}
-
-						AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
-						if (this->UsdLayersTreeView && StageActor)
-						{
-							constexpr bool bResync = false;
-							UsdLayersTreeView->Refresh(
-								StageActor->GetBaseUsdStage(),
-								StageActor->GetIsolatedUsdStage(),
-								bResync
-							);
-						}
-
-						// Returning false means this is a one-off, and won't repeat
-						return false;
-					})
-				);
-			}
+		OnStageEditTargetChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnStageEditTargetChanged().AddSP(
+			this,
+			&SUsdStage::RequestLayersTreeViewRefresh
 		);
-
-		TFunction<bool(float)> DelayedRefreshOfLayersTreeView = [this](float Time)
-		{
-			if (bEditorIsShuttingDown)
-			{
-				return false;
-			}
-
-			AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
-			if (this->UsdLayersTreeView && StageActor)
-			{
-				constexpr bool bResync = false;
-				UsdLayersTreeView->Refresh(StageActor->GetBaseUsdStage(), StageActor->GetIsolatedUsdStage(), bResync);
-			}
-
-			// Returning false means this is a one-off, and won't repeat
-			return false;
-		};
 
 		OnSdfLayersChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnSdfLayersChanged().AddLambda(
-			[this, DelayedRefreshOfLayersTreeView](const UsdUtils::FLayerToSdfChangeList& LayersToChangeList)
+			[this](const UsdUtils::FLayerToSdfChangeList& LayersToChangeList)
 			{
-				// The layers changed events are global, and so fired for every stage actor when any layer of
-				// any stage is modified. Let's update only when a layer used by our stage is updated
-				bool bRelevantToCurrentStage = false;
-				if (AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
-				{
-					if (const UE::FUsdStage& CurrentStage = StageActor->GetUsdStage())
-					{
-						TSet<UE::FSdfLayer> UsedLayers{CurrentStage.GetUsedLayers()};
-						for (const TPair<UE::FSdfLayerWeak, UsdUtils::FSdfChangeList>& LayerToChangeList : LayersToChangeList)
-						{
-							if (UsedLayers.Contains(LayerToChangeList.Key))
-							{
-								bRelevantToCurrentStage = true;
-								break;
-							}
-						}
-					}
-				}
-				if (!bRelevantToCurrentStage)
-				{
-					return;
-				}
-
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(DelayedRefreshOfLayersTreeView));
+				RequestLayersTreeViewRefresh();
 			}
 		);
 
-		OnSdfLayerDirtinessChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnSdfLayerDirtinessChanged().AddLambda(
-			[DelayedRefreshOfLayersTreeView]()
-			{
-				// The layer dirtiness notice as we're using here is global, which means any layer of any other stage
-				// going dirty will affect us. We *could* make this notice layer-specific on the listener, but it would force us to
-				// register/unregister to every single layer... since the updates done in DelayedRefreshOfLayersTreeView are
-				// relatively light, it's probably for the best to just refresh every time than to support the churn of
-				// a bunch of separate listeners and registration/unregistration happening every time, potentially also
-				// crashing if done incorrectly when a layer is created/added/removed/etc.
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(DelayedRefreshOfLayersTreeView));
-			}
+		OnSdfLayerDirtinessChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnSdfLayerDirtinessChanged().AddSP(
+			this,
+			&SUsdStage::RequestLayersTreeViewRefresh
 		);
 	}
 }
@@ -743,6 +602,8 @@ void SUsdStage::ClearStageActorDelegates()
 
 SUsdStage::~SUsdStage()
 {
+	FSlateApplication::Get().OnPreTick().RemoveAll(this);
+
 	FEditorDelegates::PostPIEStarted.Remove( PostPIEStartedHandle );
 	FEditorDelegates::EndPIE.Remove( EndPIEHandle );
 
@@ -2250,7 +2111,7 @@ void SUsdStage::FileClose()
 	}
 
 	ViewModel.CloseStage();
-	Refresh();
+	RequestFullRefresh();
 
 	if (GDiscardUndoBufferOnStageOpenClose && GEditor)
 	{
@@ -2268,7 +2129,7 @@ void SUsdStage::OnLayerIsolated( const UE::FSdfLayer& IsolatedLayer )
 	{
 		StageActor->IsolateLayer( IsolatedLayer );
 
-		Refresh();
+		RequestFullRefresh();
 	}
 }
 
@@ -2303,12 +2164,12 @@ void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 		return;
 	}
 
-	if ( UsdPrimInfoWidget )
-	{
-		UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage();
+	UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage();
+	SelectedPrimPath = PrimPaths.Num() == 1 ? PrimPaths[ 0 ] : TEXT( "" );
 
-		SelectedPrimPath = PrimPaths.Num() == 1 ? PrimPaths[ 0 ] : TEXT( "" );
-		UsdPrimInfoWidget->SetPrimPath( UsdStage, *SelectedPrimPath );
+	if (UsdPrimInfoWidget)
+	{
+		UsdPrimInfoWidget->SetPrimPath(UsdStage, *SelectedPrimPath);
 	}
 
 	// We don't need to check for actors and components in case we're just selecting the stage root
@@ -2362,39 +2223,169 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 	}
 }
 
-void SUsdStage::Refresh()
+void SUsdStage::RequestLayersTreeViewRefresh()
 {
-	// May be nullptr, but that is ok. Its how the widgets are reset
-	AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
-
-	if ( UsdLayersTreeView )
+	if (UsdLayersTreeView)
 	{
+		FWriteScopeLock LayersTreeViewLock{UsdLayersTreeView->RefreshStateLock};
+
+		UsdLayersTreeView->bUpdateState = (SUsdLayersTreeView::ELayersTreeViewState
+		)FMath::Max((uint8)SUsdLayersTreeView::ELayersTreeViewState::RefreshNeeded, (uint8)UsdLayersTreeView->bUpdateState);
+	}
+}
+
+void SUsdStage::RequestFullRefresh()
+{
+	if (UsdLayersTreeView)
+	{
+		FWriteScopeLock LayersTreeViewLock{UsdLayersTreeView->RefreshStateLock};
+
+		UsdLayersTreeView->bUpdateState = SUsdLayersTreeView::ELayersTreeViewState::ResyncNeeded;
+	}
+
+	if (UsdStageTreeView)
+	{
+		FWriteScopeLock StageTreeViewLock{UsdStageTreeView->RefreshStateLock};
+
+		UsdStageTreeView->bNeedsFullUpdate = true;
+
+		if (UsdStageTreeView->PrimPathToSelect.IsEmpty())
+		{
+			UsdStageTreeView->PrimPathToSelect = SelectedPrimPath;
+		}
+	}
+}
+
+void SUsdStage::OnSlateTick(float Time)
+{
+	if (bEditorIsShuttingDown)
+	{
+		return;
+	}
+
+	SUsdLayersTreeView::ELayersTreeViewState LayersTreeViewState = SUsdLayersTreeView::ELayersTreeViewState::NoRefreshNeeded;
+	bool bStageTreeViewNeedsFullUpdate = false;
+	FString PrimPathToSelect;
+	TArray<TPair<FString, bool>> PrimsToRefresh;
+
+	if (UsdLayersTreeView)
+	{
+		FWriteScopeLock LayersTreeViewLock{UsdLayersTreeView->RefreshStateLock};
+		Swap(LayersTreeViewState, UsdLayersTreeView->bUpdateState);
+	}
+
+	if (UsdStageTreeView)
+	{
+		FWriteScopeLock StageTreeViewLock{UsdStageTreeView->RefreshStateLock};
+		Swap(bStageTreeViewNeedsFullUpdate, UsdStageTreeView->bNeedsFullUpdate);
+		Swap(PrimPathToSelect, UsdStageTreeView->PrimPathToSelect);
+		Swap(PrimsToRefresh, UsdStageTreeView->PrimsToRefresh);
+	}
+
+	if (LayersTreeViewState != SUsdLayersTreeView::ELayersTreeViewState::NoRefreshNeeded)
+	{
+		// May be nullptr, but that is ok. Its how the widgets are reset
+		AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+
 		UE::FUsdStageWeak IsolatedStage = StageActor ? StageActor->GetIsolatedUsdStage() : UE::FUsdStage{};
 		UE::FUsdStageWeak BaseStage = StageActor ? StageActor->GetBaseUsdStage() : UE::FUsdStage{};
 
 		// The layers tree view always needs to receive both the full stage as well as the isolated
-		const bool bResync = true;
-		UsdLayersTreeView->Refresh( BaseStage, IsolatedStage, bResync );
+		const bool bResync = LayersTreeViewState == SUsdLayersTreeView::ELayersTreeViewState::ResyncNeeded;
+		UsdLayersTreeView->Refresh(BaseStage, IsolatedStage, bResync);
 	}
 
-	if ( UsdStageTreeView )
+	if (bStageTreeViewNeedsFullUpdate || !PrimPathToSelect.IsEmpty() || PrimsToRefresh.Num() > 0)
 	{
-		UE::FUsdStageWeak CurrentStage = StageActor
-			? static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage()
-			: UE::FUsdStage{};
+		// May be nullptr, but that is ok. Its how the widgets are reset
+		AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
 
-		UsdStageTreeView->Refresh( CurrentStage );
+		// Don't bother refreshing individual prims if we'll do a full refresh anyway
+		if (!bStageTreeViewNeedsFullUpdate)
+		{
+			TSet<FString> RefreshedPrims;
+			TSet<FString> ResyncedPrims;
 
-		// Refresh will generate brand new RootItems, so let's immediately select the new item
-		// that corresponds to the prim we're supposed to be selecting
-		UsdStageTreeView->SetSelectedPrimPaths( { SelectedPrimPath } );
+			// Note how we go from oldest to newest update here, so after the loop we'll end up with LastResyncedPrim
+			// pointing at what it should, and PrimPathToSelect pointing at the last updated prim path to select
+			for (const TPair<FString, bool>& PrimAndResync : PrimsToRefresh)
+			{
+				const FString& PrimPath = PrimAndResync.Key;
+				const bool bResync = PrimAndResync.Value;
 
-		UsdStageTreeView->RequestTreeRefresh();
+				// Prevent from refreshing the same prim too many times on a single tick
+				if (ResyncedPrims.Contains(PrimPath))
+				{
+					continue;
+				}
+				if (!bResync && RefreshedPrims.Contains(PrimPath))
+				{
+					continue;
+				}
+				if (bResync)
+				{
+					ResyncedPrims.Add(PrimPath);
+				}
+				else
+				{
+					RefreshedPrims.Add(PrimPath);
+				}
+
+				UsdStageTreeView->RefreshPrim(PrimPath, bResync);
+				{
+					// RefreshPrim may internally set UsdStageTreeView->bNeedsFullUpdate to true
+					FWriteScopeLock StageTreeViewLock{UsdStageTreeView->RefreshStateLock};
+					bStageTreeViewNeedsFullUpdate |= UsdStageTreeView->bNeedsFullUpdate;
+					UsdStageTreeView->bNeedsFullUpdate = false;
+				}
+
+				// If we already have a PrimPathToSelect, we're going to already refresh the info panel already or end up
+				// looking at another prim anyway, so don't bother refreshing the info widget due to a prim update
+				if (PrimPathToSelect.IsEmpty())
+				{
+					const bool bViewingTheUpdatedPrim = SelectedPrimPath.Equals(PrimPath, ESearchCase::IgnoreCase);
+					const bool bViewingStageProperties = SelectedPrimPath.IsEmpty() || SelectedPrimPath == TEXT("/");
+					const bool bStageUpdated = PrimPath == TEXT("/");
+
+					if (UsdPrimInfoWidget &&
+						StageActor &&
+						(bViewingTheUpdatedPrim || (bViewingStageProperties && bStageUpdated))
+					)
+					{
+						PrimPathToSelect = PrimPath;
+					}
+				}
+			}
+		}
+
+		if (bStageTreeViewNeedsFullUpdate)
+		{
+			UsdStageTreeView->Refresh(GetCurrentStage());
+		}
+
+		if (bStageTreeViewNeedsFullUpdate || !PrimPathToSelect.IsEmpty())
+		{
+			// Refresh will generate brand new RootItems, so let's immediately select the new item
+			// that corresponds to the prim we're supposed to be selecting
+			UsdStageTreeView->SetSelectedPrimPaths(
+				{PrimPathToSelect.IsEmpty() ? SelectedPrimPath : PrimPathToSelect}
+			);
+
+			// If we changed/redid the selection, let's make sure that our info panel will update too (right below this)
+			PrimPathToSelect = SelectedPrimPath;
+		}
+
+		// Refresh the actual slate widget if we changed any underlying data
+		if (bStageTreeViewNeedsFullUpdate || PrimsToRefresh.Num() > 0)
+		{
+			UsdStageTreeView->RequestTreeRefresh();
+		}
 	}
 
-	if ( UsdPrimInfoWidget )
+	if (UsdPrimInfoWidget && !PrimPathToSelect.IsEmpty())
 	{
-		UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *SelectedPrimPath );
+		UsdPrimInfoWidget->SetPrimPath(GetCurrentStage(), *PrimPathToSelect);
+		PrimPathToSelect.Empty();
 	}
 }
 

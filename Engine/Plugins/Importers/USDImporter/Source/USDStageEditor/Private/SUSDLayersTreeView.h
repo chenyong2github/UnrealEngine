@@ -72,6 +72,22 @@ private:
 
 	void RestoreExpansionStates();
 
+public:
+	// We update only on slate tick, but can receive a USD notice at any point, from any thread.
+	// These variables are used to control what needs to be refreshed on the next tick
+
+	enum class ELayersTreeViewState : uint8
+	{
+		NoRefreshNeeded = 0,
+		RefreshNeeded = 1,
+		ResyncNeeded = 2
+	};
+	ELayersTreeViewState bUpdateState = ELayersTreeViewState::NoRefreshNeeded;
+
+	// Use a lock because some of the notices that will update these refresh variables can be
+	// sent from TBB threads
+	mutable FRWLock RefreshStateLock;
+
 private:
 	// Should always be valid, we keep the one we're given on Refresh()
 	UE::FUsdStageWeak UsdStage;

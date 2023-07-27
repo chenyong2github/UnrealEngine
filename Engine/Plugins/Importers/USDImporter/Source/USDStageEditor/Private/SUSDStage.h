@@ -21,6 +21,7 @@ struct FSlateBrush;
 namespace UE
 {
 	class FUsdPrim;
+	class FSdfPath;
 	class FUsdAttribute;
 }
 
@@ -98,7 +99,9 @@ protected:
 
 	void OpenStage( const TCHAR* FilePath );
 
-	void Refresh();
+	void RequestLayersTreeViewRefresh();
+	void RequestFullRefresh();
+	void OnSlateTick(float Time);
 
 	void OnViewportSelectionChanged( UObject* NewSelection );
 

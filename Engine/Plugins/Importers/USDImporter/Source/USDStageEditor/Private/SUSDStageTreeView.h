@@ -94,6 +94,23 @@ private:
 
 	void SelectItemsInternal( const TArray< FUsdPrimViewModelRef >& ItemsToSelect );
 
+public:
+	// We update only on slate tick, but can receive a USD notice at any point, from any thread.
+	// These variables are used to control what needs to be refreshed on the next tick
+
+	FString PrimPathToSelect;
+
+	bool bNeedsFullUpdate = false;
+
+	// We append requests to refresh prims on the stage tree view to the end of this array as they arrive,
+	// and then perform them all at once during OnSlateTick.
+	// Elements map from prim path to whether the update neeeds to be a resync or not.
+	TArray<TPair<FString, bool>> PrimsToRefresh;
+
+	// Use a lock because some of the notices that will update these refresh variables can be
+	// sent from TBB threads
+	mutable FRWLock RefreshStateLock;
+
 private:
 	// Should always be valid, we keep the one we're given on Refresh()
 	UE::FUsdStageWeak UsdStage;
