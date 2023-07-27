@@ -179,9 +179,9 @@ void IElectraVideoDecoderH265_DX::PlatformGetSupportedConfigurations(TArray<FSup
 		IElectraVideoDecoderH265_DX_Platform::DecoderConfigurations.Empty();
 
 		// Main
-		IElectraVideoDecoderH265_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH265_DX::FSupportedConfiguration(0, 1, 0, 153, 60, 4096, 2304, 0));
+		IElectraVideoDecoderH265_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH265_DX::FSupportedConfiguration(0, 1, 0, 153, 120, 4096, 2304, 0));
 		// Main10
-		IElectraVideoDecoderH265_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH265_DX::FSupportedConfiguration(0, 2, 0, 153, 60, 4096, 2304, 0));
+		IElectraVideoDecoderH265_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH265_DX::FSupportedConfiguration(0, 2, 0, 153, 120, 4096, 2304, 0));
 
 		IElectraVideoDecoderH265_DX_Platform::bDecoderConfigurationsDirty = false;
 	}

@@ -191,11 +191,11 @@ void IElectraVideoDecoderH264_DX::PlatformGetSupportedConfigurations(TArray<FSup
 	{
 		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Empty();
 		// Baseline
-		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH264_DX::FSupportedConfiguration(66, 52, 60, 3840, 2160, 0 /*1280*720 / 256*/));
+		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH264_DX::FSupportedConfiguration(66, 52, 120, 3840, 2160, 0 /*1280*720 / 256*/));
 		// Main
-		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH264_DX::FSupportedConfiguration(77, 52, 60, 3840, 2160, 0 /*1280*720 / 256*/));
+		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH264_DX::FSupportedConfiguration(77, 52, 120, 3840, 2160, 0 /*1280*720 / 256*/));
 		// High
-		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH264_DX::FSupportedConfiguration(100, 52, 60, 3840, 2160, 0 /*1280*720 / 256*/));
+		IElectraVideoDecoderH264_DX_Platform::DecoderConfigurations.Emplace(IElectraVideoDecoderH264_DX::FSupportedConfiguration(100, 52, 120, 3840, 2160, 0 /*1280*720 / 256*/));
 
 		IElectraVideoDecoderH264_DX_Platform::bDecoderConfigurationsDirty = false;
 	}
