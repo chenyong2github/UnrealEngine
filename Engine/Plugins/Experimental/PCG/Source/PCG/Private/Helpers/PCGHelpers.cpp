@@ -10,6 +10,7 @@
 #include "Grid/PCGPartitionActor.h"
 
 #include "Landscape.h"
+#include "Algo/AnyOf.h"
 #include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
@@ -285,7 +286,7 @@ namespace PCGHelpers
 		return true;
 	}
 
-	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth)
+	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth, const TArray<UClass*>& InExcludedClasses)
 	{
 		UClass* ObjectClass = Object ? Object->GetClass() : nullptr;
 
@@ -301,6 +302,15 @@ namespace PCGHelpers
 			if (!Property || Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient | CPF_Deprecated))
 			{
 				continue;
+			}
+
+			// For Object properties, if the class is in the excluded classes, continue
+			if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+			{
+				if (ObjectProperty->PropertyClass && Algo::AnyOf(InExcludedClasses, [InClass = ObjectProperty->PropertyClass](const UClass* ExcludedClass){ return InClass->IsChildOf(ExcludedClass); }))
+				{
+					continue;
+				}
 			}
 
 			GatherDependencies(Property, Object, OutDependencies, MaxDepth);

@@ -123,6 +123,7 @@ private:
 	void OnLandscapeChanged(ALandscapeProxy* InLandscape, const FLandscapeProxyComponentDataChangedParams& InChangeParams);
 	void OnPreObjectPropertyChanged(UObject* InObject, const FEditPropertyChain& InEditPropertyChain);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
+	void OnPCGGraphGeneratedOrCleaned(UPCGComponent* InComponent);
 
 	/** For deprecation only, register tracked actors from serialized components */
 	template <typename ActorContainer>
@@ -134,8 +135,14 @@ private:
 	/** Unregister tracking when a component is removed. */
 	void UnregisterTracking(UPCGComponent* InComponent);
 
-	/** Trigger an update when the actor changed. Can also provide a list of tags that has changed. */
-	void OnActorChanged(AActor* InActor, bool bInHasMoved);
+	/** Trigger an update when the actor changed. 
+	* Can specify if the actor has moved to also update components that were at its previous position.
+	* Can also specify an optional component, originating the change, to avoid re-dirtying it.
+	*/
+	void OnActorChanged(AActor* InActor, bool bInHasMoved, const UPCGComponent* InComponentChanged = nullptr);
+
+	/** Update dependencies for a given tracked actor. */
+	void UpdateActorDependencies(AActor* InActor);
 #endif // WITH_EDITOR
 
 private:
