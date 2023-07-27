@@ -499,11 +499,14 @@ void FSkinBindingOp::CreateSkinWeights_GeodesicVoxel(
 				for (int32 K = BoneMin.Z; K <= BoneMax.Z; K++)
 				{
 					const FVector3i Candidate(I, J, K);
-					const FBox3d CellBox{Occupancy.GetCellBoxFromIndex(Candidate)};
-					if (Skeleton.GetBoneFanIntersectsBox(BoneIndex, CellBox))
+					if (BoneDistance.IsValidIndex(Candidate))
 					{
-						WorkingSet.Push(Candidate);
-						BoneDistance[Candidate] = 0.0f;
+						const FBox3d CellBox{Occupancy.GetCellBoxFromIndex(Candidate)};
+						if (Skeleton.GetBoneFanIntersectsBox(BoneIndex, CellBox))
+						{
+							WorkingSet.Push(Candidate);
+							BoneDistance[Candidate] = 0.0f;
+						}
 					}
 				}
 			}
