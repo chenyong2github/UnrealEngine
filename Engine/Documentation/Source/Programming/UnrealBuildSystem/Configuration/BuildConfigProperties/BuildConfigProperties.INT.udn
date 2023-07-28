@@ -288,8 +288,6 @@ $ bAllowClangLinker : True if we should use the Clang linker (LLD) when we are c
 
 $ WindowsSdkVersion : The specific Windows SDK version to use. This may be a specific version number (for example, "8.1", "10.0" or "10.0.10150.0"), or the string "Latest", to select the newest available version. By default, and if it is available, we use the Windows SDK version indicated by WindowsPlatform.DefaultWindowsSdkVersion (otherwise, we use the latest version).
 
-$ bStrictConformanceMode : Enables strict standard conformance mode (/permissive-).
-
 $ bUpdatedCPPMacro : Enables updated __cplusplus macro (/Zc:__cplusplus).
 
 $ bStrictInlineConformance : Enables inline conformance (Remove unreferenced COMDAT) (/Zc:inline).
@@ -311,6 +309,8 @@ $ bShowIncludes : Print out files that are included by each source file
 $ InlineFunctionExpansionLevel : Which level to use for Inline Function Expansion when TargetRules.bUseInlining is enabled
 
 $ ToolChain : Version of the toolchain to use on Windows platform when a non-msvc Compiler is in use, to locate include paths etc.
+
+$ bStrictConformanceMode : Enables strict standard conformance mode (/permissive-).
 
 ### TargetRules
 
