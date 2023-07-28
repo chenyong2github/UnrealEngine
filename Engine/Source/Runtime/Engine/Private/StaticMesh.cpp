@@ -78,7 +78,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMesh)
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
@@ -6538,28 +6538,49 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 #if WITH_EDITOR
 void UStaticMesh::CheckForMissingShaderModels()
 {
-	// Don't show the SM6 toasts on non-Windows platforms to avoid confusion around platform requirements.
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 	static bool bWarnedAboutMissingShaderModel = false;
 	if (GIsEditor && IsNaniteEnabled() && !bWarnedAboutMissingShaderModel)
 	{
-		TArray<FString> D3D11TargetedShaderFormats;
-		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D11TargetedShaderFormats"), D3D11TargetedShaderFormats, GEngineIni);
-
-		TArray<FString> D3D12TargetedShaderFormats;
-		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D12TargetedShaderFormats"), D3D12TargetedShaderFormats, GEngineIni);
-
-		TArray<FString> TargetedRHIs;
-		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedRHIs, GEngineIni);
-
-		if (TargetedRHIs.Contains(TEXT("PCD3D_SM6")))
+		auto CopySM6Format = [](const TCHAR* ShaderFormatName, const TArray<FString>& SrcArray, TArray<FString>& DstArray)
 		{
-			D3D12TargetedShaderFormats.AddUnique(TEXT("PCD3D_SM6"));
-		}
+			if (SrcArray.Contains(ShaderFormatName))
+			{
+				DstArray.AddUnique(ShaderFormatName);
+			}
+		};
+
+		// Gather all Windows shader format settings
+		TArray<FString> D3D11TargetedShaderFormats;
+		TArray<FString> D3D12TargetedShaderFormats;
+		TArray<FString> WindowsVulkanTargetedShaderFormats;
+		TArray<FString> WindowsTargetedRHIs;
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D11TargetedShaderFormats"), D3D11TargetedShaderFormats, GEngineIni);
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D12TargetedShaderFormats"), D3D12TargetedShaderFormats, GEngineIni);
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("VulkanTargetedShaderFormats"), WindowsVulkanTargetedShaderFormats, GEngineIni);
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), WindowsTargetedRHIs, GEngineIni);
+		CopySM6Format(TEXT("PCD3D_SM6"), WindowsTargetedRHIs, D3D12TargetedShaderFormats);
+		CopySM6Format(TEXT("SF_VULKAN_SM6"), WindowsTargetedRHIs, WindowsVulkanTargetedShaderFormats);
+
+		// Gather all Linux shader format settings
+		TArray<FString> LinuxVulkanTargetedShaderFormats;
+		TArray<FString> LinuxTargetedRHIs;
+		GConfig->GetArray(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"), TEXT("VulkanTargetedShaderFormats"), LinuxVulkanTargetedShaderFormats, GEngineIni);
+		GConfig->GetArray(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"), TEXT("TargetedRHIs"), LinuxTargetedRHIs, GEngineIni);
+		CopySM6Format(TEXT("SF_VULKAN_SM6"), LinuxTargetedRHIs, LinuxVulkanTargetedShaderFormats);
+
+		// TODO: Gather all Mac shader format settings
 
 		const bool bProjectUsesD3D = (D3D11TargetedShaderFormats.Num() + D3D12TargetedShaderFormats.Num()) > 0;
+		const bool bProjectMissingD3DSM6 = (bProjectUsesD3D && !D3D12TargetedShaderFormats.Contains(TEXT("PCD3D_SM6")));
 
-		if (bProjectUsesD3D && !D3D12TargetedShaderFormats.Contains(TEXT("PCD3D_SM6")))
+		const bool bProjectUsesWindowsVulkan = (WindowsVulkanTargetedShaderFormats.Num() > 0);
+		const bool bProjectMissingWindowsVulkanSM6 = (bProjectUsesWindowsVulkan && !WindowsVulkanTargetedShaderFormats.Contains(TEXT("SF_VULKAN_SM6")));
+
+		const bool bProjectUsesLinuxVulkan = (LinuxTargetedRHIs.Num() > 0) || (LinuxVulkanTargetedShaderFormats.Num() > 0);
+		const bool bProjectMissingLinuxVulkanSM6 = (bProjectUsesLinuxVulkan && !LinuxVulkanTargetedShaderFormats.Contains(TEXT("SF_VULKAN_SM6")));
+
+		if (bProjectMissingD3DSM6 || bProjectMissingWindowsVulkanSM6 || bProjectMissingLinuxVulkanSM6)
 		{
 			bWarnedAboutMissingShaderModel = true;
 
@@ -6591,14 +6612,26 @@ void UStaticMesh::CheckForMissingShaderModels()
 				SNotificationItem::CS_None));
 
 			Info.Text = LOCTEXT("NeedProjectSettings", "Missing Project Settings!");
-			Info.SubText = LOCTEXT("NaniteNeedsSM6Setting", "Shader Model 6 (SM6) is required to use Nanite assets. Please enable this in:\n  Project Settings -> Platforms -> Windows -> D3D12 Targeted Shader Formats\nNanite assets will not display properly until this is enabled.");
 			Info.HyperlinkText = LOCTEXT("ProjectSettingsHyperlinkText", "Open Project Settings");
 			Info.Hyperlink = FSimpleDelegate::CreateLambda(OpenProjectSettings);
+
+			if (bProjectMissingD3DSM6)
+			{
+				Info.SubText = LOCTEXT("NaniteNeedsSM6Setting", "Shader Model 6 (SM6) is required to use Nanite assets. Please enable this in:\n  Project Settings -> Platforms -> Windows -> D3D12 Targeted Shader Formats\nNanite assets will not display properly until this is enabled.");
+			}
+			else if (bProjectMissingWindowsVulkanSM6)
+			{
+				Info.SubText = LOCTEXT("NaniteNeedsSM6VulkanSM6WindowsSetting", "Shader Model 6 (SM6) is required to use Nanite assets. Please enable this in:\n  Project Settings -> Platforms -> Windows -> Vulkan Targeted Shader Formats\nNanite assets will not display properly in Vulkan on Windows until this is enabled.");
+			}
+			else if (bProjectMissingLinuxVulkanSM6)
+			{
+				Info.SubText = LOCTEXT("NaniteNeedsSM6VulkanSM6LinuxSetting", "Shader Model 6 (SM6) is required to use Nanite assets. Please enable this in:\n  Project Settings -> Platforms -> Linux -> Targeted RHIs\nNanite assets will not display properly in Vulkan on Linux until this is enabled.");
+			}
 
 			ShaderModelNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 		}
 	}
-#endif // PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS || PLATFORM_LINUX
 }
 #endif
 
