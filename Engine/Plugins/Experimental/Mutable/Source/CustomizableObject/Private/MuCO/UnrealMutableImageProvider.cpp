@@ -579,6 +579,10 @@ void FUnrealMutableImageProvider::UnCacheImage(const FExternalImageID& Id, bool 
 			GlobalExternalImages.Remove(Id);		
 		}
 	}
+	else
+	{
+		UE_LOG(LogMutable, Warning, TEXT("Failed to uncache external image %s. Possible double free!"), *Id.GetName());
+	}
 }
 
 

@@ -362,12 +362,15 @@ void UCustomizableObjectInstance::ReleaseMutableResources(bool bCalledFromBeginD
 			}
 		}
 
-		// Remove all references to cached Texture Parameters
-		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
-
-		for (const FString& TextureParameter : PrivateData->UpdateTextureParameters)
+		// Remove all references to cached Texture Parameters. Only if we're destroying the COI.
+		if (bCalledFromBeginDestroy)
 		{
-			ImageProvider->UnCacheImage(TextureParameter, false);				
+			FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
+
+			for (const FString& TextureParameter : PrivateData->UpdateTextureParameters)
+			{
+				ImageProvider->UnCacheImage(TextureParameter, false);
+			}
 		}
 	}
 
@@ -853,17 +856,9 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 
 	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 
-	const mu::ParametersPtr Parameters = Descriptor.GetParameters();
-	
-	// Cache Texture Parameters being used during the update:
-	if (Parameters)
-	{
-		System->GetPrivate()->GetImageProviderChecked()->CacheImages(*Parameters);		
-	}
-
 	if (!CanUpdateInstance())
 	{
-		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback, Parameters);
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
 		return;
 	}
 	
@@ -872,7 +867,7 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 	{
 	case EUpdateRequired::NoUpdate:
 	{	
-		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback, Parameters);
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
 		break;
 	}		
 	case EUpdateRequired::Update:
@@ -912,7 +907,7 @@ void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bo
 	{
 		System->GetPrivate()->InitDiscardResourcesSkeletalMesh(this);
 		
-		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback, Parameters);
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
 		break;
 	}
 
