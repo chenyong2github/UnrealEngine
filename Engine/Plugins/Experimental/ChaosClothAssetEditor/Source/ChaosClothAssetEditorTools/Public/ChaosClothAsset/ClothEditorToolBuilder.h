@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "UObject/Interface.h"
 #include "ClothEditorToolBuilder.generated.h"
 
 namespace UE::Chaos::ClothAsset
