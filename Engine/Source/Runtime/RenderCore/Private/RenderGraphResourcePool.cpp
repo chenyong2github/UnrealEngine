@@ -347,4 +347,4 @@ void FRDGTransientResourceAllocator::ReleasePendingDeallocations()
 	}
 }
 
-TGlobalResource<FRDGTransientResourceAllocator> GRDGTransientResourceAllocator;
+TGlobalResource<FRDGTransientResourceAllocator, FRenderResource::EInitPhase::Pre> GRDGTransientResourceAllocator;

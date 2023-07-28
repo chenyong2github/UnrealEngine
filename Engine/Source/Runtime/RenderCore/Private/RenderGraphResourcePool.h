@@ -110,4 +110,4 @@ private:
 	friend class FRDGTransientRenderTarget;
 };
 
-extern RENDERCORE_API TGlobalResource<FRDGTransientResourceAllocator> GRDGTransientResourceAllocator;
+extern RENDERCORE_API TGlobalResource<FRDGTransientResourceAllocator, FRenderResource::EInitPhase::Pre> GRDGTransientResourceAllocator;
