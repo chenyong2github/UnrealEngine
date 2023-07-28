@@ -501,17 +501,6 @@ void FMobileSceneRenderer::InitViews(
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
 
-	static auto CVarDistanceFieldShadowQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DFShadowQuality"));
-
-	bRequiresDistanceField = IsMobileDistanceFieldEnabled(ShaderPlatform)
-		&& ViewFamily.EngineShowFlags.Lighting
-		&& !Views[0].bIsReflectionCapture
-		&& !Views[0].bIsPlanarReflection
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS()
-		&& (CVarDistanceFieldShadowQuality != nullptr && CVarDistanceFieldShadowQuality->GetInt() > 0);
-
 	bRequiresShadowProjections = MobileUsesShadowMaskTexture(ShaderPlatform)
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
@@ -816,9 +805,19 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FRDGExternalAccessQueue ExternalAccessQueue;
 
-	if (bRequiresDistanceField)
 	{
-		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
+		static auto CVarDistanceFieldShadowQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DFShadowQuality"));
+
+		if (IsMobileDistanceFieldEnabled(ShaderPlatform)
+			&& ViewFamily.EngineShowFlags.Lighting
+			&& !Views[0].bIsReflectionCapture
+			&& !Views[0].bIsPlanarReflection
+			&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+			&& !ViewFamily.UseDebugViewPS()
+			&& (CVarDistanceFieldShadowQuality != nullptr && CVarDistanceFieldShadowQuality->GetInt() > 0))
+		{
+			PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
+		}
 	}
 
 	ExternalAccessQueue.Submit(GraphBuilder);
