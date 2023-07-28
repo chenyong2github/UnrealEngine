@@ -57,7 +57,7 @@ void FPCGGraphInstanceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 				[
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(LOCTEXT("SaveInstanceButton", "Export Instance"))
+					.Text(LOCTEXT("SaveInstanceButton", "Save Instance"))
 				]
 			]
 		];
