@@ -154,6 +154,10 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material)
 	{
 		FMaterialShader::SetParameters(BatchedParameters, Proxy, Material, View);
+
+		// LightFunctions can use primitive data, set identity so we do not crash on a missing binding
+		auto& PrimitivePS = GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
+		SetUniformBufferParameter(BatchedParameters, PrimitivePS, GIdentityPrimitiveUniformBuffer);
 	}
 };
 
@@ -233,6 +237,10 @@ public:
 	{
 		FMaterialShader::SetViewParameters(BatchedParameters, View, View.ViewUniformBuffer);
 		FMaterialShader::SetParameters(BatchedParameters, Proxy, Material, View);
+		
+		// LightFunctions can use primitive data, set identity so we do not crash on a missing binding
+		auto& PrimitivePS = GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
+		SetUniformBufferParameter(BatchedParameters, PrimitivePS, GIdentityPrimitiveUniformBuffer);
 	}
 };
 

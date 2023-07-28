@@ -820,6 +820,7 @@ bool FVulkanDescriptorSetCache::FCachedPool::CreateDescriptorSets(
 		SetCache.Emplace(DSWriter.GetKey().CopyDeep(), NewSetEntry.Sets[Index]);
 
 		DSWriter.SetDescriptorSet(NewSetEntry.Sets[Index]);
+		DSWriter.CheckAllWritten();
 
 		for (int32 i = 0; i < VK_DESCRIPTOR_TYPE_RANGE_SIZE; ++i)
 		{

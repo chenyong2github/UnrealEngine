@@ -1176,6 +1176,7 @@ protected:
 	friend class FVulkanCommonPipelineDescriptorState;
 	friend class FVulkanComputePipelineDescriptorState;
 	friend class FVulkanGraphicsPipelineDescriptorState;
+	friend class FVulkanDescriptorSetCache;
 
 #if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
 	TArray<uint32, TInlineAllocator<2> > WrittenMask;
