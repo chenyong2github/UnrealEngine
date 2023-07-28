@@ -18,6 +18,7 @@ struct FMutableGraphGenerationContext;
  * @param Pin 
  * @param MutableTable 
  * @param DataTableColumnName 
+ * @param TableProperty 
  * @param LODIndexConnected LOD which the pin is connected to.
  * @param SectionIndexConnected Section which the pin is connected to.
  * @param LODIndex LOD we are generating. Will be different from LODIndexConnected only when using Automatic LOD From Mesh. 
@@ -25,7 +26,7 @@ struct FMutableGraphGenerationContext;
  * @param bOnlyConnectedLOD Corrected LOD and Section will unconditionally always be the connected ones.
  * @param GenerationContext 
  * @return  */
-bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UEdGraphPin* Pin, mu::TablePtr MutableTable, const FString& DataTableColumnName,
+bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UEdGraphPin* Pin, mu::TablePtr MutableTable, const FString& DataTableColumnName, const FProperty* ColumnProperty,
 	int32 LODIndexConnected, int32 SectionIndexConnected,
 	int32 LODIndex, int32 SectionIndex,
 	bool bOnlyConnectedLOD,
@@ -37,6 +38,7 @@ bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UE
  * @param TableNode 
  * @param MutableTable 
  * @param ColumnName 
+ * @param TableProperty 
  * @param RowName 
  * @param RowIdx 
  * @param CellData 
@@ -49,7 +51,7 @@ bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UE
  * @param GenerationContext 
  * @return  */
 bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode, mu::TablePtr MutableTable, const FString& ColumnName,
-	const FString& RowName, int32 RowIdx, uint8* CellData, FProperty* Property,
+	const FString& RowName, int32 RowIdx, uint8* CellData, const FProperty* ColumnProperty,
 	int32 LODIndexConnected, int32 SectionIndexConnected, int32 LODIndex, int32 SectionIndex,
 	bool bOnlyConnectedLOD,
 	FMutableGraphGenerationContext& GenerationContext);

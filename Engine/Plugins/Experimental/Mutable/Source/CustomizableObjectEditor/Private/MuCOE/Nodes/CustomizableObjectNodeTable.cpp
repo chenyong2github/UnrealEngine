@@ -747,39 +747,6 @@ bool UCustomizableObjectNodeTable::IsPinRelevant(const UEdGraphPin* Pin) const
 }
 
 
-bool UCustomizableObjectNodeTable::ForceImageMutableMode(const UEdGraphPin* Pin, FGuid ParameterId) const
-{
-	UMaterialInstance* DefaultPinValue = GetColumnDefaultAssetByType<UMaterialInstance>(Pin);
-	
-	if (DefaultPinValue && DefaultPinValue->TextureParameterValues.Num())
-	{
-		TArray<FMaterialParameterInfo> TextureParameterInfo;
-		TArray<FGuid> TextureGuids;
-
-		DefaultPinValue->GetMaterial()->GetAllTextureParameterInfo(TextureParameterInfo, TextureGuids);
-
-		int32 TextureIndex = TextureGuids.Find(ParameterId);
-		
-		if (TextureIndex == INDEX_NONE)
-		{
-			return false;
-		}
-		
-		FName TextureName = TextureParameterInfo[TextureIndex].Name;
-		
-		for (const FTextureParameterValue Texture : DefaultPinValue->TextureParameterValues)
-		{
-			if (TextureName == Texture.ParameterInfo.Name)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-
 void UCustomizableObjectNodeTable::SetLayoutInLayoutEditor(UCustomizableObjectLayout* CurrentLayout)
 {
 	TSharedPtr<ICustomizableObjectEditor> Editor = GetGraphEditor();

@@ -191,10 +191,7 @@ public:
 	/*** Allows to perform work when remapping the pin data. */
 	virtual void RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap) override;
 	
-	// Own interface
-	/** Given an Image pin, return the PinMode. */
-	bool ForceImageMutableMode(const UEdGraphPin* Pin, FGuid ParameterId) const;
-	
+	// Own interface	
 	// Returns the reference Texture parameter from a Material
 	UTexture2D* FindReferenceTextureParameter(const UEdGraphPin* Pin, FString ParameterImageName) const;
 

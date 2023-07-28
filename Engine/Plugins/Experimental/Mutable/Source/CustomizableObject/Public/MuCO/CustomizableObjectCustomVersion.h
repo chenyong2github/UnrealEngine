@@ -85,6 +85,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		IgnoreDisabledSections,
 
 		SkeletalMeshNodeDefaultPinWithoutPinData,
+		
+		AddedTableMaterialSwitch,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

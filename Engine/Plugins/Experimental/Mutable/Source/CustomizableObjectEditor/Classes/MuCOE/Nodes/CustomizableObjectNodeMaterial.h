@@ -242,7 +242,8 @@ private:
 	UPROPERTY()
 	TMap<FGuid, FEdGraphPinReference> PinsParameter;
 
-	/** Relates an Image pin (key) to its Image Pin Mode (value). */
+	/** Relates an Image pin (key) to its Image Pin Mode (value). 
+		Represents the real mode of the pin. Required due to some node configurations can force the mode independently of what the user had previously selected */
 	UPROPERTY()
 	TMap<FGuid, EPinMode> PinsImagePinMode;
 	
@@ -270,7 +271,7 @@ private:
 
 	/** Returns the Image Pin Mode the pin should be at. It does not update its mode, to update it call UpdateImagePinMode. */
 	EPinMode GetImagePinMode(const UEdGraphPin& Pin) const;
-	
+
 	// Deprecated properties
 	/** Set all pins to Mutable mode. Even so, each pin can override its behaviour. */
 	UPROPERTY()

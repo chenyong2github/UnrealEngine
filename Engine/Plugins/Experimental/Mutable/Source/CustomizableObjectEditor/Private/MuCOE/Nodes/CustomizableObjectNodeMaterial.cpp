@@ -6,6 +6,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialInstance.h"
 #include "MuCOE/CustomizableObjectEditor_Deprecated.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
@@ -138,6 +139,7 @@ int32 UCustomizableObjectNodeMaterial::GetExpressionTextureCoordinate(UMaterial*
 	}
 }
 
+
 EPinMode UCustomizableObjectNodeMaterial::NodePinModeToImagePinMode(const ENodePinMode NodePinMode)
 {
 	switch (NodePinMode)
@@ -166,20 +168,6 @@ EPinMode UCustomizableObjectNodeMaterial::GetImagePinMode(const UEdGraphPin& Pin
 
 		return EPinMode::Mutable;
 	}
-	else if (const UEdGraphPin* MaterialAssetPin = GetMaterialAssetPin())
-	{
-		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*MaterialAssetPin))
-		{
-			if (const UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(ConnectedPin->GetOwningNode()))
-			{
-				const FGuid ParameterGuid = GetPinData<UCustomizableObjectNodeMaterialPinDataImage>(Pin).ParameterId;
-				if (TableNode->ForceImageMutableMode(ConnectedPin, ParameterGuid))
-				{
-					return EPinMode::Mutable;
-				}
-			}
-		}
-	}
 	
 	switch (GetPinData<UCustomizableObjectNodeMaterialPinDataImage>(Pin).GetPinMode())
 	{
@@ -191,7 +179,7 @@ EPinMode UCustomizableObjectNodeMaterial::GetImagePinMode(const UEdGraphPin& Pin
 		return EPinMode::Passthrough;
 	default:
 		check(false); // Missing case.
-		return EPinMode::Mutable;		
+		return EPinMode::Mutable;
 	}
 }
 
@@ -470,7 +458,65 @@ void UCustomizableObjectNodeMaterial::BackwardsCompatibleFixup()
 	{
 		Super::ReconstructNode();
 	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::AddedTableMaterialSwitch)
+	{
+		UMaterialInstance* DefaultPinValue = nullptr;
+
+		if (const UEdGraphPin* MaterialAssetPin = GetMaterialAssetPin())
+		{
+			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*MaterialAssetPin))
+			{
+				if (const UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(ConnectedPin->GetOwningNode()))
+				{
+					DefaultPinValue = TableNode->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin);
+				}
+			}
+		}
+
+		if (DefaultPinValue && DefaultPinValue->TextureParameterValues.Num())
+		{
+			const uint32 NumTextureParameters = GetNumParameters(EMaterialParameterType::Texture);
+			for (uint32 ImageIndex = 0; ImageIndex < NumTextureParameters; ++ImageIndex)
+			{
+				if (const UEdGraphPin* ImagePin = GetParameterPin(EMaterialParameterType::Texture, ImageIndex))
+				{
+					FGuid ParameterId = GetParameterId(EMaterialParameterType::Texture, ImageIndex);
+
+					TArray<FMaterialParameterInfo> TextureParameterInfo;
+					TArray<FGuid> TextureGuids;
+
+					// Getting parent's texture infos
+					DefaultPinValue->GetMaterial()->GetAllTextureParameterInfo(TextureParameterInfo, TextureGuids);
+
+					int32 TextureIndex = TextureGuids.Find(ParameterId);
+
+					if (TextureIndex == INDEX_NONE)
+					{
+						continue;
+					}
+
+					FName TextureName = TextureParameterInfo[TextureIndex].Name;
+
+					// Checking if the pin's texture has been modified in the material instance
+					for (const FTextureParameterValue Texture : DefaultPinValue->TextureParameterValues)
+					{
+						if (TextureName == Texture.ParameterInfo.Name)
+						{
+							if (UCustomizableObjectNodeMaterialPinDataImage* PinDataImage = Cast<UCustomizableObjectNodeMaterialPinDataImage>(GetPinData(*ImagePin)))
+							{
+								PinDataImage->PinMode = EPinMode::Mutable;
+
+								PinsImagePinMode.Add(ImagePin->PinId, GetImagePinMode(*ImagePin));
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
+
 
 void UCustomizableObjectNodeMaterial::PostBackwardsCompatibleFixup()
 {
@@ -994,7 +1040,7 @@ TSharedPtr<SWidget> UCustomizableObjectNodeMaterial::CustomizePinDetails(UEdGrap
 {
 	if (UCustomizableObjectNodeMaterialPinDataImage* PinData = Cast<UCustomizableObjectNodeMaterialPinDataImage>(GetPinData(Pin)))
 	{
-		return SNew(SPinViewerNodeMaterialPinImageDetails).PinData(PinData);
+		return SNew(SPinViewerNodeMaterialPinImageDetails).Pin(&Pin).PinData(PinData);
 	}
 	else
 	{

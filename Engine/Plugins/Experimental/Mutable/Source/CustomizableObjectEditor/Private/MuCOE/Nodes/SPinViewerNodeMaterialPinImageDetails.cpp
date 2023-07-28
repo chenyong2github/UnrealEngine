@@ -2,9 +2,11 @@
 
 #include "MuCOE/Nodes/SPinViewerNodeMaterialPinImageDetails.h"
 
+#include "EdGraph/EdGraphPin.h"
 #include "Framework/Views/TableViewMetadata.h"
 #include "ISinglePropertyView.h"
 #include "Modules/ModuleManager.h"
+#include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
 #include "MuCOE/SMutableTextComboBox.h"
 #include "ScopedTransaction.h"
@@ -81,6 +83,7 @@ void SPinViewerNodeMaterialPinImageDetails::Construct(const FArguments& InArgs)
 {
 	SPinViewerPinDetails::Construct(SPinViewerPinDetails::FArguments());
 
+	Pin = InArgs._Pin;
 	PinData = InArgs._PinData;
 	
 	{
@@ -92,6 +95,8 @@ void SPinViewerNodeMaterialPinImageDetails::Construct(const FArguments& InArgs)
 		{
 			return *Element == PinData->GetPinMode();
 		});
+
+		bool bIsLinked = FollowInputPin(*Pin) != nullptr;
 		
 		TSharedPtr<SWidget> Widget;
 		SAssignNew(Widget, SMutableTextComboBox<TSharedPtr<EPinMode>>)
@@ -101,6 +106,16 @@ void SPinViewerNodeMaterialPinImageDetails::Construct(const FArguments& InArgs)
 			.Translate_Lambda([this](const TSharedPtr<EPinMode> Option)
 			{
 				return EPinModeToText(*Option);
+			})
+			.IsEnabled(!bIsLinked)
+			.ToolTipText_Lambda([bIsLinked]()
+			{
+				if (bIsLinked)
+				{
+					return LOCTEXT("SPinViewer_PinModeComboboxTooltip", "Value being overridden due to pin linked to a node.");
+				}
+
+				return LOCTEXT("SPinViewer_PinModeComboboxTooltipDisabled", "");
 			});
 
 		const FText Tooltip = LOCTEXT("PinModeTooltip", "Texture Parameter mode.");

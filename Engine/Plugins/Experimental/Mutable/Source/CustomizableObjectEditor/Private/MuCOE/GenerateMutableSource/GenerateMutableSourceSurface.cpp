@@ -41,6 +41,7 @@
 #include "MuT/NodeMeshFragment.h"
 #include "MuT/NodePatchImage.h"
 #include "MuT/NodePatchMesh.h"
+#include "MuT/NodeScalarConstant.h"
 #include "MuT/NodeSurfaceEdit.h"
 #include "MuT/NodeSurfaceVariation.h"
 
@@ -333,7 +334,6 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			const int32 lastMaterialAmount = GenerationContext.ReferencedMaterials.Num();
 			ReferencedMaterialsIndex = GenerationContext.ReferencedMaterials.AddUnique(TypedNodeMat->Material);
 			// Used ReferencedMaterialsIndex instead of TypedNodeMat->Material->GetName() to prevent material name collisions
-			SurfNode->SetCustomID(ReferencedMaterialsIndex);
 
 			// Set shared surface Id to reuse materials and textures between LODs if automatic LODs from mesh is being used
 			UpdateSharedSurfaceId(GenerationContext, TypedNodeMat, SurfNode);
@@ -365,6 +365,8 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 									SlotNameFound = true;
 								}
 							}
+
+							//TODO(max): Add support for table nodes. Convert this to a function as it will be also used in the GenerateMutableSourceTable file
 						}
 					}
 				}
@@ -378,7 +380,6 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		}
 
 		mu::NodeMeshPtr MeshNode;
-
 
 		TypedNodeMat = TypedNodeCopyMaterial; // NodeCopyMaterial. Start reading mesh pin. Set TypedNodeMat pointer to NodeCopyMaterial
 
@@ -414,69 +415,32 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		TMap<FString, float> TextureNameToProjectionResFactor;
 		FString AlternateResStateName;
 
-		bool bMaterialPinConnected = FollowInputPin(*TypedNodeMat->GetMaterialAssetPin()) != nullptr;
-		TArray<FGuid> NodeTableParametersGenerated;
+		bool bTableMaterialPinLinked = TypedNodeMat->GetMaterialAssetPin() && FollowInputPin(*TypedNodeMat->GetMaterialAssetPin()) != nullptr;
+		FString TableColumnName;
 
 		// Checking if we should not use the material of the table node even if it is linked to the material node
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeMat->GetMaterialAssetPin()))
 		{
 			if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast< UCustomizableObjectNodeTable >(ConnectedPin->GetOwningNode()))
 			{
-				FString ColumnName = ConnectedPin->PinFriendlyName.ToString();
+				TableColumnName = ConnectedPin->PinFriendlyName.ToString();
 
-				if (!TypedNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin))
+				if (UMaterialInstance * TableMaterial = TypedNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin))
 				{
-					FString Msg = FString::Printf(TEXT("Couldn't find a default value in the data table's struct for the column [%s]. The default value is null or not a Material Instance."), *ColumnName);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+					// Checking if the reference material of the Table Node has the same parent as the material of the Material Node 
+					if (!TypedNodeMat->Material || TableMaterial->GetMaterial() != TypedNodeMat->Material->GetMaterial())
+					{
+						bTableMaterialPinLinked = false;
 
-					bMaterialPinConnected = false;
+						GenerationContext.Compiler->CompilerLog(LOCTEXT("DifferentParentMaterial","The Deafult Material Instance of the Data Table must have the same Parent Material."), TypedNodeMat);
+					}
 				}
 				else
 				{
-					// Generating a new data table if not exists
-					mu::TablePtr Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), ConnectedPin, GenerationContext);
+					FText Msg = FText::Format(LOCTEXT("DefaultValueNotFound", "Couldn't find a default value in the data table's struct for the column {0}. The default value is null or not a Material Instance."), FText::FromString(TableColumnName));
+					GenerationContext.Compiler->CompilerLog(Msg, Node);
 
-					// Generating a column for each modified parameter(texture, color & float) if not exists
-					if (Table && Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
-					{
-						int32 Dummy = -1; // TODO MTBL-1512
-						bool Dummy2 = false;
-						GenerateTableColumn(TypedNodeTable, ConnectedPin, Table, ColumnName, Dummy, Dummy, GenerationContext.CurrentLOD, Dummy, Dummy2, GenerationContext);
-					}
-
-					// Checking if this material has some parameters modified by the table node linked to it
-					if (GenerationContext.GeneratedParametersInTables.Contains(TypedNodeTable))
-					{
-						NodeTableParametersGenerated = GenerationContext.GeneratedParametersInTables[TypedNodeTable];
-
-						UMaterialInstance* TableMaterial = TypedNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin);
-
-						if (TableMaterial && TypedNodeMat->Material)
-						{
-							// Checking if the reference material of the Table Node has the same parent as the material of the Material Node 
-							if (TableMaterial->GetMaterial() != TypedNodeMat->Material->GetMaterial())
-							{
-								bMaterialPinConnected = false;
-
-								FString msg = FString::Printf(TEXT("Material from NodeTable is an instance from a different Parent"));
-								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TypedNodeMat);
-							}
-						}
-						else
-						{
-							bMaterialPinConnected = false;
-
-							if (!TypedNodeMat->Material)
-							{
-								FString msg = FString::Printf(TEXT("Need to select a Material to work with Node Table Materials."));
-								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TypedNodeMat);
-							}
-						}
-					}
-					else
-					{
-						bMaterialPinConnected = false;
-					}
+					bTableMaterialPinLinked = false;
 				}
 			}
 		}
@@ -487,14 +451,14 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		for (int32 ImageIndex = 0; ImageIndex < NumImages; ++ImageIndex)
 		{
 			const UEdGraphPin* ImagePin = TypedNodeMat->GetParameterPin(EMaterialParameterType::Texture, ImageIndex);
-			const bool bIsImagePinLinked = ImagePin && !ImagePin->LinkedTo.IsEmpty();
+
+			const bool bIsImagePinLinked = ImagePin && FollowInputPin(*ImagePin);
 
 			if (bIsImagePinLinked && !TypedNodeMaterial->IsImageMutableMode(ImageIndex))
 			{
-				// This is a connected pass-through texture that simply has to be passed to the core
-
 				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*ImagePin))
 				{
+					// This is a connected pass-through texture that simply has to be passed to the core
 					mu::Ptr<mu::NodeImage> PassThroughImagePtr = GenerateMutableSourceImage(ConnectedPin, GenerationContext, 0);
 					SurfNode->SetImage(ImageIndex, PassThroughImagePtr);
 
@@ -502,12 +466,14 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					FString SurfNodeImageName = FString::Printf(TEXT("%d"), GenerationContext.ImageProperties.Num());
 					SurfNode->SetImageName(ImageIndex, StringCast<ANSICHAR>(*SurfNodeImageName).Get());
 					int32 UVLayout = TypedNodeMat->GetImageUVLayout(ImageIndex);
+
 					if (UVLayout >= 0)
 					{
 						FString msg = FString::Printf(TEXT("Passthrough texture [%s] will ignore layout despite set to use layout [%d]"), *ImageName, UVLayout);
 						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
 
 					}
+
 					SurfNode->SetImageLayoutIndex(ImageIndex, -1);
 					SurfNode->SetImageAdditionalNames(ImageIndex, StringCast<ANSICHAR>(*TypedNodeMat->Material->GetName()).Get(), StringCast<ANSICHAR>(*ImageName).Get());
 
@@ -516,7 +482,6 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					Props.TextureParameterName = ImageName;
 					GenerationContext.ImageProperties.Add(Props);
 					SurfaceData.ImageProperties = Props;
-
 				}
 			}
 			else
@@ -539,7 +504,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 						GroupProjectionReferenceTexture, TextureNameToProjectionResFactor, AlternateResStateName,
 						nullptr);
 
-					if (GroupProjectionImg.get() || TypedNodeMaterial->IsImageMutableMode(ImageIndex) || (bMaterialPinConnected && NodeTableParametersGenerated.Contains(ImageId)))
+					if (GroupProjectionImg.get() || TypedNodeMaterial->IsImageMutableMode(ImageIndex))
 					{
 						// Get the reference texture
 						UTexture2D* ReferenceTexture = nullptr;
@@ -564,7 +529,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 										ReferenceTexture = FindReferenceImage(ConnectedPin, GenerationContext);
 									}
 								}
-								if (!ReferenceTexture && bMaterialPinConnected && NodeTableParametersGenerated.Contains(ImageId))
+								if (!ReferenceTexture && bTableMaterialPinLinked)
 								{
 									if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeMat->GetMaterialAssetPin()))
 									{
@@ -634,7 +599,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 									}
 								}
 
-								if (bMaterialPinConnected && NodeTableParametersGenerated.Contains(ImageId))
+								if (bTableMaterialPinLinked)
 								{
 									if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeMat->GetMaterialAssetPin()))
 									{
@@ -874,23 +839,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			FString VectorName = TypedNodeMat->GetParameterName(EMaterialParameterType::Vector, VectorIndex).ToString();
 			FGuid VectorId = TypedNodeMat->GetParameterId(EMaterialParameterType::Vector, VectorIndex);
 
-			if (bVectorPinConnected || (bMaterialPinConnected && NodeTableParametersGenerated.Contains(VectorId)))
-			{
-				const UEdGraphPin* SourcePin = nullptr;
-
-				if (bVectorPinConnected)
-				{
-					SourcePin = VectorPin;
-				}
-				else if (bMaterialPinConnected)
-				{
-					GenerationContext.CurrentMaterialTableParameter = VectorName;
-					GenerationContext.CurrentMaterialTableParameterId = VectorId.ToString();
-
-					SourcePin = TypedNodeMat->GetMaterialAssetPin();
-				}
-
-				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SourcePin))
+			if (bVectorPinConnected)
+			{				
+				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*VectorPin))
 				{
 					mu::NodeColourPtr ColorNode = GenerateMutableSourceColor(ConnectedPin, GenerationContext);
 
@@ -916,23 +867,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			FString ScalarName = TypedNodeMat->GetParameterName(EMaterialParameterType::Scalar, ScalarIndex).ToString();
 			FGuid ScalarId = TypedNodeMat->GetParameterId(EMaterialParameterType::Scalar, ScalarIndex);
 
-			if (bScalarPinConnected || (bMaterialPinConnected && NodeTableParametersGenerated.Contains(ScalarId)))
+			if (bScalarPinConnected)
 			{
-				const UEdGraphPin* SourcePin = nullptr;
-
-				if (bScalarPinConnected)
-				{
-					SourcePin = ScalarPin;
-				}
-				else if (bMaterialPinConnected)
-				{
-					GenerationContext.CurrentMaterialTableParameter = ScalarName;
-					GenerationContext.CurrentMaterialTableParameterId = ScalarId.ToString();
-
-					SourcePin = TypedNodeMat->GetMaterialAssetPin();
-				}
-
-				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SourcePin))
+				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*ScalarPin))
 				{
 					mu::NodeScalarPtr ScalarNode = GenerateMutableSourceFloat(ConnectedPin, GenerationContext);
 
@@ -947,6 +884,38 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				}
 			}
 		}
+
+		// New method to pass the surface id as a scalar parameter
+		{
+			int32 MaterialIndex = NumScalar;
+			SurfNode->SetScalarCount(NumScalar + 1);
+
+			const UEdGraphPin* MaterialPin = TypedNodeMat->GetMaterialAssetPin();
+
+			//Encoding name for material material id parameter
+			FString MaterialName = "__MutableMaterialId";
+
+			if (bTableMaterialPinLinked)
+			{
+				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*MaterialPin))
+				{
+					GenerationContext.CurrentMaterialTableParameterId = MaterialName;
+					mu::NodeScalarPtr ScalarNode = GenerateMutableSourceFloat(ConnectedPin, GenerationContext);
+
+					SurfNode->SetScalar(MaterialIndex, ScalarNode);
+					SurfNode->SetScalarName(MaterialIndex, StringCast<ANSICHAR>(*MaterialName).Get());
+				}
+			}
+			else
+			{
+				mu::NodeScalarConstantPtr ScalarNode = new mu::NodeScalarConstant();
+				ScalarNode->SetValue(ReferencedMaterialsIndex);
+
+				SurfNode->SetScalar(MaterialIndex, ScalarNode);
+				SurfNode->SetScalarName(MaterialIndex, StringCast<ANSICHAR>(*MaterialName).Get());
+			}
+		}
+		
 
 		for (const FString& Tag : TypedNodeMat->Tags)
 		{
@@ -1629,6 +1598,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 	return Result;
 }
+
 
 #undef LOCTEXT_NAMESPACE
 

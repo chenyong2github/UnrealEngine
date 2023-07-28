@@ -13,6 +13,7 @@ template <typename NumericType> class SSpinBox;
 
 class FString;
 class SWidget;
+class UEdGraphPin;
 
 /** UV Layout Mode UI Enum. */
 UENUM()
@@ -37,6 +38,7 @@ class SPinViewerNodeMaterialPinImageDetails : public SPinViewerPinDetails
 {
 public:
 	SLATE_BEGIN_ARGS(SPinViewerNodeMaterialPinImageDetails) {}
+		SLATE_ARGUMENT(UEdGraphPin*, Pin)
 		SLATE_ARGUMENT(UCustomizableObjectNodeMaterialPinDataImage*, PinData)
 	SLATE_END_ARGS()
 
@@ -50,6 +52,9 @@ private:
 	TSharedPtr<SWidget> UVLayout;
 	TMap<TSharedPtr<FString>, EPinMode> PinModeComboBoxOptionValues;
 	
+	/** Pointer to the Pin to show and modigy. */
+	UEdGraphPin* Pin = nullptr;
+
 	/** Pin Data to show and modify. */
 	UCustomizableObjectNodeMaterialPinDataImage* PinData = nullptr;
 	

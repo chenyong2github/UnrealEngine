@@ -1400,7 +1400,7 @@ namespace impl
 						FInstanceUpdateData::FSurface& Surface = OperationData->InstanceUpdateData.Surfaces.Last();
 						++Component.SurfaceCount;
 
-						Surface.MaterialIndex = Instance->GetSurfaceCustomId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex);
+						// Now Surface.MaterialIndex is decoded from a parameter at the end of this if()
 						Surface.SurfaceId = SurfaceId;
 
 						const int32 SharedSurfaceId = Instance->GetSharedSurfaceId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex);
@@ -1455,11 +1455,25 @@ namespace impl
 						Surface.ScalarCount = Instance->GetScalarCount(BaseLODIndex, ComponentIndex, InstanceSurfaceIndex);
 						for (int32 ScalarIndex = 0; ScalarIndex < Surface.ScalarCount; ++ScalarIndex)
 						{
-							MUTABLE_CPUPROFILER_SCOPE(GetScalar);
-							OperationData->InstanceUpdateData.Scalars.Push({});
-							FInstanceUpdateData::FScalar& Scalar = OperationData->InstanceUpdateData.Scalars.Last();
-							Scalar.Name = Instance->GetScalarName(BaseLODIndex, ComponentIndex, InstanceSurfaceIndex, ScalarIndex);
-							Scalar.Scalar = Instance->GetScalar(BaseLODIndex, ComponentIndex, InstanceSurfaceIndex, ScalarIndex);
+							MUTABLE_CPUPROFILER_SCOPE(GetScalar)
+
+							FString ScalarName = Instance->GetScalarName(BaseLODIndex, ComponentIndex, InstanceSurfaceIndex, ScalarIndex);
+							float ScalarValue = Instance->GetScalar(BaseLODIndex, ComponentIndex, InstanceSurfaceIndex, ScalarIndex);
+							
+							FString EncodingMaterialIdString = "__MutableMaterialId";
+							
+							// Decoding Material Switch from Mutable parameter name
+							if (ScalarName.Equals(EncodingMaterialIdString))
+							{
+								Surface.MaterialIndex = (uint32)ScalarValue;
+							
+								// This parameter is not needed in the final material instance
+								Surface.ScalarCount -= 1;
+							}
+							else
+							{
+								OperationData->InstanceUpdateData.Scalars.Push({ ScalarName, ScalarValue });
+							}
 						}
 					}
 				}

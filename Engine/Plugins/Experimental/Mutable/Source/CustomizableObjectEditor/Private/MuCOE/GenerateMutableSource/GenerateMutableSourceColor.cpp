@@ -47,8 +47,6 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 		return static_cast<mu::NodeColour*>(Generated->Node.get());
 	}
 
-	bool bDoNotAddToGeneratedCache = false;
-
 	mu::NodeColourPtr Result;
 
 	if (const UCustomizableObjectNodeColorConstant* TypedNodeColorConst = Cast<UCustomizableObjectNodeColorConstant>(Node))
@@ -279,12 +277,6 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 
 		bool bSuccess = true;
 
-		if (Pin->PinType.PinCategory == Schema->PC_MaterialAsset)
-		{
-			// Material pins have to skip the cache of nodes or they will return always the same column node
-			bDoNotAddToGeneratedCache = true;
-		}
-
 		if (TypedNodeTable->Table)
 		{
 			FString ColumnName = Pin->PinFriendlyName.ToString();
@@ -308,18 +300,12 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 				{
 					mu::NodeColourTablePtr ColorTableNode = new mu::NodeColourTable();
 
-					if (Pin->PinType.PinCategory == Schema->PC_MaterialAsset)
-					{
-						// Materials use the parameter id as column names
-						ColumnName = GenerationContext.CurrentMaterialTableParameterId;
-					}
-
 					// Generating a new Color column if not exists
 					if (Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 					{
 						int32 Dummy = -1; // TODO MTBL-1512
 						bool Dummy2 = false;
-						bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, Dummy, Dummy, GenerationContext.CurrentLOD, Dummy, Dummy2, GenerationContext);
+						bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, Property, Dummy, Dummy, GenerationContext.CurrentLOD, Dummy, Dummy2, GenerationContext);
 
 						if (!bSuccess)
 						{
@@ -357,12 +343,9 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 		GenerationContext.Compiler->CompilerLog(LOCTEXT("UnimplementedNode", "Node type not implemented yet."), Node);
 	}
 
-	if (!bDoNotAddToGeneratedCache)
-	{
-		FGeneratedData CacheData = FGeneratedData(Node, Result);
-		GenerationContext.Generated.Add(Key, CacheData);
-		GenerationContext.GeneratedNodes.Add(Node);
-	}
+	FGeneratedData CacheData = FGeneratedData(Node, Result);
+	GenerationContext.Generated.Add(Key, CacheData);
+	GenerationContext.GeneratedNodes.Add(Node);
 	
 	if (Result)
 	{
