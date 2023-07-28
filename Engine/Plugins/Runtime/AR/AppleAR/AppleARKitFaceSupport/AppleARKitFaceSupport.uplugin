@@ -14,7 +14,7 @@
 	"IsBetaVersion": false,
 	"EnabledByDefault": false,
 	"SupportedTargetPlatforms" : [
-		"IOS", "Win64", "Mac"
+		"IOS", "Win64", "Mac","Linux"
 	],
 	"Modules":
 	[
@@ -22,7 +22,7 @@
 			"Name": "AppleARKitFaceSupport",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformAllowList" : [ "Mac", "IOS", "Win64" ]
+			"PlatformAllowList" : [ "Mac", "IOS", "Win64" ,"Linux"]
 		}
 	],
     "Plugins":
