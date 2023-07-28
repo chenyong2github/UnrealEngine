@@ -558,6 +558,11 @@ namespace Metasound
 			RebuildNodePins(*NewGraphNode);
 		}
 
+		void FGraphBuilder::InitGraphNodeIDFromNodeHandle(const Frontend::FConstNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode)
+		{
+			NewGraphNode->SetNodeID(InNodeHandle->GetID());
+		}
+
 		FGraphValidationResults FGraphBuilder::ValidateGraph(UObject& InMetaSound)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FGraphBuilder::ValidateGraph);

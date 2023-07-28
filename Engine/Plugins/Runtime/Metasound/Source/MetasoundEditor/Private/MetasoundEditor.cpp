@@ -2418,7 +2418,8 @@ namespace Metasound
 									FMetasoundFrontendNodeInterface NodeInterface = FRerouteNodeTemplate::CreateNodeInterfaceFromDataType(DataType);
 
 									FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle()->AddTemplateNode(RerouteTemplateKey, MoveTemp(NodeInterface));
-									FGraphBuilder::InitGraphNode(NodeHandle, ExternalNode, *Metasound);
+									FGraphBuilder::InitGraphNodeIDFromNodeHandle(NodeHandle, ExternalNode);
+
 									bIsValid = NodeHandle->IsValid();
 								}
 							}
