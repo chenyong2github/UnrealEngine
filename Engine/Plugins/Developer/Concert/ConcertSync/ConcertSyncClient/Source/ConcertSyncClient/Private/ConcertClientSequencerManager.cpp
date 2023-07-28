@@ -777,7 +777,10 @@ void FConcertClientSequencerManager::ApplyOpenEvent(const FConcertSequencerOpenE
 		Reader.SetSerializeNestedObjects(true);
 		Reader.SerializeObject(PendingLevelSequence);
 		#if WITH_EDITOR
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
+		if (GIsEditor)
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
+		}
 		#endif
 		PendingLevelSequence->GetPackage()->SetDirtyFlag(false);
 	}
