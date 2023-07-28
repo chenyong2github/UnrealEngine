@@ -218,7 +218,7 @@ protected:
 	* @param OutArray - Set of components to add found components to.
 	* @param bUpdateReferencedActorList - If true will add any external Actors referenced to the NewReferencedActors list, and possibly print warnings.
 	*/
-	void GetAllComponents(TSet<UActorComponent*>& OutArray, bool bUpdateReferencedActorList = false);
+	void GetAllComponents(TSet<TWeakObjectPtr<UActorComponent>>& OutArray, bool bUpdateReferencedActorList = false);
 
 	/**
 	* Gets all Scene components that are a child of the specified component. Use the Root Component if you want all
@@ -227,17 +227,17 @@ protected:
 	* @param OutArray - Set of components to add found components to.
 	* @param bUpdateReferencedActorList - If true will add any external Actors referenced to the NewReferencedActors list, and possibly print warnings.
 	*/
-	void GetSceneComponents(USceneComponent* OnSceneComponent, TSet<UActorComponent*>& OutArray, bool bUpdateReferencedActorList = false);
+	void GetSceneComponents(USceneComponent* OnSceneComponent, TSet< TWeakObjectPtr<UActorComponent>>& OutArray, bool bUpdateReferencedActorList = false);
 
 	/**
 	* Returns the direct children of the specified scene component. Filters for ownership before returning.
 	*/
-	void GetChildSceneComponents(USceneComponent* OnSceneComponent, TSet<UActorComponent*>& OutArray, bool bUpdateReferencedActorList = false);
+	void GetChildSceneComponents(USceneComponent* OnSceneComponent, TSet< TWeakObjectPtr<UActorComponent>>& OutArray, bool bUpdateReferencedActorList = false);
 
 	/**
 	* Gets all Actor components on the recorded actor, not including Scene components.
 	*/
-	void GetActorComponents(AActor* OnActor, TSet<UActorComponent*>& OutArray) const;
+	void GetActorComponents(AActor* OnActor, TSet< TWeakObjectPtr<UActorComponent>>& OutArray) const;
 
 	/**
 	* Iterates through the NewReferencedActors set and creates a new UTakeRecorderActorSource for each one. Only creates
@@ -313,7 +313,7 @@ private:
 	* components have been added or removed so we can appropriately update their Spawn tracked. Empty unless a recording is
 	* in progress (but may still be empty if no components)
 	*/
-	TSet<class UActorComponent*> CachedComponentList;
+	TSet<TWeakObjectPtr<UActorComponent>> CachedComponentList;
 
 	/**
 	* ID of the TargetLevelSequence.
