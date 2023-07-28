@@ -76,6 +76,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	URigVMFunctionReturnNode* GetReturnNode() const;
 
+	// Returns array of event names
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	TArray<FName> GetEventNames() const;
+
 	// Returns a list of unique Variable descriptions within this Graph.
 	// Multiple Variable Nodes can share the same description.
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)

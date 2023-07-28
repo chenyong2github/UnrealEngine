@@ -130,6 +130,31 @@ URigVMFunctionReturnNode* URigVMGraph::GetReturnNode() const
 	return nullptr;
 }
 
+TArray<FName> URigVMGraph::GetEventNames() const
+{
+	TArray<FName> EventNames;
+	
+	if (!IsTopLevelGraph())
+	{
+		return EventNames;
+	}
+	
+	if (IsA<URigVMFunctionLibrary>())
+	{
+		return EventNames;
+	}
+
+	for (const URigVMNode* Node : Nodes)
+	{
+		if (Node->IsEvent())
+		{
+			EventNames.Add(Node->GetEventName());
+		}
+	}
+
+	return EventNames;
+}
+
 TArray<FRigVMGraphVariableDescription> URigVMGraph::GetVariableDescriptions() const
 {
 	TArray<FRigVMGraphVariableDescription> Variables;

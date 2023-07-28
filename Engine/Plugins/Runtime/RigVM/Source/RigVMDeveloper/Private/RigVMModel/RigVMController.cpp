@@ -1411,6 +1411,12 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 			return nullptr;
 		}
 
+		if (Graph->GetEventNames().Contains(StructMemory->GetEventName()))
+		{
+			ReportAndNotifyErrorf(TEXT("Event %s already exists in the graph."), *StructMemory->GetEventName().ToString());
+			return nullptr;
+		}
+
 		if(StructMemory->CanOnlyExistOnce())
 		{
 			// don't allow several event nodes in the main graph
