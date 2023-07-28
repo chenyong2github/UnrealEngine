@@ -318,20 +318,19 @@ void FReplicationFiltering::FilterPrePoll()
 		});
 	}
 
-	if (bCVarRepFilterCullNonRelevant)
-	{
-		FilterNonRelevantObjects();
-	}
-	else
-	{
-		// Make every object in the global scope part of the relevant list
-		NetRefHandleManager->GetRelevantObjectsInternalIndices().Copy(MakeNetBitArrayView(NetRefHandleManager->GetScopableInternalIndices()));
-	}
+	FilterNonRelevantObjects();
 }
 
 void FReplicationFiltering::FilterNonRelevantObjects()
 {
 	IRIS_PROFILER_SCOPE(FReplicationFiltering_FilterNonRelevantObjects);
+
+	if (!bCVarRepFilterCullNonRelevant)
+	{
+		// Make every object in the global scope part of the relevant list
+		NetRefHandleManager->GetRelevantObjectsInternalIndices().Copy(MakeNetBitArrayView(NetRefHandleManager->GetScopableInternalIndices()));
+		return;
+	}
 
 	const uint32* const GlobalScopeData = NetRefHandleManager->GetScopableInternalIndices().GetData();
 	const uint32* const WithOwnerData = ObjectsWithOwnerFilter.GetData();
@@ -359,6 +358,8 @@ void FReplicationFiltering::FilterNonRelevantObjects()
 	};
 	
 	ValidConnections.ForAllSetBits(MergeConnectionScopes);
+
+	//$IRIS TODO: Need to ensure newly relevant objects are immediately polled similar to calling ForceNetUpdate.
 }
 
 void FReplicationFiltering::UpdateDynamicFilters(ENetFilterType FilterPass)

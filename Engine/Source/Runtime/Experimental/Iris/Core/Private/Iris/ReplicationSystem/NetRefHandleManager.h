@@ -197,6 +197,9 @@ public:
 	/** List of objects that we polled this frame */
 	FNetBitArrayView GetPolledObjectsInternalIndices() const { return MakeNetBitArrayView(PolledObjectsInternalIndices); }
 
+	/** List of objects that need to copy their state data */
+	FNetBitArrayView GetDirtyObjectsToCopy() const { return MakeNetBitArrayView(DirtyObjectsToCopy); }
+
 	// Get bitarray for all internal indices that currently are assigned
 	const FNetBitArray& GetAssignedInternalIndices() const { return AssignedInternalIndices; }
 
@@ -318,6 +321,9 @@ private:
 
 	/** List of objects that we polled this frame */
 	FNetBitArray PolledObjectsInternalIndices;
+
+	/** List of the objects that are considered dirty and for whom we will copy their state data */
+	FNetBitArray DirtyObjectsToCopy;
 
 	// Bitset containing all internal indices that are assigned
 	FNetBitArray AssignedInternalIndices;

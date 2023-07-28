@@ -350,16 +350,16 @@ public:
 
 		SerializationContext.SetInternalContext(&InternalContext);
 
-		// Copy the state data of objects that got polled this frame.
-		const FNetBitArrayView ObjectsToCopy = NetRefHandleManager.GetPolledObjectsInternalIndices();
-		
+		// Copy the state data of objects that were dirty this frame.
+		FNetBitArrayView DirtyObjectsToCopy = NetRefHandleManager.GetDirtyObjectsToCopy();
+
 		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetRefHandleManager, &CopiedObjectCount, &SerializationContext](uint32 DirtyIndex)
 		{
 			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetRefHandleManager, SerializationContext, DirtyIndex);
 		};
 
-		// Only copy both dirty and relevant objects
-		ObjectsToCopy.ForAllSetBits(CopyFunction);
+		DirtyObjectsToCopy.ForAllSetBits(CopyFunction);
+		DirtyObjectsToCopy.Reset();
 
 		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 		UE_NET_TRACE_FRAME_STATSCOUNTER(ReplicationSystemId, ReplicationSystem.CopiedObjectCount, CopiedObjectCount, ENetTraceVerbosity::Trace);
@@ -371,7 +371,7 @@ public:
 
 		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
 
-		// Clean the objects that got polled and copied this frame
+		// Clean the objects that got polled this frame
 		const FNetBitArrayView ObjectsToClean = NetRefHandleManager.GetPolledObjectsInternalIndices();
 
 		// Reset object dirtyness

@@ -72,6 +72,7 @@ private:
 
 	const FNetBitArrayView AccumulatedDirtyObjects;
 
+	FNetBitArrayView DirtyObjectsToCopy;
 	FNetBitArrayView DirtyObjectsThisFrame;
 	FNetBitArrayView GarbageCollectionAffectedObjects;
 
