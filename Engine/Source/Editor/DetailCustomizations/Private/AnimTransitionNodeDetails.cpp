@@ -175,36 +175,71 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 				}
 			}
 
-			// indicate if a native transition rule applies to this
-			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(TransitionNode.Get());
-			if(Blueprint && Blueprint->ParentClass)
+			if (TransNode->bAutomaticRuleBasedOnSequencePlayerInState)
 			{
-				UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(Blueprint->ParentClass->GetDefaultObject());
-				if(AnimInstance)
+				if (CanExecPin->LinkedTo.Num() > 0)
 				{
-					UEdGraph* ParentGraph = TransitionNode->GetGraph();
-					UAnimStateNodeBase* PrevState = TransitionNode->GetPreviousState();
-					UAnimStateNodeBase* NextState = TransitionNode->GetNextState();
-					if(PrevState != nullptr && NextState != nullptr && ParentGraph != nullptr)
+					TransitionCategory.AddCustomRow(LOCTEXT("AnimGraphNodeDetailsAutomaticRule_RowWarning", "Automatic Rule"))
+					[
+						SNew(SBox)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("AnimGraphNodeDetailsAutomaticRule_Warning", "Warning : Automatic Rule Based Transition will override graph exit rule."))
+							.ColorAndOpacity(FCoreStyle::Get().GetColor("ErrorReporting.WarningBackgroundColor"))
+							.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						]
+					];
+				}
+				else
+				{
+					TransitionCategory.AddCustomRow(LOCTEXT("AnimGraphNodeDetailsAutomaticRule_Row", "Automatic Rule"))
+					[
+						SNew(SBox)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("AnimGraphNodeDetailsAutomaticRule", "Automatic Rule Based Transition"))
+							.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						]
+					];
+				}
+			}
+			else
+			{
+				// indicate if a native transition rule applies to this
+				UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(TransitionNode.Get());
+				if(Blueprint && Blueprint->ParentClass)
+				{
+					UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(Blueprint->ParentClass->GetDefaultObject());
+					if(AnimInstance)
 					{
-						FName FunctionName;
-						if(AnimInstance->HasNativeTransitionBinding(ParentGraph->GetFName(), FName(*PrevState->GetStateName()), FName(*NextState->GetStateName()), FunctionName))
+						UEdGraph* ParentGraph = TransitionNode->GetGraph();
+						UAnimStateNodeBase* PrevState = TransitionNode->GetPreviousState();
+						UAnimStateNodeBase* NextState = TransitionNode->GetNextState();
+						if(PrevState != nullptr && NextState != nullptr && ParentGraph != nullptr)
 						{
-							TransitionCategory.AddCustomRow( LOCTEXT("NativeBindingPresent_Filter", "Transition has native binding") )
-							[
-								SNew(STextBlock)
-								.Text(FText::Format(LOCTEXT("NativeBindingPresent", "Transition has native binding to {0}()"), FText::FromName(FunctionName)))
-								.Font( IDetailLayoutBuilder::GetDetailFontBold() )
-							];
+							FName FunctionName;
+							if(AnimInstance->HasNativeTransitionBinding(ParentGraph->GetFName(), FName(*PrevState->GetStateName()), FName(*NextState->GetStateName()), FunctionName))
+							{
+								TransitionCategory.AddCustomRow( LOCTEXT("NativeBindingPresent_Filter", "Transition has native binding") )
+								[
+									SNew(STextBlock)
+									.Text(FText::Format(LOCTEXT("NativeBindingPresent", "Transition has native binding to {0}()"), FText::FromName(FunctionName)))
+									.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+								];
+							}
 						}
 					}
 				}
-			}
 
-			TransitionCategory.AddCustomRow( CanExecPin ? CanExecPin->PinFriendlyName : FText::GetEmpty() )
-			[
-				SNew(SKismetLinearExpression, CanExecPin)
-			];
+				TransitionCategory.AddCustomRow( CanExecPin ? CanExecPin->PinFriendlyName : FText::GetEmpty() )
+				[
+					SNew(SKismetLinearExpression, CanExecPin)
+				];
+			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////

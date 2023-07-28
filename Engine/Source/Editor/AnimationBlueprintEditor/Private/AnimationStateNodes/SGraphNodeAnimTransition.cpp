@@ -158,14 +158,29 @@ TSharedRef<SWidget> SGraphNodeAnimTransition::GenerateRichTooltip()
 
 	if(TransNode->bAutomaticRuleBasedOnSequencePlayerInState)
 	{
-		Widget->AddSlot()
-			.AutoHeight()
-			.Padding( 2.0f )
-			[
-				SNew(STextBlock)
-				.TextStyle( FAppStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule") )
-				.Text(LOCTEXT("AnimGraphNodeAutomaticRule_ToolTip", "Automatic Rule"))
-			];
+		if (CanExecPin->LinkedTo.Num() > 0)
+		{
+			Widget->AddSlot()
+				.AutoHeight()
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(FAppStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule"))
+					.Text(LOCTEXT("AnimGraphNodeAutomaticRuleWarning_ToolTip", "Warning : Automatic Rule Based Transition will override graph exit rule."))
+					.ColorAndOpacity(FCoreStyle::Get().GetColor("ErrorReporting.WarningBackgroundColor"))
+				];
+		}
+		else
+		{
+			Widget->AddSlot()
+				.AutoHeight()
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(FAppStyle::Get(), TEXT("Graph.TransitionNode.TooltipRule"))
+					.Text(LOCTEXT("AnimGraphNodeAutomaticRule_ToolTip", "Automatic Rule"))
+				];
+		}
 	}
 	else
 	{

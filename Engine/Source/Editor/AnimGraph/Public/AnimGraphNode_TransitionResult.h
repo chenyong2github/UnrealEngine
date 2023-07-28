@@ -25,6 +25,8 @@ class UAnimGraphNode_TransitionResult : public UAnimGraphNode_Base
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual bool IsNodeRootSet() const override { return true; }
+	virtual bool ShowVisualWarning() const override;
+	virtual FText GetVisualWarningTooltipText() const override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface.

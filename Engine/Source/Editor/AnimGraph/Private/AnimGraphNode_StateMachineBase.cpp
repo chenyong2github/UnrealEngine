@@ -689,6 +689,23 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 					Rule.CanTakeDelegateIndex = Extension->ExpandGraphAndProcessNodes(TransitionNode->BoundGraph, TransitionResultNode, InCompilationContext, OutCompiledData, TransitionNode);
 					AlreadyMergedTransitionList.Add(TransitionResultNode, Rule.CanTakeDelegateIndex);
 				}
+
+				if (TransitionNode->bAutomaticRuleBasedOnSequencePlayerInState)
+				{
+					if (UAnimationTransitionGraph* TransGraph = Cast<UAnimationTransitionGraph>(TransitionNode->BoundGraph))
+					{
+						if (UAnimGraphNode_TransitionResult* ResultNode = TransGraph->GetResultNode())
+						{
+							if (UEdGraphPin* CanExecPin = ResultNode->FindPin(TEXT("bCanEnterTransition")))
+							{
+								if (CanExecPin->LinkedTo.Num() > 0)
+								{
+									InCompilationContext.GetMessageLog().Note(*LOCTEXT("TransitionWithAutomaticRuleBased", "@@ has an automatic Rule Based Transition that will override graph exit rule.").ToString(), TransitionNode);
+								}
+							}
+						}
+					}
+				}
 			}
 			else
 			{
