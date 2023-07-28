@@ -106,7 +106,7 @@ public:
 	FReviewCommentContext Context;
 	
 	// flags
-	bool bIsClosed : 1;
+	bool bIsClosed : 1 = false;
 
 	FString ToJson() const;
 	TSharedPtr<FJsonObject> ToJsonObject() const;
