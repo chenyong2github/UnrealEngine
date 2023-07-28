@@ -102,19 +102,6 @@ float UPCGSpatialData::GetDensityAtPosition(const FVector& InPosition) const
 	}
 }
 
-FVector UPCGSpatialData::TransformPosition(const FVector& InPosition) const
-{
-	FPCGPoint TemporaryPoint;
-	if (SamplePoint(FTransform(InPosition), FBox::BuildAABB(FVector::ZeroVector, FVector::ZeroVector), TemporaryPoint, nullptr))
-	{
-		return TemporaryPoint.Transform.GetLocation();
-	}
-	else
-	{
-		return InPosition;
-	}
-}
-
 bool UPCGSpatialData::ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	// Fallback implementation - calls SamplePoint because SamplePoint was being used for projection previously.

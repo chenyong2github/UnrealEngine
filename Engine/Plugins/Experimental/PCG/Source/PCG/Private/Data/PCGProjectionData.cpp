@@ -6,6 +6,7 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSplineData.h"
 #include "Data/PCGSpatialData.h"
+#include "Elements/PCGProjectionParams.h"
 #include "Helpers/PCGAsync.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
@@ -62,13 +63,24 @@ FBox UPCGProjectionData::ProjectBounds(const FBox& InBounds) const
 {
 	FBox Bounds(EForceInit::ForceInit);
 
+	const FBox PointAABB = FBox::BuildAABB(FVector::ZeroVector, FVector::ZeroVector);
+
 	for (int Corner = 0; Corner < 8; ++Corner)
 	{
-		Bounds += Target->TransformPosition(
-			FVector(
-				(Corner / 4) ? InBounds.Max.X : InBounds.Min.X,
-				((Corner / 2) % 2) ? InBounds.Max.Y : InBounds.Min.Y,
-				(Corner % 2) ? InBounds.Max.Z : InBounds.Min.Z));
+		const FVector CornerPoint = FVector(
+			(Corner / 4) ? InBounds.Max.X : InBounds.Min.X,
+			((Corner / 2) % 2) ? InBounds.Max.Y : InBounds.Min.Y,
+			(Corner % 2) ? InBounds.Max.Z : InBounds.Min.Z);
+
+		FPCGPoint ProjectedPoint;
+		if (Target->ProjectPoint(FTransform(CornerPoint), PointAABB, ProjectionParams, ProjectedPoint, nullptr))
+		{
+			Bounds += ProjectedPoint.Transform.GetLocation();
+		}
+		else
+		{
+			Bounds += CornerPoint;
+		}
 	}
 
 	// Fixup the Z direction, as transforming the corners is not sufficient

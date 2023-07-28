@@ -14,7 +14,7 @@ UENUM()
 enum class EPCGDifferenceDensityFunction : uint8
 {
 	Minimum,
-	ClampedSubstraction,
+	ClampedSubstraction UMETA(DisplayName = "Clamped Subtraction"),
 	Binary
 };
 
