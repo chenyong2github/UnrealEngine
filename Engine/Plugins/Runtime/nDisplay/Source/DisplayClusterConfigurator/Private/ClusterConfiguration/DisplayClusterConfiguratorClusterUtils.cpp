@@ -14,6 +14,7 @@
 
 #include "Factories.h"
 #include "ISinglePropertyView.h"
+#include "ScopedTransaction.h"
 #include "ObjectTools.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
