@@ -92,7 +92,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpImageMultiLayer::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageMultiLayer::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

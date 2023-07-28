@@ -72,7 +72,7 @@ namespace mu
 	}
 
 
-	void ASTOpImageMakeGrowMap::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageMakeGrowMap::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

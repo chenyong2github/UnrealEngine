@@ -64,34 +64,16 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	// Own Interface
 	//---------------------------------------------------------------------------------------------
-	void NodeColourConstant::GetValue( float* pR, float *pG, float* pB, float* pA) const
+	FVector4f NodeColourConstant::GetValue() const
 	{
-		if (pR)
-		{
-			*pR = m_pD->m_value[0];
-		}
-
-		if (pG)
-		{
-			*pG = m_pD->m_value[1];
-		}
-
-		if (pB)
-		{
-			*pB = m_pD->m_value[2];
-		}
-
-		if (pA)
-		{
-			*pA = m_pD->m_value[3];
-		}
+		return m_pD->m_value;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeColourConstant::SetValue( float r, float g, float b, float a)
+	void NodeColourConstant::SetValue(FVector4f Value)
 	{
-		m_pD->m_value = FVector4f(r, g, b, a);
+		m_pD->m_value = Value;
 	}
 
 

@@ -70,7 +70,7 @@ namespace mu
 	}
 
 
-	void ASTOpImageNormalComposite::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageNormalComposite::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

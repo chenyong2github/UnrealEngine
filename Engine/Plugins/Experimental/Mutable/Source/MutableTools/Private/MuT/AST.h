@@ -4,6 +4,7 @@
 
 #include "MuT/Platform.h"
 #include "MuR/Image.h"
+#include "MuR/Mesh.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableMemory.h"
@@ -210,7 +211,27 @@ namespace mu
 
 	struct FLinkerOptions
 	{
-		int MinTextureResidentMipCount = 0;
+		int32 MinTextureResidentMipCount = 0;
+
+		/** */
+		struct FDeduplicationMeshFuncs : TDefaultMapHashableKeyFuncs<mu::Ptr<const mu::Mesh>, int32, false>
+		{
+			static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+			{
+				return *A == *B;
+			}
+
+			static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+			{
+				const mu::Mesh* Data = Key.get();
+				return HashCombine(
+					::GetTypeHash(Data->m_VertexBuffers.GetElementCount()),
+					::GetTypeHash(Data->m_IndexBuffers.GetElementCount())
+				);
+			}
+		};
+
+		TMap<mu::Ptr<const mu::Mesh>, int32, FDefaultSetAllocator, FDeduplicationMeshFuncs> MeshConstantMap;
 	};
 
 
@@ -462,7 +483,7 @@ namespace mu
         //---------------------------------------------------------------------------------------------
 
         //!
-        static void FullLink( Ptr<ASTOp>& root, FProgram&, const FLinkerOptions*);
+        static void FullLink( Ptr<ASTOp>& root, FProgram&, FLinkerOptions*);
 
         //!
         static void ClearLinkData( Ptr<ASTOp>& root );
@@ -473,7 +494,7 @@ namespace mu
     private:
 
         //!
-        virtual void Link( FProgram& program, const FLinkerOptions* Options ) = 0;
+        virtual void Link( FProgram& program, FLinkerOptions* Options ) = 0;
 
     protected:
 
@@ -980,7 +1001,7 @@ namespace mu
 
         Ptr<ASTOp> Clone( MapChildFuncRef mapChild ) const override;
         void ForEachChild( const TFunctionRef<void(ASTChild&)> f ) override;
-        void Link( FProgram& program, const FLinkerOptions* Options) override;
+        void Link( FProgram& program, FLinkerOptions* Options) override;
         bool IsEqual(const ASTOp& otherUntyped) const override;
 		uint64 Hash() const override;
 		FImageDesc GetImageDesc( bool returnBestOption, FGetImageDescContext* context ) const override;

@@ -73,7 +73,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpMeshRemapIndices::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpMeshRemapIndices::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

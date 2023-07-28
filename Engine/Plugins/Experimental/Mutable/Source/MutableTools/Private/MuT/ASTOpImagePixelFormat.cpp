@@ -78,7 +78,7 @@ namespace mu
 	}
 
 
-	void ASTOpImagePixelFormat::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImagePixelFormat::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

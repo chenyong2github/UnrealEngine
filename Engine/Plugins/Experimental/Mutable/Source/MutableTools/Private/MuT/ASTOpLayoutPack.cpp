@@ -70,7 +70,7 @@ namespace mu
 	}
 
 
-	void ASTOpLayoutPack::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpLayoutPack::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

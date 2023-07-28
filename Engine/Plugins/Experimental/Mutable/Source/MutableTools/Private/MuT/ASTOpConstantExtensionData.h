@@ -32,7 +32,7 @@ public:
 	bool IsEqual(const ASTOp& OtherUntyped) const override;
 	Ptr<ASTOp> Clone(MapChildFuncRef MapChild) const override;
 	uint64 Hash() const override;
-	void Link(FProgram& Program, const FLinkerOptions*) override;
+	void Link(FProgram& Program, FLinkerOptions*) override;
 };
 
 

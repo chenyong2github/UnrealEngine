@@ -96,7 +96,7 @@ namespace mu
 	}
 
 
-	void ASTOpImageSwizzle::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageSwizzle::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

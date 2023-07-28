@@ -75,7 +75,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void ASTOpMeshDifference::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpMeshDifference::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

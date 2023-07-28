@@ -36,7 +36,7 @@ public:
 	void ForEachChild(const TFunctionRef<void(ASTChild&)> F) override;
 	bool IsEqual(const ASTOp& OtherUntyped) const override;
 	Ptr<ASTOp> Clone(MapChildFuncRef MapChild) const override;
-	void Link(FProgram& Program, const FLinkerOptions* Options) override;
+	void Link(FProgram& Program, FLinkerOptions* Options) override;
 };
 
 

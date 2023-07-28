@@ -53,7 +53,7 @@ namespace mu
 	}
 
 
-	void ASTOpConstantBool::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpConstantBool::Link(FProgram& program, FLinkerOptions*)
 	{
 		if (!linkedAddress)
 		{

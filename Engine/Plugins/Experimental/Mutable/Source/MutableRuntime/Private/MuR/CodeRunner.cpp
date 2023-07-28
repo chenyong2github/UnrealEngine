@@ -4162,7 +4162,7 @@ namespace mu
             		
                 Ptr<const Image> pA = LoadImage( FCacheAddress(args.source,item) );
 
-                box< vec2<int> > rect;
+                box< UE::Math::TIntVector2<int32> > rect;
                 rect.min[0] = args.minX;
                 rect.min[1] = args.minY;
                 rect.size[0] = args.sizeX;

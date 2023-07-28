@@ -203,7 +203,7 @@ namespace mu
         }
 
         vector<Ptr<ASTOp>> roots;
-        for( const auto& s: states)
+        for( const STATE_COMPILATION_DATA& s: states)
         {
             roots.push_back(s.root);
         }
@@ -220,10 +220,18 @@ namespace mu
 
         // Link the program and generate state data.
 		TSharedPtr<Model> pResult = MakeShared<Model>();
-        auto& program = pResult->GetPrivate()->m_program;
-        for( auto& s: states )
+        FProgram& program = pResult->GetPrivate()->m_program;
+
+		// Preallocate ample memory
+		program.m_byteCode.Reserve(16 * 1024 * 1024);
+		program.m_opAddress.Reserve(1024 * 1024);
+
+		// Keep the link options outside the scope because it is also used to cache constant data that has already been 
+		// added and could be reused across states.
+		FLinkerOptions LinkerOptions;
+
+		for( STATE_COMPILATION_DATA& s: states )
         {
-			FLinkerOptions LinkerOptions;
 			LinkerOptions.MinTextureResidentMipCount = m_pD->m_options->GetPrivate()->MinTextureResidentMipCount;
 
             ASTOp::FullLink(s.root,program, &LinkerOptions);
@@ -237,13 +245,16 @@ namespace mu
             }
         }
 
+		program.m_byteCode.Shrink();
+		program.m_opAddress.Shrink();
+
         // Set the runtime parameter indices.
         for( STATE_COMPILATION_DATA& s: states )
         {
             for ( int32 p=0; p<s.nodeState.m_runtimeParams.Num(); ++p )
             {
-                int paramIndex = -1;
-                for ( size_t i=0; paramIndex<0 && i<program.m_parameters.Num(); ++i )
+                int32 paramIndex = -1;
+                for ( int32 i=0; paramIndex<0 && i<program.m_parameters.Num(); ++i )
                 {
                     if ( program.m_parameters[i].m_name
                          ==

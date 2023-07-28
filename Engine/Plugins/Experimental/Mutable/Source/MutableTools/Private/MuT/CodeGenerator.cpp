@@ -149,7 +149,6 @@ namespace mu
 		m_generatedTables.clear();
 		m_firstPass = FirstPassGenerator();
 		m_currentBottomUpState = BOTTOM_UP_STATE();
-		m_imageState.Empty();
 		m_currentParents.Empty();
 		m_currentObject.Empty();
 		m_additionalComponents.clear();
@@ -427,10 +426,7 @@ namespace mu
 				blend = GenerateMissingImageCode(TEXT("Blend top image"), EImageFormat::IF_RGB_UBYTE, pPatch->GetPrivate()->m_errorContext, ImageOptions);
 			}
 			blend = GenerateImageFormat(blend, blockAd->GetImageDesc().m_format);
-			blend = GenerateImageSize(
-				blend,
-				FImageSize((uint16)m_imageState.Last().m_imageRect.size[0], (uint16)m_imageState.Last().m_imageRect.size[1])
-			);
+			blend = GenerateImageSize(blend, ImageOptions.RectSize);
 			op->blend = blend;
 
 			NodeImage* pMask = pPatch->GetPrivate()->m_pMask.get();
@@ -445,13 +441,11 @@ namespace mu
 			{
 				// Set the argument default value: affect all pixels.
 				// TODO: Special operation code without mask
-				mask = GeneratePlainImageCode(vec3<float>(1, 1, 1), ImageOptions);
+				FImageGenerationOptions MissingMaskOptions;
+				mask = GeneratePlainImageCode(FVector4f(1,1,1,1), MissingMaskOptions);
 			}
 			mask = GenerateImageFormat(mask, EImageFormat::IF_L_UBYTE);
-			mask = GenerateImageSize(
-				mask,
-				FImageSize((uint16)m_imageState.Last().m_imageRect.size[0], (uint16)m_imageState.Last().m_imageRect.size[1])
-			);
+			mask = GenerateImageSize(mask, ImageOptions.RectSize);
 			op->mask = mask;
 
 			blendAd = op;
@@ -675,7 +669,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<ASTOp> CodeGenerator::ApplyTiling(Ptr<ASTOp> Source, FImageSize Size, EImageFormat Format)
+	Ptr<ASTOp> CodeGenerator::ApplyTiling(Ptr<ASTOp> Source, UE::Math::TIntVector2<int32> Size, EImageFormat Format)
 	{
 		// For now always apply tiling
 		if (m_compilerOptions->ImageTiling==0)
@@ -826,7 +820,7 @@ namespace mu
 			MeshOptions.bUniqueVertexIDs = true;
 			MeshOptions.bLayouts = true;
 			MeshOptions.State = m_currentStateIndex;
-			MeshOptions.ActiveTags = m_activeTags.Last();
+			MeshOptions.ActiveTags = node.m_tags;
 
 			const FMeshGenerationResult* SharedMeshResults = nullptr;
 			if (bShareSurface)
@@ -877,7 +871,7 @@ namespace mu
 						MergedMeshOptions.bClampUVIslands = bShareSurface;
 						MergedMeshOptions.bNormalizeUVs = bNormalizeUVs;
 						MergedMeshOptions.State = m_currentStateIndex;
-						MergedMeshOptions.ActiveTags = m_activeTags.Last();
+						MergedMeshOptions.ActiveTags = e.node->m_tags;
 
 						if (SharedMeshResults)
 						{
@@ -945,10 +939,7 @@ namespace mu
 						RemoveMeshOptions.bUniqueVertexIDs = false;
 						RemoveMeshOptions.bLayouts = false;
 						RemoveMeshOptions.State = m_currentStateIndex;
-						if (!m_activeTags.IsEmpty())
-						{
-							RemoveMeshOptions.ActiveTags = m_activeTags.Last();
-						}
+						RemoveMeshOptions.ActiveTags = e.node->m_tags;
 
                         GenerateMesh(RemoveMeshOptions, removeResults, pRemove );
 
@@ -1268,16 +1259,11 @@ namespace mu
 						check(desc.m_format != EImageFormat::IF_NONE);
 
 						// Generate the image
-						IMAGE_STATE newState;
-						newState.m_imageSize[0] = desc.m_size[0];
-						newState.m_imageSize[1] = desc.m_size[1];
-						newState.m_imageRect = box<UE::Math::TIntVector2<int>>::FromMinSize(UE::Math::TIntVector2<int>(0, 0), UE::Math::TIntVector2<int>(desc.m_size));
-						newState.m_layoutBlockId = -1;
-						newState.m_pLayout = nullptr;
-						m_imageState.Add(newState);
-
 						FImageGenerationOptions ImageOptions;
+						ImageOptions.CurrentStateIndex = m_currentStateIndex;
 						ImageOptions.ImageLayoutStrategy = ImageLayoutStrategy;
+						ImageOptions.ActiveTags = node.m_tags;
+						ImageOptions.RectSize = UE::Math::TIntVector2<int32>(desc.m_size);
 						FImageGenerationResult Result;
 						GenerateImage(ImageOptions, Result, pImageNode);
 						Ptr<ASTOp> imageAd = Result.op;
@@ -1297,8 +1283,6 @@ namespace mu
 						}
 
 						check(imageAd);
-
-						m_imageState.Pop();
 
 						if (mipmapNode)
 						{
@@ -1423,16 +1407,13 @@ namespace mu
 								rect.size[1] *= blockSizeY;
 
 								// Generate the image
-								IMAGE_STATE newState;
-								newState.m_imageSize = UE::Math::TIntVector2<int32>(desc.m_size);
-								newState.m_imageRect.min = UE::Math::TIntVector2<int32>(rect.min);
-								newState.m_imageRect.size = UE::Math::TIntVector2<int32>(rect.size);
-								newState.m_layoutBlockId = pLayout->m_blocks[b].m_id;
-								newState.m_pLayout = pLayout;
-								m_imageState.Add(newState);
-
 								FImageGenerationOptions ImageOptions;
+								ImageOptions.CurrentStateIndex = m_currentStateIndex;
 								ImageOptions.ImageLayoutStrategy = ImageLayoutStrategy;
+								ImageOptions.ActiveTags = node.m_tags;
+								ImageOptions.RectSize = UE::Math::TIntVector2<int32>(rect.size);
+								ImageOptions.LayoutToApply = pLayout;
+								ImageOptions.LayoutBlockId = pLayout->m_blocks[b].m_id;
 								FImageGenerationResult Result;
 								GenerateImage(ImageOptions, Result, pImageNode);
 								Ptr<ASTOp> blockAd = Result.op;
@@ -1458,7 +1439,7 @@ namespace mu
 								Ptr<ASTOp> FormattedBlock = GenerateImageFormat(blockAd, baseFormat);
 
 								// Apply tiling to avoid generating chunks of image that are too big.
-								FormattedBlock = ApplyTiling(FormattedBlock, FImageSize(rect.size), desc.m_format);
+								FormattedBlock = ApplyTiling(FormattedBlock, ImageOptions.RectSize, desc.m_format);
 
 								// Compose layout operation
 								Ptr<ASTOpImageCompose> composeOp = new ASTOpImageCompose();
@@ -1471,8 +1452,6 @@ namespace mu
 								composeOp->BlockIndex = pLayout->m_blocks[b].m_id;
 
 								imageAd = composeOp;
-
-								m_imageState.Pop();
 							}
 							check(imageAd);
 
@@ -1528,26 +1507,22 @@ namespace mu
 												rect.size[1] = (blockRect.size[1] * extendDesc.m_size[1]) / extlayout[1];
 
 												// Generate the image block
-												IMAGE_STATE newState;
-												newState.m_imageSize = UE::Math::TIntVector2<int32>(extendDesc.m_size);
-												newState.m_imageRect = rect;
-												newState.m_layoutBlockId = pExtendLayout->m_blocks[b].m_id;
-												newState.m_pLayout = pExtendLayout;
-												m_imageState.Add(newState);
-
 												FImageGenerationOptions ImageOptions;
+												ImageOptions.CurrentStateIndex = m_currentStateIndex;
 												ImageOptions.ImageLayoutStrategy = ImageLayoutStrategy;
+												ImageOptions.ActiveTags = node.m_tags;
+												ImageOptions.RectSize = UE::Math::TIntVector2<int32>(extendDesc.m_size);
+												ImageOptions.LayoutToApply = pExtendLayout;
+												ImageOptions.LayoutBlockId = pExtendLayout->m_blocks[b].m_id;
 												FImageGenerationResult ExtendResult;
 												GenerateImage(ImageOptions, ExtendResult, pExtend);
 												Ptr<ASTOp> fragmentAd = ExtendResult.op;
 
-												m_imageState.Pop();
-
 												// Adjust the format and size of the block to be added
 												Ptr<ASTOp> formatted = GenerateImageFormat(fragmentAd, GetUncompressedFormat(desc.m_format));
-												FImageSize expectedSize;
-												expectedSize[0] = (uint16)(blockSizeX * blockRect.size[0]);
-												expectedSize[1] = (uint16)(blockSizeY * blockRect.size[1]);
+												UE::Math::TIntVector2<int32> expectedSize;
+												expectedSize[0] = blockSizeX * blockRect.size[0];
+												expectedSize[1] = blockSizeY * blockRect.size[1];
 												formatted = GenerateImageSize(formatted, expectedSize);
 												fragmentAd = formatted;
 

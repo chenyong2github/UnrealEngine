@@ -71,7 +71,7 @@ namespace mu
 	}
 
 
-	void ASTOpAddLOD::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpAddLOD::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

@@ -77,7 +77,7 @@ namespace mu
 	}
 
 
-	void ASTOpLayoutFromMesh::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpLayoutFromMesh::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

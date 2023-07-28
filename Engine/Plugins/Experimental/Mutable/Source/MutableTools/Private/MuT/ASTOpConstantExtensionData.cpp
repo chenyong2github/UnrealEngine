@@ -44,7 +44,7 @@ uint64 ASTOpConstantExtensionData::Hash() const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpConstantExtensionData::Link(FProgram& Program, const FLinkerOptions* Options)
+void ASTOpConstantExtensionData::Link(FProgram& Program, FLinkerOptions* Options)
 {
 	if (!linkedAddress)
 	{

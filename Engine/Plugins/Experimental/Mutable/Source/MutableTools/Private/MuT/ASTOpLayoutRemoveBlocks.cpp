@@ -74,7 +74,7 @@ namespace mu
 	}
 
 
-	void ASTOpLayoutRemoveBlocks::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpLayoutRemoveBlocks::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

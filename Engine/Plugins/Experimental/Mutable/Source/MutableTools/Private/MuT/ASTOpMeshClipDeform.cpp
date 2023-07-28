@@ -65,7 +65,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshClipDeform::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpMeshClipDeform::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

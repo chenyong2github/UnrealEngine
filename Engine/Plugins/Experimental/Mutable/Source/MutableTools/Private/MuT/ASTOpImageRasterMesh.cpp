@@ -127,7 +127,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpImageRasterMesh::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageRasterMesh::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

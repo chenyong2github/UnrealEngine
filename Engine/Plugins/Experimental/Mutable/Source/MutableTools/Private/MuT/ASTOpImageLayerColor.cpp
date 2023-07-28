@@ -85,7 +85,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpImageLayerColor::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageLayerColor::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

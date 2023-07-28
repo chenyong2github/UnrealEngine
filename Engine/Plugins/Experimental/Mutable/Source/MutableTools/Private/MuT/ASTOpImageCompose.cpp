@@ -95,7 +95,7 @@ void ASTOpImageCompose::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpImageCompose::Link( FProgram& program, const FLinkerOptions*)
+void ASTOpImageCompose::Link( FProgram& program, FLinkerOptions*)
 {
     // Already linked?
     if (!linkedAddress)

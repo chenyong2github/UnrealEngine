@@ -110,7 +110,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpInstanceAdd::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpInstanceAdd::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

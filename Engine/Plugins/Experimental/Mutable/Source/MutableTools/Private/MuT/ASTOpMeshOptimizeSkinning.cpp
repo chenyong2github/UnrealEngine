@@ -68,7 +68,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpMeshOptimizeSkinning::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpMeshOptimizeSkinning::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

@@ -48,7 +48,7 @@ namespace mu
     inline void AppendCode(TArray<uint8>& code, const DATA& data )
     {
         int32 pos = code.Num();
-        code.SetNum( pos+sizeof(DATA) );
+        code.SetNum( pos+sizeof(DATA), false );
 		FMemory::Memcpy (&code[pos], &data, sizeof(DATA));
     }
 
@@ -375,7 +375,7 @@ namespace mu
 			return RomSize;
 		}
 
-        //! Adds a constant data and returns its constant index.
+        //! Adds a constant image data and returns its constant index.
 		int32 AddConstant(Ptr<const Image> pImage, int32 MinTextureResidentMipCount)
 		{
 			check(pImage->GetSizeX()*pImage->GetSizeY()>0);
@@ -471,16 +471,7 @@ namespace mu
 
 		int32 AddConstant(Ptr<const Mesh> pMesh)
 		{
-			// Ensure unique
-			for (int32 i = 0; i < m_constantMeshes.Num(); ++i)
-			{
-				const Mesh* pCandidate = m_constantMeshes[i].Value.get();
-				if (*pCandidate == *pMesh)
-				{
-					return i;
-				}
-			}
-
+			// Uniques needs to be ensured outside
 			return m_constantMeshes.Add(TPair<int32, Ptr<const Mesh>>( -1, pMesh.get() ));
 		}
 

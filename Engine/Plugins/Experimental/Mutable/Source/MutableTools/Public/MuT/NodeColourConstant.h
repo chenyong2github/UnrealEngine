@@ -51,10 +51,10 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		//! Get the value that this node returns
-		void GetValue( float* pR, float* pG, float* pB, float* pA) const;
+		FVector4f GetValue() const;
 
 		//! Set the value to be returned by this node
-		void SetValue( float r, float g, float b, float a);
+		void SetValue(FVector4f);
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

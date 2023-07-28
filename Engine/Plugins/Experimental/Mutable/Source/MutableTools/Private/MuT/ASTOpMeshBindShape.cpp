@@ -107,7 +107,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshBindShape::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpMeshBindShape::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

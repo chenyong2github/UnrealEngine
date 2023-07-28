@@ -78,7 +78,7 @@ void ASTOpMeshFormat::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 }
 
 
-void ASTOpMeshFormat::Link( FProgram& program, const FLinkerOptions* )
+void ASTOpMeshFormat::Link( FProgram& program, FLinkerOptions* )
 {
     // Already linked?
     if (!linkedAddress)

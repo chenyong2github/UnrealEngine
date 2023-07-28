@@ -8,7 +8,7 @@
 namespace mu
 {
 
-	bool FImageOperator::ImageCrop( Image* InCropped, int32 CompressionQuality, const Image* InBase, const box< vec2<int32> >& Rect)
+	bool FImageOperator::ImageCrop( Image* InCropped, int32 CompressionQuality, const Image* InBase, const box< FIntVector2 >& Rect)
 	{
 		Ptr<const Image> Base = InBase;
 		Ptr<Image> BaseReformat;

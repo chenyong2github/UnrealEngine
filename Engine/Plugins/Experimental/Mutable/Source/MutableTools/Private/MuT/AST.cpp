@@ -243,9 +243,10 @@ mu::Ptr<ASTOp> ASTOp::DeepClone( const Ptr<ASTOp>& root )
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOp::FullLink( Ptr<ASTOp>& root, FProgram& program, const FLinkerOptions* Options )
+void ASTOp::FullLink( Ptr<ASTOp>& root, FProgram& program, FLinkerOptions* Options )
 {
     MUTABLE_CPUPROFILER_SCOPE(AST_FullLink);
+
     Traverse_BottomUp_Unique( root,
                               [&](Ptr<ASTOp> n){ n->Link(program, Options); },
                               [&](Ptr<const ASTOp> n){ return n->linkedAddress==0; });
@@ -1022,8 +1023,10 @@ void ASTOpFixed::ForEachChild( const TFunctionRef<void(ASTChild&)> f )
 }
 
 
-void ASTOpFixed::Link( FProgram& program, const FLinkerOptions* )
+void ASTOpFixed::Link( FProgram& program, FLinkerOptions* )
 {
+	MUTABLE_CPUPROFILER_SCOPE(ASTOpFixed_Link);
+
     if (!linkedAddress)
     {
         OP lop = op;

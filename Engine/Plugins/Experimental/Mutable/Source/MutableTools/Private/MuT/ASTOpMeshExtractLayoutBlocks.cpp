@@ -69,7 +69,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshExtractLayoutBlocks::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpMeshExtractLayoutBlocks::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

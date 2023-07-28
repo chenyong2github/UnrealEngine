@@ -512,6 +512,8 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void UncompressRLE_RGB( int32 width, int32 rows, const uint8* pBaseData, uint8* pDestDataB )
     {
+		check(pBaseData && pDestDataB);
+
         UINT24* pDestData = reinterpret_cast<UINT24*>( pDestDataB );
 
         pBaseData += rows*sizeof(uint32);

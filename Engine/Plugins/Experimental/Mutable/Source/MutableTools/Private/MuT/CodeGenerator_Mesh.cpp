@@ -1443,8 +1443,7 @@ class Node;
 		BOTTOM_UP_STATE temp = m_currentBottomUpState;
 
 		bool bModifiersForBeforeOperations = true;
-		OutResult.meshOp = ApplyMeshModifiers(op, InOptions.ActiveTags,
-			bModifiersForBeforeOperations, node.m_errorContext);
+		OutResult.meshOp = ApplyMeshModifiers(op, InOptions.ActiveTags, bModifiersForBeforeOperations, node.m_errorContext);
 
 		m_currentBottomUpState = temp;
 
@@ -1544,7 +1543,9 @@ class Node;
         // Base
         if (node.m_pSource)
         {
-            GenerateMesh(InOptions, OutResult, node.m_pSource);
+			FMeshGenerationOptions BaseOptions = InOptions;
+			BaseOptions.bUniqueVertexIDs = true;
+            GenerateMesh(BaseOptions, OutResult, node.m_pSource);
             op->source = OutResult.meshOp;
         }
         else
@@ -1616,7 +1617,10 @@ class Node;
         // Base
         if (node.m_pSource)
         {
-            GenerateMesh( InOptions, OutResult, node.m_pSource );
+			FMeshGenerationOptions BaseOptions = InOptions;
+			BaseOptions.bUniqueVertexIDs = true;
+
+            GenerateMesh(BaseOptions, OutResult, node.m_pSource );
             op->SetChild( op->op.args.MeshClipWithMesh.source, OutResult.meshOp );
         }
         else
@@ -1660,7 +1664,10 @@ class Node;
 		// Base Mesh
 		if (Node.m_pBaseMesh)
 		{
-			GenerateMesh(InOptions, Result, Node.m_pBaseMesh);
+			FMeshGenerationOptions BaseOptions = InOptions;
+			BaseOptions.bUniqueVertexIDs = true;
+
+			GenerateMesh(BaseOptions, Result, Node.m_pBaseMesh);
 			OpBind->Mesh = Result.meshOp;
 		}
 		else
@@ -1799,7 +1806,10 @@ class Node;
 		// Base Mesh
 		if (node.m_pBaseMesh)
 		{
-			GenerateMesh(InOptions, OutResult, node.m_pBaseMesh);
+			FMeshGenerationOptions BaseOptions = InOptions;
+			BaseOptions.bUniqueVertexIDs = true;
+
+			GenerateMesh(BaseOptions, OutResult, node.m_pBaseMesh);
 			OpBind->Mesh = OutResult.meshOp;
 		}
 		else

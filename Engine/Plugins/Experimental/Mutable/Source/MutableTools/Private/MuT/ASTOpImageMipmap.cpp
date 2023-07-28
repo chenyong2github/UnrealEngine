@@ -87,7 +87,7 @@ namespace mu
 	}
 
 
-	void ASTOpImageMipmap::Link(FProgram& program, const FLinkerOptions*)
+	void ASTOpImageMipmap::Link(FProgram& program, FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

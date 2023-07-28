@@ -69,7 +69,7 @@ void ASTOpAddExtensionData::ForEachChild(const TFunctionRef<void(ASTChild&)> F)
 	F(ExtensionData);
 }
 
-void ASTOpAddExtensionData::Link(FProgram& Program, const FLinkerOptions*)
+void ASTOpAddExtensionData::Link(FProgram& Program, FLinkerOptions*)
 {
 	// Already linked?
 	if (linkedAddress)

@@ -54,7 +54,7 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 		mu::NodeColourConstantPtr ColorNode = new mu::NodeColourConstant();
 		Result = ColorNode;
 
-		ColorNode->SetValue(TypedNodeColorConst->Value.R, TypedNodeColorConst->Value.G, TypedNodeColorConst->Value.B, TypedNodeColorConst->Value.A);
+		ColorNode->SetValue(TypedNodeColorConst->Value);
 	}
 
 	else if (const UCustomizableObjectNodeColorParameter* TypedNodeColorParam = Cast<UCustomizableObjectNodeColorParameter>(Node))
@@ -271,7 +271,7 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 	{
 		//This node will add a white color in case of error
 		mu::NodeColourConstantPtr WhiteColorNode = new mu::NodeColourConstant();
-		WhiteColorNode->SetValue(1.0f, 1.0f, 1.0f, 1.0f);
+		WhiteColorNode->SetValue(FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
 
 		Result = WhiteColorNode;
 

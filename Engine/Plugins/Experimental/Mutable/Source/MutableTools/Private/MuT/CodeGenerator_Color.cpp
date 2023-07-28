@@ -303,28 +303,19 @@ namespace mu
 
 		// Source image
 		FImageGenerationOptions ImageOptions;
-		ImageOptions.ImageLayoutStrategy = CompilerOptions::TextureLayoutStrategy::None;
+		ImageOptions.CurrentStateIndex = m_currentStateIndex;
+		if (!m_activeTags.IsEmpty())
+		{
+			ImageOptions.ActiveTags = m_activeTags.Last();
+		}
+
 		Ptr<ASTOp> base;
 		if (node.m_pImage)
 		{
-			// We take whatever size will be produced
-			FImageDesc desc = CalculateImageDesc(*node.m_pImage->GetBasePrivate());
-			IMAGE_STATE newState;
-			newState.m_imageSize[0] = desc.m_size[0];
-			newState.m_imageSize[1] = desc.m_size[1];
-			newState.m_imageRect.min[0] = 0;
-			newState.m_imageRect.min[1] = 0;
-			newState.m_imageRect.size[0] = desc.m_size[0];
-			newState.m_imageRect.size[1] = desc.m_size[1];
-			m_imageState.Add(newState);
-
 			// Generate
 			FImageGenerationResult MapResult;
 			GenerateImage(ImageOptions, MapResult, node.m_pImage);
 			base = MapResult.op;
-
-			// Restore rect
-			m_imageState.Pop();
 		}
 		else
 		{
@@ -485,7 +476,7 @@ namespace mu
 			{
 				NodeColourConstantPtr CellData = new NodeColourConstant();
 				FVector4f Colour = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex].m_colour;
-				CellData->SetValue(Colour.X, Colour.Y, Colour.Z, Colour.W);
+				CellData->SetValue(Colour);
 				return Generate(CellData);
 			});
 	}
@@ -500,7 +491,7 @@ namespace mu
 
 		// Create a constant colour node
 		NodeColourConstantPtr pNode = new NodeColourConstant();
-		pNode->SetValue(1, 1, 0, 1);
+		pNode->SetValue(FVector4f(1, 1, 0, 1));
 
 		FColorGenerationResult Result;
 		GenerateColor(Result, pNode);

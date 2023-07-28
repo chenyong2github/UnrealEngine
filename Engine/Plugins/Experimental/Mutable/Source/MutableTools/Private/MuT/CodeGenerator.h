@@ -150,7 +150,6 @@ namespace mu
 		//!
 		FirstPassGenerator m_firstPass;
 
-
         struct FVisitedKeyMap
         {
             FVisitedKeyMap()
@@ -161,12 +160,6 @@ namespace mu
 			{
 				uint32 KeyHash = 0;
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.pNode.get()));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageSize[0]));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageSize[1]));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageRect.min[0]));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageRect.min[1]));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageRect.size[0]));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageRect.size[1]));
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.state));
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash((uint64)InKey.activeTags.Num()));
 				return KeyHash;
@@ -176,22 +169,15 @@ namespace mu
 			{
 				if (pNode != InKey.pNode) return false;
 				if (state != InKey.state) return false;
-				if (imageSize != InKey.imageSize) return false;
-				if (imageRect.min != InKey.imageRect.min) return false;
-				if (imageRect.size != InKey.imageRect.size) return false;
 				if (activeTags != InKey.activeTags) return false;
-				if (overrideLayouts != InKey.overrideLayouts) return false;
 				return true;
 			}
 
             // This reference has to be the smart pointer to avoid memory aliasing, keeping
             // processed nodes alive.
             NodePtrConst pNode;
-			UE::Math::TIntVector2<int32> imageSize = UE::Math::TIntVector2<int32>(0, 0);
-            box< UE::Math::TIntVector2<int32> > imageRect;
             int state = -1;
 			TArray<mu::string> activeTags;
-			TArray<LayoutPtrConst> overrideLayouts;
         };
 
         //! This struct contains additional state propagated from bottom to top of the object node graph.
@@ -231,17 +217,6 @@ namespace mu
 
         //! First free index to be used to identify mesh vertices.
         uint32 m_freeVertexIndex = 0;
-
-        //! When generating images, here we have the entire source image size and the rect of the
-        //! image that we are generating.
-        struct IMAGE_STATE
-        {
-            UE::Math::TIntVector2<int32> m_imageSize = UE::Math::TIntVector2<int32>(0, 0);
-            box< UE::Math::TIntVector2<int32> > m_imageRect;
-            int32 m_layoutBlockId;
-            LayoutPtrConst m_pLayout;
-        };
-		TArray<IMAGE_STATE> m_imageState;
 
 		// (top-down) Tags that are active when generating nodes.
 		TArray< TArray<mu::string> > m_activeTags;
@@ -347,11 +322,6 @@ namespace mu
 			FVisitedKeyMap key;
 			key.pNode = InNode;
 			key.state = m_currentStateIndex;
-			if (!m_imageState.IsEmpty())
-			{
-				key.imageSize = m_imageState.Last().m_imageSize;
-				key.imageRect = m_imageState.Last().m_imageRect;
-			}
 			if (!m_activeTags.IsEmpty())
 			{
 				key.activeTags = m_activeTags.Last();
@@ -362,33 +332,61 @@ namespace mu
 
 		//-----------------------------------------------------------------------------------------
 		// Images
-				
+		
 		/** Options that affect the generation of images. It is like list of what required data we want while parsing down the image node graph. */
 		struct FImageGenerationOptions
 		{
 			/** */
 			CompilerOptions::TextureLayoutStrategy ImageLayoutStrategy = CompilerOptions::TextureLayoutStrategy::None;
 
+			/** This is used to introduce additional image generation safety. \TODO: Move this "safety" to optimization? */
+			UE::Math::TIntVector2<int32> RectSize;
+
+			/** */
+			int32 CurrentStateIndex = -1;
+
+			/** Layout block that we are trying to generate if any. */
+			int32 LayoutBlockId = -1;
+			Ptr<const Layout> LayoutToApply;
+
+			/** Tags that are active at this point of the generation. */
+			TArray<mu::string> ActiveTags;
+
 			friend FORCEINLINE uint32 GetTypeHash(const FImageGenerationOptions& InKey)
 			{
 				uint32 KeyHash = 0;
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.ImageLayoutStrategy));
+				KeyHash = HashCombine(KeyHash, GetTypeHash(InKey.RectSize));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.CurrentStateIndex));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.LayoutBlockId));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.LayoutToApply.get()));
 				return KeyHash;
 			}
 
 			FORCEINLINE bool operator==(const FImageGenerationOptions& Other) const
 			{
-				return ImageLayoutStrategy == Other.ImageLayoutStrategy;
+				return ImageLayoutStrategy == Other.ImageLayoutStrategy
+					&&
+					RectSize == Other.RectSize
+					&&
+					CurrentStateIndex == Other.CurrentStateIndex
+					&&
+					LayoutBlockId == Other.LayoutBlockId
+					&&
+					LayoutToApply == Other.LayoutToApply
+					&&
+					ActiveTags == Other.ActiveTags;
 			}
 
 		};
 
+		/** */
 		struct FImageGenerationResult
 		{
 			Ptr<ASTOp> op;
 		};
 
-
+		/** */
 		struct FGeneratedImageCacheKey
 		{
 			NodePtrConst Node;
@@ -408,7 +406,7 @@ namespace mu
 			}
 		};
 
-		typedef TMap<FVisitedKeyMap, FImageGenerationResult> GeneratedImagesMap;
+		typedef TMap<FGeneratedImageCacheKey, FImageGenerationResult> GeneratedImagesMap;
 		GeneratedImagesMap m_generatedImages;
 
 		void GenerateImage(const FImageGenerationOptions&, FImageGenerationResult& result, const NodeImagePtrConst& node);
@@ -445,7 +443,7 @@ namespace mu
 		Ptr<ASTOp> GenerateMissingImageCode(const TCHAR* strWhere, EImageFormat, const void* errorContext, const FImageGenerationOptions& Options);
 
 		//!
-		Ptr<ASTOp> GeneratePlainImageCode(const vec3<float>& colour, const FImageGenerationOptions& Options);
+		Ptr<ASTOp> GeneratePlainImageCode(const FVector4f& Color, const FImageGenerationOptions& Options);
 
 		//!
 		Ptr<ASTOp> GenerateImageFormat(Ptr<ASTOp>, EImageFormat);
@@ -454,13 +452,13 @@ namespace mu
 		Ptr<ASTOp> GenerateImageUncompressed(Ptr<ASTOp>);
 
 		//!
-		Ptr<ASTOp> GenerateImageSize(Ptr<ASTOp>, FImageSize);
+		Ptr<ASTOp> GenerateImageSize(Ptr<ASTOp>, UE::Math::TIntVector2<int32>);
 
 		//!
 		FImageDesc CalculateImageDesc(const Node::Private&);
 
 		/** Evaluate if the image to generate is big enough to be split in separate operations and tiled afterwards. */
-		Ptr<ASTOp> ApplyTiling(Ptr<ASTOp> Source, FImageSize Size, EImageFormat Format);
+		Ptr<ASTOp> ApplyTiling(Ptr<ASTOp> Source, UE::Math::TIntVector2<int32> Size, EImageFormat Format);
 
 		//!
 		Ptr<ASTOp> GenerateImageBlockPatch(Ptr<ASTOp> blockAd, const NodePatchImage* pPatch, Ptr<ASTOp> conditionAd, const FImageGenerationOptions& ImageOptions);
@@ -474,7 +472,9 @@ namespace mu
 		struct FMeshGenerationOptions
 		{
 			/** TODO: Review and document. */
-			int State = 0;
+			int32 State = 0;
+
+			/** Tags that are active at this point of the generation. */
 			TArray<mu::string> ActiveTags;
 
 			/** Whatever mesh we reach at the leaves of the graph will need to have unique ids for its vertices.
@@ -513,11 +513,11 @@ namespace mu
 			FORCEINLINE bool operator==(const FMeshGenerationOptions& Other) const
 			{
 				return State==Other.State 
-					&& bUniqueVertexIDs==Other.bUniqueVertexIDs && bLayouts==Other.bLayouts
+					&& bUniqueVertexIDs==Other.bUniqueVertexIDs && bLayouts==Other.bLayouts 
+					&& bClampUVIslands == Other.bClampUVIslands && bNormalizeUVs == Other.bNormalizeUVs
 					&& ActiveTags==Other.ActiveTags
 					&& OverrideLayouts ==Other.OverrideLayouts;
 			}
-
 		};
 
 		//! Store the results of the code generation of a mesh.

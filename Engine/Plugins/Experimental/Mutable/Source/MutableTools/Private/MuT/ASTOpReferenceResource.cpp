@@ -49,7 +49,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpReferenceResource::Link(FProgram& program, const FLinkerOptions* Options)
+	void ASTOpReferenceResource::Link(FProgram& program, FLinkerOptions* Options)
 	{
 		if (!linkedAddress)
 		{			
