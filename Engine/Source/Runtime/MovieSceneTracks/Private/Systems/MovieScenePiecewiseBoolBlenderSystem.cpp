@@ -44,10 +44,23 @@ struct TSimpleBlendResultTraits<bool>
 UMovieScenePiecewiseBoolBlenderSystem::UMovieScenePiecewiseBoolBlenderSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	using namespace UE::MovieScene;
+
+	Phase = ESystemPhase::Scheduling;
+	
 	Impl.Setup(
 			this, 
 			UE::MovieScene::FBuiltInComponentTypes::Get()->BoolResult,
 			nullptr);
+}
+
+void UMovieScenePiecewiseBoolBlenderSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	CompactBlendChannels();
+
+	Impl.Schedule(Linker, AllocatedBlendChannels, TaskScheduler);
 }
 
 void UMovieScenePiecewiseBoolBlenderSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

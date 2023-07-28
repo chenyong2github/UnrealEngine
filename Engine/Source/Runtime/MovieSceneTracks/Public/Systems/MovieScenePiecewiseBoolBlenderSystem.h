@@ -23,6 +23,7 @@ public:
 
 	MOVIESCENETRACKS_API UMovieScenePiecewiseBoolBlenderSystem(const FObjectInitializer& ObjInit);
 
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:

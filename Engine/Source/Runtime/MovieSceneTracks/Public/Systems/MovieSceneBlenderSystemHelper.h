@@ -66,7 +66,7 @@ struct TSimpleBlenderGatherResults
 		, BlendChannelResults(InBlendChannelResults)
 	{}
 
-	void ForEachEntity(FMovieSceneBlendChannelID BlendChannelInput, PropertyType Value)
+	void ForEachEntity(FMovieSceneBlendChannelID BlendChannelInput, PropertyType Value) const
 	{
 		using FResultTraits = TSimpleBlendResultTraits<PropertyType>;
 
@@ -89,7 +89,7 @@ struct TSimpleBlenderCombineResults
 		, BlendChannelResults(InBlendChannelResults)
 	{}
 
-	void ForEachEntity(FMovieSceneBlendChannelID BlendChannelOutput, PropertyType& OutValue)
+	void ForEachEntity(FMovieSceneBlendChannelID BlendChannelOutput, PropertyType& OutValue) const
 	{
 		using FResultTraits = TSimpleBlendResultTraits<PropertyType>;
 
@@ -131,6 +131,58 @@ public:
 		{
 			BlenderSystem->DefineImplicitPrerequisite(ChannelEvaluatorSystem, BlenderSystem->GetClass());
 		}
+	}
+
+	void Schedule(UMovieSceneEntitySystemLinker* Linker, TBitArray<>& AllocatedBlendChannels, IEntitySystemScheduler* TaskScheduler)
+	{
+		using namespace UE::MovieScene;
+
+		// If we have no blend channels, we're done.
+		const int32 MaximumNumBlends = AllocatedBlendChannels.Num();
+		if (MaximumNumBlends == 0)
+		{
+			return;
+		}
+
+		const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+		BlendChannelResults.Reset();
+
+		const bool bHasChannels = Linker->EntityManager.Contains(FEntityComponentFilter().All({
+					ResultComponentID, 
+					BlenderSystem->GetBlenderTypeTag(),
+					BuiltInComponents->BlendChannelInput }));
+		if (bHasChannels)
+		{
+			BlendChannelResults.SetNum(MaximumNumBlends);
+		}
+
+		// Reset the result buffer to the default values, as defined by the value type's traits.
+		FTaskID ResetWeightsTask = TaskScheduler->AddMemberFunctionTask(
+			FTaskParams(TEXT("Reset Simple Blender Weights")),
+			this, &TSimpleBlenderSystemImpl::ZeroAccumulationBuffers);
+
+		// Accumulate all contributors into the result buffer.
+		FTaskID AccumulateTask = FEntityTaskBuilder()
+			.Read(BuiltInComponents->BlendChannelInput)
+			.Read(ResultComponentID)
+			.FilterAll({ BlenderSystem->GetBlenderTypeTag() })
+			.FilterNone({ BuiltInComponents->Tags.Ignored })
+			.template Schedule_PerEntity<TSimpleBlenderGatherResults<PropertyType>>(
+					&Linker->EntityManager, TaskScheduler, BlenderSystem->GetBlenderSystemID(), BlendChannelResults);
+
+		TaskScheduler->AddPrerequisite(ResetWeightsTask, AccumulateTask);
+
+		// Compute the final blended values and assign them to the blend channel output entities.
+		FTaskID CombineTask = FEntityTaskBuilder()
+			.Read(BuiltInComponents->BlendChannelOutput)
+			.Write(ResultComponentID)
+			.FilterAll({ BlenderSystem->GetBlenderTypeTag() })
+			.FilterNone({ BuiltInComponents->Tags.Ignored })
+			.template Fork_PerEntity<TSimpleBlenderCombineResults<PropertyType>>(
+					&Linker->EntityManager, TaskScheduler, BlenderSystem->GetBlenderSystemID(), BlendChannelResults);
+
+		TaskScheduler->AddPrerequisite(AccumulateTask, CombineTask);
 	}
 
 	/**
@@ -192,6 +244,12 @@ public:
 			.FilterNone({ BuiltInComponents->Tags.Ignored })
 			.template Dispatch_PerEntity<TSimpleBlenderCombineResults<PropertyType>>(
 					&Linker->EntityManager, Prereqs, &Subsequents, BlenderSystem->GetBlenderSystemID(), BlendChannelResults);
+	}
+
+	void ZeroAccumulationBuffers()
+	{
+		using FResultTraits = TSimpleBlendResultTraits<PropertyType>;
+		FResultTraits::ZeroAccumulationBuffer(MakeArrayView(BlendChannelResults));
 	}
 
 private:
