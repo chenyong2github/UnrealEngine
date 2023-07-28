@@ -37,24 +37,18 @@ FDisplayClusterConfigurationICVFX_CameraRenderSettings::FDisplayClusterConfigura
 ///////////////////////////////////////////////////////////////////////////////////////
 const FOpenColorIOColorConversionSettings* FDisplayClusterConfigurationICVFX_LightcardCustomOCIO::FindOCIOConfiguration(const FString& InViewportId) const
 {
-	if (AllViewportsOCIOConfiguration.bIsEnabled)
+	// Note: Lightcard OCIO is enabled from the drop-down menu, so we ignore AllViewportsOCIOConfiguration.bIsEnabled (the property isn't exposed)
+	
+	// Per viewport OCIO:
+	for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : PerViewportOCIOProfiles)
 	{
-		// Per viewport OCIO:
-		for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : PerViewportOCIOProfiles)
+		if (OCIOProfileIt.IsEnabledForObject(InViewportId))
 		{
-			if (OCIOProfileIt.IsEnabledForObject(InViewportId))
-			{
-				return &OCIOProfileIt.ColorConfiguration;
-			}
-		}
-
-		if (AllViewportsOCIOConfiguration.IsEnabled())
-		{
-			return &AllViewportsOCIOConfiguration.ColorConfiguration;
+			return &OCIOProfileIt.ColorConfiguration;
 		}
 	}
 
-	return nullptr;
+	return &AllViewportsOCIOConfiguration.ColorConfiguration;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -73,10 +67,7 @@ const FOpenColorIOColorConversionSettings* FDisplayClusterConfigurationICVFX_Vie
 			}
 		}
 
-		if (AllViewportsOCIOConfiguration.IsEnabled())
-		{
-			return &AllViewportsOCIOConfiguration.ColorConfiguration;
-		}
+		return &AllViewportsOCIOConfiguration.ColorConfiguration;
 	}
 
 	return nullptr;
@@ -98,10 +89,7 @@ const FOpenColorIOColorConversionSettings* FDisplayClusterConfigurationICVFX_Cam
 			}
 		}
 
-		if (AllNodesOCIOConfiguration.IsEnabled())
-		{
-			return &AllNodesOCIOConfiguration.ColorConfiguration;
-		}
+		return &AllNodesOCIOConfiguration.ColorConfiguration;
 	}
 
 	return nullptr;
@@ -119,7 +107,7 @@ bool FDisplayClusterConfigurationICVFX_CameraOCIO::IsInnerFrustumViewportSetting
 	{
 		for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : PerNodeOCIOProfiles)
 		{
-			if (OCIOProfileIt.IsEnabled())
+			if (OCIOProfileIt.bIsEnabled)
 			{
 				const FString* CustomNode1 = OCIOProfileIt.ApplyOCIOToObjects.FindByPredicate([ClusterNodeId = InClusterNodeId1](const FString& InClusterNodeId)
 					{

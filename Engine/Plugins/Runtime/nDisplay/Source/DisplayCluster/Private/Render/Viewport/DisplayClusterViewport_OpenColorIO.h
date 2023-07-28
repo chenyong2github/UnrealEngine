@@ -60,9 +60,6 @@ public:
 	/* This is a copy of FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_RenderThread() */
 	FScreenPassTexture PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs);
 
-	/** Is OCIO enabled for render thread */
-	bool IsEnabled_RenderThread() const;
-
 	/** Compare two OCIO configurations.
 	 *
 	 * @param InConversionSettings - configuration to compare with.
@@ -90,7 +87,4 @@ private:
 
 	/** Shader resources state. */
 	bool bShaderResourceValid = true;
-
-	/** Configuration data state. */
-	TAtomic<bool> bIsEnabled = true;
 };

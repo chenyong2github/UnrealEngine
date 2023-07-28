@@ -19,7 +19,7 @@ struct FDisplayClusterConfigurationOCIOConfiguration
 
 	/**  Enable the application of an OpenColorIO configuration to all viewports. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO")
-	bool bIsEnabled = true;
+	bool bIsEnabled = false;
 
 	/** "This property has been deprecated. */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the ColorConfiguration property instead"))
@@ -30,8 +30,22 @@ struct FDisplayClusterConfigurationOCIOConfiguration
 	FOpenColorIOColorConversionSettings ColorConfiguration;
 
 public:
+
+	bool Serialize(FArchive& Ar);
+	void PostSerialize(const FArchive& Ar);
+	
+	UE_DEPRECATED(5.3, "This method is deprecated.")
 	/** Return true if configuration valid */
 	bool IsEnabled() const;
+};
+
+template<> struct TStructOpsTypeTraits<FDisplayClusterConfigurationOCIOConfiguration> : public TStructOpsTypeTraitsBase2<FDisplayClusterConfigurationOCIOConfiguration>
+{
+	enum
+	{
+		WithSerializer = true,
+		WithPostSerialize = true,
+	};
 };
 
 /*
@@ -46,7 +60,7 @@ struct FDisplayClusterConfigurationOCIOProfile
 
 	/** Enable the application of an OpenColorIO configuration for the viewport(s) specified. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO")
-	bool bIsEnabled = true;
+	bool bIsEnabled = false;
 
 	/** "This property has been deprecated. */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the ColorConfiguration property instead"))
@@ -61,10 +75,23 @@ struct FDisplayClusterConfigurationOCIOProfile
 	FOpenColorIOColorConversionSettings ColorConfiguration;
 
 public:
+	
+	bool Serialize(FArchive& Ar);
+	void PostSerialize(const FArchive& Ar);
+
 	/** Return true if the configuration is valid for the input object */
 	bool IsEnabledForObject(const FString& InObjectId) const;
-
+	
+	UE_DEPRECATED(5.3, "This method is deprecated.")
 	/** Return true if configuration valid */
 	bool IsEnabled() const;
 };
 
+template<> struct TStructOpsTypeTraits<FDisplayClusterConfigurationOCIOProfile> : public TStructOpsTypeTraitsBase2<FDisplayClusterConfigurationOCIOProfile>
+{
+	enum
+	{
+		WithSerializer = true,
+		WithPostSerialize = true,
+	};
+};

@@ -4,6 +4,7 @@
 
 #include "OpenColorIOConfiguration.h"
 #include "OpenColorIOSettings.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOColorSpace)
 
@@ -242,4 +243,27 @@ void FOpenColorIOColorConversionSettings::ValidateColorSpaces()
 bool FOpenColorIOColorConversionSettings::IsDisplayView() const
 {
 	return DestinationDisplayView.IsValid();
+}
+
+bool FOpenColorIODisplayConfiguration::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	
+	// Don't actually serialize, just write the custom version for PostSerialize
+	return false;
+}
+
+void FOpenColorIODisplayConfiguration::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::OpenColorIODisabledDisplayConfigurationDefault)
+		{
+			// Retain previous behavior: enabled only when the settings were valid
+			if (ColorConfiguration.IsValid())
+			{
+				bIsEnabled = true;
+			}
+		}
+	}
 }

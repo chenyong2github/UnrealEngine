@@ -150,6 +150,9 @@ struct FUE5ReleaseStreamObjectVersion
 
 		// Serialize bActorIsListedInSceneOutliner in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeActorIsListedInSceneOutliner,
+
+		// Disabled opencolorio display configuration by default
+		OpenColorIODisabledDisplayConfigurationDefault,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

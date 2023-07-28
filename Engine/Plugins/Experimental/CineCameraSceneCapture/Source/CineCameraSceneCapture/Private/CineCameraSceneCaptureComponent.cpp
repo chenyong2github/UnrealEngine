@@ -160,7 +160,6 @@ UCineCaptureComponent2D::UCineCaptureComponent2D(const FObjectInitializer& Objec
 {
 	CaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
 	bAlwaysPersistRenderingState = true;
-	OCIOConfiguration.bIsEnabled = false;
 }
 
 void UCineCaptureComponent2D::UpdateSceneCaptureContents(FSceneInterface* Scene)

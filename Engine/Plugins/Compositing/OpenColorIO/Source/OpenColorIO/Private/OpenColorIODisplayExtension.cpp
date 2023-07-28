@@ -29,12 +29,9 @@ FOpenColorIODisplayExtension::FOpenColorIODisplayExtension(const FAutoRegister& 
 
 bool FOpenColorIODisplayExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	if (Context.Viewport && LinkedViewportClient == Context.Viewport->GetClient() && DisplayConfiguration.bIsEnabled)
+	if (Context.Viewport && LinkedViewportClient == Context.Viewport->GetClient())
 	{
-		if (DisplayConfiguration.ColorConfiguration.IsValid())
-		{
-			return DisplayConfiguration.ColorConfiguration.ConfigurationSource->IsTransformReady(DisplayConfiguration.ColorConfiguration);
-		}
+		return DisplayConfiguration.bIsEnabled;
 	}
 
 	return false;

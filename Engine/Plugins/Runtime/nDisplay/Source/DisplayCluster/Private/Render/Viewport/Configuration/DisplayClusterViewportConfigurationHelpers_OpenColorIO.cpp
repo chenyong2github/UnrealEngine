@@ -87,14 +87,6 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateChromakeyVie
 
 void FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ApplyOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIOColorConversionSettings& InConversionSettings)
 {
-	// Check OCIO before apply
-	if(!InConversionSettings.IsValid())
-	{
-		DisableOCIOConfiguration(DstViewport);
-
-		return;
-	}
-
 	if (DstViewport.OpenColorIO.IsValid() && DstViewport.OpenColorIO->IsConversionSettingsEqual(InConversionSettings))
 	{
 		// Already assigned

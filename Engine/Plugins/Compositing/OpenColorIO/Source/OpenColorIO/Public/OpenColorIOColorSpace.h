@@ -226,10 +226,22 @@ public:
 	 * dictate whether it's applied or not to it
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
-	bool bIsEnabled = true;
+	bool bIsEnabled = false;
 	
 	/** Conversion to apply when this display is enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
 	FOpenColorIOColorConversionSettings ColorConfiguration;
+
+	bool Serialize(FArchive& Ar);
+	void PostSerialize(const FArchive& Ar);
+};
+
+template<> struct TStructOpsTypeTraits<FOpenColorIODisplayConfiguration> : public TStructOpsTypeTraitsBase2<FOpenColorIODisplayConfiguration>
+{
+	enum
+	{
+		WithSerializer = true,
+		WithPostSerialize = true,
+	};
 };
 

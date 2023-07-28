@@ -163,8 +163,6 @@ FOpenColorIORenderPassResources FOpenColorIORendering::GetRenderPassResources(co
 			check(Result.ShaderResource);
 			if (Result.ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
 			{
-				ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *Result.ShaderResource->GetFriendlyName());
-
 				//Invalidate shader resource
 				Result.ShaderResource = nullptr;
 			}

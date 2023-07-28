@@ -39,15 +39,6 @@ void FDisplayClusterViewport_OpenColorIO::SetupSceneView(FSceneViewFamily& InOut
 
 void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 {
-	bShaderResourceValid = false;
-	bIsEnabled = ConversionSettings.IsValid() ? ConversionSettings.ConfigurationSource->IsTransformReady(ConversionSettings) : false;
-
-	if (!bIsEnabled)
-	{
-		// The data in this configuration was not correctly initialized in the previous frame. Ignore this OCIO
-		return;
-	}
-
 	FOpenColorIORenderPassResources PassResources = FOpenColorIORendering::GetRenderPassResources(ConversionSettings, GMaxRHIFeatureLevel);
 
 	bShaderResourceValid = PassResources.IsValid();
@@ -59,11 +50,6 @@ void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 			This->CachedResourcesRenderThread = PassResourcesRenderThread;
 		}
 	);
-}
-
-bool FDisplayClusterViewport_OpenColorIO::IsEnabled_RenderThread() const
-{
-	return bIsEnabled;
 }
 
 bool FDisplayClusterViewport_OpenColorIO::IsConversionSettingsEqual(const FOpenColorIOColorConversionSettings& InConversionSettings) const
@@ -86,33 +72,28 @@ float FDisplayClusterViewport_OpenColorIO::GetDisplayGamma(const FDisplayCluster
 bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext,
 	FRHITexture2D* InputTextureRHI, const FIntRect& InputRect, FRHITexture2D* OutputTextureRHI, const FIntRect& OutputRect, bool bUnpremultiply, bool bInvertAlpha) const
 {
-	if (IsEnabled_RenderThread())
+	FRDGTextureRef InputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InputTextureRHI, TEXT("nDisplayOCIOInputTexture")));
+	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(OutputTextureRHI, TEXT("nDisplayOCIORenderTargetTexture")));
+
+	FScreenPassRenderTarget Output = FScreenPassRenderTarget(OutputTexture, OutputRect, ERenderTargetLoadAction::EClear);
+	EOpenColorIOTransformAlpha TransformAlpha = EOpenColorIOTransformAlpha::None;
+	if (bUnpremultiply)
 	{
-		FRDGTextureRef InputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InputTextureRHI, TEXT("nDisplayOCIOInputTexture")));
-		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(OutputTextureRHI, TEXT("nDisplayOCIORenderTargetTexture")));
-
-		FScreenPassRenderTarget Output = FScreenPassRenderTarget(OutputTexture, OutputRect, ERenderTargetLoadAction::EClear);
-		EOpenColorIOTransformAlpha TransformAlpha = EOpenColorIOTransformAlpha::None;
-		if (bUnpremultiply)
-		{
-			TransformAlpha = bInvertAlpha ? EOpenColorIOTransformAlpha::InvertUnpremultiply: EOpenColorIOTransformAlpha::Unpremultiply;
-		}
-
-		FOpenColorIORendering::AddPass_RenderThread(
-			GraphBuilder,
-			FScreenPassViewInfo(),
-			GMaxRHIFeatureLevel,
-			FScreenPassTexture(InputTexture),
-			Output,
-			CachedResourcesRenderThread,
-			GetDisplayGamma(InViewportContext),
-			TransformAlpha
-		);
-
-		return true;
+		TransformAlpha = bInvertAlpha ? EOpenColorIOTransformAlpha::InvertUnpremultiply : EOpenColorIOTransformAlpha::Unpremultiply;
 	}
 
-	return false;
+	FOpenColorIORendering::AddPass_RenderThread(
+		GraphBuilder,
+		FScreenPassViewInfo(),
+		GMaxRHIFeatureLevel,
+		FScreenPassTexture(InputTexture),
+		Output,
+		CachedResourcesRenderThread,
+		GetDisplayGamma(InViewportContext),
+		TransformAlpha
+	);
+
+	return true;
 }
 
 // This is a copy of FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_RenderThread()
@@ -133,11 +114,9 @@ FScreenPassTexture FDisplayClusterViewport_OpenColorIO::PostProcessPassAfterTone
 	FOpenColorIORendering::AddPass_RenderThread(
 		GraphBuilder,
 		ViewInfo,
-		ViewInfo.GetFeatureLevel(),
 		SceneColor,
 		Output,
-		CachedResourcesRenderThread,
-		GetDisplayGamma(InViewportContext)
+		CachedResourcesRenderThread
 	);
 
 	return MoveTemp(Output);
