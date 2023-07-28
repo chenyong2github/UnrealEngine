@@ -123,12 +123,18 @@ void FPCGOverrideInstancedPropertyBagDataDetails::OnChildRowAdded(IDetailPropert
 		return;
 	}
 
+	TSharedPtr<IPropertyHandle> ChildPropertyHandle = ChildRow.GetPropertyHandle();
+	if (!ChildPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	ChildPropertyHandle->SetInstanceMetaData("NoResetToDefault", "true");
+
 	TSharedPtr<SWidget> NameWidget;
 	TSharedPtr<SWidget> ValueWidget;
 	FDetailWidgetRow Row;
 	ChildRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
-
-	TSharedPtr<IPropertyHandle> ChildPropertyHandle = ChildRow.GetPropertyHandle();
 
 	FGuid PropertyID;
 
