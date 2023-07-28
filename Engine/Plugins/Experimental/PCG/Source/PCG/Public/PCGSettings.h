@@ -346,6 +346,10 @@ protected:
 	/** Method that can be called to dirty the cache data from this settings objects if the operator== does not allow to detect changes */
 	void DirtyCache();
 
+	// We need the more complex function (with PropertyChain) to detect child properties in structs, if they are overridable
+	virtual bool CanEditChange(const FEditPropertyChain& InPropertyChain) const override;
+
+	// Passthrough for the simpler method, to avoid modifying the child settings already overriding this method.
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
