@@ -20,6 +20,6 @@ public:
 	}
 
 	virtual void RegisterCommands() override;	
-
-	TSharedPtr<FUICommandInfo> Delete;
+	
+	TSharedPtr<FUICommandInfo> DeleteSection;
 };

@@ -6,7 +6,7 @@
 
 void FNiagaraHierarchyEditorCommands::RegisterCommands()
 {
-	UI_COMMAND(Delete, "Delete", "Delete current selection", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete))
+	UI_COMMAND(DeleteSection, "Delete", "Delete currently selected section", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete))
 }
 
 #undef LOCTEXT_NAMESPACE

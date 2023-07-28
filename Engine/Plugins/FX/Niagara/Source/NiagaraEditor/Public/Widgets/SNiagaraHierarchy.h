@@ -37,7 +37,7 @@ public:
 	bool OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const;
 	FReply OnDroppedOn(const FGeometry&, const FDragDropEvent& DragDropEvent, EItemDropZone DropZone) const;
 
-	void EnterEditingMode() const;
+	void TryEnterEditingMode() const;
 
 	TSharedPtr<struct FNiagaraHierarchySectionViewModel> GetSectionViewModel();
 private:
@@ -133,8 +133,11 @@ private:
 	void ClearSourceItems() const;
 
 	void DeleteItems(TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> ItemsToDelete) const;
-	void DeleteSelectedItems() const;
-	bool CanDeleteSelectedItems() const;
+	void DeleteSelectedHierarchyItems() const;
+	bool CanDeleteSelectedHierarchyItems() const;
+
+	void DeleteActiveSection() const;
+	bool CanDeleteActiveSection() const;
 
 	void OnItemAdded(TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddedItem);
 	void OnHierarchySectionActivated(TSharedPtr<FNiagaraHierarchySectionViewModel> Section);
