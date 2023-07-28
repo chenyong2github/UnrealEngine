@@ -505,8 +505,6 @@ namespace mu
 					constantOp->SetValue( pImage, bUseDiskCache );
 					m_result = constantOp;
 				}
-
-				check(m_result);
 				break;
 			}
 
