@@ -770,7 +770,7 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 			}
 		}
 
-		if (ShadingMaterial == nullptr)
+		if (ShadingMaterial == nullptr || Component->ShouldRenderProxyFallbackToDefaultMaterial())
 		{
 			ShadingMaterial = MaterialSection.bHidden ? GEngine->NaniteHiddenSectionMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
 		}
