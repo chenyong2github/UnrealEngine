@@ -37,6 +37,9 @@ namespace Audio
 		// interpolates coefficient and processes a buffer
 		SIGNALPROCESSING_API void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
 
+		// interpolates coefficient and processes a buffer
+		SIGNALPROCESSING_API void ProcessBufferInPlace(float* InOutBuffer, int32 NumSamples);
+
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.
 			Snaps the coefficient to the target value.
