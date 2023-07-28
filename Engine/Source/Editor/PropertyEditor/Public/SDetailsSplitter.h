@@ -18,9 +18,15 @@ public:
 			/** When the RuleSize is set to FractionOfParent, the size of the slot is the Value percentage of its parent size. */
 			SLATE_ATTRIBUTE(float, Value)
 			SLATE_ARGUMENT(TSharedPtr<IDetailsView>, DetailsView)
-			SLATE_ATTRIBUTE(bool, IsReadonly)
+			SLATE_ATTRIBUTE(bool, IsReadonly) // default true
 			SLATE_ATTRIBUTE(TSharedPtr<FAsyncDetailViewDiff>, DifferencesWithRightPanel)
 		SLATE_SLOT_END_ARGS()
+	};
+	struct FPanel
+	{
+		TSharedPtr<IDetailsView> DetailsView;
+		TAttribute<bool> IsReadonly;
+		TAttribute<TSharedPtr<FAsyncDetailViewDiff>> DiffRight;
 	};
 	static FSlot::FSlotArguments Slot();
 	
@@ -40,15 +46,9 @@ public:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	
 	void AddSlot(const FSlot::FSlotArguments& SlotArgs, int32 Index = INDEX_NONE);
+	FPanel& GetPanel(int32 Index);
 
 private:
-	
-	struct FPanel
-	{
-		TSharedPtr<IDetailsView> DetailsView;
-		TAttribute<bool> IsReadonly;
-		TAttribute<TSharedPtr<FAsyncDetailViewDiff>> DiffRight;
-	};
 	
 	enum class EPropertyCopyDirection
 	{

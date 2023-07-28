@@ -339,6 +339,7 @@ void SDetailsDiff::GenerateDifferencesList()
 	PrimaryDifferencesList.Empty();
 	RealDifferences.Empty();
 	ModePanels.Empty();
+	OnOutputObjectSetEvent.Clear(); // will be repopulated by ModePanel generation methods
 
 	// Now that we have done the diffs, create the panel widgets
 	// (we're currently only generating the details panel but we can add more as needed)
@@ -382,20 +383,30 @@ SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 		const TSharedPtr<FDetailsDiffControl> DiffControl = WeakDiffControl.Pin();
 		if (Splitter && DiffControl)
 		{
-			TSharedRef<IDetailsView> DetailsView = DiffControl->InsertObject(OutputObjectModified, false, 1);
+			// if output object is already in panel, don't insert a new one
+			TSharedPtr<IDetailsView> DetailsView = DiffControl->TryGetDetailsWidget(OutputObjectUnmodified);
+			if (DetailsView)
+			{
+				// update readonly status in splitter so that property merge buttons appear
+				const int32 Index = DiffControl->IndexOfObject(OutputObjectUnmodified);
+				Splitter->GetPanel(Index).IsReadonly = false;
+			}
+			else
+			{
+				DetailsView = DiffControl->InsertObject(OutputObjectModified, false, 1);
+				// insert the output object as a central panel
+				Splitter->AddSlot(
+					SDetailsSplitter::Slot()
+						.DetailsView(DetailsView)
+						.Value(0.5f)
+						.IsReadonly(false)
+						.DifferencesWithRightPanel(DiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, (const UObject*)OutputObjectModified),
+					1 // insert between left and right panel (index 1)
+				);
+			}
 
 			// allow user to edit the output panel
 			DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([]{return true; }));
-			
-			// insert the output object as a central panel
-			Splitter->AddSlot(
-				SDetailsSplitter::Slot()
-					.DetailsView(DiffControl->GetDetailsWidget(OutputObjectModified))
-					.Value(0.5f)
-					.IsReadonly(false)
-					.DifferencesWithRightPanel(DiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, (const UObject*)OutputObjectModified),
-				1 // insert between left and right panel (index 1)
-			);
 		}
 	});
 

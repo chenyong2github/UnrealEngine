@@ -420,6 +420,15 @@ TSharedRef<IDetailsView> FDetailsDiffControl::GetDetailsWidget(const UObject* Ob
 	return DetailsDiffs[Object].DetailsWidget();
 }
 
+TSharedPtr<IDetailsView> FDetailsDiffControl::TryGetDetailsWidget(const UObject* Object) const
+{
+	if (const FDetailsDiff* Found = DetailsDiffs.Find(Object))
+	{
+		return Found->DetailsWidget();
+	}
+	return nullptr;
+}
+
 TSharedPtr<FAsyncDetailViewDiff> FDetailsDiffControl::GetDifferencesWithLeft(const UObject* Object) const
 {
 	return PropertyTreeDifferences[Object].Left;
@@ -428,6 +437,11 @@ TSharedPtr<FAsyncDetailViewDiff> FDetailsDiffControl::GetDifferencesWithLeft(con
 TSharedPtr<FAsyncDetailViewDiff> FDetailsDiffControl::GetDifferencesWithRight(const UObject* Object) const
 {
 	return PropertyTreeDifferences[Object].Right;
+}
+
+int32 FDetailsDiffControl::IndexOfObject(const UObject* Object) const
+{
+	return ObjectDisplayOrder.IndexOfByKey(Object);
 }
 
 void FDetailsDiffControl::OnSelectDiffEntry(FPropertySoftPath PropertyName)

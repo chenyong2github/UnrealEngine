@@ -149,6 +149,8 @@ public:
 	void Construct(const FArguments& InArgs);
 	virtual ~SBlueprintDiff();
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 	/** Called when a new Graph is clicked on by user */
 	void OnGraphChanged(FGraphToDiff* Diff);
 

@@ -184,7 +184,12 @@ EAssetCommandResult UAssetDefinition_DataAsset::PerformAssetDiff(const FAssetDif
 		return EAssetCommandResult::Unhandled;
 	}
 	
-	SDetailsDiff::CreateDiffWindow(DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision, UDataAsset::StaticClass());
+	const TSharedRef<SDetailsDiff> DetailsDiff = SDetailsDiff::CreateDiffWindow(DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision, UDataAsset::StaticClass());
+	// allow users to edit NewAsset if it's a local asset
+	if (!FPackageName::IsTempPackage(DiffArgs.NewAsset->GetPackage()->GetName()))
+	{
+		DetailsDiff->SetOutputObject(DiffArgs.NewAsset);
+	}
 	return EAssetCommandResult::Handled;
 }
 
