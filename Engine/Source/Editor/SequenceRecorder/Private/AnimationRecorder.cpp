@@ -369,7 +369,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 {
 	double StartTime, ElapsedTime = 0;
 
-	if (AnimationObject)
+	if (IsValid(AnimationObject) && !AnimationObject->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 	{
 		IAnimationDataController& Controller = AnimationObject->GetController();
 		int32 NumKeys = LastFrame.Value + 1;
