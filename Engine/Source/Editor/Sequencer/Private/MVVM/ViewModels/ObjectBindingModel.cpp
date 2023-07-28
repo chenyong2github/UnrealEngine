@@ -931,7 +931,7 @@ void FObjectBindingModel::AddDynamicBindingMenu(FMenuBuilder& MenuBuilder, FMovi
 
 	// Register details customizations for this instance
 	TSharedPtr<FSequencer> Sequencer = OwnerModel->GetSequencerImpl();
-	UMovieSceneSequence* Sequence = Sequencer->GetRootMovieSceneSequence();
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
 	StructureDetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(
 		FMovieSceneDynamicBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMovieSceneDynamicBindingCustomization::MakeInstance, Sequence->GetMovieScene(), ObjectBindingID));
