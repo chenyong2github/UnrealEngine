@@ -8,6 +8,7 @@
 class SWidget;
 class FDragDropOperation;
 class FDisplayClusterConfiguratorBlueprintEditor;
+class FScopedTransaction;
 class UDisplayClusterConfigurationData_Base;
 class UDisplayClusterConfigurationCluster;
 class UDisplayClusterConfigurationHostDisplayData;
@@ -26,10 +27,13 @@ public:
 	 * @param Toolkit - The blueprint editor toolkit being used.
 	 * @param Cluster - The initial cluster the user wants to add the cluster node to.
 	 * @param PresetRect - The initial rectangle to configure the new cluster node with in the dialog box.
+	 * @param OutTransaction - The transaction created when adding a cluster node. May be null if the user canceled the operation.
 	 * @param PresetHost - Optional initial host string to configure the new cluster node with in the dialog box.
 	 * @return The newly created cluster node, or null if the user cancelled out of the dialog box.
 	 */
-	static UDisplayClusterConfigurationClusterNode* CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect,
+	static UDisplayClusterConfigurationClusterNode* CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit,
+		UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect,
+		TSharedPtr<FScopedTransaction>& OutTransaction,
 		FString PresetHost = NDISPLAY_DEFAULT_CLUSTER_HOST);
 
 	/**
@@ -37,9 +41,12 @@ public:
 	 * @param Toolkit - The blueprint editor toolkit being used.
 	 * @param ClusterNode - The initial cluster node the user wants to add the viewport to, or null to use the first cluster node in the cluster.
 	 * @param PresetRect - The initial rectangle to configure the new viewport with in the dialog box.
+	 * @param OutTransaction - The transaction created when adding a viewport. May be null if the user canceled the operation.
 	 * @return The newly created viewport, or null if the user cancelled out of the dialog box.
 	 */
-	static UDisplayClusterConfigurationViewport* CreateNewViewportFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationClusterNode* ClusterNode, const FDisplayClusterConfigurationRectangle& PresetRect);
+	static UDisplayClusterConfigurationViewport* CreateNewViewportFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit,
+		UDisplayClusterConfigurationClusterNode* ClusterNode, const FDisplayClusterConfigurationRectangle& PresetRect,
+		TSharedPtr<FScopedTransaction>& OutTransaction);
 
 	/**
 	 * Displays a dialog box used to configure new cluster item properties before adding the new item to the cluster configuration.

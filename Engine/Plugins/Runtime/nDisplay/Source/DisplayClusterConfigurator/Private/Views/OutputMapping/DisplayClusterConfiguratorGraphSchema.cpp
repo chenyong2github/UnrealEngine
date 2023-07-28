@@ -36,13 +36,11 @@ UEdGraphNode* FDisplayClusterConfiguratorSchemaAction_NewNode::PerformAction(UEd
 	switch (ItemType)
 	{
 	case EClusterItemType::ClusterNode:
-		Transaction = MakeShareable(new FScopedTransaction(LOCTEXT("AddClusterNode", "Add Cluster Node")));
-		CreatedObject = FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(Toolkit.ToSharedRef(), Cluster, PresetRect);
+		CreatedObject = FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(Toolkit.ToSharedRef(), Cluster, PresetRect, Transaction);
 		break;
 
 	case EClusterItemType::Viewport:
-		Transaction = MakeShareable(new FScopedTransaction(LOCTEXT("AddViewport", "Add Viewport")));
-		CreatedObject = FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(Toolkit.ToSharedRef(), nullptr, PresetRect);
+		CreatedObject = FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(Toolkit.ToSharedRef(), nullptr, PresetRect, Transaction);
 		break;
 	}
 
@@ -50,10 +48,6 @@ UEdGraphNode* FDisplayClusterConfiguratorSchemaAction_NewNode::PerformAction(UEd
 	{
 		Toolkit->GetEditorData()->MarkPackageDirty();
 		Toolkit->ClusterChanged();
-	}
-	else
-	{
-		Transaction->Cancel();
 	}
 
 	Transaction.Reset();

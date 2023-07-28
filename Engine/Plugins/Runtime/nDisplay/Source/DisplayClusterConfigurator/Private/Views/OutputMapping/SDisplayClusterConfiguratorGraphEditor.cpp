@@ -399,29 +399,25 @@ void SDisplayClusterConfiguratorGraphEditor::AddNewClusterNode()
 	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() == 1)
 	{
-		FScopedTransaction Transaction(LOCTEXT("AddClusterNode", "Add Cluster Node"));
-
 		FString Host;
-		if (UDisplayClusterConfiguratorHostNode* HostNode = Cast<UDisplayClusterConfiguratorHostNode>(*SelectedNodes.begin()))
+		if (const UDisplayClusterConfiguratorHostNode* HostNode = Cast<UDisplayClusterConfiguratorHostNode>(*SelectedNodes.begin()))
 		{
 			Host = HostNode->GetNodeName();
 		}
 
-		TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+		const TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
 		UDisplayClusterConfigurationCluster* Cluster = Toolkit->GetEditorData()->Cluster;
 		const FVector2D PresetSize = FDisplayClusterConfiguratorPresetSize::CommonPresets[FDisplayClusterConfiguratorPresetSize::DefaultPreset].Size;
 		const FDisplayClusterConfigurationRectangle PresetRect = FDisplayClusterConfigurationRectangle(0, 0, PresetSize.X, PresetSize.Y);
 
-		if (UDisplayClusterConfigurationClusterNode* NewNode = FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(Toolkit.ToSharedRef(), Cluster, PresetRect, Host))
+		TSharedPtr<FScopedTransaction> Transaction;
+		if (UDisplayClusterConfigurationClusterNode* NewNode =
+			FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(Toolkit.ToSharedRef(), Cluster, PresetRect,Transaction, Host))
 		{
 			// Mark the cluster configuration data as dirty, allowing user to save the changes, and fire off a cluster changed event to let other
 			// parts of the UI update as well
 			Toolkit->GetEditorData()->MarkPackageDirty();
 			Toolkit->ClusterChanged();
-		}
-		else
-		{
-			Transaction.Cancel();
 		}
 	}
 }
@@ -443,28 +439,23 @@ void SDisplayClusterConfiguratorGraphEditor::AddNewViewport()
 	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() == 1)
 	{
-		FScopedTransaction Transaction(LOCTEXT("AddViewport", "Add Viewport"));
-
 		UDisplayClusterConfigurationClusterNode* SelectedClusterNode = nullptr;
-		if (UDisplayClusterConfiguratorWindowNode* WindowNode = Cast<UDisplayClusterConfiguratorWindowNode>(*SelectedNodes.begin()))
+		if (const UDisplayClusterConfiguratorWindowNode* WindowNode = Cast<UDisplayClusterConfiguratorWindowNode>(*SelectedNodes.begin()))
 		{
 			SelectedClusterNode = Cast<UDisplayClusterConfigurationClusterNode>(WindowNode->GetObject());
 		}
 
-		TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+		const TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
 		const FVector2D PresetSize = FDisplayClusterConfiguratorPresetSize::CommonPresets[FDisplayClusterConfiguratorPresetSize::DefaultPreset].Size;
 		const FDisplayClusterConfigurationRectangle PresetRect = FDisplayClusterConfigurationRectangle(0, 0, PresetSize.X, PresetSize.Y);
 
-		if (UDisplayClusterConfigurationViewport* NewViewport = FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(Toolkit.ToSharedRef(), SelectedClusterNode, PresetRect))
+		TSharedPtr<FScopedTransaction> Transaction;
+		if (UDisplayClusterConfigurationViewport* NewViewport = FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(Toolkit.ToSharedRef(), SelectedClusterNode, PresetRect, Transaction))
 		{
 			// Mark the cluster configuration data as dirty, allowing user to save the changes, and fire off a cluster changed event to let other
 			// parts of the UI update as well
 			Toolkit->GetEditorData()->MarkPackageDirty();
 			Toolkit->ClusterChanged();
-		}
-		else
-		{
-			Transaction.Cancel();
 		}
 	}
 }

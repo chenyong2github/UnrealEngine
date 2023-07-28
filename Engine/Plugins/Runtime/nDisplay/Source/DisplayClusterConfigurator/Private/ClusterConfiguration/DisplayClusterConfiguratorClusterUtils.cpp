@@ -18,6 +18,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UnrealExporter.h"
+#include "Editor/Transactor.h"
+#include "Editor/TransBuffer.h"
 #include "Exporters/Exporter.h"
 #include "Input/DragAndDrop.h"
 #include "Widgets/SBoxPanel.h"
@@ -31,11 +33,76 @@ const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewHostName = TEXT
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewClusterNodeName = TEXT("Node");
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewViewportName = TEXT("VP");
 
+namespace UE::DisplayClusterConfiguratorClusterUtils
+{
+	// All transactions performed within this scope can be considered temporary and will be cleared when out of scope.
+	// Transactions prior to the scope cannot be undone while in scope.
+	struct FScopedTemporaryTransactions
+	{
+		// The index of the transaction queue when entering the scope
+		int32 StartTransactionIdx = 0;
+		
+		FScopedTemporaryTransactions()
+		{
+			if (GEditor)
+			{
+				// Prevent undoing any actions before the scope started
+				GEditor->Trans->SetUndoBarrier();
+
+				// Record the transaction idx before we start our scoped transactions
+				StartTransactionIdx = GEditor->Trans->GetCurrentUndoBarrier();
+
+				// Broadcasting changes here can take a big performance hit and isn't necessary since we only use this in a modal window
+				GEditor->bSuspendBroadcastPostUndoRedo = true;
+			}
+		}
+
+		~FScopedTemporaryTransactions()
+		{
+			if (GEditor)
+			{
+				GEditor->bSuspendBroadcastPostUndoRedo = false;
+
+				// Clear all transactions that occurred while in scope, accounting for transactions that were
+				// undone. None of these transactions should be allowed to be undone or redone from this point forward
+				{
+					UTransBuffer* TransBuffer = CastChecked<UTransBuffer>(GEditor->Trans);
+					const int32 ScopedTransactionsPerformed = TransBuffer->UndoBuffer.Num() - StartTransactionIdx;
+				
+					if (ScopedTransactionsPerformed > 0
+						&& StartTransactionIdx >= 0
+						&& StartTransactionIdx < TransBuffer->UndoBuffer.Num()
+						&& (StartTransactionIdx + ScopedTransactionsPerformed - 1) < TransBuffer->UndoBuffer.Num())
+					{
+						// Remove only the transactions performed within scope
+						TransBuffer->UndoBuffer.RemoveAt(StartTransactionIdx, ScopedTransactionsPerformed);
+
+						// We can't restore redo items prior to the scope since they would have been cleared while
+						// performing transactions within the scope
+						TransBuffer->UndoCount = 0;
+
+						// Need to broadcast for other systems since we are changing the undo buffer manually
+						TransBuffer->OnUndoBufferChanged().Broadcast();
+					}
+				}
+
+				// Allow undos again from before the scope started
+				GEditor->Trans->RemoveUndoBarrier();
+			}
+		}
+	};
+}
+
 using namespace DisplayClusterConfiguratorPropertyUtils;
 
-UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect, FString PresetHost)
+UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(
+	const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit,
+	UDisplayClusterConfigurationCluster* Cluster,
+	const FDisplayClusterConfigurationRectangle& PresetRect,
+	TSharedPtr<FScopedTransaction>& OutTransaction,
+	FString PresetHost)
 {
-	UDisplayClusterConfigurationClusterNode* NodeTemplate = NewObject<UDisplayClusterConfigurationClusterNode>(Toolkit->GetBlueprintObj());
+	UDisplayClusterConfigurationClusterNode* NodeTemplate = NewObject<UDisplayClusterConfigurationClusterNode>(Toolkit->GetBlueprintObj(), NAME_None, RF_Transactional | RF_ArchetypeObject | RF_Public);
 	NodeTemplate->WindowRect = FDisplayClusterConfigurationRectangle(PresetRect);
 	NodeTemplate->Host = PresetHost;
 
@@ -46,7 +113,7 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 	
 	bool bAutoposition = true;
 	bool bAddViewport = true;
-	TSharedRef<SWidget> ClusterNodeFooter = SNew(SVerticalBox)
+	const TSharedRef<SWidget> ClusterNodeFooter = SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(2.0f)
@@ -75,7 +142,7 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 			]
 		];
 
-	TSharedRef<SDisplayClusterConfiguratorNewClusterItemDialog> DialogContent = SNew(SDisplayClusterConfiguratorNewClusterItemDialog, NodeTemplate)
+	const TSharedRef<SDisplayClusterConfiguratorNewClusterItemDialog> DialogContent = SNew(SDisplayClusterConfiguratorNewClusterItemDialog, NodeTemplate)
 		.ParentItemOptions(ParentItems)
 		.InitiallySelectedParentItem("Cluster")
 		.PresetItemOptions(FDisplayClusterConfiguratorPresetSize::CommonPresets)
@@ -86,20 +153,25 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 		.FooterContent(ClusterNodeFooter)
 		.OnPresetChanged_Lambda([=](FVector2D Size) { NodeTemplate->WindowRect.W = Size.X; NodeTemplate->WindowRect.H = Size.Y; });
 
-	ShowNewClusterItemDialogWindow(DialogContent, nullptr, LOCTEXT("AddNewClusterNode_DialogTitle", "Add New Cluster Node"), NewClusterItemDialogSize);
-
+	{
+		UE::DisplayClusterConfiguratorClusterUtils::FScopedTemporaryTransactions ScopedTransactionsForModal;
+		ShowNewClusterItemDialogWindow(DialogContent, nullptr, LOCTEXT("AddNewClusterNode_DialogTitle", "Add New Cluster Node"), NewClusterItemDialogSize);
+	}
+	
 	UDisplayClusterConfigurationClusterNode* NewNode = nullptr;
 
 	if (DialogContent->WasAccepted())
 	{
+		OutTransaction = MakeShared<FScopedTransaction>(LOCTEXT("AddClusterNode", "Add Cluster Node"));
+		
 		const FString ItemName = DialogContent->GetItemName();
 		NodeTemplate->SetFlags(RF_Transactional);
 
 		if (bAutoposition)
 		{
-			FVector2D DesiredPosition = FVector2D(NodeTemplate->WindowRect.X, NodeTemplate->WindowRect.Y);
-			FVector2D DesiredSize = FVector2D(NodeTemplate->WindowRect.W, NodeTemplate->WindowRect.H);
-			FVector2D NewPosition = FindNextAvailablePositionForClusterNode(Cluster, NodeTemplate->Host, DesiredPosition, DesiredSize);
+			const FVector2D DesiredPosition = FVector2D(NodeTemplate->WindowRect.X, NodeTemplate->WindowRect.Y);
+			const FVector2D DesiredSize = FVector2D(NodeTemplate->WindowRect.W, NodeTemplate->WindowRect.H);
+			const FVector2D NewPosition = FindNextAvailablePositionForClusterNode(Cluster, NodeTemplate->Host, DesiredPosition, DesiredSize);
 
 			NodeTemplate->WindowRect.X = NewPosition.X;
 			NodeTemplate->WindowRect.Y = NewPosition.Y;
@@ -131,7 +203,11 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 	return NewNode;
 }
 
-UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationClusterNode* ClusterNode, const FDisplayClusterConfigurationRectangle& PresetRect)
+UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(
+	const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit,
+	UDisplayClusterConfigurationClusterNode* ClusterNode,
+	const FDisplayClusterConfigurationRectangle& PresetRect,
+	TSharedPtr<FScopedTransaction>& OutTransaction)
 {
 	UDisplayClusterConfigurationViewport* ViewportTemplate = NewObject<UDisplayClusterConfigurationViewport>(Toolkit->GetBlueprintObj(), NAME_None, RF_Transactional | RF_ArchetypeObject | RF_Public);
 	ViewportTemplate->Region = FDisplayClusterConfigurationRectangle(PresetRect);
@@ -196,12 +272,17 @@ UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::C
 		.FooterContent(ViewportFooter)
 		.OnPresetChanged_Lambda([=](FVector2D Size) { ViewportTemplate->Region.W = Size.X; ViewportTemplate->Region.H = Size.Y; });
 
-	FDisplayClusterConfiguratorClusterUtils::ShowNewClusterItemDialogWindow(DialogContent, nullptr, LOCTEXT("AddNewViewport_DialogTitle", "Add New Viewport"), NewClusterItemDialogSize);
-
+	{
+		UE::DisplayClusterConfiguratorClusterUtils::FScopedTemporaryTransactions ScopedTransactionsForModal;
+		ShowNewClusterItemDialogWindow(DialogContent, nullptr, LOCTEXT("AddNewViewport_DialogTitle", "Add New Viewport"), NewClusterItemDialogSize);
+	}
+	
 	UDisplayClusterConfigurationViewport* NewViewport = nullptr;
 
 	if (DialogContent->WasAccepted())
 	{
+		OutTransaction = MakeShared<FScopedTransaction>(LOCTEXT("AddViewport", "Add Viewport"));
+		
 		const FString ParentItem = DialogContent->GetSelectedParentItem();
 		const FString ItemName = DialogContent->GetItemName();
 
