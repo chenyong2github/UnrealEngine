@@ -26,7 +26,7 @@ UENUM()
 enum class EGameplayAbilityActivationPath : uint8
 {
 	Native,		/* Ability has a Native Activate function (and therefore uninspectable by Blueprint analysis) */
-	Blueprint,	/* Ability has an Activate event implemented in Blueprints and is therefore not triggered by a GameplayEvent */
+	Blueprint,	/* Ability has an Activate event implemented in Blueprints and is therefore likely not triggered by a GameplayEvent */
 	FromEvent	/* Ability has an ActivateByEvent event implemented in Blueprints and is therefore activated by a GameplayEvent */
 };
 
@@ -64,6 +64,10 @@ protected:
 	/** The NetSecurityPolicy of the GameplayAbility */
 	UPROPERTY()
 	TEnumAsByte<EGameplayAbilityNetSecurityPolicy::Type> NetSecurityPolicy = EGameplayAbilityNetSecurityPolicy::Type::ClientOrServer;
+
+	/** The Replication Policy which controls if the instance itself is replicated (and therefore controls variable replication) */
+	UPROPERTY()
+	TEnumAsByte<EGameplayAbilityReplicationPolicy::Type> ReplicationPolicy = EGameplayAbilityReplicationPolicy::Type::ReplicateNo;
 
 	/** If the GameplayAbility has a Cost GameplayEffect, this field will tell us which one it's using. */
 	UPROPERTY()

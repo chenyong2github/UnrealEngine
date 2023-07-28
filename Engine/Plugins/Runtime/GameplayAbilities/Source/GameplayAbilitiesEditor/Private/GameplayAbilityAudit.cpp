@@ -92,6 +92,7 @@ void FGameplayAbilityAuditRow::FillDataFromGameplayAbility(const UGameplayAbilit
 
 	AuditRow.NetExecutionPolicy = GameplayAbility.GetNetExecutionPolicy();
 	AuditRow.NetSecurityPolicy = GameplayAbility.GetNetSecurityPolicy();
+	AuditRow.ReplicationPolicy = GameplayAbility.GetReplicationPolicy();
 }
 
 /**
