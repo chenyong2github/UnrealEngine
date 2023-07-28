@@ -158,7 +158,7 @@ TSharedRef<SWidget> SGraphNodeAnimTransition::GenerateRichTooltip()
 
 	if(TransNode->bAutomaticRuleBasedOnSequencePlayerInState)
 	{
-		if (CanExecPin->LinkedTo.Num() > 0)
+		if (CanExecPin != nullptr && CanExecPin->LinkedTo.Num() > 0)
 		{
 			Widget->AddSlot()
 				.AutoHeight()

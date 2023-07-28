@@ -177,7 +177,7 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 
 			if (TransNode->bAutomaticRuleBasedOnSequencePlayerInState)
 			{
-				if (CanExecPin->LinkedTo.Num() > 0)
+				if (CanExecPin != nullptr && CanExecPin->LinkedTo.Num() > 0)
 				{
 					TransitionCategory.AddCustomRow(LOCTEXT("AnimGraphNodeDetailsAutomaticRule_RowWarning", "Automatic Rule"))
 					[
