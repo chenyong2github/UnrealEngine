@@ -3296,24 +3296,27 @@ namespace Metasound
 				}
 				else if (!NodesModified.IsEmpty() || !MembersModified.IsEmpty())
 				{
-					TArray<TWeakObjectPtr<UObject>> SelectedObjects = MetasoundDetails->GetSelectedObjects();
-					const bool bShouldRefreshDetails = Algo::AnyOf(SelectedObjects, [&NodesModified, &MembersModified](const TWeakObjectPtr<UObject>& Obj)
+					if (MetasoundDetails.IsValid())
 					{
-						if (const UMetasoundEditorGraphNode* Node = Cast<const UMetasoundEditorGraphNode>(Obj.Get()))
+						TArray<TWeakObjectPtr<UObject>> SelectedObjects = MetasoundDetails->GetSelectedObjects();
+						const bool bShouldRefreshDetails = Algo::AnyOf(SelectedObjects, [&NodesModified, &MembersModified](const TWeakObjectPtr<UObject>& Obj)
+							{
+								if (const UMetasoundEditorGraphNode* Node = Cast<const UMetasoundEditorGraphNode>(Obj.Get()))
+								{
+									return NodesModified.Contains(Node->GetNodeID());
+								}
+								if (const UMetasoundEditorGraphMember* Member = Cast<const UMetasoundEditorGraphMember>(Obj.Get()))
+								{
+									return MembersModified.Contains(Member->GetMemberID());
+								}
+								return false;
+							});
+						if (bShouldRefreshDetails)
 						{
-							return NodesModified.Contains(Node->GetNodeID());
+							RefreshDetails();
 						}
-						if (const UMetasoundEditorGraphMember* Member = Cast<const UMetasoundEditorGraphMember>(Obj.Get()))
-						{
-							return MembersModified.Contains(Member->GetMemberID());
-						}
-						return false;
-					});
-					if (bShouldRefreshDetails)
-					{
-						RefreshDetails();
 					}
-
+					
 					// TODO: Because input editor nodes are not one-to-one, this can cause multi-selection
 					// when not desired.  Once input alias templates are complete, this can be switched on.
 					// For now, callsites are just directly setting selection via ClearSelectionAndSelectNode.

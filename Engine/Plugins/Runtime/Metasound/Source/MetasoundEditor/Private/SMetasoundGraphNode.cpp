@@ -62,6 +62,7 @@ namespace Metasound
 	{
 		SMetaSoundGraphNode::~SMetaSoundGraphNode()
 		{
+			// Clean up input widgets
 			UMetasoundEditorGraphNode& Node = GetMetaSoundNode();
 			if (UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(&Node))
 			{
@@ -69,16 +70,22 @@ namespace Metasound
 				{
 					if (UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(GraphMember->GetLiteral()))
 					{
+						// This may hit if the asset editor is closed while interacting with a widget 
+						// (ex. Ctrl-W is pressed mid drag before the value is committed)
+						if (bIsInputWidgetTransacting)
+						{
+							GEditor->EndTransaction();
+							if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
+							{
+								constexpr bool bPostTransaction = false;
+								GraphMember->UpdateFrontendDefaultLiteral(bPostTransaction);
+								Graph->GetModifyContext().AddMemberIDsModified({ GraphMember->GetMemberID() });
+							}
+						}
 						DefaultFloat->OnDefaultValueChanged.Remove(InputSliderOnValueChangedDelegateHandle);
 						DefaultFloat->OnRangeChanged.Remove(InputSliderOnRangeChangedDelegateHandle);
 					}
 				}
-			}
-
-			if (bIsInputWidgetTransacting)
-			{
-				GEditor->EndTransaction();
-				UE_LOG(LogMetaSound, Warning, TEXT("Unmatched MetaSound editor widget transaction."));
 			}
 		}
 
