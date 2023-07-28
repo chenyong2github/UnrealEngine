@@ -1089,8 +1089,10 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 					FKeyAttributes KeyAttributes = CurveEditor->GetDefaultKeyAttributes().Get();
 					if (KeyAttributes.HasInterpMode())
 					{
-						// Set interpolation mode based on surrounding keys, if any
-						KeyAttributes.SetInterpMode(CurveToAddTo->GetInterpolationMode(MouseTime, KeyAttributes.GetInterpMode()));
+						// Set interpolation and tangent mode based on surrounding keys, if any
+						TPair<ERichCurveInterpMode, ERichCurveTangentMode> Modes = CurveToAddTo->GetInterpolationMode(MouseTime, KeyAttributes.GetInterpMode(), KeyAttributes.GetTangentMode());
+						KeyAttributes.SetInterpMode(Modes.Key);
+						KeyAttributes.SetTangentMode(Modes.Value);
 					}
 
 					FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(HoveredCurve.GetValue());
@@ -1575,8 +1577,10 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 				FKeyAttributes KeyAttributes = CurveEditor->GetDefaultKeyAttribute().Get();
 				if (KeyAttributes.HasInterpMode())
 				{
-					// Set interpolation mode based on surrounding keys, if any
-					KeyAttributes.SetInterpMode(CurveModel->GetInterpolationMode(EvalTime, KeyAttributes.GetInterpMode()));
+					// Set interpolation and tangent mode based on surrounding keys, if any
+					TPair<ERichCurveInterpMode, ERichCurveTangentMode> Modes = CurveModel->GetInterpolationMode(EvalTime, KeyAttributes.GetInterpMode(), KeyAttributes.GetTangentMode());
+					KeyAttributes.SetInterpMode(Modes.Key);
+					KeyAttributes.SetTangentMode(Modes.Value);
 				}
 
 				// Add a key on this curve

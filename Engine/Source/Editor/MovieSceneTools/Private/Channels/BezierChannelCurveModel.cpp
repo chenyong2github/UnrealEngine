@@ -153,7 +153,7 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetKeyDrawInf
 }
 
 template <class ChannelType, class ChannelValue, class KeyType>
-ERichCurveInterpMode FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode) const
+TPair<ERichCurveInterpMode, ERichCurveTangentMode> FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode, ERichCurveTangentMode DefaultTangentMode) const
 {
 	ChannelType* Channel = this->GetChannelHandle().Get();
 	UMovieSceneSection* Section = Cast<UMovieSceneSection>(this->GetOwningObject());
@@ -179,11 +179,19 @@ ERichCurveInterpMode FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType
 			TArray<FKeyAttributes> KeyAttributes;
 			KeyAttributes.SetNum(1);
 			GetKeyAttributes(InKey, KeyAttributes);
-			return KeyAttributes[0].GetInterpMode();
+			ERichCurveInterpMode InterpMode = KeyAttributes[0].GetInterpMode();
+			ERichCurveTangentMode TangentMode = KeyAttributes[0].HasTangentMode() ? KeyAttributes[0].GetTangentMode() : DefaultTangentMode;
+			//if we are cubic, with anything but auto tangents we use the default instead, since they will give us flat tangents which aren't good
+			if (InterpMode == ERichCurveInterpMode::RCIM_Cubic &&
+				(TangentMode != ERichCurveTangentMode::RCTM_Auto && TangentMode != ERichCurveTangentMode::RCTM_SmartAuto))
+			{
+				TangentMode = DefaultTangentMode;
+			}
+			return TPair<ERichCurveInterpMode, ERichCurveTangentMode>(InterpMode, TangentMode);
 		}
 	}
 
-	return DefaultInterpolationMode;
+	return TPair<ERichCurveInterpMode, ERichCurveTangentMode>(DefaultInterpolationMode, DefaultTangentMode);
 }
 
 template<typename ChannelType, typename ChannelValue, typename KeyType> 

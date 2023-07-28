@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
+#include "Containers/Map.h"
 #include "CoreTypes.h"
 #include "CurveEditorTypes.h"
 #include "Curves/RichCurve.h"
@@ -157,7 +158,10 @@ public:
 	 * @param DefaultInterpolationMode		Current default interpolation mode, returned if other keys not found or interpolation not supported
 	 * @return Interpolation mode to use at that frame
 	 */
-	virtual ERichCurveInterpMode GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode) const { return DefaultInterpolationMode; }
+	virtual TPair<ERichCurveInterpMode, ERichCurveTangentMode> GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode, ERichCurveTangentMode DefaultTangentMode) const 
+	{
+		return TPair<ERichCurveInterpMode, ERichCurveTangentMode>(DefaultInterpolationMode, DefaultTangentMode);
+	}
 
 	/**
 	 * Evaluate this curve at the specified time
