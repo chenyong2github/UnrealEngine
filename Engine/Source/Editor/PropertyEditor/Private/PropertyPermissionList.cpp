@@ -65,7 +65,7 @@ bool FPropertyPermissionList::Tick(float DeltaTime)
 
 void FPropertyPermissionList::RegisterOnBlueprintCompiled()
 {
-	if (ensure(GEditor))
+	if (GEditor)
 	{
 		GEditor->OnBlueprintCompiled().AddRaw(this, &FPropertyPermissionList::ClearCache);
 	}
