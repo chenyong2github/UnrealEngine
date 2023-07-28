@@ -269,13 +269,7 @@ void FIKRetargetEditorController::BindToIKRigAssets()
 void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
 {
 	UIKRetargeter* Retargeter = AssetController->GetAsset();
-	check(ModifiedIKRig && Retargeter)
-	 
-	const bool bIsSource = ModifiedIKRig == Retargeter->GetSourceIKRig();
-	const bool bIsTarget = ModifiedIKRig == Retargeter->GetTargetIKRig();
-	check(bIsSource || bIsTarget);
-
-	// the target anim instance has the RetargetPoseFromMesh node which needs reinitialized with new asset version
+	check(Retargeter)
 	HandleRetargeterNeedsInitialized();
 }
 
