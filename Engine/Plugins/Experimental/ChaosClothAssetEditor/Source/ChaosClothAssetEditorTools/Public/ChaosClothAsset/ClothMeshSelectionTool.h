@@ -17,7 +17,7 @@ namespace UE::Geometry
 }
 
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothMeshSelectionToolBuilder : public UInteractiveToolWithToolTargetsBuilder, public UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothMeshSelectionToolBuilder : public UInteractiveToolWithToolTargetsBuilder, public IChaosClothAssetEditorToolBuilder
 {
 	GENERATED_BODY()
 

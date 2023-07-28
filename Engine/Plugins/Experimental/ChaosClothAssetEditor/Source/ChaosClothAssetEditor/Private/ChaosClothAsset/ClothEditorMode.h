@@ -35,8 +35,8 @@ class FChaosClothPreviewScene;
 class FChaosClothAssetEditorModeToolkit;
 class FChaosClothAssetEditorToolkit;
 class FChaosClothEditorRestSpaceViewportClient;
-class IChaosClothAssetEditorToolBuilder;
 }
+class IChaosClothAssetEditorToolBuilder;
 class UEdGraphNode;
 
 /**
@@ -63,7 +63,7 @@ public:
 
 	void SetConstructionViewMode(UE::Chaos::ClothAsset::EClothPatternVertexType InMode);
 	UE::Chaos::ClothAsset::EClothPatternVertexType GetConstructionViewMode() const;
-	bool CanChangeConstructionViewMode() const;
+	bool CanChangeConstructionViewModeTo(UE::Chaos::ClothAsset::EClothPatternVertexType NewViewMode) const;
 
 	void ToggleConstructionViewWireframe();
 	bool IsConstructionViewWireframeActive() const
@@ -119,7 +119,7 @@ private:
 	void RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, 
 		FString ToolIdentifier, 
 		UInteractiveToolBuilder* Builder,
-		const UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder* ClothToolBuilder,
+		const IChaosClothAssetEditorToolBuilder* ClothToolBuilder,
 		UEditorInteractiveToolsContext* UseToolsContext, 
 		EToolsContextScope ToolScope = EToolsContextScope::Default);
 
@@ -215,10 +215,12 @@ private:
 	void RestSpaceViewportResized(FViewport* RestspaceViewport, uint32 Unused);
 
 	UE::Chaos::ClothAsset::EClothPatternVertexType ConstructionViewMode;
-	bool bCanChangeConstructionViewMode = true;
 
-	// The Construction view mode that was active before starting the current tool. When the tool ends, restore this view mode
-	TOptional<UE::Chaos::ClothAsset::EClothPatternVertexType> SavedConstructionViewMode;
+	// The Construction view mode that was active before starting the current tool. When the tool ends, restore this view mode if bShouldRestoreSavedConstructionViewMode is true.
+	UE::Chaos::ClothAsset::EClothPatternVertexType SavedConstructionViewMode;
+
+	// Whether we should restore the previous view mode when a tool ends
+	bool bShouldRestoreSavedConstructionViewMode = false;
 
 	// Dataflow node type whose corresponding tool should be started on the next Tick
 	FName NodeTypeForPendingToolStart;

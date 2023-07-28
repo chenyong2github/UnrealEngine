@@ -138,7 +138,7 @@ void UChaosClothAssetEditorMode::AddToolTargetFactories()
 void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UICommand, 
 	FString ToolIdentifier, 
 	UInteractiveToolBuilder* Builder, 
-	const UE::Chaos::ClothAsset::IChaosClothAssetEditorToolBuilder* ClothToolBuilder,
+	const IChaosClothAssetEditorToolBuilder* ClothToolBuilder,
 	UEditorInteractiveToolsContext* const ToolsContext, 
 	EToolsContextScope ToolScope)
 {
@@ -165,13 +165,20 @@ void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UI
 	CommandList->MapAction(UICommand,
 		FExecuteAction::CreateWeakLambda(ToolsContext, [this, ToolsContext, ToolIdentifier, ClothToolBuilder]()
 		{
+			// Check if we need to switch view modes before starting the tool
 			TArray<UE::Chaos::ClothAsset::EClothPatternVertexType> SupportedModes;
 			ClothToolBuilder->GetSupportedViewModes(SupportedModes);
 
 			if (SupportedModes.Num() > 0 && !SupportedModes.Contains(this->GetConstructionViewMode()))
 			{
-				// Need to switch view modes before starting the tool
-				SavedConstructionViewMode = this->GetConstructionViewMode();	// remember the current view mode so we can restore it later
+				if (!bShouldRestoreSavedConstructionViewMode)
+				{
+					// remember the current view mode so we can restore it later
+					SavedConstructionViewMode = this->GetConstructionViewMode();	
+					bShouldRestoreSavedConstructionViewMode = true;
+				}
+
+				// switch to the preferred view mode for the tool that's about to start
 				this->SetConstructionViewMode(SupportedModes[0]);
 			}
 
@@ -269,23 +276,21 @@ void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager,
 	using namespace UE::Chaos::ClothAsset;
 
 	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, false);
-
-	bCanChangeConstructionViewMode = false;
 }
 
 void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
 
-	if (SavedConstructionViewMode)
+	if (bShouldRestoreSavedConstructionViewMode)
 	{
-		SetConstructionViewMode(*SavedConstructionViewMode);
-		SavedConstructionViewMode.Reset();
+		SetConstructionViewMode(SavedConstructionViewMode);
+		bShouldRestoreSavedConstructionViewMode = false;
 	}
-
-	bCanChangeConstructionViewMode = true;
-
-	ReinitializeDynamicMeshComponents();
+	else
+	{
+		ReinitializeDynamicMeshComponents();
+	}
 
 	if (TSharedPtr<SDataflowGraphEditor> GraphEditor = DataflowGraphEditor.Pin())
 	{
@@ -859,10 +864,27 @@ FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 
 void UChaosClothAssetEditorMode::SetConstructionViewMode(UE::Chaos::ClothAsset::EClothPatternVertexType InMode)
 {
+	// We will first check if there is an active tool. If so, we'll shut down the tool and save the results to the Node, then change view modes, then restart the tool again.
+	bool bEndedActiveTool = false;
+	UInteractiveToolManager* const ToolManager = GetInteractiveToolsContext()->ToolManager;
+	checkf(ToolManager, TEXT("No valid ToolManager found for UChaosClothAssetEditorMode"));
+	if (UInteractiveTool* const ActiveTool = ToolManager->GetActiveTool(EToolSide::Left))
+	{
+		// avoid switching back to the previous view mode when the tool ends here
+		const bool bTempShouldRestoreVal = bShouldRestoreSavedConstructionViewMode;
+		bShouldRestoreSavedConstructionViewMode = false;
+
+		ToolManager->PostActiveToolShutdownRequest(ActiveTool, EToolShutdownType::Accept);
+		bEndedActiveTool = true;
+
+		// now we can restore the previous view mode the next time the tool ends
+		bShouldRestoreSavedConstructionViewMode = bTempShouldRestoreVal;
+	}
+
 	ConstructionViewMode = InMode;
 	ReinitializeDynamicMeshComponents();
 
-	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
+	const TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
 	if (VC.IsValid())
 	{
 		VC->SetConstructionViewMode(ConstructionViewMode);
@@ -870,6 +892,20 @@ void UChaosClothAssetEditorMode::SetConstructionViewMode(UE::Chaos::ClothAsset::
 
 	// If we are switching to a mode with a valid mesh for the first time, focus the camera on it
 	FirstTimeFocusRestSpaceViewport();
+
+	if (bEndedActiveTool)
+	{
+		// If we ended the active tool in order to change modes, restart it now
+		if (const TSharedPtr<const SDataflowGraphEditor> PinnedGraphEditor = DataflowGraphEditor.Pin())
+		{
+			const FGraphPanelSelectionSet& SelectedNodes = PinnedGraphEditor->GetSelectedNodes();
+			if (SelectedNodes.Num() == 1)
+			{
+				StartToolForSelectedNode(*SelectedNodes.CreateConstIterator());
+			}
+		}
+	}
+
 }
 
 UE::Chaos::ClothAsset::EClothPatternVertexType UChaosClothAssetEditorMode::GetConstructionViewMode() const
@@ -877,9 +913,22 @@ UE::Chaos::ClothAsset::EClothPatternVertexType UChaosClothAssetEditorMode::GetCo
 	return ConstructionViewMode;
 }
 
-bool UChaosClothAssetEditorMode::CanChangeConstructionViewMode() const
+bool UChaosClothAssetEditorMode::CanChangeConstructionViewModeTo(UE::Chaos::ClothAsset::EClothPatternVertexType NewViewMode) const
 {
-	return bCanChangeConstructionViewMode;
+	if (!GetToolManager()->HasActiveTool(EToolSide::Left))
+	{
+		return true;
+	}
+
+	const UInteractiveToolBuilder* const ActiveToolBuilder = GetToolManager()->GetActiveToolBuilder(EToolSide::Left);
+	checkf(ActiveToolBuilder, TEXT("No Active Tool Builder found despite having an Active Tool"));
+
+	const IChaosClothAssetEditorToolBuilder* const ClothToolBuilder = Cast<const IChaosClothAssetEditorToolBuilder>(ActiveToolBuilder);
+	checkf(ClothToolBuilder, TEXT("Cloth Editor has an active Tool Builder that does not implement IChaosClothAssetEditorToolBuilder"));
+
+	TArray<UE::Chaos::ClothAsset::EClothPatternVertexType> SupportedViewModes;
+	ClothToolBuilder->GetSupportedViewModes(SupportedViewModes);
+	return SupportedViewModes.Contains(NewViewMode);
 }
 
 void UChaosClothAssetEditorMode::ToggleConstructionViewWireframe()

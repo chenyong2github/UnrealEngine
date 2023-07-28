@@ -54,7 +54,7 @@ void SChaosClothAssetEditorRestSpaceViewport::BindCommands()
 		{ 
 			if (const UChaosClothAssetEditorMode* const ClothEdMode = GetEdMode())
 			{
-				return ClothEdMode->CanChangeConstructionViewMode();
+				return ClothEdMode->CanChangeConstructionViewModeTo(EClothPatternVertexType::Sim2D);
 			}
 			return false; 
 		}),
@@ -81,7 +81,7 @@ void SChaosClothAssetEditorRestSpaceViewport::BindCommands()
 		{ 
 			if (const UChaosClothAssetEditorMode* const ClothEdMode = GetEdMode())
 			{
-				return ClothEdMode->CanChangeConstructionViewMode();
+				return ClothEdMode->CanChangeConstructionViewModeTo(EClothPatternVertexType::Sim3D);
 			}
 			return false; 
 		}),
@@ -109,7 +109,7 @@ void SChaosClothAssetEditorRestSpaceViewport::BindCommands()
 		{ 
 			if (const UChaosClothAssetEditorMode* const ClothEdMode = GetEdMode())
 			{
-				return ClothEdMode->CanChangeConstructionViewMode();
+				return ClothEdMode->CanChangeConstructionViewModeTo(EClothPatternVertexType::Render);
 			}
 			return false; 
 		}),
