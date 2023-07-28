@@ -114,11 +114,11 @@ void UClothTransferSkinWeightsTool::Setup()
 
 	// Watch for property changes
 	ToolProperties->WatchProperty(TransferSkinWeightsNode->Transform, 
-	[this](FTransform Transform) 
+	[this](const FTransform& Transform) 
 	{
 		SetSRTPropertiesFromTransform(Transform);
 	}, 
-	[this](FTransform Transform1, FTransform Transform2)
+	[this](const FTransform& Transform1, const FTransform& Transform2)
 	{ 
 		return !Transform1.Equals(Transform2, 0.f);
 	});
@@ -127,8 +127,7 @@ void UClothTransferSkinWeightsTool::Setup()
 
 	ToolProperties->WatchProperty(TransferSkinWeightsNode->SkeletalMesh, [this](TObjectPtr<USkeletalMesh> Mesh) 
 	{ 
-		ToolProperties->SourceMesh = Mesh; 
-		UpdateSourceMesh(Mesh); 
+		ToolProperties->SourceMesh = Mesh; // this triggers the WatchProperty of ToolProperties->SourceMesh above
 	});
 	
 	ToolProperties->WatchProperty(ToolProperties->bHideSourceMesh, [this](bool bNewHideSourceMesh) 
@@ -288,6 +287,11 @@ void UClothTransferSkinWeightsTool::SetSRTPropertiesFromTransform(const FTransfo
 void UClothTransferSkinWeightsTool::UpdateSourceMesh(TObjectPtr<USkeletalMesh> Mesh)
 {
 	checkf(ToolProperties, TEXT("ToolProperties is expected to be non-null. Be sure to run Setup() on this tool when it is created."));
+
+	if (Mesh == SourceMeshComponent->GetSkeletalMeshAsset())
+	{
+		return;
+	}
 
 	SourceMeshComponent->SetSkeletalMeshAsset(Mesh);
 

@@ -196,12 +196,10 @@ void UClothEditorWeightMapPaintTool::Setup()
 
 	UpdateWeightMapProperties = NewObject<UClothEditorUpdateWeightMapProperties>(this);
 	UpdateWeightMapProperties->Name = WeightMapNodeToUpdate->Name;
-	UpdateWeightMapProperties->WatchProperty(UpdateWeightMapProperties->Name, [this, OriginalName = WeightMapNodeToUpdate->Name](const FString& NewName)
+
+	UpdateWeightMapProperties->WatchProperty(WeightMapNodeToUpdate->Name, [this](const FString& NewName)
 	{
-		if (NewName != OriginalName)
-		{
-			bAnyChangeMade = true;
-		}
+		UpdateWeightMapProperties->Name = NewName;
 	});
 	AddToolPropertySource(UpdateWeightMapProperties);
 
@@ -1515,7 +1513,7 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 
 bool UClothEditorWeightMapPaintTool::CanAccept() const
 {
-	return bAnyChangeMade;
+	return bAnyChangeMade || UpdateWeightMapProperties->Name != WeightMapNodeToUpdate->Name;
 }
 
 
