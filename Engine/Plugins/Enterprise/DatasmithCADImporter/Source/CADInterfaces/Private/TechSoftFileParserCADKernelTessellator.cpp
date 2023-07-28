@@ -59,6 +59,11 @@ void FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes()
 	{
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
 		FArchiveBody& Body = SceneGraph.GetBody(Entry.Value);
+		if (!Body.bIsFromCad)
+		{
+			FTechSoftFileParser::GenerateBodyMesh(RepresentationItemPtr, Body);
+			continue;
+		}
 
 		TArray<A3DRiRepresentationItem*>& Representations = OccurrenceIdToRepresentations.FindOrAdd(Body.ParentId);
 		if (Representations.Max() == 0)

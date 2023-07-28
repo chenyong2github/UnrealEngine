@@ -493,7 +493,15 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 	{
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
 		FArchiveBody& Body = SceneGraph.GetBody(Entry.Value);
-		GenerateBodyMesh(RepresentationItemPtr, Body);
+		if (!Body.bIsFromCad)
+		{
+			FTechSoftFileParser::GenerateBodyMesh(RepresentationItemPtr, Body);
+		}
+		else
+		{
+			GenerateBodyMesh(RepresentationItemPtr, Body);
+		}
+
 		if (bConvertionFailed)
 		{
 			return;
