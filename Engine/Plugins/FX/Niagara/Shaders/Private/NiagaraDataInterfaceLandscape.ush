@@ -14,6 +14,7 @@
 Texture2D			{ParameterName}_BaseColorVirtualTexture;
 Texture2D<uint4>	{ParameterName}_BaseColorVirtualTexturePageTable;
 SamplerState		{ParameterName}_BaseColorVirtualTextureSampler;
+float3				{ParameterName}_BaseColorVirtualTextureLWCTile;
 float4x4			{ParameterName}_BaseColorVirtualTextureWorldToUvTransform;
 uint				{ParameterName}_BaseColorVirtualTextureSRGB;
 uint				{ParameterName}_BaseColorVirtualTextureEnabled;
@@ -23,6 +24,7 @@ uint4				{ParameterName}_BaseColorVirtualTextureUniforms;
 Texture2D			{ParameterName}_HeightVirtualTexture;
 Texture2D<uint4>	{ParameterName}_HeightVirtualTexturePageTable;
 SamplerState		{ParameterName}_HeightVirtualTextureSampler;
+float3				{ParameterName}_HeightVirtualTextureLWCTile;
 float4x4			{ParameterName}_HeightVirtualTextureWorldToUvTransform;
 uint				{ParameterName}_HeightVirtualTextureEnabled;
 uint4				{ParameterName}_HeightVirtualTexturePackedUniform0;
@@ -33,6 +35,7 @@ Texture2D			{ParameterName}_NormalVirtualTexture1;
 Texture2D<uint4>	{ParameterName}_NormalVirtualTexturePageTable;
 SamplerState		{ParameterName}_NormalVirtualTexture0Sampler;
 SamplerState		{ParameterName}_NormalVirtualTexture1Sampler;
+float3				{ParameterName}_NormalVirtualTextureLWCTile;
 float4x4			{ParameterName}_NormalVirtualTextureWorldToUvTransform;
 uint4				{ParameterName}_NormalVirtualTexturePackedUniform0;
 uint4				{ParameterName}_NormalVirtualTexturePackedUniform1;
@@ -43,6 +46,7 @@ uint				{ParameterName}_NormalVirtualTextureEnabled;
 Texture2D			{ParameterName}_CachedHeightTexture;
 SamplerState		{ParameterName}_CachedHeightTextureSampler;
 uint				{ParameterName}_CachedHeightTextureEnabled;
+float3				{ParameterName}_CachedHeightTextureLWCTile;
 float4x4			{ParameterName}_CachedHeightTextureWorldToUvTransform;
 float4x4			{ParameterName}_CachedHeightTextureUvToWorldTransform;
 float4				{ParameterName}_CachedHeightTextureUvScaleBias;
@@ -50,17 +54,30 @@ float2				{ParameterName}_CachedHeightTextureGridSize;
 SamplerState		{ParameterName}_PointClampedSampler;
 Texture2D<uint>		{ParameterName}_CachedPhysMatTexture;
 int2				{ParameterName}_CachedPhysMatTextureDimension;
+float3				{ParameterName}_SystemLWCTile;
+
+float2 GetCachedHeightTextureUv(float3 InWorldPos)
+{
+	FLWCVector4 LwcWorldPos = MakeLWCVector4({ParameterName}_SystemLWCTile, float4(InWorldPos, 1.0f));
+	FLWCInverseMatrix LwcWorldToUv = MakeLWCInverseMatrix({ParameterName}_CachedHeightTextureLWCTile, {ParameterName}_CachedHeightTextureWorldToUvTransform);
+
+	float2 Uv = LWCMultiply(LwcWorldPos, LwcWorldToUv).xy;
+	Uv = Uv * {ParameterName}_CachedHeightTextureUvScaleBias.xy + {ParameterName}_CachedHeightTextureUvScaleBias.zw;
+
+	return Uv;
+}
 
 void GetBaseColor_{ParameterName}(float3 InWorldPos, out float3 OutBaseColor, out bool OutIsValid)
 {
-	// todo[mg] convert world pos and transform origin to LWC pos
 	if ({ParameterName}_BaseColorVirtualTextureEnabled != 0)
 	{
 		float3 UnpackBaseColorOrigin = {ParameterName}_BaseColorVirtualTextureWorldToUvTransform[0].xyz;
 		float3 UnpackBaseColorU = {ParameterName}_BaseColorVirtualTextureWorldToUvTransform[1].xyz;
 		float3 UnpackBaseColorV = {ParameterName}_BaseColorVirtualTextureWorldToUvTransform[2].xyz;
 
-		float2 SampleUv = VirtualTextureWorldToUV(LWCPromote(InWorldPos), LWCPromote(UnpackBaseColorOrigin), UnpackBaseColorU, UnpackBaseColorV);
+		FLWCVector3 LwcWorldPos = MakeLWCVector3({ParameterName}_SystemLWCTile, InWorldPos);
+		FLWCVector3 LwcBaseColorOrigin = MakeLWCVector3({ParameterName}_BaseColorVirtualTextureLWCTile, UnpackBaseColorOrigin);
+		float2 SampleUv = VirtualTextureWorldToUV(LwcWorldPos, LwcBaseColorOrigin, UnpackBaseColorU, UnpackBaseColorV);
 
 		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
 			{ParameterName}_BaseColorVirtualTexturePageTable,
@@ -89,7 +106,6 @@ void GetBaseColor_{ParameterName}(float3 InWorldPos, out float3 OutBaseColor, ou
 
 void GetHeight_{ParameterName}(float3 InWorldPos, out float OutHeight, out bool OutIsValid)
 {
-	// todo[mg] convert world pos and transform origin to LWC pos
 	if ({ParameterName}_HeightVirtualTextureEnabled != 0)
 	{
 		float3 UnpackHeightOrigin = {ParameterName}_HeightVirtualTextureWorldToUvTransform[0].xyz;
@@ -97,7 +113,9 @@ void GetHeight_{ParameterName}(float3 InWorldPos, out float OutHeight, out bool 
 		float3 UnpackHeightV = {ParameterName}_HeightVirtualTextureWorldToUvTransform[2].xyz;
 		float2 UnpackHeightScaleBias = {ParameterName}_HeightVirtualTextureWorldToUvTransform[3].xy;
 
-		float2 SampleUv = VirtualTextureWorldToUV(LWCPromote(InWorldPos), LWCPromote(UnpackHeightOrigin), UnpackHeightU, UnpackHeightV);
+		FLWCVector3 LwcWorldPos = MakeLWCVector3({ParameterName}_SystemLWCTile, InWorldPos);
+		FLWCVector3 LwcHeightOrigin = MakeLWCVector3({ParameterName}_HeightVirtualTextureLWCTile, UnpackHeightOrigin);
+		float2 SampleUv = VirtualTextureWorldToUV(LwcWorldPos, LwcHeightOrigin, UnpackHeightU, UnpackHeightV);
 
 		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
 			{ParameterName}_HeightVirtualTexturePageTable,
@@ -119,8 +137,8 @@ void GetHeight_{ParameterName}(float3 InWorldPos, out float OutHeight, out bool 
 	}
 	else if ({ParameterName}_CachedHeightTextureEnabled != 0)
 	{
-		float2 Uv = mul(float4(InWorldPos, 1.0f), {ParameterName}_CachedHeightTextureWorldToUvTransform).xy;
-		Uv = Uv * {ParameterName}_CachedHeightTextureUvScaleBias.xy + {ParameterName}_CachedHeightTextureUvScaleBias.zw;
+		float2 Uv = GetCachedHeightTextureUv(InWorldPos);
+
 		OutHeight = {ParameterName}_CachedHeightTexture.SampleLevel({ParameterName}_CachedHeightTextureSampler, Uv, 0).x;
 		OutIsValid = true;
 	}
@@ -133,14 +151,15 @@ void GetHeight_{ParameterName}(float3 InWorldPos, out float OutHeight, out bool 
 
 void GetWorldNormal_{ParameterName}(float3 InWorldPos, out float3 OutNormal, out bool OutIsValid)
 {
-	// todo[mg] convert world pos and transform origin to LWC pos
 	if ({ParameterName}_NormalVirtualTextureEnabled != 0)
 	{
 		float3 UnpackNormalOrigin = {ParameterName}_NormalVirtualTextureWorldToUvTransform[0].xyz;
 		float3 UnpackNormalU = {ParameterName}_NormalVirtualTextureWorldToUvTransform[1].xyz;
 		float3 UnpackNormalV = {ParameterName}_NormalVirtualTextureWorldToUvTransform[2].xyz;
 
-		float2 SampleUv = VirtualTextureWorldToUV(LWCPromote(InWorldPos), LWCPromote(UnpackNormalOrigin), UnpackNormalU, UnpackNormalV);
+		FLWCVector3 LwcWorldPos = MakeLWCVector3({ParameterName}_SystemLWCTile, InWorldPos);
+		FLWCVector3 LwcNormalOrigin = MakeLWCVector3({ParameterName}_NormalVirtualTextureLWCTile, UnpackNormalOrigin);
+		float2 SampleUv = VirtualTextureWorldToUV(LwcWorldPos, LwcNormalOrigin, UnpackNormalU, UnpackNormalV);
 
 		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
 			{ParameterName}_NormalVirtualTexturePageTable,
@@ -183,8 +202,7 @@ void GetWorldNormal_{ParameterName}(float3 InWorldPos, out float3 OutNormal, out
 	}
 	else if ({ParameterName}_CachedHeightTextureEnabled != 0)
 	{
-		float2 Uv = mul(float4(InWorldPos, 1.0f), {ParameterName}_CachedHeightTextureWorldToUvTransform).xy;
-		Uv = Uv * {ParameterName}_CachedHeightTextureUvScaleBias.xy + {ParameterName}_CachedHeightTextureUvScaleBias.zw;
+		float2 Uv = GetCachedHeightTextureUv(InWorldPos);
 
 		float Left = {ParameterName}_CachedHeightTexture.SampleLevel({ParameterName}_PointClampedSampler, Uv, 0, int2(-1,0)).x;
 		float Right = {ParameterName}_CachedHeightTexture.SampleLevel({ParameterName}_PointClampedSampler, Uv, 0, int2(1,0)).x;
@@ -212,9 +230,7 @@ void GetWorldNormal_{ParameterName}(float3 InWorldPos, out float3 OutNormal, out
 
 void GetPhysicalMaterialIndex_{ParameterName}(float3 InWorldPos, out int OutIndex, out bool OutIsValid)
 {
-	// todo[mg] convert world pos to LWC pos
-	float2 Uv = mul(float4(InWorldPos, 1.0f), {ParameterName}_CachedHeightTextureWorldToUvTransform).xy;
-	Uv = Uv * {ParameterName}_CachedHeightTextureUvScaleBias.xy + {ParameterName}_CachedHeightTextureUvScaleBias.zw;
+	float2 Uv = GetCachedHeightTextureUv(InWorldPos);
 
 	int3 SampleIndex = int3(Uv * {ParameterName}_CachedPhysMatTextureDimension, 0);
 	OutIndex = (int){ParameterName}_CachedPhysMatTexture.Load(SampleIndex).x;
