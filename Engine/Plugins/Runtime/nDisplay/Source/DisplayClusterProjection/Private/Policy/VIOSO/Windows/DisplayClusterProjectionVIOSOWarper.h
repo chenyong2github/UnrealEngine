@@ -116,8 +116,5 @@ private:
 
 	// Custom clipping planes
 	FVector2D DefaultClippingPlanes;
-
-	// Vioso geometry scale
-	float VIOSOGeometryScale = 1.f;
 };
 #endif
