@@ -50,11 +50,11 @@ static FAutoConsoleVariableRef CVarDisplayClusterProjectionVIOSOPolicySymmetricF
 	ECVF_RenderThreadSafe
 );
 
-int32 GDisplayClusterProjectionVIOSOPolicyPitchInverse = 0;
+int32 GDisplayClusterProjectionVIOSOPolicyPitchInverse = 1;
 static FAutoConsoleVariableRef CVarDisplayClusterProjectionVIOSOPolicyPitchInverse(
 	TEXT("nDisplay.render.projection.VIOSO.Pitch.Inverse"),
 	GDisplayClusterProjectionVIOSOPolicyPitchInverse,
-	TEXT("Inverse Pitch (default 0).\n"),
+	TEXT("Inverse Pitch (default 1).\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -156,9 +156,9 @@ namespace UE::DisplayClusterProjection::VIOSOWarper
 	{
 		const FVector InEulerDegree = FMath::RadiansToDegrees(FVector(InEuler));
 
-		float Pitch = InEulerDegree.GetComponentForAxis(GetViosoAxis(GDisplayClusterProjectionVIOSOPolicyPitchAxis)) * (GDisplayClusterProjectionVIOSOPolicyPitchInverse ? -1 : 0);
-		float Yaw   = InEulerDegree.GetComponentForAxis(GetViosoAxis(GDisplayClusterProjectionVIOSOPolicyYawAxis))   * (GDisplayClusterProjectionVIOSOPolicyYawInverse ? -1 : 0);
-		float Roll  = InEulerDegree.GetComponentForAxis(GetViosoAxis(GDisplayClusterProjectionVIOSOPolicyRollAxis))  * (GDisplayClusterProjectionVIOSOPolicyRollInverse ? -1 : 0);
+		float Pitch = InEulerDegree.GetComponentForAxis(GetViosoAxis(GDisplayClusterProjectionVIOSOPolicyPitchAxis)) * (GDisplayClusterProjectionVIOSOPolicyPitchInverse ? -1 : 1);
+		float Yaw   = InEulerDegree.GetComponentForAxis(GetViosoAxis(GDisplayClusterProjectionVIOSOPolicyYawAxis))   * (GDisplayClusterProjectionVIOSOPolicyYawInverse ? -1 : 1);
+		float Roll  = InEulerDegree.GetComponentForAxis(GetViosoAxis(GDisplayClusterProjectionVIOSOPolicyRollAxis))  * (GDisplayClusterProjectionVIOSOPolicyRollInverse ? -1 : 1);
 
 		return FRotator(Pitch, Yaw, Roll);
 	}

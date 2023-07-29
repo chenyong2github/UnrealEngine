@@ -713,6 +713,29 @@ public:
 	virtual void __stdcall BindTexture2d( int inTextureNum, int inTextureUnit ) = 0;
 	virtual void __stdcall GenerateTextureNumbers( int* outTextureIDs, int  inCount ) = 0;
 };
+#else
+typedef uint32_t ULONG;
+typedef struct GUID {
+	uint32_t data1;
+	uint16_t data2;
+	uint16_t data3;
+	uint8_t data[8];
+} GUID;
+#define REFIID const GUID&
+typedef int32_t HRESULT;
+struct IUnknown {
+	virtual HRESULT QueryInterface( REFIID riid, void** ppvObject)=0;
+	virtual ULONG AddRef() = 0;
+	virtual ULONG Release() = 0;
+};
+struct IXPlaneRef : public IUnknown
+{
+public:
+	virtual void SetGraphicsState( int inEnableFog, int inNumberTexUnits, int inEnableLighting, int inEnableAlphaTesting, int inEnableAlphaBlending, int inEnableDepthTesting, int inEnableDepthWriting ) = 0;
+	virtual void BindTexture2d( int inTextureNum, int inTextureUnit ) = 0;
+	virtual void GenerateTextureNumbers( int* outTextureIDs, int  inCount ) = 0;
+};
+
 #endif //def WIN32
 
 
