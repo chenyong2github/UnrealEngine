@@ -530,7 +530,7 @@ public:
 	/** @return A random number between 0 and 1. */
 	inline float GetFraction()
 	{
-		if (CurrentSample > NumSamples)
+		if (CurrentSample >= NumSamples)
 		{
 			CurrentSample = 0;
 		}
