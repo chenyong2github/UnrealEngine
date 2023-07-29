@@ -141,6 +141,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
 	TArray<FString> ExcludedEndpoints;
 
+	/**
+	 * Whether to share our list of known endpoints with those endpoints.  This allows message processors to completely mesh their networks.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
+	bool bShareKnownNodesWithActiveConnections = false;
+
 public:
 
 	/** Whether the UDP tunnel is enabled. */

@@ -46,6 +46,9 @@ enum class EUdpMessageSegments : uint8
 	/** Answers back to ping segment. */
 	Pong,
 
+	/** Used to share endpoints for fully meshing networks. */
+	Mesh
+
 	// New segment type needs to be added at the end
 };
 

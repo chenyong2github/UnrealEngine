@@ -570,6 +570,10 @@ public:
 	 */
 	FMessageTransportStatistics GetStats(FGuid Node) const;
 
+	void SetShareKnownNodesState(bool bInShareKnownNodes)
+	{
+		bShareKnownNodes = bInShareKnownNodes;
+	}
 public:
 
 	// @todo gmp: remove the need for this typedef
@@ -773,6 +777,14 @@ protected:
 	void ProcessTimeoutSegment(FInboundSegment& Segment, FNodeInfo& NodeInfo);
 
 	/**
+	 * Processes a Mesh segment.
+	 *
+	 * @param Segment The segment to process.
+	 * @param NodeInfo Details for the node that sent the segment.
+	 */
+	void ProcessMeshSegment(FInboundSegment& Segment, FNodeInfo& NodeInfo);
+
+	/**
 	 * Processes an unknown segment type.
 	 *
 	 * @param Segment The segment to process.
@@ -826,6 +838,13 @@ protected:
 	virtual void Tick() override;
 
 private:
+
+	/** Send our list of known nodes to the known nodes. */
+	void SendKnownNodesToKnownNodes();
+
+	/** Do we support sending known nodes to our known nodes. */
+	bool CanSendKnownNodesToKnownNodes() const;
+
 	/** Start the message processor thread. */
 	void StartThread();
 
@@ -874,6 +893,9 @@ private:
 	/** Holds the collection of known remote nodes. */
 	TMap<FGuid, FNodeInfo> KnownNodes;
 
+	/** Indicate if we added new nodes during this frame. */
+	bool bAddedNewKnownNodes = false;
+
 	/** Holds the local node identifier. */
 	FGuid LocalNodeId;
 
@@ -888,6 +910,9 @@ private:
 
 	/** Holds the socket sender.*/
 	TUniquePtr<FUdpSocketSender> SocketSender;
+
+	/** Enable sharing of our known nodes. */
+	bool bShareKnownNodes = false;
 
 	/** Holds a flag indicating that the thread is stopping. */
 	bool bStopping;

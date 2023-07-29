@@ -41,7 +41,7 @@ class FUdpDeserializedMessageDetails
 public:
 	static bool DeserializeV10(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
 	static bool DeserializeV11_15(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader, bool bIsLWCBackwardCompatibilityMode);
-	static bool DeserializeV16(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
+	static bool DeserializeV16_17(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
 	static bool Deserialize(FUdpDeserializedMessage& DeserializedMessage, const FUdpReassembledMessage& ReassembledMessage);
 };
 
@@ -360,7 +360,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_15(FUdpDeserializedMessage& 
 	}
 }
 
-bool FUdpDeserializedMessageDetails::DeserializeV16(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader)
+bool FUdpDeserializedMessageDetails::DeserializeV16_17(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader)
 {
 	// message type info
 	{
@@ -524,8 +524,10 @@ bool FUdpDeserializedMessageDetails::Deserialize(FUdpDeserializedMessage& Deseri
 		break;
 	}
 	case 16:
+		// fallthrough
+	case 17:
 	{
-		return DeserializeV16(DeserializedMessage, MessageReader);
+		return DeserializeV16_17(DeserializedMessage, MessageReader);
 		break;
 	}
 

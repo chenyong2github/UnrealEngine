@@ -333,9 +333,10 @@ bool FUdpMessageProcessor::Init()
 		Beacon = MakeUnique<FUdpMessageBeacon>(Socket, LocalNodeId, MulticastEndpoint);
 		SocketSender = MakeUnique<FUdpSocketSender>(Socket, TEXT("FUdpMessageProcessor.Sender"));
 
-		// Current protocol version 16
+		// Current protocol version 17
 		SupportedProtocolVersions.Add(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
-		// Support Protocol version 10, 11, 12, 13, 14, 15
+		// Support Protocol version 10, 11, 12, 13, 14, 15, 16
+		SupportedProtocolVersions.Add(16);
 		SupportedProtocolVersions.Add(15);
 		SupportedProtocolVersions.Add(14);
 		SupportedProtocolVersions.Add(13);
@@ -494,6 +495,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 				NodeInfo.NodeId = Header.SenderNodeId;
 				NodeInfo.ProtocolVersion = Header.ProtocolVersion;
 				NodeDiscoveredDelegate.ExecuteIfBound(NodeInfo.NodeId);
+				bAddedNewKnownNodes = true;
 			}
 
 			NodeInfo.ProtocolVersion = Header.ProtocolVersion;
@@ -540,6 +542,10 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 
 			case EUdpMessageSegments::Timeout:
 				ProcessTimeoutSegment(Segment, NodeInfo);
+				break;
+
+			case EUdpMessageSegments::Mesh:
+				ProcessMeshSegment(Segment, NodeInfo);
 				break;
 
 			default:
@@ -845,7 +851,6 @@ void FUdpMessageProcessor::ProcessPongSegment(FInboundSegment& Segment, FNodeInf
 	}
 }
 
-
 void FUdpMessageProcessor::ProcessRetransmitSegment(FInboundSegment& Segment, FNodeInfo& NodeInfo)
 {
 	FUdpMessageSegment::FRetransmitChunk RetransmitChunk;
@@ -879,12 +884,10 @@ void FUdpMessageProcessor::ProcessTimeoutSegment(FInboundSegment& Segment, FNode
 	}
 }
 
-
 void FUdpMessageProcessor::ProcessUnknownSegment(FInboundSegment& Segment, FNodeInfo& EndpointInfo, uint8 SegmentType)
 {
 	UE_LOG(LogUdpMessaging, Verbose, TEXT("Received unknown segment type '%i' from %s"), SegmentType, *Segment.Sender.ToText().ToString());
 }
-
 
 void FUdpMessageProcessor::DeliverMessage(const TSharedPtr<FUdpReassembledMessage, ESPMode::ThreadSafe>& ReassembledMessage, FNodeInfo& NodeInfo)
 {
@@ -961,6 +964,86 @@ void FUdpMessageProcessor::HandleSocketError(const FNodeInfo& NodeInfo) const
 	ErrorSendingToEndpointDelegate.Execute(NodeInfo.NodeId, NodeInfo.Endpoint);
 }
 
+bool FUdpMessageProcessor::CanSendKnownNodesToKnownNodes() const
+{
+	return bShareKnownNodes && bAddedNewKnownNodes;
+}
+
+void FUdpMessageProcessor::SendKnownNodesToKnownNodes()
+{
+	FUdpMessageSegment::FHeader Header;
+	{
+		Header.SenderNodeId = LocalNodeId;
+		Header.ProtocolVersion = UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION;
+		Header.SegmentType = EUdpMessageSegments::Mesh;
+	};
+
+	TArray<FIPv4Endpoint> Endpoints, OutEndpoints;
+	TArray<FGuid> EndpointIds, OutIds;
+	for (const auto& NodePair : KnownNodes)
+	{
+		EndpointIds.Add(NodePair.Key);
+		Endpoints.Add(NodePair.Value.Endpoint);
+	}
+
+	// We use TArrayView to slice parts of the array for sending in parts (in case we exceed segment sending limits).
+	TArrayView<FIPv4Endpoint> KnownEndpointsView(Endpoints);
+	TArrayView<FGuid> KnownIdView(EndpointIds);
+
+	// We can send ~80 addresses in one segment. Warn the user when we hit this value. However, we still handle meshing large networks.
+	const int32 NumEndpointsCanSend = (UDP_MESSAGING_SEGMENT_SIZE - sizeof(FUdpMessageSegment::FHeader)) / (sizeof(FIPv4Endpoint) + sizeof(FGuid)) - 1;
+	if (KnownEndpointsView.Num() > NumEndpointsCanSend)
+	{
+		UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::SendKnownNodesToKnownNodes large number of endpoints to share for meshing udp transport."));
+	}
+
+	int32 Index = 0;
+	while (Index < KnownEndpointsView.Num())
+	{
+		const uint32 NextBlockIndex = FMath::Min<uint32>(Index + NumEndpointsCanSend, KnownEndpointsView.Num());
+		TArrayView<FIPv4Endpoint> SlicedEndpointView = KnownEndpointsView.Slice(Index, NextBlockIndex);
+		TArrayView<FGuid>	      SlicedIdView = KnownIdView.Slice(Index, NextBlockIndex);
+
+		OutEndpoints = SlicedEndpointView;
+		OutIds = SlicedIdView;
+		FArrayWriter Writer;
+		{
+			Writer << Header;
+			Writer << OutEndpoints;
+			Writer << OutIds;
+		}
+		UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::SendKnownNodesToKnownNodes Sending updated known nodes."));
+
+		for (const FIPv4Endpoint& Endpoint : Endpoints)
+		{
+			int32 Sent;
+			if (!Socket->SendTo(Writer.GetData(), Writer.Num(), Sent, *Endpoint.ToInternetAddr()))
+			{
+				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::SendKnownNodesToKnownNodes failed to share endpoint information to %s."), *Endpoint.ToString());
+			}
+		}
+		Index += NumEndpointsCanSend;
+	}
+	bAddedNewKnownNodes = false;
+}
+
+void FUdpMessageProcessor::ProcessMeshSegment(FInboundSegment& Segment, FNodeInfo& NodeInfo)
+{
+	TArray<FGuid> Ids;
+	TArray<FIPv4Endpoint> Endpoints;
+	*Segment.Data << Endpoints;
+	*Segment.Data << Ids;
+
+	check(Ids.Num() == Endpoints.Num());
+	for (int32 Index = 0; Index < Ids.Num(); Index ++)
+	{
+		if (LocalNodeId != Ids[Index] && !KnownNodes.Find(Ids[Index]))
+		{
+			AddStaticEndpoint(Endpoints[Index]);
+		}
+	}
+}
+
 void FUdpMessageProcessor::UpdateKnownNodes()
 {
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateKnownNodes);
@@ -969,6 +1052,11 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 
 	UpdateNodesPerVersion();
 	Beacon->SetEndpointCount(KnownNodes.Num() + 1);
+
+	if (CanSendKnownNodesToKnownNodes())
+	{
+		SendKnownNodesToKnownNodes();
+	}
 
 	bool bSuccess = true;
 	for (auto& KnownNodePair : KnownNodes)

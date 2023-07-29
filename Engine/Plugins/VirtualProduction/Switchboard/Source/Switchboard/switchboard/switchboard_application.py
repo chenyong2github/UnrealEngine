@@ -198,6 +198,7 @@ class MultiUserApplication:
             args.extend([
                 f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}"',
                 f'{CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()}',
+                f'-UDPMESSAGING_SHARE_KNOWN_NODES=1',
                 f'{self.get_mu_server_endpoint_arg()}',
                 f'{self.get_mu_server_multicast_arg()}'])
 
