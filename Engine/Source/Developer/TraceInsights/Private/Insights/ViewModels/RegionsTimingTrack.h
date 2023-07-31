@@ -4,10 +4,12 @@
 #include "Insights/ViewModels/TimingEventsTrack.h"
 #include "TraceServices/Model/Regions.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace Insights
+{
 
 class FTimingRegionsTrack;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FTimingRegionsViewCommands : public TCommands<FTimingRegionsViewCommands>
 {
@@ -42,7 +44,7 @@ public:
 private:
 	STimingView* TimingView;
 	TSharedPtr<FTimingRegionsTrack> TimingRegionsTrack;
-	
+
 	bool bShowHideRegionsTrack = true;
 };
 
@@ -58,9 +60,16 @@ public:
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+	virtual void SetFilterConfigurator(TSharedPtr<Insights::FFilterConfigurator> InFilterConfigurator) override;
+	virtual bool HasCustomFilter() const override;
+
 protected:
 	bool FindRegionEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const TraceServices::FTimeRegion&)> InFoundPredicate) const;
+
 private:
-	
+	TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator;
 	FTimingRegionsSharedState& SharedState;
 };
+
+} // namespace Insights

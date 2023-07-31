@@ -24,7 +24,6 @@
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 
-class FTimingRegionsSharedState;
 class FFileActivitySharedState;
 class FFrameSharedState;
 class FLoadingSharedState;
@@ -44,6 +43,7 @@ namespace Insights
 {
 	class ITimingViewExtender;
 	class FTimeMarker;
+	class FTimingRegionsSharedState;
 	class FQuickFind;
 	class SQuickFind;
 	enum class ETimingEventsColoringMode : uint32;
@@ -554,7 +554,7 @@ protected:
 	TSharedPtr<FFileActivitySharedState> FileActivitySharedState;
 
 	// Shared state for Regions tracks
-	TSharedPtr<FTimingRegionsSharedState> TimingRegionsSharedState;
+	TSharedPtr<Insights::FTimingRegionsSharedState> TimingRegionsSharedState;
 	
 	////////////////////////////////////////////////////////////
 
