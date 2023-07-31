@@ -158,6 +158,18 @@ bool URigVMEdGraph::HandleModifiedEvent_Internal(ERigVMGraphNotifType InNotifTyp
 		return false;
 	}
 
+	// Make sure this EdGraph has a valid blueprint
+	URigVMBlueprint* RigVMBlueprint = nullptr;
+	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(this))
+	{
+		RigVMBlueprint = Cast<URigVMBlueprint>(Blueprint);
+	}
+	if (!RigVMBlueprint)
+	{
+		return false;
+	}
+
+
 	if(URigVMEdGraphSchema* EdGraphSchema = (URigVMEdGraphSchema*)GetRigVMEdGraphSchema())
 	{
 		EdGraphSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);

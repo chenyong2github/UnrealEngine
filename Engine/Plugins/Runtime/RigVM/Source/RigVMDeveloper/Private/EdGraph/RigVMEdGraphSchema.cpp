@@ -2397,9 +2397,14 @@ void URigVMEdGraphSchema::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, 
 
 TSubclassOf<URigVMEdGraphNode> URigVMEdGraphSchema::GetGraphNodeClass(const URigVMEdGraph* InGraph) const
 {
-	const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InGraph);
-	const URigVMBlueprint* RigBlueprint = CastChecked<URigVMBlueprint>(Blueprint);
-	return RigBlueprint->GetRigVMEdGraphNodeClass();
+	if (const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InGraph))
+	{
+		if (const URigVMBlueprint* RigBlueprint = CastChecked<URigVMBlueprint>(Blueprint))
+		{
+			return RigBlueprint->GetRigVMEdGraphNodeClass();
+		}
+	}
+	return nullptr;
 }
 
 bool URigVMEdGraphSchema::IsRigVMDefaultEvent(const FName& InEventName) const
