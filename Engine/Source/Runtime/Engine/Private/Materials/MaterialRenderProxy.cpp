@@ -365,7 +365,11 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	FMaterialShaderMap* ShaderMap = Context.Material.GetRenderingThreadShaderMap();
 	const FUniformExpressionSet& UniformExpressionSet = ShaderMap->GetUniformExpressionSet();
 
-	OutUniformExpressionCache.CachedUniformExpressionShaderMap = ShaderMap;
+	// Initialize this to null, and set it to its final value (ShaderMap) at the end of the function.  The goal is to increase the timing window where
+	// we can detect thread safety bugs where the uniform expression cache is accessed while the expressions are being evaluated.  Bugs will typically
+	// manifest as an assert in FMaterialShader::GetShaderBindings, called from various mesh draw command generation logic.
+	OutUniformExpressionCache.CachedUniformExpressionShaderMap = nullptr;
+
 	OutUniformExpressionCache.ResetAllocatedVTs();
 	OutUniformExpressionCache.AllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
 	OutUniformExpressionCache.OwnedAllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
@@ -435,6 +439,9 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	}
 
 	OutUniformExpressionCache.ParameterCollections = UniformExpressionSet.ParameterCollections;
+
+	// Deliberately set this last, see comment above where it's initialized to nullptr
+	OutUniformExpressionCache.CachedUniformExpressionShaderMap = ShaderMap;
 
 	++UniformExpressionCacheSerialNumber;
 }

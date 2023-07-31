@@ -2647,10 +2647,19 @@ void FVirtualTextureSystem::BeginUpdate(FRDGBuilder& GraphBuilder, FVirtualTextu
 	}, UE::Tasks::ETaskPriority::High, Updater->bAsyncTaskAllowed);
 }
 
+void FVirtualTextureSystem::CallPendingCallbacks()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::CallPendingCallbacks);
+	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
+
+	Producers.CallPendingCallbacks();
+}
+
 TUniquePtr<FVirtualTextureUpdater> FVirtualTextureSystem::BeginUpdate(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const FVirtualTextureUpdateSettings& Settings)
 {
 	check(IsInRenderingThread());
 	check(!bUpdating);
+	checkf(Producers.HasPendingCallbacks() == false, TEXT("FVirtualTextureSystem::CallPendingCallbacks(), typically called in FSceneRenderer::UpdateScene(), must run before FVirtualTextureSystem::BeginUpdate()"));
 
 	AllocateResources(GraphBuilder);
 
@@ -2658,8 +2667,6 @@ TUniquePtr<FVirtualTextureUpdater> FVirtualTextureSystem::BeginUpdate(FRDGBuilde
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::BeginUpdate);
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTexture);
-
-	Producers.CallPendingCallbacks();
 
 	if (!Settings.bEnablePageRequests)
 	{

@@ -62,6 +62,7 @@ public:
 	void AddDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton);
 	uint32 RemoveAllCallbacks(const void* Baton);
 	void CallPendingCallbacks();
+	bool HasPendingCallbacks() const;
 
 	/** Notify producers marked as "continous notify" that all requests have been completed. */
 	void NotifyRequestsCompleted();

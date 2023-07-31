@@ -175,6 +175,11 @@ void FVirtualTextureProducerCollection::CallPendingCallbacks()
 
 }
 
+bool FVirtualTextureProducerCollection::HasPendingCallbacks() const
+{
+	return NumPendingCallbacks != 0;
+}
+
 void FVirtualTextureProducerCollection::AddDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton)
 {
 	check(IsInRenderingThread());
