@@ -18,16 +18,22 @@
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
-TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildToAsset(UMetaSoundBuilderBase* InBuilder, const FString& Author, const FString& AssetName, const FString& PackagePath, EMetaSoundBuilderResult& OutResult, const USoundWave* TemplateSoundWave)
+TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildToAsset(
+	UMetaSoundBuilderBase* InBuilder,
+	const FString& Author,
+	const FString& AssetName,
+	const FString& PackagePath,
+	EMetaSoundBuilderResult& OutResult,
+	const USoundWave* TemplateSoundWave
+)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
+	OutResult = EMetaSoundBuilderResult::Failed;
+
 	if (InBuilder)
 	{
-		// Not about to follow this lack of const correctness down a multidecade in the works rabbit hole.
-		UClass& BuilderUClass = const_cast<UClass&>(InBuilder->GetBuilderUClass());
-
 		// AddToRoot to avoid builder getting gc'ed during CreateAsset call below, as the builder 
 		// may be unreferenced by other UObjects and it must be persistent to finish initializing.
 		const bool bWasRooted = InBuilder->IsRooted();
@@ -37,40 +43,55 @@ TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildTo
 		}
 
 		constexpr UFactory* Factory = nullptr;
+		// Not about to follow this lack of const correctness down a multidecade in the works rabbit hole.
+		UClass& BuilderUClass = const_cast<UClass&>(InBuilder->GetBuilderUClass());
 		if (UObject* NewMetaSound = IAssetTools::Get().CreateAsset(AssetName, PackagePath, &BuilderUClass, Factory))
 		{
 			InBuilder->InitNodeLocations();
 			InBuilder->SetAuthor(Author);
 
-			FMetaSoundBuilderOptions BuilderOptions { FName(*AssetName) };
-			BuilderOptions.ExistingMetaSound = NewMetaSound;
-			constexpr UObject* Parent = nullptr;
-			TScriptInterface<IMetaSoundDocumentInterface> DocInterface = InBuilder->Build(Parent, BuilderOptions);
-
-			const bool bIsSource = &BuilderUClass == UMetaSoundSource::StaticClass();
-			if (InBuilder->IsPreset())
+			// Initialize and Build
 			{
-				FMetasoundAssetBase* PresetAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(NewMetaSound);
-				check(PresetAsset);
-				PresetAsset->ConformObjectDataToInterfaces();
+				constexpr UObject* Parent = nullptr;
+				constexpr bool bForceUniqueClassName = true;
+				constexpr bool bAddToRegistry = true;
+				const FMetaSoundBuilderOptions BuilderOptions { FName(*AssetName), bForceUniqueClassName, bAddToRegistry, NewMetaSound };
+				InBuilder->Build(Parent, BuilderOptions);
+			}
 
-				// Only use referenced object's soundwave settings for sources if not overridden 
-				if (TemplateSoundWave == nullptr && bIsSource)
+			// Apply template SoundWave settings
+			{
+				const bool bIsSource = &BuilderUClass == UMetaSoundSource::StaticClass();
+				if (InBuilder->IsPreset())
 				{
-					if (const UObject* ReferencedObject = InBuilder->GetReferencedPresetAsset())
+					FMetasoundAssetBase* PresetAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(NewMetaSound);
+					check(PresetAsset);
+					PresetAsset->ConformObjectDataToInterfaces();
+
+					// Only use referenced UObject's SoundWave settings for sources if not overridden 
+					if (TemplateSoundWave == nullptr && bIsSource)
 					{
-						TemplateSoundWave = CastChecked<USoundWave>(ReferencedObject);
+						if (const UObject* ReferencedObject = InBuilder->GetReferencedPresetAsset())
+						{
+							TemplateSoundWave = CastChecked<USoundWave>(ReferencedObject);
+						}
 					}
+				}
+
+				// Template SoundWave settings only apply to sources
+				if (TemplateSoundWave != nullptr && bIsSource)
+				{
+					SetSoundWaveSettingsFromTemplate(*CastChecked<USoundWave>(NewMetaSound), *TemplateSoundWave);
 				}
 			}
 
-			// Template sound wave settings only apply to sources 
-			if (TemplateSoundWave != nullptr && bIsSource)
+			InitEdGraph(*NewMetaSound);
+
+			if (!bWasRooted)
 			{
-				SetSoundWaveSettingsFromTemplate(*CastChecked<USoundWave>(NewMetaSound), *TemplateSoundWave);
+				InBuilder->RemoveFromRoot();
 			}
 
-			InitEdGraph(*NewMetaSound);
 			OutResult = EMetaSoundBuilderResult::Succeeded;
 			return NewMetaSound;
 		}
@@ -81,43 +102,36 @@ TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildTo
 		}
 	}
 
-	OutResult = EMetaSoundBuilderResult::Failed;
 	return nullptr;
 }
 
-void UMetaSoundEditorSubsystem::SetSoundWaveSettingsFromTemplate(USoundWave& NewMetaSoundWave, const USoundWave& TemplateSoundWave) const
+UMetaSoundEditorSubsystem& UMetaSoundEditorSubsystem::GetChecked()
 {
-	// Sound 
-	NewMetaSoundWave.Volume = TemplateSoundWave.Volume;
-	NewMetaSoundWave.Pitch = TemplateSoundWave.Pitch;
-	NewMetaSoundWave.SoundClassObject = TemplateSoundWave.SoundClassObject;
+	checkf(GEditor, TEXT("Cannot access UMetaSoundEditorSubsystem without editor loaded"));
+	UMetaSoundEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMetaSoundEditorSubsystem>();
+	checkf(EditorSubsystem, TEXT("Failed to find initialized 'UMetaSoundEditorSubsystem"));
+	return *EditorSubsystem;
+}
 
-	// Attenuation 
-	NewMetaSoundWave.AttenuationSettings = TemplateSoundWave.AttenuationSettings;
-	NewMetaSoundWave.bDebug = TemplateSoundWave.bDebug;
+const UMetaSoundEditorSubsystem& UMetaSoundEditorSubsystem::GetConstChecked()
+{
+	checkf(GEditor, TEXT("Cannot access UMetaSoundEditorSubsystem without editor loaded"));
+	UMetaSoundEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMetaSoundEditorSubsystem>();
+	checkf(EditorSubsystem, TEXT("Failed to find initialized 'UMetaSoundEditorSubsystem"));
+	return *EditorSubsystem;
+}
 
-	// Effects 
-	NewMetaSoundWave.bEnableBusSends = TemplateSoundWave.bEnableBusSends;
-	NewMetaSoundWave.SourceEffectChain = TemplateSoundWave.SourceEffectChain;
-	NewMetaSoundWave.BusSends = TemplateSoundWave.BusSends;
-	NewMetaSoundWave.PreEffectBusSends = TemplateSoundWave.PreEffectBusSends; 
-
-	NewMetaSoundWave.bEnableBaseSubmix = TemplateSoundWave.bEnableBaseSubmix;
-	NewMetaSoundWave.SoundSubmixObject = TemplateSoundWave.SoundSubmixObject;
-	NewMetaSoundWave.bEnableSubmixSends = TemplateSoundWave.bEnableSubmixSends;
-	NewMetaSoundWave.SoundSubmixSends = TemplateSoundWave.SoundSubmixSends;
-
-	// Modulation 
-	NewMetaSoundWave.ModulationSettings = TemplateSoundWave.ModulationSettings;
-	
-	// Voice Management 
-	NewMetaSoundWave.VirtualizationMode = TemplateSoundWave.VirtualizationMode;
-	NewMetaSoundWave.bOverrideConcurrency = TemplateSoundWave.bOverrideConcurrency;
-	NewMetaSoundWave.ConcurrencySet = TemplateSoundWave.ConcurrencySet;
-	NewMetaSoundWave.ConcurrencyOverrides = TemplateSoundWave.ConcurrencyOverrides;
-
-	NewMetaSoundWave.bBypassVolumeScaleForPriority = TemplateSoundWave.bBypassVolumeScaleForPriority;
-	NewMetaSoundWave.Priority = TemplateSoundWave.Priority;
+const FString UMetaSoundEditorSubsystem::GetDefaultAuthor()
+{
+	FString Author = UKismetSystemLibrary::GetPlatformUserName();
+	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	{
+		if (!EditorSettings->DefaultAuthor.IsEmpty())
+		{
+			Author = EditorSettings->DefaultAuthor;
+		}
+	}
+	return Author;
 }
 
 void UMetaSoundEditorSubsystem::InitAsset(UObject& InNewMetaSound, UObject* InReferencedMetaSound)
@@ -191,33 +205,55 @@ void UMetaSoundEditorSubsystem::RegisterGraphWithFrontend(UObject& InMetaSound, 
 	Metasound::Editor::FGraphBuilder::RegisterGraphWithFrontend(InMetaSound, bInForceViewSynchronization);
 }
 
-const FString UMetaSoundEditorSubsystem::GetDefaultAuthor()
+void UMetaSoundEditorSubsystem::SetNodeLocation(
+	UMetaSoundBuilderBase* InBuilder,
+	const FMetaSoundNodeHandle& InNode,
+	const FVector2D& InLocation,
+	EMetaSoundBuilderResult& OutResult)
 {
-	FString Author = UKismetSystemLibrary::GetPlatformUserName();
-	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	if (InBuilder)
 	{
-		if (!EditorSettings->DefaultAuthor.IsEmpty())
-		{
-			Author = EditorSettings->DefaultAuthor;
-		}
+		InBuilder->SetNodeLocation(InNode, InLocation, OutResult);
 	}
-	return Author;
+	else
+	{
+		OutResult = EMetaSoundBuilderResult::Failed;
+	}
 }
 
-UMetaSoundEditorSubsystem& UMetaSoundEditorSubsystem::GetChecked()
+void UMetaSoundEditorSubsystem::SetSoundWaveSettingsFromTemplate(USoundWave& NewMetaSoundWave, const USoundWave& TemplateSoundWave) const
 {
-	checkf(GEditor, TEXT("Cannot access UMetaSoundEditorSubsystem without editor loaded"));
-	UMetaSoundEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMetaSoundEditorSubsystem>();
-	checkf(EditorSubsystem, TEXT("Failed to find initialized 'UMetaSoundEditorSubsystem"));
-	return *EditorSubsystem;
-}
+	// Sound 
+	NewMetaSoundWave.Volume = TemplateSoundWave.Volume;
+	NewMetaSoundWave.Pitch = TemplateSoundWave.Pitch;
+	NewMetaSoundWave.SoundClassObject = TemplateSoundWave.SoundClassObject;
 
-const UMetaSoundEditorSubsystem& UMetaSoundEditorSubsystem::GetConstChecked()
-{
-	checkf(GEditor, TEXT("Cannot access UMetaSoundEditorSubsystem without editor loaded"));
-	UMetaSoundEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMetaSoundEditorSubsystem>();
-	checkf(EditorSubsystem, TEXT("Failed to find initialized 'UMetaSoundEditorSubsystem"));
-	return *EditorSubsystem;
+	// Attenuation 
+	NewMetaSoundWave.AttenuationSettings = TemplateSoundWave.AttenuationSettings;
+	NewMetaSoundWave.bDebug = TemplateSoundWave.bDebug;
+
+	// Effects 
+	NewMetaSoundWave.bEnableBusSends = TemplateSoundWave.bEnableBusSends;
+	NewMetaSoundWave.SourceEffectChain = TemplateSoundWave.SourceEffectChain;
+	NewMetaSoundWave.BusSends = TemplateSoundWave.BusSends;
+	NewMetaSoundWave.PreEffectBusSends = TemplateSoundWave.PreEffectBusSends; 
+
+	NewMetaSoundWave.bEnableBaseSubmix = TemplateSoundWave.bEnableBaseSubmix;
+	NewMetaSoundWave.SoundSubmixObject = TemplateSoundWave.SoundSubmixObject;
+	NewMetaSoundWave.bEnableSubmixSends = TemplateSoundWave.bEnableSubmixSends;
+	NewMetaSoundWave.SoundSubmixSends = TemplateSoundWave.SoundSubmixSends;
+
+	// Modulation 
+	NewMetaSoundWave.ModulationSettings = TemplateSoundWave.ModulationSettings;
+	
+	// Voice Management 
+	NewMetaSoundWave.VirtualizationMode = TemplateSoundWave.VirtualizationMode;
+	NewMetaSoundWave.bOverrideConcurrency = TemplateSoundWave.bOverrideConcurrency;
+	NewMetaSoundWave.ConcurrencySet = TemplateSoundWave.ConcurrencySet;
+	NewMetaSoundWave.ConcurrencyOverrides = TemplateSoundWave.ConcurrencyOverrides;
+
+	NewMetaSoundWave.bBypassVolumeScaleForPriority = TemplateSoundWave.bBypassVolumeScaleForPriority;
+	NewMetaSoundWave.Priority = TemplateSoundWave.Priority;
 }
 
 #undef LOCTEXT_NAMESPACE // "MetaSoundEditor"

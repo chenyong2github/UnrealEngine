@@ -1702,7 +1702,10 @@ void FMetaSoundFrontendDocumentBuilder::InitNodeLocations()
 			// TODO: Find consistent location for controlling node locations.
 			// Currently it is split between MetasoundEditor and MetasoundFrontend modules.
 			FMetasoundFrontendNodeStyle& Style = Node.Style;
-			Style.Display.Locations = { { FGuid::NewGuid(), NewLocation } };
+			if (Style.Display.Locations.IsEmpty())
+			{
+				Style.Display.Locations = { { FGuid::NewGuid(), NewLocation } };
+			}
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
@@ -2367,6 +2370,36 @@ bool FMetaSoundFrontendDocumentBuilder::SetNodeInputDefault(const FGuid& InNodeI
 
 	return false;
 }
+
+#if WITH_EDITOR
+bool FMetaSoundFrontendDocumentBuilder::SetNodeLocation(const FGuid& InNodeID, const FVector2D& InLocation)
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
+	if (const int32* NodeIndex = NodeCache.FindNodeIndex(InNodeID))
+	{
+		FMetasoundFrontendNode& Node = GetDocument().RootGraph.Graph.Nodes[*NodeIndex];
+		FMetasoundFrontendNodeStyle& Style = Node.Style;
+		if (Style.Display.Locations.IsEmpty())
+		{
+			Style.Display.Locations = { { FGuid::NewGuid(), InLocation } };
+		}
+		else
+		{
+			Algo::ForEach(Style.Display.Locations, [InLocation](TPair<FGuid, FVector2D>& Pair)
+			{
+				Pair.Value = InLocation;
+			});
+		}
+
+		return true;
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
 
 bool FMetaSoundFrontendDocumentBuilder::SwapGraphInput(const FMetasoundFrontendClassVertex& InExistingInputVertex, const FMetasoundFrontendClassVertex& InNewInputVertex)
 {

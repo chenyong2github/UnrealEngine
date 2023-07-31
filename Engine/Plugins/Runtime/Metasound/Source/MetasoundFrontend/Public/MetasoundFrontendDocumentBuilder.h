@@ -240,6 +240,10 @@ public:
 	void ReloadCache();
 
 	void SetAuthor(const FString& InAuthor);
+
+	// Sets the editor-only node location of a node with the given ID to the provided location.
+	// Returns true if the node was found and the location was updated, false if not.
+	bool SetNodeLocation(const FGuid& InNodeID, const FVector2D& InLocation);
 #endif // WITH_EDITOR
 
 	bool SetGraphInputDefault(FName InputName, const FMetasoundFrontendLiteral& InDefaultLiteral);

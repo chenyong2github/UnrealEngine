@@ -20,10 +20,28 @@ class METASOUNDEDITOR_API UMetaSoundEditorSubsystem : public UEditorSubsystem
 
 public:
 	// Build the given builder to a MetaSound asset
-	// @param TemplateSoundWave - SoundWave settings such as attenuation, modulation, and sound class will be copied from the optional TemplateSoundWave. 
-	// For preset builders, TemplateSoundWave will override the template values from the referenced asset
+	// @param Author - Sets the author on the given builder's document.
+	// @param AssetName - Name of the asset to build.
+	// @param PackagePath - Path of package to build asset to.
+	// @param TemplateSoundWave - SoundWave settings such as attenuation, modulation, and sound class will be copied from the optional TemplateSoundWave.
+	// For preset builders, TemplateSoundWave will override the template values from the referenced asset.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder|Editor", meta = (WorldContext = "Parent", ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "MetaSound Asset") TScriptInterface<IMetaSoundDocumentInterface> BuildToAsset(UMetaSoundBuilderBase* InBuilder, const FString& Author, const FString& AssetName, const FString& PackagePath, EMetaSoundBuilderResult& OutResult, const USoundWave* TemplateSoundWave = nullptr);
+	UPARAM(DisplayName = "MetaSound Asset") TScriptInterface<IMetaSoundDocumentInterface> BuildToAsset(
+		UPARAM(DisplayName = "Builder") UMetaSoundBuilderBase* InBuilder,
+		const FString& Author,
+		const FString& AssetName,
+		const FString& PackagePath,
+		EMetaSoundBuilderResult& OutResult,
+		UPARAM(DisplayName = "Template SoundWave") const USoundWave* TemplateSoundWave = nullptr);
+
+	// @param NodeStyle - Initial style of given nodes, including position.  If not provided, sets to default data including position according to simple
+	// algorithm making a column of inputs, outputs, and any other nodes in between.
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder|Editor", meta = (ExpandEnumAsExecs = "OutResult"))
+	void SetNodeLocation(
+		UPARAM(DisplayName = "Builder") UMetaSoundBuilderBase * InBuilder,
+		UPARAM(DisplayName = "Node") const FMetaSoundNodeHandle& InNode,
+		UPARAM(DisplayName = "Location") const FVector2D& InLocation,
+		EMetaSoundBuilderResult& OutResult);
 	
 	// Initialize the UObject asset, with an optional MetaSound to be referenced if the asset is a preset
 	void InitAsset(UObject& InNewMetaSound, UObject* InReferencedMetaSound = nullptr);

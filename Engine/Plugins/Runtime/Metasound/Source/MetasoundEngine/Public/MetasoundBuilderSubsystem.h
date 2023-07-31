@@ -100,6 +100,12 @@ struct METASOUNDENGINE_API FMetaSoundBuilderOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MetaSound|Builder")
 	FName Name;
 
+	// If true, this will force regeneration of the class identifier. If the resulting MetaSound is building over
+	// an existing document, this will effectively invalidate any referencing MetaSounds and register the MetaSound
+	// as a new entry in the Frontend.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MetaSound|Builder", meta = (AdvancedDisplay))
+	bool bForceUniqueClassName = false;
+
 	// If true, adds MetaSound to node registry, making it available
 	// for reference by other dynamically created MetaSounds.
 	UPROPERTY()
@@ -362,6 +368,10 @@ public:
 
 	virtual void InitFrontendBuilder();
 
+#if WITH_EDITOR
+	void SetNodeLocation(const FMetaSoundNodeHandle& InNodeHandle, const FVector2D& InLocation, EMetaSoundBuilderResult& OutResult);
+#endif // WITH_EDITOR
+
 protected:
 	const FMetaSoundFrontendDocumentBuilder& GetConstBuilder() const
 	{
@@ -389,7 +399,10 @@ protected:
 				// If MetaSound already exists, preserve the class name to avoid
 				// nametable bloat & preserve potentially existing references.
 				const FMetasoundFrontendDocument& ExistingDoc = CastChecked<const UClassType>(MetaSound)->GetDocumentChecked();
-				DocClassName = &ExistingDoc.RootGraph.Metadata.GetClassName();
+				if (!BuilderOptions.bForceUniqueClassName)
+				{
+					DocClassName = &ExistingDoc.RootGraph.Metadata.GetClassName();
+				}
 				const FNodeRegistryKey& RegistryKey = MetaSound->GetRegistryKey();
 				if (NodeRegistryKey::IsValid(RegistryKey))
 				{
