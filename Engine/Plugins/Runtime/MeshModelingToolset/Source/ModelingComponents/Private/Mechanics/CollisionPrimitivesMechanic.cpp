@@ -1339,11 +1339,6 @@ void UCollisionPrimitivesMechanic::DeleteSelectedPrimitive()
 
 	ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("DeleteSelectionUndo", "Delete Selected Collision Primitives"));
 
-	ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCollisionPrimitivesMechanicGeometryChange>(
-		PreAddGeometry, MakeShared<FKAggregateGeom>(PhysicsData->AggGeom),
-		CurrentChangeStamp), CollisionPrimitivesMechanicLocals::CollisionPrimitiveMovementTransactionText);
-	OnCollisionGeometryChanged.Broadcast();
-
 	TSet<int32> PreDeleteSelection = SelectedPrimitiveIDs;
 	SelectedPrimitiveIDs.Empty();
 
@@ -1354,6 +1349,11 @@ void UCollisionPrimitivesMechanic::DeleteSelectedPrimitive()
 	ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCollisionPrimitivesMechanicSelectionChange>(
 		SelectedPrimitiveIDs, true, Transform, Transform, CurrentChangeStamp), CollisionPrimitivesMechanicLocals::CollisionPrimitiveSelectionTransactionText);
 	OnSelectionChanged.Broadcast();
+
+	ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCollisionPrimitivesMechanicGeometryChange>(
+		PreAddGeometry, MakeShared<FKAggregateGeom>(PhysicsData->AggGeom),
+		CurrentChangeStamp), CollisionPrimitivesMechanicLocals::CollisionPrimitiveMovementTransactionText);
+	OnCollisionGeometryChanged.Broadcast();
 
 	ParentTool->GetToolManager()->EndUndoTransaction();
 
@@ -1372,11 +1372,6 @@ void UCollisionPrimitivesMechanic::DeleteAllPrimitives()
 
 	ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("DeleteAllUndo", "Delete All Collision Primitives"));
 
-	ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCollisionPrimitivesMechanicGeometryChange>(
-		PreAddGeometry, MakeShared<FKAggregateGeom>(PhysicsData->AggGeom),
-		CurrentChangeStamp), CollisionPrimitivesMechanicLocals::CollisionPrimitiveMovementTransactionText);
-	OnCollisionGeometryChanged.Broadcast();
-
 	TSet<int32> PreDeleteSelection = SelectedPrimitiveIDs;
 	SelectedPrimitiveIDs.Empty();
 
@@ -1387,6 +1382,11 @@ void UCollisionPrimitivesMechanic::DeleteAllPrimitives()
 	ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCollisionPrimitivesMechanicSelectionChange>(
 		SelectedPrimitiveIDs, true, Transform, Transform, CurrentChangeStamp), CollisionPrimitivesMechanicLocals::CollisionPrimitiveSelectionTransactionText);
 	OnSelectionChanged.Broadcast();
+
+	ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FCollisionPrimitivesMechanicGeometryChange>(
+		PreAddGeometry, MakeShared<FKAggregateGeom>(PhysicsData->AggGeom),
+		CurrentChangeStamp), CollisionPrimitivesMechanicLocals::CollisionPrimitiveMovementTransactionText);
+	OnCollisionGeometryChanged.Broadcast();
 
 	ParentTool->GetToolManager()->EndUndoTransaction();
 
