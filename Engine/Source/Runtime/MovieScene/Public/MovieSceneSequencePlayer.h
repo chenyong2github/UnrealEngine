@@ -60,6 +60,7 @@ struct FMovieSceneSequenceReplProperties
 	FMovieSceneSequenceReplProperties()
 		: LastKnownStatus(EMovieScenePlayerStatus::Stopped)
 		, LastKnownNumLoops(0)
+		, LastKnownSerialNumber(0)
 	{}
 
 	/** The last known position of the sequence on the server */
@@ -73,6 +74,29 @@ struct FMovieSceneSequenceReplProperties
 	/** The last known number of loops of the sequence on the server */
 	UPROPERTY()
 	int32 LastKnownNumLoops;
+
+	/** The last known serial number on the server */
+	UPROPERTY()
+	int32 LastKnownSerialNumber;
+
+	/**
+	 * Custom serialization method so that all the properties in this struct are
+	 * in sync with the server. Without this, we could sometimes get half of the
+	 * properties up-to-date, and half of the properties left to old values.
+	 * This is especially problematic when LastKnownPosition updates, but LastKnownStatus
+	 * is left as "Stopped".
+	 */
+	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
+};
+
+
+template<>
+struct TStructOpsTypeTraits<FMovieSceneSequenceReplProperties> : public TStructOpsTypeTraitsBase2<FMovieSceneSequenceReplProperties>
+{
+	enum
+	{
+		WithNetSerializer = true
+	};
 };
 
 
@@ -555,6 +579,9 @@ private:
 
 	MOVIESCENE_API void RunPreEvaluationCallbacks();
 	MOVIESCENE_API void RunPostEvaluationCallbacks();
+
+	void IncrementServerSerialNumber();
+	void AdvanceClientSerialNumberTo(int32 NewSerialNumber);
 	
 private:
 
@@ -562,19 +589,19 @@ private:
 	 * Called on the server whenever an explicit change in time has occurred through one of the (Play|Jump|Scrub)To methods
 	 */
 	UFUNCTION(netmulticast, reliable)
-	MOVIESCENE_API void RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod Method, FFrameTime RelevantTime);
+	MOVIESCENE_API void RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod Method, FFrameTime RelevantTime, int32 NewSerialNumber);
 
 	/**
 	 * Called on the server when Stop() is called in order to differentiate Stops from Pauses.
 	 */
 	UFUNCTION(netmulticast, reliable)
-	MOVIESCENE_API void RPC_OnStopEvent(FFrameTime StoppedTime);
+	MOVIESCENE_API void RPC_OnStopEvent(FFrameTime StoppedTime, int32 NewSerialNumber);
 
 	/**
 	 * Called on the server when playback has reached the end. Could lead to stopping or pausing.
 	 */
 	UFUNCTION(netmulticast, reliable)
-	MOVIESCENE_API void RPC_OnFinishPlaybackEvent(FFrameTime StoppedTime);
+	MOVIESCENE_API void RPC_OnFinishPlaybackEvent(FFrameTime StoppedTime, int32 NewSerialNumber);
 
 	/**
 	 * Check whether this sequence player is an authority, as determined by its outer Actor
@@ -643,6 +670,13 @@ protected:
 	/** The number of times we have looped in the current playback */
 	UPROPERTY(transient)
 	int32 CurrentNumLoops;
+
+	/**
+	 * The serial number for the current update lifespan
+	 * It is incremented every time we pass a "gate" such as an RPC call that stops/finishes the sequence.
+	 */
+	UPROPERTY(transient)
+	int32 SerialNumber;
 
 	/** Specific playback settings for the animation. */
 	UPROPERTY(replicated)

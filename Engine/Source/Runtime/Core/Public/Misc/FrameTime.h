@@ -43,6 +43,11 @@ struct FFrameTime
 	 */
 	FFrameTime& operator=(FFrameNumber InFrameNumber);
 
+	/**
+	 * Serializes the given FrameTime from or into the specified archive
+	 */
+	bool Serialize(FArchive& Ar);
+
 public:
 
 	/**
@@ -95,6 +100,20 @@ private:
 	/** Must be 0.f <= SubFrame < 1.f */
 	float SubFrame;
 
+public:
+
+	/**
+	 * Serializes the given FrameTime from or into the specified archive.
+	 *
+	 * @param Ar            The archive to serialize from or into.
+	 * @param FrameTime     The frame time to serialize.
+	 * @return The archive used for serialization.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FFrameTime& FrameTime)
+	{
+		FrameTime.Serialize(Ar);
+		return Ar;
+	}
 
 	friend FORCEINLINE_DEBUGGABLE bool operator==(FFrameTime A, FFrameTime B)
 	{
@@ -245,6 +264,14 @@ inline FFrameTime::FFrameTime(FFrameNumber InFrameNumber, float InSubFrame)
 	// problems with FloorToXYZ returning the wrong thing for very small negative numbers
 	SubFrame = FMath::Clamp(SubFrame + 0.5f - 0.5f, 0.f, MaxSubframe);
 	checkSlow(InSubFrame >= 0.f && InSubFrame < 1.f);
+}
+
+
+inline bool FFrameTime::Serialize(FArchive& Ar)
+{
+	Ar << FrameNumber;
+	Ar << SubFrame;
+	return true;
 }
 
 
