@@ -56,6 +56,8 @@ public class RemoteFileManager implements Runnable
 	private static final int SERVER_VERSION = 100;
 	private static final int ACCEPT_TIMEOUT = 2000;		// milliseconds
 
+	private static final int MAX_OVERFLOW_FILES = 32;
+
 	private static final int Command_Terminate = 0;
 	private static final int Command_Close = 1;
 	private static final int Command_Info = 2;
@@ -93,10 +95,6 @@ public class RemoteFileManager implements Runnable
 	private String commandfile;
 	private String mainobb;
 	private String patchobb;
-	private String overflow1obb;
-	private String overflow2obb;
-	private String overflow3obb;
-	private String overflow4obb;
 
 	private String packageName;
 	private int versionCode;
@@ -147,10 +145,6 @@ public class RemoteFileManager implements Runnable
 		obbPackageDir = obbdir + "/";
 		mainobb = obbPackageDir + "main." + versionString + "." + packageName + ".obb";
 		patchobb = obbPackageDir + "patch." + versionString + "." + packageName + ".obb";
-		overflow1obb = obbPackageDir + "overflow1." + versionString + "." + packageName + ".obb";
-		overflow2obb = obbPackageDir + "overflow2." + versionString + "." + packageName + ".obb";
-		overflow3obb = obbPackageDir + "overflow3." + versionString + "." + packageName + ".obb";
-		overflow4obb = obbPackageDir + "overflow4." + versionString + "." + packageName + ".obb";
 
 		unrealPackageDir = (bIsShipping ? internalPackageDir : externalPackageDir) + unrealGame;
 		projectPackageDir = unrealPackageDir + projectName + "/";
@@ -173,10 +167,12 @@ public class RemoteFileManager implements Runnable
 		replacements.put("^obb", obbPackageDir);
 		replacements.put("^mainobb", mainobb);
 		replacements.put("^patchobb", patchobb);
-		replacements.put("^overflow1obb", overflow1obb);
-		replacements.put("^overflow2obb", overflow2obb);
-		replacements.put("^overflow3obb", overflow3obb);
-		replacements.put("^overflow4obb", overflow4obb);
+
+		for (int overflowIndex=1; overflowIndex < MAX_OVERFLOW_FILES; overflowIndex++)
+		{
+			String overflowobb = obbPackageDir + "overflow" + overflowIndex + "." + versionString + "." + packageName + ".obb";
+			replacements.put("^overflow" + overflowIndex + "obb", overflowobb);
+		}
 
 		replacements.put("^engineversion", engineVersion);
 		replacements.put("^projectname", projectName);

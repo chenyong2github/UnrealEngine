@@ -45,6 +45,10 @@ extern FString GFontPathBase;
 extern bool GOBBinAPK;
 extern bool GOverrideAndroidLogDir;
 extern FString GOBBFilePathBase;
+extern FString GOBBMainFilePath;
+extern FString GOBBPatchFilePath;
+extern FString GOBBOverflow1FilePath;
+extern FString GOBBOverflow2FilePath;
 extern FString GAPKFilename;
 
 FOnActivityResult FJavaWrapper::OnActivityResultDelegate;
@@ -1667,6 +1671,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* InJavaVM, void* InReserved)
 	// Copy that somewhere safe
 	GFilePathBase = FJavaHelper::FStringFromLocalRef(Env, (jstring)Env->CallObjectMethod(*externalStoragePath, getFilePath, nullptr));
 	GOBBFilePathBase = GFilePathBase;
+	GOBBMainFilePath = TEXT("");
+	GOBBPatchFilePath = TEXT("");
+	GOBBOverflow1FilePath = TEXT("");
+	GOBBOverflow2FilePath = TEXT("");
 
 	// then release...
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Path found as '%s'\n"), *GFilePathBase);
@@ -1690,7 +1698,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* InJavaVM, void* InReserved)
 //This function is declared in the Java-defined class, GameActivity.java: "public native void naativeSetObbFilePaths();"
 JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetObbFilePaths(JNIEnv* jenv, jobject thiz, jstring OBBMainFilePath, jstring OBBPatchFilePath, jstring OBBOverflow1FilePath, jstring OBBOverflow2FilePath)
 {
-	// no longer supported
+	GOBBMainFilePath = FJavaHelper::FStringFromParam(jenv, OBBMainFilePath);
+	GOBBPatchFilePath = FJavaHelper::FStringFromParam(jenv, OBBPatchFilePath);
+	GOBBOverflow1FilePath = FJavaHelper::FStringFromParam(jenv, OBBOverflow1FilePath);
+	GOBBOverflow2FilePath = FJavaHelper::FStringFromParam(jenv, OBBOverflow2FilePath);
 }
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetGlobalActivity();"

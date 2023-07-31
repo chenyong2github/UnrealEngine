@@ -86,6 +86,8 @@ int32 GAndroidPackageVersion = 0;
 int32 GAndroidPackagePatchVersion = 0;
 FString GAndroidAppType;
 
+#define ANDROID_MAX_OVERFLOW_FILES	32
+
 // External File Path base - setup during load
 FString GFilePathBase;
 // Obb File Path base - setup during load
@@ -94,6 +96,10 @@ FString GOBBFilePathBase;
 FString GOBBMainFilePath;
 // Obb Patch filepath
 FString GOBBPatchFilePath;
+// Obb Overflow1 filepath
+FString GOBBOverflow1FilePath;
+// Obb Overflow2 filepath
+FString GOBBOverflow2FilePath;
 // Internal File Direcory Path (for application) - setup during load
 FString GInternalFilePath;
 // External File Direcory Path (for application) - setup during load
@@ -1242,8 +1248,23 @@ public:
 
 			// Only check for overflow files if we found a patch file
 			if (bHavePatch)
-			{	
-				for (int32 OverflowIndex = 1; ; OverflowIndex++)
+			{
+				int32 OverflowIndex = 1;
+
+				if (!GOBBOverflow1FilePath.IsEmpty() && FileExists(*GOBBOverflow1FilePath, true))
+				{
+					OverflowIndex = 2;
+					MountOBB(*GOBBOverflow1FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
+				}
+				if (!GOBBOverflow2FilePath.IsEmpty() && FileExists(*GOBBOverflow2FilePath, true))
+				{
+					OverflowIndex = 3;
+					MountOBB(*GOBBOverflow2FilePath);
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
+				}
+
+				while (OverflowIndex <= ANDROID_MAX_OVERFLOW_FILES)
 				{
 					FString OverflowOBBName = FString::Printf(TEXT("overflow%d.%d.%s.obb"), OverflowIndex, GAndroidPackageVersion, *GPackageName);
 
@@ -1263,6 +1284,8 @@ public:
 					{
 						break;
 					}
+
+					OverflowIndex++;
 				}
 			}
 		}
