@@ -806,9 +806,9 @@ FReply SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked()
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
 	if (EmitterHandleViewModel.IsValid())
 	{
-		bool bShouldBeIsolated = !EmitterHandleViewModel->GetIsIsolated();
-		EmitterHandleViewModel->SetIsIsolated(bShouldBeIsolated);
+		EmitterHandleViewModel->GetOwningSystemViewModel()->ToggleIsolateEmitterAndSelectedEmitters(EmitterHandleViewModel->GetId());
 	}
+
 	return FReply::Handled();
 }
 

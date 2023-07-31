@@ -208,11 +208,7 @@ private:
 		TArray<FGuid> EmitterIdsToIsolate;
 		if (EmitterTrack.IsValid())
 		{
-			if (EmitterTrack->GetEmitterHandleViewModel()->GetIsIsolated() == false)
-			{
-				EmitterIdsToIsolate.Add(EmitterTrack->GetEmitterHandleViewModel()->GetId());
-			}
-			EmitterTrack->GetSystemViewModel().IsolateEmitters(EmitterIdsToIsolate);
+			EmitterTrack->GetSystemViewModel().ToggleIsolateEmitterAndSelectedEmitters(EmitterTrack->GetEmitterHandleViewModel()->GetId());
 		}
 		return FReply::Handled();
 	}

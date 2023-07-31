@@ -284,8 +284,14 @@ public:
 	 * @param ReinitMode Defines whether the system should reinitialize and pull in changes or reset and keep its current state.
 	 */
 	void ResetSystem(ETimeResetMode TimeResetMode, EMultiResetMode MultiResetMode, EReinitMode ReinitMode);
-	
-	void IsolateSelectedEmitters();
+
+	/** This is specifically for UI with some unique behavior.
+	 *  If at least 1 selected emitter is currently not in solo-mode, we assume the user wants to override the 'solo selection' so that all currently selected emitters enter solo mode
+	 *  Since the UI functions can be activated without selection (i.e. clicking 'Isolate' in a overview node won't select the emitter), we always have to specify the guid of the emitter that triggered the call.
+	 *  This is so we can work on all selected emitters + the emitter we clicked Isolate on.
+	 */
+	NIAGARAEDITOR_API void ToggleIsolateEmitterAndSelectedEmitters(FGuid OriginEmitter);
+	NIAGARAEDITOR_API void IsolateSelectedEmitters();
 	void DisableSelectedEmitters();
 	
 	/** Compiles the spawn and update scripts. */

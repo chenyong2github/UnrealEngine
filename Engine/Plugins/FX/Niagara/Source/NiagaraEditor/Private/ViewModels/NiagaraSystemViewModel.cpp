@@ -2269,6 +2269,58 @@ void FNiagaraSystemViewModel::IsolateSelectedEmitters()
 	IsolateEmitters(EmitterHandles);
 }
 
+void FNiagaraSystemViewModel::ToggleIsolateEmitterAndSelectedEmitters(FGuid OriginEmitter)
+{
+	TArray<FGuid> SelectedEmitterHandles = GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	// we treat the origin emitter as if he was selected
+	SelectedEmitterHandles.AddUnique(OriginEmitter);
+
+	bool bAnyIsolationMismatch = false;
+
+	bool bContainsIsolatedEmitter = false;
+	bool bContainsNonIsolatedEmitter = false;
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
+	{
+		if (SelectedEmitterHandles.Contains(EmitterHandle->GetId()))
+		{
+			if(EmitterHandle->GetEmitterHandle()->IsIsolated())
+			{
+				bContainsIsolatedEmitter |= true;
+			}
+			else
+			{
+				bContainsNonIsolatedEmitter |= true;
+			}
+
+			if(bContainsNonIsolatedEmitter && bContainsIsolatedEmitter)
+			{
+				bAnyIsolationMismatch = true;
+				break;
+			}
+		}
+	}
+
+	// if emitter isolation state is mismatched, it means we want to isolate all currently selected emitters 
+	if(bAnyIsolationMismatch)
+	{
+		IsolateEmitters(SelectedEmitterHandles);
+	}
+	// if all currently selected emitters have the same state, we want to toggle it instead
+	else
+	{
+		// all emitters are isolated, which means we want to turn emitter isolation off
+		if(bContainsIsolatedEmitter)
+		{
+			IsolateEmitters({});
+		}
+		// all emitters aren't isolated, so we want to turn emitter isolation on
+		else if(bContainsNonIsolatedEmitter)
+		{
+			IsolateEmitters(SelectedEmitterHandles);
+		}
+	}
+}
+
 void FNiagaraSystemViewModel::DisableSelectedEmitters()
 {
 	const TArray<FGuid> EmitterHandles = GetSelectionViewModel()->GetSelectedEmitterHandleIds();
