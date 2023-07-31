@@ -45,7 +45,16 @@ void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(MakeAttributeLambda([=] { return FText::FromString(ColorSpaceValue->ToString()); }))
+					.Text(MakeAttributeLambda([ColorSpaceValue] {
+							const FString ColorSpaceName = ColorSpaceValue->ToString();
+							
+							if(!ColorSpaceName.IsEmpty())
+							{
+								return FText::FromString(ColorSpaceName);
+							}
+
+							return LOCTEXT("None", "<None>");
+						}))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -93,7 +102,16 @@ void FOpenColorIODisplayViewCustomization::CustomizeHeader(TSharedRef<IPropertyH
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(MakeAttributeLambda([=] { return FText::FromString(DisplayViewValue->ToString()); }))
+					.Text(MakeAttributeLambda([DisplayViewValue] {
+							const FString DisplayViewName = DisplayViewValue->ToString();
+							
+							if(!DisplayViewName.IsEmpty())
+							{
+								return FText::FromString(DisplayViewName);
+							}
+
+							return LOCTEXT("None", "<None>");
+						}))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()

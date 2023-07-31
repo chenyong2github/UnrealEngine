@@ -53,9 +53,11 @@ void UOpenColorIOLevelViewportSettings::PostInitProperties()
 			ViewportSetting.DisplayConfiguration.ColorConfiguration.DisplayViewDirection = EOpenColorIOViewTransformDirection::Forward;
 		}
 
-		// Force disable on invalid viewport settings.
+		// Note: Ideally the following wouldn't be necessary but it is required since the previous default behavior was enabled with invalid settings.
 		if (!ViewportSetting.DisplayConfiguration.ColorConfiguration.IsValid())
 		{
+			UE_LOG(LogOpenColorIOEditor, Display, TEXT("Force-disable invalid viewport transform settings."));
+
 			ViewportSetting.DisplayConfiguration.bIsEnabled = false;
 		}
 	}
