@@ -180,7 +180,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	auto KinematicPredicate =
 		[MaxDistances, MaxDistanceBase, MaxDistanceRange](int32 Index)
 		{
-			return MaxDistances.IsValidIndex(Index) && MaxDistanceBase + MaxDistanceRange * MaxDistances[Index] < KinematicDistanceThreshold;
+			return (MaxDistances.IsValidIndex(Index) ? MaxDistanceBase + MaxDistanceRange * MaxDistances[Index] : MaxDistanceBase) < KinematicDistanceThreshold;
 		};
 
 	const int32 MassMode = ConfigProperties.GetValue<int32>(TEXT("MassMode"), ClothingSimulationClothDefault::MassMode);
