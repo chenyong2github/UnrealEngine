@@ -979,7 +979,8 @@ bool FGameplayCueNotify_DecalInfo::SpawnDecal(const FGameplayCueNotify_SpawnCont
 	{
 		if (bOverrideFadeOut)
 		{
-			SpawnedDecalComponent->SetFadeOut(FadeOutStartDelay, FadeOutDuration);
+			constexpr bool bDestroyOwnerAfterFade = false;
+			SpawnedDecalComponent->SetFadeOut(FadeOutStartDelay, FadeOutDuration, bDestroyOwnerAfterFade);
 		}
 	}
 
