@@ -177,6 +177,8 @@ private:
 	uint32 bSubImageBlend : 1;
 	FVector2f SubImageSize = FVector2f::ZeroVector;
 
+	FVector3f MeshBoundsScale = FVector3f::OneVector;
+
 	FVector3f LockedAxis = FVector3f::ZeroVector;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
