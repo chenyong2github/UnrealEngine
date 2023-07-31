@@ -226,6 +226,10 @@ public:
 		// Can significantly reduce triangle count, but attributes on the interiors of polygonal areas will be completely discarded
 		int32 PlanarPolygonRetriangulationStartLOD = -1;
 
+		// Triangles with Materials assigned that are also in this set will not be allowed to be combined/retriangulated
+		// with adjacent triangles. This can be used to preserve topology/UVs/etc for specific material areas.
+		TArray<UMaterialInterface*> PreventMergingMaterialSet;
+
 		// If enabled, attempt to retriangulate planar areas of Source LODs to remove redundant coplanar geometry. 
 		// This option affects individual parts and not the combined prefab.
 		bool bRetriangulateSourceLODs = true;
