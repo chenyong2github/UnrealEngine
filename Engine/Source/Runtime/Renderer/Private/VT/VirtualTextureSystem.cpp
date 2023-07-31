@@ -2821,6 +2821,8 @@ void FVirtualTextureSystem::EndUpdate(FRDGBuilder& GraphBuilder, TUniquePtr<FVir
 
 void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const FVirtualTextureUpdateSettings& InSettings)
 {
+	CallPendingCallbacks();
+
 	FVirtualTextureUpdateSettings Settings = InSettings;
 	Settings.EnableAsyncTasks(false);
 
