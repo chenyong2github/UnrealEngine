@@ -86,6 +86,7 @@ void SIKRetargetAssetBrowser::RefreshView()
 	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP(this, &SIKRetargetAssetBrowser::OnGetAssetContextMenu);
 	AssetPickerConfig.GetCurrentSelectionDelegates.Add(&GetCurrentSelectionDelegate);
 	AssetPickerConfig.bAllowNullSelection = false;
+	AssetPickerConfig.bFocusSearchBoxWhenOpened = false;
 
 	// hide all asset registry columns by default (we only really want the name and path)
 	TArray<UObject::FAssetRegistryTag> AssetRegistryTags;
