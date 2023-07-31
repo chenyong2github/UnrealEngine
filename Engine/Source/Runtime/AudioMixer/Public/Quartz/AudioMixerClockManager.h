@@ -56,7 +56,7 @@ namespace Audio
 
 		// remove existing clock
 		// safe to call from AudioThread (uses Audio Render Thread Command)
-		AUDIOMIXER_API void RemoveClock(const FName& InName);
+		AUDIOMIXER_API void RemoveClock(const FName& InName, bool bForceSynchronous = false);
 
 		// get Tick rate for clock
 		// safe to call from AudioThread (uses critical section)

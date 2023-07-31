@@ -161,9 +161,9 @@ namespace Audio
 		return INDEX_NONE;
 	}
 
-	void FQuartzClockManager::RemoveClock(const FName& InName)
+	void FQuartzClockManager::RemoveClock(const FName& InName, bool bForceSynchronous)
 	{
-		if (MixerDevice && !MixerDevice->IsAudioRenderingThread())
+		if (!bForceSynchronous && MixerDevice && !MixerDevice->IsAudioRenderingThread())
 		{
 			MixerDevice->AudioRenderThreadCommand([this, InName]()
 			{

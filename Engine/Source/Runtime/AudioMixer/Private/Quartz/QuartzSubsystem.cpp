@@ -467,15 +467,25 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 
 void UQuartzSubsystem::DeleteClockByName(const UObject* WorldContextObject, FName ClockName)
 {
-	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	// first look for the clock on the audio device's clock manager
+	bool bShouldDeleteSynchronous = false;
+	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject, /*bUseAudioEngineClockManager*/ true);
 
-	if (!ClockManager)
+	if (ClockManager && !ClockManager->DoesClockExist(ClockName))
 	{
-		return;
+		// if we didn't find it, assume the clock is on the subsystem's clock manager
+		ClockManager = GetClockManager(WorldContextObject, /*bUseAudioEngineClockManager*/ false);
+		bShouldDeleteSynchronous = true;
 	}
 
-	ClockManager->RemoveClock(ClockName);
-	PruneStaleProxies();
+	// if the clock is managed by the audio mixer device,
+	// bShouldDeleteSynchronous is false, and it will be deleted on the correct thread.
+	// if its managed by the subsystem, bShouldDeleteSynchronous will be true
+	if(ClockManager)
+	{
+		ClockManager->RemoveClock(ClockName, bShouldDeleteSynchronous);
+		PruneStaleProxies();
+	}
 }
 
 void UQuartzSubsystem::DeleteClockByHandle(const UObject* WorldContextObject, UQuartzClockHandle*& InClockHandle)
