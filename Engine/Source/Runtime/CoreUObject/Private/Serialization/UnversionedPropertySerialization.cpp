@@ -151,7 +151,7 @@ public:
 
 		if (bIsOptional)
 		{
-			return !static_cast<const FOptionalProperty*>(Property)->IsSet(GetValue(Data));
+			return FastZeroIntNum > 0 && !static_cast<const FOptionalProperty*>(Property)->IsSet(GetValue(Data));
 		}
 		else if (FastZeroIntNum == 1) // Can likely be simplified and faster using a switch() statement like LoadZero()
 		{
@@ -191,7 +191,11 @@ private:
 		{
 			checkf(GetIntNum(Property, IntType) < MaxZeroComparisons || IsOptional(CastFlags),  TEXT("Unexpectedly large property type encountered %s"), *Property->GetName());
 
-			return true;
+			// We can only zero-serialize properties that:
+			// - Don't need a destructor
+			// - And can be zero-initialized
+			// This is because if the property is zero-serialized, loading it will simply memzero the previous value.
+			return Property->HasAllPropertyFlags(CPF_ZeroConstructor | CPF_NoDestructor);
 		}
 		else if ((CastFlags & CASTCLASS_FBoolProperty) != 0)
 		{
