@@ -98,12 +98,25 @@ void UTransformableComponentHandle::SetGlobalTransform(const FTransform& InGloba
 {
 	if (Component.IsValid())
 	{
+		const FVector OldScale = GetGlobalTransform().GetScale3D();
+		const FVector NewScale = InGlobal.GetScale3D();
+		const bool bMarkRenderDirty =
+			FMath::Sign(OldScale[0]) != FMath::Sign(NewScale[0]) ||
+			FMath::Sign(OldScale[1]) != FMath::Sign(NewScale[1]) ||
+			FMath::Sign(OldScale[2]) != FMath::Sign(NewScale[2]);
+		
 		Component->SetWorldTransform(InGlobal);
+		
 		UWorld* World = Component->GetWorld();
 		if (World)
 		{
 			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 			Controller.OnSceneComponentConstrained().Broadcast(Component.Get());
+		}
+
+		if (bMarkRenderDirty)
+		{
+			Component->MarkRenderStateDirty();
 		}
 	}
 }
