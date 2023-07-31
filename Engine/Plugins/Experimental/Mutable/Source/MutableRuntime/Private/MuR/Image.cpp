@@ -1289,6 +1289,8 @@ namespace mu
 				TargetData += FormatData.BytesPerBlock;
 				--BlockCount;
 			}
+
+			ReleaseImage(Converted);
 			break;
 		}
 
