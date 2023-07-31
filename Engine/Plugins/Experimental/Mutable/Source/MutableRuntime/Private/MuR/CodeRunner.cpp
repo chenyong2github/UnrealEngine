@@ -138,9 +138,9 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
-	TTuple<UE::Tasks::FTask, TFunction<void()>> CodeRunner::LoadExternalImageAsync(FExternalImageID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
+	TTuple<UE::Tasks::FTask, TFunction<void()>> CodeRunner::LoadExternalImageAsync(FName Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
 #else
-	TTuple<FGraphEventRef, TFunction<void()>> CodeRunner::LoadExternalImageAsync(FExternalImageID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
+	TTuple<FGraphEventRef, TFunction<void()>> CodeRunner::LoadExternalImageAsync(FName Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
 #endif
     {
 		MUTABLE_CPUPROFILER_SCOPE(LoadExternalImageAsync);
@@ -150,10 +150,6 @@ namespace mu
 		if (m_pSystem->ImageParameterGenerator)
 		{
 			return m_pSystem->ImageParameterGenerator->GetImageAsync(Id, MipmapsToSkip, ResultCallback);
-
-			// Don't cache for now. Need to figure out how to invalidate them.
-			// \TODO: Like constants? attached to a cache level?
-			//m_pSystem->m_externalImages.push_back( pair<FExternalImageID,ImagePtr>(id,pResult) );
 		}
 		else
 		{
@@ -175,7 +171,7 @@ namespace mu
 
 	
     //---------------------------------------------------------------------------------------------
-	FImageDesc CodeRunner::GetExternalImageDesc(FExternalImageID Id, uint8 MipmapsToSkip)
+	FImageDesc CodeRunner::GetExternalImageDesc(FName Id, uint8 MipmapsToSkip)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(GetExternalImageDesc);
 
@@ -777,22 +773,22 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_InstanceAddResource(const FScheduledOp& item, const Model* pModel, const Parameters* pParams )
+    void CodeRunner::RunCode_InstanceAddResource(const FScheduledOp& item, const Model* InModel, const Parameters* InParams )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_InstanceAddResource);
 
-		if (!pModel || !m_pSystem)
+		if (!InModel || !m_pSystem)
 		{
 			return;
 		}
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
+		OP_TYPE type = InModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::IN_ADDMESH:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+			OP::InstanceAddArgs args = InModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -818,16 +814,11 @@ namespace mu
 
                 if ( args.value )
                 {
-					FWorkingMemoryManager::FModelCacheEntry* ModelCache = m_pSystem->WorkingMemoryManager.FindModelCache(pModel);
-					check(ModelCache);
-					if (ModelCache)
-					{
-						FResourceID MeshId = ModelCache->GetResourceKey(args.relevantParametersListIndex, args.value, pParams, m_pSystem->WorkingMemoryManager.MaxGeneratedResourceCacheSize);
-						OP::ADDRESS NameAd = args.name;
-						check(NameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num());
-						const char* Name = pModel->GetPrivate()->m_program.m_constantStrings[NameAd].c_str();
-						pResult->GetPrivate()->AddMesh(0, 0, MeshId, Name);
-					}
+					FResourceID MeshId = m_pSystem->WorkingMemoryManager.GetResourceKey(InModel,InParams,args.relevantParametersListIndex, args.value);
+					OP::ADDRESS NameAd = args.name;
+					check(NameAd < (uint32)InModel->GetPrivate()->m_program.m_constantStrings.Num());
+					const char* Name = InModel->GetPrivate()->m_program.m_constantStrings[NameAd].c_str();
+					pResult->GetPrivate()->AddMesh(0, 0, MeshId, Name);
                 }
                 StoreInstance( item, pResult );
                 break;
@@ -841,7 +832,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDIMAGE:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+			OP::InstanceAddArgs args = InModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -864,16 +855,11 @@ namespace mu
 
                 if ( args.value )
                 {
-					FWorkingMemoryManager::FModelCacheEntry* ModelCache = m_pSystem->WorkingMemoryManager.FindModelCache(pModel);
-					check(ModelCache);
-					if (ModelCache)
-					{
-						FResourceID ImageId = ModelCache->GetResourceKey(args.relevantParametersListIndex, args.value, pParams, m_pSystem->WorkingMemoryManager.MaxGeneratedResourceCacheSize );
-						OP::ADDRESS NameAd = args.name;
-						check(NameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num());
-						const char* Name = pModel->GetPrivate()->m_program.m_constantStrings[NameAd].c_str();
-						pResult->GetPrivate()->AddImage(0, 0, 0, ImageId, Name);
-					}
+					FResourceID ImageId = m_pSystem->WorkingMemoryManager.GetResourceKey(InModel, InParams, args.relevantParametersListIndex, args.value);
+					OP::ADDRESS NameAd = args.name;
+					check(NameAd < (uint32)InModel->GetPrivate()->m_program.m_constantStrings.Num());
+					const char* Name = InModel->GetPrivate()->m_program.m_constantStrings[NameAd].c_str();
+					pResult->GetPrivate()->AddImage(0, 0, 0, ImageId, Name);
                 }
                 StoreInstance( item, pResult );
                 break;
@@ -5947,9 +5933,9 @@ namespace mu
 		{
 			check(item.Stage == 0);
 			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
-			FExternalImageID id = pParams->GetImageValue(args.variable);
+			FName Id = pParams->GetImageValue(args.variable);
 			uint8 MipsToSkip = item.ExecutionOptions;
-			m_heapImageDesc[item.CustomState] = GetExternalImageDesc(id, MipsToSkip);
+			m_heapImageDesc[item.CustomState] = GetExternalImageDesc(Id, MipsToSkip);
 			StoreValidDesc(item);
 			break;
 		}

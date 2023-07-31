@@ -1126,39 +1126,42 @@ namespace mu
 
 			/** Count of pending operations for every rom index. */
 			TMemoryTrackedArray<uint16> PendingOpsPerRom;
-
-			//! Management of generated resources
-			//! @{
-
-			//! This is used to uniquely identify a generated resource like meshes or images.
-			struct FGeneratedResourceData
-			{
-				//! The id assigned to the generated resource.
-				FResourceID Id;
-
-				//! The last request operation for this resource
-				uint32 LastRequestId;
-
-				//! An opaque blob with the values of the relevant parameters
-				TMemoryTrackedArray<uint8> ParameterValuesBlob;
-			};
-
-			//! The last id generated for a resource
-			uint32 LastResourceKeyId = 0;
-
-			//! The last id generated for a resource request. This is used to check the
-			//! relevancy of the resources when flushing the cache
-			uint32 LastResourceResquestId = 0;
-
-			//! Cached ids for returned assets
-			//! This is non-persistent runtime data
-			TMemoryTrackedArray<FGeneratedResourceData> GeneratedResources;
-
-			//! Get a resource key for a given resource with given parameter values.
-			FResourceID GetResourceKey(uint32 ParamListIndex, OP::ADDRESS RootAt, const Parameters*, int32 InMaxResourceKeys);
-
-			//! @}
         };
+
+		//! Management of generated resources
+		//! @{
+
+		//! This is used to uniquely identify a generated resource like meshes or images.
+		struct FGeneratedResourceData
+		{
+			/** Model for this resource. */
+			TWeakPtr<const Model> Model;
+
+			//! The id assigned to the generated resource.
+			FResourceID Id;
+
+			//! The last request operation for this resource
+			uint32 LastRequestId;
+
+			//! An opaque blob with the values of the relevant parameters
+			TMemoryTrackedArray<uint8> ParameterValuesBlob;
+		};
+
+		//! The last id generated for a resource
+		uint32 LastResourceKeyId = 0;
+
+		//! The last id generated for a resource request. This is used to check the
+		//! relevancy of the resources when flushing the cache
+		uint32 LastResourceResquestId = 0;
+
+		//! Cached ids for returned assets
+		//! This is non-persistent runtime data
+		TMemoryTrackedArray<FGeneratedResourceData> GeneratedResources;
+
+		/** */
+		FResourceID GetResourceKey(const Model* Model, const Parameters* Params, uint32 ParamListIndex, OP::ADDRESS RootAt);
+
+		//! @}
 
 		/** Maximum working memory that mutable should be using. */
 		int64 BudgetBytes = 0;

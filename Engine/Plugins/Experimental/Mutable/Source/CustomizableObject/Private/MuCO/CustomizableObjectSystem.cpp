@@ -906,7 +906,7 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		{
 			ImageProvider->CacheImage(TextureParameters.ParameterValue, false);
 
-			for (const FString& TextureParameter : TextureParameters.ParameterRangeValues)
+			for (const FName& TextureParameter : TextureParameters.ParameterRangeValues)
 			{
 				ImageProvider->CacheImage(TextureParameter, false);
 			}
@@ -916,7 +916,7 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		check(InstancePrivate);
 
 		// Uncache old Texture Parameters
-		for (const FString& TextureParameter : InstancePrivate->UpdateTextureParameters)
+		for (const FName& TextureParameter : InstancePrivate->UpdateTextureParameters)
 		{
 			ImageProvider->UnCacheImage(TextureParameter, false);
 		}
@@ -927,7 +927,7 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		{
 			InstancePrivate->UpdateTextureParameters.Add(TextureParameters.ParameterValue);
 
-			for (const FString& TextureParameter : TextureParameters.ParameterRangeValues)
+			for (const FName& TextureParameter : TextureParameters.ParameterRangeValues)
 			{
 				InstancePrivate->UpdateTextureParameters.Add(TextureParameter);
 			}
@@ -3286,13 +3286,13 @@ uint64 UCustomizableObjectSystem::GetMaxChunkSizeForPlatform(const ITargetPlatfo
 #endif // WITH_EDITOR
 
 
-void UCustomizableObjectSystem::CacheImage(FString ImageId)
+void UCustomizableObjectSystem::CacheImage(FName ImageId)
 {
 	GetPrivateChecked()->GetImageProviderChecked()->CacheImage(ImageId, true);
 }
 
 
-void UCustomizableObjectSystem::UnCacheImage(FString ImageId)
+void UCustomizableObjectSystem::UnCacheImage(FName ImageId)
 {
 	GetPrivateChecked()->GetImageProviderChecked()->UnCacheImage(ImageId, true);
 }

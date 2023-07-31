@@ -16,39 +16,6 @@ namespace mu
     typedef uint64 FResourceID;
 }
 
-/** Unique identifier for images provided by code using mutable, of which mutable doesn't know much. */
-struct FExternalImageID
-{
-public:
-
-	typedef uint64 HashType;
-
-	FExternalImageID() {}
-	MUTABLERUNTIME_API FExternalImageID(const FString& InName);
-
-	inline bool operator==(const FExternalImageID& Other) const
-	{
-		return NameHash == Other.NameHash && Name == Other.Name;
-	}
-
-	void Serialise(mu::OutputArchive& arch) const;
-	void Unserialise(mu::InputArchive& arch);
-
-	inline const FString& GetName() const { return Name; }
-	inline HashType GetHash() const { return NameHash; }
-
-private:
-	FString Name;
-	HashType NameHash = 0;
-};
-
-
-/** */
-inline uint32 GetTypeHash(const FExternalImageID& Key)
-{
-	return GetTypeHash(Key.GetHash());
-}
-
 
 //
 template<typename T>

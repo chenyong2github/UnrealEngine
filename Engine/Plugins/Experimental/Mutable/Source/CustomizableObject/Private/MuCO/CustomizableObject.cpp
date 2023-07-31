@@ -1662,23 +1662,23 @@ FCustomizableObjectProjector UCustomizableObject::GetProjectorParameterDefaultVa
 }
 
 
-FString UCustomizableObject::GetTextureParameterDefaultValue(const FString& InParameterName) const
+FName UCustomizableObject::GetTextureParameterDefaultValue(const FString& InParameterName) const
 {
 	const int32 ParameterIndex = FindParameter(InParameterName);
 	if (ParameterIndex == INDEX_NONE)
 	{
 		checkNoEntry();
-		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+		return FName();
 	}
 
 	const TSharedPtr<mu::Model> Model = GetModel();
 	if (!Model)
 	{
 		checkNoEntry();
-		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+		return FName();
 	}
 	
-	return Model->GetImageDefaultValue(ParameterIndex).GetName();
+	return Model->GetImageDefaultValue(ParameterIndex);
 }
 
 

@@ -378,8 +378,8 @@ namespace mu
 	
 	template<>
 	void operator>> <FString>(InputArchive& arch, FString& t);
-	
-	
+
+
 	//---------------------------------------------------------------------------------------------
 	template<typename T, typename Alloc> 
 	void operator<<(OutputArchive& arch, const TArray<T, Alloc>& v)
@@ -404,6 +404,22 @@ namespace mu
 		{
 			arch >> v[i];
 		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	template<> 
+	inline void operator<<(OutputArchive& arch, const FName& v)
+	{
+		arch << v.ToString();
+	}
+
+	template<> 
+	inline void operator>>(InputArchive& arch, FName& v)
+	{
+		FString Temp;
+		arch >> Temp;
+		v = FName(Temp);
 	}
 
 }

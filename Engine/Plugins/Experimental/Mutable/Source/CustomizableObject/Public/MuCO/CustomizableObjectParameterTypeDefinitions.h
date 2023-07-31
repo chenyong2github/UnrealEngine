@@ -158,20 +158,18 @@ USTRUCT(BlueprintType)
 struct FCustomizableObjectTextureParameterValue
 {
 	GENERATED_USTRUCT_BODY()
-
-	inline static const FString DEFAULT_PARAMETER_VALUE = {}; // Means no Texture Parameter assigned.
 	
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
-	FString ParameterValue = DEFAULT_PARAMETER_VALUE;
+	FName ParameterValue;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString Uid;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
-	TArray<FString> ParameterRangeValues;
+	TArray<FName> ParameterRangeValues;
 };
 
 
@@ -180,7 +178,7 @@ inline uint32 GetTypeHash(const FCustomizableObjectTextureParameterValue& Key)
 	uint32 Hash = GetTypeHash(Key.ParameterName);
 	Hash = HashCombine(Hash, GetTypeHash(Key.ParameterValue));
 
-	for (const FString& Value : Key.ParameterRangeValues)
+	for (const FName& Value : Key.ParameterRangeValues)
     {
     	Hash = HashCombine(Hash, GetTypeHash(Value));
     }

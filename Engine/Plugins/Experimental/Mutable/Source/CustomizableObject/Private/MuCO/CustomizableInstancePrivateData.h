@@ -199,7 +199,7 @@ public:
 	/** Cached Texture Parameters from the last update.
 	 * This cache is required since the Instance can have a LOD Update at any time.
 	 * So we need to make sure that the initially provided Texture Parameters by the user will be available until the user decides to change them. */
-	TArray<FString> UpdateTextureParameters;
+	TArray<FName> UpdateTextureParameters;
 	
 	FCustomizableInstanceComponentData* GetComponentData(int32 ComponentIndex);
 	const FCustomizableInstanceComponentData* GetComponentData(int32 ComponentIndex) const;

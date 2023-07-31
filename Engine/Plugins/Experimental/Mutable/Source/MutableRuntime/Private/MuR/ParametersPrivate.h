@@ -255,7 +255,7 @@ namespace mu
 	using ParamFloatType = float;
 	using ParamColorType = FVector3f;
 	using ParamProjectorType = FProjector;
-	using ParamImageType = FExternalImageID;
+	using ParamImageType = FName;
 	using ParamStringType = string;
 
 	
@@ -481,6 +481,20 @@ namespace mu
 
         //!
         FProjector GetProjectorValue( int index, const Ptr<const RangeIndex>& pos ) const;
+
+		/** Return true if the parameter has any multi-dimensional values set. This is independent to if the model
+		* accepts multi-dimensional parameters for this particular parameter.
+		*/
+		inline bool HasMultipleValues(int32 ParamIndex) const
+		{
+			if (ParamIndex >= m_multiValues.Num())
+			{
+				return false;
+			}
+
+			return m_multiValues[ParamIndex].Num()>0;
+		}
+
     };
 
 }

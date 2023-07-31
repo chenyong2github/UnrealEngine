@@ -2369,7 +2369,7 @@ namespace mu
 	class FImageExternalLoadTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageExternalLoadTask(const FScheduledOp& InItem, uint8 InMipmapsToSkip, FExternalImageID InId);
+		FImageExternalLoadTask(const FScheduledOp& InItem, uint8 InMipmapsToSkip, FName InId);
 
 		// FIssuedTask interface
 		virtual bool Prepare(CodeRunner*, bool& bOutFailed) override;
@@ -2377,7 +2377,7 @@ namespace mu
 		
 	private:
 		uint8 MipmapsToSkip;
-		FExternalImageID Id;
+		FName Id;
 
 		Ptr<Image> Result;
 		
@@ -2386,7 +2386,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageExternalLoadTask::FImageExternalLoadTask(const FScheduledOp& InOp,  uint8 InMipmapsToSkip, FExternalImageID InId)
+	FImageExternalLoadTask::FImageExternalLoadTask(const FScheduledOp& InOp,  uint8 InMipmapsToSkip, FName InId)
 		: FIssuedTask(InOp)
 	{
 		MipmapsToSkip = InMipmapsToSkip;
@@ -2522,7 +2522,7 @@ namespace mu
 			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, m_pParams, m_pModel.Get(), args.variable);
 
-			const FExternalImageID Id = m_pParams->GetImageValue(args.variable, Index);
+			const FName Id = m_pParams->GetImageValue(args.variable, Index);
 
 			check(ImageLOD < TNumericLimits<uint8>::Max() && ImageLOD >= 0);
 			check(ImageLOD + static_cast<int32>(item.ExecutionOptions) < TNumericLimits<uint8>::Max());

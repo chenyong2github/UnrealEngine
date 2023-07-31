@@ -78,7 +78,7 @@ void SCustomizableInstanceProperties::Construct(const FArguments& InArgs)
 
 		// Store the texture parameters data required for the ui.
 		TextureParameterValueNames.Add(MakeShareable(new FString("None")));
-		TextureParameterValues.Add(FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE);
+		TextureParameterValues.Add(FName());
 		TArray<FCustomizableObjectExternalTexture> Textures = UCustomizableObjectSystem::GetInstance()->GetTextureParameterValues();
 		for (int i = 0; i < Textures.Num(); ++i)
 		{
@@ -816,7 +816,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		const TArray<FCustomizableObjectTextureParameterValue>& TextureParameters = CustomInstance->GetTextureParameters();
 		TSharedPtr<FString> InitiallySelected = TextureParameterValueNames[0]; // First index is always the None option.
 
-		const FString ParameterValue = CustomInstance->GetTextureParameterSelectedOption(ParamName);
+		const FName ParameterValue = CustomInstance->GetTextureParameterSelectedOption(ParamName);
 		
 		// Look for the value index
 		for (int32 ValueIndex = 0; ValueIndex < TextureParameterValueNames.Num(); ++ValueIndex)
@@ -2400,7 +2400,7 @@ bool SCustomizableInstanceProperties::SetParameterValueToDefault(int32 Parameter
 	}
 	case EMutableParameterType::Texture:
 	{
-		FString DefaultValue = CustomObject->GetTextureParameterDefaultValue(ParameterName);
+		FName DefaultValue = CustomObject->GetTextureParameterDefaultValue(ParameterName);
 
 		if (CustomObject->IsParameterMultidimensional(ParameterName))
 		{
@@ -2408,12 +2408,12 @@ bool SCustomizableInstanceProperties::SetParameterValueToDefault(int32 Parameter
 
 			for (int32 RangeIndex = 0; RangeIndex < NumRanges; ++RangeIndex)
 			{
-				CustomInstance->SetTextureParameterSelectedOption(ParameterName, DefaultValue, RangeIndex);
+				CustomInstance->SetTextureParameterSelectedOption(ParameterName, DefaultValue.ToString(), RangeIndex);
 			}
 		}
 		else
 		{
-			CustomInstance->SetTextureParameterSelectedOption(ParameterName, DefaultValue);
+			CustomInstance->SetTextureParameterSelectedOption(ParameterName, DefaultValue.ToString());
 		}
 		break;
 	}

@@ -128,7 +128,7 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	void SetFloatParameterSelectedOption(const FString& FloatParamName, float FloatValue, int32 RangeIndex = -1);
 
 	/** Gets the value of a texture parameter with name "TextureParamName". */
-	FString GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex) const;
+	FName GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex) const;
 
 	/** Sets the texture value "TextureValue" of a texture parameter with index "TextureParamIndex". */
 	void SetTextureParameterSelectedOption(const FString& TextureParamName, const FString& TextureValue, int32 RangeIndex);

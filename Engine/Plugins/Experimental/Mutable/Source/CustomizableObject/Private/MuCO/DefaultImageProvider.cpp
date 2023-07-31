@@ -34,7 +34,7 @@ namespace UDefaultImageProviderCVars
 }
 
 
-UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTextureParameterValue(const FString& ID)
+UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTextureParameterValue(const FName& ID)
 {
 	const TObjectPtr<UTexture2D>* Texture = Textures.Find(ID);
 	
@@ -44,7 +44,7 @@ UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTexturePar
 }
 
 
-UTexture2D* UDefaultImageProvider::GetTextureParameterValue(const FString& ID)
+UTexture2D* UDefaultImageProvider::GetTextureParameterValue(const FName& ID)
 {
 	return Textures[ID];
 }
@@ -52,7 +52,7 @@ UTexture2D* UDefaultImageProvider::GetTextureParameterValue(const FString& ID)
 
 void UDefaultImageProvider::GetTextureParameterValues(TArray<FCustomizableObjectExternalTexture>& OutValues)
 {
-	for (TTuple<FString, TObjectPtr<UTexture2D>>& Pair : Textures)
+	for (TTuple<FName, TObjectPtr<UTexture2D>>& Pair : Textures)
 	{
 		FCustomizableObjectExternalTexture Data;
 		Data.Name = Pair.Value.GetName();
@@ -66,13 +66,13 @@ FString UDefaultImageProvider::Add(UTexture2D* Texture)
 {
 	if (!Texture)
 	{
-		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+		return FString();
 	}
 
-	const FString Id = Texture->GetFullName();
+	const FName Id(Texture->GetFullName());
 	Textures.Add(Id, Texture);	
 
-	return Id;
+	return Id.ToString();
 }
 
 
@@ -83,6 +83,6 @@ void UDefaultImageProvider::Remove(UTexture2D* Texture)
 		return;
 	}
 	
-	Textures.Remove(Texture->GetFullName());
+	Textures.Remove(FName(Texture->GetFullName()));
 }
 

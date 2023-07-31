@@ -175,8 +175,8 @@ void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar, bool bU
 
 		case EMutableParameterType::Texture:
 		{
-			FString Value;
-			TArray<FString> RangeValues;
+			FName Value;
+			TArray<FName> RangeValues;
 
 			for (const FCustomizableObjectTextureParameterValue& P : TextureParameters)
 			{
@@ -368,8 +368,8 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 
 		case EMutableParameterType::Texture:
 		{
-			FString Value;
-			TArray<FString> RangeValues;
+			FName Value;
+			TArray<FName> RangeValues;
 			Ar << Value;
 			Ar << RangeValues;
 
@@ -969,16 +969,16 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 
 							for (int32 Index = PreviousNum; Index < Param.ParameterRangeValues.Num(); ++Index)
 							{
-								Param.ParameterRangeValues[Index] = FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+								Param.ParameterRangeValues[Index] = FName();
 							}
 						}
 
-						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetImageValue(ParamIndex, RangeValueIdxPtr).GetName();
+						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetImageValue(ParamIndex, RangeValueIdxPtr);
 					}
 				}
 				else
 				{
-					Param.ParameterValue = MutableParameters->GetImageValue(ParamIndex).GetName();
+					Param.ParameterValue = MutableParameters->GetImageValue(ParamIndex);
 				}
 			}
 
@@ -1327,7 +1327,7 @@ void FCustomizableObjectInstanceDescriptor::SetFloatParameterSelectedOption(cons
 }
 
 
-FString FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
+FName FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
 {
 	check(CustomizableObject);
 
@@ -1354,7 +1354,7 @@ FString FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption
 	
 	LogParameterNotFoundWarning(TextureParamName, ParameterIndexInObject, ParameterIndexInInstance, CustomizableObject, __FUNCTION__);
 
-	return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE; 
+	return FName(); 
 }
 
 
@@ -1376,7 +1376,7 @@ void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(co
 	if (RangeIndex == INDEX_NONE)
 	{
 		check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
-		TextureParameters[ParameterIndexInInstance].ParameterValue = TextureValue;
+		TextureParameters[ParameterIndexInInstance].ParameterValue = FName(TextureValue);
 	}
 	else
 	{
@@ -1390,7 +1390,7 @@ void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(co
 		}
 
 		check(TextureParameters[ParameterIndexInInstance].ParameterRangeValues.IsValidIndex(RangeIndex));
-		TextureParameters[ParameterIndexInInstance].ParameterRangeValues[RangeIndex] = TextureValue;
+		TextureParameters[ParameterIndexInInstance].ParameterRangeValues[RangeIndex] = FName(TextureValue);
 	}
 }
 
@@ -1990,7 +1990,7 @@ int32 FCustomizableObjectInstanceDescriptor::AddValueToTextureRange(const FStrin
 	if (TextureParameterIndex != -1)
 	{
 		FCustomizableObjectTextureParameterValue& TextureParameter = TextureParameters[TextureParameterIndex];
-		return TextureParameter.ParameterRangeValues.Add(FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE);		
+		return TextureParameter.ParameterRangeValues.Add(FName());		
 	}
 	
 	return -1;

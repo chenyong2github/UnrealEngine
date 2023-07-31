@@ -135,7 +135,7 @@ namespace mu
         //! \pre The parameter specified by index is a T_IMAGE.
         //! \param Index Index of the parameter from 0 to GetCount()-1
 		//! \return The externalId specified when setting the image value (\see SetImageValue)
-        FExternalImageID GetImageDefaultValue(int32 Index) const;
+		FName GetImageDefaultValue(int32 Index) const;
 
     	int32 GetRomCount() const;
 

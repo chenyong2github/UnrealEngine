@@ -154,7 +154,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    uint32_t Instance::GetSurfaceId( int32 lod, int32 comp, int32 surf ) const
+    uint32 Instance::GetSurfaceId( int32 lod, int32 comp, int32 surf ) const
     {
         if ( lod>=0 && lod<m_pD->m_lods.Num() &&
              comp>=0 && comp<m_pD->m_lods[lod].m_components.Num() &&
@@ -172,12 +172,12 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    int Instance::FindSurfaceById( int lod, int comp, uint32_t id ) const
+    int32 Instance::FindSurfaceById( int32 lod, int32 comp, uint32 id ) const
     {
 		if (lod >= 0 && lod < m_pD->m_lods.Num() &&
 			comp >= 0 && comp < m_pD->m_lods[lod].m_components.Num())
 		{
-			for (int i = 0; i < m_pD->m_lods[lod].m_components[comp].m_surfaces.Num(); ++i)
+			for (int32 i = 0; i < m_pD->m_lods[lod].m_components[comp].m_surfaces.Num(); ++i)
 			{
 				if (m_pD->m_lods[lod].m_components[comp].m_surfaces[i].InternalId == id)
 				{
@@ -238,7 +238,7 @@ namespace mu
 	
 
     //---------------------------------------------------------------------------------------------
-    uint32_t Instance::GetSurfaceCustomId( int32 lod, int32 comp, int32 surf ) const
+    uint32 Instance::GetSurfaceCustomId( int32 lod, int32 comp, int32 surf ) const
     {
         if ( lod>=0 && lod<m_pD->m_lods.Num() &&
              comp>=0 && comp<m_pD->m_lods[lod].m_components.Num() &&
@@ -256,7 +256,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    int Instance::GetMeshCount( int32 lod, int32 comp ) const
+    int32 Instance::GetMeshCount( int32 lod, int32 comp ) const
 	{
 		check(lod >= 0 && lod < m_pD->m_lods.Num());
 		check(comp >= 0 && comp < m_pD->m_lods[lod].m_components.Num());
@@ -469,14 +469,14 @@ namespace mu
     //---------------------------------------------------------------------------------------------
 	int32 Instance::Private::AddLOD()
 	{
-		int result = m_lods.Num();
+		int32 result = m_lods.Num();
 		m_lods.Add( INSTANCE_LOD() );
 		return result;
 	}
 
 
     //---------------------------------------------------------------------------------------------
-    int32 Instance::Private::AddComponent( int lod )
+    int32 Instance::Private::AddComponent( int32 lod )
     {
         // Automatically create the necessary lods and components
         while (lod >= m_lods.Num())
@@ -484,14 +484,14 @@ namespace mu
             AddLOD();
         }
 
-        int result = m_lods[lod].m_components.Num();
+        int32 result = m_lods[lod].m_components.Num();
         m_lods[lod].m_components.Add( INSTANCE_COMPONENT() );
         return result;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    int32 Instance::Private::AddSurface( int lod, int comp )
+    int32 Instance::Private::AddSurface( int32 lod, int32 comp )
     {
         // Automatically create the necessary lods and components
         while (lod >= m_lods.Num())
@@ -503,7 +503,7 @@ namespace mu
             AddComponent(lod);
         }
 
-        int result = m_lods[lod].m_components[comp].m_surfaces.Num();
+        int32 result = m_lods[lod].m_components[comp].m_surfaces.Num();
         m_lods[lod].m_components[comp].m_surfaces.Add( INSTANCE_SURFACE() );
         return result;
     }
@@ -577,7 +577,7 @@ namespace mu
 		}
 
 		INSTANCE_COMPONENT& component = m_lods[lod].m_components[comp];
-        int result = component.m_meshes.Num();
+        int32 result = component.m_meshes.Num();
         component.m_meshes.Emplace( meshId, strName );
 
 		return result;
@@ -602,7 +602,7 @@ namespace mu
 		}
 
         INSTANCE_SURFACE& surface = m_lods[lod].m_components[comp].m_surfaces[surf];
-        int result = surface.m_images.Num();
+        int32 result = surface.m_images.Num();
         surface.m_images.Emplace( imageId, strName );
 
         return result;
@@ -627,7 +627,7 @@ namespace mu
 		}
 
         INSTANCE_SURFACE& surface = m_lods[lod].m_components[comp].m_surfaces[surf];
-        int result = surface.m_vectors.Num();
+        int32 result = surface.m_vectors.Num();
         surface.m_vectors.Emplace( vec, strName );
 
         return result;
@@ -652,7 +652,7 @@ namespace mu
 		}
 
         INSTANCE_SURFACE& surface = m_lods[lod].m_components[comp].m_surfaces[surf];
-        int result = surface.m_scalars.Num();
+        int32 result = surface.m_scalars.Num();
         surface.m_scalars.Emplace( sca, strName );
 
         return result;
@@ -677,7 +677,7 @@ namespace mu
 		}
 
         INSTANCE_SURFACE& surface = m_lods[lod].m_components[comp].m_surfaces[surf];
-        int result = surface.m_strings.Num();
+        int32 result = surface.m_strings.Num();
         surface.m_strings.Emplace( str, strName );
 
         return result;

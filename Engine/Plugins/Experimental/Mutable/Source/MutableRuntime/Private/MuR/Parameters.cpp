@@ -758,7 +758,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    FExternalImageID Parameters::GetImageValue( int index, const Ptr<const RangeIndex>& pos ) const
+	FName Parameters::GetImageValue( int index, const Ptr<const RangeIndex>& pos ) const
     {
         check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
@@ -799,7 +799,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void Parameters::SetImageValue( int index, FExternalImageID id, const Ptr<const RangeIndex>& pos )
+    void Parameters::SetImageValue( int index, FName id, const Ptr<const RangeIndex>& pos )
     {
         check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );

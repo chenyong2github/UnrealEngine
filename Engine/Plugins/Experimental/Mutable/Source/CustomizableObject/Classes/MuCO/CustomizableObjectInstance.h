@@ -385,7 +385,7 @@ public:
 	
 	/** Gets the value of a texture parameter with name "TextureParamName". */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
-	FString GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex = -1) const;
+	FName GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex = -1) const;
 
 	/** Sets the texture value "TextureValue" of a texture parameter with index "TextureParamIndex". */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)

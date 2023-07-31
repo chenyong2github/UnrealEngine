@@ -356,7 +356,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    FExternalImageID Model::GetImageDefaultValue(int32 Index) const
+	FName Model::GetImageDefaultValue(int32 Index) const
     {
 	    check(m_pD->m_program.m_parameters.IsValidIndex(Index));
 		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_IMAGE);

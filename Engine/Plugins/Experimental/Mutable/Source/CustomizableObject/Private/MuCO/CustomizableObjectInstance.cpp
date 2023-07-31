@@ -367,7 +367,7 @@ void UCustomizableObjectInstance::ReleaseMutableResources(bool bCalledFromBeginD
 		{
 			FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
 
-			for (const FString& TextureParameter : PrivateData->UpdateTextureParameters)
+			for (const FName& TextureParameter : PrivateData->UpdateTextureParameters)
 			{
 				ImageProvider->UnCacheImage(TextureParameter, false);
 			}
@@ -2428,7 +2428,7 @@ void UCustomizableObjectInstance::SetFloatParameterSelectedOption(const FString&
 }
 
 
-FString UCustomizableObjectInstance::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
+FName UCustomizableObjectInstance::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
 {
 	return Descriptor.GetTextureParameterSelectedOption(TextureParamName, RangeIndex);
 }
@@ -6381,6 +6381,10 @@ void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLO
 				bUpdateRequestedLODs |= RequestedLODsDifferent;
 
 				// Save new RequestedLODs
+				if (ComponentIndex >= MutableUpdateCandidate.RequestedLODLevels.Num())
+				{
+					MutableUpdateCandidate.RequestedLODLevels.SetNumZeroed(ComponentIndex+1);
+				}
 				MutableUpdateCandidate.RequestedLODLevels[ComponentIndex] = RequestedLODs;
 			}
 		}

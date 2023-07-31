@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
+#include "Serialization/BitWriter.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformCrt.h"
@@ -32,6 +33,7 @@
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "PackedNormal.h"
 
 
 namespace mu
@@ -101,6 +103,7 @@ namespace mu
         Settings = InSettings;
 	
 		WorkingMemoryManager.BudgetBytes = Settings->WorkingMemoryBytes;
+		WorkingMemoryManager.GeneratedResources.Reserve(WorkingMemoryManager.MaxGeneratedResourceCacheSize);
 
 		ExtensionDataStreamer = InDataStreamer;
 		if (!ExtensionDataStreamer)
@@ -150,6 +153,12 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(SetGeneratedCacheSize);
 
 		m_pD->WorkingMemoryManager.MaxGeneratedResourceCacheSize = InCount;
+		m_pD->WorkingMemoryManager.GeneratedResources.Reserve(m_pD->WorkingMemoryManager.MaxGeneratedResourceCacheSize);
+		if (m_pD->WorkingMemoryManager.GeneratedResources.Num()>int32(InCount))
+		{
+			// Discard some random resource keys.
+			m_pD->WorkingMemoryManager.GeneratedResources.SetNum(InCount);
+		}
 	}
 
 	
@@ -1397,51 +1406,39 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	static int32 AddMultiValueKeys(FWorkingMemoryManager::TMemoryTrackedArray<uint8>& Blob, int32 pos, const TMap< TArray<int>, PARAMETER_VALUE >& multi)
+	static void AddMultiValueKeys(FBitWriter& Blob, const TMap< TArray<int32>, PARAMETER_VALUE >& Multi)
 	{
-		Blob.SetNum(pos + 4);
-		uint32 s = uint32(multi.Num());
-		FMemory::Memcpy(&Blob[pos], &s, sizeof(uint32));
-		pos += 4;
+		uint16 Num = uint16(Multi.Num());
+		Blob.Serialize(&Num, 2);
 
-		for (const auto& v : multi)
+		for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 		{
-			uint32 ds = uint32(v.Key.Num());
-
-			Blob.SetNum(pos + 4 + ds * 4);
-
-			FMemory::Memcpy(&Blob[pos], &s, sizeof(uint32));
-			pos += 4;
-
-			FMemory::Memcpy(&Blob[pos], v.Key.GetData(), ds * sizeof(int32));
-			pos += ds * sizeof(int32);
+			uint16 RangeNum = uint16(v.Key.Num());
+			Blob.Serialize(&RangeNum, 2);
+			Blob.Serialize((void*)v.Key.GetData(), RangeNum * sizeof(int32));
 		}
-
-		return pos;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	FResourceID FWorkingMemoryManager::FModelCacheEntry::GetResourceKey(uint32 paramListIndex, OP::ADDRESS RootAt, const Parameters* Params, int32 InMaxResourceKeys)
+	FResourceID FWorkingMemoryManager::GetResourceKey(const Model* Model, const Parameters* Params, uint32 ParamListIndex, OP::ADDRESS RootAt)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(GetResourceKey);
 
 		constexpr uint32 ErrorId = 0xffff;
 
-		const mu::Model* ThisModel = Model.Pin().Get();
-		check(ThisModel);
-		if (!ThisModel)
+		if (!Model)
 		{
 			return ErrorId;
 		}
 
-		const FProgram& Program = ThisModel->GetPrivate()->m_program;
+		const FProgram& Program = Model->GetPrivate()->m_program;
 
 		// Find the list of relevant parameters
 		const TArray<uint16>* RelevantParams = nullptr;
-		if (paramListIndex < (uint32)Program.m_parameterLists.Num())
+		if (ParamListIndex < (uint32)Program.m_parameterLists.Num())
 		{
-			RelevantParams = &Program.m_parameterLists[paramListIndex];
+			RelevantParams = &Program.m_parameterLists[ParamListIndex];
 		}
 		check(RelevantParams);
 		if (!RelevantParams)
@@ -1450,137 +1447,179 @@ namespace mu
 		}
 
 		// Generate the relevant parameters blob
-		TMemoryTrackedArray<uint8> Blob;
-		Blob.Reserve(2048);
-		for (int32 ParamIndex : *RelevantParams)
+		FBitWriter Blob( 2048*8, true );
+
+		const TArray<FParameterDesc>& ParamDescs = Params->GetPrivate()->m_pModel->GetPrivate()->m_program.m_parameters;
+
+		// First make a mask with a bit for each relevant parameter. It will be on for parameters included in the blob.
+		// A parameter will be excluded from the blob if it has the deafult value, and no multivalues.
+		TBitArray IncludedParameters(0, RelevantParams->Num());
+		if (RelevantParams->Num())
 		{
-			int32 pos = Blob.Num();
-			int32 dataSize = 0;
+			for (int32 IndexIndex = 0; IndexIndex < RelevantParams->Num(); ++IndexIndex)
+			{
+				int32 ParamIndex = (*RelevantParams)[IndexIndex];
+				bool bInclude = Params->GetPrivate()->HasMultipleValues(ParamIndex);
+				if (!bInclude)
+				{
+					bInclude =
+						Params->GetPrivate()->m_values[ParamIndex]
+						!=
+						ParamDescs[ParamIndex].m_defaultValue;
+				}
+
+				IncludedParameters[IndexIndex] = bInclude;
+			}
+			Blob.SerializeBits(IncludedParameters.GetData(), IncludedParameters.Num());
+		}
+
+		// Second: serialize the value of the selected parameters.
+		for (int32 IndexIndex = 0; IndexIndex < RelevantParams->Num(); ++IndexIndex)
+		{
+			int32 ParamIndex = (*RelevantParams)[IndexIndex];
+			if (!IncludedParameters[IndexIndex])
+			{
+				continue;
+			}
+
+			int32 DataSize = 0;
 
 			switch (Program.m_parameters[ParamIndex].m_type)
 			{
 			case PARAMETER_TYPE::T_BOOL:
-				dataSize = 1;
-				Blob.Add(Params->GetPrivate()->m_values[ParamIndex].Get<ParamBoolType>() ? 1 : 0);
-				pos += dataSize;
+				Blob.WriteBit(Params->GetPrivate()->m_values[ParamIndex].Get<ParamBoolType>() ? 1 : 0);
 
 				// Multi-values
-				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				if (Params->GetPrivate()->HasMultipleValues(ParamIndex))
 				{
-					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
-					pos = AddMultiValueKeys(Blob, pos, multi);
-					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
+					const TMap< TArray<int32>, PARAMETER_VALUE >& Multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					AddMultiValueKeys(Blob, Multi);
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 					{
-						Blob.Add(v.Value.Get<ParamBoolType>() ? 1 : 0);
-						pos += dataSize;
+						Blob.WriteBit(v.Value.Get<ParamBoolType>() ? 1 : 0);
 					}
 				}
 				break;
 
 			case PARAMETER_TYPE::T_INT:
-				dataSize = sizeof(ParamIntType);
-				Blob.SetNum(pos + dataSize);
-				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamIntType>(), dataSize);
-				pos += dataSize;
+			{
+				int32 MaxValue = ParamDescs[ParamIndex].m_possibleValues.Num();
+				int32 Value = Params->GetPrivate()->m_values[ParamIndex].Get<ParamIntType>();
+				if (MaxValue)
+				{
+					// It is an enum
+					uint32 LimitedValue = FMath::Clamp( Params->GetIntValueIndex(ParamIndex,Value), 0, MaxValue-1 );
+					Blob.SerializeInt(LimitedValue, uint32(MaxValue));
+				}
+				else
+				{
+					// It may have any value
+					DataSize = sizeof(ParamIntType);
+					Blob.Serialize(&Value, DataSize);
+				}
 
 				// Multi-values
-				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				if (Params->GetPrivate()->HasMultipleValues(ParamIndex))
 				{
-					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
-					pos = AddMultiValueKeys(Blob, pos, multi);
-					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
+					const TMap< TArray<int32>, PARAMETER_VALUE >& Multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					AddMultiValueKeys(Blob, Multi);
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 					{
-						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamIntType>(), dataSize);
-						pos += dataSize;
+						Value = v.Value.Get<ParamIntType>();
+						if (MaxValue)
+						{
+							// It is an enum
+							uint32 LimitedValue = Value;
+							Blob.SerializeInt(LimitedValue, uint32(MaxValue));
+						}
+						else
+						{
+							// It may have any value
+							DataSize = sizeof(ParamIntType);
+							Blob.Serialize(&Value, DataSize);
+						}
 					}
 				}
 				break;
+			}
 
-				//! Floating point value in the range of 0.0 to 1.0
 			case PARAMETER_TYPE::T_FLOAT:
-				dataSize = sizeof(ParamFloatType);
-				Blob.SetNum(pos + dataSize);
-				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamFloatType>(), dataSize);
-				pos += dataSize;
+				DataSize = sizeof(ParamFloatType);
+				Blob.Serialize(&Params->GetPrivate()->m_values[ParamIndex].Get<ParamFloatType>(), DataSize);
 
 				// Multi-values
-				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				if (Params->GetPrivate()->HasMultipleValues(ParamIndex))
 				{
-					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
-					pos = AddMultiValueKeys(Blob, pos, multi);
-					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
+					const TMap< TArray<int32>, PARAMETER_VALUE >& Multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					AddMultiValueKeys(Blob, Multi);
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 					{
-						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamFloatType>(), dataSize);
-						pos += dataSize;
+						Blob.Serialize((void*)&v.Value.Get<ParamFloatType>(), DataSize);
 					}
 				}
 				break;
 
-				//! Floating point RGBA colour, with each channel ranging from 0.0 to 1.0
 			case PARAMETER_TYPE::T_COLOUR:
-				dataSize = sizeof(ParamColorType);
-				Blob.SetNum(pos + dataSize);
-				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamColorType>(), dataSize);
-				pos += dataSize;
+				DataSize = sizeof(ParamColorType);
+				Blob.Serialize(&Params->GetPrivate()->m_values[ParamIndex].Get<ParamColorType>(), DataSize);
 
 				// Multi-values
-				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				if (Params->GetPrivate()->HasMultipleValues(ParamIndex))
 				{
-					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
-					pos = AddMultiValueKeys(Blob, pos, multi);
-					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
+					const TMap< TArray<int32>, PARAMETER_VALUE >& Multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					AddMultiValueKeys(Blob, Multi);
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 					{
-						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamColorType>(), dataSize);
-						pos += dataSize;
+						Blob.Serialize((void*)&v.Value.Get<ParamColorType>(), DataSize);
 					}
 				}
 				break;
 
-				//! 3D Projector type, defining a position, scale and orientation. Basically used for
-				//! projected decals.
 			case PARAMETER_TYPE::T_PROJECTOR:
-				dataSize = sizeof(ParamProjectorType);
-
-				// \todo: padding will be random?
-				Blob.SetNum(pos + dataSize);
-				FMemory::Memcpy(&Blob[pos], &Params->GetPrivate()->m_values[ParamIndex].Get<ParamProjectorType>(), dataSize);
-				pos += dataSize;
+			{
+				FPackedNormal TempVec;
+				FProjector& Value = Params->GetPrivate()->m_values[ParamIndex].Get<ParamProjectorType>();
+				Blob.Serialize((void*)&Value.position, sizeof(FVector3f));
+				TempVec = FPackedNormal(Value.direction);
+				Blob.Serialize(&TempVec, sizeof(FPackedNormal));
+				TempVec = FPackedNormal(Value.up);
+				Blob.Serialize(&TempVec, sizeof(FPackedNormal));
+				Blob.Serialize((void*)&Value.scale, sizeof(FVector3f));
+				Blob.Serialize((void*)&Value.projectionAngle, sizeof(float));
 
 				// Multi-values
-				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				if (Params->GetPrivate()->HasMultipleValues(ParamIndex))
 				{
-					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
-					pos = AddMultiValueKeys(Blob, pos, multi);
-					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
+					const TMap< TArray<int32>, PARAMETER_VALUE >& Multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					AddMultiValueKeys(Blob, Multi);
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 					{
-						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamProjectorType>(), dataSize);
-						pos += dataSize;
+						Value = v.Value.Get<ParamProjectorType>();
+						Blob.Serialize((void*)&Value.position, sizeof(FVector3f));
+						TempVec = FPackedNormal(Value.direction);
+						Blob.Serialize(&TempVec, sizeof(FPackedNormal));
+						TempVec = FPackedNormal(Value.up);
+						Blob.Serialize(&TempVec, sizeof(FPackedNormal));
+						Blob.Serialize((void*)&Value.scale, sizeof(FVector3f));
+						Blob.Serialize((void*)&Value.projectionAngle, sizeof(float));
 					}
 				}
 				break;
+			}
 
 			case PARAMETER_TYPE::T_IMAGE:
 			{
-				dataSize = sizeof(ParamImageType::HashType);
-				Blob.SetNum(pos + dataSize);
-				uint64 Hash = Params->GetPrivate()->m_values[ParamIndex].Get<ParamImageType>().GetHash();
-				FMemory::Memcpy(&Blob[pos], &Hash, dataSize);
-				pos += dataSize;
+				DataSize = sizeof(FName);
+				Blob.Serialize((void*)&Params->GetPrivate()->m_values[ParamIndex].Get<ParamImageType>(), DataSize);
 
 				// Multi-values
-				if (ParamIndex < Params->GetPrivate()->m_multiValues.Num())
+				if (Params->GetPrivate()->HasMultipleValues(ParamIndex))
 				{
-					const TMap< TArray<int32>, PARAMETER_VALUE >& multi = Params->GetPrivate()->m_multiValues[ParamIndex];
-					pos = AddMultiValueKeys(Blob, pos, multi);
-					Blob.SetNum(pos + multi.Num() * dataSize);
-					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : multi)
+					const TMap< TArray<int32>, PARAMETER_VALUE >& Multi = Params->GetPrivate()->m_multiValues[ParamIndex];
+					AddMultiValueKeys(Blob, Multi);
+					for (const TPair< TArray<int32>, PARAMETER_VALUE >& v : Multi)
 					{
-						FMemory::Memcpy(&Blob[pos], &v.Value.Get<ParamImageType>(), dataSize);
-						pos += dataSize;
+						Blob.Serialize((void*)&v.Value.Get<ParamImageType>(), DataSize);
 					}
 				}
 				break;
@@ -1595,38 +1634,44 @@ namespace mu
 		// Increase the request id
 		++LastResourceResquestId;
 
+		FGeneratedResourceData NewKey;
+		int32 BlobBytes = Blob.GetNumBytes();
+		NewKey.ParameterValuesBlob.SetNum(BlobBytes);
+		FMemory::Memcpy(NewKey.ParameterValuesBlob.GetData(), Blob.GetData(), BlobBytes);
+
 		// See if we already have this id
 		int32 OldestCachePosition = 0;
+		uint32 OldestRequestId = 0;
 		for (int32 CacheIndex = 0; CacheIndex < GeneratedResources.Num(); ++CacheIndex)
 		{
 			FGeneratedResourceData& Data = GeneratedResources[CacheIndex];
-			if (GetResourceIDRoot(Data.Id) == RootAt
+			if (Data.Model.Pin().Get() == Model
 				&&
-				Data.ParameterValuesBlob == Blob)
+				GetResourceIDRoot(Data.Id) == RootAt
+				&&
+				Data.ParameterValuesBlob == NewKey.ParameterValuesBlob)
 			{
 				Data.LastRequestId = LastResourceResquestId;
 				return Data.Id;
 			}
 			else
 			{
-				if (GeneratedResources[OldestCachePosition].LastRequestId > Data.LastRequestId)
+				if (!Data.Model.Pin().Get() 
+					||
+					OldestRequestId > Data.LastRequestId)
 				{
 					OldestCachePosition = CacheIndex;
+					OldestRequestId = Data.Model.Pin() ? Data.LastRequestId : 0;
 				}
 			}
 		}
 
 		// Generate a new id
 		uint32 NewBlobId = ++LastResourceKeyId;
-		FGeneratedResourceData NewKey;
 		NewKey.Id = MakeResourceID( RootAt, NewBlobId);
 		NewKey.LastRequestId = LastResourceResquestId;
 
-		// Don't MoveTemp so that we get a tight array on the destination.
-		//NewKey.ParameterValuesBlob = MoveTemp(Blob);
-		NewKey.ParameterValuesBlob = Blob;
-
-		if (GeneratedResources.Num() >= InMaxResourceKeys)
+		if (GeneratedResources.Num() >= MaxGeneratedResourceCacheSize)
 		{
 			GeneratedResources[OldestCachePosition] = MoveTemp(NewKey);
 		}
