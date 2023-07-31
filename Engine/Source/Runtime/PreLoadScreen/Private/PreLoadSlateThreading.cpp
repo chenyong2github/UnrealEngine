@@ -21,18 +21,23 @@ TAtomic<int32> FPreLoadScreenSlateSynchMechanism::LoadingThreadInstanceCounter(0
 
 bool FPreLoadScreenSlateThreadTask::Init()
 {
-    // First thing to do is set the slate loading thread ID
-    // This guarantees all systems know that a slate thread exists
+	// First thing to do is set the slate loading thread ID
+	// This guarantees all systems know that a slate thread exists
 	const int32 PreviousValue = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, FPlatformTLS::GetCurrentThreadId(), 0);
-	check(PreviousValue == 0);
 
-    return true;
+	bool bSuccess = PreviousValue == 0;
+	ensureMsgf(bSuccess, TEXT("Only one system can use the SlateThread at the same time. PreLoadScreen is not compatible with GetMoviePlayer."));
+	return bSuccess;
 }
 
 uint32 FPreLoadScreenSlateThreadTask::Run()
 {
-    SyncMechanism->RunMainLoop_SlateThread();
-    return 0;
+	FTaskTagScope Scope(ETaskTag::ESlateThread);
+	check(GSlateLoadingThreadId == FPlatformTLS::GetCurrentThreadId());
+
+	SyncMechanism->RunMainLoop_SlateThread();
+
+	return 0;
 }
 
 void FPreLoadScreenSlateThreadTask::Exit()
@@ -44,9 +49,9 @@ void FPreLoadScreenSlateThreadTask::Exit()
 }
 
 FPreLoadSlateWidgetRenderer::FPreLoadSlateWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindow, FSlateRenderer* InRenderer)
-    : MainWindow(InMainWindow.Get())
-    , VirtualRenderWindow(InVirtualRenderWindow.ToSharedRef())
-    , SlateRenderer(InRenderer)
+	: MainWindow(InMainWindow.Get())
+	, VirtualRenderWindow(InVirtualRenderWindow.ToSharedRef())
+	, SlateRenderer(InRenderer)
 {
     HittestGrid = MakeShareable(new FHittestGrid);
 }
@@ -155,21 +160,21 @@ void FPreLoadScreenSlateSynchMechanism::Initialize()
 
 void FPreLoadScreenSlateSynchMechanism::DestroySlateThread()
 {
-    check(IsInGameThread());
+	check(IsInGameThread());
 
-    if (bIsRunningSlateMainLoop)
-    {
+	if (bIsRunningSlateMainLoop)
+	{
 		check(SlateLoadingThread != nullptr);
 		bIsRunningSlateMainLoop = false;
 		SleepEvent->Trigger();
 		SlateLoadingThread->WaitForCompletion();
 
 		FGenericPlatformProcess::ReturnSynchEventToPool(SleepEvent);
-        delete SlateLoadingThread;
-        delete SlateRunnableTask;
-        SlateLoadingThread = nullptr;
-        SlateRunnableTask = nullptr;
-    }
+		delete SlateLoadingThread;
+		delete SlateRunnableTask;
+		SlateLoadingThread = nullptr;
+		SlateRunnableTask = nullptr;
+	}
 }
 
 void FPreLoadScreenSlateSynchMechanism::HandleWindowBeingDestroyed(const SWindow& WindowBeingDestroyed)
@@ -190,8 +195,6 @@ bool FPreLoadScreenSlateSynchMechanism::IsSlateMainLoopRunning_AnyThread() const
 
 void FPreLoadScreenSlateSynchMechanism::RunMainLoop_SlateThread()
 {
-	FTaskTagScope Scope(ETaskTag::ESlateThread);
-
 	double LastTime = FPlatformTime::Seconds();
 	bool bManualReset = false;
 	FEvent* EnqueueRenderEvent = FGenericPlatformProcess::GetSynchEventFromPool(bManualReset);

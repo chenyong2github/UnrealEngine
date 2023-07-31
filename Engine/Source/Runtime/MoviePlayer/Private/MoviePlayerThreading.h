@@ -39,6 +39,8 @@ public:
 
 	/** The main loop to be run from the Slate thread */
 	void SlateThreadRunMainLoop();
+	/** The main loop could not be initialized */
+	void SlateThreadInitFailed();
 
 private:
 

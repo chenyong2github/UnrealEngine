@@ -30,6 +30,7 @@ public:
 	/** FRunnable interface */
 	virtual bool Init() override;
 	virtual uint32 Run() override;
+	virtual void Exit() override;
 	virtual void Stop() override;
 private:
 	/** Hold a handle to our parent sync mechanism which handles all of our threading locks */
@@ -119,12 +120,24 @@ void FSlateLoadingSynchronizationMechanism::ResetSlateMainLoopRunning()
 	IsRunningSlateMainLoop.Reset();
 }
 
+void FSlateLoadingSynchronizationMechanism::SlateThreadInitFailed()
+{
+	bMainLoopRunning = false;
+}
+
 void FSlateLoadingSynchronizationMechanism::SlateThreadRunMainLoop()
 {
 	double LastTime = FPlatformTime::Seconds();
 
 	while (IsSlateMainLoopRunning())
 	{
+		// Test to ensure that we are still the SlateLoadingThread
+		checkCode(
+			const int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+			const int32 PreviousThreadId = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, CurrentThreadId, CurrentThreadId);
+			check(PreviousThreadId == CurrentThreadId)
+		);
+
 		double CurrentTime = FPlatformTime::Seconds();
 		double DeltaTime = CurrentTime - LastTime;
 
@@ -179,23 +192,33 @@ bool FSlateLoadingThreadTask::Init()
 {
 	// First thing to do is set the slate loading thread ID
 	// This guarantees all systems know that a slate thread exists
-	GSlateLoadingThreadId = FPlatformTLS::GetCurrentThreadId();
+	const int32 PreviousValue = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, FPlatformTLS::GetCurrentThreadId(), 0);
 
-	return true;
+	bool bSuccess = PreviousValue == 0;
+	ensureMsgf(bSuccess, TEXT("Only one system can use the SlateThread at the same time. GetMoviePlayer is not compatible with PreLoadScreen."));
+	if (!bSuccess)
+	{
+		SyncMechanism->SlateThreadInitFailed();
+	}
+	return bSuccess;
 }
 
 uint32 FSlateLoadingThreadTask::Run()
 {
 	FTaskTagScope Scope(ETaskTag::ESlateThread);
-
 	check( GSlateLoadingThreadId == FPlatformTLS::GetCurrentThreadId() );
 
 	SyncMechanism->SlateThreadRunMainLoop();
 
-	// Tear down the slate loading thread ID
-	FPlatformAtomics::InterlockedExchange((int32*)&GSlateLoadingThreadId, 0);
-
 	return 0;
+}
+
+void FSlateLoadingThreadTask::Exit()
+{
+	// Tear down the slate loading thread ID
+	const int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+	const int32 PreviousThreadId = FPlatformAtomics::InterlockedCompareExchange((int32*)&GSlateLoadingThreadId, 0, CurrentThreadId);
+	check(PreviousThreadId == CurrentThreadId);
 }
 
 void FSlateLoadingThreadTask::Stop()
