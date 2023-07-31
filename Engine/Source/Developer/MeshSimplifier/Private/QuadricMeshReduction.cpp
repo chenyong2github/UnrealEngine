@@ -40,18 +40,41 @@ IMPLEMENT_MODULE(FQuadricSimplifierMeshReductionModule, QuadricMeshReduction);
 
 void CorrectAttributes( float* Attributes )
 {
-	FVector3f& Normal	= *reinterpret_cast< FVector3f* >( Attributes );
-	FVector3f& TangentX	= *reinterpret_cast< FVector3f* >( Attributes + 3 );
-	FVector3f& TangentY	= *reinterpret_cast< FVector3f* >( Attributes + 3 + 3 );
+	FVector3f& TangentX	= *reinterpret_cast< FVector3f* >( Attributes );
+	FVector3f& TangentY	= *reinterpret_cast< FVector3f* >( Attributes + 3 );
+	FVector3f& TangentZ	= *reinterpret_cast< FVector3f* >( Attributes + 3 + 3 );
 	FLinearColor& Color	= *reinterpret_cast< FLinearColor* >( Attributes + 3 + 3 + 3 );
 
-	Normal.Normalize();
-	TangentX -= ( TangentX | Normal ) * Normal;
+	TangentZ.Normalize();
+	TangentX -= ( TangentX | TangentZ ) * TangentZ;
 	TangentX.Normalize();
-	TangentY -= ( TangentY | Normal ) * Normal;
+	TangentY -= ( TangentY | TangentZ ) * TangentZ;
 	TangentY -= ( TangentY | TangentX ) * TangentX;
 	TangentY.Normalize();
 	Color = Color.GetClamped();
+}
+
+bool VertsEqual( const FLerpVert& A, const FLerpVert& B )
+{
+	if( !PointsEqual(	A.Position, B.Position ) ||
+		!NormalsEqual(	A.TangentX, B.TangentX ) ||
+		!NormalsEqual(	A.TangentY, B.TangentY ) ||
+		!NormalsEqual(	A.TangentZ, B.TangentZ ) ||
+		!A.Color.Equals( B.Color ) )
+	{
+		return false;
+	}
+
+	// UVs
+	for( int32 UVIndex = 0; UVIndex < MAX_STATIC_TEXCOORDS; UVIndex++ )
+	{
+		if( !UVsEqual( A.UVs[ UVIndex ], B.UVs[ UVIndex ] ) )
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 class FQuadricSimplifierMeshReduction : public IMeshReduction
@@ -192,27 +215,11 @@ public:
 					if (Location)
 					{
 						FLerpVert& FoundVert = Verts[*Location];
-
-						if( !PointsEqual(	NewVert.Position, FoundVert.Position ) ||
-							!NormalsEqual(	NewVert.TangentX, FoundVert.TangentX ) ||
-							!NormalsEqual(	NewVert.TangentY, FoundVert.TangentY ) ||
-							!NormalsEqual(	NewVert.TangentZ, FoundVert.TangentZ ) ||
-							!NewVert.Color.Equals( FoundVert.Color ) )
+						if( VertsEqual( NewVert, FoundVert ) )
 						{
-							continue;
+							Index = *Location;
+							break;
 						}
-				
-						// UVs
-						for( int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-						{
-							if( !UVsEqual( NewVert.UVs[ UVIndex ], FoundVert.UVs[ UVIndex ] ) )
-							{
-								continue;
-							}
-						}
-
-						Index = *Location;
-						break;
 					}
 				}
 				if (Index == INDEX_NONE)
@@ -278,9 +285,9 @@ public:
 			const uint32 NumAttributes = ( sizeof( FLerpVert ) - sizeof( FVector3f ) ) / sizeof(float);
 			float AttributeWeights[ NumAttributes ] =
 			{
-				16.0f, 16.0f, 16.0f,// Normal
 				0.1f, 0.1f, 0.1f,	// Tangent[0]
-				0.1f, 0.1f, 0.1f	// Tangent[1]
+				0.1f, 0.1f, 0.1f,	// Tangent[1]
+				16.0f, 16.0f, 16.0f	// Normal
 			};
 			float* ColorWeights = AttributeWeights + 9;
 			float* UVWeights = ColorWeights + 4;
