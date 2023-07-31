@@ -170,16 +170,6 @@ void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FN
 			Target = &ComponentToTargets_DEPRECATED.Add(TargetKey);
 			Target->PrevPos = ReplicatedTarget.Position;
 			Target->PrevPosTarget = ReplicatedTarget.Position;
-
-			// First time, we just directly set component state
-			//
-			// NOTE: This is only needed because ClusterUnion has a flag bHasReceivedTransform
-			// which does not get updated until the component's transform is directly set.
-			// Until that flag is set, it's root particle will be in a disabled state and not
-			// have any children, therefore replication will be dead in the water.
-			Component->SetWorldTransform(FTransform(ReplicatedTarget.Quaternion, ReplicatedTarget.Position, Component->GetRelativeScale3D()));
-			Component->SetPhysicsLinearVelocity(ReplicatedTarget.LinVel);
-			Component->SetAllPhysicsAngularVelocityInDegrees(ReplicatedTarget.AngVel);
 		}
 
 		Target->ServerFrame = ServerFrame;
