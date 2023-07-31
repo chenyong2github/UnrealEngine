@@ -938,14 +938,19 @@ namespace UnrealBuildTool
 			return new List<FileItem>();
 		}
 
-		public void CopyDebuggerVisualizers(UEToolChain ToolChain, IActionGraphBuilder Graph, ILogger Logger)
+		public IEnumerable<FileItem> CopyDebuggerVisualizers(UEToolChain ToolChain, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (NatvisSourceFile != null)
 			{
-				ToolChain.CopyDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory, Graph);
+				FileItem? Item = ToolChain.CopyDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory, Graph);
+				if (Item != null)
+				{
+					return new[] { Item }; 
+				}
 			}
+			return Enumerable.Empty<FileItem>();
 		}
-
+		
 		public void LinkDebuggerVisualizers(List<FileItem> OutFiles, UEToolChain ToolChain, ILogger Logger)
 		{
 			if (NatvisSourceFile != null)

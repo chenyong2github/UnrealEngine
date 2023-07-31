@@ -2552,7 +2552,8 @@ namespace UnrealBuildTool
 			// Copy debugger visualizer files for each module to their intermediate directory 
 			foreach (UEBuildModule Module in Modules.Values)
 			{
-				Module.CopyDebuggerVisualizers(TargetToolChain, MakefileBuilder, Logger);
+				IEnumerable<FileItem> Items = Module.CopyDebuggerVisualizers(TargetToolChain, MakefileBuilder, Logger);
+				Makefile.OutputItems.AddRange(Items);
 			}
 
 			// Build the target's binaries.
