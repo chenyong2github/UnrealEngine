@@ -414,6 +414,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					ImportData->ImportContentType = TestPlan->ImportUI->SkeletalMeshImportData->ImportContentType;
 					ImportData->bImportMeshesInBoneHierarchy = TestPlan->ImportUI->SkeletalMeshImportData->bImportMeshesInBoneHierarchy;
 					ImportData->bImportMorphTargets = TestPlan->ImportUI->SkeletalMeshImportData->bImportMorphTargets;
+					ImportData->bImportVertexAttributes = TestPlan->ImportUI->SkeletalMeshImportData->bImportVertexAttributes;
 					ImportData->ThresholdPosition = TestPlan->ImportUI->SkeletalMeshImportData->ThresholdPosition;
 					ImportData->ThresholdTangentNormal = TestPlan->ImportUI->SkeletalMeshImportData->ThresholdTangentNormal;
 					ImportData->MorphThresholdPosition = TestPlan->ImportUI->SkeletalMeshImportData->MorphThresholdPosition;
@@ -510,6 +511,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					ImportData->ImportContentType = TestPlan->ImportUI->SkeletalMeshImportData->ImportContentType;
 					ImportData->bImportMeshesInBoneHierarchy = TestPlan->ImportUI->SkeletalMeshImportData->bImportMeshesInBoneHierarchy;
 					ImportData->bImportMorphTargets = TestPlan->ImportUI->SkeletalMeshImportData->bImportMorphTargets;
+					ImportData->bImportVertexAttributes = TestPlan->ImportUI->SkeletalMeshImportData->bImportVertexAttributes;
 					ImportData->ThresholdPosition = TestPlan->ImportUI->SkeletalMeshImportData->ThresholdPosition;
 					ImportData->ThresholdTangentNormal = TestPlan->ImportUI->SkeletalMeshImportData->ThresholdTangentNormal;
 					ImportData->ThresholdUV = TestPlan->ImportUI->SkeletalMeshImportData->ThresholdUV;

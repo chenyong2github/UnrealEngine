@@ -1496,6 +1496,7 @@ void SFbxSceneOptionWindow::CopySkeletalMeshOptionsToFbxOptions(UnFbx::FBXImport
 	ImportSettings->bCreatePhysicsAsset = SkeletalMeshOptions->bCreatePhysicsAsset;
 	ImportSettings->bImportMeshesInBoneHierarchy = SkeletalMeshOptions->bImportMeshesInBoneHierarchy;
 	ImportSettings->bImportMorph = SkeletalMeshOptions->bImportMorphTargets;
+	ImportSettings->bImportVertexAttributes = SkeletalMeshOptions->bImportVertexAttributes;
 	ImportSettings->OverlappingThresholds.ThresholdPosition = SkeletalMeshOptions->ThresholdPosition;
 	ImportSettings->OverlappingThresholds.ThresholdTangentNormal = SkeletalMeshOptions->ThresholdTangentNormal;
 	ImportSettings->OverlappingThresholds.ThresholdUV = SkeletalMeshOptions->ThresholdUV;
@@ -1523,6 +1524,7 @@ void SFbxSceneOptionWindow::CopyFbxOptionsToSkeletalMeshOptions(UnFbx::FBXImport
 	SkeletalMeshOptions->bCreatePhysicsAsset = ImportSettings->bCreatePhysicsAsset;
 	SkeletalMeshOptions->bImportMeshesInBoneHierarchy = ImportSettings->bImportMeshesInBoneHierarchy;
 	SkeletalMeshOptions->bImportMorphTargets = ImportSettings->bImportMorph;
+	SkeletalMeshOptions->bImportVertexAttributes = ImportSettings->bImportVertexAttributes;
 	SkeletalMeshOptions->ThresholdPosition = ImportSettings->OverlappingThresholds.ThresholdPosition;
 	SkeletalMeshOptions->ThresholdTangentNormal = ImportSettings->OverlappingThresholds.ThresholdTangentNormal;
 	SkeletalMeshOptions->ThresholdUV = ImportSettings->OverlappingThresholds.ThresholdUV;

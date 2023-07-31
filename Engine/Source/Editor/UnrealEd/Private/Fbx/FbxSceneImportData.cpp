@@ -121,6 +121,7 @@ UnFbx::FBXImportOptions *JSONToFbxOption(TSharedPtr<FJsonValue> OptionJsonValue,
 	OptionObj->TryGetBoolField("bPreserveSmoothingGroups", Option->bPreserveSmoothingGroups);
 	OptionObj->TryGetBoolField("bImportMeshesInBoneHierarchy", Option->bImportMeshesInBoneHierarchy);
 	OptionObj->TryGetBoolField("bImportMorphTargets", Option->bImportMorph);
+	OptionObj->TryGetBoolField("bImportVertexAttributes", Option->bImportVertexAttributes);
 	
 	if (OptionObj->TryGetObjectField("OverlappingThresholds", DataObj))
 	{
@@ -204,12 +205,13 @@ FString FbxOptionToJSON(FString OptionName, UnFbx::FBXImportOptions *Option)
 		);
 
 	//Skeletal mesh options
-	JsonString += FString::Printf(TEXT("\"bUpdateSkeletonReferencePose\" : \"%d\", \"bUseT0AsRefPose\" : \"%d\", \"bPreserveSmoothingGroups\" : \"%d\", \"bImportMeshesInBoneHierarchy\" : \"%d\", \"bImportMorphTargets\" : \"%d\", \"OverlappingThresholds\" : {\"ThresholdPosition\" : \"%f\", \"ThresholdTangentNormal\" : \"%f\", \"ThresholdUV\" : \"%f\", \"MorphThresholdPosition\" : \"%f\"},"),
+	JsonString += FString::Printf(TEXT("\"bUpdateSkeletonReferencePose\" : \"%d\", \"bUseT0AsRefPose\" : \"%d\", \"bPreserveSmoothingGroups\" : \"%d\", \"bImportMeshesInBoneHierarchy\" : \"%d\", \"bImportMorphTargets\" : \"%d\", \"bImportVertexAttributes\" : \"%d\", \"OverlappingThresholds\" : {\"ThresholdPosition\" : \"%f\", \"ThresholdTangentNormal\" : \"%f\", \"ThresholdUV\" : \"%f\", \"MorphThresholdPosition\" : \"%f\"},"),
 		Option->bUpdateSkeletonReferencePose ? 1 : 0,
 		Option->bUseT0AsRefPose ? 1 : 0,
 		Option->bPreserveSmoothingGroups ? 1 : 0,
 		Option->bImportMeshesInBoneHierarchy ? 1 : 0,
 		Option->bImportMorph ? 1 : 0,
+		Option->bImportVertexAttributes ? 1 : 0,
 		Option->OverlappingThresholds.ThresholdPosition,
 		Option->OverlappingThresholds.ThresholdTangentNormal,
 		Option->OverlappingThresholds.ThresholdUV,

@@ -429,6 +429,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.VertexColorImportOption		= SkeletalMeshData->VertexColorImportOption;
 		InOutImportOptions.VertexOverrideColor			= SkeletalMeshData->VertexOverrideColor;
 		InOutImportOptions.bReorderMaterialToFbxOrder	= SkeletalMeshData->bReorderMaterialToFbxOrder;
+		InOutImportOptions.bImportVertexAttributes		= SkeletalMeshData->bImportVertexAttributes;
 
 		if(ImportUI->bImportAnimations)
 		{

@@ -175,6 +175,7 @@ struct FBXImportOptions
 	bool bReorderMaterialToFbxOrder;
 	// Skeletal Mesh options
 	bool bImportMorph;
+	bool bImportVertexAttributes;
 	bool bImportAnimations;
 	bool bUpdateSkeletonReferencePose;
 	bool bResample;

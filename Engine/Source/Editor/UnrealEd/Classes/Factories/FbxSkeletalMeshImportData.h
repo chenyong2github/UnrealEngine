@@ -83,6 +83,11 @@ public:
 	/** True to import morph target meshes from the FBX file */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Mesh, meta=(ImportType="SkeletalMesh|GeoOnly", ToolTip="If enabled, creates Unreal morph objects for the imported meshes"))
 	uint32 bImportMorphTargets:1;
+	
+	/** True to import per-vertex attributes from the FBX file */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Mesh, meta=(ImportType="SkeletalMesh|GeoOnly", ToolTip="If enabled, creates named vertex attributes for secondary vertex color data."))
+	uint32 bImportVertexAttributes:1;
+	
 
 	/** Threshold to compare vertex position equality. */
 	UPROPERTY(EditAnywhere, config, Category="Mesh", meta = (ImportType = "SkeletalMesh|GeoOnly", SubCategory = "Thresholds", NoSpinbox = "true", ClampMin = "0.0"))

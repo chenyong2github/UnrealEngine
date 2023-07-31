@@ -73,7 +73,6 @@
 
 using namespace UnFbx;
 
-
 // Get the geometry deformation local to a node. It is never inherited by the
 // children.
 FbxAMatrix GetGeometry(FbxNode* pNode) 
@@ -3796,6 +3795,199 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 			ImportData.Influences.Last().BoneIndex = BoneIndex;
 			ImportData.Influences.Last().Weight = 1.0;
 			ImportData.Influences.Last().VertexIndex = ExistPointNum + ControlPointIndex;
+		}
+	}
+
+	//
+	// Get the vertex attribute layers from all layers, even the first layer which may be used as a vertex color layer.
+	// Currently we're only interested in alpha-only layers, since those are the only layer types the engine
+	// currently exposes for vertex attributes. Internally we can store 1-4 components, but there's no tooling for that
+	// 2-4 channels as of yet.
+	//
+	struct FNamedVertexAttribute : SkeletalMeshImportData::FVertexAttribute
+	{
+		FNamedVertexAttribute(FString&& InAttributeName, TArray<float>&& InAttributeValues, const int32 InComponentCount)
+			: FVertexAttribute(MoveTemp(InAttributeValues), InComponentCount)
+			, AttributeName(InAttributeName)
+		{}
+			
+		FString AttributeName;
+	};
+
+	if (ImportOptions->bImportVertexAttributes)
+	{
+		TArray<FNamedVertexAttribute> NamedVertexAttributes;
+
+		for (int32 LayerIndex = 0; LayerIndex < LayerCount; LayerIndex++)
+		{
+			FbxLayerElementVertexColor* LayerElementVertexAttribute = Mesh->GetLayer(LayerIndex)->GetVertexColors();
+			if (!LayerElementVertexAttribute)
+			{
+				continue;
+			}
+
+			// Check if this is an alpha-only attribute, by ensuring the RGB values are all zero, otherwise skip.
+			bool bIsValidAttribute = true;
+			const FbxLayerElementArrayTemplate<FbxColor>& AttributeValues = LayerElementVertexAttribute->GetDirectArray();
+			for (int32 Index = 0; Index < AttributeValues.GetCount(); Index++)
+			{
+				// We do an exact comparison, since that's how empty channels would be represented in the FBX file.
+				const FbxColor& Value = AttributeValues.GetAt(Index); 
+				if (Value.mRed != 0.0 || Value.mGreen != 0.0 || Value.mBlue != 0.0)
+				{
+					bIsValidAttribute = false;
+					break;
+				}
+			}
+
+			// We can only do attributes that are mapped per-vertex.
+			if (!bIsValidAttribute)
+			{
+				continue;
+			}
+
+			const int32 AttributeComponentCount = 1;	// Number of component values per vertex. See comment above. 
+			TArray<float> AttributeComponentValues;
+			
+			switch(LayerElementVertexAttribute->GetMappingMode())
+			{
+			case FbxLayerElement::eByControlPoint:
+				{
+					AttributeComponentValues.AddZeroed(ControlPointsCount);
+
+					if (LayerElementVertexAttribute->GetReferenceMode() == FbxLayerElement::eDirect)
+					{
+						for (int32 Index = 0; Index < AttributeValues.GetCount(); Index++)
+						{
+							AttributeComponentValues[Index] = AttributeValues.GetAt(Index).mAlpha;
+						}
+					}
+					else // LayerElementVertexAttribute->GetReferenceMode() == FbxLayerElement::eIndexToDirect
+					{
+						const FbxLayerElementArrayTemplate<int>& IndexArray = LayerElementVertexAttribute->GetIndexArray();
+						for (int32 Index = 0; Index < IndexArray.GetCount(); Index++)
+						{
+							AttributeComponentValues[Index] = AttributeValues.GetAt(IndexArray[Index]).mAlpha;
+						}
+					}
+				}
+				break;
+			case FbxLayerElement::eByPolygonVertex:
+				{
+					// Vertex attributes are stored per-vertex, not per-vertex instance. To work around this we average
+					// together values that share a vertex.
+					TArray<int32> SharedVertexCount;
+					SharedVertexCount.AddZeroed(ControlPointsCount);
+					AttributeComponentValues.AddZeroed(ControlPointsCount);
+
+					const FbxLayerElementArrayTemplate<int>* IndexArray = nullptr;
+					if (LayerElementVertexAttribute->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+					{
+						IndexArray = &LayerElementVertexAttribute->GetIndexArray();
+					}
+
+					const int* PolygonControlPointIndexes = Mesh->GetPolygonVertices();
+					
+					for(int32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
+					{
+						for (int32 InnerIndex = 0; InnerIndex < 3; InnerIndex++)
+						{
+							const int32 PolygonVertexIndex = TriangleIndex * 3 + InnerIndex;;
+							const int32 PointIndex = PolygonControlPointIndexes[PolygonVertexIndex];
+
+							AttributeComponentValues[PointIndex] +=
+									AttributeValues.GetAt(IndexArray ? IndexArray->GetAt(PolygonVertexIndex) : PolygonVertexIndex).mAlpha;
+							SharedVertexCount[PointIndex]++;
+						}					
+					}
+
+					for (int32 PointIndex = 0; PointIndex < ControlPointsCount; PointIndex++)
+					{
+						if (SharedVertexCount[PointIndex] > 1)
+						{
+							AttributeComponentValues[PointIndex] /= static_cast<float>(SharedVertexCount[PointIndex]);
+						}
+					}
+				}
+				break;
+			default:
+				break;
+			}
+
+			if (!AttributeComponentValues.IsEmpty())
+			{
+				FString AttributeName(UTF8_TO_TCHAR(LayerElementVertexAttribute->GetName()));
+				NamedVertexAttributes.Emplace(MoveTemp(AttributeName), MoveTemp(AttributeComponentValues), AttributeComponentCount);
+			}
+		}
+
+		//
+		// Add in the attributes that we received, and pad any non-matching existing attributes with zero values to
+		// match the new point count.
+		//
+		if (ExistFaceNum)
+		{
+			// TODO: In the future, once we support attributes with non-unity component counts, we need to decide how to deal
+			// with attributes that share the same name but differing component counts. Two options:
+			// 1) We create a new attribute with a new name that differs from the existing name. Preferably with the component
+			//    count somehow embedded in the name so that we can deal with appending again.
+			// 2) Widen the existing attribute's component count to match the new one (or vice versa, widening the new attribute
+			//    so that we can append).
+			
+			const int32 VertexCount = Mesh->GetControlPointsCount();
+			
+			for (int32 ExistingAttributeIndex = 0; ExistingAttributeIndex < ImportData.VertexAttributes.Num(); ExistingAttributeIndex++)
+			{
+				const FString& ExistingAttributeName = ImportData.VertexAttributeNames[ExistingAttributeIndex];
+				const int32 ExistingAttributeComponentCount = ImportData.VertexAttributes[ExistingAttributeIndex].ComponentCount;
+				
+				int32 NewAttributeIndex = NamedVertexAttributes.IndexOfByPredicate(
+					[ExistingAttributeName](const FNamedVertexAttribute& InAttribute)
+					{
+						return InAttribute.AttributeName == ExistingAttributeName && ensure(InAttribute.ComponentCount == 1);
+					});
+
+				if (ExistingAttributeComponentCount != 1)
+				{
+					// For now, if an existing attribute has a non-unity component count, we don't append the new attribute values
+					// on top, just pad with zeroes. 
+					const FText ErrorMsg = FText::Format(LOCTEXT("FbxSkeletaLMeshimport_MaterialIndexInconsistency", "Existing attribute '{0}' has more than one component. Ignoring imported attribute of same name."),
+							FText::FromString(ExistingAttributeName)); 
+					AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, ErrorMsg), FFbxErrors::SkeletalMesh_AttributeComponentCountMismatch);
+					
+					NewAttributeIndex = INDEX_NONE;
+				}
+
+				SkeletalMeshImportData::FVertexAttribute& ExistingAttribute = ImportData.VertexAttributes[ExistingAttributeIndex];
+				if (NewAttributeIndex != INDEX_NONE)
+				{
+					ExistingAttribute.AttributeValues.Append(NamedVertexAttributes[NewAttributeIndex].AttributeValues);
+					NamedVertexAttributes.RemoveAt(NewAttributeIndex);
+				}
+				else
+				{
+					ExistingAttribute.AttributeValues.AddZeroed(VertexCount * ExistingAttribute.ComponentCount);
+				}
+			}
+
+			// Any remaining attributes we add + padding for existing points.
+			for (FNamedVertexAttribute& NamedVertexAttribute: NamedVertexAttributes)
+			{
+				ImportData.VertexAttributeNames.Emplace(MoveTemp(NamedVertexAttribute.AttributeName));
+				
+				SkeletalMeshImportData::FVertexAttribute& NewAttribute = ImportData.VertexAttributes.AddDefaulted_GetRef();
+				NewAttribute.ComponentCount = NamedVertexAttribute.ComponentCount;
+				NewAttribute.AttributeValues.AddZeroed(ExistPointNum * NamedVertexAttribute.ComponentCount);
+				NewAttribute.AttributeValues.Append(NamedVertexAttribute.AttributeValues);
+			}
+		}
+		else
+		{
+			for (FNamedVertexAttribute& NamedVertexAttribute: NamedVertexAttributes)
+			{
+				ImportData.VertexAttributes.Emplace(MoveTemp(NamedVertexAttribute.AttributeValues), NamedVertexAttribute.ComponentCount);
+				ImportData.VertexAttributeNames.Emplace(MoveTemp(NamedVertexAttribute.AttributeName));
+			}
 		}
 	}
 

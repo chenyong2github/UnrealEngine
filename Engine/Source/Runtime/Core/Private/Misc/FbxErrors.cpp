@@ -143,6 +143,8 @@ FLazyName FFbxErrors::SkeletalMesh_FillImportDataFailed(TEXT("SkeletalMesh_FillI
 
 FLazyName FFbxErrors::SkeletalMesh_InvalidPosition(TEXT("SkeletalMesh_InvalidPosition"));
 
+FLazyName FFbxErrors::SkeletalMesh_AttributeComponentCountMismatch(TEXT("SkeletalMesh_AttributeComponentCountMismatch"));
+
 /** Animation **/
 FLazyName FFbxErrors::Animation_CouldNotFindRootTrack(TEXT("Animation_CouldNotFindRootTrack"));
 

@@ -18,6 +18,7 @@ UFbxSceneImportOptionsSkeletalMesh::UFbxSceneImportOptionsSkeletalMesh(const FOb
 	, bPreserveSmoothingGroups(false)
 	, bImportMeshesInBoneHierarchy(true)
 	, bImportMorphTargets(false)
+	, bImportVertexAttributes(false)
 	, ThresholdPosition(THRESH_POINTS_ARE_SAME)
 	, ThresholdTangentNormal(THRESH_NORMALS_ARE_SAME)
 	, ThresholdUV(THRESH_UVS_ARE_SAME)
@@ -40,6 +41,8 @@ void UFbxSceneImportOptionsSkeletalMesh::FillSkeletalMeshInmportData(UFbxSkeleta
 	check(SkeletalMeshImportData != nullptr);
 	SkeletalMeshImportData->bImportMeshesInBoneHierarchy = bImportMeshesInBoneHierarchy;
 	SkeletalMeshImportData->bImportMorphTargets = bImportMorphTargets;
+	SkeletalMeshImportData->bImportVertexAttributes = bImportVertexAttributes;
+
 	SkeletalMeshImportData->ThresholdPosition = ThresholdPosition;
 	SkeletalMeshImportData->ThresholdTangentNormal = ThresholdTangentNormal;
 	SkeletalMeshImportData->ThresholdUV = ThresholdUV;

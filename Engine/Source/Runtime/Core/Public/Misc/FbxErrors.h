@@ -153,6 +153,8 @@ struct FFbxErrors
 
 	static CORE_API FLazyName SkeletalMesh_InvalidPosition;
 
+	static CORE_API FLazyName SkeletalMesh_AttributeComponentCountMismatch;
+
 	/** Animation **/
 	static CORE_API FLazyName Animation_CouldNotFindRootTrack;
 

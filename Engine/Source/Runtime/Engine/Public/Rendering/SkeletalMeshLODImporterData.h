@@ -293,6 +293,13 @@ namespace SkeletalMeshImportData
 
 	struct FVertexAttribute
 	{
+		FVertexAttribute() = default;
+		FVertexAttribute(TArray<float>&& InAttributeValues, int32 InComponentCount) :
+			AttributeValues(InAttributeValues), ComponentCount(InComponentCount)
+		{}
+		FVertexAttribute(const FVertexAttribute&) = default;
+		FVertexAttribute(FVertexAttribute&&) = default;
+		
 		TArray<float> AttributeValues;
 		int32 ComponentCount;
 		
