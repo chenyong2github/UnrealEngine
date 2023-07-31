@@ -5,6 +5,7 @@
 #include "OverridePassSequence.h"
 
 class FEyeAdaptationParameters;
+class FLocalExposureParameters;
 
 struct FVisualizeLocalExposureInputs
 {
@@ -18,6 +19,7 @@ struct FVisualizeLocalExposureInputs
 
 	FRDGTextureRef LumBilateralGridTexture = nullptr;
 	FRDGTextureRef BlurredLumTexture = nullptr;
+	const FLocalExposureParameters* LocalExposureParameters = nullptr;
 
 	const FEyeAdaptationParameters* EyeAdaptationParameters = nullptr;
 };

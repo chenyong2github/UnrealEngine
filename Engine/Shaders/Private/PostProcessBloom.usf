@@ -29,7 +29,7 @@ float2 GetExposureScaleMiddleGreyLumValue()
 	float2 ExposureScaleMiddleGreyLumValue = EyeAdaptationLookupBuffer(EyeAdaptationBuffer).xw;
 
 	// Middle grey lum value adjusted by exposure compensation
-	ExposureScaleMiddleGreyLumValue.y = log2(0.18f * ExposureScaleMiddleGreyLumValue.y * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
+	ExposureScaleMiddleGreyLumValue.y = log2(0.18f * ExposureScaleMiddleGreyLumValue.y * LocalExposure_MiddleGreyExposureCompensation);
 
 	return ExposureScaleMiddleGreyLumValue;
 }
@@ -46,8 +46,8 @@ float4 BloomSetupCommon(float2 UV, float2 ViewportUV, float2 ExposureScaleMiddle
 		float LogLuminance = log2(LuminanceVal);
 		float MiddleGreyLumValue = ExposureScaleMiddleGreyLumValue.y;
 
-		float BaseLogLum = CalculateBaseLogLuminance(LogLuminance, EyeAdaptation_LocalExposureBlurredLuminanceBlend, ExposureScale, ViewportUV, LumBilateralGrid, BlurredLogLum, LumBilateralGridSampler, BlurredLogLumSampler);
-		float LocalExposure = CalculateLocalExposure(LogLuminance + log2(ExposureScale), BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureHighlightContrastScale, EyeAdaptation_LocalExposureShadowContrastScale, EyeAdaptation_LocalExposureDetailStrength);
+		float BaseLogLum = CalculateBaseLogLuminance(LogLuminance, LocalExposure_BlurredLuminanceBlend, ExposureScale, ViewportUV, LumBilateralGrid, BlurredLogLum, LumBilateralGridSampler, BlurredLogLumSampler);
+		float LocalExposure = CalculateLocalExposure(LogLuminance + log2(ExposureScale), BaseLogLum, MiddleGreyLumValue, LocalExposure_HighlightContrastScale, LocalExposure_ShadowContrastScale, LocalExposure_DetailStrength);
 		
 		SceneColor.rgb *= LocalExposure;
 	}

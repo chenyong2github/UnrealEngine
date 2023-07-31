@@ -191,7 +191,7 @@ float ComputeAverageLocalExposure(Texture2D HistogramTexture, float ExposureScal
 	// Average Local Exposure is calculated using log(LocalExposure) 
 	// since it results in a more consistent value when applied to Pre-Exposure
 
-	const float MiddleGreyLumValue = log2(0.18 * MiddleGreyExposureCompensation * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
+	const float MiddleGreyLumValue = log2(0.18 * MiddleGreyExposureCompensation * LocalExposure_MiddleGreyExposureCompensation);
 
 	float2 Sum = 0;
 
@@ -202,7 +202,7 @@ float ComputeAverageLocalExposure(Texture2D HistogramTexture, float ExposureScal
 		float LogLuminanceAtBucket = ComputeLogLuminanceFromHistogramPosition(float(i) / (float)(HISTOGRAM_SIZE - 1));
 
 		float BaseLogLum = LogLuminanceAtBucket + log2(ExposureScale);
-		float LogLocalExposure = CalculateLogLocalExposure(BaseLogLum, BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureHighlightContrastScale, EyeAdaptation_LocalExposureShadowContrastScale, 0.0f);
+		float LogLocalExposure = CalculateLogLocalExposure(BaseLogLum, BaseLogLum, MiddleGreyLumValue, LocalExposure_HighlightContrastScale, LocalExposure_ShadowContrastScale, 0.0f);
 
 		Sum += float2(LogLocalExposure, 1) * LocalValue;
 	}
@@ -330,7 +330,7 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	const float4 OutData0 = EyeAdaptationCommon(AverageSceneLuminance, OldExposureScale);
 
 #if COMPUTE_AVERAGE_LOCAL_EXPOSURE
-	const float MiddleGreyLumValue = log2(0.18 * OutData0.w * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
+	const float MiddleGreyLumValue = log2(0.18 * OutData0.w * LocalExposure_MiddleGreyExposureCompensation);
 
 	const float2 LogLumSumWithCount = ComputeTextureAverageAlphaSubRegion(ColorTexture, SubRectMin, SubRectMax, Color_ViewportMin, Color_ViewportMax);
 
@@ -338,7 +338,7 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	LogLum = (LogLum - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale;
 
 	const float BaseLogLum = LogLum + log2(OutData0.x);
-	const float LogLocalExposure = CalculateLogLocalExposure(BaseLogLum, BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureHighlightContrastScale, EyeAdaptation_LocalExposureShadowContrastScale, 0.0f);
+	const float LogLocalExposure = CalculateLogLocalExposure(BaseLogLum, BaseLogLum, MiddleGreyLumValue, LocalExposure_HighlightContrastScale, LocalExposure_ShadowContrastScale, 0.0f);
 
 	const float2 LogLocalExposureSumWithCount = float2(LogLocalExposure, 1.0f) * LogLumSumWithCount.y;
 

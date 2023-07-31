@@ -16,11 +16,6 @@ float EyeAdaptation_ExposureSpeedDown;
 float EyeAdaptation_HistogramScale;
 float EyeAdaptation_HistogramBias;
 float EyeAdaptation_LuminanceMin;
-float EyeAdaptation_LocalExposureHighlightContrastScale;
-float EyeAdaptation_LocalExposureShadowContrastScale;
-float EyeAdaptation_LocalExposureDetailStrength;
-float EyeAdaptation_LocalExposureBlurredLuminanceBlend;
-float EyeAdaptation_LocalExposureMiddleGreyExposureCompensation;
 float EyeAdaptation_BlackHistogramBucketInfluence;
 float EyeAdaptation_IgnoreMaterialsEvaluationPositionBias;
 float EyeAdaptation_IgnoreMaterialsLuminanceScale;
@@ -35,6 +30,12 @@ float EyeAdaptation_ForceTarget;
 int EyeAdaptation_VisualizeDebugType;
 Texture2D EyeAdaptation_MeterMaskTexture;
 SamplerState EyeAdaptation_MeterMaskSampler;
+
+float LocalExposure_HighlightContrastScale;
+float LocalExposure_ShadowContrastScale;
+float LocalExposure_DetailStrength;
+float LocalExposure_BlurredLuminanceBlend;
+float LocalExposure_MiddleGreyExposureCompensation;
 
 float CalculateEyeAdaptationLuminance(float3 Color)
 {

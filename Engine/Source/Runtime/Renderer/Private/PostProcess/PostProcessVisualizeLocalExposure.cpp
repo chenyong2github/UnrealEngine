@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessVisualizeLocalExposure.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/PostProcessLocalExposure.h"
 #include "UnrealEngine.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "SceneRendering.h"
@@ -24,6 +25,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+		SHADER_PARAMETER_STRUCT(FLocalExposureParameters, LocalExposure)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
 
@@ -74,6 +76,7 @@ FScreenPassTexture AddVisualizeLocalExposurePass(FRDGBuilder& GraphBuilder, cons
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->EyeAdaptation = *Inputs.EyeAdaptationParameters;
+	PassParameters->LocalExposure = *Inputs.LocalExposureParameters;
 	PassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
 	PassParameters->Output = GetScreenPassTextureViewportParameters(OutputViewport);
 	PassParameters->HDRSceneColorTexture = Inputs.HDRSceneColor.Texture;

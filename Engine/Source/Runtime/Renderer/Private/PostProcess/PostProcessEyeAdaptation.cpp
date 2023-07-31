@@ -17,6 +17,7 @@
 #include "DataDrivenShaderPlatformInfo.h"
 #include "TextureResource.h"
 #include "PostProcessing.h"
+#include "PostProcessLocalExposure.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
@@ -394,14 +395,6 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	float ExposureCompensationCurve = GetAutoExposureCompensationFromCurve(View);
 	const float BlackHistogramBucketInfluence = CVarEyeAdaptationBlackHistogramBucketInfluence.GetValueOnRenderThread();
 
-	float LocalExposureMiddleGreyExposureCompensation = FMath::Pow(2.0f, View.FinalPostProcessSettings.LocalExposureMiddleGreyBias);
-
-	if (AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
-	{
-		// when using manual exposure cancel exposure compensation setting and curve from middle grey used by local exposure.
-		LocalExposureMiddleGreyExposureCompensation /= (ExposureCompensationSettings * ExposureCompensationCurve);
-	}
-
 	const float kMiddleGrey = 0.18f;
 
 	// AEM_Histogram and AEM_Basic adjust their ExposureCompensation to middle grey (0.18). AEM_Manual ExposureCompensation is already calibrated to 1.0.
@@ -525,11 +518,6 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	Parameters.HistogramScale = HistogramScale;
 	Parameters.HistogramBias = HistogramBias;
 	Parameters.LuminanceMin = LuminanceMin;
-	Parameters.LocalExposureHighlightContrastScale = Settings.LocalExposureHighlightContrastScale;
-	Parameters.LocalExposureShadowContrastScale = Settings.LocalExposureShadowContrastScale;
-	Parameters.LocalExposureDetailStrength = Settings.LocalExposureDetailStrength;
-	Parameters.LocalExposureBlurredLuminanceBlend = Settings.LocalExposureBlurredLuminanceBlend;
-	Parameters.LocalExposureMiddleGreyExposureCompensation = LocalExposureMiddleGreyExposureCompensation;
 	Parameters.BlackHistogramBucketInfluence = BlackHistogramBucketInfluence; // no calibration constant because it is now baked into ExposureCompensation
 	Parameters.GreyMult = GreyMult;
 	Parameters.ExponentialDownM = ExponentialDownM;
@@ -790,6 +778,7 @@ class FEyeAdaptationCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+		SHADER_PARAMETER_STRUCT(FLocalExposureParameters, LocalExposure)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistogramTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, RWEyeAdaptationBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -811,6 +800,7 @@ FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	const FLocalExposureParameters& LocalExposureParameters,
 	FRDGTextureRef HistogramTexture,
 	bool bComputeAverageLocalExposure)
 {
@@ -820,7 +810,8 @@ FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBufferRef OutputBuffer = GraphBuilder.RegisterExternalBuffer(View.GetEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
 
 	FEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEyeAdaptationCS::FParameters>();
-	PassParameters->EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
+	PassParameters->EyeAdaptation = EyeAdaptationParameters;
+	PassParameters->LocalExposure = LocalExposureParameters;
 	PassParameters->HistogramTexture = HistogramTexture;
 	PassParameters->RWEyeAdaptationBuffer = GraphBuilder.CreateUAV(OutputBuffer);
 
@@ -922,6 +913,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+		SHADER_PARAMETER_STRUCT(FLocalExposureParameters, LocalExposure)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
@@ -943,6 +935,7 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	const FLocalExposureParameters& LocalExposureParameters,
 	FScreenPassTexture SceneColor,
 	FRDGBufferRef EyeAdaptationBuffer,
 	bool bComputeAverageLocalExposure)
@@ -957,6 +950,7 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->EyeAdaptation = EyeAdaptationParameters;
+	PassParameters->LocalExposure = LocalExposureParameters;
 	PassParameters->Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
 	PassParameters->ColorTexture = SceneColor.Texture;
 	PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(EyeAdaptationBuffer);

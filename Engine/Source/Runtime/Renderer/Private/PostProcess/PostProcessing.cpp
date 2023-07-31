@@ -328,6 +328,8 @@ void AddPostProcessingPasses(
 	FRDGBufferRef LastEyeAdaptationBuffer = GetEyeAdaptationBuffer(GraphBuilder, View);
 	FRDGBufferRef EyeAdaptationBuffer = LastEyeAdaptationBuffer;
 
+	FLocalExposureParameters LocalExposureParameters;
+
 	// Histogram defaults to black because the histogram eye adaptation pass is used for the manual metering mode.
 	FRDGTextureRef HistogramTexture = BlackDummy.Texture;
 
@@ -951,6 +953,8 @@ void AddPostProcessingPasses(
 				bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor);
 		}
 
+		LocalExposureParameters = GetLocalExposureParameters(View, EyeAdaptationParameters);
+
 		if (bHistogramEnabled)
 		{
 			FScreenPassTexture HistogramSceneColor = bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor;
@@ -1003,6 +1007,7 @@ void AddPostProcessingPasses(
 			EyeAdaptationBuffer = AddBasicEyeAdaptationPass(
 				GraphBuilder, View,
 				EyeAdaptationParameters,
+				LocalExposureParameters,
 				SceneDownsampleChain.GetLastTexture(),
 				LastEyeAdaptationBuffer,
 				bLocalExposureEnabled);
@@ -1013,6 +1018,7 @@ void AddPostProcessingPasses(
 			EyeAdaptationBuffer = AddHistogramEyeAdaptationPass(
 				GraphBuilder, View,
 				EyeAdaptationParameters,
+				LocalExposureParameters,
 				HistogramTexture,
 				bLocalExposureEnabled);
 		}
@@ -1055,6 +1061,7 @@ void AddPostProcessingPasses(
 					InputResolutionFraction,
 					EyeAdaptationParameters,
 					EyeAdaptationBuffer,
+					LocalExposureParameters,
 					CVarBloomApplyLocalExposure.GetValueOnRenderThread() ? LocalExposureTexture : nullptr,
 					LocalExposureBlurredLogLumTexture);
 
@@ -1082,6 +1089,7 @@ void AddPostProcessingPasses(
 						SetupPassInputs.SceneColor = DownsampleInput;
 						SetupPassInputs.EyeAdaptationBuffer = EyeAdaptationBuffer;
 						SetupPassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
+						SetupPassInputs.LocalExposureParameters = &LocalExposureParameters;
 						SetupPassInputs.LocalExposureTexture = CVarBloomApplyLocalExposure.GetValueOnRenderThread() ? LocalExposureTexture : nullptr;
 						SetupPassInputs.BlurredLogLuminanceTexture = LocalExposureBlurredLogLumTexture;
 						SetupPassInputs.Threshold = BloomThreshold;
@@ -1151,6 +1159,7 @@ void AddPostProcessingPasses(
 				PassInputs.SceneColorApplyParamaters = SceneColorApplyParameters;
 				PassInputs.LocalExposureTexture = LocalExposureTexture;
 				PassInputs.BlurredLogLuminanceTexture = LocalExposureBlurredLogLumTexture;
+				PassInputs.LocalExposureParameters = &LocalExposureParameters;
 				PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 				PassInputs.EyeAdaptationBuffer = EyeAdaptationBuffer;
 				PassInputs.ColorGradingTexture = ColorGradingTexture;
@@ -1465,6 +1474,7 @@ void AddPostProcessingPasses(
 		PassInputs.HDRSceneColor = FScreenPassTexture::CopyFromSlice(GraphBuilder, SceneColorBeforeTonemapSlice);
 		PassInputs.LumBilateralGridTexture = LocalExposureTexture;
 		PassInputs.BlurredLumTexture = LocalExposureBlurredLogLumTexture;
+		PassInputs.LocalExposureParameters = &LocalExposureParameters;
 		PassInputs.EyeAdaptationBuffer = GetEyeAdaptationBuffer(GraphBuilder, View);
 		PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 
@@ -1695,10 +1705,10 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.RequiresSecondaryUpscale() || View.Family->GetSecondarySpatialUpscalerInterface() != nullptr);
 	PassSequence.Finalize();
 
+	const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
+
 	if (bTonemapBefore)
 	{
-		const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
-
 		FTonemapInputs PassInputs;
 		PassInputs.SceneColor = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, SceneColor);
 		PassInputs.bOutputInHDR = bViewFamilyOutputInHDR;
@@ -1790,8 +1800,6 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 
 	if (PassSequence.IsEnabled(EPass::TonemapAfter))
 	{
-		const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
-
 		FTonemapInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::TonemapAfter, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, SceneColor);

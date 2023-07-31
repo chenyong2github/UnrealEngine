@@ -6,6 +6,7 @@
 
 class FSceneDownsampleChain;
 class FEyeAdaptationParameters;
+class FLocalExposureParameters;
 
 enum class EBloomQuality : uint32
 {
@@ -35,6 +36,9 @@ struct FBloomSetupInputs
 
 	// [Optional] Eye adaptation parameters.
 	const FEyeAdaptationParameters* EyeAdaptationParameters = nullptr;
+
+	// [Optional] Local exposure parameters.
+	const FLocalExposureParameters* LocalExposureParameters = nullptr;
 
 	// [Optional] Luminance bilateral grid. If this is null, local exposure is disabled.
 	FRDGTextureRef LocalExposureTexture = nullptr;

@@ -4,6 +4,8 @@
 
 #include "ScreenPass.h"
 
+class FLocalExposureParameters;
+
 namespace AutoExposurePermutation
 {
 	class FUsePrecalculatedLuminanceDim : SHADER_PERMUTATION_BOOL("USE_PRECALCULATED_LUMINANCE");
@@ -59,11 +61,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, )
 	SHADER_PARAMETER(float, HistogramScale)
 	SHADER_PARAMETER(float, HistogramBias)
 	SHADER_PARAMETER(float, LuminanceMin)
-	SHADER_PARAMETER(float, LocalExposureHighlightContrastScale)
-	SHADER_PARAMETER(float, LocalExposureShadowContrastScale)
-	SHADER_PARAMETER(float, LocalExposureDetailStrength)
-	SHADER_PARAMETER(float, LocalExposureBlurredLuminanceBlend)
-	SHADER_PARAMETER(float, LocalExposureMiddleGreyExposureCompensation)
 	SHADER_PARAMETER(float, BlackHistogramBucketInfluence)
 	SHADER_PARAMETER(float, GreyMult)
 	SHADER_PARAMETER(float, ExponentialUpM)
@@ -102,6 +99,7 @@ FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	const FLocalExposureParameters& LocalExposureParameters,
 	FRDGTextureRef HistogramTexture,
 	bool bComputeAverageLocalExposure);
 
@@ -117,6 +115,7 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	const FLocalExposureParameters& LocalExposureParameters,
 	FScreenPassTexture SceneColor,
 	FRDGBufferRef EyeAdaptationBuffer,
 	bool bComputeAverageLocalExposure);

@@ -712,6 +712,7 @@ FFFTBloomOutput AddFFTBloomPass(
 	float InputResolutionFraction,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGBufferRef EyeAdaptationBuffer,
+	const FLocalExposureParameters& LocalExposureParameters,
 	FRDGTextureRef LocalExposureTexture,
 	FRDGTextureRef BlurredLogLuminanceTexture)
 {
@@ -822,7 +823,17 @@ FFFTBloomOutput AddFFTBloomPass(
 
 		FFTInputSceneColor.Texture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.Input"));
 
-		AddApplyLocalExposurePass(GraphBuilder, View, EyeAdaptationParameters, EyeAdaptationBuffer, LocalExposureTexture, BlurredLogLuminanceTexture, Temp, FFTInputSceneColor, Intermediates.ComputePassFlags);
+		AddApplyLocalExposurePass(
+			GraphBuilder,
+			View,
+			EyeAdaptationParameters,
+			EyeAdaptationBuffer,
+			LocalExposureParameters,
+			LocalExposureTexture,
+			BlurredLogLuminanceTexture,
+			Temp,
+			FFTInputSceneColor,
+			Intermediates.ComputePassFlags);
 	}
 
 	// Init the domain data update the cached kernel if needed.

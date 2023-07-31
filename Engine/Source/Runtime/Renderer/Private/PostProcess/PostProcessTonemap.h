@@ -8,6 +8,7 @@
 #include "OverridePassSequence.h"
 #include "Math/Halton.h"
 
+class FLocalExposureParameters;
 
 bool SupportsFilmGrain(EShaderPlatform Platform);
 
@@ -45,6 +46,9 @@ struct FTonemapInputs
 
 	// [Optional] Blurred luminance texture used to calculate local exposure.
 	FRDGTextureRef BlurredLogLuminanceTexture = nullptr;
+
+	// [Optional] Local exposure parameters.
+	const FLocalExposureParameters* LocalExposureParameters = nullptr;
 
 	// [Required] Eye adaptation parameters.
 	const FEyeAdaptationParameters* EyeAdaptationParameters = nullptr;

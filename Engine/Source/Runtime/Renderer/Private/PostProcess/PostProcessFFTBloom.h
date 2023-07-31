@@ -6,6 +6,7 @@
 #include "ScreenPass.h"
 
 class FEyeAdaptationParameters;
+class FLocalExposureParameters;
 class FRDGBuffer;
 class FRDGBuilder;
 class FRDGTexture;
@@ -32,5 +33,6 @@ FFFTBloomOutput AddFFTBloomPass(
 	float InputResolutionFraction,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGBufferRef EyeAdaptationBuffer,
+	const FLocalExposureParameters& LocalExposureParameters,
 	FRDGTextureRef LocalExposureTexture,
 	FRDGTextureRef BlurredLogLuminanceTexture);

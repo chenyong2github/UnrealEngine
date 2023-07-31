@@ -381,10 +381,10 @@ float4 TonemapCommonPS(
 		float LogLuminance = log2(LuminanceVal);
 
 		// Middle grey lum value adjusted by exposure compensation
-		float MiddleGreyLumValue = log2(0.18 * EyeAdaptationData.y * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
+		float MiddleGreyLumValue = log2(0.18 * EyeAdaptationData.y * LocalExposure_MiddleGreyExposureCompensation);
 
-		float BaseLogLum = CalculateBaseLogLuminance(LogLuminance, EyeAdaptation_LocalExposureBlurredLuminanceBlend, GlobalExposure, FullViewUV, LumBilateralGrid, BlurredLogLum, LumBilateralGridSampler, BlurredLogLumSampler);
-		LocalExposure = CalculateLocalExposure(LogLuminance + log2(GlobalExposure), BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureHighlightContrastScale, EyeAdaptation_LocalExposureShadowContrastScale, EyeAdaptation_LocalExposureDetailStrength);
+		float BaseLogLum = CalculateBaseLogLuminance(LogLuminance, LocalExposure_BlurredLuminanceBlend, GlobalExposure, FullViewUV, LumBilateralGrid, BlurredLogLum, LumBilateralGridSampler, BlurredLogLumSampler);
+		LocalExposure = CalculateLocalExposure(LogLuminance + log2(GlobalExposure), BaseLogLum, MiddleGreyLumValue, LocalExposure_HighlightContrastScale, LocalExposure_ShadowContrastScale, LocalExposure_DetailStrength);
 	}
 	#else // !USE_LOCAL_EXPOSURE
 	const float LocalExposure = 1.0;
