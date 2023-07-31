@@ -37,9 +37,6 @@ namespace UE::DMXEditor::FixturePatchEditor
 		void RequestRefresh();
 
 	private:
-		/** Saves state to config */
-		void SaveConfig();
-
 		/** Creates a widget to select a fixture type */
 		TSharedRef<SWidget> MakeFixtureTypeSelectWidget();
 
@@ -90,9 +87,6 @@ namespace UE::DMXEditor::FixturePatchEditor
 
 		/** Current fixture type */
 		TWeakObjectPtr<UDMXEntityFixtureType> WeakFixtureType;
-
-		/** The number of fixture patches to add */
-		int32 ActiveModeIndex = 0;
 
 		/** Universe where the patches will be added */
 		TOptional<int32> Universe;
