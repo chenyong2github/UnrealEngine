@@ -294,6 +294,11 @@ void ReduceCS(
 	{
 		GatheredColor = GatherInput_SceneColor.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
 		CocRadius = GatherInput_SeparateCoc.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r;
+
+		// Convert from translucency to opacity.
+		#if !DIM_DISABLE_OUTPUT_MIP0
+			GatheredColor.a = 1.0 - GatheredColor.a;
+		#endif
 	}
 	#else
 	{
