@@ -1384,7 +1384,7 @@ namespace UnrealBuildTool
 
 		public override FileItem? CopyDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory, IActionGraphBuilder Graph)
 		{
-			if (SourceFile.HasExtension(".natvis"))
+			if (SourceFile.HasExtension(".natvis") || SourceFile.HasExtension(".natstepfilter"))
 			{
 				FileItem IntermediateFile = FileItem.GetItemByFileReference(FileReference.Combine(IntermediateDirectory, SourceFile.Name));
 				Graph.CreateCopyAction(SourceFile, IntermediateFile);
@@ -1395,7 +1395,7 @@ namespace UnrealBuildTool
 
 		public override FileItem? LinkDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory)
 		{
-			if (SourceFile.HasExtension(".natvis"))
+			if (SourceFile.HasExtension(".natvis") || SourceFile.HasExtension(".natstepfilter"))
 			{
 				FileItem IntermediateFile = FileItem.GetItemByFileReference(FileReference.Combine(IntermediateDirectory, SourceFile.Name));
 				return IntermediateFile;

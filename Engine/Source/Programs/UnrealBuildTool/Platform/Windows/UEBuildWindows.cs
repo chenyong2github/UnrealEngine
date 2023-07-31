@@ -1257,7 +1257,9 @@ namespace UnrealBuildTool
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".exp")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".obj")
 				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".map")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".objpaths");
+				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".objpaths")
+				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".natvis")
+				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".natstepfilter");
 		}
 
 		/// <summary>

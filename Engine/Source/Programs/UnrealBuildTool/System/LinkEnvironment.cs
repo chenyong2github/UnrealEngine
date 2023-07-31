@@ -431,6 +431,7 @@ namespace UnrealBuildTool
 			DefaultResourceFiles.AddRange(Other.DefaultResourceFiles);
 			CommonResourceFiles.AddRange(Other.CommonResourceFiles);
 			IncludeFunctions.AddRange(Other.IncludeFunctions);
+			DebuggerVisualizerFiles.AddRange(Other.DebuggerVisualizerFiles);
 			ModuleDefinitionFile = Other.ModuleDefinitionFile;
 			AdditionalProperties.AddRange(Other.AdditionalProperties);
 

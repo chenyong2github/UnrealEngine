@@ -469,9 +469,9 @@ namespace UnrealBuildTool
 							}
 						}
 					}
-					if (Module.NatvisSourceFile != null)
+					foreach (FileItem NatvisSourceFile in Module.NatvisFiles)
 					{
-						FileItem? Item = ToolChain.LinkDebuggerVisualizer(Module.NatvisSourceFile, Module.IntermediateDirectory);
+						FileItem? Item = ToolChain.LinkDebuggerVisualizer(NatvisSourceFile, Module.IntermediateDirectory);
 						if (Item != null)
 						{
 							BuildProducts.Add(Item.Location, BuildProductType.BuildResource);

@@ -192,7 +192,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bDependsOnVerse = false;
 
-		public FileItem? NatvisSourceFile;
+		public List<FileItem> NatvisFiles = new();
 
 		/// <summary>
 		/// Constructor
@@ -290,14 +290,14 @@ namespace UnrealBuildTool
 			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
 
 			DependenciesToSkipPerArchitecture = Rules.DependenciesToSkipPerArchitecture;
-			FileReference PossibleNatvisFile = FileReference.Combine(Rules.File.Directory, $"{Name}.natvis");
-			if (FileReference.Exists(PossibleNatvisFile))
-			{
-				NatvisSourceFile = FileItem.GetItemByFileReference(PossibleNatvisFile);
-			}
 
 			// get the module directories from the module
 			ModuleDirectories = Rules.GetAllModuleDirectories();
+
+			foreach (DirectoryItem Directory in ModuleDirectories.Select(x => DirectoryItem.GetItemByDirectoryReference(x)))
+			{
+				NatvisFiles.AddRange(Directory.EnumerateFiles().Where(x => x.HasExtension(".natvis") || x.HasExtension(".natstepfilter")));
+			}
 		}
 
 		/// <summary>
@@ -940,20 +940,21 @@ namespace UnrealBuildTool
 
 		public IEnumerable<FileItem> CopyDebuggerVisualizers(UEToolChain ToolChain, IActionGraphBuilder Graph, ILogger Logger)
 		{
-			if (NatvisSourceFile != null)
+			List<FileItem> Results = new();
+			foreach (FileItem NatvisSourceFile in NatvisFiles)
 			{
 				FileItem? Item = ToolChain.CopyDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory, Graph);
 				if (Item != null)
 				{
-					return new[] { Item }; 
+					Results.Add(Item);
 				}
 			}
-			return Enumerable.Empty<FileItem>();
+			return Results;
 		}
 		
 		public void LinkDebuggerVisualizers(List<FileItem> OutFiles, UEToolChain ToolChain, ILogger Logger)
 		{
-			if (NatvisSourceFile != null)
+			foreach (FileItem NatvisSourceFile in NatvisFiles)
 			{
 				FileItem? Item = ToolChain.LinkDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory);
 				if (Item != null)
