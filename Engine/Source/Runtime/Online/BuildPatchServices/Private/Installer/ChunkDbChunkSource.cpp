@@ -43,7 +43,7 @@ namespace ChunkDbSourceHelpers
 }
 #endif
 
-DECLARE_LOG_CATEGORY_EXTERN(LogChunkDbChunkSource, Warning, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogChunkDbChunkSource, Log, All);
 DEFINE_LOG_CATEGORY(LogChunkDbChunkSource);
 
 namespace ChunkDbSourceHelpers
@@ -222,14 +222,21 @@ namespace BuildPatchServices
 		}
 
 		// Start threaded load worker.
-		TFunction<void()> Task = [this]() { return ThreadRun(); };
-		Future = Async(EAsyncExecution::ThreadIfForkSafe, MoveTemp(Task));
+		if (ChunkDbDataAccesses.Num() > 0)
+		{
+			TFunction<void()> Task = [this]() { return ThreadRun(); };
+			Future = Async(EAsyncExecution::ThreadIfForkSafe, MoveTemp(Task));
+		}
 	}
 
 	FChunkDbChunkSource::~FChunkDbChunkSource()
 	{
 		Abort();
-		Future.Wait();
+
+		if (Future.IsValid())
+		{
+			Future.Wait();
+		}
 	}
 
 	void FChunkDbChunkSource::SetPaused(bool bInIsPaused)
@@ -495,6 +502,8 @@ namespace BuildPatchServices
 
 	IChunkDbChunkSource* FChunkDbChunkSourceFactory::Create(FChunkDbSourceConfig Configuration, IPlatform* Platform, IFileSystem* FileSystem, IChunkStore* ChunkStore, IChunkReferenceTracker* ChunkReferenceTracker, IChunkDataSerialization* ChunkDataSerialization, IMessagePump* MessagePump, IInstallerError* InstallerError, IChunkDbChunkSourceStat* ChunkDbChunkSourceStat)
 	{
+		UE_LOG(LogChunkDbChunkSource, Verbose, TEXT("FChunkDbChunkSourceFactory::Create for %d db files"), Configuration.ChunkDbFiles.Num());
+
 		check(Platform != nullptr);
 		check(FileSystem != nullptr);
 		check(ChunkStore != nullptr);
