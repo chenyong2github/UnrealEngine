@@ -3732,7 +3732,7 @@ void FCombineMeshInstancesImpl::CombineMeshInstances(
 				PartAssembly.Parts.Num(), PartAssembly.UniqueMaterials.Num());
 		}
 
-		InitializeAssemblySourceMeshesFromLOD(PartAssembly, 0, Options.NumCopiedLODs);
+		InitializeAssemblySourceMeshesFromLOD(PartAssembly, Options.BaseCopiedLOD, Options.NumCopiedLODs);
 		InitializePartAssemblySpatials(PartAssembly);
 	}
 	{

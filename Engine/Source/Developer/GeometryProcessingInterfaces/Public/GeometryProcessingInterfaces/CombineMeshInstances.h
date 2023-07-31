@@ -143,6 +143,7 @@ public:
 		int32 NumLODs = 5;
 
 		// settings for Copied LODs, these are directly copied from Source Geometry
+		int32 BaseCopiedLOD = 0;
 		int32 NumCopiedLODs = 1;
 
 		//
