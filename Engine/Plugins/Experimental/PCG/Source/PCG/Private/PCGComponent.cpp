@@ -405,6 +405,8 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated,
 		FPropertyChangedEvent GeneratedOutputChangedEvent(GeneratedOutputProperty, EPropertyChangeType::ValueSet);
 		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, GeneratedOutputChangedEvent);
 	}
+
+	StopGenerationInProgress();
 #endif
 }
 
@@ -499,6 +501,8 @@ void UPCGComponent::OnProcessGraphAborted(bool bQuiet)
 	CurrentRefreshTask = InvalidPCGTaskId;
 	// Implementation note: while it may seem logical to clear the bDirtyGenerated flag here, 
 	// the component is still considered dirty if we aborted processing, hence it should stay this way.
+
+	StopGenerationInProgress();
 #endif
 }
 
@@ -1144,7 +1148,7 @@ void UPCGComponent::RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool b
 		DirtyGenerated(bDirtyInputs ? (EPCGComponentDirtyFlag::Actor | EPCGComponentDirtyFlag::Landscape) : EPCGComponentDirtyFlag::None);
 		if (bHasGraph)
 		{
-			Refresh();
+			Refresh(bIsStructural);
 		}
 		else
 		{
@@ -1265,7 +1269,7 @@ void UPCGComponent::PostEditUndo()
 
 	if (bGenerated)
 	{
-		Refresh();
+		Refresh(/*bIsStructural=*/true);
 	}
 }
 
@@ -1322,13 +1326,9 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag, const bool 
 	if (!!(DirtyFlag & EPCGComponentDirtyFlag::Actor))
 	{
 		CachedActorData = nullptr;
-		
-		if (Cast<ALandscapeProxy>(GetOwner()))
-		{
-			CachedLandscapeData = nullptr;
-			CachedLandscapeHeightData = nullptr;
-		}
-
+		// Since landscape data is related on the bounds of the current actor, when we dirty the actor data, we need to dirty the landscape data as well
+		CachedLandscapeData = nullptr;
+		CachedLandscapeHeightData = nullptr;
 		CachedInputData = nullptr;
 		CachedPCGData = nullptr;
 	}
@@ -1438,7 +1438,7 @@ const FPCGDataCollection* UPCGComponent::GetInspectionData(const FString& InStac
 	return InspectionCache.Find(InStackPath);
 }
 
-void UPCGComponent::Refresh()
+void UPCGComponent::Refresh(bool bStructural)
 {
 	// Disable auto-refreshing on preview actors until we have something more robust on the execution side.
 	if (GetOwner() && GetOwner()->bIsEditorPreviewActor)
@@ -1446,20 +1446,66 @@ void UPCGComponent::Refresh()
 		return;
 	}
 
+	// If the component is tagged as not to regenerate in the editor, only exceptional cases should trigger a refresh
+	// namely: the component is deactivated.
+	// Note that the component changing its IsPartitioned state is already covered in the PostEditChangeProperty
+	// Note that even if this is force refresh/structural change, we will NOT refresh
+	if (!bRegenerateInEditor && bActivated)
+	{
+		// We still need to trigger component registration event otherwise further generations will fail if this is moved.
+		// Note that we pass in false here to remove everything when moving a partitioned graph because we would otherwise need to do a reversible stamp to support this
+		if (UPCGSubsystem* Subsystem = GetSubsystem())
+		{
+			Subsystem->RegisterOrUpdatePCGComponent(this, bGenerated);
+		}
+
+		return;
+	}
+
 	// Discard any refresh if have already one scheduled.
 	if (UPCGSubsystem* Subsystem = GetSubsystem())
 	{
-		//TDOO: uncomment this once we have the proper things in place to prevent cancellation-by-landscape changes when we have a graph that does change the landscape
-		/*if (CurrentGenerationTask != InvalidPCGTaskId)
+		// Cancel an already existing generation if either the change is structural in nature (which requires a recompilation, so a full-rescheduling)
+		// or if the generation is already started
+		const bool bGenerationWasInProgress = IsGenerationInProgress();
+		if (CurrentGenerationTask != InvalidPCGTaskId && (bStructural || bGenerationWasInProgress))
 		{
 			CancelGeneration();
-		}*/
+		}
 
-		if (CurrentRefreshTask == InvalidPCGTaskId)
+		// Calling a new refresh here might not be sufficient; if the current component was generating but was not previously generated,
+		// then the bGenerated flag will be false, which will prevent a subsequent update here
+		if (CurrentRefreshTask == InvalidPCGTaskId && CurrentCleanupTask == InvalidPCGTaskId)
 		{
-			CurrentRefreshTask = Subsystem->ScheduleRefresh(this);
+			CurrentRefreshTask = Subsystem->ScheduleRefresh(this, bGenerationWasInProgress);
 		}
 	}
+}
+
+void UPCGComponent::StartGenerationInProgress()
+{
+	// Implementation detail:
+	// Since the original component is not guaranteed to run the FetchInput element, local components are "allowed" to mark generation in progress on their original component.
+	// However, the PostProcessGraph on the original component will be guaranteed to be called at the end of the execution so we do not need this mechanism in that case.
+	bGenerationInProgress = true;
+
+	if (IsLocalComponent())
+	{
+		if (UPCGComponent* OriginalComponent = CastChecked<APCGPartitionActor>(GetOwner())->GetOriginalComponent(this))
+		{
+			OriginalComponent->bGenerationInProgress = true;
+		}
+	}
+}
+
+void UPCGComponent::StopGenerationInProgress()
+{
+	bGenerationInProgress = false;
+}
+
+bool UPCGComponent::IsGenerationInProgress()
+{
+	return bGenerationInProgress;
 }
 
 bool UPCGComponent::ShouldGenerateBPPCGAddedToWorld() const
@@ -1507,7 +1553,7 @@ bool UPCGComponent::IsActorTracked(AActor* InActor, bool& bOutIsCulled) const
 	return bFound;
 }
 
-void UPCGComponent::OnRefresh()
+void UPCGComponent::OnRefresh(bool bForceRefresh)
 {
 	// Mark the refresh task invalid to allow re-triggering refreshes
 	CurrentRefreshTask = InvalidPCGTaskId;
@@ -1515,7 +1561,8 @@ void UPCGComponent::OnRefresh()
 	// Before doing a refresh, update the component to the subsystem if we are partitioned
 	// Only redo the mapping if we are generated
 	UPCGSubsystem* Subsystem = GetSubsystem();
-	bool bWasGenerated = bGenerated;
+	const bool bWasGenerated = bGenerated;
+	const bool bWasGeneratedOrGenerating = bWasGenerated || bForceRefresh;
 
 	if (IsPartitioned())
 	{
@@ -1528,7 +1575,7 @@ void UPCGComponent::OnRefresh()
 
 	if (Subsystem)
 	{
-		Subsystem->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/ bWasGenerated);
+		Subsystem->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/ bWasGeneratedOrGenerating);
 	}
 
 	// Following a change in some properties or in some spatial information related to this component,
@@ -1542,7 +1589,7 @@ void UPCGComponent::OnRefresh()
 	{
 		// If we just cleaned up resources, call back generate. Only do this for original component, which will then trigger
 		// generation of local components. Also, for BPs, we ask if we should generate, to support generate on added to world.
-		if ((bWasGenerated || ShouldGenerateBPPCGAddedToWorld()) && !IsLocalComponent() && (!bGenerated || bRegenerateInEditor))
+		if ((bWasGeneratedOrGenerating || ShouldGenerateBPPCGAddedToWorld()) && !IsLocalComponent() && (!bGenerated || bRegenerateInEditor))
 		{
 			GenerateLocal(/*bForce=*/false);
 		}
@@ -2250,7 +2297,7 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		// Note that we only do this if we are not currently loading
 		if (!SourceComponent || !SourceComponent->HasAllFlags(RF_WasLoaded))
 		{
-			PCGComponent->Refresh();
+			PCGComponent->Refresh(/*bIsStructural=*/true);
 		}
 #endif // WITH_EDITOR
 	}

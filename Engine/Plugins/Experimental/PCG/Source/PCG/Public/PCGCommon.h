@@ -91,6 +91,7 @@ namespace PCGPinConstants
 	const FName DefaultInputLabel = TEXT("In");
 	const FName DefaultOutputLabel = TEXT("Out");
 	const FName DefaultParamsLabel = TEXT("Overrides");
+	const FName DefaultDependencyOnlyLabel = TEXT("Dependency Only");
 
 namespace Private
 {

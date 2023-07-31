@@ -231,8 +231,12 @@ public:
 	FPCGTaskId GetGenerationTaskId() const { return CurrentGenerationTask; }
 
 #if WITH_EDITOR
-	void Refresh();
-	void OnRefresh();
+	void Refresh(bool bStructural = false);
+	void OnRefresh(bool bForceRefresh);
+
+	void StartGenerationInProgress();
+	void StopGenerationInProgress();
+	bool IsGenerationInProgress();
 
 	/** Dirty generated data depending on the flag. By default the call is forwarded to the local components.
 	    We don't forward if the local component has callbacks that would dirty them too.
@@ -394,6 +398,8 @@ private:
 
 #if WITH_EDITOR
 	FPCGTaskId CurrentRefreshTask = InvalidPCGTaskId;
+
+	bool bGenerationInProgress = false;
 #endif // WITH_EDITOR
 
 	UPROPERTY(VisibleAnywhere, Transient, Category = Properties, meta = (EditCondition = false, EditConditionHides))

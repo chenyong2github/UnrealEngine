@@ -1035,17 +1035,23 @@ void FPCGGraphExecutor::QueueNextTasks(FPCGTaskId FinishedTask)
 		for (FPCGTaskId Successor : *Successors)
 		{
 			bool bAllPrerequisitesMet = true;
-			FPCGGraphTask& SuccessorTask = Tasks[Successor];
+			FPCGGraphTask* SuccessorTaskPtr = Tasks.Find(Successor);
 
-			for (const FPCGGraphTaskInput& Input : SuccessorTask.Inputs)
+			// This should never be null, but later recovery should be able to cleanup this properly
+			if (ensure(SuccessorTaskPtr))
 			{
-				bAllPrerequisitesMet &= OutputData.Contains(Input.TaskId);
-			}
+				FPCGGraphTask& SuccessorTask = *SuccessorTaskPtr;
 
-			if (bAllPrerequisitesMet)
-			{
-				ReadyTasks.Emplace(MoveTemp(SuccessorTask));
-				Tasks.Remove(Successor);
+				for (const FPCGGraphTaskInput& Input : SuccessorTask.Inputs)
+				{
+					bAllPrerequisitesMet &= OutputData.Contains(Input.TaskId);
+				}
+
+				if (bAllPrerequisitesMet)
+				{
+					ReadyTasks.Emplace(MoveTemp(SuccessorTask));
+					Tasks.Remove(Successor);
+				}
 			}
 		}
 
@@ -1397,6 +1403,10 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 		Context->OutputData.bCancelExecution = true;
 		return true;
 	}
+
+#if WITH_EDITOR
+	Component->StartGenerationInProgress();
+#endif
 
 	check(Context->Node);
 

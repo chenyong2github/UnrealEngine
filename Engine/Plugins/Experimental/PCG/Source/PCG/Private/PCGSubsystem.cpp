@@ -937,14 +937,14 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	}
 }
 
-FPCGTaskId UPCGSubsystem::ScheduleRefresh(UPCGComponent* Component)
+FPCGTaskId UPCGSubsystem::ScheduleRefresh(UPCGComponent* Component, bool bForceRegen)
 {
 	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
 
-	auto RefreshTask = [ComponentPtr]() {
+	auto RefreshTask = [ComponentPtr, bForceRegen]() {
 		if (UPCGComponent* Component = ComponentPtr.Get())
 		{
-			Component->OnRefresh();
+			Component->OnRefresh(bForceRegen);
 		}
 		return true;
 	};
