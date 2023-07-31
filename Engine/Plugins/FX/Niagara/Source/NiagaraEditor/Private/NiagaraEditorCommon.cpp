@@ -143,7 +143,7 @@ void FNiagaraOpInfo::Init()
 		Op->Category = NumericCategory;
 		Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "Add Name", "Add");
 		Op->CompactName = FText::FromString(TEXT("+"));
-		Op->CompactNameFontSizeOverride = 25.f;
+		Op->CompactNameFontSizeOverride = 30.f;
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "Add Desc", "Result = A + B");
 		Op->Keywords = FText::FromString(TEXT("+"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_Zero));
@@ -253,7 +253,7 @@ void FNiagaraOpInfo::Init()
 		Op->Category = NumericCategory;
 		Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "Multiply Name", "Multiply");
 		Op->CompactName = FText::FromString(TEXT("\xD7"));
-		Op->CompactNameFontSizeOverride = 25.f;
+		Op->CompactNameFontSizeOverride = 30.f;
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "Multiply Desc", "Result = A * B");
 		Op->Keywords = FText::FromString(TEXT("*"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
@@ -412,7 +412,8 @@ void FNiagaraOpInfo::Init()
 		Op = &OpInfos[Idx];
 		Op->Category = NumericCategory;
 		Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "Reciprocal Name", "Reciprocal");
-		Op->CompactName = FText::FromString("Rcp");
+		Op->CompactName = FText::FromString("Reciprocal");
+		Op->CompactNameFontSizeOverride = 18.f;
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "Reciprocal Desc", "More accurate than Reciprocal Fast. Result = 1 / A");
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("Reciprocal({0})")));
@@ -1121,6 +1122,8 @@ void FNiagaraOpInfo::Init()
 		Op = &OpInfos[Idx];
 		Op->Category = NumericCategory;
 		Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "Normalize Name", "Normalize");
+		Op->CompactName = FText::FromString("Normalize");
+		Op->CompactNameFontSizeOverride = 18.f;
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "Normalize Desc", "Normalizes the passed value.");
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("normalize({0})")));

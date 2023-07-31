@@ -25,13 +25,10 @@ public:
 	virtual void CreatePinWidgets() override;
 
 protected:
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
 	void UpdateGraphNodeCompact();
 	virtual bool ShouldDrawCompact() const { return CompactTitle.IsEmpty() == false; }
 	
 	FText GetNodeCompactTitle() const { return CompactTitle; }
-	FOptionalSize GetCompactMinDesiredPinBoxSize() const;
 	/** To allow customization of the node title font size */
 	TAttribute<FSlateFontInfo> GetCompactNodeTitleFont();
 
@@ -48,8 +45,4 @@ protected:
 	
 	static const FSlateBrush* CachedOuterIcon;
 	static const FSlateBrush* CachedInnerIcon;
-
-	// We keep track of the bigger of the two pin boxes so that the smaller one can scale up, so that the middle part is centered
-	double CompactNodeMaxPinBoxX;
-	bool bSyncPinBoxSizes = false;
 };

@@ -136,26 +136,6 @@ void SNiagaraGraphNode::CreatePinWidgets()
 	}
 }
 
-void SNiagaraGraphNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SGraphNode::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	if(CompactTitle.IsEmpty() == false)
-	{
-		FVector2D LeftNodeBoxSize = LeftNodeBox->GetDesiredSize();
-		FVector2D RightNodeBoxSize = RightNodeBox->GetDesiredSize();
-
-		if(LeftNodeBoxSize.X > RightNodeBoxSize.X)
-		{
-			CompactNodeMaxPinBoxX = LeftNodeBoxSize.X;
-		}
-		else
-		{
-			CompactNodeMaxPinBoxX = RightNodeBoxSize.X;
-		}
-	}
-}
-
 void SNiagaraGraphNode::UpdateGraphNodeCompact()
 {
 	InputPins.Empty();
@@ -183,10 +163,6 @@ void SNiagaraGraphNode::UpdateGraphNodeCompact()
 		.Text(this, &SNiagaraGraphNode::GetNodeCompactTitle);
 
 	TSharedRef<SHorizontalBox> NodeContent = SNew(SHorizontalBox);
-	
-	// Default to "pure" styling, where we can just center the pins vertically
-	// since don't need to worry about alignment with other nodes
-	float PinPaddingTop = 0.f;
 
 	EVerticalAlignment PinVerticalAlignment = VAlign_Center;
 	
@@ -198,7 +174,6 @@ void SNiagaraGraphNode::UpdateGraphNodeCompact()
 		if(Pin->Direction == EGPD_Input && Pin->bHidden == false)
 		{
 			bAnyInputExists = true;
-			bSyncPinBoxSizes = true;
 			break;
 		}
 	}
@@ -207,14 +182,10 @@ void SNiagaraGraphNode::UpdateGraphNodeCompact()
 		.HAlign(HAlign_Left)
 		.VAlign(PinVerticalAlignment)
 		.AutoWidth()
-		.Padding(/* left */ 0.f, PinPaddingTop, 5.f, /* bottom */ 0.f)
+		.Padding(/* left */ 0.f, 0.f, 5.f, /* bottom */ 0.f)
 		[
-			SNew(SBox)
-			.MinDesiredWidth(this, &SNiagaraGraphNode::GetCompactMinDesiredPinBoxSize)
-			[
-				// LEFT
-				SAssignNew(LeftNodeBox, SVerticalBox)
-			]
+			// LEFT
+			SAssignNew(LeftNodeBox, SVerticalBox)
 		];
 	
 	NodeContent->AddSlot()
@@ -247,14 +218,10 @@ void SNiagaraGraphNode::UpdateGraphNodeCompact()
 		.HAlign(HAlign_Right)
 		.VAlign(PinVerticalAlignment)
 		.AutoWidth()
-		.Padding(5.f, PinPaddingTop, 0.f, 0.f)
+		.Padding(5.f, 0.f, 0.f, 0.f)
 		[
-			SNew(SBox)
-			.MinDesiredWidth(this, &SNiagaraGraphNode::GetCompactMinDesiredPinBoxSize)
-			[
-				// RIGHT
-				SAssignNew(RightNodeBox, SVerticalBox)
-			]
+			// RIGHT
+			SAssignNew(RightNodeBox, SVerticalBox)
 		];
 
 	//
@@ -367,17 +334,6 @@ void SNiagaraGraphNode::UpdateGraphNodeCompact()
 
 	CreateInputSideAddButton(LeftNodeBox);
 	CreateOutputSideAddButton(RightNodeBox);
-}
-
-FOptionalSize SNiagaraGraphNode::GetCompactMinDesiredPinBoxSize() const
-{
-	// Uncomment this if we want pin box sizes to sync again. Will make the right side grow to the same size as the left side, wasting space, but keeping the title central
-	// if(bSyncPinBoxSizes)
-	// {
-	// 	return CompactNodeMaxPinBoxX;
-	// }
-
-	return FOptionalSize();
 }
 
 TAttribute<FSlateFontInfo> SNiagaraGraphNode::GetCompactNodeTitleFont()
