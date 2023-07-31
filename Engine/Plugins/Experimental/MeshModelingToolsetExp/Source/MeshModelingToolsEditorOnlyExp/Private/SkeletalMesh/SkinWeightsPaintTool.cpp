@@ -741,6 +741,9 @@ void USkinWeightsPaintTool::Setup()
 	{
 		EditorContext->BindTo(this);
 	}
+
+	// trigger last used mode
+	ToggleEditingMode();
 	
 	// inform user of tool keys
 	// TODO talk with UX team about viewport overlay to show hotkeys
