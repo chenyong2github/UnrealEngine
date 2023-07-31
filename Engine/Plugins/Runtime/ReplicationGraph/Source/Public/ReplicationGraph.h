@@ -94,6 +94,9 @@ public:
 	/** Debugging only function to return a normal TArray of actor rep list (for logging, debug UIs, etc) */
 	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const;
 
+	/** Debugging only function to verify referenced actors (if any) are still valid. */
+	void VerifyActorReferences();
+
 	// -----------------------------------------------------
 
 	bool GetRequiresPrepareForReplication() const { return bRequiresPrepareForReplicationCall; }
@@ -150,6 +153,14 @@ protected:
 	 */
 	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const {}
 
+
+	/**
+	 * Verify the validity of any potentially stale actor pointers. Used for debugging.
+	 */
+	virtual void VerifyActorReferencesInternal() {}
+
+	bool VerifyActorReference(const FActorRepListType& Actor) const;
+
 protected:
 
 	UPROPERTY()
@@ -183,6 +194,8 @@ public:
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
 
 	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const override;
+
+	virtual void VerifyActorReferencesInternal() override;
 
 	virtual void TearDown() override;
 
@@ -267,6 +280,8 @@ public:
 
 	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const override;
 
+	virtual void VerifyActorReferencesInternal() override;
+
 	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const override;
 
 	void SetNonStreamingCollectionSize(const int32 NewSize);
@@ -300,6 +315,8 @@ public:
 	UReplicationGraphNode_DynamicSpatialFrequency();
 	
 	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
+	
+	virtual void VerifyActorReferencesInternal() override;
 
 	// --------------------------------------------------------
 
@@ -363,7 +380,6 @@ protected:
 
 		bool operator<(const FDynamicSpatialFrequency_SortedItem& Other) const { return FramesTillReplicate < Other.FramesTillReplicate; }
 
-		UPROPERTY()
 		AActor* Actor = nullptr;
 
 		int32 FramesTillReplicate = 0; // Note this also serves as "Distance Sq" when doing the FSettings::MaxNearestActors pass.
@@ -423,6 +439,7 @@ public:
 	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
 	virtual bool NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool WarnIfNotFound) override;
 	virtual void NotifyResetAllNetworkActors() override;
+	virtual void VerifyActorReferencesInternal() override;
 
 	void NotifyActorDormancyFlush(FActorRepListType Actor);
 
@@ -556,6 +573,7 @@ public:
 	virtual void PrepareForReplication() override;
 	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
+	virtual void VerifyActorReferencesInternal() override;
 
 	void AddActor_Static(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo) { AddActorInternal_Static(ActorInfo, ActorRepInfo, false); }
 	void AddActor_Dynamic(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo) { AddActorInternal_Dynamic(ActorInfo); }
@@ -855,6 +873,7 @@ public:
 	virtual void NotifyResetAllNetworkActors() override { TearOffActors.Reset(); }
 	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
+	virtual void VerifyActorReferencesInternal() override;
 
 	void NotifyTearOffActor(AActor* Actor, uint32 FrameNum);
 
@@ -982,6 +1001,8 @@ public:
 
 	virtual void CollectRepListStats(struct FActorRepListStatCollector& StatCollector) const;
 
+	void VerifyActorReferences();
+
 	const TSharedPtr<FReplicationGraphGlobalData>& GetGraphGlobals() const { return GraphGlobals; }
 
 	uint32 GetReplicationGraphFrame() const { return ReplicationGraphFrame; }
@@ -1041,6 +1062,8 @@ public:
 	}
 
 	UNetReplicationGraphConnection* FindConnectionManager(UNetConnection* NetConnection) const;
+
+	virtual void VerifyActorReferencesInternal() {}
 
 protected:
 

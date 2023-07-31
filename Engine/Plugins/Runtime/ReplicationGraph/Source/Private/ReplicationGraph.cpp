@@ -3467,6 +3467,24 @@ void UReplicationGraphNode_ActorList::GetAllActorsInNode_Debugging(TArray<FActor
 	}
 }
 
+void UReplicationGraphNode_ActorList::VerifyActorReferencesInternal()
+{
+	Super::VerifyActorReferencesInternal();
+
+	for (const FActorRepListType& Actor : ReplicationActorList)
+	{
+		VerifyActorReference(Actor);
+	}
+
+	for (const FStreamingLevelActorListCollection::FStreamingLevelActors& Item : StreamingLevelCollection.StreamingLevelLists)
+	{
+		for (const FActorRepListType& Actor : Item.ReplicationActorList)
+		{
+			VerifyActorReference(Actor);
+		}
+	}
+}
+
 void UReplicationGraphNode_ActorList::TearDown()
 {
 	Super::TearDown();
@@ -3717,6 +3735,27 @@ void UReplicationGraphNode_ActorListFrequencyBuckets::GetAllActorsInNode_Debuggi
 	for (UReplicationGraphNode* ChildNode : AllChildNodes)
 	{
 		ChildNode->GetAllActorsInNode_Debugging(OutArray);
+	}
+}
+
+void UReplicationGraphNode_ActorListFrequencyBuckets::VerifyActorReferencesInternal()
+{
+	Super::VerifyActorReferencesInternal();
+
+	for (const FActorRepListRefView& List : NonStreamingCollection)
+	{
+		for (const FActorRepListType& Actor : List)
+		{
+			VerifyActorReference(Actor);
+		}
+	}
+
+	for (const auto& List : StreamingLevelCollection.StreamingLevelLists)
+	{
+		for (const auto& Actor : List.ReplicationActorList)
+		{
+			VerifyActorReference(Actor);
+		}
 	}
 }
 
@@ -4018,6 +4057,16 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 		}
 	}
 #endif // WITH_SERVER_CODE
+}
+
+void UReplicationGraphNode_DynamicSpatialFrequency::VerifyActorReferencesInternal()
+{
+	Super::VerifyActorReferencesInternal();
+
+	for (const FDynamicSpatialFrequency_SortedItem& Item : SortedReplicationList)
+	{
+		VerifyActorReference(Item.Actor);
+	}
 }
 
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.DynamicSpatialFrequency.Draw", CVar_RepGraph_DynamicSpatialFrequency_Draw, 0, "");
@@ -4531,6 +4580,19 @@ void UReplicationGraphNode_ConnectionDormancyNode::NotifyResetAllNetworkActors()
 {
 	Super::NotifyResetAllNetworkActors();
 	RemovedStreamingLevelActorListCollection.Reset();
+}
+
+void UReplicationGraphNode_ConnectionDormancyNode::VerifyActorReferencesInternal()
+{
+	Super::VerifyActorReferencesInternal();
+
+	for (const FStreamingLevelActorListCollection::FStreamingLevelActors& List : RemovedStreamingLevelActorListCollection.StreamingLevelLists)
+	{
+		for (const FActorRepListType& Actor : List.ReplicationActorList)
+		{
+			VerifyActorReference(Actor);
+		}
+	}
 }
 
 bool UReplicationGraphNode_ConnectionDormancyNode::IsNodeObsolete(uint32 CurrentFrame) const

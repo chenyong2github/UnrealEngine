@@ -1048,6 +1048,19 @@ void UReplicationGraph::CollectRepListStats(FActorRepListStatCollector& StatColl
 	}
 }
 
+void UReplicationGraph::VerifyActorReferences()
+{
+	UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::VerifyActorReferences - %s"),
+		*GetName());
+
+	VerifyActorReferencesInternal();
+
+	for (const TObjectPtr<UReplicationGraphNode>& Node : GlobalGraphNodes)
+	{
+		Node->VerifyActorReferences();
+	}
+}
+
 #if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 AReplicationGraphDebugActor* UReplicationGraph::CreateDebugActor() const
 {
@@ -1064,6 +1077,27 @@ void UReplicationGraphNode::GetAllActorsInNode_Debugging(TArray<FActorRepListTyp
 			ChildNode->GetAllActorsInNode_Debugging(OutArray);
 		}
 	}
+}
+
+void UReplicationGraphNode::VerifyActorReferences()
+{
+	VerifyActorReferencesInternal();
+
+	for (const TObjectPtr<UReplicationGraphNode>& Node : AllChildNodes)
+	{
+		Node->VerifyActorReferencesInternal();
+	}
+}
+
+bool UReplicationGraphNode::VerifyActorReference(const FActorRepListType& Actor) const
+{
+	const bool bIsValid = IsValid(Actor);
+	UE_CLOG(!bIsValid, LogReplicationGraph, Error,
+		TEXT("Invalid Actor %s (%s) is still referenced by %s"),
+		*GetNameSafe(Actor),
+		*GetNameSafe(Actor ? Actor->GetClass() : nullptr),
+		*GetName());
+	return bIsValid;
 }
 
 void UReplicationGraphNode::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
@@ -1172,8 +1206,26 @@ void UReplicationGraphNode_GridSpatialization2D::LogNode(FReplicationGraphDebugI
 		ChildNode->LogNode(DebugInfo, ChildNode->GetDebugString());
 	}
 	DebugInfo.PopIndent();
+}
 
+void UReplicationGraphNode_GridSpatialization2D::VerifyActorReferencesInternal()
+{
+	Super::VerifyActorReferencesInternal();
 
+	for (const auto& Pair : DynamicSpatializedActors)
+	{
+		VerifyActorReference(Pair.Key);
+	}
+
+	for (const auto& Pair : StaticSpatializedActors)
+	{
+		VerifyActorReference(Pair.Key);
+	}
+
+	for (const FPendingStaticActors& Item : PendingStaticSpatializedActors)
+	{
+		VerifyActorReference(Item.Actor);
+	}
 }
 
 void UReplicationGraphNode_GridCell::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
@@ -1204,6 +1256,16 @@ void UReplicationGraphNode_TearOff_ForConnection::LogNode(FReplicationGraphDebug
 	DebugInfo.PushIndent();
 	LogActorRepList(DebugInfo, TEXT("TearOff"), ReplicationActorList);
 	DebugInfo.PopIndent();
+}
+
+void UReplicationGraphNode_TearOff_ForConnection::VerifyActorReferencesInternal()
+{
+	Super::VerifyActorReferencesInternal();
+
+	for (const FActorRepListType& Actor : ReplicationActorList)
+	{
+		VerifyActorReference(Actor);
+	}
 }
 
 void UReplicationGraphNode_TearOff_ForConnection::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
