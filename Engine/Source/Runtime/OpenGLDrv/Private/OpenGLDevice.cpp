@@ -71,6 +71,15 @@ static TAutoConsoleVariable<int32> CVarGLDepth24Bit(
 	TEXT("0: Use 32-bit float depth buffer \n1: Use 24-bit fixed point depth buffer (default)\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+// If precaching is active we should not need the file cache.
+// however, precaching and filecache are compatible with each other, there maybe some scenarios in which both could be used.
+static TAutoConsoleVariable<bool> CVarEnablePSOFileCacheWhenPrecachingActive(
+	TEXT("r.OpenGL.EnablePSOFileCacheWhenPrecachingActive"),
+	false,
+	TEXT("false: If precaching is active (r.PSOPrecaching=1) then disable the PSO filecache. (default)\n")
+	TEXT("true: GL RHI Allows both PSO file cache and precaching."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 void OnQueryCreation( FOpenGLRenderQuery* Query )
 {
 	check(PrivateOpenGLDevicePtr);
@@ -1007,7 +1016,7 @@ static void InitRHICapabilitiesForGL()
 
 	// OpenGL ES does not support glTextureView
 	GRHISupportsTextureViews = false;
-	
+
 	// By default use emulated UBs on mobile
 	GUseEmulatedUniformBuffers = IsUsingEmulatedUniformBuffers(GMaxRHIShaderPlatform);
 
@@ -1232,7 +1241,13 @@ static void InitRHICapabilitiesForGL()
 	// @TODO revisit this with newer drivers
 	GRHINeedsUnatlasedCSMDepthsWorkaround = true;
 
-	GRHISupportsPipelineFileCache = true;
+	static const auto CVarPSOPrecaching = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PSOPrecaching"));
+	if (CVarPSOPrecaching && CVarPSOPrecaching->GetInt() != 0)
+	{
+		GRHISupportsPSOPrecaching = true;
+	}
+	
+	GRHISupportsPipelineFileCache = !GRHISupportsPSOPrecaching || CVarEnablePSOFileCacheWhenPrecachingActive.GetValueOnAnyThread();
 }
 
 FDynamicRHI* FOpenGLDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequestedFeatureLevel)
