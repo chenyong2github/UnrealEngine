@@ -61,6 +61,11 @@ public:
 	NIAGARAEDITOR_API virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	//~ End EdGraphNode Interface
 
+	/** If this does not return an empty title, compact mode will be activated putting the text into the center of the node. Should be short. */
+	NIAGARAEDITOR_API virtual FText GetCompactTitle() const { return FText::GetEmpty(); }
+	NIAGARAEDITOR_API virtual bool ShouldShowPinNamesInCompactMode() { return false; }
+	NIAGARAEDITOR_API virtual TOptional<float> GetCompactModeFontSizeOverride() const { return {}; }
+
 	/** Virtual function to allow for custom widgets in the input or output box */
 	NIAGARAEDITOR_API virtual void AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox);
 	NIAGARAEDITOR_API virtual void AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox);
@@ -74,7 +79,7 @@ public:
 
 	/** Gets the asset referenced by this node, or nullptr if there isn't one. */
 	virtual UObject* GetReferencedAsset() const { return nullptr; }
-	virtual void OpenReferencedAsset() const {};
+	virtual void OpenReferencedAsset() const {}
 
 	/** Refreshes the node due to external changes, e.g. the underlying function changed for a function call node. Return true if the graph changed.*/
 	virtual bool RefreshFromExternalChanges() { return false; }

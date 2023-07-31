@@ -27,12 +27,15 @@ public:
 		, bSupportsAddedInputs(false)
 		, bNumericsCanBeIntegers(true)
 		, bNumericsCanBeFloats(true)
+		, bShowPinNamesInCompactMode(false)
 		, bSupportsStaticResolution(false)
 	{}
 
 	FName Name;
 	FText Category;
 	FText FriendlyName;
+	FText CompactName;
+	TOptional<float> CompactNameFontSizeOverride;
 	FText Description;
 	FText Keywords;
 	ENiagaraNumericOutputTypeSelectionMode NumericOuputTypeSelectionMode;
@@ -48,6 +51,9 @@ public:
 
 	/** If float pins are allowed on this op's numeric pins. */
 	bool bNumericsCanBeFloats;
+
+	/** Only applicable if CompactName is set as that will activate compact node mode. */
+	bool bShowPinNamesInCompactMode;
 
 	/** 
 	* The format that can generate the hlsl for the given number of inputs.

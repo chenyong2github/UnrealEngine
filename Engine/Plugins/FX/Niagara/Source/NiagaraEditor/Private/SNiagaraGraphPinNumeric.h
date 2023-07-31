@@ -15,4 +15,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj);
+
+private:
+	virtual FSlateColor GetPinColor() const override;
 };
