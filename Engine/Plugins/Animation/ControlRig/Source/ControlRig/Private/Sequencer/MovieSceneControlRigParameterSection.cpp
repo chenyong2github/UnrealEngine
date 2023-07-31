@@ -571,26 +571,8 @@ struct FParameterTransformChannelEditorData
 			FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 			if (ControlElement)
 			{
-				if (ControlElement->Settings.ControlType == ERigControlType::Transform)
+				auto GetTranslationFromTransform = [&](const FVector& InTranslation)
 				{
-					const FRigControlValue::FTransform_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>();
-					return FVector(Transform.GetTranslation());
-				}
-				else if  (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
-				{
-					const FRigControlValue::FTransformNoScale_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>();
-					return FVector(Transform.GetTranslation());
-				}
-				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-				{
-					const FRigControlValue::FEulerTransform_Float Euler = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>();
-
 					// switch translation to constraint space if needed
 					const uint32 ControlHash = UTransformableControlHandle::ComputeHash(ControlRig, ControlElement->GetName());
 					TOptional<FTransform> ConstraintSpaceTransform = FTransformConstraintUtils::GetRelativeTransform(ControlRig->GetWorld(), ControlHash);
@@ -598,8 +580,32 @@ struct FParameterTransformChannelEditorData
 					{
 						return ConstraintSpaceTransform->GetTranslation();
 					}
-					
-					return FVector(Euler.GetTranslation());
+					return InTranslation;
+				};
+				
+				if (ControlElement->Settings.ControlType == ERigControlType::Transform)
+				{
+					const FRigControlValue::FTransform_Float Transform = 
+						ControlRig->GetHierarchy()
+						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>();
+
+					return GetTranslationFromTransform( FVector(Transform.GetTranslation()) );
+				}
+				else if  (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
+				{
+					const FRigControlValue::FTransformNoScale_Float Transform = 
+						ControlRig->GetHierarchy()
+						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>();
+
+					return GetTranslationFromTransform( FVector(Transform.GetTranslation()) );
+				}
+				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				{
+					const FRigControlValue::FEulerTransform_Float Euler = 
+						ControlRig->GetHierarchy()
+						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>();
+
+					return GetTranslationFromTransform( FVector(Euler.GetTranslation()) );
 				}
 				else if(ControlElement->Settings.ControlType == ERigControlType::Position)
 				{
@@ -645,19 +651,8 @@ struct FParameterTransformChannelEditorData
 			FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 			if (ControlElement)
 			{
-				if (ControlElement->Settings.ControlType == ERigControlType::Transform)
+				auto GetScaleFromTransform = [&](const FVector& InScale3D)
 				{
-					const FRigControlValue::FTransform_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>();
-					return FVector(Transform.GetScale3D());
-				}
-				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-				{
-					const FRigControlValue::FEulerTransform_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>();
-
 					// switch scale to constraint space if needed
 					const uint32 ControlHash = UTransformableControlHandle::ComputeHash(ControlRig, ControlElement->GetName());
 					TOptional<FTransform> ConstraintSpaceTransform = FTransformConstraintUtils::GetRelativeTransform(ControlRig->GetWorld(), ControlHash);
@@ -665,8 +660,24 @@ struct FParameterTransformChannelEditorData
 					{
 						return ConstraintSpaceTransform->GetScale3D();
 					}
-					
-					return FVector(Transform.GetScale3D());
+					return InScale3D;
+				};
+				
+				if (ControlElement->Settings.ControlType == ERigControlType::Transform)
+				{
+					const FRigControlValue::FTransform_Float Transform = 
+						ControlRig->GetHierarchy()
+						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>();
+
+					return GetScaleFromTransform( FVector(Transform.GetScale3D()) );
+				}
+				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				{
+					const FRigControlValue::FEulerTransform_Float Transform = 
+						ControlRig->GetHierarchy()
+						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>();
+
+					return GetScaleFromTransform( FVector(Transform.GetScale3D()) );
 				}
 				else if (ControlElement->Settings.ControlType == ERigControlType::Scale)
 				{
