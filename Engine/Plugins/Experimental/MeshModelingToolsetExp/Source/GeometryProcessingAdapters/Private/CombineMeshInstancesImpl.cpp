@@ -427,9 +427,15 @@ void InitializeAssemblySourceMeshesFromLOD(
 			if ( UBodySetup* BodySetup = StaticMesh->GetBodySetup() )
 			{
 				UE::Geometry::GetShapeSet(BodySetup->AggGeom, Target.CollisionShapes);
-				// todo: detect boxes?
 			}
 		}
+		else if (Part->SourceMeshLODSet != nullptr)
+		{
+			UE::Geometry::GetShapeSet(Part->SourceMeshLODSet->SimpleCollisionShapes, Target.CollisionShapes);
+		}
+
+		// sometimes simple collision is a convex when it's actually a box - could try to detect here?
+
 	}
 
 }

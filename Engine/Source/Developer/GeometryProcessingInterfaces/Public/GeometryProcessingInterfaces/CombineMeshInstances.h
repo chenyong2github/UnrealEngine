@@ -82,6 +82,7 @@ public:
 	struct FMeshLODSet
 	{
 		TArray<const FMeshDescription*> ReferencedMeshLODs;
+		FKAggregateGeom SimpleCollisionShapes;
 	};
 
 	/**
