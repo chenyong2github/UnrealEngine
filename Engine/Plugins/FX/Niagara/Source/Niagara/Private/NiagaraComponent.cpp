@@ -186,6 +186,7 @@ bool FitsIntoFloat(FVector InValue)
 
 FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
+	, OcclusionQueryMode(InComponent->GetOcclusionQueryMode())
 {
 	if (FNiagaraSystemInstanceControllerConstPtr SystemInstanceController = InComponent->GetSystemInstanceController())
 	{
@@ -416,6 +417,19 @@ void FNiagaraSceneProxy::SetRenderingEnabled(bool bInRenderingEnabled)
 	if (RenderData)
 	{
 		RenderData->SetRenderingEnabled(bInRenderingEnabled);
+	}
+}
+
+bool FNiagaraSceneProxy::CanBeOccluded() const
+{
+	switch (OcclusionQueryMode)
+	{
+		case ENiagaraOcclusionQueryMode::AlwaysEnabled:		return true;
+		case ENiagaraOcclusionQueryMode::AlwaysDisabled:	return false;
+
+		// TODO account for MaterialRelevance.bDisableDepthTest and MaterialRelevance.bPostMotionBlurTranslucency as well
+		//case ENiagaraOcclusionQueryMode::Default:
+		default:											return !ShouldRenderCustomDepth();
 	}
 }
 
@@ -3967,7 +3981,16 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOve
 	}
 }
 
-void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 
+void UNiagaraComponent::SetOcclusionQueryMode(ENiagaraOcclusionQueryMode Mode)
+{
+	if (Mode != OcclusionQueryMode)
+	{
+		OcclusionQueryMode = Mode;
+		MarkRenderStateDirty();
+	}
+}
+
+void UNiagaraComponent::SetForceSolo(bool bInForceSolo)
 { 
 	if (bForceSolo != bInForceSolo)
 	{

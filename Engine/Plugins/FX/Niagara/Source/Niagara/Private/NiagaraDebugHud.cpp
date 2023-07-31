@@ -2897,6 +2897,18 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 							StringBuilder.Appendf(TEXT("TickGroup - %s\n"), *TickingGroupEnum->GetNameStringByValue(SystemInstance->CalculateTickGroup()));
 						}
 						BuildGpuHudInformation(StringBuilder, NiagaraComponent, SystemInstance, World->GetFeatureLevel());
+
+						StringBuilder.Appendf(TEXT("LastRenderTime - %5.2f"), NiagaraComponent->GetLastRenderTime());
+						if (NiagaraComponent->bRenderCustomDepth)
+						{
+							StringBuilder.Append(TEXT(" bRenderCustomDepth"));
+						}
+						switch (NiagaraComponent->GetOcclusionQueryMode())
+						{
+							case ENiagaraOcclusionQueryMode::AlwaysEnabled:		StringBuilder.Append(TEXT(" OcclusionQuery(AlwaysEnabled)")); break;
+							case ENiagaraOcclusionQueryMode::AlwaysDisabled:	StringBuilder.Append(TEXT(" OcclusionQuery(AlwaysDisable)")); break;
+						}
+						StringBuilder.Append(TEXT("\n"));
 					}
 
 					int64 TotalBytes = SystemInstanceController->GetTotalBytesUsed();

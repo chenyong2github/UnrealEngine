@@ -9,6 +9,7 @@
 class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraSystemRenderData;
 class UNiagaraComponent;
+enum class ENiagaraOcclusionQueryMode : uint8;
 
 /**
 * Scene proxy for drawing niagara particle simulations.
@@ -75,14 +76,7 @@ private:
 
 	NIAGARA_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
-
-	virtual bool CanBeOccluded() const override
-	{
-		// TODO account for MaterialRelevance.bDisableDepthTest and MaterialRelevance.bPostMotionBlurTranslucency as well
-		return !ShouldRenderCustomDepth();
-	}
-
-
+	NIAGARA_API virtual bool CanBeOccluded() const override;
 	/** Callback from the renderer to gather simple lights that this proxy wants renderered. */
 	NIAGARA_API virtual void GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const override;
 
@@ -104,5 +98,7 @@ private:
 	TStatId SystemStatID;
 
 	FDynamicData DynamicData;
+
+	ENiagaraOcclusionQueryMode OcclusionQueryMode;
 };
 

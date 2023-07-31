@@ -36,6 +36,17 @@ enum class ENCPoolMethod : uint8;
 using FNiagaraSystemInstanceControllerPtr = TSharedPtr<FNiagaraSystemInstanceController, ESPMode::ThreadSafe>;
 using FNiagaraSystemInstanceControllerConstPtr = TSharedPtr<const FNiagaraSystemInstanceController, ESPMode::ThreadSafe>;
 
+UENUM()
+enum class ENiagaraOcclusionQueryMode : uint8
+{
+	/** Allow Niagara to determine if we allow occlusion queries to be enabled or not. */
+	Default,
+	/** Occlusion queries will always be enabled for Niagara. */
+	AlwaysEnabled,
+	/** Occlusion queries will always be disabled for Niagara. */
+	AlwaysDisabled,
+};
+
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
 
@@ -202,6 +213,11 @@ public:
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
+protected:
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering)
+	ENiagaraOcclusionQueryMode OcclusionQueryMode = ENiagaraOcclusionQueryMode::Default;
+
+public:
 	NIAGARA_API virtual void Activate(bool bReset = false) override;
 	NIAGARA_API virtual void Deactivate() override;
 	NIAGARA_API virtual void DeactivateImmediate() override;
@@ -213,7 +229,6 @@ public:
 	NIAGARA_API bool IsComplete() const;
 
 private:
-
 	//Internal versions that can be called from the scalability code.
 	//These will behave as expected but will keep the component registered with the scalability manager.
 	NIAGARA_API void ActivateInternal(bool bReset, bool bIsScalabilityCull);
@@ -273,6 +288,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara System Asset"))
 	UNiagaraSystem* GetAsset() const { return Asset; }
+
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void SetOcclusionQueryMode(ENiagaraOcclusionQueryMode Mode);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	ENiagaraOcclusionQueryMode GetOcclusionQueryMode() const { return OcclusionQueryMode; }
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Forced Solo Mode"))
 	NIAGARA_API void SetForceSolo(bool bInForceSolo);
