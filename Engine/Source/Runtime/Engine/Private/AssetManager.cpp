@@ -4209,7 +4209,7 @@ void UAssetManager::ModifyCook(TConstArrayView<const ITargetPlatform*> TargetPla
 				PackagesToNeverCookSet.Add(PackageName, &bAlreadyInSet);
 				if (!bAlreadyInSet)
 				{
-					PackagesToNeverCookSet.Add(PackageName);
+					PackagesToNeverCook.Add(PackageName);
 				}
 			}
 		}
