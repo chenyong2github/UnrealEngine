@@ -1253,7 +1253,7 @@ namespace mu
             case OP_TYPE::IM_RESIZE:
             {
                 // Keep top resize
-                auto sourceOp = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
+                Ptr<const ASTOpFixed> sourceOp = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
 
                 Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(this);
                 newOp->SetChild( newOp->op.args.ImageResize.source, sourceOp->children[sourceOp->op.args.ImageResize.source]);
@@ -1265,7 +1265,7 @@ namespace mu
             case OP_TYPE::IM_PLAINCOLOUR:
             {
                 // Set the size in the children and remove resize
-                auto sourceOp = mu::Clone<ASTOpFixed>(sourceAt.get());
+				Ptr<ASTOpFixed> sourceOp = mu::Clone<ASTOpFixed>(sourceAt.get());
                 sourceOp->op.args.ImagePlainColour.size[0] = op.args.ImageResize.size[0];
 				sourceOp->op.args.ImagePlainColour.size[1] = op.args.ImageResize.size[1];
 				sourceOp->op.args.ImagePlainColour.LODs = 1; // TODO
@@ -1406,6 +1406,20 @@ namespace mu
                 at = newOp;
                 break;
             }
+
+			case OP_TYPE::IM_INVERT:
+			{
+				Ptr<ASTOpFixed> NewOp = mu::Clone<ASTOpFixed>(sourceAt);
+				Ptr<ASTOp> BaseAt = NewOp->children[NewOp->op.args.ImageInvert.base].child();
+
+				Ptr<ASTOpFixed> NewBase = mu::Clone<ASTOpFixed>(this);
+				NewBase->SetChild(NewBase->op.args.ImageResize.source, BaseAt);
+
+				NewOp->SetChild(NewOp->op.args.ImageInvert.base, NewBase);
+
+				at = NewOp;
+				break;
+			}
 
             case OP_TYPE::IM_LAYER:
             {

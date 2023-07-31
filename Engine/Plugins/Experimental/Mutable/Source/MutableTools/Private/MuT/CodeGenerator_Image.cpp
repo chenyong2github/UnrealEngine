@@ -195,7 +195,7 @@ namespace mu
             m_pErrorLog->GetPrivate()->Add( "Constant image not set.", ELMT_WARNING, node.m_errorContext );
         }
 
-		if (Options.LayoutToApply)
+		if (Options.ImageLayoutStrategy!= CompilerOptions::TextureLayoutStrategy::None && Options.LayoutToApply)
 		{
 			// We want to generate only a block from the image.
 
@@ -935,7 +935,6 @@ namespace mu
         op->SetChild( op->op.args.ImageColourMap.mask, mask);
 
         // Map image
-		// \TODO: We are forcing an map image size as it was a normal texture, and this is incorrect.
         Ptr<ASTOp> MapImageOp;
         if ( node.m_pMap )
         {
@@ -943,6 +942,7 @@ namespace mu
 			MapOptions.ImageLayoutStrategy = CompilerOptions::TextureLayoutStrategy::None;
 			MapOptions.LayoutToApply = nullptr;
 			MapOptions.LayoutBlockId = -1;
+			MapOptions.RectSize = {};
 
 			FImageGenerationResult BaseResult;
 			GenerateImage(MapOptions, BaseResult, node.m_pMap);
@@ -1392,6 +1392,7 @@ namespace mu
 			NewOptions.ImageLayoutStrategy = CompilerOptions::TextureLayoutStrategy::None;
 			NewOptions.LayoutToApply = nullptr;
 			NewOptions.LayoutBlockId = -1;
+			NewOptions.RectSize = {};
 
 			FImageGenerationResult ImageResult;
 			GenerateImage(NewOptions, ImageResult, node.m_pImage);
