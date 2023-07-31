@@ -12,9 +12,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLocalExposureParameters, )
 	SHADER_PARAMETER(float, DetailStrength)
 	SHADER_PARAMETER(float, BlurredLuminanceBlend)
 	SHADER_PARAMETER(float, MiddleGreyExposureCompensation)
+	SHADER_PARAMETER(FVector2f, BilateralGridUVScale)
 END_SHADER_PARAMETER_STRUCT()
 
-FLocalExposureParameters GetLocalExposureParameters(const FViewInfo& View, const FEyeAdaptationParameters& EyeAdaptationParameters);
+FLocalExposureParameters GetLocalExposureParameters(const FViewInfo& View, FIntPoint ViewRectSize, const FEyeAdaptationParameters& EyeAdaptationParameters);
 
 FRDGTextureRef AddLocalExposureBlurredLogLuminancePass(
 	FRDGBuilder& GraphBuilder,

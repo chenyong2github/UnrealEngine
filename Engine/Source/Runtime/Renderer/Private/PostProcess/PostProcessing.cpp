@@ -945,15 +945,19 @@ void AddPostProcessingPasses(
 			GraphBuilder.QueueTextureExtraction(HalfResSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
 		}
 
-		if (bLocalExposureEnabled)
 		{
-			LocalExposureTexture = AddLocalExposurePass(
-				GraphBuilder, View,
-				EyeAdaptationParameters,
-				bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor);
-		}
+			FScreenPassTexture LocalExposureSceneColor = bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor;
 
-		LocalExposureParameters = GetLocalExposureParameters(View, EyeAdaptationParameters);
+			if (bLocalExposureEnabled)
+			{
+				LocalExposureTexture = AddLocalExposurePass(
+					GraphBuilder, View,
+					EyeAdaptationParameters,
+					LocalExposureSceneColor);
+			}
+
+			LocalExposureParameters = GetLocalExposureParameters(View, LocalExposureSceneColor.ViewRect.Size(), EyeAdaptationParameters);
+		}
 
 		if (bHistogramEnabled)
 		{

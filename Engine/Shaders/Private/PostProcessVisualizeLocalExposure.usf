@@ -54,8 +54,11 @@ float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition
 	}
 	else if (DebugMode == 3)
 	{
-		float LumW = (ComputeHistogramPositionFromLogLuminance(LogLuminance) * (BILATERAL_GRID_DEPTH - 1) + 0.5f) / BILATERAL_GRID_DEPTH;
-		float2 BilateralGridLum = Texture3DSample(LumBilateralGrid, TextureSampler, float3(ViewportUV, LumW)).xy;
+		float3 BilateralGridUVW;
+		BilateralGridUVW.xy = ViewportUV * LocalExposure_BilateralGridUVScale;
+		BilateralGridUVW.z = (ComputeHistogramPositionFromLogLuminance(LogLuminance) * (BILATERAL_GRID_DEPTH - 1) + 0.5f) / BILATERAL_GRID_DEPTH;
+
+		float2 BilateralGridLum = Texture3DSample(LumBilateralGrid, TextureSampler, BilateralGridUVW).xy;
 
 		if (BilateralGridLum.y < 0.001)
 		{

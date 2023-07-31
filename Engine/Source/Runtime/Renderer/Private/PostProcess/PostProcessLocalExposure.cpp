@@ -92,7 +92,9 @@ IMPLEMENT_GLOBAL_SHADER(FApplyLocalExposureCS, "/Engine/Private/PostProcessLocal
 
 } //! namespace
 
-FLocalExposureParameters GetLocalExposureParameters(const FViewInfo& View, const FEyeAdaptationParameters& EyeAdaptationParameters)
+FVector2f GetLocalExposureBilateralGridUVScale(const FIntPoint ViewRectSize);
+
+FLocalExposureParameters GetLocalExposureParameters(const FViewInfo& View, FIntPoint ViewRectSize, const FEyeAdaptationParameters& EyeAdaptationParameters)
 {
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
@@ -106,12 +108,15 @@ FLocalExposureParameters GetLocalExposureParameters(const FViewInfo& View, const
 		LocalExposureMiddleGreyExposureCompensation /= (EyeAdaptationParameters.ExposureCompensationSettings * EyeAdaptationParameters.ExposureCompensationCurve);
 	}
 
+	const FVector2f LocalExposureBilateralGridUVScale = GetLocalExposureBilateralGridUVScale(ViewRectSize);
+
 	FLocalExposureParameters Parameters;
 	Parameters.HighlightContrastScale = Settings.LocalExposureHighlightContrastScale;
 	Parameters.ShadowContrastScale = Settings.LocalExposureShadowContrastScale;
 	Parameters.DetailStrength = Settings.LocalExposureDetailStrength;
 	Parameters.BlurredLuminanceBlend = Settings.LocalExposureBlurredLuminanceBlend;
 	Parameters.MiddleGreyExposureCompensation = LocalExposureMiddleGreyExposureCompensation;
+	Parameters.BilateralGridUVScale = LocalExposureBilateralGridUVScale;
 	return Parameters;
 }
 

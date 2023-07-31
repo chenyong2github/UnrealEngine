@@ -101,10 +101,15 @@ public:
 		return bBilateralGrid ? FIntPoint(8, 8) : FIntPoint(8, 4);
 	}
 
-	static FIntPoint GetThreadGroupCount(FIntPoint InputExtent, bool bBilateralGrid)
+	static FIntPoint GetTexelsPerThreadGroup( bool bBilateralGrid)
 	{
 		// One ThreadGroup ThreadGroupSizeX*ThreadGroupSizeY processes blocks of size LoopCountX*LoopCountY
-		const FIntPoint TexelsPerThreadGroup = GetThreadGroupSize(bBilateralGrid) * FIntPoint(LoopCountX, LoopCountY);
+		return GetThreadGroupSize(bBilateralGrid) * FIntPoint(LoopCountX, LoopCountY);
+	}
+
+	static FIntPoint GetThreadGroupCount(FIntPoint InputExtent, bool bBilateralGrid)
+	{
+		const FIntPoint TexelsPerThreadGroup = GetTexelsPerThreadGroup(bBilateralGrid);
 
 		return FIntPoint::DivideAndRoundUp(InputExtent, TexelsPerThreadGroup);
 	}
@@ -466,6 +471,15 @@ FRDGTextureRef AddHistogramPass(
 			SceneColor,
 			EyeAdaptationBuffer);
 	}
+}
+
+FVector2f GetLocalExposureBilateralGridUVScale(const FIntPoint ViewRectSize)
+{
+	const FIntPoint TexelsPerThreadGroup = FHistogramCS::GetTexelsPerThreadGroup(true);
+
+	const FIntPoint ThreadGroupCount = FHistogramCS::GetThreadGroupCount(ViewRectSize, true);
+
+	return FVector2f(float(ViewRectSize.X) / TexelsPerThreadGroup.X / ThreadGroupCount.X, float(ViewRectSize.Y) / TexelsPerThreadGroup.Y / ThreadGroupCount.Y);
 }
 
 FRDGTextureRef AddLocalExposurePass(
