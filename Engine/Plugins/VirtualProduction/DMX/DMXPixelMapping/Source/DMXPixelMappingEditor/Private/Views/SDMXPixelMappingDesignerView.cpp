@@ -799,7 +799,7 @@ FText SDMXPixelMappingDesignerView::GetHoveredComponentNameText() const
 {
 	if (UDMXPixelMappingOutputComponent* ComponentUnderCursor = GetComponentUnderCursor())
 	{
-		return FText::FromString(ComponentUnderCursor->GetUserFriendlyName());
+		return FText::FromString(ComponentUnderCursor->GetUserName());
 	}
 
 	return FText();
@@ -811,7 +811,7 @@ FText SDMXPixelMappingDesignerView::GetHoveredComponentParentNameText() const
 	{
 		if (UDMXPixelMappingBaseComponent* ParentOfComponentUnderCursor = ComponentUnderCursor->GetParent())
 		{
-			return FText::FromString(ParentOfComponentUnderCursor->GetUserFriendlyName());
+			return FText::FromString(ParentOfComponentUnderCursor->GetUserName());
 		}
 	}
 

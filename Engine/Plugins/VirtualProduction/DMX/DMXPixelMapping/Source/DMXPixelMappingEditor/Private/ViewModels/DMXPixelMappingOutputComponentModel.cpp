@@ -65,7 +65,7 @@ FText FDMXPixelMappingOutputComponentModel::GetName() const
 {
 	if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(WeakOutputComponent.Get()))
 	{
-		return FText::FromString(OutputComponent->GetUserFriendlyName());
+		return FText::FromString(OutputComponent->GetUserName());
 	}
 
 	return FText::GetEmpty();

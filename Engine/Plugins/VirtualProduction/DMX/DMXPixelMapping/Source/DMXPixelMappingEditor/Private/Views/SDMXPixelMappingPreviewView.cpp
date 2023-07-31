@@ -391,7 +391,7 @@ FText SDMXPixelMappingPreviewView::GetSelectedComponentNameText() const
 	UDMXPixelMappingBaseComponent* BaseComponent = SelectedComponentRef.GetComponent();
 	if (BaseComponent)
 	{
-		return FText::FromString(BaseComponent->GetUserFriendlyName());
+		return FText::FromString(BaseComponent->GetUserName());
 	}
 
 	return FText();
@@ -403,7 +403,7 @@ FText SDMXPixelMappingPreviewView::GetSelectedComponentParentNameText() const
 	UDMXPixelMappingBaseComponent* BaseComponent = SelectedComponentRef.GetComponent();
 	if (BaseComponent && BaseComponent->GetParent())
 	{
-		return FText::FromString(BaseComponent->GetParent()->GetUserFriendlyName());
+		return FText::FromString(BaseComponent->GetParent()->GetUserName());
 	}
 
 	return FText();

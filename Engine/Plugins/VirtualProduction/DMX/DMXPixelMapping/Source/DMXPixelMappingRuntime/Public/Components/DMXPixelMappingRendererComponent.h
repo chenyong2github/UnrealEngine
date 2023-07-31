@@ -53,7 +53,7 @@ public:
 	virtual void SendDMX() override;
 	virtual void Render() final;
 	virtual void RenderAndSendDMX() final;
-	virtual FString GetUserFriendlyName() const override;
+	virtual FString GetUserName() const override;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	/** Returns the pixel mapping preprocess renderer */

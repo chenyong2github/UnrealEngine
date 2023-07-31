@@ -51,7 +51,7 @@ FLinearColor FDMXPixelMappingHierarchyItem::GetEditorColor() const
 FText FDMXPixelMappingHierarchyItem::GetComponentNameText() const
 {
 	return WeakComponent.IsValid() ?
-		FText::FromString(WeakComponent->GetUserFriendlyName()) :
+		FText::FromString(WeakComponent->GetUserName()) :
 		FText::GetEmpty();
 }
 

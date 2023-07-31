@@ -3,7 +3,6 @@
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 
 #include "Algo/Find.h"
-
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
@@ -19,6 +18,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	// Hide the Layout Script property (shown in its own panel, see SDMXPixelMappingLayoutView)
+	InDetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary));
 	InDetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, LayoutScript));
 
 	// Handle size changes

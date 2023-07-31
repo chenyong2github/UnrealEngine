@@ -2,6 +2,7 @@
 
 #include "DMXPixelMappingDMXLibraryViewModel.h"
 
+#include "Algo/Transform.h"
 #include "Components/DMXPixelMappingBaseComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
@@ -78,14 +79,15 @@ void UDMXPixelMappingDMXLibraryViewModel::CreateAndSetNewFixtureGroup(TWeakPtr<F
 
 void UDMXPixelMappingDMXLibraryViewModel::UpdateFixtureGroupFromSelection(TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit)
 {
-	WeakToolkit = InWeakToolkit;
-	if (!WeakToolkit.IsValid())
+	if (!InWeakToolkit.IsValid())
 	{
 		return;
 	}
+	WeakToolkit = InWeakToolkit;
 	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
-	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = Toolkit->GetSelectedComponents();
 
+	// Gather fixture groups present in the current selection
+	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = Toolkit->GetSelectedComponents();
 	TArray<UDMXPixelMappingFixtureGroupComponent*> FixtureGroupComponents;
 	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
 	{
@@ -98,7 +100,7 @@ void UDMXPixelMappingDMXLibraryViewModel::UpdateFixtureGroupFromSelection(TWeakP
 		}
 	}
 
-	// Only allow a single selection 
+	// Update members, only allow a single selection. 
 	if (FixtureGroupComponents.IsEmpty() || FixtureGroupComponents.Num() > 1)
 	{
 		DMXLibrary = nullptr;
@@ -115,7 +117,8 @@ void UDMXPixelMappingDMXLibraryViewModel::UpdateFixtureGroupFromSelection(TWeakP
 
 void UDMXPixelMappingDMXLibraryViewModel::AddFixturePatchesEnsured(const TArray<TSharedPtr<FDMXEntityFixturePatchRef>>& FixturePatches)
 {
-	if (FixturePatches.IsEmpty() || !WeakToolkit.IsValid())
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
+	if (FixturePatches.IsEmpty() || !Toolkit.IsValid())
 	{
 		return;
 	}
@@ -170,7 +173,7 @@ void UDMXPixelMappingDMXLibraryViewModel::AddFixturePatchesEnsured(const TArray<
 		}
 	}
 
-	const TArray<UDMXPixelMappingBaseComponent*> NewComponents = WeakToolkit.Pin()->CreateComponentsFromTemplates(RootComponent, FixtureGroupComponent, Templates);
+	const TArray<UDMXPixelMappingBaseComponent*> NewComponents = Toolkit->CreateComponentsFromTemplates(RootComponent, FixtureGroupComponent, Templates);
 
 	// Layout
 	const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = CommonDMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
@@ -183,6 +186,15 @@ void UDMXPixelMappingDMXLibraryViewModel::AddFixturePatchesEnsured(const TArray<
 	{
 		LayoutAfterLastPatch(NewComponents);
 	}
+
+	// Select new components
+	TSet<FDMXPixelMappingComponentReference> ComponentReferencesToSelect;
+	Algo::Transform(NewComponents, ComponentReferencesToSelect,
+		[Toolkit](UDMXPixelMappingBaseComponent* Component)
+		{
+			return FDMXPixelMappingComponentReference(Toolkit, Component);
+		});
+	Toolkit->SelectComponents(ComponentReferencesToSelect);
 }
 
 void UDMXPixelMappingDMXLibraryViewModel::SaveFixturePatchListDescriptor(const FDMXReadOnlyFixturePatchListDescriptor& NewDescriptor)

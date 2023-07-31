@@ -333,7 +333,7 @@ void UDMXPixelMappingMatrixComponent::SendDMX()
 				MapStruct.Map = ColorSpace->GetAttributeNameToValueMap();
 				return MapStruct;
 			});
-		if (!ensureMsgf(AttributeToValueMapArray.Num() == CellComponents.Num(), TEXT("Mismatch num cell attributes and num attribute to value maps. Cannot send DMX for Matrix Component %s"), *GetUserFriendlyName()))
+		if (!ensureMsgf(AttributeToValueMapArray.Num() == CellComponents.Num(), TEXT("Mismatch num cell attributes and num attribute to value maps. Cannot send DMX for Matrix Component %s"), *GetName()))
 		{
 			return;
 		}
@@ -404,14 +404,17 @@ bool UDMXPixelMappingMatrixComponent::CanBeMovedTo(const UDMXPixelMappingBaseCom
 	return false;
 }
 
-FString UDMXPixelMappingMatrixComponent::GetUserFriendlyName() const
+FString UDMXPixelMappingMatrixComponent::GetUserName() const
 {
-	if (UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch())
+	const UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch();
+	if (Patch && UserName.IsEmpty())
 	{
 		return FString::Printf(TEXT("Fixture Matrix: %s"), *Patch->GetDisplayName());
 	}
-
-	return FString(TEXT("Fixture Matrix: No Fixture Patch"));
+	else
+	{
+		return UserName;
+	}
 }
 
 void UDMXPixelMappingMatrixComponent::SetPosition(const FVector2D& NewPosition)

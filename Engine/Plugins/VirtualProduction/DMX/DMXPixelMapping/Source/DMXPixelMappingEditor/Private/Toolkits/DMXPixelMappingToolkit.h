@@ -118,12 +118,7 @@ public:
 	/** Adds a renderer to the pixel mapping. Sets it as active renderer if a new renderer was created */
 	void AddRenderer();
 
-	/**
-	 * Rename Pixel Maping component.
-	 *
-	 * @param PreviousObjectName	The previous object name, used to find the object
-	 * @param DesiredObjectName		The desired object name
-	 */
+	UE_DEPRECATED(5.3, "Removed without replacement. Use UObject::Rename instead")
 	void RenameComponent(const FName& PreviousObjectName, const FString& DesiredObjectName) const;
 
 	/** 
@@ -142,11 +137,11 @@ public:
 	void SizeSelectedComponentToTexture(bool bTransacted);
 
 private:
-	/** Called when a Component was added to the pixel mapping */
-	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+	/** Called when a component was added to the pixel mapping */
+	void OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
-	/** Called when a Component was removed from the pixel mapping */
-	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+	/** Called when a component object was renamed */
+	void OnComponentRenamed(UDMXPixelMappingBaseComponent* Component);
 
 	void PlayDMX();
 

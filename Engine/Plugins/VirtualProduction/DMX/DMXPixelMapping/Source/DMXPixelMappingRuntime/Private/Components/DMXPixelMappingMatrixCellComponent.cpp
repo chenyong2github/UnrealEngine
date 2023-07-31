@@ -241,19 +241,18 @@ void UDMXPixelMappingMatrixCellComponent::ResetDMX()
 	// No need to send dmx, that is done by the parent matrix
 }
 
-FString UDMXPixelMappingMatrixCellComponent::GetUserFriendlyName() const
+FString UDMXPixelMappingMatrixCellComponent::GetUserName() const
 {
-	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
+	UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent());
+	UDMXEntityFixturePatch* FixturePatch = MatrixComponent ? MatrixComponent->FixturePatchRef.GetFixturePatch() : nullptr;
+	if (FixturePatch && UserName.IsEmpty())
 	{
-		UDMXEntityFixturePatch* FixturePatch = MatrixComponent->FixturePatchRef.GetFixturePatch();
-		
-		if (FixturePatch)
-		{
-			return FString::Printf(TEXT("%s: Cell %d"), *FixturePatch->GetDisplayName(), CellID);
-		}
+		return FString::Printf(TEXT("%s: Cell %d"), *FixturePatch->GetDisplayName(), CellID);
 	}
-
-	return FString(TEXT("Invalid Patch"));
+	else
+	{
+		return FString::Printf(TEXT("%s: Cell %d"), *UserName, CellID);
+	}
 }
 
 void UDMXPixelMappingMatrixCellComponent::QueueDownsample()

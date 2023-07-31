@@ -263,10 +263,19 @@ bool FDMXPixelMappingToolkit::IsComponentSelected(UDMXPixelMappingBaseComponent*
 
 void FDMXPixelMappingToolkit::AddRenderer()
 {
-	if (DMXPixelMapping)
+	UDMXPixelMappingRootComponent* RootComponent = DMXPixelMapping ? DMXPixelMapping->GetRootComponent() : nullptr;
+	if (RootComponent)
 	{
-		UDMXPixelMappingRendererComponent* RendererComponent = FDMXPixelMappingEditorUtils::AddRenderer(DMXPixelMapping);
-		SetActiveRenderComponent(RendererComponent);
+		const FScopedTransaction AddMappingTransaction(LOCTEXT("AddMappingTransaction", "Add Mapping to Pixel Mapping"));
+
+		RootComponent->PreEditChange(UDMXPixelMappingBaseComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingBaseComponent, Children)));
+		UDMXPixelMappingRendererComponent* NewRendererComponent = FDMXPixelMappingEditorUtils::AddRenderer(DMXPixelMapping);
+		RootComponent->PostEditChange();
+
+		SetActiveRenderComponent(NewRendererComponent);
+
+		const FDMXPixelMappingComponentReference ComponentReference(StaticCastSharedRef<FDMXPixelMappingToolkit>(AsShared()), NewRendererComponent);
+		SelectComponents({ ComponentReference } );
 	}
 }
 
@@ -481,21 +490,19 @@ void FDMXPixelMappingToolkit::SizeSelectedComponentToTexture(bool bTransacted)
 	Component->PostEditChange();
 }
 
-void FDMXPixelMappingToolkit::OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+void FDMXPixelMappingToolkit::OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
 {
-	if (!bAddingComponents)
+	if (!bAddingComponents && !bRemovingComponents)
 	{
 		UpdateBlueprintNodes();
 	}
 }
 
-void FDMXPixelMappingToolkit::OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* Component)
 {
-	if (!bRemovingComponents)
-	{
-		UpdateBlueprintNodes();
-	}
+	UpdateBlueprintNodes();
 }
+
 
 void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
@@ -508,8 +515,9 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 	DMXPixelMapping->CreateOrLoadObjects();
 
 	// Bind to component changes
-	UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &FDMXPixelMappingToolkit::OnComponentAdded);
-	UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &FDMXPixelMappingToolkit::OnComponentRemoved);
+	UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &FDMXPixelMappingToolkit::OnComponentAddedOrRemoved);
+	UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &FDMXPixelMappingToolkit::OnComponentAddedOrRemoved);
+	UDMXPixelMappingBaseComponent::GetOnComponentRenamed().AddSP(this, &FDMXPixelMappingToolkit::OnComponentRenamed);
 
 	// Create commands
 	DesignerCommandList = MakeShareable(new FUICommandList);
@@ -593,7 +601,7 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 	
-	// Select the first renderer component
+	// Make an initial selection
 	if (UDMXPixelMappingRootComponent* RootComponent = DMXPixelMapping->GetRootComponent())
 	{
 		UDMXPixelMappingBaseComponent* const* FirstRendererComponetPtr = Algo::FindByPredicate(DMXPixelMapping->GetRootComponent()->GetChildren(), [](UDMXPixelMappingBaseComponent* Component)
@@ -602,8 +610,18 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 			});
 		if (FirstRendererComponetPtr)
 		{
-			const FDMXPixelMappingComponentReference ComponentReference(StaticCastSharedRef<FDMXPixelMappingToolkit>(AsShared()), *FirstRendererComponetPtr);
-			SelectComponents(TSet<FDMXPixelMappingComponentReference>({ ComponentReference }));
+			UDMXPixelMappingBaseComponent* const* FirstFixtureGroupComponetPtr = Algo::FindByPredicate((*FirstRendererComponetPtr)->GetChildren(), [](UDMXPixelMappingBaseComponent* Component)
+				{
+					return Component && Component->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass();
+				});
+
+			if (UDMXPixelMappingBaseComponent* const* ComponentToSelectPtr = FirstFixtureGroupComponetPtr ? 
+				FirstFixtureGroupComponetPtr : 
+				FirstRendererComponetPtr)
+			{
+				const FDMXPixelMappingComponentReference ComponentReference(StaticCastSharedRef<FDMXPixelMappingToolkit>(AsShared()), *ComponentToSelectPtr);
+				SelectComponents(TSet<FDMXPixelMappingComponentReference>({ ComponentReference }));
+			}
 		}
 	}
 }

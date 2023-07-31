@@ -50,7 +50,7 @@ void UDMXPixelMappingBaseComponent::PostRename(UObject* OldOuter, const FName Ol
 {
 	Super::PostRename(OldOuter, OldName);
 
-	OnComponentRenamed.Broadcast(GetPixelMapping(), this, OldOuter, OldName);
+	OnComponentRenamed.Broadcast(this);
 }
 
 #if WITH_EDITOR
@@ -185,7 +185,7 @@ UDMXPixelMappingBaseComponent* UDMXPixelMappingBaseComponent::GetChildAt(int32 I
 void UDMXPixelMappingBaseComponent::AddChild(UDMXPixelMappingBaseComponent* InComponent)
 {
 #if WITH_EDITOR
-	ensureMsgf(InComponent, TEXT("Trying to add nullptr to %s"), *GetUserFriendlyName());
+	ensureMsgf(InComponent, TEXT("Trying to add nullptr to %s"), *GetUserName());
 #endif 
 
 	if (InComponent)
@@ -228,7 +228,17 @@ void UDMXPixelMappingBaseComponent::ClearChildren()
 
 FString UDMXPixelMappingBaseComponent::GetUserFriendlyName() const
 {
-	return GetName();
+	return GetUserName();
+}
+
+FString UDMXPixelMappingBaseComponent::GetUserName() const
+{
+	return UserName.IsEmpty() ? GetName() : UserName;
+}
+
+void UDMXPixelMappingBaseComponent::SetUserName(const FString& NewName)
+{
+	UserName = NewName;
 }
 
 void UDMXPixelMappingBaseComponent::GetChildComponentsRecursively(TArray<UDMXPixelMappingBaseComponent*>& Components)

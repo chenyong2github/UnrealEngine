@@ -56,7 +56,7 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 	ModelDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	ModelDetailsView->SetObject(ViewModel);
 
-	const TAttribute<bool> AddDMXLibraryButtonEnabledAttribute = TAttribute<bool>::CreateLambda(
+	const TAttribute<bool> AddFixtureGroupEnabledAttribute = TAttribute<bool>::CreateLambda(
 		[this]()
 		{
 			return bRenderComponentContainedInSelection;
@@ -81,12 +81,12 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 				.ToolTipText_Lambda([this]()
 					{
 						return bRenderComponentContainedInSelection ?
-							LOCTEXT("AddFixtureGroupTooltip", "Adds a DMX Library to the Pixel Mapping") :
+							LOCTEXT("AddFixtureGroupTooltip", "Adds a Fixture Group to the Pixel Mapping. In the fixture group, a DMX Library can be selected.") :
 							LOCTEXT("CannotAddFixtureGroupTooltip", "Please select a source texture");
 					})
 				.ContentPadding(FMargin(5.0f, 1.0f))
-				.OnClicked(this, &SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked)
-				.IsEnabled(AddDMXLibraryButtonEnabledAttribute)
+				.OnClicked(this, &SDMXPixelMappingDMXLibraryView::OnAddFixtureGroupButtonClicked)
+				.IsEnabled(AddFixtureGroupEnabledAttribute)
 				.Content()
 				[
 					SNew(SHorizontalBox)
@@ -105,7 +105,7 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 					.Padding(FMargin(2.f, 0.f, 2.f, 0.f))
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("AddFixtureGroupLabel", "Add DMX Library"))
+						.Text(LOCTEXT("AddFixtureGroupLabel", "Add Fixture Group"))
 					]
 				]
 			]
@@ -254,7 +254,7 @@ void SDMXPixelMappingDMXLibraryView::ForceRefresh()
 		{
 			if (EditedFixtureGroup)
 			{
-				return FText::FromString(EditedFixtureGroup->GetUserFriendlyName());
+				return FText::FromString(EditedFixtureGroup->GetUserName());
 			}
 			else if (ViewModel->IsMoreThanOneFixtureGroupSelected())
 			{
@@ -335,7 +335,7 @@ void SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved(UDMXPixelMapping*
 	RequestRefresh();
 }
 
-FReply SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked()
+FReply SDMXPixelMappingDMXLibraryView::OnAddFixtureGroupButtonClicked()
 {
 	if (ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
 	{
@@ -349,7 +349,8 @@ FReply SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked()
 
 FReply SDMXPixelMappingDMXLibraryView::OnAddSelectedPatchesClicked()
 {
-	if (ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
+	if (WeakToolkit.IsValid() &&
+		ensureMsgf(ViewModel, TEXT("Invalid view model for PixelMapping DMX Library View, cannot display view.")))
 	{
 		const FScopedTransaction AddSelectedFixturePatchesTransaction(LOCTEXT("AddSelectedFixturePatchesTransaction", "Add Fixture Patches to Pixel Mapping"));
 

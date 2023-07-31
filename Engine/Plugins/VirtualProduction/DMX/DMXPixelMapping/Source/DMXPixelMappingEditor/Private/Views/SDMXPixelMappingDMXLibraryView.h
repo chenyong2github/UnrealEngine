@@ -69,8 +69,8 @@ private:
 	/** Called when a component was added or removed from pixel mapping */
 	void OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
-	/** Called when the 'Add DMX Library' button was clicked */
-	FReply OnAddDMXLibraryButtonClicked();
+	/** Called when the 'Add Fixture Group' button was clicked */
+	FReply OnAddFixtureGroupButtonClicked();
 
 	/** Called when the 'Add Selected Patches' button was clicked */
 	FReply OnAddSelectedPatchesClicked();

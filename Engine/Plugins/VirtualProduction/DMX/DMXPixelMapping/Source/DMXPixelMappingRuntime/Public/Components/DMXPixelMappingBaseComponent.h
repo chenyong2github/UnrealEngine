@@ -25,7 +25,7 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 
 	DECLARE_EVENT_TwoParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentAdded, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** AddedComponent */);
 	DECLARE_EVENT_TwoParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRemoved, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** RemovedComponent */);
-	DECLARE_EVENT_FourParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRenamed, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** RenamedComponent */, UObject* /** OldOuter */, const FName /** OldName */);
+	DECLARE_EVENT_OneParam(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRenamed, UDMXPixelMappingBaseComponent* /** RenamedComponent */);
 
 public:
 	/** Gets an Event broadcast when a component was added */
@@ -34,7 +34,7 @@ public:
 	/** Gets an Event broadcast when a component was added */
 	static FDMXPixelMappingOnComponentRemoved& GetOnComponentRemoved();
 
-	/** Gets an Event broadcast when a component was renamed */
+	/** Gets an Event broadcast this uobject was renamed. Note this is only raised after UObject::Rename, not after SetUserName.*/
 	static FDMXPixelMappingOnComponentRenamed& GetOnComponentRenamed();
 	
 	//~ Begin UObject interface
@@ -94,8 +94,15 @@ public:
 		return false;
 	}
 
-	/** Returns the name of the component used across all widgets that draw it */
+	/** DEPRECATED 5.3 */
+	UE_DEPRECATED(5.3, "Renamed GetUserName to be more explicit aobout the intent. The user name is displayed if set, otherwise the object name.")
 	virtual FString GetUserFriendlyName() const;
+
+	/** Returns the name of the component. If user name is set returns the custom user name (see SetUserName) */
+	virtual FString GetUserName() const;
+
+	/** Sets the custom user name. If set, GetUserName returns this name. */
+	virtual void SetUserName(const FString& NewName);
 
 	/** 
 	 * Loop through all child by given Predicate 
@@ -249,6 +256,10 @@ protected:
 
 	/** Called when the component was added to a parent */
 	virtual void NotifyRemovedFromParent();
+
+	/** Custom user name for the component. Should be used if set. */
+	UPROPERTY()
+	FString UserName;
 
 private:
 	/** Parent component */

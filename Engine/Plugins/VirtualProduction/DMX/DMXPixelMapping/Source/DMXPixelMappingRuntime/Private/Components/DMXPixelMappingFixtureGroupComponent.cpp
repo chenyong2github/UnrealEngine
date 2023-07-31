@@ -199,14 +199,17 @@ void UDMXPixelMappingFixtureGroupComponent::HandlePositionChanged()
 	LastPosition = GetPosition();
 }
 
-FString UDMXPixelMappingFixtureGroupComponent::GetUserFriendlyName() const
+FString UDMXPixelMappingFixtureGroupComponent::GetUserName() const
 {
-	if (DMXLibrary)
+	if (UserName.IsEmpty())
 	{
-		return FString::Printf(TEXT("Fixture Group: %s"), *DMXLibrary->GetName());
+		const FString DMXLibraryName = DMXLibrary ? DMXLibrary->GetName() : LOCTEXT("NoDMXLibrary", "No DMX Library").ToString();
+		return FString::Printf(TEXT("Fixture Group: %s"), *DMXLibraryName);
 	}
-
-	return FString("Fixture Group: No Library");
+	else
+	{
+		return UserName;
+	}
 }
 
 #if WITH_EDITOR

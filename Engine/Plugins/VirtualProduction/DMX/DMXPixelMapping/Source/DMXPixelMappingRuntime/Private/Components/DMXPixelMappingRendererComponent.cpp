@@ -280,8 +280,13 @@ void UDMXPixelMappingRendererComponent::RenderAndSendDMX()
 	SendDMX();
 }
 
-FString UDMXPixelMappingRendererComponent::GetUserFriendlyName() const
+FString UDMXPixelMappingRendererComponent::GetUserName() const
 {
+	if (!UserName.IsEmpty())
+	{
+		return UserName;
+	}
+
 	constexpr TCHAR NoSourceString[] = TEXT("None");
 	switch (RendererType)
 	{

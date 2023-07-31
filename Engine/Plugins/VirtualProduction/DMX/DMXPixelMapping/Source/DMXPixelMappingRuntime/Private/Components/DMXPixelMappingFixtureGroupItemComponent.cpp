@@ -213,14 +213,17 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 }
 #endif // WITH_EDITOR
 
-FString UDMXPixelMappingFixtureGroupItemComponent::GetUserFriendlyName() const
+FString UDMXPixelMappingFixtureGroupItemComponent::GetUserName() const
 {
-	if (UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch())
+	const UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch();
+	if (Patch && UserName.IsEmpty())
 	{
 		return Patch->GetDisplayName();
 	}
-
-	return FString(TEXT("Fixture Group Item: No Fixture Patch"));
+	else
+	{
+		return UserName;
+	}
 }
 
 const FName& UDMXPixelMappingFixtureGroupItemComponent::GetNamePrefix()

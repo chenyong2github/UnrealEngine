@@ -4,6 +4,7 @@
 
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "DMXEditorStyle.h"
+#include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorUtils.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "ScopedTransaction.h"
@@ -106,6 +107,8 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GenerateComponentNameWidget()
 			SAssignNew(EditableNameTextBox, SInlineEditableTextBlock)
 			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text(Item.Get(), &FDMXPixelMappingHierarchyItem::GetComponentNameText)
+			.OnVerifyTextChanged(this, &SDMXPixelMappingHierarchyRow::OnVerifyNameTextChanged)
+			.OnTextCommitted(this, &SDMXPixelMappingHierarchyRow::OnNameTextCommited)
 			.ColorAndOpacity(FLinearColor::White)
 		];
 }
@@ -142,16 +145,57 @@ TSharedRef<SWidget> SDMXPixelMappingHierarchyRow::GeneratePatchWidget()
 		];
 }
 
+bool SDMXPixelMappingHierarchyRow::OnVerifyNameTextChanged(const FText& InText, FText& OutErrorMessage)
+{
+	UDMXPixelMapping* PixelMapping = WeakToolkit.IsValid() ? WeakToolkit.Pin()->GetDMXPixelMapping() : nullptr;
+	const UDMXPixelMappingBaseComponent* MyComponent = Item->GetComponent();
+	if (PixelMapping && MyComponent)
+	{
+		TArray<const UDMXPixelMappingBaseComponent*> AllComponents;
+		PixelMapping->GetAllComponentsOfClass(AllComponents);
+
+		const UClass* MyComponentClass = MyComponent->GetClass();
+		const FString DesiredName = InText.ToString();
+		
+		// Allow to clear the name to revert to the generated name
+		if (DesiredName.IsEmpty())
+		{
+			return true;
+		}
+
+		const bool bUniqueName = Algo::FindByPredicate(AllComponents, [MyComponent, MyComponentClass, &DesiredName](const UDMXPixelMappingBaseComponent* OtherComponent)
+			{
+				return
+					OtherComponent &&
+					OtherComponent != MyComponent &&
+					OtherComponent->GetUserName() == DesiredName;
+			}) == nullptr;
+		if (!bUniqueName)
+		{
+			OutErrorMessage = LOCTEXT("RenameComponentTransaction", "A component with this name already exists");
+		}
+
+		return bUniqueName;
+	}
+
+	return true;
+}
+
 void SDMXPixelMappingHierarchyRow::OnNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo)
 {
 	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
-	const UDMXPixelMappingBaseComponent* Component = Item.IsValid() ? Item->GetComponent() : nullptr;
-	if (Toolkit.IsValid() && Component && !InText.IsEmpty())
+	UDMXPixelMappingBaseComponent* Component = Item.IsValid() ? Item->GetComponent() : nullptr;
+	if (Toolkit.IsValid() && Component)
 	{
 		const FScopedTransaction RenameComponentTransaction(LOCTEXT("RenameComponentTransaction", "Rename Pixel Mapping Component"));
 
-		const FName& ComponentName = Component->GetFName();
-		Toolkit->RenameComponent(ComponentName, InText.ToString());
+		Component->Modify();
+		Component->SetUserName(InText.ToString());
+
+		// To ease debugging also rename the UObject
+		const FName ObjectName = MakeObjectNameFromDisplayLabel(InText.ToString(), Component->GetFName());
+		const FName UniqueObjectName = MakeUniqueObjectName(Component->GetOuter(), Component->GetClass(), ObjectName);
+		Component->Rename(*UniqueObjectName.ToString());
 	}
 }
 

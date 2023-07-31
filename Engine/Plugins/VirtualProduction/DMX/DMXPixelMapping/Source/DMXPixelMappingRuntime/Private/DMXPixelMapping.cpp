@@ -156,7 +156,7 @@ void UDMXPixelMapping::RemoveComponent(UDMXPixelMappingBaseComponent* InComponen
 	if (InComponent)
 	{
 #if WITH_EDITOR
-		ensureMsgf(InComponent->GetParent(), TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserFriendlyName());
+		ensureMsgf(InComponent->GetParent(), TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserName());
 #endif
 
 		if (UDMXPixelMappingBaseComponent* Parent = InComponent->GetParent())

@@ -49,6 +49,9 @@ private:
 	/** Generates a widget to display the patch */
 	TSharedRef<SWidget> GeneratePatchWidget();
 
+	/** Called to verify the changed name in the related editable text block */
+	bool OnVerifyNameTextChanged(const FText& InText, FText& OutErrorMessage);
+
 	/** Called when text is committed on the node */
 	void OnNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo);
 

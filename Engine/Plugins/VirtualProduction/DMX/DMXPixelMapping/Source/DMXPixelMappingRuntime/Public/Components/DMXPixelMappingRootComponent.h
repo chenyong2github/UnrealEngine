@@ -33,7 +33,7 @@ public:
 	virtual void SendDMX() override;
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
-	virtual FString GetUserFriendlyName() const override;
+	virtual FString GetUserName() const override;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
@@ -44,7 +44,7 @@ public:
 
 private:
 	/** Called when a component in the PixelMapping was renamed */
-	void OnComponentRenamed(UDMXPixelMapping* PixelMapping , UDMXPixelMappingBaseComponent* RenamedComponent, UObject* OldOuter, const FName OldName);
+	void OnComponentRenamed(UDMXPixelMappingBaseComponent* RenamedComponent);
 
 	/** Chached Renderer Component names and their actual object pointer. Useful to speed up access (see DMXPixelMappingSubsystem) */
 	UPROPERTY(Transient)

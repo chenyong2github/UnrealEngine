@@ -508,14 +508,26 @@ void SDMXPixelMappingHierarchyView::OnEditorSelectionChanged()
 
 void SDMXPixelMappingHierarchyView::AdoptSelectionFromToolkit()
 {
-	if (bIsUpdatingSelection)
+	if (bIsUpdatingSelection || !HierarchyTreeView.IsValid())
 	{
 		return;
 	}
 
+	const TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>> OldSelection = HierarchyTreeView->GetSelectedItems();
 	for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& RootItem : AllRootItems)
 	{
 		RecursiveAdoptSelectionFromToolkit(RootItem.ToSharedRef());
+	}
+
+	const TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>> NewSelection = HierarchyTreeView->GetSelectedItems();
+	const bool bOldSelectionContainsNewSelection = Algo::FindByPredicate(NewSelection, [&OldSelection](const TSharedPtr<FDMXPixelMappingHierarchyItem>& SelectedItem)
+		{
+			return OldSelection.Contains(SelectedItem);
+		}) != nullptr;
+
+	if (!bOldSelectionContainsNewSelection && !NewSelection.IsEmpty())
+	{
+		HierarchyTreeView->RequestScrollIntoView(NewSelection[0]);
 	}
 }
 

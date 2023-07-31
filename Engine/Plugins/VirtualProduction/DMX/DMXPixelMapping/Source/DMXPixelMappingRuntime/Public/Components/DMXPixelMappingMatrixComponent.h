@@ -60,7 +60,7 @@ public:
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
-	virtual FString GetUserFriendlyName() const override;
+	virtual FString GetUserName() const override;
 	// ~End UDMXPixelMappingBaseComponent interface
 
 	// ~Begin UDMXPixelMappingOutputComponent interface
