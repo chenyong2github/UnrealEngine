@@ -63,8 +63,8 @@ bool FComponentConstraintChannelInterface::SmartConstraintKey(
 	
 	const UTransformableComponentHandle* ComponentHandle = static_cast<UTransformableComponentHandle*>(InConstraint->ChildTRSHandle);
 
-	UMovieScene3DTransformSection* TransformSection = GetComponentSection(ComponentHandle, InSequencer, false);
 	UMovieScene3DTransformSection* ConstraintSection = GetComponentSection(ComponentHandle, InSequencer, true);
+	UMovieScene3DTransformSection* TransformSection = GetComponentSection(ComponentHandle, InSequencer, false);
 	if ((!ConstraintSection) || (!TransformSection))
 	{
 		return false;
