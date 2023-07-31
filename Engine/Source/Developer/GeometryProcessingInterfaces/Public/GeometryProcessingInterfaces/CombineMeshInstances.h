@@ -58,6 +58,8 @@ public:
 		TArray<FTransform3d> TransformSequence;		// set of transforms on this instance. Often just a single transform.
 		int32 GroupDataIndex = -1;					// index into FSourceInstanceList::InstanceGroupDatas
 
+		bool bAllowApproximation = true;			// if false, only Copied or Simplified LODs will be used for this part instance
+
 		// in some cases it may be desirable to have "groups" of instances which should be output as separate meshes, but
 		// be jointly processed in terms of (eg) the part LODs. If any InstanceSubsetID is non-zero, then instance subsets
 		// are grouped/extracted by integer ID and will be returned as separate FOutputMesh's in the FResults. 
@@ -224,9 +226,10 @@ public:
 		// Can significantly reduce triangle count, but attributes on the interiors of polygonal areas will be completely discarded
 		int32 PlanarPolygonRetriangulationStartLOD = -1;
 
-		// If enabled, attempt to retriangulate planar areas of Source LODs to remove redundant coplanar geometry
+		// If enabled, attempt to retriangulate planar areas of Source LODs to remove redundant coplanar geometry. 
+		// This option affects individual parts and not the combined prefab.
 		bool bRetriangulateSourceLODs = true;
-		// which Source LOD to start retriangulating at
+		// which Source LOD to start planar retriangulation at
 		int32 StartRetriangulateSourceLOD = 1;
 
 		//

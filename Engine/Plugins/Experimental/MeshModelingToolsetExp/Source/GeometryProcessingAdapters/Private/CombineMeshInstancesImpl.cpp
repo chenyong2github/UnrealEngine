@@ -97,6 +97,8 @@ struct FMeshPartInstance
 
 	EMeshDetailLevel DetailLevel = EMeshDetailLevel::Standard;
 
+	bool bAllowApproximation = true;
+
 	// allow FMeshPartInstance to maintain link to external representation of instance
 	FIndex3i ExternalInstanceIndex = FIndex3i::Invalid();
 
@@ -115,7 +117,6 @@ struct FMeshPart
 
 	bool bPreserveUVs = false;
 	bool bAllowMerging = true;
-
 
 	int32 GetNumTriangles() const 
 	{
@@ -223,6 +224,7 @@ void InitializeMeshPartAssembly(
 		NewInstance.SourceComponent = SourceMeshInstance.SourceComponent;
 		NewInstance.SourceInstanceIndex = SourceMeshInstance.SourceInstanceIndex;
 		NewInstance.DetailLevel = static_cast<EMeshDetailLevel>( static_cast<int32>(SourceMeshInstance.DetailLevel) );
+		NewInstance.bAllowApproximation = SourceMeshInstance.bAllowApproximation;
 		for ( FTransform3d Transform : SourceMeshInstance.TransformSequence )
 		{
 			NewInstance.WorldTransform.Append( Transform );
@@ -278,6 +280,7 @@ void InitializeMeshPartAssembly(
 		NewInstance.SourceComponent = nullptr;
 		NewInstance.SourceInstanceIndex = 0;
 		NewInstance.DetailLevel = static_cast<EMeshDetailLevel>(static_cast<int32>(SourceMeshInstance.DetailLevel));
+		NewInstance.bAllowApproximation = SourceMeshInstance.bAllowApproximation;
 		for (FTransform3d Transform : SourceMeshInstance.TransformSequence)
 		{
 			NewInstance.WorldTransform.Append(Transform);
@@ -1443,9 +1446,9 @@ void ComputeMeshApproximations(
 			{
 				CostInfo[SetIndex].LODChainMeshes.Add(&SimplifiedLODMesh);
 			}
-			for (FDynamicMesh3& SimplifiedLODMesh : Assembly.OptimizedMeshGeometry[SetIndex].ApproximateMeshLODs)
+			for (FDynamicMesh3& ApproximateLODMesh : Assembly.OptimizedMeshGeometry[SetIndex].ApproximateMeshLODs)
 			{
-				CostInfo[SetIndex].LODChainMeshes.Add(&SimplifiedLODMesh);
+				CostInfo[SetIndex].LODChainMeshes.Add(&ApproximateLODMesh);
 			}
 		}
 
@@ -3320,8 +3323,9 @@ void BuildCombinedMesh(
 
 			for ( const FMeshPartInstance& Instance : Part->Instances )
 			{
-				bool bIsDecorativePart = (Instance.DetailLevel == EMeshDetailLevel::Decorative);
+				const FDynamicMesh3* InstanceAppendMesh = UseAppendMesh;
 
+				bool bIsDecorativePart = (Instance.DetailLevel == EMeshDetailLevel::Decorative);
 				if (bIsDecorativePart)
 				{
 					// filter out detail parts at higher LODs, or if we are doing VoxWrap LOD
@@ -3332,12 +3336,21 @@ void BuildCombinedMesh(
 					// at last detail part LOD, switch to approximate mesh
 					if (LODLevel >= (CombineOptions.FilterDecorativePartsLODLevel - CombineOptions.ApproximateDecorativePartLODs) )
 					{
-						UseAppendMesh = ApproximateAppendMesh;
+						InstanceAppendMesh = ApproximateAppendMesh;
 					}
 				}
 
+				// If approximation is disabled for this instance, fall back to last available simplified LOD.
+				// TODO: if part budget was applied, the mesh in this slot might actually be an approximation.
+				//   This is difficult to fix because the mesh LOD chains are per-part and not per-instance,
+				//   need some way to keep the original copied & simplified LOD chain around...
+				if (Instance.bAllowApproximation == false && LevelLODType == ECombinedLODType::Approximated)
+				{
+					InstanceAppendMesh = &OptimizedGeometry.SimplifiedMeshLODs.Last();
+				}
+
 				// need to make a copy to run pre-process func
-				FDynamicMesh3 TempAppendMesh(*UseAppendMesh);
+				FDynamicMesh3 TempAppendMesh(*InstanceAppendMesh);
 				if (Assembly.PreProcessInstanceMeshFunc)
 				{
 					Assembly.PreProcessInstanceMeshFunc(TempAppendMesh, Instance);
@@ -3368,14 +3381,15 @@ void BuildCombinedMesh(
 					}
 				}
 
-				// could precompute these indexes for each instance?
-				// also for source mesh we could transfer material IDs correctly...
-				UMaterialInterface* UseMaterial = Instance.Materials[0];
-				const int32* FoundMaterialIndex = Assembly.MaterialMap.Find(UseMaterial);
-				int32 AssignMaterialIndex = (FoundMaterialIndex != nullptr) ? *FoundMaterialIndex : 0;
-
+				// transfer Material IDs if part mesh has them
+				FDynamicMeshMaterialAttribute* AppendMaterialAttrib = TempAppendMesh.HasAttributes() ? TempAppendMesh.Attributes()->GetMaterialID() : nullptr;
 				for (int32 tid : TempAppendMesh.TriangleIndicesItr())
 				{
+					int32 SourceMaterialID = (AppendMaterialAttrib != nullptr) ? AppendMaterialAttrib->GetValue(tid) : 0;
+					UMaterialInterface* UseMaterial = Instance.Materials[SourceMaterialID];
+					const int32* FoundMaterialIndex = Assembly.MaterialMap.Find(UseMaterial);
+					int32 AssignMaterialIndex = (FoundMaterialIndex != nullptr) ? *FoundMaterialIndex : 0;
+
 					CombinedMeshLODData.MaterialIDs->SetValue( Mappings.GetNewTriangle(tid), AssignMaterialIndex );
 				}
 			}
