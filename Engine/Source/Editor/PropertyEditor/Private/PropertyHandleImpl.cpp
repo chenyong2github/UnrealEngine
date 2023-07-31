@@ -4065,7 +4065,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValue(const FAssetData& NewVal
 			NewValue.GetAsset();
 		}
 
-		FString ObjectPathName = NewValue.IsValid() ? FString::Printf(TEXT("%s'%s'"), *NewValue.GetClass()->GetName(), *NewValue.GetObjectPathString()) : TEXT("None");
+		FString ObjectPathName = NewValue.IsValid() ? FString::Printf(TEXT("%s'%s'"), *NewValue.AssetClassPath.ToString(), *NewValue.GetObjectPathString()) : TEXT("None");
 		return SetValueFromFormattedString(ObjectPathName, Flags, bSkipResolve);
 	}
 
