@@ -212,8 +212,7 @@ namespace SkinPaintTool
 			const FReferenceSkeleton& RefSkeleton,
 			const TArray<FVector>& RefPoseVertices,
 			EAxis::Type InMirrorAxis,
-			EMirrorDirection InMirrorDirection,
-			const float MaxSearchRadius);
+			EMirrorDirection InMirrorDirection);
 
 		const TMap<int32, int32>& GetBoneMap() const { return BoneMap; };
 		const TMap<int32, int32>& GetVertexMap() const { return VertexMap; };
