@@ -741,14 +741,14 @@ void UE::Interchange::SanitizeObjectName(FString& ObjectName)
 	}
 }
 
-UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(const FSoftObjectPath& SourcePipeline, FString StackName)
+UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(const FSoftObjectPath& SourcePipeline)
 {
 	FString PackageName = FPackageUtils::ExtractPackageName(SourcePipeline.ToString());
 	UPackage* TargetPackage = FindPackage(nullptr, *PackageName);
-	return GeneratePipelineInstance(SourcePipeline, StackName, TargetPackage);
+	return GeneratePipelineInstance(SourcePipeline, TargetPackage);
 }
 
-UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftObjectPath& PipelineInstance, FString StackName, UPackage* PipelineInstancePackage /*= nullptr*/)
+UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftObjectPath& PipelineInstance, UPackage* PipelineInstancePackage /*= nullptr*/)
 {
 	if (!PipelineInstancePackage)
 	{
@@ -797,13 +797,6 @@ UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftO
 	{
 		// Make sure that the instance does not carry over standalone and public flags as they are not actual assets to be persisted
 		GeneratedPipeline->ClearFlags(EObjectFlags::RF_Standalone|EObjectFlags::RF_Public);
-		FString CurrentName = GeneratedPipeline->GetName();
-		FString NewName = FString::Printf(TEXT("%s_%s"), *StackName, *CurrentName);
-		// Temporary fix to unblock the FN team
-		if (GeneratedPipeline->Rename(*NewName, nullptr, REN_Test))
-		{
-			GeneratedPipeline->Rename(*NewName, nullptr, REN_DoNotDirty | REN_NonTransactional);
-		}
 	}
 
 	return GeneratedPipeline;
@@ -1438,6 +1431,15 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		Pipeline->AdjustSettingsForContext(Context, TaskData.ReimportObject);
 	};
 
+	FDateTime CurrentDateTime(FDateTime::Now());
+	const FString TransientPackageBasePath = GetTransientPackage()->GetPathName();
+	const FString PackageName = FString::Printf(TEXT("InterchangePipelinePackage_%llu"), CurrentDateTime.GetTicks());
+	AsyncHelper->PipelineInstancesPackageName = TransientPackageBasePath / PackageName;
+
+	UPackage* PipelineInstancesPackage = CreatePackage(*AsyncHelper->PipelineInstancesPackageName);
+	PipelineInstancesPackage->ClearFlags(RF_Public | RF_Standalone);
+	PipelineInstancesPackage->SetPackageFlags(PKG_NewlyCreated);
+
 	if ( ImportAssetParameters.OverridePipelines.Num() == 0 )
 	{
 		const bool bIsUnattended = FApp::IsUnattended() || GIsAutomationTesting || ImportAssetParameters.bIsAutomated;
@@ -1462,15 +1464,6 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		const FName ReimportPipelineName = TEXT("ReimportPipeline");
 		TArray<FInterchangeStackInfo> PipelineStacks;
 		TArray<UInterchangePipelineBase*> OutPipelines;
-
-		FDateTime CurrentDateTime(FDateTime::Now());
-		const FString TransientPackageBasePath = GetTransientPackage()->GetPathName();
-		const FString PackageName = FString::Printf(TEXT("InterchangePipelinePackage_%llu"), CurrentDateTime.GetTicks());
-		AsyncHelper->PipelineInstancesPackageName = TransientPackageBasePath / PackageName;
-
-		UPackage* PipelineInstancesPackage =  CreatePackage(*AsyncHelper->PipelineInstancesPackageName);
-		PipelineInstancesPackage->ClearFlags(RF_Public | RF_Standalone);
-		PipelineInstancesPackage->SetPackageFlags(PKG_NewlyCreated);
 
 		//Fill the Stacks before showing the UI
 		if (bIsReimport)
@@ -1532,8 +1525,14 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 				for (int32 PipelineIndex = 0; PipelineIndex < Pipelines->Num(); ++PipelineIndex)
 				{
-					if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance((*Pipelines)[PipelineIndex], StackName.ToString(), PipelineInstancesPackage))
+					if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance((*Pipelines)[PipelineIndex], PipelineInstancesPackage))
 					{
+						if (bShowPipelineStacksConfigurationDialog)
+						{
+							FString CurrentName = GeneratedPipeline->GetName();
+							FString NewName = FString::Printf(TEXT("%s_%s"), *StackName.ToString(), *CurrentName);
+							ensure(GeneratedPipeline->Rename(*NewName, nullptr, REN_DoNotDirty | REN_NonTransactional));
+						}
 						AdjustPipelineSettingForContext(GeneratedPipeline);
 						StackInfo.Pipelines.Add(GeneratedPipeline);
 					}
@@ -1650,8 +1649,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	{
 		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < ImportAssetParameters.OverridePipelines.Num(); ++GraphPipelineIndex)
 		{
-			const FString OverridePiplinesStackName = TEXT("Overrides");
-			UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], OverridePiplinesStackName);
+			UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], PipelineInstancesPackage);
 			if (!GeneratedPipeline)
 			{
 				UE_LOG(LogInterchangeEngine, Error, TEXT("Interchange import: Override pipeline array contains a NULL pipeline. Script or code need to be fix to avoid this. "));
