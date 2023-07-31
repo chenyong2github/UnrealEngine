@@ -56,7 +56,13 @@ public:
 	{
 		EMeshDetailLevel DetailLevel = EMeshDetailLevel::Standard;
 		TArray<FTransform3d> TransformSequence;		// set of transforms on this instance. Often just a single transform.
-		int32 GroupDataIndex = -1;		// index into FSourceInstanceList::InstanceGroupDatas
+		int32 GroupDataIndex = -1;					// index into FSourceInstanceList::InstanceGroupDatas
+
+		// in some cases it may be desirable to have "groups" of instances which should be output as separate meshes, but
+		// be jointly processed in terms of (eg) the part LODs. If any InstanceSubsetID is non-zero, then instance subsets
+		// are grouped/extracted by integer ID and will be returned as separate FOutputMesh's in the FResults. 
+		// No hidden-removal, triangle merging optimization, etc will be performed between Instance Subsets.
+		int32 InstanceSubsetID = 0;
 	};
 
 
@@ -273,6 +279,9 @@ public:
 		TArray<UMaterialInterface*> MaterialSet;
 
 		FKAggregateGeom SimpleCollisionShapes;
+
+		// All part instances accumulated into the MeshLODs will have had this InstanceSubsetID in their input FBaseMeshInstance's
+		int32 InstanceSubsetID = 0;
 	};
 
 
