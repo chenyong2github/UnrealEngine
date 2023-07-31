@@ -1125,8 +1125,15 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 
 	bGCEndDelegateCancellAllTask = false;
 
-	auto UpdateNotification = [this]()
+	uint64 LastNotificationFrame = 0;
+	auto UpdateNotification = [this, &LastNotificationFrame]()
 	{
+		if (LastNotificationFrame == GFrameCounter)
+		{
+			return;
+		}
+		LastNotificationFrame = GFrameCounter;
+
 		if (Notification.IsValid())
 		{
 			int32 ImportTaskNumber = ImportTasks.Num() + QueueTaskCount;

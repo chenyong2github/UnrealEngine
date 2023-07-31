@@ -268,11 +268,23 @@ void FD3D12StateCache::SetViewports(uint32 Count, const D3D12_VIEWPORT* const Vi
 
 static void ValidateScissorRect(const D3D12_VIEWPORT& Viewport, const D3D12_RECT& ScissorRect)
 {
-	ensure(ScissorRect.left   >= (LONG)Viewport.TopLeftX);
-	ensure(ScissorRect.top    >= (LONG)Viewport.TopLeftY);
-	ensure(ScissorRect.right  <= (LONG)Viewport.TopLeftX + (LONG)Viewport.Width);
-	ensure(ScissorRect.bottom <= (LONG)Viewport.TopLeftY + (LONG)Viewport.Height);
-	ensure(ScissorRect.left <= ScissorRect.right && ScissorRect.top <= ScissorRect.bottom);
+	bool bScissorRectValid = true;
+	bScissorRectValid = bScissorRectValid && ScissorRect.left >= (LONG)Viewport.TopLeftX;
+	bScissorRectValid = bScissorRectValid && ScissorRect.top >= (LONG)Viewport.TopLeftY;
+	bScissorRectValid = bScissorRectValid && ScissorRect.right <= (LONG)Viewport.TopLeftX + (LONG)Viewport.Width;
+	bScissorRectValid = bScissorRectValid && ScissorRect.bottom <= (LONG)Viewport.TopLeftY + (LONG)Viewport.Height;
+	bScissorRectValid = bScissorRectValid && ScissorRect.left <= ScissorRect.right && ScissorRect.top <= ScissorRect.bottom;
+
+	ensureMsgf(bScissorRectValid,
+		TEXT("Scissor invalid with current Viewport. Scissor: [left:%li, top:%li, right:%li, bottom:%li]. Viewport: [left:%li, top:%li, right:%li, bottom:%li]")
+			, ScissorRect.left
+			, ScissorRect.top
+			, ScissorRect.right
+			, ScissorRect.bottom
+			, (LONG)Viewport.TopLeftX
+			, (LONG)Viewport.TopLeftY
+			, (LONG)Viewport.TopLeftX + (LONG)Viewport.Width
+			, (LONG)Viewport.TopLeftY + (LONG)Viewport.Height);
 }
 
 void FD3D12StateCache::SetScissorRect(const D3D12_RECT& ScissorRect)
