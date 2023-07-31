@@ -28,7 +28,23 @@ void UCustomizableObjectNodeTextureColourMap::AllocateDefaultPins(UCustomizableO
 	PinName = TEXT("Map");
 	UEdGraphPin* GradientPin = CustomCreatePin(EGPD_Input, Schema->PC_Image, FName(*PinName));
 	GradientPin->bDefaultValueIsIgnored = true;
+}
 
+
+void UCustomizableObjectNodeTextureColourMap::BackwardsCompatibleFixup()
+{
+	Super::BackwardsCompatibleFixup();
+
+	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::FixPinsNamesImageToTexture2)
+	{
+		if (UEdGraphPin* TexturePin = FindPin(TEXT("Image")))
+		{
+			TexturePin->PinName = TEXT("Texture");
+			UCustomizableObjectNode::ReconstructNode();
+		}
+	}
 }
 
 

@@ -24,7 +24,8 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	
 	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual void BackwardsCompatibleFixup() override;
 
 	UEdGraphPin* GetBaseImagePin() const;
 

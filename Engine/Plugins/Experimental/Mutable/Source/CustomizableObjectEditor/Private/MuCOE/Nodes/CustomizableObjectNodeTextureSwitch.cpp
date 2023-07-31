@@ -15,7 +15,24 @@ void UCustomizableObjectNodeTextureSwitch::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FCustomizableObjectCustomVersion::GUID) < FCustomizableObjectCustomVersion::PinsNamesImageToTexture)
 	{
-		OutputPinReference = FindPin(TEXT("Image"));	
+		OutputPinReference = FindPin(TEXT("Image"));
+	}
+}
+
+
+void UCustomizableObjectNodeTextureSwitch::BackwardsCompatibleFixup()
+{
+	Super::BackwardsCompatibleFixup();
+
+	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::FixPinsNamesImageToTexture2)
+	{
+		if (UEdGraphPin* TexturePin = FindPin(TEXT("Image")))
+		{
+			TexturePin->PinName = TEXT("Texture");
+			UCustomizableObjectNode::ReconstructNode();
+		}
 	}
 }
 

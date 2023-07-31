@@ -27,6 +27,30 @@ void UCustomizableObjectNodeTextureBinarise::AllocateDefaultPins(UCustomizableOb
 }
 
 
+void UCustomizableObjectNodeTextureBinarise::BackwardsCompatibleFixup()
+{
+	Super::BackwardsCompatibleFixup();
+
+	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::FixPinsNamesImageToTexture2)
+	{
+		if (UEdGraphPin* TexturePin = FindPin(TEXT("Image"))) {
+			TexturePin->PinName = TEXT("Texture");
+			UCustomizableObjectNode::ReconstructNode();
+		}
+	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::FixPinsNamesImageToTexture2)
+	{
+		if (UEdGraphPin* TexturePin = FindPin(TEXT("Base Image"))) {
+			TexturePin->PinName = TEXT("Base Texture");
+			UCustomizableObjectNode::ReconstructNode();
+		}
+	}
+}
+
+
 UEdGraphPin* UCustomizableObjectNodeTextureBinarise::GetBaseImagePin() const
 {
 	return BaseImagePinReference.Get();

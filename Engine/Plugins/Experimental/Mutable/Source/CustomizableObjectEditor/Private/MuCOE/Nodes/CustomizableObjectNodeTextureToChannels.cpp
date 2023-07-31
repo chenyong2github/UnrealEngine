@@ -67,6 +67,22 @@ void UCustomizableObjectNodeTextureToChannels::AllocateDefaultPins(UCustomizable
 }
 
 
+void UCustomizableObjectNodeTextureToChannels::BackwardsCompatibleFixup()
+{
+	Super::BackwardsCompatibleFixup();
+
+	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::FixPinsNamesImageToTexture2)
+	{
+		if (UEdGraphPin* TexturePin = FindPin(TEXT("Image"))) {
+			TexturePin->PinName = TEXT("Texture");
+			UCustomizableObjectNode::ReconstructNode();
+		}
+	}
+}
+
+
 UEdGraphPin* UCustomizableObjectNodeTextureToChannels::InputPin() const
 {
 	return InputPinReference.Get();

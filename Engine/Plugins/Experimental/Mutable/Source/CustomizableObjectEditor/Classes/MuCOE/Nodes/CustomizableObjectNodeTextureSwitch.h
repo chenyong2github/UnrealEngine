@@ -19,6 +19,9 @@ public:
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 
+	// UCustomizableObjectNode interface
+	virtual void BackwardsCompatibleFixup() override;
+
 	// UCustomizableObjectNodeSwitchBase interface
 	FString GetOutputPinName() const override;
 

@@ -116,6 +116,38 @@ void UCustomizableObjectNodeTextureProject::AllocateDefaultPins(UCustomizableObj
 }
 
 
+void UCustomizableObjectNodeTextureProject::BackwardsCompatibleFixup()
+{
+	Super::BackwardsCompatibleFixup();
+
+	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::FixPinsNamesImageToTexture2)
+	{
+		TArray<UEdGraphPin*> AllPins = GetAllPins();
+		uint32 TexturePinsCount = 0;
+		uint32 OutputPinsCount = 0;
+
+		for (UEdGraphPin* Pin : AllPins)
+		{
+			if (Pin && Pin->GetName().StartsWith(TEXT("Image "))) {
+				if (Pin->Direction == EGPD_Input)
+				{
+					Pin->PinName = FName(*FString::Printf(TEXT("Texture %d"), TexturePinsCount));
+					TexturePinsCount++;
+				}
+				else if (Pin->Direction == EGPD_Output)
+				{
+					Pin->PinName = FName(*FString::Printf(TEXT("Texture %d"), OutputPinsCount));
+					OutputPinsCount++;
+				}
+			}
+		}
+		UCustomizableObjectNode::ReconstructNode();
+	}
+}
+
+
 UEdGraphPin* UCustomizableObjectNodeTextureProject::TexturePins(int32 Index) const
 {
 	return TexturePinsReferences[Index].Get();	
