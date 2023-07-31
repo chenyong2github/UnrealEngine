@@ -191,8 +191,8 @@ void UVCamComponent::ApplyComponentInstanceData(FVCamComponentInstanceData& Comp
 	
 	// All modifiers were duplicated by the standard component cache system. Some modifiers references components, such as the cine camera component: the component cache system
 	// replaced the old referenced with reconstructed components (except for those properties marked as transient!).
-	// However, input must be manually re-initialized because since the modifiers were duplicated and the input system is still pointing at the old modifier instances.
-	// AppliedInputContext was nulled be the cache because is marked Transient, so we have to restore it manually.
+	// However, input must be manually re-initialized since the modifiers were duplicated and the input system is still pointing at the old modifier instances.
+	// AppliedInputContext was nulled by the cache because is marked Transient, so we have to restore it manually.
 	ReinitializeInput(ComponentInstanceData.AppliedInputContexts);
 }
 
@@ -1363,12 +1363,19 @@ void UVCamComponent::ReinitializeInput(TArray<TObjectPtr<UInputMappingContext>> 
 {
 	// There is no technical reason for this check other than validating assumptions
 	checkfSlow(GIsReconstructingBlueprintInstances, TEXT("This function was designed to be run for re-applying component instance data!"));
-	SubsystemCollection.Initialize(this);
-	RegisterInputComponent();
 
-	// AppliedInputContexts will have been nulled RegisterInputComponent. Now we can apply the contexts we received from the component instance data.
-	AppliedInputContexts = MoveTemp(InputContextsToReapply);
-	ApplyInputProfile();
+	if (UE::VCamCore::Private::CanInitVCamInstance(this))
+	{
+		// Should already be de-initialized but let's make sure.
+		SubsystemCollection.Deinitialize();
+		
+		SubsystemCollection.Initialize(this);
+		RegisterInputComponent();
+
+		// AppliedInputContexts will have been nulled RegisterInputComponent. Now we can apply the contexts we received from the component instance data.
+		AppliedInputContexts = MoveTemp(InputContextsToReapply);
+		ApplyInputProfile();
+	}
 }
 
 void UVCamComponent::SyncInputSettings()
