@@ -52,6 +52,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	FName LodGroup = NAME_None;
 
+	/** If checked, custom collision will be imported and if there is no custom collision, a generic collision will be automatically generated.
+	 * If unchecked there will be no collision created or imported.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Collision"))
+	bool bImportCollision = true;
+
 	/**
 	 * If enabled, meshes with certain prefixes will be imported as collision primitives for the mesh with the corresponding unprefixed name.
 	 * 
@@ -61,12 +67,11 @@ public:
 	 * USP_ Sphere collision
 	 * UCX_ Convex collision
 	 */
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Collision", editcondition = "bImportCollision"))
 	bool bImportCollisionAccordingToMeshName = true;
 
 	/** If enabled, each UCX collision mesh will be imported as a single convex hull. If disabled, a UCX mesh will be decomposed into its separate pieces and a convex hull generated for each. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Collision", editcondition = "bImportCollision && bImportCollisionAccordingToMeshName"))
 	bool bOneConvexHullPerUCX = true;
 
 	//////	Static Meshes Build settings Properties //////

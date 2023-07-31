@@ -126,6 +126,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
 	bool SetOneConvexHullPerUCX(bool AttributeValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool GetImportCollision(bool& AttributeValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMeshLodData")
+	bool SetImportCollision(bool AttributeValue);
+
 
 private:
 
@@ -138,4 +144,5 @@ private:
 	UE::Interchange::TArrayAttributeHelper<FString> ConvexCollisionMeshUids;
 
 	const UE::Interchange::FAttributeKey Macro_CustomOneConvexHullPerUCXKey = UE::Interchange::FAttributeKey(TEXT("__OneConvexHullPerUCX__Key"));
+	const UE::Interchange::FAttributeKey Macro_CustomImportCollisionKey = UE::Interchange::FAttributeKey(TEXT("__ImportCollision__Key"));
 };

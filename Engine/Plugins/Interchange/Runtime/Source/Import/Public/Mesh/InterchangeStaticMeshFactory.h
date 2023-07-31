@@ -72,6 +72,7 @@ private:
 	struct FImportAssetObjectData
 	{
 		bool bImportedCustomCollision = false;
+		bool bImportCollision = false;
 		TArray<FMeshDescription> LodMeshDescriptions;
 	};
 	FImportAssetObjectData ImportAssetObjectData;

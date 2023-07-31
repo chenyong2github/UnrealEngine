@@ -320,6 +320,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::Impor
 	TArray<FMeshDescription>& LodMeshDescriptions = ImportAssetObjectData.LodMeshDescriptions;
 	LodMeshDescriptions.SetNum(LodCount);
 
+	bool bImportCollision = false;
 	bool bImportedCustomCollision = false;
 	int32 CurrentLodIndex = 0;
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
@@ -437,10 +438,14 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::Impor
 		// Import collision geometry
 		if (CurrentLodIndex == 0)
 		{
-			bImportedCustomCollision |= ImportBoxCollision(Arguments, StaticMesh, LodDataNode);
-			bImportedCustomCollision |= ImportCapsuleCollision(Arguments, StaticMesh, LodDataNode);
-			bImportedCustomCollision |= ImportSphereCollision(Arguments, StaticMesh, LodDataNode);
-			bImportedCustomCollision |= ImportConvexCollision(Arguments, StaticMesh, LodDataNode);
+			LodDataNode->GetImportCollision(bImportCollision);
+			if(bImportCollision)
+			{
+				bImportedCustomCollision |= ImportBoxCollision(Arguments, StaticMesh, LodDataNode);
+				bImportedCustomCollision |= ImportCapsuleCollision(Arguments, StaticMesh, LodDataNode);
+				bImportedCustomCollision |= ImportSphereCollision(Arguments, StaticMesh, LodDataNode);
+				bImportedCustomCollision |= ImportConvexCollision(Arguments, StaticMesh, LodDataNode);
+			}
 		}
 
 		CurrentLodIndex++;
@@ -462,6 +467,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::Impor
 	}
 #endif // WITH_EDITOR
 
+	ImportAssetObjectData.bImportCollision = bImportCollision;
 	ImportAssetObjectData.bImportedCustomCollision = bImportedCustomCollision;
 
 	// Getting the file Hash will cache it into the source data
@@ -638,16 +644,19 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::EndIm
 	}
 #endif // WITH_EDITOR
 
-	if (!ImportAssetObjectData.bImportedCustomCollision)
+	if(ImportAssetObjectData.bImportCollision)
 	{
-		GenerateKDopCollision(Arguments, StaticMesh);
-	}
+		if (!ImportAssetObjectData.bImportedCustomCollision)
+		{
+			GenerateKDopCollision(Arguments, StaticMesh);
+		}
 #if WITH_EDITORONLY_DATA
-	else
-	{
-		StaticMesh->bCustomizedCollision = true;
-	}
+		else
+		{
+			StaticMesh->bCustomizedCollision = true;
+		}
 #endif // WITH_EDITORONLY_DATA
+	}
 #if WITH_EDITOR
 	//Lod group need to use the static mesh API and cannot use the apply delegate
 	if (!Arguments.ReimportObject)
@@ -1294,7 +1303,7 @@ bool UInterchangeStaticMeshFactory::ImportBoxCollision(const FImportAssetObjectP
 	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, BoxCollisionMeshUids);
 	for (const FMeshPayload& MeshPayload : MeshPayloads)
 	{
-		const FTransform& Transform = MeshPayload.Transform;
+		const FTransform Transform = FTransform::Identity;
 		const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 		if (!PayloadData.IsSet())
@@ -1342,7 +1351,7 @@ bool UInterchangeStaticMeshFactory::ImportCapsuleCollision(const FImportAssetObj
 	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, CapsuleCollisionMeshUids);
 	for (const FMeshPayload& MeshPayload : MeshPayloads)
 	{
-		const FTransform& Transform = MeshPayload.Transform;
+		const FTransform& Transform = FTransform::Identity;
 		const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 		if (!PayloadData.IsSet())
@@ -1390,7 +1399,7 @@ bool UInterchangeStaticMeshFactory::ImportSphereCollision(const FImportAssetObje
 	TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, SphereCollisionMeshUids);
 	for (const FMeshPayload& MeshPayload : MeshPayloads)
 	{
-		const FTransform& Transform = MeshPayload.Transform;
+		const FTransform& Transform = FTransform::Identity;
 		const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 		if (!PayloadData.IsSet())
@@ -1441,7 +1450,7 @@ bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FImportAssetObje
 	{
 		for (const FMeshPayload& MeshPayload : MeshPayloads)
 		{
-			const FTransform& Transform = MeshPayload.Transform;
+			const FTransform& Transform = FTransform::Identity;
 			const TOptional<FMeshPayloadData>& PayloadData = MeshPayload.PayloadData.Get();
 
 			if (!PayloadData.IsSet())
@@ -1466,7 +1475,7 @@ bool UInterchangeStaticMeshFactory::ImportConvexCollision(const FImportAssetObje
 
 		for (const FMeshPayload& MeshPayload : MeshPayloads)
 		{
-			const FTransform& Transform = MeshPayload.Transform;
+			const FTransform& Transform = FTransform::Identity;
 			TOptional<FMeshPayloadData> PayloadData = MeshPayload.PayloadData.Get();
 
 			if (!PayloadData.IsSet())
