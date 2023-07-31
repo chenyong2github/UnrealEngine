@@ -1785,6 +1785,9 @@ bool FObjectReplicator::CanSkipUpdate(FReplicationFlags RepFlags)
 	// Any changelists to send ?
 	bCanSkip = bCanSkip && SendingRepState.LastChangelistIndex == RepChangelistState.HistoryEnd;
 
+	// Is the changelist history fully acknowledged ?
+	bCanSkip = bCanSkip && SendingRepState.HistoryStart == SendingRepState.HistoryEnd;
+
 	// Are we resending data for replay ?
 	bCanSkip = bCanSkip && Connection->ResendAllDataState == EResendAllDataState::None;
 
