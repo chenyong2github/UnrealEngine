@@ -26,6 +26,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -62,7 +63,28 @@ struct FStructDetailNotifyHook : FNotifyHook
 	FMVVMBlueprintViewBinding Binding;
 	TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> MVVMExtension;
 };
+
+void SetSelectObjectsToViewSettings(TWeakPtr<FWidgetBlueprintEditor> WeakEditor)
+{
+	if (TSharedPtr<FWidgetBlueprintEditor> Editor = WeakEditor.Pin())
+	{
+		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		if (!Subsystem)
+		{
+			return;
+		}
+
+		if (UMVVMBlueprintView* BlueprintView = Subsystem->GetView(Editor->GetWidgetBlueprintObj()))
+		{
+			Editor->CleanSelection();
+			TSet<UObject*> Selections;
+			Selections.Add(BlueprintView->GetSettings());
+			Editor->SelectObjects(Selections);
+		}
+	}
 }
+
+} //namespace UE::MVVM::Private
 
 /** */
 void SBindingsPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor, bool bInIsDrawerTab)
@@ -425,11 +447,6 @@ void SBindingsPanel::HandleExtensionAdded(UBlueprintExtension* NewExtension)
 
 TSharedRef<SWidget> SBindingsPanel::GenerateSettingsMenu()
 {
-	UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get();
-	DetailsView->SetObject(MVVMExtensionPtr && MVVMExtensionPtr->GetBlueprintView() ? MVVMExtensionPtr->GetBlueprintView() : nullptr);
-	DetailContainer->SetContent(DetailsView.ToSharedRef());
-	NotifyHook->Binding = FMVVMBlueprintViewBinding();
-
 	UWidgetBlueprintToolMenuContext* WidgetBlueprintMenuContext = NewObject<UWidgetBlueprintToolMenuContext>();
 	WidgetBlueprintMenuContext->WidgetBlueprintEditor = WeakBlueprintEditor;
 
@@ -441,6 +458,21 @@ TSharedRef<SWidget> SBindingsPanel::GenerateSettingsMenu()
 void SBindingsPanel::RegisterSettingsMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVM.ViewBindings.Toolbar");
+	FToolMenuSection& Section = Menu->FindOrAddSection("Settings");
+	Section.AddDynamicEntry("Settings", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (const UWidgetBlueprintToolMenuContext* Context = InSection.FindContext<UWidgetBlueprintToolMenuContext>())
+			{
+				InSection.AddMenuEntry(
+					"ViewSettings"
+					, LOCTEXT("ViewSettings", "View Settings")
+					, LOCTEXT("ViewSettingsTooltip", "View Settings")
+					, FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon")
+					, FUIAction(FExecuteAction::CreateStatic(UE::MVVM::Private::SetSelectObjectsToViewSettings, Context->WidgetBlueprintEditor))
+					, EUserInterfaceActionType::Button
+				);
+			}
+		}));
 }
 
 
@@ -453,6 +485,12 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 	{
 		BindingsList = SNew(SBindingsList, StaticCastSharedRef<SBindingsPanel>(AsShared()), MVVMExtension.Get());
 	}
+
+	DetailContainer = SNew(SBorder)
+		.Visibility(EVisibility::Collapsed)
+		[
+			DetailsView.ToSharedRef()
+		];
 
 	TSharedPtr<SHorizontalBox> BindingPanelToolBar = SNew(SHorizontalBox);
 
@@ -544,6 +582,23 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
+
+		ToolbarBuilderGlobal.AddWidget(
+			SNew(SComboButton)
+			.HasDownArrow(false)
+			.ContentPadding(0)
+			.ForegroundColor(FSlateColor::UseForeground())
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.MenuContent()
+			[
+				GenerateSettingsMenu()
+			]
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("DetailsView.ViewOptions"))
+			]
+		);
 
 		ToolbarBuilderGlobal.EndSection();
 	}
@@ -647,11 +702,7 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 				+ SSplitter::Slot()
 				.Value(0.25f)
 				[
-					SAssignNew(DetailContainer, SBorder)
-					.Visibility(EVisibility::Collapsed)
-					[
-						DetailsView.ToSharedRef()
-					]
+					DetailContainer.ToSharedRef()
 				]
 			]
 		];

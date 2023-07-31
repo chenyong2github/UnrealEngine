@@ -68,8 +68,41 @@ public:
 	virtual void Destruct() override;
 	//~ End UUserWidgetExtension implementation
 
+	/**
+	 * Initialize the sources if they are not already initialized.
+	 * Initializing the sources will also initialize the bindings if the option bInitializeBindingsOnConstruct is enabled.
+	 * @note A sources can be a viewmodel or any other object used by a binding.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
+	void InitializeSources();
+	/**
+	 * Uninitialize the sources if they are already initialized.
+	 * It will uninitialized the bindings.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
+	void UninitializeSources();
+	/** The sources were initialized, manually or automatically. */
+	UFUNCTION(BlueprintPure, Category = "Viewmodel")
+	bool AreSourcesInitialized() const
+	{
+		return bSourcesInitialized;
+	}
+
+	/**
+	 * Initialize the bindings if they are not already initialized.
+	 * Initializing the bindings will execute them.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	void InitializeBindings();
-	void DeinitializeBindings();
+	/** Uninitialize the bindings if they are already initialized. */
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
+	void UninitializeBindings();
+	/** The bindings were initialized, manually or automatically. */
+	UFUNCTION(BlueprintPure, Category = "Viewmodel")
+	bool AreBindingsInitialized() const
+	{
+		return bBindingsInitialized;
+	}
 
 	const UMVVMViewClass* GetViewClass() const
 	{
@@ -107,6 +140,7 @@ public:
 private:
 	bool EvaluateSourceCreator(int32 SourceIndex);
 	bool SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel, bool bForDynamicSource);
+	void UninitializeInternal(bool bSources);
 
 	void HandledLibraryBindingValueChanged(UObject* InViewModel, UE::FieldNotification::FFieldId InFieldId, int32 InCompiledBindingIndex) const;
 
@@ -143,7 +177,10 @@ private:
 	
 	/** Is the Initialize method called. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")
-	bool bInitialized = false;
+	bool bSourcesInitialized = false;
+	/** Is the Initialize method called. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")
+	bool bBindingsInitialized = false;
 
 	/** The view has at least one binding that need to be ticked every frame. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")

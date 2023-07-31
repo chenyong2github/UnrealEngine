@@ -16,8 +16,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMView)
 
+DECLARE_CYCLE_STAT(TEXT("InitializeSources"), STAT_UMG_Viewmodel_InitializeSources, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("UninitializeSources"), STAT_UMG_Viewmodel_UninitializeSources, STATGROUP_UMG_Viewmodel);
 DECLARE_CYCLE_STAT(TEXT("InitializeBindings"), STAT_UMG_Viewmodel_InitializeBindings, STATGROUP_UMG_Viewmodel);
-DECLARE_CYCLE_STAT(TEXT("DeinitializeBindings"), STAT_UMG_Viewmodel_DeinitializeBindings, STATGROUP_UMG_Viewmodel);
+DECLARE_CYCLE_STAT(TEXT("UninitializeBindings"), STAT_UMG_Viewmodel_UninitializeBindings, STATGROUP_UMG_Viewmodel);
 DECLARE_CYCLE_STAT(TEXT("SetSource"), STAT_UMG_Viewmodel_SetSource, STATGROUP_UMG_Viewmodel);
 DECLARE_CYCLE_STAT(TEXT("ExecuteBinding ValueChanged"), STAT_UMG_Viewmodel_ExecuteBinding_ValueChanged, STATGROUP_UMG_Viewmodel);
 DECLARE_CYCLE_STAT(TEXT("ExecuteBinding Delayed"), STAT_UMG_Viewmodel_ExecuteBinding_Delayed, STATGROUP_UMG_Viewmodel);
@@ -50,21 +52,38 @@ void UMVVMView::Construct()
 	check(ClassExtension);
 	check(bConstructed == false);
 
-	if (ClassExtension->DoesInitializeAtConstruction())
+	if (ClassExtension->InitializeSourcesOnConstruct())
 	{
-		InitializeBindings();
+		InitializeSources();
 	}
 
 	bConstructed = true;
 }
 
-void UMVVMView::InitializeBindings()
+
+void UMVVMView::Destruct()
 {
-	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_InitializeBindings);
+	check(bConstructed == true);
+	bConstructed = false;
 
-	check(bInitialized == false);
+#if UE_WITH_MVVM_DEBUGGING
+	UE::MVVM::FDebugging::BroadcastViewBeginDestruction(this);
+#endif
 
-	// Init ViewModel instances
+	UninitializeSources(); // and bindings
+}
+
+
+void UMVVMView::InitializeSources()
+{
+	if (bSourcesInitialized || ClassExtension == nullptr)
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_InitializeSources);
+
+	// Init Sources/ViewModel instances
 	UUserWidget* UserWidget = GetUserWidget();
 	const TArrayView<const FMVVMViewClass_SourceCreator> AllViewModelCreators = ClassExtension->GetViewModelCreators();
 	for (int32 Index = 0; Index < AllViewModelCreators.Num(); ++Index)
@@ -96,9 +115,45 @@ void UMVVMView::InitializeBindings()
 		}
 	}
 
+	bSourcesInitialized = true;
+
 #if UE_WITH_MVVM_DEBUGGING
 	UE::MVVM::FDebugging::BroadcastViewConstructed(this);
 #endif
+
+	if (ClassExtension->InitializeBindingsOnConstruct())
+	{
+		InitializeBindings();
+	}
+}
+
+
+void UMVVMView::UninitializeSources()
+{
+	if (!bSourcesInitialized)
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_UninitializeSources);
+
+	UninitializeInternal(true);
+}
+
+
+void UMVVMView::InitializeBindings()
+{
+	if (!bSourcesInitialized)
+	{
+		InitializeSources();
+	}
+
+	if (bBindingsInitialized)
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_InitializeBindings);
 
 	bHasEveryTickBinding = false;
 
@@ -115,7 +170,7 @@ void UMVVMView::InitializeBindings()
 		}
 	}
 
-	bInitialized = true;
+	bBindingsInitialized = true;
 
 	if (bHasEveryTickBinding)
 	{
@@ -124,27 +179,27 @@ void UMVVMView::InitializeBindings()
 }
 
 
-void UMVVMView::Destruct()
+void UMVVMView::UninitializeBindings()
 {
-	check(bConstructed == true);
-	bConstructed = false;
-
-#if UE_WITH_MVVM_DEBUGGING
-	UE::MVVM::FDebugging::BroadcastViewBeginDestruction(this);
-#endif
-
-	if (bInitialized)
+	if (!bBindingsInitialized)
 	{
-		DeinitializeBindings();
+		return;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_UninitializeBindings);
+
+	UninitializeInternal(false);
 }
 
-void UMVVMView::DeinitializeBindings()
-{
-	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_DeinitializeBindings);
 
-	check(bInitialized == true);
-	bInitialized = false;
+void UMVVMView::UninitializeInternal(bool bUninitializeSources)
+{
+	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_UninitializeBindings);
+
+	bool bUninitializeBindings = bBindingsInitialized;
+
+	bBindingsInitialized = false;
+	bSourcesInitialized = !bUninitializeSources;
 
 	UUserWidget* UserWidget = GetUserWidget();
 	check(UserWidget);
@@ -155,7 +210,7 @@ void UMVVMView::DeinitializeBindings()
 		const FMVVMViewClass_SourceCreator& Item = AllViewModelCreators[Index];
 		FMVVMViewSource& Source = Sources[Index];
 
-		if (Source.RegisteredCount > 0 && Source.Source)
+		if (Source.RegisteredCount > 0 && Source.Source && bUninitializeBindings)
 		{
 			TScriptInterface<INotifyFieldValueChanged> SourceAsInterface = Source.Source;
 			checkf(SourceAsInterface.GetInterface(), TEXT("It was added as a INotifyFieldValueChanged. It should still be."));
@@ -163,7 +218,7 @@ void UMVVMView::DeinitializeBindings()
 		}
 
 		// For GC release any object used by the view
-		if (!Source.bSetManually)
+		if (!Source.bSetManually && bUninitializeSources)
 		{
 			Item.DestroyInstance(Source.Source, this);
 
@@ -184,6 +239,7 @@ void UMVVMView::DeinitializeBindings()
 
 	if (bHasEveryTickBinding)
 	{
+		ensureMsgf(bUninitializeBindings, TEXT("The "));
 		GEngine->GetEngineSubsystem<UMVVMBindingSubsystem>()->RemoveViewWithEveryTickBinding(this);
 	}
 	bHasEveryTickBinding = false;
@@ -336,7 +392,7 @@ bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyF
 		const TArrayView<const FMVVMViewClass_CompiledBinding> CompiledBindings = ClassExtension->GetCompiledBindings();
 
 		// Unregister any bindings from that source
-		if (bInitialized)
+		if (bBindingsInitialized)
 		{
 			for (int32 Index = 0; Index < CompiledBindings.Num(); ++Index)
 			{
@@ -367,8 +423,8 @@ bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyF
 
 		bool bPreviousEveryTickBinding = bHasEveryTickBinding;
 		bHasEveryTickBinding = false;
-		// Register back any binding that was previously enabled
-		if (bInitialized && NewValue.GetObject())
+		// Register back any bindings that was previously enabled
+		if (bBindingsInitialized && NewValue.GetObject())
 		{
 			// Enabled the default bindings
 			for (int32 Index = 0; Index < CompiledBindings.Num(); ++Index)
@@ -398,7 +454,7 @@ bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyF
 			}
 		}
 
-		if (bInitialized && bPreviousEveryTickBinding != bHasEveryTickBinding)
+		if (bBindingsInitialized && bPreviousEveryTickBinding != bHasEveryTickBinding)
 		{
 			if (bHasEveryTickBinding)
 			{
@@ -473,8 +529,9 @@ void UMVVMView::ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBind
 {
 	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_ExecuteBinding_Delayed);
 
-	if (ensure(ClassExtension) && bInitialized)
+	if (ensure(ClassExtension) && bBindingsInitialized)
 	{
+		ensure(bSourcesInitialized);
 		if (ensure(ClassExtension->GetCompiledBindings().IsValidIndex(DelayedBinding.GetCompiledBindingIndex())))
 		{
 			if (IsLibraryBindingEnabled(DelayedBinding.GetCompiledBindingIndex()))
@@ -514,9 +571,10 @@ void UMVVMView::ExecuteEveryTickBindings() const
 	SCOPE_CYCLE_COUNTER(STAT_UMG_Viewmodel_ExecuteBinding_Tick);
 
 	ensure(bHasEveryTickBinding);
-	ensure(bInitialized);
+	ensure(bBindingsInitialized);
+	ensure(bSourcesInitialized);
 
-	if (ClassExtension && bInitialized)
+	if (ClassExtension && bBindingsInitialized)
 	{
 		const TArrayView<const FMVVMViewClass_CompiledBinding> CompiledBindings = ClassExtension->GetCompiledBindings();
 

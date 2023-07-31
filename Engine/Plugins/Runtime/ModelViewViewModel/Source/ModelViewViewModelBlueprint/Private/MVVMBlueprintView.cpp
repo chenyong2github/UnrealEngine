@@ -12,6 +12,11 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintView)
 
 
+UMVVMBlueprintView::UMVVMBlueprintView()
+{
+	Settings = CreateDefaultSubobject<UMVVMBlueprintViewSettings>("Settings");
+}
+
 FMVVMBlueprintViewModelContext* UMVVMBlueprintView::FindViewModel(FGuid ViewModelId)
 {
 	return AvailableViewModels.FindByPredicate([ViewModelId](const FMVVMBlueprintViewModelContext& Other)

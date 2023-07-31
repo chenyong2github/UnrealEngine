@@ -95,6 +95,9 @@ private:
 	void HandleRenameViewModel();
 	bool HandleCanRenameViewModel() const;
 
+	EVisibility GetWarningPanelVisibility() const;
+	FReply HandleDisableWarningPanel();
+
 	void CreateCommandList();
 	void FillViewModel();
 	bool RenameViewModelProperty(FGuid ViewModelGuid, const FText& RenameTo, bool bCommit, FText& OutErrorMessage) const;
@@ -124,6 +127,7 @@ private:
 	FGuid SelectedViewModelGuid;
 	FName PreviousViewModelPropertyName;
 	bool bIsViewModelSelecting = false;
+	bool bDisableWarningPanel = false;
 };
 
 } // namespace

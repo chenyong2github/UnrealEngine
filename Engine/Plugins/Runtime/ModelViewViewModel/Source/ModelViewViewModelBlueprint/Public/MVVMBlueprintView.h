@@ -29,6 +29,34 @@ namespace  UE::MVVM
 }
 
 /**
+ *
+ */
+UCLASS(MinimalAPI)
+class UMVVMBlueprintViewSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Auto initialize the view sources when the Widget is constructed.
+	 * If false, the user will have to initialize the sources manually.
+	 * It prevents the sources evaluating until you are ready.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Viewmodel")
+	bool bInitializeSourcesOnConstruct = true;
+	/**
+	 * Auto initialize the view bindings when the Widget is constructed.
+	 * If false, the user will have to initialize the bindings manually.
+	 * It prevents bindings execution and improves performance when you know the widget won't be visible.
+	 * @note All bindings are executed when the view is automatically initialized or manually initialized.
+	 * @note Sources needs to be initialized before initializing the bindings.
+	 * @note When Sources is manually initialized, the bindings will also be initialized if this is true.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Viewmodel", meta=(EditCondition="bInitializeSourcesOnConstruct"))
+	bool bInitializeBindingsOnConstruct = true;
+};
+
+/**
  * 
  */
 UCLASS(Within=MVVMWidgetBlueprintExtension_View)
@@ -37,6 +65,14 @@ class MODELVIEWVIEWMODELBLUEPRINT_API UMVVMBlueprintView : public UObject
 	GENERATED_BODY()
 
 public:
+	UMVVMBlueprintView();
+
+public:
+	UMVVMBlueprintViewSettings* GetSettings()
+	{
+		return Settings;
+	}
+
 	FMVVMBlueprintViewModelContext* FindViewModel(FGuid ViewModelId);
 	const FMVVMBlueprintViewModelContext* FindViewModel(FGuid ViewModelId) const;
 	const FMVVMBlueprintViewModelContext* FindViewModel(FName ViewModelName) const;
@@ -111,6 +147,9 @@ public:
 	TArray<TObjectPtr<UEdGraph>> TemporaryGraph;
 
 private:
+	UPROPERTY()
+	TObjectPtr<UMVVMBlueprintViewSettings> Settings;
+
 	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	TArray<FMVVMBlueprintViewBinding> Bindings;
 

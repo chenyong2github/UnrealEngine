@@ -333,9 +333,14 @@ public:
 
 public:
 	/** Should it automatically execute the bindings when the view is constructed or they will be executed manually. */
-	bool DoesInitializeAtConstruction() const
+	bool InitializeSourcesOnConstruct() const
 	{
-		return bInitializeAtConstruction;
+		return bInitializeSourcesOnConstruct;
+	}
+	/** Should it automatically execute the bindings when the view is constructed or they will be executed manually. */
+	bool InitializeBindingsOnConstruct() const
+	{
+		return bInitializeBindingsOnConstruct;
 	}
 	
 	/** Get the list of the needed ViewModel. */
@@ -395,7 +400,10 @@ private:
 
 	/** */
 	UPROPERTY()
-	bool bInitializeAtConstruction = true;
+	bool bInitializeSourcesOnConstruct = true;
+	/** */
+	UPROPERTY()
+	bool bInitializeBindingsOnConstruct = true;
 
 #if WITH_EDITORONLY_DATA
 	FDelegateHandle BluerpintCompiledHandle;

@@ -17,8 +17,11 @@
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/MVVMEditorStyle.h"
 
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/PropertyViewer/SFieldIcon.h"
@@ -26,6 +29,7 @@
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SPositiveActionButton.h"
+#include "SWarningOrErrorBox.h"
 
 #define LOCTEXT_NAMESPACE "ViewModelPanel"
 
@@ -46,24 +50,70 @@ void UMVVMBlueprintViewModelContextWrapper::PostEditChangeProperty(struct FPrope
 	}
 }
 
+namespace UE::MVVM::Private
+{
+
+void SetSelectObjectsToView(TWeakPtr<FWidgetBlueprintEditor> WeakEditor)
+{
+	if (TSharedPtr<FWidgetBlueprintEditor> Editor = WeakEditor.Pin())
+	{
+		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		if (!Subsystem)
+		{
+			return;
+		}
+
+		if (UMVVMBlueprintView* BlueprintView = Subsystem->GetView(Editor->GetWidgetBlueprintObj()))
+		{
+			Editor->CleanSelection();
+			TSet<UObject*> Selections;
+			Selections.Add(BlueprintView->GetSettings());
+			Editor->SelectObjects(Selections);
+		}
+	}
+}
+
+} //namespace UE::MVVM::Private
+
 namespace UE::MVVM
 {
 
 void SMVVMViewModelPanel::RegisterMenu()
 {
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVM.Viewmodels.Toolbar");
-	Menu->MenuType = EMultiBoxType::SlimHorizontalToolBar;
-	FToolMenuSection& Section = Menu->FindOrAddSection("Left");
-	Section.AddDynamicEntry("AddViewmodel", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-		{
-			if (const UMVVMViewModelPanelToolMenuContext* Context = InSection.FindContext<UMVVMViewModelPanelToolMenuContext>())
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVM.Viewmodels.Toolbar");
+		Menu->MenuType = EMultiBoxType::SlimHorizontalToolBar;
+		FToolMenuSection& Section = Menu->FindOrAddSection("Left");
+		Section.AddDynamicEntry("AddViewmodel", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
-				if (TSharedPtr<SMVVMViewModelPanel> ViewModelPanel = Context->ViewModelPanel.Pin())
+				if (const UMVVMViewModelPanelToolMenuContext* Context = InSection.FindContext<UMVVMViewModelPanelToolMenuContext>())
 				{
-					ViewModelPanel->BuildContextMenu(InSection);
+					if (TSharedPtr<SMVVMViewModelPanel> ViewModelPanel = Context->ViewModelPanel.Pin())
+					{
+						ViewModelPanel->BuildContextMenu(InSection);
+					}
 				}
-			}
-		}));
+			}));
+	}
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVM.Viewmodels.Settings");
+		//Menu->MenuType = EMultiBoxType::Menu;
+		FToolMenuSection& Section = Menu->FindOrAddSection("Main");
+		Section.AddDynamicEntry("Main", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				if (const UWidgetBlueprintToolMenuContext* Context = InSection.FindContext<UWidgetBlueprintToolMenuContext>())
+				{
+					InSection.AddMenuEntry(
+						"ViewSettings"
+						, LOCTEXT("ViewSettings", "View Settings")
+						, LOCTEXT("ViewSettingsTooltip", "View Settings")
+						, FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon")
+						, FUIAction(FExecuteAction::CreateStatic(UE::MVVM::Private::SetSelectObjectsToView, Context->WidgetBlueprintEditor))
+						, EUserInterfaceActionType::Button
+					);
+				}
+			}));
+	}
 }
 
 
@@ -132,12 +182,28 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.SearchBoxPreSlot()
 		[
 			UToolMenus::Get()->GenerateWidget("MVVM.Viewmodels.Toolbar", GenerateWidgetContext)
+		]
+		.SearchBoxPostSlot()
+		[
+			SNew(SComboButton)
+			.HasDownArrow(false)
+			.ContentPadding(0)
+			.ForegroundColor(FSlateColor::UseForeground())
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.MenuContent()
+			[
+				UToolMenus::Get()->GenerateWidget("MVVM.Viewmodels.Settings", GenerateWidgetContext)
+			]
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("DetailsView.ViewOptions"))
+			]
 		];
 
 	FillViewModel();
 
 	ModelContextWrapper.Reset(NewObject<UMVVMBlueprintViewModelContextWrapper>());
-
 
 	ChildSlot
 	[
@@ -145,11 +211,26 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 		.Padding(0)
 		[
-			SNew(SSplitter)
-			.Orientation(EOrientation::Orient_Vertical)
-			+ SSplitter::Slot()
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.FillHeight(1.f)
 			[
 				ViewModelTreeView.ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(FMargin(0.0f, 8.0f, 0.0f, 4.0f))
+			[
+				SNew(SWarningOrErrorBox)
+				.Visibility(this, &SMVVMViewModelPanel::GetWarningPanelVisibility)
+				.MessageStyle(EMessageStyle::Warning)
+				.Message(LOCTEXT("InitializationPanelWarningDescription", "The view will not initialize automatically. It was manually set in the View Settings."))
+				[
+					SNew(SButton)
+					.OnClicked(this, &SMVVMViewModelPanel::HandleDisableWarningPanel)
+					.TextStyle(FAppStyle::Get(), "DialogButtonText")
+					.Text(LOCTEXT("WarningDisable", "Dismiss"))
+				]
 			]
 		]
 	];
@@ -230,6 +311,7 @@ void SMVVMViewModelPanel::HandleViewUpdated(UBlueprintExtension*)
 				if (CurrentBlueprintView)
 				{
 					ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
+
 					bViewUpdated = true;
 
 					WidgetBlueprint->OnExtensionAdded.Remove(ExtensionAddeddHandle);
@@ -685,6 +767,29 @@ bool SMVVMViewModelPanel::RenameViewModelProperty(FGuid ViewModelGuid, const FTe
 	return false;
 }
 
+
+EVisibility SMVVMViewModelPanel::GetWarningPanelVisibility() const
+{
+	if (!bDisableWarningPanel)
+	{
+		if (UMVVMBlueprintView* WidgetBlueprint = WeakBlueprintView.Get())
+		{
+			if (!WidgetBlueprint->GetSettings()->bInitializeSourcesOnConstruct || !WidgetBlueprint->GetSettings()->bInitializeBindingsOnConstruct)
+			{
+				return EVisibility::Visible;
+			}
+		}
+	}
+
+	return EVisibility::Collapsed;
+}
+
+
+FReply SMVVMViewModelPanel::HandleDisableWarningPanel()
+{
+	bDisableWarningPanel = true;
+	return FReply::Handled();
+}
 
 namespace Private
 {
