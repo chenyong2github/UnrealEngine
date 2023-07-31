@@ -13,7 +13,8 @@ TAutoConsoleVariable<int> CVarLocalExposureVisualizeDebugMode(
 	TEXT("When enabling Show->Visualize->Local Exposure is enabled, this flag controls which mode to use.\n")
 	TEXT("    0: Local Exposure\n")
 	TEXT("    1: Base Luminance\n")
-	TEXT("    2: Detail Luminance\n"),
+	TEXT("    2: Detail Luminance\n")
+	TEXT("    3: Valid Bilateral Grid Lookup\n"),
 	ECVF_RenderThreadSafe);
 
 class FVisualizeLocalExposurePS : public FGlobalShader

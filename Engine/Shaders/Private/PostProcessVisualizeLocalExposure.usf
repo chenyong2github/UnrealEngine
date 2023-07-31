@@ -52,6 +52,21 @@ float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition
 	{
 		OutValue = exp2(DetailLogLum);
 	}
+	else if (DebugMode == 3)
+	{
+		float LumW = (ComputeHistogramPositionFromLogLuminance(LogLuminance) * (BILATERAL_GRID_DEPTH - 1) + 0.5f) / BILATERAL_GRID_DEPTH;
+		float2 BilateralGridLum = Texture3DSample(LumBilateralGrid, TextureSampler, float3(ViewportUV, LumW)).xy;
+
+		if (BilateralGridLum.y < 0.001)
+		{
+			// bilateral grid doesn't have valid data
+			OutValue = float3(1,0,0);
+		}
+		else
+		{
+			OutValue = float3(0,1,0);
+		}
+	}
 
 	return float4(OutValue, 1.0f);
 }
