@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node.h"
+
 #include "K2Node_PixelMappingBaseComponent.generated.h"
 
-class UDMXPixelMapping;
 class FKismetCompilerContext;
+class UDMXPixelMapping;
+
 
 /**
  * Base Pixel Mapping node. Never use directly

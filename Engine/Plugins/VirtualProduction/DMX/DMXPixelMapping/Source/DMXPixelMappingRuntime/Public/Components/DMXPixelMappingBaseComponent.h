@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "DMXPixelMappingRuntimeCommon.h"
 #include "UObject/Object.h"
 
 #include "DMXPixelMappingBaseComponent.generated.h"
@@ -12,6 +11,8 @@ DECLARE_STATS_GROUP(TEXT("DMXPixelMapping"), STATGROUP_DMXPIXELMAPPING, STATCAT_
 
 class FDMXPixelMappingComponentTemplate;
 class UDMXPixelMappingRendererComponent;
+class UDMXPixelMapping;
+class UDMXPixelMappingRootComponent;
 
 
 /**
@@ -22,6 +23,11 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 	: public UObject
 {
 	GENERATED_BODY()
+
+	using TComponentPredicate = TFunctionRef<void(UDMXPixelMappingBaseComponent*)>;
+
+	template <typename Type>
+	using TComponentPredicateType = TFunctionRef<void(Type*)>;
 
 	DECLARE_EVENT_TwoParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentAdded, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** AddedComponent */);
 	DECLARE_EVENT_TwoParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRemoved, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** RemovedComponent */);
@@ -109,7 +115,7 @@ public:
 	 *
 	 * @param bIsRecursive		Should it loop recursively
 	 */
-	void ForEachChild(TComponentPredicate Predicate, bool bIsRecursive);
+	void ForEachChild(TFunctionRef<void(UDMXPixelMappingBaseComponent*)> Predicate, bool bIsRecursive);
 
 	/**
 	 * Looking for the first child by given Class

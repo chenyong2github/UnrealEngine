@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 
 struct FDMXAttributeName;
@@ -13,6 +12,7 @@ class UDMXPixelMappingBaseComponent;
 #if WITH_EDITOR
 struct FPropertyChangedChainEvent;
 #endif
+
 
 class DMXPIXELMAPPINGRUNTIME_API FDMXPixelMappingRuntimeUtils
 {

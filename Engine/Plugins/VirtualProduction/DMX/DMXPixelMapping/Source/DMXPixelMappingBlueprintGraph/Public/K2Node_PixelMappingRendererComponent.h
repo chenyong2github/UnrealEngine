@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node_PixelMappingBaseComponent.h"
+
 #include "K2Node_PixelMappingRendererComponent.generated.h"
 
 /**

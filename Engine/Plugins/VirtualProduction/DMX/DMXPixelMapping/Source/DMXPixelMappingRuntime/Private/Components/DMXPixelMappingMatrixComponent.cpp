@@ -9,7 +9,7 @@
 #include "DMXConversions.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingMainStreamObjectVersion.h"
-#include "DMXPixelMappingRuntimeCommon.h"
+#include "DMXPixelMappingRuntimeLog.h"
 #include "DMXPixelMappingRuntimeUtils.h"
 #include "DMXPixelMappingTypes.h"
 #include "ColorSpace/DMXPixelMappingColorSpace_RGBCMY.h"
@@ -28,7 +28,6 @@
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixComponent"
-
 
 UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 {

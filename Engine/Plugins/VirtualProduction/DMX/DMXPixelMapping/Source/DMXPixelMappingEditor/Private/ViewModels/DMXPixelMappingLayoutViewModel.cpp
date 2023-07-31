@@ -3,12 +3,12 @@
 #include "ViewModels/DMXPixelMappingLayoutViewModel.h"
 
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
-#include "DMXPixelMappingEditorCommon.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
+#include "DMXPixelMappingEditorLog.h"
 #include "LayoutScripts/DMXPixelMappingLayoutScript.h"
 #include "ScopedTransaction.h"
 #include "Settings/DMXPixelMappingEditorSettings.h"

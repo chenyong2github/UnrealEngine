@@ -3,20 +3,18 @@
 #include "DMXPixelMappingEditorUtils.h"
 
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingEditorCommon.h"
+#include "DMXPixelMappingEditorLog.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Layout/WidgetPath.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
 
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-
 #define LOCTEXT_NAMESPACE "FDMXPixelMappingEditorUtils"
-
 
 UDMXPixelMappingRendererComponent* FDMXPixelMappingEditorUtils::AddRenderer(UDMXPixelMapping* InPixelMapping)
 {

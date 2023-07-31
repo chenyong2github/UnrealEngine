@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "DMXPixelMappingRuntimeCommon.h"
 #include "Subsystems/EngineSubsystem.h"
+
 #include "DMXPixelMappingSubsystem.generated.h"
+
 
 UCLASS()
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingSubsystem

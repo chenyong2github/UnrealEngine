@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "UObject/Object.h"
 
 #include "DMXPixelMappingLayoutScript.generated.h"
@@ -10,7 +10,6 @@
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
 class UDMXPixelMappingOutputComponent;
-
 class UTextureRenderTarget2D;
 
 

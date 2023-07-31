@@ -69,7 +69,7 @@ namespace UE::DMX::PixelMappingEditor::SDMXPixelMappingHierarchyView::Private
 	};
 
 	/** Helper to adopt the expansion of items in theh hierarchy treeview */
-	void AdoptItemExpansionFromTree(const TSharedRef<STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>>& TreeView, const TSharedPtr<FDMXPixelMappingHierarchyItem>& Parent)
+	void AdoptItemExpansionFromTree(const TSharedRef<STreeView<TSharedPtr<FDMXPixelMappingHierarchyItem>>>& TreeView, const TSharedPtr<FDMXPixelMappingHierarchyItem>& Parent)
 	{
 		TreeView->SetItemExpansion(Parent, Parent->IsExpanded());
 		for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& Child : Parent->GetChildren())
@@ -102,7 +102,7 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 		FExecuteAction::CreateSP(this, &SDMXPixelMappingHierarchyView::DeleteSelectedComponents)
 	);
 
-	using TextFilterType = TTextFilter<FDMXPixelMappingHierarchyItemWidgetModelPtr>;
+	using TextFilterType = TTextFilter<TSharedPtr<FDMXPixelMappingHierarchyItem>>;
 	SearchFilter = MakeShared<TextFilterType>(TextFilterType::FItemToStringArray::CreateSP(this, &SDMXPixelMappingHierarchyView::GetWidgetFilterStrings));
 
 	FilterHandler = MakeShared<TreeFilterHandler<TSharedPtr<FDMXPixelMappingHierarchyItem>>>();
@@ -190,7 +190,7 @@ void SDMXPixelMappingHierarchyView::BuildChildSlotAndRefresh()
 			.FillHeight(1.f)
 			.Padding(4.f)
 			[
-				SAssignNew(HierarchyTreeView, STreeView<FDMXPixelMappingHierarchyItemWidgetModelPtr>)
+				SAssignNew(HierarchyTreeView, STreeView<TSharedPtr<FDMXPixelMappingHierarchyItem>>)
 				.ItemHeight(20.0f)
 				.SelectionMode(ESelectionMode::Multi)
 				.HeaderRow(GenerateHeaderRow())
@@ -200,7 +200,10 @@ void SDMXPixelMappingHierarchyView::BuildChildSlotAndRefresh()
 				.OnExpansionChanged(this, &SDMXPixelMappingHierarchyView::OnHierarchyExpansionChanged)
 				.OnContextMenuOpening(this, &SDMXPixelMappingHierarchyView::OnContextMenuOpening)
 				.TreeItemsSource(&FilteredRootItems)
-				.OnItemToString_Debug_Lambda([this](FDMXPixelMappingHierarchyItemWidgetModelPtr Item) { return Item->GetComponentNameText().ToString(); })
+				.OnItemToString_Debug_Lambda([this](TSharedPtr<FDMXPixelMappingHierarchyItem> Item) 
+					{ 
+						return Item->GetComponentNameText().ToString(); 
+					})
 			]
 		];
 
@@ -380,7 +383,7 @@ void SDMXPixelMappingHierarchyView::OnGetChildItems(TSharedPtr<FDMXPixelMappingH
 	OutChildren = InParent->GetChildren();
 }
 
-TSharedRef<ITableRow> SDMXPixelMappingHierarchyView::OnGenerateRow(FDMXPixelMappingHierarchyItemWidgetModelPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SDMXPixelMappingHierarchyView::OnGenerateRow(TSharedPtr<FDMXPixelMappingHierarchyItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SDMXPixelMappingHierarchyRow, OwnerTable, WeakToolkit, Item.ToSharedRef());
 }
@@ -404,7 +407,7 @@ TSharedPtr<SWidget> SDMXPixelMappingHierarchyView::OnContextMenuOpening()
 	return MenuBuilder.MakeWidget();
 }
 
-void SDMXPixelMappingHierarchyView::OnHierarchySelectionChanged(FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem, ESelectInfo::Type SelectInfo)
+void SDMXPixelMappingHierarchyView::OnHierarchySelectionChanged(TSharedPtr<FDMXPixelMappingHierarchyItem> SelectedItem, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo == ESelectInfo::Direct)
 	{
@@ -416,8 +419,8 @@ void SDMXPixelMappingHierarchyView::OnHierarchySelectionChanged(FDMXPixelMapping
 	if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin())
 	{
 		TSet<FDMXPixelMappingComponentReference> ComponentsToSelect;
-		FDMXPixelMappingHierarchyItemWidgetModelArr SelectedItems = HierarchyTreeView->GetSelectedItems();
-		for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Item : SelectedItems)
+		const TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>> SelectedItems = HierarchyTreeView->GetSelectedItems();
+		for (const TSharedPtr<FDMXPixelMappingHierarchyItem>& Item : SelectedItems)
 		{
 			ComponentsToSelect.Add(FDMXPixelMappingComponentReference(Toolkit, Item->GetComponent()));
 		}
@@ -592,7 +595,7 @@ void SDMXPixelMappingHierarchyView::SetFilterText(const FText& Text)
 	FilterHandler->RefreshAndFilterTree();
 }
 
-void SDMXPixelMappingHierarchyView::GetWidgetFilterStrings(FDMXPixelMappingHierarchyItemWidgetModelPtr InModel, TArray<FString>& OutStrings) const
+void SDMXPixelMappingHierarchyView::GetWidgetFilterStrings(TSharedPtr<FDMXPixelMappingHierarchyItem> InModel, TArray<FString>& OutStrings) const
 {
 	OutStrings.Add(InModel->GetComponentNameText().ToString());
 	OutStrings.Add(InModel->GetFixtureIDText().ToString());

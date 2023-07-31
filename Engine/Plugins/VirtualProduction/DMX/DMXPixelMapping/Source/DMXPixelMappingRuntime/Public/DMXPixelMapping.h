@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "DMXPixelMappingRuntimeCommon.h"
-
 #include "UObject/Object.h"
 #include "DMXPixelMapping.generated.h"
 
+class SWidget;
 class UDMXEntityFixturePatch;
 class UDMXPixelMappingBaseComponent;
-
-class SWidget;
+class UDMXPixelMappingOutputComponent;
 class UTexture;
 
 #if WITH_EDITOR
@@ -25,6 +23,12 @@ UCLASS(BlueprintType, Blueprintable)
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMapping
 	: public UObject
 {
+	using TComponentPredicate = TFunctionRef<void(UDMXPixelMappingBaseComponent*)>;
+
+	template <typename Type>
+	using TComponentPredicateType = TFunctionRef<void(Type*)>;
+
+
 	GENERATED_BODY()
 public:
 	//~ Begin UObject implementation

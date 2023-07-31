@@ -2,17 +2,18 @@
 
 #pragma once
 
-#include "DMXPixelMappingOutputDMXComponent.h"
-
 #include "Components/DMXPixelMappingOutputComponent.h"
+#include "DMXPixelMappingOutputDMXComponent.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntityFixtureType.h"
+
 #include "DMXPixelMappingMatrixComponent.generated.h"
 
 enum class EDMXColorMode : uint8;
 class UDMXLibrary;
 class UDMXPixelMappingColorSpace;
 class UDMXPixelMappingLayoutScript;
+class UDMXPixelMappingMatrixCellComponent;
 
 
 /**

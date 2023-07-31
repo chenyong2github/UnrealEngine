@@ -3,8 +3,6 @@
 #pragma once
 
 #include "DMXAttribute.h"
-
-#include "CoreMinimal.h"
 #include "UObject/Object.h"
 
 #include "DMXPixelMappingColorSpace.generated.h"

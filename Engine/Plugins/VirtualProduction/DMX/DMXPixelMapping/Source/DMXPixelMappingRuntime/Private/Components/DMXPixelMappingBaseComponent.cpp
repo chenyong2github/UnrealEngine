@@ -3,7 +3,6 @@
 #include "Components/DMXPixelMappingBaseComponent.h"
 
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingRuntimeCommon.h"
 #include "DMXPixelMappingMainStreamObjectVersion.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"

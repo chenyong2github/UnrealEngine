@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "DMXPixelMappingEditorCommon.h"
 #include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
 
 class FDMXPixelMappingHierarchyItem;
+class FDMXPixelMappingToolkit;
 class SInlineEditableTextBlock;
 class SDMXPixelMappingHierarchyView;
 class SImage;

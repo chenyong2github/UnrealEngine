@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DMXPixelMappingRuntimeCommon.h"
+#include "DMXPixelMappingRuntimeLog.h"
 
 DEFINE_LOG_CATEGORY(LogDMXPixelMappingRuntime)

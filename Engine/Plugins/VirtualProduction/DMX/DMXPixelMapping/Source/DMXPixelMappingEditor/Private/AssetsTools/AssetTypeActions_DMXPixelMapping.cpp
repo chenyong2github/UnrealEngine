@@ -2,7 +2,7 @@
 
 #include "AssetsTools/AssetTypeActions_DMXPixelMapping.h"
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingEditorCommon.h"
+#include "DMXPixelMappingEditorLog.h"
 #include "DMXPixelMappingEditorModule.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 

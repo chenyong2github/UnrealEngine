@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "DMXPixelMappingRuntimeCommon.h"
-
 #include "Library/DMXEntityReference.h"
 
 #include "Templates/SharedPointer.h"

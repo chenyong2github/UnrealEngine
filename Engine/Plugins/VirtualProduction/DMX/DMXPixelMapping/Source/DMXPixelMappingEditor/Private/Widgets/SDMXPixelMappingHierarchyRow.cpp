@@ -22,7 +22,7 @@ void SDMXPixelMappingHierarchyRow::Construct(const FArguments& InArgs, const TSh
 	WeakToolkit = InWeakToolkit;
 	Item = InItem;
 
-	SMultiColumnTableRow<FDMXPixelMappingHierarchyItemWidgetModelPtr>::Construct(
+	SMultiColumnTableRow<TSharedPtr<FDMXPixelMappingHierarchyItem>>::Construct(
 		FSuperRowType::FArguments()
 		.Padding(0.0f)
 		.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SimpleTableView.Row"))

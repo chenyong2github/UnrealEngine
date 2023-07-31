@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Algo/Sort.h"
-#include "DMXPixelMappingEditorCommon.h"
 #include "DMXPixelMappingComponentReference.h"
 
 struct FSlateColor;
@@ -98,5 +97,5 @@ private:
 	TWeakObjectPtr<UDMXPixelMappingBaseComponent> WeakComponent;
 
 	/** Toolkit this model resides in */
-	FDMXPixelMappingToolkitWeakPtr WeakToolkit;
+	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 };

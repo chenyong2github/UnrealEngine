@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DMXPixelMappingEditorCommon.h"
+#include "DMXPixelMappingEditorLog.h"
 #include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
@@ -12,7 +12,6 @@ class FDMXPixelMappingHierarchyItem;
 class FDMXPixelMappingToolkit;
 class FUICommandList;
 class ITableRow;
-class SBorder;
 class SHeaderRow;
 class SSearchBox;
 class STableViewBase;
@@ -74,7 +73,7 @@ private:
 	//~ End FEditorUndoClient interface
 
 	/** Called to get child items */
-	void OnGetChildItems(TSharedPtr<FDMXPixelMappingHierarchyItem> InParent, FDMXPixelMappingHierarchyItemWidgetModelArr& OutChildren);
+	void OnGetChildItems(TSharedPtr<FDMXPixelMappingHierarchyItem> InParent, TArray<TSharedPtr<FDMXPixelMappingHierarchyItem>>& OutChildren);
 
 	/** Called when a row is generated */
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FDMXPixelMappingHierarchyItem> Item, const TSharedRef<STableViewBase>& OwnerTable);

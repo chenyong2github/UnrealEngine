@@ -2,6 +2,8 @@
 
 #include "Components/DMXPixelMappingScreenComponent.h"
 
+#include "DMXPixelMappingRuntimeLog.h"
+#include "DMXPixelMappingTypes.h"
 #include "DMXPixelMappingUtils.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "IO/DMXOutputPort.h"
