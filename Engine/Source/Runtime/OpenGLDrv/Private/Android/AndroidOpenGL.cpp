@@ -901,6 +901,11 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		UE_CLOG(bRequiresAdrenoTilingHint, LogRHI, Log, TEXT("Enabling Adreno tiling hint."));
 	}
 
+	if (bIsMaliBased)
+	{
+		bRequiresReadOnlyBuffersWorkaround = VersionString.Contains("r9p");
+	}
+
 	// Disable ASTC if requested by device profile
 	static const auto CVarDisableASTC = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.DisableASTCSupport"));
 	if (bSupportsASTC && CVarDisableASTC->GetValueOnAnyThread())

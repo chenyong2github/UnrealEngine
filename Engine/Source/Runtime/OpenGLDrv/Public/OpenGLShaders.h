@@ -28,6 +28,7 @@ struct FOpenGLShaderDeviceCapabilities
 	bool bRequiresARMShaderFramebufferFetchDepthStencilUndef;
 	GLint MaxVaryingVectors;
 	bool bRequiresDisabledEarlyFragmentTests;
+	bool bRequiresReadOnlyBuffersWorkaround;
 };
 
 /**

@@ -122,6 +122,9 @@ bool FOpenGLES::bBinaryProgramRetrievalFailed = false;
 /* Some Mali devices do not work correctly with early_fragment_test enabled */
 bool FOpenGLES::bRequiresDisabledEarlyFragmentTests = false;
 
+/* This is a workaround for a Mali bug where read-only buffers do not work when passed to functions*/
+bool FOpenGLES::bRequiresReadOnlyBuffersWorkaround = false;
+
 /* This is to avoid a bug in Adreno drivers that define GL_ARM_shader_framebuffer_fetch_depth_stencil even when device does not support this extension  */
 bool FOpenGLES::bRequiresARMShaderFramebufferFetchDepthStencilUndef = false;
 
