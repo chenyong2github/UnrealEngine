@@ -605,10 +605,10 @@ namespace SkeletalSimplifier
 
 															// create the tool needed to compute the gradient coefficients of the attributes.
 
-			InverseGradientProjection  GradientTool(DMatrix(Vert0Pos,
-			                                            	Vert1Pos,
-				                                            Vert2Pos),
-				                                            FaceNormal);
+			InverseGradientProjection  GradientTool(Vert0Pos,
+													Vert1Pos,
+													Vert2Pos,
+													FaceNormal);
 
 			// Accumulate the terms related to the gradient of the Basic Attributes
 			{
