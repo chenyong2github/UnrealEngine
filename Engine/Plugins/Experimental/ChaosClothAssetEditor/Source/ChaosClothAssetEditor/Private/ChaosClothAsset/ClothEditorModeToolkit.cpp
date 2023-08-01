@@ -20,6 +20,7 @@
 #include "SPrimaryButton.h"
 #include "IDetailsView.h"
 #include "Widgets/Images/SImage.h"
+#include "Framework/Application/SlateApplication.h"
 	
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorModeToolkit"
 
@@ -239,6 +240,9 @@ void FChaosClothAssetEditorModeToolkit::OnToolStarted(UInteractiveToolManager* M
 	if (SBaseCharacterFXEditorViewport* Widget = GetViewportWidgetForManager(Manager))
 	{
 		Widget->AddOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+
+		// Manually set keyboard focus to this viewport. Otherwise the user has to click on the viewport before Tool keyboard shortcuts will work.
+		FSlateApplication::Get().SetUserFocus(FSlateApplication::Get().GetUserIndexForKeyboard(), Widget->AsShared(), EFocusCause::SetDirectly);
 	}
 }
 
