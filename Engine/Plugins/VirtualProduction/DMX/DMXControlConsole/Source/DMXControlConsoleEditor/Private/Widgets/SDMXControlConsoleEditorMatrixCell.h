@@ -5,16 +5,15 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
+struct FOptionalSize;
+struct FSlateColor;
 class SDMXControlConsoleEditorExpandArrowButton;
 class SDMXControlConsoleEditorFader;
+class SHorizontalBox;
+class SInlineEditableTextBlock;
 class UDMXControlConsoleFaderBase;
 class UDMXControlConsoleFixturePatchCellAttributeFader;
 class UDMXControlConsoleFixturePatchMatrixCell;
-
-struct FOptionalSize;
-struct FSlateColor;
-class SHorizontalBox;
-class SInlineEditableTextBlock;
 
 
 /** Individual Matrix Cell UI class */

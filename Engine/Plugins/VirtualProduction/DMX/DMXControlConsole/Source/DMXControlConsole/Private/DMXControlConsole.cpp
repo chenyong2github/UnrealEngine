@@ -3,6 +3,7 @@
 #include "DMXControlConsole.h"
 
 #include "DMXControlConsoleData.h"
+#include "Library/DMXLibrary.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsole"

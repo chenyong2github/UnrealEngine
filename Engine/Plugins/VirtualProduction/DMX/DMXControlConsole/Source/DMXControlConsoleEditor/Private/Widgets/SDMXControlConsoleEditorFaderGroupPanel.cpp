@@ -5,12 +5,11 @@
 #include "DMXControlConsoleFaderGroup.h"
 #include "IDMXControlConsoleFaderGroupElement.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Views/SDMXControlConsoleEditorFaderGroupView.h"
-
 #include "ScopedTransaction.h"
-#include "Widgets/SBoxPanel.h"
+#include "Views/SDMXControlConsoleEditorFaderGroupView.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 

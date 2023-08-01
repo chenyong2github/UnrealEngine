@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "UObject/WeakObjectPtr.h"
 
@@ -30,6 +29,9 @@ private:
 
 	/** Called whenever DMX Library changes */
 	void OnDMXLibraryChanged() const;
+
+	/** Updates the control console state */
+	void UpdateControlConsole() const;
 
 	/** Property Utilities for this Details Customization layout */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;

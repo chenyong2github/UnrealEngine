@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "IDMXControlConsoleFaderGroupElement.h"
-
 #include "DMXProtocolTypes.h"
+#include "IDMXControlConsoleFaderGroupElement.h"
 #include "Tickable.h"
 #include "UObject/Object.h"
 

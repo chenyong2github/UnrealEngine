@@ -2,8 +2,6 @@
 
 #include "SDMXControlConsoleEditorView.h"
 
-#include "Algo/AnyOf.h"
-#include "Algo/Find.h"
 #include "Application/ThrottleManager.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Customizations/DMXControlConsoleDataDetails.h"
@@ -14,7 +12,6 @@
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
-#include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXEditorStyle.h"
 #include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
@@ -22,29 +19,27 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailsView.h"
 #include "Layout/Visibility.h"
-#include "Library/DMXEntityReference.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutUser.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
+#include "Layouts/Widgets/SDMXControlConsoleEditorGridLayout.h"
+#include "Layouts/Widgets/SDMXControlConsoleEditorHorizontalLayout.h"
+#include "Layouts/Widgets/SDMXControlConsoleEditorVerticalLayout.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "Models/Filter/FilterModel.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
-#include "ScopedTransaction.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "TimerManager.h"
-#include "Views/SDMXControlConsoleEditorFaderGroupRowView.h"
-#include "Views/SDMXControlConsoleEditorFaderGroupView.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SDMXControlConsoleEditorAddButton.h"
 #include "Widgets/SDMXControlConsoleEditorAssetPicker.h"
 #include "Widgets/SDMXControlConsoleEditorFixturePatchVerticalBox.h"
 #include "Widgets/SDMXControlConsoleEditorPortSelector.h"
@@ -65,10 +60,9 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	EditorConsoleModel.GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleLoaded);
 	EditorConsoleModel.GetOnConsoleSaved().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleSaved);
-	EditorConsoleModel.GetOnScrollFaderGroupIntoView().AddSP(this, &SDMXControlConsoleEditorView::OnScrollIntoView);
-	EditorConsoleModel.GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowAdded);
-	EditorConsoleModel.GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowRemoved);
-	EditorConsoleModel.GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
+	EditorConsoleModel.GetOnLayoutChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+	EditorConsoleModel.GetOnLayoutModeChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+	EditorConsoleModel.GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleRefreshed);
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
@@ -96,6 +90,10 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 	FOnGetDetailCustomizationInstance FadersCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&UE::DMXControlConsole::FDMXControlConsoleFaderDetails::MakeInstance);
 	FadersDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderBase::StaticClass(), FadersCustomizationInstance);
+
+	// Generate Port Selector widget
+	PortSelector = SNew(SDMXControlConsoleEditorPortSelector)
+		.OnPortsSelected(this, &SDMXControlConsoleEditorView::OnSelectedPortsChanged);
 
 	const TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Vertical);
@@ -131,7 +129,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 					// Fixture Patches VerticalBox Section
 					+ SSplitter::Slot()
-					.Value(.2f)
+					.Value(.25)
 					.MinSize(10.f)
 					[
 						SNew(SScrollBox)
@@ -157,7 +155,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 					// DMX Control Console Section
 					+ SSplitter::Slot()
-					.Value(.8f)
+					.Value(.75f)
 					.MinSize(10.f)
 					[
 						SNew(SSplitter)
@@ -172,66 +170,13 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 							.BorderImage(FAppStyle::GetBrush("NoBorder"))
 							.Padding(10.f)
 							[
-
-								SNew(SVerticalBox)
-								+ SVerticalBox::Slot()
-								[
-									SNew(SHorizontalBox)
-									+SHorizontalBox::Slot()
-									[
-										SAssignNew(HorizontalScrollBox, SScrollBox)
-										.ExternalScrollbar(HorizontalScrollBar)
-										.Orientation(Orient_Horizontal)
-
-										+ SScrollBox::Slot()
-										[
-											SAssignNew(VerticalScrollBox, SScrollBox)
-											.ExternalScrollbar(VerticalScrollBar)
-											.Orientation(Orient_Vertical)
-
-											+ SScrollBox::Slot()
-											.HAlign(HAlign_Left)
-											.VAlign(VAlign_Center)
-											[
-												SNew(SBox)
-												.WidthOverride(50.f)
-												.HeightOverride(50.f)
-												.HAlign(HAlign_Center)
-												.VAlign(VAlign_Center)
-												[
-													SNew(SDMXControlConsoleEditorAddButton)
-													.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
-													.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
-												]
-											]
-
-											+ SScrollBox::Slot()
-											[
-												SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
-											]
-										]
-									]
-						
-									// Horizontal ScrollBar slot
-									+SHorizontalBox::Slot()
-									.AutoWidth()
-									[
-										VerticalScrollBar
-									]
-								]
-					
-								// Vertical Scrollbar slot
-								+SVerticalBox::Slot()
-								.AutoHeight()
-								[
-									HorizontalScrollBar
-								]
+								SAssignNew(LayoutBox, SHorizontalBox)
 							]
 						]
 
 						// Details View Section
 						+ SSplitter::Slot()
-						.Value(.2f)
+						.Value(.20)
 						.MinSize(10.f)
 						[
 							SNew(SScrollBox)
@@ -266,6 +211,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 			]
 		];
 	
+	UpdateLayout();
 	ForceUpdateDetailsViews();
 	RestoreGlobalFilter();
 	OnSelectedPortsChanged();
@@ -288,28 +234,20 @@ UDMXControlConsoleData* SDMXControlConsoleEditorView::GetControlConsoleData() co
 	return EditorConsoleModel.GetEditorConsoleData();
 }
 
+UDMXControlConsoleEditorLayouts* SDMXControlConsoleEditorView::GetControlConsoleLayouts() const
+{
+	const UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	return EditorConsoleModel.GetEditorConsoleLayouts();
+}
+
 void SDMXControlConsoleEditorView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	const TObjectPtr<UDMXControlConsoleData> ControlConsoleData = GetControlConsoleData();
-	if (!ensureMsgf(ControlConsoleData, TEXT("Invalid DMX Control Console, can't update DMX Control Console state correctly.")))
+	if (!ensureMsgf(Layout.IsValid(), TEXT("Invalid layout, can't update DMX Control Console state correctly.")))
 	{
 		return;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsoleData->GetFaderGroupRows();
-	if (FaderGroupRows.Num() == FaderGroupRowViews.Num())
-	{
-		return;
-	}
-
-	if (FaderGroupRows.Num() > FaderGroupRowViews.Num())
-	{
-		OnFaderGroupRowAdded();
-	}
-	else
-	{
-		OnFaderGroupRowRemoved();
-	}
+	Layout->RequestRefresh();
 }
 
 FReply SDMXControlConsoleEditorView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -498,11 +436,12 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 				GenerateButtonContentLambda(
 					FSlateColor::UseForeground(),
 					FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.InputMode"),
-					LOCTEXT("ControlModeToolbarButtonText", "Control Mode"))
+					LOCTEXT("ControlModeToolbarButtonText", "Control"))
 			];
 
 		ToolbarBuilder.AddWidget(ControlModeComboButton);
 	
+		// View Mode
 		const TSharedRef<SComboButton> ViewModeComboButton =
 			SNew(SComboButton)
 			.ContentPadding(0.f)
@@ -514,10 +453,27 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 				GenerateButtonContentLambda(
 					FSlateColor::UseForeground(),
 					FAppStyle::Get().GetBrush("Icons.Layout"),
-					LOCTEXT("ViewModeToolbarButtonText", "View Mode"))
+					LOCTEXT("ViewModeToolbarButtonText", "View"))
 			];
 
 		ToolbarBuilder.AddWidget(ViewModeComboButton);
+
+		// Sorting mode
+		const TSharedRef<SComboButton> LayoutModeComboButton =
+			SNew(SComboButton)
+			.ContentPadding(0.f)
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorView::GenerateLayoutModeMenuWidget)
+			.HasDownArrow(true)
+			.ButtonContent()
+			[
+				GenerateButtonContentLambda(
+				FSlateColor::UseForeground(),
+				FAppStyle::Get().GetBrush("EditorViewport.LocationGridSnap"),
+				LOCTEXT("LayoutModeToolbarButtonText", "Layout"))
+			];
+
+		ToolbarBuilder.AddWidget(LayoutModeComboButton);
 	}
 	ToolbarBuilder.EndSection();
 
@@ -633,8 +589,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateControlModeMenuWidget(
 			SNew(SBox)
 			.Padding(4.f, 0.f)
 			[
-				SAssignNew(PortSelector, SDMXControlConsoleEditorPortSelector)
-				.OnPortsSelected(this, &SDMXControlConsoleEditorView::OnSelectedPortsChanged)
+				PortSelector.ToSharedRef()
 			];
 
 		MenuBuilder.AddWidget(PortSelectorWidget, FText::GetEmpty());
@@ -692,8 +647,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 				);
 			};
 
-		AddMenuEntryLambda(LOCTEXT("FadersViewModeCollapsedRadioButtonLabel", "Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
-		AddMenuEntryLambda(LOCTEXT("FadersViewModeExpandedRadioButtonLabel", "Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
+		AddMenuEntryLambda(LOCTEXT("FadersViewModeCollapsedRadioButtonLabel", "Basic"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryLambda(LOCTEXT("FadersViewModeExpandedRadioButtonLabel", "Advanced"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 
@@ -749,22 +704,38 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedPtr<SDMXControlConsoleEditorFaderGroupRowView> SDMXControlConsoleEditorView::FindFaderGroupRowView(const UDMXControlConsoleFaderGroupRow* FaderGroupRow)
+TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateLayoutModeMenuWidget()
 {
-	if (FaderGroupRow)
+	constexpr bool bShouldCloseWindowAfterClosing = false;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Global", LOCTEXT("SortingModeCategory", "Global"));
 	{
-		const TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView>* FaderGroupRowViewPtr = Algo::FindByPredicate(FaderGroupRowViews, [FaderGroupRow](const TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView>& WeakFaderGroupRowView)
-			{
-				return WeakFaderGroupRowView.IsValid() && WeakFaderGroupRowView.Pin()->GetFaderGroupRow() == FaderGroupRow;
-			});
-
-		if (FaderGroupRowViewPtr)
+		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FText& Label, EDMXControlConsoleLayoutMode LayoutMode)
 		{
-			return FaderGroupRowViewPtr->Pin();
-		}
-	}
+			MenuBuilder.AddMenuEntry
+			(
+				Label,
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction
+				(
+					FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnLayoutModeSelected, LayoutMode),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &SDMXControlConsoleEditorView::IsCurrentLayoutMode, LayoutMode)
+				),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
+		};
 
-	return nullptr;
+		AddMenuEntryLambda(LOCTEXT("HorizontalSortingModeRadioButtonLabel", "Horizontal"), EDMXControlConsoleLayoutMode::Horizontal);
+		AddMenuEntryLambda(LOCTEXT("VerticalSortingModeRadioButtonLabel", "Vertical"), EDMXControlConsoleLayoutMode::Vertical);
+		AddMenuEntryLambda(LOCTEXT("GridSortingModeRadioButtonLabel", "Grid"), EDMXControlConsoleLayoutMode::Grid);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 void SDMXControlConsoleEditorView::RestoreGlobalFilter()
@@ -796,7 +767,13 @@ void SDMXControlConsoleEditorView::ForceUpdateDetailsViews()
 	}
 
 	constexpr bool bForceRefresh = true;
-	ControlConsoleDataDetailsView->SetObject(ControlConsoleData, bForceRefresh);
+
+	TArray<TWeakObjectPtr<UObject>> SelectedControlConsoleDataObjects = ControlConsoleDataDetailsView->GetSelectedObjects();
+	UDMXControlConsoleData* CurrentConsoleData = !SelectedControlConsoleDataObjects.IsEmpty() ? Cast<UDMXControlConsoleData>(SelectedControlConsoleDataObjects[0]) : nullptr;
+	if (CurrentConsoleData != ControlConsoleData)
+	{
+		ControlConsoleDataDetailsView->SetObject(ControlConsoleData, bForceRefresh);
+	}
 
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
@@ -817,135 +794,51 @@ void SDMXControlConsoleEditorView::ForceUpdateDetailsViews()
 	FadersDetailsView->SetObjects(SelectedFaderObjects, bForceRefresh);
 }
 
+void SDMXControlConsoleEditorView::UpdateLayout()
+{
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetControlConsoleLayouts();
+	if (!EditorConsoleLayouts || !LayoutBox.IsValid())
+	{
+		return;
+	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!CurrentLayout)
+	{
+		return;
+	}
+
+	using namespace UE::DMXControlConsoleEditor::Layout::Private;
+	const EDMXControlConsoleLayoutMode LayoutMode = CurrentLayout->LayoutMode;
+	switch (LayoutMode)
+	{
+	case EDMXControlConsoleLayoutMode::Horizontal:
+		Layout = SNew(SDMXControlConsoleEditorHorizontalLayout);
+		break;
+	case EDMXControlConsoleLayoutMode::Vertical:
+		Layout = SNew(SDMXControlConsoleEditorVerticalLayout);
+		break;
+	case EDMXControlConsoleLayoutMode::Grid:
+		Layout = SNew(SDMXControlConsoleEditorGridLayout);
+		break;
+	default:
+		Layout = SNew(SDMXControlConsoleEditorGridLayout);
+		break;
+	}
+
+	LayoutBox->ClearChildren();
+	LayoutBox->AddSlot()
+		[
+			Layout.ToSharedRef()
+		];
+}
+
 void SDMXControlConsoleEditorView::UpdateFixturePatchVerticalBox()
 {
 	if (FixturePatchVerticalBox.IsValid())
 	{
 		FixturePatchVerticalBox->ForceRefresh();
 	}
-}
-
-void SDMXControlConsoleEditorView::OnFaderGroupRowAdded()
-{
-	const UDMXControlConsoleData* ControlConsole = GetControlConsoleData();
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't add new fader group row correctly.")))
-	{
-		return;
-	}
-
-	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole->GetFaderGroupRows();
-	for (UDMXControlConsoleFaderGroupRow* FaderGroupRow : FaderGroupRows)
-	{
-		if (!FaderGroupRow)
-		{
-			continue;
-		}
-
-		if (IsFaderGroupRowContained(FaderGroupRow))
-		{
-			continue;
-		}
-
-		AddFaderGroupRow(FaderGroupRow);
-	}
-}
-
-void SDMXControlConsoleEditorView::AddFaderGroupRow(UDMXControlConsoleFaderGroupRow* FaderGroupRow)
-{
-	if (!ensureMsgf(FaderGroupRow, TEXT("Invalid fader group row, can't add new fader group row view correctly.")))
-	{
-		return;
-	}
-
-	if (!FaderGroupRowsVerticalBox.IsValid())
-	{
-		return;
-	}
-
-	const TSharedRef<SDMXControlConsoleEditorFaderGroupRowView> FaderGroupRowWidget = 
-		SNew(SDMXControlConsoleEditorFaderGroupRowView, FaderGroupRow)
-		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetFaderGroupRowViewVisibility, FaderGroupRow));
-	
-	const int32 RowIndex = FaderGroupRow->GetRowIndex();
-	if (ensureMsgf(RowIndex == 0 || FaderGroupRowViews.IsValidIndex(RowIndex - 1), TEXT("Unexpected, invalid row index when trying to add control console row.")))
-	{
-		FaderGroupRowViews.Insert(FaderGroupRowWidget, RowIndex);
-
-		FaderGroupRowsVerticalBox->InsertSlot(RowIndex)
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			.Padding(0.f, 8.f)
-			[
-				FaderGroupRowWidget
-			];
-	}
-	else
-	{
-		FaderGroupRowViews.Add(FaderGroupRowWidget);
-
-		FaderGroupRowsVerticalBox->AddSlot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			.Padding(0.f, 8.f)
-			[
-				FaderGroupRowWidget
-			];
-	}
-}
-
-void SDMXControlConsoleEditorView::OnFaderGroupRowRemoved()
-{
-	const UDMXControlConsoleData* ControlConsole = GetControlConsoleData();
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't delete fader group row correctly.")))
-	{
-		return;
-	}
-
-	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole->GetFaderGroupRows();
-
-	TArray<TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView>>FaderGroupRowViewsToRemove;
-	for (TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView>& FaderGroupRowView : FaderGroupRowViews)
-	{
-		if (!FaderGroupRowView.IsValid())
-		{
-			continue;
-		}
-
-		const UDMXControlConsoleFaderGroupRow* FaderGroupRow = FaderGroupRowView.Pin()->GetFaderGroupRow();
-		if (!FaderGroupRow || !FaderGroupRows.Contains(FaderGroupRow))
-		{
-			FaderGroupRowsVerticalBox->RemoveSlot(FaderGroupRowView.Pin().ToSharedRef());
-			FaderGroupRowViewsToRemove.Add(FaderGroupRowView);
-		}
-	}
-
-	FaderGroupRowViews.RemoveAll([&FaderGroupRowViewsToRemove](const TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView> FaderGroupRowView)
-		{
-			return !FaderGroupRowView.IsValid() || FaderGroupRowViewsToRemove.Contains(FaderGroupRowView);
-		});
-}
-
-bool SDMXControlConsoleEditorView::IsFaderGroupRowContained(UDMXControlConsoleFaderGroupRow* FaderGroupRow)
-{
-	const TWeakObjectPtr<UDMXControlConsoleFaderGroupRow> FaderGroupRowWeakPtr = FaderGroupRow;
-
-	auto IsContainedLambda = [FaderGroupRowWeakPtr](const TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView> FaderGroupRowView)
-	{
-		if (!FaderGroupRowView.IsValid())
-		{
-			return false;
-		}
-
-		const TWeakObjectPtr<UDMXControlConsoleFaderGroupRow> FaderGroupRow = FaderGroupRowView.Pin()->GetFaderGroupRow();
-		if (!FaderGroupRow.IsValid())
-		{
-			return false;
-		}
-
-		return FaderGroupRow == FaderGroupRowWeakPtr;
-	};
-
-	return FaderGroupRowViews.ContainsByPredicate(IsContainedLambda);
 }
 
 void SDMXControlConsoleEditorView::OnSearchTextChanged(const FText& SearchText)
@@ -982,23 +875,6 @@ void SDMXControlConsoleEditorView::OnFilteredElementsAutoSelectStateChanged(EChe
 	EditorConsoleModel.ToggleAutoSelectFilteredElements();
 }
 
-FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
-{
-	const TObjectPtr<UDMXControlConsoleData> ControlConsole = GetControlConsoleData();
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't add fader group correctly.")))
-	{
-		return FReply::Unhandled();
-	}
-
-	const FScopedTransaction AddFaderGroupTransaction(LOCTEXT("AddFaderGroupTransaction", "Add Fader Group"));
-	ControlConsole->PreEditChange(nullptr);
-
-	ControlConsole->AddFaderGroupRow(0);
-
-	ControlConsole->PostEditChange();
-	return FReply::Handled();
-}
-
 void SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const
 {
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
@@ -1009,6 +885,24 @@ void SDMXControlConsoleEditorView::OnFadersViewModeSelected(const EDMXControlCon
 {
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	EditorConsoleModel.SetFadersViewMode(ViewMode);
+}
+
+void SDMXControlConsoleEditorView::OnLayoutModeSelected(const EDMXControlConsoleLayoutMode LayoutMode) const
+{
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	EditorConsoleModel.SelectLayoutMode(LayoutMode);
+}
+
+bool SDMXControlConsoleEditorView::IsCurrentLayoutMode(const EDMXControlConsoleLayoutMode LayoutMode) const
+{
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetControlConsoleLayouts();
+	if (!EditorConsoleLayouts)
+	{
+		return false;
+	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	return CurrentLayout && CurrentLayout->LayoutMode == LayoutMode;
 }
 
 void SDMXControlConsoleEditorView::OnSelectAll(bool bOnlyMatchingFilter) const
@@ -1058,9 +952,8 @@ void SDMXControlConsoleEditorView::OnBrowseToAssetClicked()
 void SDMXControlConsoleEditorView::OnConsoleLoaded()
 {
 	RequestUpdateDetailsViews();
-	OnFaderGroupRowAdded();
-	OnFaderGroupRowRemoved();
 	UpdateFixturePatchVerticalBox();
+	UpdateLayout();
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXControlConsoleEditorView::RestoreGlobalFilter));
 
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
@@ -1071,26 +964,12 @@ void SDMXControlConsoleEditorView::OnConsoleSaved()
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
-void SDMXControlConsoleEditorView::OnScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup)
+void SDMXControlConsoleEditorView::OnConsoleRefreshed()
 {
-	if (!FaderGroup)
+	RequestUpdateDetailsViews();
+	if (Layout.IsValid())
 	{
-		return;
-	}
-
-	if (HorizontalScrollBox.IsValid() && VerticalScrollBox.IsValid())
-	{
-		const UDMXControlConsoleFaderGroupRow& OwnerRow = FaderGroup->GetOwnerFaderGroupRowChecked();
-		const TSharedPtr<SDMXControlConsoleEditorFaderGroupRowView> OwnerRowView = FindFaderGroupRowView(&OwnerRow);
-		if (OwnerRowView.IsValid())
-		{
-			const TSharedPtr<SDMXControlConsoleEditorFaderGroupView> FaderGroupView = OwnerRowView->FindFaderGroupView(FaderGroup);
-			if (FaderGroupView.IsValid())
-			{
-				VerticalScrollBox->ScrollDescendantIntoView(OwnerRowView, true, EDescendantScrollDestination::Center);
-				HorizontalScrollBox->ScrollDescendantIntoView(FaderGroupView, true, EDescendantScrollDestination::TopOrLeft);
-			}
-		}
+		Layout->RequestRefresh();
 	}
 }
 
@@ -1144,48 +1023,6 @@ bool SDMXControlConsoleEditorView::IsWidgetInTab(TSharedPtr<SDockTab> InDockTab,
 	}
 
 	return false;
-}
-
-EVisibility SDMXControlConsoleEditorView::GetFaderGroupRowViewVisibility(UDMXControlConsoleFaderGroupRow* FaderGroupRow) const
-{
-	if (!FaderGroupRow)
-	{
-		return EVisibility::Collapsed;
-	}
-
-	const auto IsAnyFaderGroupVisibleLambda = [](const UDMXControlConsoleFaderGroup* FaderGroup)
-		{
-			if (!FaderGroup)
-			{
-				return false;
-			}
-
-			return FaderGroup->IsActive() && FaderGroup->IsMatchingFilter();
-		};
-
-	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
-	const bool bIsVisible = Algo::AnyOf(FaderGroups, IsAnyFaderGroupVisibleLambda);
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SDMXControlConsoleEditorView::GetAddButtonVisibility() const
-{
-	bool bIsVisible = false;
-
-	// Visible if there are no fader group rows and there's no global filter
-	if (UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
-	{
-		bIsVisible = 
-			ControlConsoleData->GetFaderGroupRows().IsEmpty() ||
-			ControlConsoleData->GetAllActiveFaderGroups().IsEmpty();
-
-		if (GlobalFilterSearchBox.IsValid())
-		{
-			bIsVisible &= GlobalFilterSearchBox->GetText().IsEmpty();
-		}
-	}
-
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility() const

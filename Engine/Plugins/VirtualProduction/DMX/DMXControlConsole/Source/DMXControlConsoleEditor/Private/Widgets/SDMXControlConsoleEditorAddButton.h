@@ -3,9 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
-
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SCompoundWidget.h"
 
 struct FSlateColor;
 

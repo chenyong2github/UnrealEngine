@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DMXAttribute.h"
 #include "DMXControlConsoleFaderBase.h"
 

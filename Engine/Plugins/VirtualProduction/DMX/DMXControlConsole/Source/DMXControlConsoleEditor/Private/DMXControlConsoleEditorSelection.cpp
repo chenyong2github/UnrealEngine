@@ -2,15 +2,14 @@
 
 #include "DMXControlConsoleEditorSelection.h"
 
-#include "DMXControlConsole.h"
-#include "DMXControlConsoleData.h"
+#include "Algo/Sort.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "Models/Filter/FilterModel.h"
-
-#include "Algo/Sort.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorSelection"
@@ -195,10 +194,26 @@ void FDMXControlConsoleEditorSelection::Multiselect(UObject* FaderOrFaderGroupOb
 
 	TArray<UObject*> FadersAndFaderGroups;
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
-	for (UDMXControlConsoleFaderGroup* AnyFaderGroup : EditorConsoleData->GetAllFaderGroups())
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
 	{
-		FadersAndFaderGroups.AddUnique(AnyFaderGroup);
+		return;
+	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
+	{
+		return;
+	}
+
+	for (const TWeakObjectPtr<UDMXControlConsoleFaderGroup> AnyFaderGroup : ActiveLayout->GetAllFaderGroups())
+	{
+		if (!AnyFaderGroup.IsValid())
+		{
+			continue;
+		}
+
+		FadersAndFaderGroups.AddUnique(AnyFaderGroup.Get());
 		for (UDMXControlConsoleFaderBase* AnyFader : AnyFaderGroup->GetAllFaders())
 		{
 			FadersAndFaderGroups.AddUnique(AnyFader);
@@ -269,13 +284,19 @@ void FDMXControlConsoleEditorSelection::ReplaceInSelection(UDMXControlConsoleFad
 	RemoveFromSelection(FaderGroup);
 
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
-	if (!EditorConsoleData)
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
 	{
 		return;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroup*> AllActiveFaderGroups = EditorConsoleData->GetAllActiveFaderGroups();
+	const UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
+	{
+		return;
+	}
+
+	const TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> AllActiveFaderGroups = ActiveLayout->GetAllActiveFaderGroups();
 	if (AllActiveFaderGroups.Num() <= 1)
 	{
 		return;
@@ -289,9 +310,13 @@ void FDMXControlConsoleEditorSelection::ReplaceInSelection(UDMXControlConsoleFad
 		NewIndex = Index + 1;
 	}
 
-	UDMXControlConsoleFaderGroup* NewSelectedFaderGroup = AllActiveFaderGroups.IsValidIndex(NewIndex) ? AllActiveFaderGroups[NewIndex] : nullptr;
-	AddToSelection(NewSelectedFaderGroup);
-	return;
+	const TWeakObjectPtr<UDMXControlConsoleFaderGroup> NewSelectedFaderGroup = AllActiveFaderGroups.IsValidIndex(NewIndex) ? AllActiveFaderGroups[NewIndex] : nullptr;
+	if (!NewSelectedFaderGroup.IsValid())
+	{
+		return;
+	}
+
+	AddToSelection(NewSelectedFaderGroup.Get());
 }
 
 void FDMXControlConsoleEditorSelection::ReplaceInSelection(UDMXControlConsoleFaderBase* Fader)
@@ -334,22 +359,31 @@ bool FDMXControlConsoleEditorSelection::IsSelected(UDMXControlConsoleFaderBase* 
 void FDMXControlConsoleEditorSelection::SelectAll(bool bOnlyMatchingFilter)
 {
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-	if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
 	{
-		ClearSelection(false);
-
-		const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
-		for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
-		{
-			if (FaderGroup->IsActive())
-			{
-				constexpr bool bNotifyFaderSelectionChange = false;
-				AddAllFadersFromFaderGroupToSelection(FaderGroup, bOnlyMatchingFilter, bNotifyFaderSelectionChange);
-			}
-		}
-
-		OnSelectionChanged.Broadcast();
+		return;
 	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
+	{
+		return;
+	}
+
+	ClearSelection(false);
+
+	const TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> AllFaderGroups = ActiveLayout->GetAllFaderGroups();
+	for (const TWeakObjectPtr<UDMXControlConsoleFaderGroup>& FaderGroup : AllFaderGroups)
+	{
+		if (FaderGroup.IsValid() && FaderGroup->IsActive())
+		{
+			constexpr bool bNotifyFaderSelectionChange = false;
+			AddAllFadersFromFaderGroupToSelection(FaderGroup.Get(), bOnlyMatchingFilter, bNotifyFaderSelectionChange);
+		}
+	}
+
+	OnSelectionChanged.Broadcast();
 }
 
 void FDMXControlConsoleEditorSelection::RemoveInvalidObjectsFromSelection(bool bNotifySelectionChange)
@@ -452,13 +486,19 @@ UDMXControlConsoleFaderGroup* FDMXControlConsoleEditorSelection::GetFirstSelecte
 UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelectedFader(bool bReverse) const
 {
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-	const UDMXControlConsoleData* ControlConsoleData = EditorConsoleModel->GetEditorConsoleData();
-	if (!ControlConsoleData)
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
 	{
 		return nullptr;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsoleData->GetAllFaderGroups();
+	const UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
+	{
+		return nullptr;
+	}
+
+	const TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> AllFaderGroups = ActiveLayout->GetAllFaderGroups();
 	if (AllFaderGroups.IsEmpty())
 	{
 		return nullptr;
@@ -471,31 +511,31 @@ UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelected
 	}
 
 	auto SortSelectedFadersLambda = [AllFaderGroups](TWeakObjectPtr<UObject> FaderObjectA, TWeakObjectPtr<UObject> FaderObjectB)
-	{
-		const UDMXControlConsoleFaderBase* FaderA = Cast<UDMXControlConsoleFaderBase>(FaderObjectA);
-		const UDMXControlConsoleFaderBase* FaderB = Cast<UDMXControlConsoleFaderBase>(FaderObjectB);
-
-		if (!FaderA || !FaderB)
 		{
-			return false;
-		}
+			const UDMXControlConsoleFaderBase* FaderA = Cast<UDMXControlConsoleFaderBase>(FaderObjectA);
+			const UDMXControlConsoleFaderBase* FaderB = Cast<UDMXControlConsoleFaderBase>(FaderObjectB);
 
-		const UDMXControlConsoleFaderGroup& FaderGroupA = FaderA->GetOwnerFaderGroupChecked();
-		const UDMXControlConsoleFaderGroup& FaderGroupB = FaderB->GetOwnerFaderGroupChecked();
+			if (!FaderA || !FaderB)
+			{
+				return false;
+			}
 
-		const int32 FaderGroupIndexA = AllFaderGroups.IndexOfByKey(&FaderGroupA);
-		const int32 FaderGroupIndexB = AllFaderGroups.IndexOfByKey(&FaderGroupB);
+			const UDMXControlConsoleFaderGroup& FaderGroupA = FaderA->GetOwnerFaderGroupChecked();
+			const UDMXControlConsoleFaderGroup& FaderGroupB = FaderB->GetOwnerFaderGroupChecked();
 
-		if (FaderGroupIndexA != FaderGroupIndexB)
-		{
-			return FaderGroupIndexA < FaderGroupIndexB;
-		}
+			const int32 FaderGroupIndexA = AllFaderGroups.IndexOfByKey(&FaderGroupA);
+			const int32 FaderGroupIndexB = AllFaderGroups.IndexOfByKey(&FaderGroupB);
 
-		const int32 IndexA = FaderGroupA.GetAllFaders().IndexOfByKey(FaderA);
-		const int32 IndexB = FaderGroupB.GetAllFaders().IndexOfByKey(FaderB);
+			if (FaderGroupIndexA != FaderGroupIndexB)
+			{
+				return FaderGroupIndexA < FaderGroupIndexB;
+			}
 
-		return IndexA < IndexB;
-	};
+			const int32 IndexA = FaderGroupA.GetAllFaders().IndexOfByKey(FaderA);
+			const int32 IndexB = FaderGroupB.GetAllFaders().IndexOfByKey(FaderB);
+
+			return IndexA < IndexB;
+		};
 
 	Algo::Sort(CurrentSelectedFaders, SortSelectedFadersLambda);
 	const TWeakObjectPtr<UObject> FirstFader = bReverse ? CurrentSelectedFaders.Last() : CurrentSelectedFaders[0];

@@ -437,15 +437,6 @@ void UDMXControlConsoleFaderGroup::SetIsExpanded(bool bExpanded, bool bNotify)
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-bool UDMXControlConsoleFaderGroup::IsFirstActiveFaderGroupInRow() const
-{
-	const UDMXControlConsoleFaderGroupRow& OwnerRow = GetOwnerFaderGroupRowChecked();
-	const TArray<UDMXControlConsoleFaderGroup*> ActiveFaderGroups = OwnerRow.GetActiveFaderGroups();
-	return !ActiveFaderGroups.IsEmpty() && ActiveFaderGroups[0] == this;
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 void UDMXControlConsoleFaderGroup::ShowAllElementsInEditor()
 {
 	for (const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element : Elements)

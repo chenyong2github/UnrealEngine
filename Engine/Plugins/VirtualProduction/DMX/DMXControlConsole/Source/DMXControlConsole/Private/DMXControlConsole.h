@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Object.h"
 
 #include "DMXControlConsole.generated.h"
 
 class UDMXControlConsoleData;
+class UDMXControlConsoleEditorLayoutsBase;
 
 
 /** The DMX Control Console */
@@ -27,11 +27,17 @@ public:
 	/** Copies the provided Control Console Data into this instance */
 	void CopyControlConsoleData(UDMXControlConsoleData* InControlConsoleData);
 
-	/** Returns an event that is broadcast when the control console asset is saved */
 #if WITH_EDITOR
+	/** Returns an event that is broadcast when the control console asset is saved */
 	DECLARE_EVENT_OneParam(UDMXControlConsole, FDMXControlConsoleSavedEvent, const UDMXControlConsole*)
 	FDMXControlConsoleSavedEvent& GetOnControlConsoleSaved() { return OnControlConsoleSaved; }
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	/** Control Console Layouts data reference */
+	UPROPERTY()
+	TObjectPtr<UDMXControlConsoleEditorLayoutsBase> ControlConsoleEditorLayouts;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	//~ Begin UObject interface
@@ -39,7 +45,7 @@ protected:
 	//~ End UObject interface
 
 private:
-	/** Control Console reference */
+	/** Control Console Data reference */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console")
 	TObjectPtr<UDMXControlConsoleData> ControlConsoleData;
 

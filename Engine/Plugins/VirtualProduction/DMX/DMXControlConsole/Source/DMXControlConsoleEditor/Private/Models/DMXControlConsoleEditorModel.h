@@ -3,23 +3,20 @@
 #pragma once
 
 #include "DMXControlConsole.h"
-
 #include "DMXControlConsoleData.h"
 #include "UObject/Object.h"
 #include "Widgets/SDMXReadOnlyFixturePatchList.h"
 
 #include "DMXControlConsoleEditorModel.generated.h"
 
+enum class EDMXControlConsoleLayoutMode : uint8;
 class FDMXControlConsoleEditorSelection;
 struct FDMXReadOnlyFixturePatchListDescriptor;
-class UDMXControlConsole;
-class UDMXControlConsoleData;
+class UDMXControlConsoleEditorLayouts;
+class UDMXControlConsoleEditorGlobalLayoutBase;
 class UDMXControlConsoleFaderGroup;
 
-namespace UE::DMXControlConsoleEditor::FilterModel::Private
-{
-	class FFilterModel;
-}
+namespace UE::DMXControlConsoleEditor::FilterModel::Private { class FFilterModel; }
 
 
 /** Enum for DMX Control Console control modes */
@@ -52,6 +49,9 @@ public:
 
 	/** Returns the edited console data */
 	UDMXControlConsoleData* GetEditorConsoleData() const { return EditorConsole->GetControlConsoleData(); }
+
+	/** Returns the edited console layouts */
+	UDMXControlConsoleEditorLayouts* GetEditorConsoleLayouts() const;
 
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleEditorSelection> GetSelectionHandler();
@@ -107,6 +107,12 @@ public:
 	/** Resets DMX Control Console */
 	void ClearAll();
 
+	/** Selects the active Layout for the Control Console */
+	void SelectLayout(UDMXControlConsoleEditorGlobalLayoutBase* NewLayout);
+
+	/** Selects the Layout Mode for the active Layout */
+	void SelectLayoutMode(EDMXControlConsoleLayoutMode NewLayoutMode);
+
 	/** Scrolls the given FaderGroup into view */
 	void ScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup) const;
 
@@ -156,6 +162,12 @@ public:
 	/** Gets a reference to OnFadersViewModeChanged delegate */
 	FSimpleMulticastDelegate& GetOnFadersViewModeChanged() { return OnFadersViewModeChanged; }
 
+	/** Gets a reference to OnLayoutChanged delegate */
+	FSimpleMulticastDelegate& GetOnLayoutChanged() { return OnLayoutChanged; }
+
+	/** Gets a reference to OnLayoutModeChanged delegate */
+	FSimpleMulticastDelegate& GetOnLayoutModeChanged() { return OnLayoutModeChanged; }
+
 	/** Gets a reference to OnScrollFaderGroupIntoView delegate */
 	FDMXControlConsoleFaderGroupDelegate& GetOnScrollFaderGroupIntoView() { return OnScrollFaderGroupIntoView; }
 
@@ -171,6 +183,9 @@ protected:
 private:
 	/** Refreshes Control Console */
 	void ForceRefresh();
+
+	/** Initializes current Control Console's Editor Layouts, if not valid */
+	void InitializeControlConsoleEditorLayouts();
 
 	/** Saves the current editor console to config */
 	void SaveConsoleToConfig();
@@ -207,6 +222,12 @@ private:
 
 	/** Called when the Faders view mode is changed */
 	FSimpleMulticastDelegate OnFadersViewModeChanged;
+
+	/** Called when the Layout is changed */
+	FSimpleMulticastDelegate OnLayoutChanged;
+
+	/** Called when the Layout mode is changed */
+	FSimpleMulticastDelegate OnLayoutModeChanged;
 
 	/** Called when a Fader Group needs to be scrolled into view */
 	FDMXControlConsoleFaderGroupDelegate OnScrollFaderGroupIntoView;

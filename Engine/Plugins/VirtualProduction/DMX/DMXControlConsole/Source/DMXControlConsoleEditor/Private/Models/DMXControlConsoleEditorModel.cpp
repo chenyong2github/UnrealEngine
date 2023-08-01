@@ -16,6 +16,12 @@
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IContentBrowserSingleton.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutDefault.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutUser.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
+#include "Library/DMXLibrary.h"
 #include "Models/Filter/FilterModel.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
@@ -25,6 +31,11 @@
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorModel"
+
+UDMXControlConsoleEditorLayouts* UDMXControlConsoleEditorModel::GetEditorConsoleLayouts() const
+{
+	return EditorConsole ? Cast<UDMXControlConsoleEditorLayouts>(EditorConsole->ControlConsoleEditorLayouts) : nullptr;
+}
 
 TSharedRef<FDMXControlConsoleEditorSelection> UDMXControlConsoleEditorModel::GetSelectionHandler()
 {
@@ -90,57 +101,76 @@ bool UDMXControlConsoleEditorModel::IsSendingDMX() const
 
 void UDMXControlConsoleEditorModel::RemoveAllSelectedElements()
 {
-	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
-	if (!SelectedFaderGroupsObjects.IsEmpty())
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts || !SelectionHandler)
 	{
-		const FScopedTransaction RemoveAllSelectedElementsTransaction(LOCTEXT("RemoveAllSelectedElementsTransaction", "Selected Elements removed"));
+		return;
+	}
 
-		// Delete all selected fader groups
-		for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
+	UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout || ActiveLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutDefault::StaticClass())
+	{
+		return;
+	}
+
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	if (SelectedFaderGroupsObjects.IsEmpty())
+	{
+		return;
+	}
+
+	const FScopedTransaction RemoveAllSelectedElementsTransaction(LOCTEXT("RemoveAllSelectedElementsTransaction", "Selected Elements removed"));
+
+	// Delete all selected fader groups
+	for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
+	{
+		UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
+		if (SelectedFaderGroup &&
+			SelectionHandler->GetSelectedFadersFromFaderGroup(SelectedFaderGroup).IsEmpty())
 		{
-			UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			if (SelectedFaderGroup && 
-				!SelectedFaderGroup->HasFixturePatch() &&
-				SelectionHandler->GetSelectedFadersFromFaderGroup(SelectedFaderGroup).IsEmpty())
+			// If there's only one fader group to delete, replace it in selection
+			if (SelectedFaderGroupsObjects.Num() == 1)
 			{
-				// If there's only one fader group to delete, replace it in selection
-				if (SelectedFaderGroupsObjects.Num() == 1)
-				{
-					SelectionHandler->ReplaceInSelection(SelectedFaderGroup);
-				}
+				SelectionHandler->ReplaceInSelection(SelectedFaderGroup);
+			}
 
-				constexpr bool bNotifySelectedFaderGroupChange = false;
-				SelectionHandler->RemoveFromSelection(SelectedFaderGroup, bNotifySelectedFaderGroupChange);
+			constexpr bool bNotifySelectedFaderGroupChange = false;
+			SelectionHandler->RemoveFromSelection(SelectedFaderGroup, bNotifySelectedFaderGroupChange);
 
-				SelectedFaderGroup->PreEditChange(nullptr);
+			ActiveLayout->PreEditChange(nullptr);
+			ActiveLayout->RemoveFromLayout(SelectedFaderGroup);
+			ActiveLayout->PostEditChange();
+
+			if (!SelectedFaderGroup->HasFixturePatch())
+			{
 				SelectedFaderGroup->Destroy();
-				SelectedFaderGroup->PostEditChange();
 			}
 		}
+	}
 
-		// Delete all selected faders
-		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
-		if (!SelectedFadersObjects.IsEmpty())
+	// Delete all selected faders
+	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+	if (!SelectedFadersObjects.IsEmpty())
+	{
+		for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
 		{
-			for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
+			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
+			const bool bValidFaderWithPatch = SelectedFader && !SelectedFader->GetOwnerFaderGroupChecked().HasFixturePatch();
+			if (!bValidFaderWithPatch)
 			{
-				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
-				if (SelectedFader && !SelectedFader->GetOwnerFaderGroupChecked().HasFixturePatch())
-				{
-					// If there's only one fader to delete, replace it in selection
-					if (SelectedFadersObjects.Num() == 1)
-					{
-						SelectionHandler->ReplaceInSelection(SelectedFader);
-					}
-
-					constexpr bool bNotifyFaderSelectionChange = false;
-					SelectionHandler->RemoveFromSelection(SelectedFader, bNotifyFaderSelectionChange);
-
-					SelectedFader->PreEditChange(nullptr);
-					SelectedFader->Destroy();
-					SelectedFader->PostEditChange();
-				}
+				continue;
 			}
+
+			// If there's only one fader to delete, replace it in selection
+			if (SelectedFadersObjects.Num() == 1)
+			{
+				SelectionHandler->ReplaceInSelection(SelectedFader);
+			}
+
+			constexpr bool bNotifyFaderSelectionChange = false;
+			SelectionHandler->RemoveFromSelection(SelectedFader, bNotifyFaderSelectionChange);
+
+			SelectedFader->Destroy();
 		}
 	}
 
@@ -149,15 +179,81 @@ void UDMXControlConsoleEditorModel::RemoveAllSelectedElements()
 
 void UDMXControlConsoleEditorModel::ClearAll()
 {
-	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
-	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Console Data, cannot clear all its children.")))
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetEditorConsoleLayouts();
+	if (!ensureMsgf(EditorConsoleLayouts, TEXT("Invalid Editor Console Layouts, cannot clear the active layout.")))
+	{
+		return;
+	}
+
+	SelectionHandler->ClearSelection();
+	UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
+	{
+		return;
+	}
+
+	const FScopedTransaction ClearAllTransaction(LOCTEXT("ClearAllTransaction", "Clear All"));
+	ActiveLayout->Modify();
+	ActiveLayout->ClearAll();
+	if (ActiveLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutDefault::StaticClass())
+	{
+		const TArray<UDMXControlConsoleEditorGlobalLayoutUser*> UserLayouts = EditorConsoleLayouts->GetUserLayouts();
+		for (UDMXControlConsoleEditorGlobalLayoutUser* UserLayout : UserLayouts)
+		{
+			UserLayout->Modify();
+			UserLayout->ClearAllPatchedFaderGroups();
+			UserLayout->ClearEmptyLayoutRows();
+		}
+
+		if (UDMXControlConsoleData* ControlconsoleData = GetEditorConsoleData())
+		{
+			constexpr bool bOnlyPatchedFaderGroups = true;
+			ControlconsoleData->Modify();
+			ControlconsoleData->ClearAll(bOnlyPatchedFaderGroups);
+		}
+	}
+}
+
+void UDMXControlConsoleEditorModel::SelectLayout(UDMXControlConsoleEditorGlobalLayoutBase* NewLayout)
+{
+	UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
+	{
+		return;
+	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (NewLayout && NewLayout != ActiveLayout)
 	{
 		SelectionHandler->ClearSelection();
 
-		const FScopedTransaction ClearAllTransaction(LOCTEXT("ClearAllTransaction", "Clear All"));
-		EditorConsoleData->Modify();
+		const FScopedTransaction SelectLayoutTransaction(LOCTEXT("SelectLayoutTransaction", "Change Layout"));
+		EditorConsoleLayouts->Modify();
+		EditorConsoleLayouts->SetActiveLayout(NewLayout);
+		if (UDMXControlConsoleEditorGlobalLayoutUser* UserLayout = Cast<UDMXControlConsoleEditorGlobalLayoutUser>(NewLayout))
+		{
+			UserLayout->SetIsActive(true);
+		}
 
-		EditorConsoleData->Reset();
+		OnLayoutChanged.Broadcast();
+	}
+}
+
+void UDMXControlConsoleEditorModel::SelectLayoutMode(EDMXControlConsoleLayoutMode NewLayoutMode)
+{
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
+	{
+		return;
+	}
+	
+	UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (ActiveLayout->LayoutMode != NewLayoutMode)
+	{
+		ActiveLayout->Modify();
+		ActiveLayout->LayoutMode = NewLayoutMode;
+
+		OnLayoutModeChanged.Broadcast();
 	}
 }
 
@@ -171,6 +267,13 @@ void UDMXControlConsoleEditorModel::LoadConsoleFromConfig()
 	if (UDMXControlConsole* DefaultConsole = Cast<UDMXControlConsole>(DefaultConsolePath.TryLoad()))
 	{
 		EditorConsole = DefaultConsole;
+
+		InitializeControlConsoleEditorLayouts();
+		UDMXControlConsoleEditorLayouts* NewEditorLayouts = GetEditorConsoleLayouts();
+		if (NewEditorLayouts)
+		{
+			NewEditorLayouts->SubscribeToFixturePatchDelegates();
+		}
 	}
 	else
 	{
@@ -204,6 +307,12 @@ void UDMXControlConsoleEditorModel::CreateNewConsole()
 		}
 	}
 
+	UDMXControlConsoleEditorLayouts* OldEditorLayouts = GetEditorConsoleLayouts();
+	if (OldEditorLayouts)
+	{
+		OldEditorLayouts->UnsubscribeFromFixturePatchDelegates();
+	}
+
 	const FScopedTransaction CreateNewConsoleTransaction(LOCTEXT("CreateNewConsoleTransaction", "Create new Control Console"));
 	UDMXControlConsole* NewConsole = NewObject<UDMXControlConsole>(GetTransientPackage(), NAME_None, RF_Transactional);
 	if (EditorConsole)
@@ -212,6 +321,13 @@ void UDMXControlConsoleEditorModel::CreateNewConsole()
 	}
 	Modify();
 	EditorConsole = NewConsole;
+
+	InitializeControlConsoleEditorLayouts();
+	UDMXControlConsoleEditorLayouts* NewEditorLayouts = GetEditorConsoleLayouts();
+	if (NewEditorLayouts)
+	{
+		NewEditorLayouts->SubscribeToFixturePatchDelegates();
+	}
 	
 	SaveConsoleToConfig();
 
@@ -249,49 +365,65 @@ void UDMXControlConsoleEditorModel::SaveConsoleAs()
 	if (PromptSaveConsolePackage(PackagePath, AssetName))
 	{
 		UDMXControlConsole* NewConsole = CreateNewConsoleAsset(PackagePath, AssetName, EditorConsole->GetControlConsoleData());
-		if (NewConsole)
+		if (!NewConsole)
 		{
-			SelectionHandler->ClearSelection();
-
-			const FScopedTransaction SaveConsoleAsTransaction(LOCTEXT("SaveConsoleAsTransaction", "Save Control Console Console to new Asset"));
-
-			Modify();
-			EditorConsole = NewConsole;
-
-			SaveConsoleToConfig();
-
-			OnConsoleLoadedDelegate.Broadcast();
+			return;
 		}
+
+		SelectionHandler->ClearSelection();
+
+		const FScopedTransaction SaveConsoleAsTransaction(LOCTEXT("SaveConsoleAsTransaction", "Save Control Console Console to new Asset"));
+
+		Modify();
+		EditorConsole = NewConsole;
+
+		SaveConsoleToConfig();
+
+		OnConsoleLoadedDelegate.Broadcast();
 	}
 }
 
 void UDMXControlConsoleEditorModel::LoadConsole(const FAssetData& AssetData)
 {	
 	UDMXControlConsole* NewEditorConsole = Cast<UDMXControlConsole>(AssetData.GetAsset());
-	if (NewEditorConsole)
+	if (!NewEditorConsole)
 	{
-		UDMXControlConsoleData* CurrentControlConsoleData = EditorConsole->GetControlConsoleData();
-		if (CurrentControlConsoleData)
-		{
-			CurrentControlConsoleData->StopSendingDMX();
-		}
-
-		// Selection handler may not yet be valid, as the getter creates it
-		if (!SelectionHandler.IsValid())
-		{
-			SelectionHandler = MakeShared<FDMXControlConsoleEditorSelection>();
-		}
-		SelectionHandler->ClearSelection();
-
-		const FScopedTransaction LoadConsoleTransaction(LOCTEXT("LoadConsoleTransaction", "Load Control Console"));
-
-		Modify();
-		EditorConsole = NewEditorConsole;
-
-		SaveConsoleToConfig();
-
-		OnConsoleLoadedDelegate.Broadcast();
+		return;
 	}
+
+	UDMXControlConsoleEditorLayouts* OldEditorLayouts = GetEditorConsoleLayouts();
+	if (OldEditorLayouts)
+	{
+		OldEditorLayouts->UnsubscribeFromFixturePatchDelegates();
+	}
+
+	UDMXControlConsoleData* CurrentControlConsoleData = EditorConsole->GetControlConsoleData();
+	if (CurrentControlConsoleData)
+	{
+		CurrentControlConsoleData->StopSendingDMX();
+	}
+
+	// Selection handler may not yet be valid, as the getter creates it
+	if (!SelectionHandler.IsValid())
+	{
+		SelectionHandler = MakeShared<FDMXControlConsoleEditorSelection>();
+	}
+	SelectionHandler->ClearSelection();
+
+	const FScopedTransaction LoadConsoleTransaction(LOCTEXT("LoadConsoleTransaction", "Load Control Console"));
+
+	Modify();
+	EditorConsole = NewEditorConsole;
+
+	InitializeControlConsoleEditorLayouts();
+	UDMXControlConsoleEditorLayouts* NewEditorLayouts = GetEditorConsoleLayouts();
+	if (NewEditorLayouts)
+	{
+		NewEditorLayouts->SubscribeToFixturePatchDelegates();
+	}
+	SaveConsoleToConfig();
+
+	OnConsoleLoadedDelegate.Broadcast();
 }
 
 void UDMXControlConsoleEditorModel::RequestRefresh()
@@ -370,6 +502,21 @@ void UDMXControlConsoleEditorModel::ForceRefresh()
 	OnControlConsoleForceRefresh.Broadcast();
 }
 
+void UDMXControlConsoleEditorModel::InitializeControlConsoleEditorLayouts()
+{
+	if (EditorConsole && !EditorConsole->ControlConsoleEditorLayouts)
+	{
+		UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = NewObject<UDMXControlConsoleEditorLayouts>(EditorConsole, NAME_None, RF_Transactional);
+		EditorConsoleLayouts->UpdateDefaultLayout(GetEditorConsoleData());
+
+		UDMXControlConsoleEditorGlobalLayoutDefault* DefaultLayout = EditorConsoleLayouts->GetDefaultLayout();
+		EditorConsoleLayouts->SetActiveLayout(DefaultLayout);
+
+		EditorConsole->ControlConsoleEditorLayouts = EditorConsoleLayouts;
+		OnLayoutChanged.Broadcast();
+	}
+}
+
 void UDMXControlConsoleEditorModel::SaveConsoleToConfig()
 {
 	if (DefaultConsolePath != EditorConsole)
@@ -393,10 +540,23 @@ void UDMXControlConsoleEditorModel::FinalizeLoadConsole(UDMXControlConsole* Cons
 		CurrentControlConsoleData->StopSendingDMX();
 	}
 
+	UDMXControlConsoleEditorLayouts* OldEditorLayouts = GetEditorConsoleLayouts();
+	if (OldEditorLayouts)
+	{
+		OldEditorLayouts->UnsubscribeFromFixturePatchDelegates();
+	}
+
 	SelectionHandler->ClearSelection();
 
 	Modify();
 	EditorConsole = ConsoleToLoad;
+
+	InitializeControlConsoleEditorLayouts();
+	UDMXControlConsoleEditorLayouts* NewEditorLayouts = GetEditorConsoleLayouts();
+	if (NewEditorLayouts)
+	{
+		NewEditorLayouts->SubscribeToFixturePatchDelegates();
+	}
 
 	SaveConsoleToConfig();
 

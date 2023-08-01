@@ -2,23 +2,22 @@
 
 #include "SDMXControlConsoleEditorMatrixCell.h"
 
+#include "Algo/Find.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "DMXControlConsoleFixturePatchMatrixCell.h"
-#include "Models/DMXControlConsoleEditorModel.h"
-#include "Style/DMXControlConsoleEditorStyle.h"
-#include "Widgets/SDMXControlConsoleEditorFader.h"
-#include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
-#include "Widgets/SDMXControlConsoleEditorExpandArrowButton.h"
-
-#include "ScopedTransaction.h"
-#include "Algo/Find.h"
 #include "Misc/Optional.h"
+#include "Models/DMXControlConsoleEditorModel.h"
+#include "ScopedTransaction.h"
+#include "Style/DMXControlConsoleEditorStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SDMXControlConsoleEditorFader.h"
+#include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
+#include "Widgets/SDMXControlConsoleEditorExpandArrowButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 

@@ -9,20 +9,20 @@
 
 enum class ECheckBoxState : uint8;
 enum class EDMXControlConsoleEditorViewMode : uint8;
+enum class EDMXControlConsoleLayoutMode : uint8;
 class FUICommandList;
 class IDetailsView;
-class SCheckBox;
-class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
 class SDMXControlConsoleEditorPortSelector;
 class SDockTab;
+class SHorizontalBox;
 class SScrollBox;
 class SSearchBox;
-class SVerticalBox;
-class UDMXControlConsoleEditorModel;
-class UDMXControlConsoleFaderGroup;
-class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsoleData;
+class UDMXControlConsoleEditorLayouts;
+class UDMXControlConsoleEditorModel;
+
+namespace UE::DMXControlConsoleEditor::Layout { class SDMXControlConsoleEditorLayout; }
 
 
 /** Widget for the DMX Control Console */
@@ -47,6 +47,9 @@ public:
 
 	/** Gets current DMX Control Console Data */
 	UDMXControlConsoleData* GetControlConsoleData() const;
+
+	/** Gets current DMX Control Console Layouts */
+	UDMXControlConsoleEditorLayouts* GetControlConsoleLayouts() const;
 
 protected:
 	//~ Begin SWidget interface
@@ -77,8 +80,8 @@ private:
 	/** Generates a widget for selection options */
 	TSharedRef<SWidget> GenerateSelectionMenuWidget();
 
-	/** Finds FaderGroupRowView by the given FaderGroupRow, if valid */
-	TSharedPtr<SDMXControlConsoleEditorFaderGroupRowView> FindFaderGroupRowView(const UDMXControlConsoleFaderGroupRow* FaderGroupRow);
+	/** Generates a widget to select the current layout mode */
+	TSharedRef<SWidget> GenerateLayoutModeMenuWidget();
 
 	/** Restores global search filter text from Constrol Console Data */
 	void RestoreGlobalFilter();
@@ -89,20 +92,11 @@ private:
 	/** Updates the Details Views */
 	void ForceUpdateDetailsViews();
 
+	/** Updates Control Console layout, according to current layout mode */
+	void UpdateLayout();
+
 	/** Updates FixturePatchVerticalBox widget */
 	void UpdateFixturePatchVerticalBox();
-
-	/** Should be called when a Fader Group Row was added to the this view displays */
-	void OnFaderGroupRowAdded();
-
-	/** Adds a Fader Group Row slot widget */
-	void AddFaderGroupRow(UDMXControlConsoleFaderGroupRow* FaderGroupRow);
-
-	/** Should be called when a Fader Group was deleted from the this view displays */
-	void OnFaderGroupRowRemoved();
-
-	/** Checks if FaderGroupRows array contains a reference to the given */
-	bool IsFaderGroupRowContained(UDMXControlConsoleFaderGroupRow* FaderGroupRow);
 
 	/** Called when the search text changed */
 	void OnSearchTextChanged(const FText& SearchText);
@@ -113,14 +107,17 @@ private:
 	/** Called to set filtered Elements auto-selection state */
 	void OnFilteredElementsAutoSelectStateChanged(ECheckBoxState CheckBoxState);
 
-	/** Called to add first first Fader Group */
-	FReply OnAddFirstFaderGroup();
-
 	/** Called when a Fader Groups view mode is selected */
 	void OnFaderGroupsViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const;
 
 	/** Called when a Faders view mode is selected */
 	void OnFadersViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const;
+
+	/** Called when a Layout mode is selected */
+	void OnLayoutModeSelected(const EDMXControlConsoleLayoutMode LayoutMode) const;
+
+	/** True if the current layout mode matches the given one */
+	bool IsCurrentLayoutMode(const EDMXControlConsoleLayoutMode LayoutMode) const;
 
 	/** Called when a Selection option is selected */
 	void OnSelectAll(bool bOnlyMatchingFilter = false) const;
@@ -143,8 +140,8 @@ private:
 	/** Called when a console was saved */
 	void OnConsoleSaved();
 
-	/** Called when a FaderGroupView needs to be scrolled into view */
-	void OnScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup);
+	/** Called when a console was refreshed */
+	void OnConsoleRefreshed();
 
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
@@ -152,26 +149,17 @@ private:
 	/** Searches this widget's parents to see if it's a child of InDockTab */
 	bool IsWidgetInTab(TSharedPtr<SDockTab> InDockTab, TSharedPtr<SWidget> InWidget) const;
 
-	/** Gets visibility for each FaderGroupRowView widget */
-	EVisibility GetFaderGroupRowViewVisibility(UDMXControlConsoleFaderGroupRow* FaderGroupRow) const;
-
-	/** Gets add button visibility */
-	EVisibility GetAddButtonVisibility() const;
-
 	/** Gets Details Views section visibility */
 	EVisibility GetDetailViewsSectionVisibility() const;
 
-	/** Reference to the container widget of this DMX Control Console's Fader Group Rows slots */
-	TSharedPtr<SVerticalBox> FaderGroupRowsVerticalBox;
+	/** Reference to Control Console current layout widget */
+	TSharedPtr<UE::DMXControlConsoleEditor::Layout::SDMXControlConsoleEditorLayout> Layout;
+
+	/** Reference to layout container box */
+	TSharedPtr<SHorizontalBox> LayoutBox;
 
 	/** Reference to FixturePatchRows widgets container */
 	TSharedPtr<SDMXControlConsoleEditorFixturePatchVerticalBox> FixturePatchVerticalBox;
-
-	/** Reference to horizontal ScrollBox widget */
-	TSharedPtr<SScrollBox> HorizontalScrollBox;
-
-	/** Reference to vertical ScrollBox widget */
-	TSharedPtr<SScrollBox> VerticalScrollBox;
 
 	/** Reference to Control Console searchbox used for global filtering */
 	TSharedPtr<SSearchBox> GlobalFilterSearchBox;
@@ -187,9 +175,6 @@ private:
 
 	/** Shows details of the current selected Faders */
 	TSharedPtr<IDetailsView> FadersDetailsView;
-
-	/** Array of weak references to Fader Group Row widgets */
-	TArray<TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView>> FaderGroupRowViews;
 
 	/** Delegate handle bound to the FGlobalTabmanager::OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;

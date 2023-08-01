@@ -8,12 +8,14 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DMXControlConsole.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "IPropertyUtilities.h"
 #include "Layout/Visibility.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutUser.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "PropertyHandle.h"
@@ -150,9 +152,23 @@ bool FDMXControlConsoleFaderGroupDetails::DoSelectedFaderGroupsHaveAnyFixturePat
 
 FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 {
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleEditorLayouts* EditorlConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorlConsoleLayouts)
+	{
+		return FReply::Handled();
+	}
+
+	UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorlConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
+	{
+		return FReply::Handled();
+	}
+
 	const FScopedTransaction FaderGroupFixturePatchClearTransaction(LOCTEXT("FaderGroupFixturePatchClearTransaction", "Clear Fixture Patch"));
 
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	TArray<UObject*> FaderGroupsToSelect;
+	TArray<UObject*> FaderGroupsToUnselect;
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
@@ -163,25 +179,36 @@ FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 			continue;
 		}
 
-		SelectedFaderGroup->PreEditChange(nullptr);
-
-		// Replace patched Fader Group with a not patched one
+		// Create new unpatched Fader Group to replace the Patched one
 		UDMXControlConsoleFaderGroupRow& OwnerRow = SelectedFaderGroup->GetOwnerFaderGroupRowChecked();
-		const int32 Index = SelectedFaderGroup->GetIndex();
-		SelectedFaderGroup->SetIsActive(false);
-
-		OwnerRow.PreEditChange(UDMXControlConsoleFaderGroupRow::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroupRow::GetFaderGroupsPropertyName()));
-		UDMXControlConsoleFaderGroup* ClearedFaderGroup = OwnerRow.AddFaderGroup(Index);
+		OwnerRow.PreEditChange(nullptr);
+		UDMXControlConsoleFaderGroup* FaderGroupToAdd = OwnerRow.AddFaderGroup(SelectedFaderGroup->GetIndex());
 		OwnerRow.PostEditChange();
 
-		// Handle selection for both FaderGroups
-		constexpr bool bNotifySelectionChange = false;
-		SelectionHandler->AddToSelection(ClearedFaderGroup, bNotifySelectionChange);
-		SelectionHandler->RemoveFromSelection(SelectedFaderGroup, bNotifySelectionChange);
+		const int32 RowIndex = ActiveLayout->GetFaderGroupRowIndex(SelectedFaderGroup);
+		const int32 ColumnIndex = ActiveLayout->GetFaderGroupColumnIndex(SelectedFaderGroup);
 
-		SelectedFaderGroup->PostEditChange();
+		ActiveLayout->PreEditChange(nullptr);
+		ActiveLayout->RemoveFromLayout(SelectedFaderGroup);
+		ActiveLayout->AddToLayout(FaderGroupToAdd, RowIndex, ColumnIndex);
+		ActiveLayout->PostEditChange();
+
+		FaderGroupToAdd->Modify();
+		FaderGroupToAdd->SetIsActive(true);
+		FaderGroupToAdd->SetIsExpanded(SelectedFaderGroup->IsExpanded());
+
+		SelectedFaderGroup->Modify();
+		SelectedFaderGroup->SetIsActive(false);
+
+		FaderGroupsToSelect.Add(FaderGroupToAdd);
+		FaderGroupsToUnselect.Add(SelectedFaderGroup);
 	}
-	SelectionHandler->RemoveInvalidObjectsFromSelection();
+
+	constexpr bool bNotifySelectionChange = false;
+	SelectionHandler->AddToSelection(FaderGroupsToSelect, bNotifySelectionChange);
+	SelectionHandler->RemoveFromSelection(FaderGroupsToUnselect);
+
+	EditorConsoleModel->RequestRefresh();
 
 	return FReply::Handled();
 }
@@ -272,7 +299,14 @@ EVisibility FDMXControlConsoleFaderGroupDetails::GetEditorColorVisibility() cons
 
 EVisibility FDMXControlConsoleFaderGroupDetails::GetClearButtonVisibility() const
 {
-	return DoSelectedFaderGroupsHaveAnyFixturePatches() ? EVisibility::Visible : EVisibility::Collapsed;
+	bool bIsVisible = DoSelectedFaderGroupsHaveAnyFixturePatches();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (const UDMXControlConsoleEditorLayouts* EditorlConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts())
+	{
+		const UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorlConsoleLayouts->GetActiveLayout();
+		bIsVisible &= ActiveLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass();
+	}
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

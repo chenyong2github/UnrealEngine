@@ -97,6 +97,9 @@ private:
 	/** Called when remove option is selected */
 	void OnRemoveFaderGroup() const;
 
+	/** Gets wheter remove option is allowed or not */
+	bool CanRemoveFaderGroup() const;
+
 	/** Called when reset option is selected */
 	void OnResetFaderGroup() const;
 

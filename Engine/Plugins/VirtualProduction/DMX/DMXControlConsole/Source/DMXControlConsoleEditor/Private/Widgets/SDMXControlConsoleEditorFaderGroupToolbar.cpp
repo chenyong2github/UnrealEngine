@@ -10,6 +10,10 @@
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXEditorStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutDefault.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutUser.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
@@ -284,7 +288,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsM
 			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup),
-				FCanExecuteAction::CreateLambda([this]() { return GetFaderGroup() && !GetFaderGroup()->HasFixturePatch(); })
+				FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanRemoveFaderGroup)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -482,13 +486,14 @@ bool SDMXControlConsoleEditorFaderGroupToolbar::IsFixturePatchStillAvailable(con
 	if (InFixturePatch)
 	{
 		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-		if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
+		if (const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts())
 		{
-			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
+			const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+			const TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> AllFaderGroups = CurrentLayout->GetAllFaderGroups();
 
-			auto IsFixturePatchInUseLambda = [InFixturePatch](const UDMXControlConsoleFaderGroup* FaderGroup)
+			auto IsFixturePatchInUseLambda = [InFixturePatch](const TWeakObjectPtr<UDMXControlConsoleFaderGroup>& FaderGroup)
 				{
-					if (!FaderGroup || !FaderGroup->IsActive() || !FaderGroup->HasFixturePatch())
+					if (!FaderGroup.IsValid() || !FaderGroup->IsActive() || !FaderGroup->HasFixturePatch())
 					{
 						return false;
 					}
@@ -541,77 +546,86 @@ void SDMXControlConsoleEditorFaderGroupToolbar::UpdateComboBoxSource()
 void SDMXControlConsoleEditorFaderGroupToolbar::OnComboBoxSelectionChanged(const TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef, ESelectInfo::Type SelectInfo)
 {
 	UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
-	if (FixturePatchRef.IsValid() && FaderGroup)
+	if (!FaderGroup)
 	{
-		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-		SelectionHandler->ClearFadersSelection(FaderGroup);
-		
-		UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
-
-		const FScopedTransaction GenerateFaderGroupFromComboBoxSelectionTransaction(LOCTEXT("GenerateFaderGroupFromComboBoxSelectionTransaction", "Update Fader Group"));
-		FaderGroup->PreEditChange(nullptr);
-		if (FixturePatch)
-		{
-			if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
-			{
-				// Find already existing Fader Group with the given FixturePatch and replace the current one
-				if (UDMXControlConsoleFaderGroup* FaderGroupToMove = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch))
-				{
-					UDMXControlConsoleFaderGroupRow& DestinationRow = FaderGroup->GetOwnerFaderGroupRowChecked();
-					const int32 DestinationIndex = FaderGroup->GetIndex();
-					
-					// Change active state of the two Fader Groups
-					FaderGroupToMove->Modify();
-					FaderGroupToMove->SetIsActive(true);
-					FaderGroup->SetIsActive(false);
-
-					DestinationRow.PreEditChange(UDMXControlConsoleFaderGroupRow::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroupRow::GetFaderGroupsPropertyName()));
-					DestinationRow.AddFaderGroup(FaderGroupToMove, DestinationIndex);
-					DestinationRow.PostEditChange();
-
-					// Handle selection for both FaderGroups
-					if (SelectionHandler->IsSelected(FaderGroup))
-					{
-						constexpr bool bNotifySelectionChange = false;
-						SelectionHandler->AddToSelection(FaderGroupToMove, bNotifySelectionChange);
-						SelectionHandler->RemoveFromSelection(FaderGroup);
-					}
-
-					// Destroy Fader Group if not patched
-					if (!FaderGroup->HasFixturePatch())
-					{
-						FaderGroup->Destroy();
-					}
-				}
-			}
-		}
-		else
-		{
-			// Replace patched Fader Group with a not patched one
-			if (FaderGroup->HasFixturePatch())
-			{
-				UDMXControlConsoleFaderGroupRow& OwnerRow = FaderGroup->GetOwnerFaderGroupRowChecked();
-				const int32 Index = FaderGroup->GetIndex();
-				FaderGroup->SetIsActive(false);
-
-				OwnerRow.PreEditChange(UDMXControlConsoleFaderGroupRow::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroupRow::GetFaderGroupsPropertyName()));
-				UDMXControlConsoleFaderGroup* NewFaderGroup = OwnerRow.AddFaderGroup(Index);
-				OwnerRow.PostEditChange();
-
-				// Handle selection for both FaderGroups
-				if (SelectionHandler->IsSelected(FaderGroup))
-				{
-					constexpr bool bNotifySelectionChange = false;
-					SelectionHandler->AddToSelection(NewFaderGroup, bNotifySelectionChange);
-					SelectionHandler->RemoveFromSelection(FaderGroup);
-				}
-			}
-		}
-
-		FaderGroup->PostEditChange();
-		EditorConsoleModel->RequestRefresh();
+		return;
 	}
+
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+	SelectionHandler->ClearFadersSelection(FaderGroup);
+		
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleData || !EditorConsoleLayouts)
+	{
+		return;
+	}
+
+	UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!CurrentLayout)
+	{
+		return;
+	}
+
+	const UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.IsValid() ? FixturePatchRef->GetFixturePatch() : nullptr;
+	UDMXControlConsoleFaderGroup* FaderGroupToAdd = nullptr;
+
+	const FScopedTransaction GenerateFaderGroupFromComboBoxSelectionTransaction(LOCTEXT("GenerateFaderGroupFromComboBoxSelectionTransaction", "Replace Fader Group"));
+	if (FixturePatch)
+	{
+		// Find Fader Group to Add in Control Console Data
+		FaderGroupToAdd = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
+	}
+	else if (CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass())
+	{
+		// Fader Group to Add is a new Fader Group
+		UDMXControlConsoleFaderGroupRow& OwnerRow = FaderGroup->GetOwnerFaderGroupRowChecked();
+		OwnerRow.PreEditChange(nullptr);
+		FaderGroupToAdd = OwnerRow.AddFaderGroup(FaderGroup->GetIndex());
+		OwnerRow.PostEditChange();
+	}
+
+	if (FaderGroupToAdd)
+	{
+		int32 RowIndex = CurrentLayout->GetFaderGroupRowIndex(FaderGroup);
+		int32 ColumnIndex = CurrentLayout->GetFaderGroupColumnIndex(FaderGroup);
+
+		// Emplace Fader Group with FaderGroupToAdd
+		CurrentLayout->PreEditChange(nullptr);
+		if (CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutDefault::StaticClass())
+		{
+			CurrentLayout->RemoveFromLayout(FaderGroupToAdd);
+		}
+		else if (CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass())
+		{
+			CurrentLayout->RemoveFromLayout(FaderGroup);
+		}
+
+		CurrentLayout->AddToLayout(FaderGroupToAdd, RowIndex, ColumnIndex);
+		CurrentLayout->PostEditChange();
+
+		FaderGroupToAdd->Modify();
+		FaderGroupToAdd->SetIsActive(true);
+		FaderGroupToAdd->SetIsExpanded(FaderGroup->IsExpanded());
+
+		FaderGroup->Modify();
+		FaderGroup->SetIsActive(false);
+
+		if (SelectionHandler->IsSelected(FaderGroup))
+		{
+			constexpr bool bNotifySelectionChange = false;
+			SelectionHandler->AddToSelection(FaderGroupToAdd, bNotifySelectionChange);
+			SelectionHandler->RemoveFromSelection(FaderGroup);
+		}
+
+		if (!FaderGroup->HasFixturePatch())
+		{
+			FaderGroup->Destroy();
+		}
+	}
+
+	EditorConsoleModel->RequestRefresh();
 }
 
 void SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged(const FText& SearchText)
@@ -647,10 +661,8 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged(const FText&
 			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 			constexpr bool bNotifySelection = false;
 			SelectionHandler->AddToSelection(FadersToSelect, bNotifySelection);
-			SelectionHandler->RemoveFromSelection(FadersToUnselect, bNotifySelection);
+			SelectionHandler->RemoveFromSelection(FadersToUnselect);
 		}
-		
-		EditorConsoleModel->RequestRefresh();
 	}
 }
 
@@ -716,13 +728,53 @@ bool SDMXControlConsoleEditorFaderGroupToolbar::CanDuplicateFaderGroup() const
 
 void SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup() const
 {
-	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
+	if (!FaderGroup)
 	{
-		const FScopedTransaction RemoveFaderGroupOptionTransaction(LOCTEXT("RemoveFaderGroupOptionTransaction", "Fader Group removed"));
-		FaderGroup->PreEditChange(nullptr);
-		FaderGroup->Destroy();
-		FaderGroup->PostEditChange();
+		return;
 	}
+
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
+	{
+		return;
+	}
+
+	UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!CurrentLayout)
+	{
+		return;
+	}
+
+	const FScopedTransaction RemoveFaderGroupOptionTransaction(LOCTEXT("RemoveFaderGroupOptionTransaction", "Remove Fader Group"));
+	CurrentLayout->PreEditChange(nullptr);
+	CurrentLayout->RemoveFromLayout(FaderGroup);
+	CurrentLayout->ClearEmptyLayoutRows();
+	CurrentLayout->PostEditChange();
+
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+	SelectionHandler->RemoveFromSelection(FaderGroup);
+
+	if (!FaderGroup->HasFixturePatch())
+	{
+		FaderGroup->Destroy();
+	}
+}
+
+bool SDMXControlConsoleEditorFaderGroupToolbar::CanRemoveFaderGroup() const
+{
+	const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
+	bool bCanRemove = IsValid(FaderGroup);
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts())
+	{
+		const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+		bCanRemove &= IsValid(CurrentLayout) && CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass();
+	}
+
+	return bCanRemove;
 }
 
 void SDMXControlConsoleEditorFaderGroupToolbar::OnResetFaderGroup() const

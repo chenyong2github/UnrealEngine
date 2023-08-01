@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DMXControlConsoleFaderBase.h"
 
 #include "DMXControlConsoleFixturePatchMatrixCell.generated.h"

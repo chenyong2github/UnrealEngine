@@ -22,19 +22,23 @@ void FDMXControlConsoleEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(OpenControlConsole, "Open Control Console", "Opens the DMX Control Console", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND(CreateNewConsole, "New Console", "Creates a new Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::N));
-	UI_COMMAND(SaveConsole, "Save Console", "Saves the Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S));
+	UI_COMMAND(CreateNewConsole, "New Console", "Creates a new Control Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::N));
+	UI_COMMAND(SaveConsole, "Save Console", "Saves the Control Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S));
 	UI_COMMAND(SaveConsoleAs, "Save Console As...", "Saves the Console as a new asset", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::S));
-	UI_COMMAND(SendDMX, "Send DMX", "Send DMX.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(StopDMX, "Stop Sending DMX", "Stop Sending DMX.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(RemoveElements, "Remove Elements", "Remove selected elements from current Control Console", EUserInterfaceActionType::None, FInputChord(EKeys::Delete));
-	UI_COMMAND(SelectAll, "Select All", "Select all visible Elements in Control Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::A));
-	UI_COMMAND(ClearAll, "Clear All", "Clear All.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SendDMX, "Send DMX", "Sends DMX.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(StopDMX, "Stop Sending DMX", "Stops Sending DMX.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(RemoveElements, "Remove Elements", "Removes selected elements from current Control Console", EUserInterfaceActionType::None, FInputChord(EKeys::Delete));
+	UI_COMMAND(SelectAll, "Select All", "Selects all visible Elements in Control Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::A));
+	UI_COMMAND(ClearAll, "Clear All", "Clears the entire console", EUserInterfaceActionType::Button, FInputChord());
 	
-	UI_COMMAND(Mute, "Mute", "Mute selected Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(MuteAll, "Mute All", "Mute all Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(Unmute, "Unmute", "Unmute selected Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(UnmuteAll, "Unmute All", "Mute all Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Mute, "Mute", "Mutes selected Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(MuteAll, "Mute All", "Mutes all Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Unmute, "Unmute", "Unmutes selected Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(UnmuteAll, "Unmute All", "Mutes all Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(AddPatchNext, "Add Patches to the right", "Adds selected Fixture Patches to the right on the same row.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddPatchNextRow, "Add Patches on new row", "Adds selected Fixture Patches to next row.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddPatchToSelection, "Set Patch", "Uses the selected Fixture Patch in the selected Fader Group. Clears the previous patch.", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE 

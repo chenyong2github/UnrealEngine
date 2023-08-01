@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Object.h"
 
 #include "DMXControlConsoleFaderGroup.generated.h"
@@ -134,9 +133,6 @@ public:
 
 	/** Sets the activity state of the Fader Group */
 	void SetIsActive(bool bActive) { bIsActive = bActive; }
-
-	/** True if this is the firs active Fader Group in its row */
-	bool IsFirstActiveFaderGroupInRow() const;
 
 	/** True if Fader Group matches Control Console filtering system */
 	bool IsMatchingFilter() const { return bIsMatchingFilter; }

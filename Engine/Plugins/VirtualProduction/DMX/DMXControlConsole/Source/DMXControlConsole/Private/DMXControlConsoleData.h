@@ -3,8 +3,6 @@
 #pragma once
 
 #include "DMXProtocolCommon.h"
-
-#include "CoreMinimal.h"
 #include "Tickable.h"
 #include "UObject/Object.h"
 
@@ -12,6 +10,7 @@
 
 class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFaderGroupRow;
+class UDMXEntity;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
 
@@ -73,11 +72,17 @@ public:
 	/** Updates DMX Output Ports */
 	void UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts);
 
-	/** Clears all FaderGroupRows from this ControlConsole */
+	/** Clears FaderGroupRows array from data */
 	void Clear();
 
-	/** Resets the DMX Control Console to its default */
-	void Reset();
+	/** Clears Patched Fader Groups from data */
+	void ClearPatchedFaderGroups();
+
+	/** Clears the DMX Control Console to its default */
+	void ClearAll(bool bOnlyPatchedFaderGroups = false);
+
+	/** Called when a Fixture Patch was added to a DMX Library */
+	void OnFixturePatchAddedToLibrary(UDMXLibrary* Library, TArray<UDMXEntity*> Entities);
 
 	/** Gets a reference to OnFaderGroupAdded delegate */
 	FDMXControlConsoleFaderGroupDelegate& GetOnFaderGroupAdded() { return OnFaderGroupAdded; }
@@ -93,7 +98,6 @@ public:
 
 	// Property Name getters
 	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, SoftDMXLibraryPtr); }
-	FORCEINLINE static FName GetFaderGroupRowsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, FaderGroupRows); }
 
 protected:
 	//~ Begin UObject interface
@@ -127,7 +131,7 @@ private:
 	TWeakObjectPtr<UDMXLibrary> CachedWeakDMXLibrary;
 
 	/** DMX Control Console's Fader Group Rows array */
-	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console")
+	UPROPERTY()
 	TArray<TObjectPtr<UDMXControlConsoleFaderGroupRow>> FaderGroupRows;
 
 	/** Output ports to output dmx to */

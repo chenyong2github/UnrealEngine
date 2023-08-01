@@ -3,11 +3,13 @@
 #include "SDMXControlConsoleReadOnlyFixturePatchList.h"
 
 #include "Algo/AnyOf.h"
-#include "Algo/ForEach.h"
 #include "Algo/Find.h"
 #include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutDefault.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "Widgets/SDMXControlConsoleReadOnlyFixturePatchListRow.h"
 
@@ -15,16 +17,6 @@
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleReadOnlyFixturePatchList"
 
 const FName FDMXControlConsoleReadOnlyFixturePatchListCollumnIDs::CheckBox = "CheckBox";
-
-SDMXControlConsoleReadOnlyFixturePatchList::~SDMXControlConsoleReadOnlyFixturePatchList()
-{
-	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-	if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
-	{
-		EditorConsoleData->GetOnFaderGroupAdded().RemoveAll(this);
-		EditorConsoleData->GetOnFaderGroupRemoved().RemoveAll(this);
-	}
-}
 
 void SDMXControlConsoleReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 {
@@ -46,7 +38,10 @@ void SDMXControlConsoleReadOnlyFixturePatchList::Construct(const FArguments& InA
 		.IsRowEnabled(InArgs._IsRowEnabled)
 		.IsRowVisibile(InArgs._IsRowVisibile));
 
-	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->GetOnLayoutChanged().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
+	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
+
 	if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 	{
 		EditorConsoleData->GetOnFaderGroupAdded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
@@ -169,31 +164,44 @@ TSharedRef<SHeaderRow> SDMXControlConsoleReadOnlyFixturePatchList::GenerateHeade
 
 void SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection()
 {
-	if (ListView.IsValid())
+	if (!ListView.IsValid())
 	{
-		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-		if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
+		return;
+	}
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleData || !EditorConsoleLayouts)
+	{
+		return;
+	}
+
+	// Do only if current layout is Default Layout
+	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!CurrentLayout || CurrentLayout->GetClass() != UDMXControlConsoleEditorGlobalLayoutDefault::StaticClass())
+	{
+		return;
+	}
+
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
+	for (const UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
+	{
+		if (!FaderGroup || !FaderGroup->HasFixturePatch())
 		{
-			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
-			Algo::ForEach(AllFaderGroups, [this](const UDMXControlConsoleFaderGroup* FaderGroup)
-				{
-					if (!FaderGroup || !FaderGroup->HasFixturePatch())
-					{
-						return;
-					}
+			continue;
+		}
 
-					const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
-					const TSharedPtr<FDMXEntityFixturePatchRef>* FixturePatcheRefPtr = Algo::FindByPredicate(ListItems, [FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
-						{
-							return FixturePatchRef->GetFixturePatch() == FixturePatch;
-						});
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		const TSharedPtr<FDMXEntityFixturePatchRef>* FixturePatcheRefPtr = Algo::FindByPredicate(ListItems, [FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
+			{
+				return FixturePatchRef->GetFixturePatch() == FixturePatch;
+			});
 
-					if (FixturePatcheRefPtr)
-					{
-						const bool bIsSelected = FaderGroup->IsActive();
-						ListView->SetItemSelection(*FixturePatcheRefPtr, bIsSelected, ESelectInfo::Direct);
-					}
-				});
+		if (FixturePatcheRefPtr)
+		{
+			const bool bIsSelected = FaderGroup->IsActive();
+			ListView->SetItemSelection(*FixturePatcheRefPtr, bIsSelected, ESelectInfo::Direct);
 		}
 	}
 }

@@ -14,6 +14,22 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsole"
 
+namespace UE::DMXControlConsole::DMXControlConsoleData::Private
+{
+	/** Returns the absolute channel of a fixture patch */
+	int64 GetFixturePatchChannelAbsolute(const UDMXEntityFixturePatch* FixturePatch)
+	{
+		if (FixturePatch)
+		{
+			return (int64)FixturePatch->GetUniverseID() * DMX_UNIVERSE_SIZE + FixturePatch->GetStartingChannel();
+		}
+		else
+		{
+			return TNumericLimits<int32>::Max();
+		}
+	};
+}
+
 UDMXControlConsoleFaderGroupRow* UDMXControlConsoleData::AddFaderGroupRow(const int32 RowIndex = 0)
 {
 	if (!ensureMsgf(RowIndex >= 0, TEXT("Invalid index. Cannot add new fader group row to '%s' correctly."), *GetName()))
@@ -106,21 +122,8 @@ void UDMXControlConsoleData::GenerateFromDMXLibrary()
 			return AllFixturePatchesInUse.Contains(FixturePatch);
 		});
 
-	auto SortFixturePatchesLambda = [](const UDMXEntityFixturePatch* ItemA, const UDMXEntityFixturePatch* ItemB)
-		{
-			const int32 UniverseIDA = ItemA->GetUniverseID();
-			const int32 UniverseIDB = ItemB->GetUniverseID();
-
-			const int32 StartingChannelA = ItemA->GetStartingChannel();
-			const int32 StartingChannelB = ItemB->GetStartingChannel();
-
-			const int64 AbsoluteChannelA = (UniverseIDA - 1) * DMX_MAX_ADDRESS + StartingChannelA;
-			const int64 AbsoluteChannelB = (UniverseIDB - 1) * DMX_MAX_ADDRESS + StartingChannelB;
-
-			return AbsoluteChannelA < AbsoluteChannelB;
-		};
-
-	Algo::Sort(FixturePatchesInLibrary, SortFixturePatchesLambda);
+	using namespace UE::DMXControlConsole::DMXControlConsoleData::Private;
+	Algo::StableSortBy(FixturePatchesInLibrary, TFunction<int64(UDMXEntityFixturePatch*)>(&GetFixturePatchChannelAbsolute));
 
 	int32 CurrentUniverseID = 0;
 	for (int32 FixturePatchIndex = 0; FixturePatchIndex < FixturePatchesInLibrary.Num(); ++FixturePatchIndex)
@@ -132,7 +135,7 @@ void UDMXControlConsoleData::GenerateFromDMXLibrary()
 		}
 
 		const int32 UniverseID = FixturePatch->GetUniverseID();
-		UDMXControlConsoleFaderGroupRow* FaderGroupRow;
+		UDMXControlConsoleFaderGroupRow* FaderGroupRow = nullptr;
 		UDMXControlConsoleFaderGroup* RowFirstFaderGroup = nullptr;
 		if (UniverseID > CurrentUniverseID)
 		{
@@ -207,11 +210,98 @@ void UDMXControlConsoleData::Clear()
 	FaderGroupRows.Reset();
 }
 
-void UDMXControlConsoleData::Reset()
+void UDMXControlConsoleData::ClearPatchedFaderGroups()
 {
-	Clear();
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = GetAllFaderGroups();
+	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
+	{
+		if (FaderGroup || FaderGroup->HasFixturePatch())
+		{
+			FaderGroup->Destroy();
+		}
+	}
+}
+
+void UDMXControlConsoleData::ClearAll(bool bOnlyPatchedFaderGroups)
+{
+	if (bOnlyPatchedFaderGroups)
+	{
+		ClearPatchedFaderGroups();
+	}
+	else
+	{
+		ClearAll();
+	}
 	CachedWeakDMXLibrary.Reset();
-	SoftDMXLibraryPtr.Reset();  
+	SoftDMXLibraryPtr.Reset();
+}
+
+void UDMXControlConsoleData::OnFixturePatchAddedToLibrary(UDMXLibrary* Library, TArray<UDMXEntity*> Entities)
+{
+	if (Library != CachedWeakDMXLibrary)
+	{
+		return;
+	}
+
+	TArray<UDMXEntityFixturePatch*> FixturePatches;
+	Algo::TransformIf(Entities, FixturePatches,
+		[](const UDMXEntity* Entity)
+		{
+			return Entity && Entity->GetClass() == UDMXEntityFixturePatch::StaticClass();
+		},
+		[](UDMXEntity* Entity)
+		{
+			return CastChecked<UDMXEntityFixturePatch>(Entity);
+		});
+
+	using namespace UE::DMXControlConsole::DMXControlConsoleData::Private;
+	Algo::StableSortBy(FixturePatches, TFunction<int64(UDMXEntityFixturePatch*)>(&GetFixturePatchChannelAbsolute));
+
+	// Generate Fader Group for each new Entity in DMX Library
+	int32 CurrentUniverseID = 0;
+	for (UDMXEntity* Entity : Entities)
+	{
+		UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity);
+		if (!FixturePatch)
+		{
+			continue;
+		}
+
+		const int32 UniverseID = FixturePatch->GetUniverseID();
+		UDMXControlConsoleFaderGroupRow* FaderGroupRow = nullptr;
+		UDMXControlConsoleFaderGroup* RowFirstFaderGroup = nullptr;
+		if (UniverseID > CurrentUniverseID)
+		{
+			CurrentUniverseID = UniverseID;
+			FaderGroupRow = AddFaderGroupRow(FaderGroupRows.Num());
+			RowFirstFaderGroup = FaderGroupRow->GetFaderGroups()[0];
+		}
+		else
+		{
+			FaderGroupRow = FaderGroupRows.Last();
+		}
+
+		if (!FaderGroupRow)
+		{
+			continue;
+		}
+
+		const int32 NextFaderGroupIndex = FaderGroupRow->GetFaderGroups().Num();
+
+		UDMXControlConsoleFaderGroup* FaderGroup = FaderGroupRow->AddFaderGroup(NextFaderGroupIndex);
+		if (!FaderGroup)
+		{
+			continue;
+		}
+		FaderGroup->GenerateFromFixturePatch(FixturePatch);
+
+		if (RowFirstFaderGroup)
+		{
+			FaderGroupRow->DeleteFaderGroup(RowFirstFaderGroup);
+		}
+
+		OnFaderGroupAdded.Broadcast(FaderGroup);
+	}
 }
 
 void UDMXControlConsoleData::PostLoad()
@@ -220,6 +310,8 @@ void UDMXControlConsoleData::PostLoad()
 
 	Modify();
 	CachedWeakDMXLibrary = Cast<UDMXLibrary>(SoftDMXLibraryPtr.ToSoftObjectPath().TryLoad());
+
+	UDMXLibrary::GetOnEntitiesAdded().AddUObject(this, &UDMXControlConsoleData::OnFixturePatchAddedToLibrary);
 }
 
 #if WITH_EDITOR

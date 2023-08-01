@@ -65,9 +65,6 @@ public:
 
 	SLATE_END_ARGS()
 
-	/** Destructor */
-	~SDMXControlConsoleReadOnlyFixturePatchList();
-
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs);
 

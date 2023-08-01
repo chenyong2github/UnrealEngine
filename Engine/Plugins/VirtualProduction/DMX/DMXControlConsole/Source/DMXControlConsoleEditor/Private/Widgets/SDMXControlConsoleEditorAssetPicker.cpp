@@ -2,14 +2,13 @@
 
 #include "SDMXControlConsoleEditorAssetPicker.h"
 
-#include "DMXControlConsole.h"
-#include "Models/DMXControlConsoleEditorModel.h"
-
-#include "ContentBrowserModule.h"
-#include "IContentBrowserSingleton.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
+#include "ContentBrowserModule.h"
+#include "DMXControlConsole.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IContentBrowserSingleton.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"

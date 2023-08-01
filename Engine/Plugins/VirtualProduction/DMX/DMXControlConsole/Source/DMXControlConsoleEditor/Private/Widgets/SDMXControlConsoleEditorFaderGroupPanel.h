@@ -4,10 +4,9 @@
 
 #include "Widgets/SCompoundWidget.h"
 
+class SEditableTextBox;
 class SDMXControlConsoleEditorFaderGroupView;
 class UDMXControlConsoleFaderGroup;
-
-class SEditableTextBox;
 
 
 /** Base Fader Group UI widget */
