@@ -5,6 +5,8 @@
 #include "SceneView.h"
 #include "Misc/App.h"
 #include "Animation/AnimBlueprint.h"
+#include "Animation/Skeleton.h"
+#include "Engine/SkeletalMesh.h"
 
 UAnimBlueprintThumbnailRenderer::UAnimBlueprintThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -14,7 +16,25 @@ UAnimBlueprintThumbnailRenderer::UAnimBlueprintThumbnailRenderer(const FObjectIn
 bool UAnimBlueprintThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Object);
-	return AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->bIsTemplate;
+
+	if (AnimBlueprint)
+	{
+		if (USkeleton* Skeleton = AnimBlueprint->TargetSkeleton)
+		{
+			USkeletalMesh* PreviewSkeletalMesh = Skeleton->GetAssetPreviewMesh(AnimBlueprint);
+			if (PreviewSkeletalMesh == nullptr)
+			{
+				PreviewSkeletalMesh = Skeleton->FindCompatibleMesh();
+			}
+
+			if (PreviewSkeletalMesh && (PreviewSkeletalMesh->IsCompiling() || PreviewSkeletalMesh->GetResourceForRendering() == nullptr))
+			{
+				return false;
+			}
+		}
+	}
+
+	return AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->bIsTemplate;
 }
 
 void UAnimBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)

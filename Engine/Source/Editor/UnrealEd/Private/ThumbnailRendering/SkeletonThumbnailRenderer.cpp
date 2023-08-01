@@ -15,6 +15,22 @@ USkeletonThumbnailRenderer::USkeletonThumbnailRenderer(const FObjectInitializer&
 {
 }
 
+bool USkeletonThumbnailRenderer::CanVisualizeAsset(UObject* Object)
+{
+	USkeleton* Skeleton = Cast<USkeleton>(Object);
+
+	constexpr bool bFindIfNotSet = true;
+	if (USkeletalMesh* SkeletalMesh = Skeleton->GetPreviewMesh(bFindIfNotSet))
+	{
+		if (SkeletalMesh && (SkeletalMesh->IsCompiling() || SkeletalMesh->GetResourceForRendering() == nullptr))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void USkeletonThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	USkeleton* Skeleton = Cast<USkeleton>(Object);

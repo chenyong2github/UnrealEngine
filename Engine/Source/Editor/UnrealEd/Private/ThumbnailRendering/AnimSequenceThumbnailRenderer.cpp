@@ -6,11 +6,36 @@
 #include "SceneView.h"
 #include "Animation/AnimSequenceBase.h"
 #include "ThumbnailHelpers.h"
+#include "Animation/Skeleton.h"
+#include "Engine/SkeletalMesh.h"
 
 UAnimSequenceThumbnailRenderer::UAnimSequenceThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	ThumbnailScene = nullptr;
+}
+
+bool UAnimSequenceThumbnailRenderer::CanVisualizeAsset(UObject* Object)
+{
+	UAnimSequenceBase* AnimSequence = Cast<UAnimSequenceBase>(Object);
+	if (AnimSequence != nullptr)
+	{
+		if (USkeleton* Skeleton = AnimSequence->GetSkeleton())
+		{
+			USkeletalMesh* PreviewSkeletalMesh = Skeleton->GetAssetPreviewMesh(AnimSequence);
+			if (PreviewSkeletalMesh == nullptr)
+			{
+				PreviewSkeletalMesh = Skeleton->FindCompatibleMesh();
+			}
+
+			if (PreviewSkeletalMesh && (PreviewSkeletalMesh->IsCompiling() || PreviewSkeletalMesh->GetResourceForRendering() == nullptr))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 void UAnimSequenceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
