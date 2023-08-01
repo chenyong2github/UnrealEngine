@@ -215,7 +215,7 @@ void UDMXControlConsoleData::ClearPatchedFaderGroups()
 	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = GetAllFaderGroups();
 	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
 	{
-		if (FaderGroup || FaderGroup->HasFixturePatch())
+		if (FaderGroup && FaderGroup->HasFixturePatch())
 		{
 			FaderGroup->Destroy();
 		}
