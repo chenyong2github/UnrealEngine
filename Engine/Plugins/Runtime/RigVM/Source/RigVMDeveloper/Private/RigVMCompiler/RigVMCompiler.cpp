@@ -823,6 +823,80 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		}
 	}
 
+	// If compiling a function, check if all mutable paths lead to a return node
+	// - Return node path should go through the completed pins of control flow nodes
+	// - At least one path on sequence nodes should lead to a return node
+	if (CurrentCompilationFunction)
+	{
+		const URigVMFunctionEntryNode* EntryNode = CurrentCompilationFunction->GetEntryNode();
+		if (EntryNode && EntryNode->IsMutable())
+		{
+			URigVMFunctionReturnNode* ReturnNode = CurrentCompilationFunction->GetReturnNode();
+			if (!ReturnNode)
+			{
+				const FString FunctionCompilationErrorMessage = FString::Printf(TEXT("Mutable function graph %s does not contain a return node."), *CurrentCompilationFunction->GetName());
+				Settings.ASTSettings.Report(EMessageSeverity::Error, nullptr, FunctionCompilationErrorMessage);
+				bEncounteredGraphError = true;
+			}
+
+			bool bReturnNodeFound = false;
+			TArray<URigVMPin*> Stack;
+			URigVMPin* const* EntryExecutePin = EntryNode->GetPins().FindByPredicate([](URigVMPin* Pin) -> bool
+				{
+					return Pin->IsExecuteContext();
+				}
+			);
+			Stack.Push(*EntryExecutePin);
+			while (!Stack.IsEmpty())
+			{
+				URigVMPin* Pin = Stack.Pop();
+				URigVMNode* Node = Pin->GetNode();
+				if (Node == ReturnNode)
+				{
+					bReturnNodeFound = true;
+					break;
+				}
+
+				URigVMPin* OutputPin = Pin;
+				if (Node->IsControlFlowNode())
+				{
+					OutputPin = Node->FindPin(FRigVMStruct::ControlFlowCompletedName.ToString());
+				}
+
+				// If this is a sequence node, we need to go through all output pins
+				if (OutputPin->GetDirection() == ERigVMPinDirection::Input)
+				{
+					TArray<URigVMPin*> SequenceOutputPins = Node->GetPins().FilterByPredicate([](URigVMPin* Pin) -> bool
+					{
+						return Pin->IsExecuteContext() && Pin->GetDirection() == ERigVMPinDirection::Output;
+					});
+					for (URigVMPin* SequenceOutputPin : SequenceOutputPins)
+					{
+						Stack.Push(SequenceOutputPin);
+					}
+				}
+				else
+				{
+					check(OutputPin);
+					check(OutputPin->GetDirection() == ERigVMPinDirection::Output || OutputPin->GetDirection() == ERigVMPinDirection::IO);
+				
+					TArray<URigVMPin*> TargetPins = OutputPin->GetLinkedTargetPins();
+					if (!TargetPins.IsEmpty())
+					{
+						Stack.Push(TargetPins[0]);
+					}
+				}
+			}
+
+			if (!bReturnNodeFound)
+			{
+				const FString FunctionCompilationErrorMessage = FString::Printf(TEXT("Not all paths of the mutable function graph %s lead to a return node."), *CurrentCompilationFunction->GetName());
+				Settings.ASTSettings.Report(EMessageSeverity::Error, nullptr, FunctionCompilationErrorMessage);
+				bEncounteredGraphError = true;
+			}
+		}
+	}
+
 	if(bEncounteredGraphError)
 	{
 		return false;

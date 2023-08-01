@@ -93,7 +93,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
-#include "Units/Execution/RigUnit_SequenceExecution.h"
+#include "RigVMFunctions/Execution/RigVMFunction_Sequence.h"
 #include "Editor/ControlRigContextMenuContext.h"
 #include "Types/ISlateMetaData.h"
 #include "Kismet2/KismetDebugUtilities.h"
@@ -1095,7 +1095,7 @@ FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const 
 			{
 				if(InChord.Key == EKeys::S)
 				{
-					Controller->AddUnitNode(FRigUnit_SequenceAggregate::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
+					Controller->AddUnitNode(FRigVMFunction_Sequence::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::One)
 				{

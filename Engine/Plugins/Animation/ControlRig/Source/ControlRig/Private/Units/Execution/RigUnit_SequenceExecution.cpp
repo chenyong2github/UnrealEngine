@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Execution/RigUnit_SequenceExecution.h"
+#include "RigVMFunctions/Execution/RigVMFunction_Sequence.h"
 #include "Units/RigUnitContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SequenceExecution)
@@ -13,7 +14,7 @@ FRigUnit_SequenceExecution_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_SequenceExecution::GetUpgradeInfo() const
 {
-	FRigUnit_SequenceAggregate NewNode;
+	FRigVMFunction_Sequence NewNode;
 	
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 
@@ -24,9 +25,4 @@ FRigVMStructUpgradeInfo FRigUnit_SequenceExecution::GetUpgradeInfo() const
 	return Info;
 }
 
-FRigUnit_SequenceAggregate_Execute()
-{
-	// nothing to do here. the execute context is actually
-	// the same shared memory for all pins
-}
 
