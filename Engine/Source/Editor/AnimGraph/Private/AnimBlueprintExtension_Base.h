@@ -166,6 +166,9 @@ private:
 		// Whether or not our serviced properties are actually on the instance instead of the node
 		bool bServicesInstanceProperties;
 
+		// This eval handler has properties
+		bool bHasProperties;
+
 		// Set of properties serviced by this handler (Map from property name to the record for that property)
 		TMap<FName, FAnimNodeSinglePropertyHandler> ServicedProperties;
 
@@ -183,6 +186,7 @@ private:
 			, EvaluationHandlerIdx(INDEX_NONE)
 			, bServicesNodeProperties(false)
 			, bServicesInstanceProperties(false)
+			, bHasProperties(false)
 			, HandlerFunctionName(NAME_None)
 		{}
 

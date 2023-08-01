@@ -47,6 +47,17 @@ void UAnimBlueprintExtension_Base::HandleCopyTermDefaultsToDefaultObject(UObject
 
 	if(DefaultAnimInstance)
 	{
+		// Update blueprint usage of all graph nodes that have properties exposed
+		for (const TPair<UAnimGraphNode_Base*, FEvaluationHandlerRecord>& EvaluationHandlerPair : PerNodeStructEvalHandlers)
+		{
+			if (EvaluationHandlerPair.Value.bHasProperties && EvaluationHandlerPair.Value.ServicedProperties.Num() == 0)
+			{
+				UAnimGraphNode_Base* Node = CastChecked<UAnimGraphNode_Base>(EvaluationHandlerPair.Key);
+				UAnimGraphNode_Base* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Base>(Node);
+				TrueNode->BlueprintUsage = EBlueprintUsage::DoesNotUseBlueprint;
+			}
+		}
+
 		for(const FEvaluationHandlerRecord& EvaluationHandler : ValidEvaluationHandlerList)
 		{
 			if(EvaluationHandler.AnimGraphNode)
@@ -293,6 +304,8 @@ void UAnimBlueprintExtension_Base::ProcessNodePins(UAnimGraphNode_Base* InNode, 
 			
 			if (SourcePinProperty != NULL)
 			{
+				EvalHandler.bHasProperties = true;
+
 				if (SourcePin->LinkedTo.Num() == 0)
 				{
 					// Literal that can be pushed into the CDO instead of re-evaluated every frame
