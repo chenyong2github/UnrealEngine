@@ -1253,7 +1253,9 @@ bool FControlRigEditMode::GetCustomInputCoordinateSystem(FMatrix& OutMatrix, voi
 bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
 {
 	const bool bClickSelectThroughGizmo = CVarClickSelectThroughGizmo.GetValueOnGameThread();
-	if (bClickSelectThroughGizmo == false)
+	//if Control is down we act like we are selecting an axis so don't do this check
+	//if doing control else we can't do control selection anymore, see FMouseDeltaTracker::DetermineCurrentAxis(
+	if (Click.IsControlDown() == false && bClickSelectThroughGizmo == false)
 	{
 		const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
 		//if we are hitting a widget, besides arcball then bail saying we are handling it
@@ -1760,6 +1762,22 @@ void FControlRigEditMode::SelectNone()
 	FEdMode::SelectNone();
 }
 
+static bool IsDoingDrag(const TWeakPtr<ISequencer>& WeakSequencer, FViewport* InViewport, EAxisList::Type CurrentAxis)
+{
+	if (WeakSequencer.IsValid())
+	{
+		ISequencer* Sequencer = WeakSequencer.Pin().Get();
+		const USequencerSettings* SequencerSettings = Sequencer->GetSequencerSettings();
+		const bool LeftMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
+		const bool bIsCtrlKeyDown = InViewport->KeyState(EKeys::LeftControl) || InViewport->KeyState(EKeys::RightControl);
+		const bool bIsAltKeyDown = InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt);
+
+		//if shfit is down we still want to drag
+
+		return LeftMouseButtonDown && (CurrentAxis == EAxisList::None) && !bIsCtrlKeyDown && !bIsAltKeyDown && (SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false);
+	}
+	return false;
+}
 bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
 	if (IsDragAnimSliderToolPressed(InViewport)) //this is needed to make sure we get all of the processed mouse events, for some reason the above may not return true
@@ -1787,7 +1805,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
 	const bool bDoScale = !Scale.IsZero() && WidgetMode == UE::Widget::WM_Scale;
 
-	if (!InDrag.IsZero() && bShiftDown)
+	if (IsDoingDrag(WeakSequencer, InViewport, GetCurrentWidgetAxis()) == false && !InDrag.IsZero() && bShiftDown)
 	{
 		FVector CameraDelta(InDrag);
 
@@ -1929,7 +1947,8 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	{
 		TickManipulatableObjects(0.f);
 	}
-	return bManipulatorMadeChange;
+	//if in level editor we want to move other things also
+	return IsInLevelEditor() ? false :bManipulatorMadeChange;
 }
 
 bool FControlRigEditMode::ShouldDrawWidget() const

@@ -2081,8 +2081,9 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	const bool UseSelectedKeys = CVarSelectedKeysSelectControls.GetValueOnGameThread();
 	GetSequencer()->GetSelectedKeyAreas(KeyAreas, UseSelectedKeys);
 	if (KeyAreas.Num() <= 0)
-	{
-		if (ControlRigEditMode)
+	{ 
+		if (FSlateApplication::Get().GetModifierKeys().IsShiftDown() == false && 
+			FSlateApplication::Get().GetModifierKeys().IsControlDown() == false && ControlRigEditMode)
 		{
 			TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
 			ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
