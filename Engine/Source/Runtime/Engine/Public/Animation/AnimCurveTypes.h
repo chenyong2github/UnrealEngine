@@ -510,39 +510,16 @@ public:
 		Super::bSorted = false;
 	}
 
-	/** Initialize from another curve */
+	/** Initialize from another curve. Just copies the filter and empties 'this'. */
 	template <typename OtherAllocator, typename OtherElementType>
 	void InitFrom(const TBaseBlendedCurve<OtherAllocator, OtherElementType>& InCurveToInitFrom)
 	{
 		CURVE_PROFILE_CYCLE_COUNTER(TBaseBlendedCurve_InitFrom);
 		
-		if constexpr(std::is_same<AllocatorType, OtherAllocator>::value && std::is_same<ElementType, OtherElementType>::value)
-		{
-			if (ensure(&InCurveToInitFrom != this))
-			{
-				Super::Elements = InCurveToInitFrom.Elements;
-				Super::bSorted = InCurveToInitFrom.bSorted;
-				Filter = InCurveToInitFrom.Filter;
-			}
-		}
-		else if constexpr(std::is_same<ElementType, OtherElementType>::value)
-		{
-			Super::Elements = InCurveToInitFrom.Elements;
-			Super::bSorted = InCurveToInitFrom.bSorted;
-			Filter = InCurveToInitFrom.Filter;
-		}
-		else
+		if (ensure(&InCurveToInitFrom != this))
 		{
 			Super::Elements.Reset();
-
-			UE::Anim::FNamedValueArrayUtils::Union(*this, InCurveToInitFrom,
-				[](ElementType& InOutResultElement, OtherElementType& InParamElement, UE::Anim::ENamedValueUnionFlags InFlags)
-				{
-					InOutResultElement.Value = InParamElement.Value;
-					InOutResultElement.Flags = InParamElement.Flags;
-				});
-
-			Super::bSorted = InCurveToInitFrom.bSorted;
+			Super::bSorted = false;
 			Filter = InCurveToInitFrom.Filter;
 		}
 	}
@@ -903,7 +880,7 @@ public:
 	{
 		CURVE_PROFILE_CYCLE_COUNTER(TBaseBlendedCurve_Override_Weighted);
 		
-		InitFrom(CurveToOverrideFrom);
+		CopyFrom(CurveToOverrideFrom);
 
 		if (!FMath::IsNearlyEqual(Weight, 1.0f))
 		{
@@ -923,7 +900,7 @@ public:
 	{
 		CURVE_PROFILE_CYCLE_COUNTER(TBaseBlendedCurve_Override);
 		
-		InitFrom(CurveToOverrideFrom);
+		CopyFrom(CurveToOverrideFrom);
 	}
 	
 	/**
