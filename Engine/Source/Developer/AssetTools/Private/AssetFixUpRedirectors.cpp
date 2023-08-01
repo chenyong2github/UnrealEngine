@@ -208,7 +208,7 @@ bool FAssetFixUpRedirectors::UpdatePackageStatus(const TArray<FRedirectorRefs>& 
 
 void FAssetFixUpRedirectors::LoadReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& OutReferencingPackagesToSave, TArray<UPackage*>& OutLoadedPackages) const
 {
-	FScopedSlowTask SlowTask( RedirectorsToFix.Num(), LOCTEXT( "LoadingReferencingPackages", "Loading Referencing Packages..." ) );
+	FScopedSlowTask SlowTask( static_cast<float>(RedirectorsToFix.Num()), LOCTEXT( "LoadingReferencingPackages", "Loading Referencing Packages..." ) );
 	SlowTask.MakeDialog();
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();

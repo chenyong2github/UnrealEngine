@@ -1088,7 +1088,7 @@ namespace UE
 			 * if FragmentedMemoryCost > AttributeStorage.Num*DefragRatio then defrag.
 			 * This is use whenever we remove attribute or change DefragRatio value.
 			 */
-			float DefragRatio = 0.1;
+			float DefragRatio = 0.1f;
 
 			/**
 			 * Mutex use when accessing or modifying the storage

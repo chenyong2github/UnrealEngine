@@ -62,9 +62,9 @@ struct FViewportConfigOptions
 
 	FViewportConfigOptions()
 		: ViewModeIndex(EViewModeIndex::VMI_Lit)
-		, ViewFOV(53.43)
+		, ViewFOV(53.43f)
 		, CameraSpeedSetting(4)
-		, CameraSpeedScalar(1.0)
+		, CameraSpeedScalar(1.0f)
 		, CameraFollowMode(EAnimationViewportCameraFollowMode::None)
 	{}
 

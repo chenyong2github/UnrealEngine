@@ -224,8 +224,8 @@ TSharedPtr<SWidget> FAssetTypeActions_ForceFeedbackEffect::GetThumbnailOverlay(c
 		.Visibility_Lambda(OnGetVisibilityLambda)
 		[
 			SNew(SBox)
-			.MinDesiredWidth(16)
-			.MinDesiredHeight(16)
+			.MinDesiredWidth(16.f)
+			.MinDesiredHeight(16.f)
 			[
 				SNew(SImage)
 				.Image_Lambda(OnGetDisplayBrushLambda)

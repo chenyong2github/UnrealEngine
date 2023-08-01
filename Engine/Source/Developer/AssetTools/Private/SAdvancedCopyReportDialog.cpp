@@ -209,7 +209,7 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 				.Type(ESlateCheckBoxType::CheckBox)
 				.IsChecked(this, &SAdvancedCopyReportDialog::IsGeneratingDependencies)
 				.OnCheckStateChanged(this, &SAdvancedCopyReportDialog::ToggleGeneratingDependencies)
-				.Padding(4)
+				.Padding(4.f)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("GenerateDependenciesToCopy", "Generate Dependencies to Copy"))

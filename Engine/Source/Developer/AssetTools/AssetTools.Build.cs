@@ -98,5 +98,7 @@ public class AssetTools : ModuleRules
 				"UnrealEd",
 			}
 		);
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

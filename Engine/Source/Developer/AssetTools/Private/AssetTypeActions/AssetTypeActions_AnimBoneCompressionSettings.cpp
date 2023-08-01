@@ -102,7 +102,7 @@ void FAssetTypeActions_AnimBoneCompressionSettings::ExecuteCompression(TWeakObje
 	}
 
 	const FText StatusText = FText::Format(LOCTEXT("AnimBoneCompressionSettings_Compressing", "Compressing '{0}' animations"), FText::AsNumber(AnimSeqsToRecompress.Num()));
-	FScopedSlowTask LoadingAnimSlowTask(AnimSeqsToRecompress.Num(), StatusText);
+	FScopedSlowTask LoadingAnimSlowTask(static_cast<float>(AnimSeqsToRecompress.Num()), StatusText);
 	LoadingAnimSlowTask.MakeDialog();
 
 	for (UAnimSequence* AnimSeq : AnimSeqsToRecompress)
