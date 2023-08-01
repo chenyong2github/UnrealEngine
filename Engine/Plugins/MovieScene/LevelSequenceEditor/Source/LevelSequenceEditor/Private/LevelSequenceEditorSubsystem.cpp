@@ -31,6 +31,8 @@
 #include "Modules/ModuleManager.h"
 
 #include "Camera/CameraComponent.h"
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
@@ -51,8 +53,6 @@
 #include "MovieSceneToolHelpers.h"
 #include "ActorForWorldTransforms.h"
 #include "KeyParams.h"
-
-
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceEditorSubsystem)
 
@@ -1825,11 +1825,26 @@ void ULevelSequenceEditorSubsystem::GetRebindComponentNames(TArray<FName>& OutCo
 		return;
 	}
 		
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+	const TSharedPtr<IClassViewerFilter>& GlobalClassFilter = ClassViewerModule.GetGlobalClassViewerFilter();
+	TSharedRef<FClassViewerFilterFuncs> ClassFilterFuncs = ClassViewerModule.CreateFilterFuncs();
+	FClassViewerInitializationOptions ClassViewerOptions = {};
+
 	for (UActorComponent* Component : Actor->GetComponents())
 	{
 		if (Component && ComponentPossessable && Component->GetName() != ComponentPossessable->GetName())
 		{
-			OutComponentNames.Add(Component->GetFName());
+			bool bValidComponent = !Component->IsVisualizationComponent();
+
+			if (GlobalClassFilter.IsValid())
+			{
+				bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass(), ClassFilterFuncs);
+			}
+
+			if (bValidComponent)
+			{
+				OutComponentNames.Add(Component->GetFName());
+			}
 		}
 	}
 	OutComponentNames.Sort(FNameFastLess());
