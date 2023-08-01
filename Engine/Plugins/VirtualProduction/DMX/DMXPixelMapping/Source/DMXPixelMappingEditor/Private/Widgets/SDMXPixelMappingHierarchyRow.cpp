@@ -172,7 +172,7 @@ bool SDMXPixelMappingHierarchyRow::OnVerifyNameTextChanged(const FText& InText, 
 			}) == nullptr;
 		if (!bUniqueName)
 		{
-			OutErrorMessage = LOCTEXT("RenameComponentTransaction", "A component with this name already exists");
+			OutErrorMessage = LOCTEXT("InvalidComponentNameInfo", "A component with this name already exists");
 		}
 
 		return bUniqueName;
