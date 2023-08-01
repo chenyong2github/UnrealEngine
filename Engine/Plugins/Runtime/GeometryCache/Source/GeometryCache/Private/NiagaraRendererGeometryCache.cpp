@@ -3,6 +3,7 @@
 #include "NiagaraRendererGeometryCache.h"
 
 #include "Engine/World.h"
+#include "Components/PrimitiveComponent.h"
 #include "GeometryCache.h"
 #include "GeometryCacheStreamingManager.h"
 #include "GeometryCacheComponent.h"
