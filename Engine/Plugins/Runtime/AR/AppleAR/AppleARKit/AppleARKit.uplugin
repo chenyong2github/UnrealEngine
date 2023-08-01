@@ -14,20 +14,20 @@
 	"IsBetaVersion": false,
 	"EnabledByDefault": false,
 	"SupportedTargetPlatforms" : [
-		"IOS", "Win64", "Mac","Linux"
+		"IOS", "Win64", "Mac","Linux", "Android"
 	],
 	"Modules": [
 		{
 			"Name": "AppleARKit",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformAllowList" : [ "Mac", "IOS", "Win64","Linux" ]
+			"PlatformAllowList" : [ "Mac", "IOS", "Win64","Linux", "Android" ]
 		},
 		{
 			"Name": "AppleARKitPoseTrackingLiveLink",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformAllowList" : [ "Mac", "IOS", "Win64" ,"Linux"]
+			"PlatformAllowList" : [ "Mac", "IOS", "Win64" ,"Linux", "Android" ]
 
 		}
 	],

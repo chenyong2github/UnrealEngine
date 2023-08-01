@@ -22,8 +22,8 @@ void FAppleARKitFaceSupportModule::StartupModule()
 	FaceSupportInstance = MakeShared<FAppleARKitFaceSupport, ESPMode::ThreadSafe>();
 	FaceSupportInstance->Init();
 
-	// LiveLink listener needs to be created here so that the editor can receive remote publishing events
-#if PLATFORM_DESKTOP
+	// LiveLink listener needs to be created here so that we can receive remote publishing events
+#if PLATFORM_DESKTOP || PLATFORM_ANDROID
 	bool bEnableLiveLinkForFaceTracking = false;
 	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bEnableLiveLinkForFaceTracking"), bEnableLiveLinkForFaceTracking, GEngineIni);
 	if (bEnableLiveLinkForFaceTracking)
