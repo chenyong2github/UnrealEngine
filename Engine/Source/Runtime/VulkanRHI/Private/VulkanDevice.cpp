@@ -1158,6 +1158,8 @@ void FVulkanDevice::InitGPU()
 		}
 	}
 
+	ChooseVariableRateShadingMethod(OptionalDeviceExtensions, GetOptionalExtensionProperties().FragmentShadingRateFeatures);
+
 	UE_LOG(LogVulkanRHI, Display, TEXT("Device properties: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), 
 		PhysicalDeviceFeatures.Core_1_0.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 

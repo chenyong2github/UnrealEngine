@@ -425,7 +425,12 @@ public:
 
 		const bool bDeferredShadingSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DeferredShadingSubpass;
 		const bool bDepthReadSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DepthReadSubpass;
-		const bool bApplyFragmentShadingRate =  GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RTLayout.GetFragmentDensityAttachmentReference() != nullptr;
+		const bool bApplyFragmentShadingRate =  GRHISupportsAttachmentVariableRateShading 
+												&& GRHIVariableRateShadingEnabled 
+												&& GRHIAttachmentVariableRateShadingEnabled 
+												&& RTLayout.GetFragmentDensityAttachmentReference() != nullptr
+												&& Device.GetOptionalExtensions().HasKHRFragmentShadingRate 
+												&& Device.GetOptionalExtensionProperties().FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE;
 		const bool bHasDepthStencilAttachmentReference = (RTLayout.GetDepthAttachmentReference() != nullptr);
 
 		if (bApplyFragmentShadingRate)

@@ -128,6 +128,8 @@ struct FOptionalVulkanDeviceExtensionProperties
 	VkPhysicalDeviceAccelerationStructurePropertiesKHR AccelerationStructureProps;
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR RayTracingPipelineProps;
 #endif // VULKAN_RHI_RAYTRACING
+
+	VkPhysicalDeviceFragmentShadingRateFeaturesKHR FragmentShadingRateFeatures;
 };
 
 class FVulkanPhysicalDeviceFeatures

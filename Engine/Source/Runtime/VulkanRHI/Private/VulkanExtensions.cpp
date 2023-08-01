@@ -26,6 +26,16 @@
 
 
 
+enum class EVulkanVariableRateShadingPreference : uint8
+{
+	PreferFSR = 0, // This can be used to prefer FSR over FDM when both are available.
+	UseFSROnlyIfAvailable, // This will only print a message if FSR is not available.
+	RequireFSR, // This will print an error if FSR is not available.
+	PreferFDM, // This can be used to prefer FDM over FSR when both are available.
+	UseFDMOnlyIfAvailable, // This will only print a message if FDM is not available.
+	RequireFDM, // This will print an error if FDM is not available.
+};
+
 TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar(
 	TEXT("r.Vulkan.Allow64bitShaderAtomics"),
 	1,
@@ -68,6 +78,19 @@ TAutoConsoleVariable<int32> GVulkaAllowSync2BarriersCVar(
 	TEXT("This is necessary in order to support parallel command buffer generation.\n")
 	TEXT("0: Do not enable support for sync2 barriers.\n")
 	TEXT("1: Enable sync2 barriers (default)"),
+	ECVF_ReadOnly
+);
+
+TAutoConsoleVariable<int32> GVulkanVariableRateShadingFormatCVar(
+	TEXT("r.Vulkan.VRSFormat"),
+	0,
+	TEXT("Allows to choose the preferred Variable Rate Shading option. \n")
+	TEXT("0: Prefer Fragment Shading Rate if both Fragment Shading Rate and Fragment Density Map are available.\n")
+	TEXT("1: Use Fragment Shading Rate if available. A message will be reported if not available. \n")
+	TEXT("2: Require Fragment Shading Rate. Will generate an error if the extension is not available. \n")
+	TEXT("3: Prefer Fragment Density Map if both Fragment Shading Rate and Fragment Density Map are available.\n")
+	TEXT("4: Use Fragment Density Map if available. A message will be reported if not available.\n")
+	TEXT("5: Require Fragment Density Map. Will generate an error if the extension is not available."),
 	ECVF_ReadOnly
 );
 
@@ -487,7 +510,10 @@ public:
 	FVulkanKHRFragmentShadingRateExtension(FVulkanDevice* InDevice)
 		: FVulkanDeviceExtension(InDevice, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
 	{
+		int32 VRSFormatPreference = GVulkanVariableRateShadingFormatCVar->GetInt();
 		bEnabledInCode = bEnabledInCode && GRHIVariableRateShadingEnabled;
+		// FSR should be enabled even if FDM is preferred because it could be not available.
+		bEnabledInCode &= (VRSFormatPreference <= (uint8) EVulkanVariableRateShadingPreference::RequireFSR || VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::PreferFDM);
 	}
 
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
@@ -500,6 +526,7 @@ public:
 	{
 		ExtensionFlags.HasKHRFragmentShadingRate = 1;
 
+		VkPhysicalDeviceFragmentShadingRateFeaturesKHR& FragmentShadingRateFeatures = GetDeviceExtensionProperties().FragmentShadingRateFeatures;
 		GRHISupportsAttachmentVariableRateShading = (FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE);
 		GRHISupportsPipelineVariableRateShading = (FragmentShadingRateFeatures.pipelineFragmentShadingRate == VK_TRUE);
 
@@ -517,6 +544,7 @@ public:
 
 	virtual void PostPhysicalDeviceProperties() override final
 	{
+		VkPhysicalDeviceFragmentShadingRateFeaturesKHR& FragmentShadingRateFeatures = GetDeviceExtensionProperties().FragmentShadingRateFeatures;
 		if (FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE)
 		{
 			GRHIVariableRateShadingImageTileMinWidth = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.width;
@@ -538,12 +566,14 @@ public:
 
 	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
 	{
+		VkPhysicalDeviceFragmentShadingRateFeaturesKHR& FragmentShadingRateFeatures = GetDeviceExtensionProperties().FragmentShadingRateFeatures;
 		ZeroVulkanStruct(FragmentShadingRateFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR);
 		AddToPNext(PhysicalDeviceFeatures2, FragmentShadingRateFeatures);
 	}
 
 	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
 	{
+		VkPhysicalDeviceFragmentShadingRateFeaturesKHR& FragmentShadingRateFeatures = GetDeviceExtensionProperties().FragmentShadingRateFeatures;
 		if (FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE || FragmentShadingRateFeatures.pipelineFragmentShadingRate == VK_TRUE)
 		{
 			AddToPNext(DeviceCreateInfo, FragmentShadingRateFeatures);
@@ -552,7 +582,6 @@ public:
 
 private:
 	VkPhysicalDeviceFragmentShadingRatePropertiesKHR FragmentShadingRateProperties;
-	VkPhysicalDeviceFragmentShadingRateFeaturesKHR FragmentShadingRateFeatures;
 };
 
 
@@ -565,7 +594,10 @@ public:
 	FVulkanEXTFragmentDensityMapExtension(FVulkanDevice* InDevice)
 		: FVulkanDeviceExtension(InDevice, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
 	{
+		int32 VRSFormatPreference = GVulkanVariableRateShadingFormatCVar->GetInt();
 		bEnabledInCode = bEnabledInCode && GRHIVariableRateShadingEnabled;
+		// FDM should be enabled even if the preferred choice is FSR because that might not be available.
+		bEnabledInCode &= (VRSFormatPreference >= (uint8) EVulkanVariableRateShadingPreference::PreferFDM || VRSFormatPreference == (uint8) EVulkanVariableRateShadingPreference::PreferFSR);
 	}
 
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
@@ -578,10 +610,20 @@ public:
 	{
 		bRequirementsPassed = (FragmentDensityMapFeatures.fragmentDensityMap == VK_TRUE);
 		ExtensionFlags.HasEXTFragmentDensityMap = bRequirementsPassed;
+	}
 
-		// Use the Fragment Density Map extension if and only if the Fragment Shading Rate extension is not available.
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(FragmentDensityMapFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT);
+		AddToPNext(PhysicalDeviceFeatures2, FragmentDensityMapFeatures);
+	}
+
+	virtual void PostPhysicalDeviceProperties() override final
+	{
+		// Use the Fragment Density Map extension if the Fragment Shading Rate extension is not available or if both are available but 
+		// Fragment Density Map is the preferred user choice.
 		// NOTE: FVulkanKHRFragmentShadingRateExtension must be placed before FVulkanEXTFragmentDensityMapExtension for this to work!
-		if (!GRHISupportsAttachmentVariableRateShading && bRequirementsPassed)
+		if ((!GRHISupportsAttachmentVariableRateShading || (GVulkanVariableRateShadingFormatCVar->GetInt() >= (uint8) EVulkanVariableRateShadingPreference::PreferFDM)) && bRequirementsPassed)
 		{
 			GRHISupportsAttachmentVariableRateShading = true;
 
@@ -599,12 +641,6 @@ public:
 
 			UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via EXTFragmentDensityMap extension. Selected VRS tile size %u by %u pixels per VRS image texel."), GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
 		}
-	}
-
-	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
-	{
-		ZeroVulkanStruct(FragmentDensityMapFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT);
-		AddToPNext(PhysicalDeviceFeatures2, FragmentDensityMapFeatures);
 	}
 
 	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
@@ -1541,5 +1577,41 @@ FVulkanInstanceExtensionArray FVulkanInstanceExtension::GetUESupportedInstanceEx
 	FlagExtensionSupport(GetDriverSupportedInstanceExtensions(), OutUEInstanceExtensions, ApiVersion, TEXT("instance"));
 
 	return OutUEInstanceExtensions;
+}
+
+void ChooseVariableRateShadingMethod(FOptionalVulkanDeviceExtensions& ExtensionFlags, const VkPhysicalDeviceFragmentShadingRateFeaturesKHR& FragmentShadingRateFeatures)
+{
+	int32 VRSFormatPreference = GVulkanVariableRateShadingFormatCVar->GetInt();
+
+	if (VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::PreferFSR && (FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE))
+	{
+		ExtensionFlags.HasEXTFragmentDensityMap = 0;
+		return;
+	}
+	if (VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::PreferFDM && ExtensionFlags.HasEXTFragmentDensityMap)
+	{
+		ExtensionFlags.HasKHRFragmentShadingRate = 0;
+		return;
+	}
+	if (VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::UseFSROnlyIfAvailable && !(FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE))
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("Fragment Shading Rate was requested but is not available."));
+		return;
+	}
+	if (VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::UseFDMOnlyIfAvailable && !ExtensionFlags.HasEXTFragmentDensityMap)
+	{
+		UE_LOG(LogVulkanRHI, Display, TEXT("Fragment Density Map was requested but is not available."));
+		return;
+	}
+	if (VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::RequireFSR && !(FragmentShadingRateFeatures.attachmentFragmentShadingRate == VK_TRUE))
+	{
+		UE_LOG(LogVulkanRHI, Error, TEXT("Fragment Shading Rate was required but is not available."));
+		return;
+	}
+	if (VRSFormatPreference == (uint8)EVulkanVariableRateShadingPreference::RequireFDM && !ExtensionFlags.HasEXTFragmentDensityMap)
+	{
+		UE_LOG(LogVulkanRHI, Error, TEXT("Fragment Density Map was required but is not available."));
+		return;
+	}
 }
 

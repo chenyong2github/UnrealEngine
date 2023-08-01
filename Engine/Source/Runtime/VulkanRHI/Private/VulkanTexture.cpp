@@ -508,6 +508,21 @@ struct FRHICommandOnDestroyImage final : public FRHICommand<FRHICommandOnDestroy
 	}
 };
 
+static VkImageLayout ChooseVRSLayout()
+{
+	if(GRHIVariableRateShadingImageDataType == VRSImage_Palette)
+	{
+		return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+	}
+	else if(GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
+	{
+		return VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+	}
+
+	checkNoEntry();
+	return VK_IMAGE_LAYOUT_UNDEFINED;
+}
+
 static VkImageLayout GetInitialLayoutFromRHIAccess(ERHIAccess RHIAccess, bool bIsDepthStencil, bool bSupportReadOnlyOptimal)
 {
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::RTV) || RHIAccess == ERHIAccess::Present)
@@ -546,7 +561,7 @@ static VkImageLayout GetInitialLayoutFromRHIAccess(ERHIAccess RHIAccess, bool bI
 		case ERHIAccess::Discard:	return VK_IMAGE_LAYOUT_UNDEFINED;
 		case ERHIAccess::CopySrc:	return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		case ERHIAccess::CopyDest:	return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		case ERHIAccess::ShadingRateSource:	return VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT; // TODO: This should be set to FSR or FDM depending on the active extension. Default to FDM for the moment.
+		case ERHIAccess::ShadingRateSource:	return ChooseVRSLayout();
 	}
 
 	checkf(false, TEXT("Invalid initial access %d"), RHIAccess);
