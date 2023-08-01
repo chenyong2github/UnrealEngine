@@ -97,7 +97,7 @@ namespace PCGUserParameterGetSettings
 
 		// Finally, we go down the graph instance chain to find the first valid layout.
 		// In most cases, we should never enter this loop, as layouts should match. But it is a safeguard.
-		while (GraphInstance && !WantedScriptStruct->CompareScriptStruct(WantedScriptStruct, GraphParameters.GetScriptStruct(), /*PortFlags=*/0))
+		while (GraphInstance && GraphParameters.GetScriptStruct() != WantedScriptStruct)
 		{
 			GraphInstance = Cast<UPCGGraphInstance>(GraphInstance->Graph);
 			if (!GraphInstance)
