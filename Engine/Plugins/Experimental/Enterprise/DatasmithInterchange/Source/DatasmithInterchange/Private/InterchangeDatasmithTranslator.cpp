@@ -578,7 +578,7 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTrans
 		return EmptyPromise.GetFuture();
 	}
 
-	return Async(EAsyncExecution::TaskGraph, [this, MeshElement = MoveTemp(MeshElement), &MeshGlobalTransform]
+	return Async(EAsyncExecution::TaskGraph, [this, MeshElement = MoveTemp(MeshElement), MeshGlobalTransform]
 		{
 			TOptional<UE::Interchange::FMeshPayloadData> Result;
 
