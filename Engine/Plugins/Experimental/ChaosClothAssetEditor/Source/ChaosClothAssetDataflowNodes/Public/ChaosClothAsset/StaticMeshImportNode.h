@@ -36,11 +36,11 @@ public:
 	bool bImportAsRenderMesh = true;
 
 	/* UV Channel used to populate Sim Mesh positions */
-	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", meta = (EditCondition = "bImportAsSimMesh"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", meta = (ClampMin = "-1", EditCondition = "bImportAsSimMesh"))
 	int32 UVChannel = 0;
 
 	/* Apply this scale to the UVs when populating Sim Mesh positions. */
-	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (AllowPreserveRatio, EditCondition = "bImportAsSimMesh && UVChannel != INDEX_NONE"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (AllowPreserveRatio, EditCondition = "bImportAsSimMesh && (UVChannel >= 0)"))
 	FVector2f UVScale = { 1.f, 1.f };
 
 	FChaosClothAssetStaticMeshImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());

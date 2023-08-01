@@ -150,15 +150,15 @@ public:
 	double Strength = 0.5;
 
 	/** The Region affected by the current operation will be bounded by edge angles larger than this threshold */
-	UPROPERTY(EditAnywhere, Category = Filters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso && BrushAreaMode == EClothEditorWeightMapPaintBrushAreaType::Connected"))
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso"))
 	float AngleThreshold = 180.0f;
 
 	/** The Region affected by the current operation will be bounded by UV borders/seams */
-	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso && BrushAreaMode == EClothEditorWeightMapPaintBrushAreaType::Connected"))
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso"))
 	bool bUVSeams = false;
 
 	/** The Region affected by the current operation will be bounded by Hard Normal edges/seams */
-	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso && BrushAreaMode == EClothEditorWeightMapPaintBrushAreaType::Connected"))
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso"))
 	bool bNormalSeams = false;
 
 	/** Control which triangles can be affected by the current operation based on visibility. Applied after all other filters. */
