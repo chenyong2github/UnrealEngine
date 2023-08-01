@@ -93,7 +93,12 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
-
+	/**
+	* Sets the currently selected index without user interaction.
+	* 
+	* @param InSelectionIndex The new selection index for the widget
+	*/
+	void SetSelectionIndex(int InSelectionIndex);
 
 protected:
 	FVector2D ComboButtonTileSize;

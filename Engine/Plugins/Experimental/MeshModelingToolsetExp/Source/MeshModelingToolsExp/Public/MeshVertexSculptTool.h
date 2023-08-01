@@ -168,6 +168,10 @@ public:
 	/** Bounds of random generation (positive and negative) for randomized stamps */
 	UPROPERTY(EditAnywhere, Category = Alpha, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "180.0"))
 	float RandomRange = 180.0;
+
+	// parent ref required for details customization
+	UPROPERTY(meta = (TransientToolProperty))
+	TWeakObjectPtr<UMeshVertexSculptTool> Tool;
 };
 
 
@@ -234,6 +238,17 @@ public:
 	virtual void SetActiveBrushType(int32 Identifier);
 	virtual void SetActiveFalloffType(int32 Identifier);
 	virtual void SetRegionFilterType(int32 Identifier);
+
+	/**
+	* OnDetailsPanelRequestRebuild is broadcast by the tool when it detects it needs to have it's details panel rebuilt outside
+	* of normal rebuilding triggers, such as changing property set objects. This is useful in rare circumstances, such as when
+	* the tool is using detail customizations and tool properties are changed outside of user interactions, such as via tool
+	* preset loading. In these cases, the detail customization widgets might not be updated properly without rebuilding the details
+	* panel completely.
+	*/
+
+	DECLARE_MULTICAST_DELEGATE(OnInteractiveToolDetailsPanelRequestRebuild);
+	OnInteractiveToolDetailsPanelRequestRebuild OnDetailsPanelRequestRebuild;
 
 protected:
 	// UMeshSculptToolBase API

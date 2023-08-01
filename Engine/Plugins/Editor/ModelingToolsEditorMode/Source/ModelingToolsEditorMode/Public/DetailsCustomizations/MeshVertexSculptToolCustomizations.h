@@ -14,9 +14,11 @@ class IDetailLayoutBuilder;
 class IPropertyHandle;
 class IDetailChildrenBuilder;
 class SComboButton;
+class SComboPanel;
 class SBox;
 class UMeshVertexSculptTool;
 class FRecentAlphasProvider;
+class SToolInputAssetComboPanel;
 
 
 // customization for USculptBrushProperties, creates two-column layout
@@ -34,6 +36,8 @@ public:
 class FVertexBrushSculptPropertiesDetails : public IDetailCustomization
 {
 public:
+	virtual ~FVertexBrushSculptPropertiesDetails();
+
 	static TSharedRef<IDetailCustomization> MakeInstance();
 	void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
@@ -47,6 +51,10 @@ protected:
 	FReply OnToggledFreezeTarget();
 	void OnSetFreezeTarget(ECheckBoxState State);
 	bool IsFreezeTargetEnabled();
+
+	TSharedPtr<SComboPanel> FalloffTypeCombo;
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	FDelegateHandle FalloffTypeUpdateHandle;
 };
 
 
@@ -56,10 +64,18 @@ protected:
 class FVertexBrushAlphaPropertiesDetails : public IDetailCustomization
 {
 public:
+	virtual ~FVertexBrushAlphaPropertiesDetails();
+
 	static TSharedRef<IDetailCustomization> MakeInstance();
 	void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 	TSharedPtr<FRecentAlphasProvider> RecentAlphasProvider;
+
+protected:
+	TWeakObjectPtr<UMeshVertexSculptTool> TargetTool;
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	TSharedPtr<SToolInputAssetComboPanel> AlphaAssetPicker;
+	FDelegateHandle AlphaTextureUpdateHandle;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

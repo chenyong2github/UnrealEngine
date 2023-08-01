@@ -269,7 +269,13 @@ void SComboPanel::Construct(const FArguments& InArgs)
 	];
 }
 
+void SComboPanel::SetSelectionIndex(int InSelectionIndex)
+{
+	int SelectionIndex = FMath::Clamp(InSelectionIndex, 0, Items.Num());
 
+	SelectedItem = Items[SelectionIndex];
+	TileView->SetSelection(SelectedItem);
+}
 
 TSharedRef<SWidget> SComboPanel::OnGetMenuContent()
 {

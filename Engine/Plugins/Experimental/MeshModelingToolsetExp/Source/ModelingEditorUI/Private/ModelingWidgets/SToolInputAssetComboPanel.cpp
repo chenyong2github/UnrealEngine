@@ -218,14 +218,7 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 
 
 	// set initial thumbnail
-	if (Property.IsValid())
-	{
-		FAssetData AssetData;
-		if (Property->GetValue(AssetData) == FPropertyAccess::Result::Success)
-		{
-			AssetThumbnail->SetAsset(AssetData);
-		}
-	}
+	RefreshThumbnailFromProperty();
 
 	if (InArgs._InitiallySelectedAsset.IsValid())
 	{
@@ -240,6 +233,17 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 }
 
 
+void SToolInputAssetComboPanel::RefreshThumbnailFromProperty()
+{
+	if (Property.IsValid())
+	{
+		FAssetData AssetData;
+		if (Property->GetValue(AssetData) == FPropertyAccess::Result::Success)
+		{
+			AssetThumbnail->SetAsset(AssetData);
+		}
+	}
+}
 
 
 TSharedRef<SWidget> SToolInputAssetComboPanel::MakeCollectionSetsButtonPanel(TSharedRef<SToolInputAssetPicker> AssetPickerView)

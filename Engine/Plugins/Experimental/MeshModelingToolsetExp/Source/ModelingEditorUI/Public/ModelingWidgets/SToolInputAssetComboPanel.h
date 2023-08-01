@@ -122,6 +122,8 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
+	void RefreshThumbnailFromProperty();
+
 protected:
 
 	FVector2D ComboButtonTileSize;

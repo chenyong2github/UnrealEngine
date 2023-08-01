@@ -204,6 +204,7 @@ void UMeshVertexSculptTool::Setup()
 
 	AlphaProperties = NewObject<UVertexBrushAlphaProperties>(this);
 	AlphaProperties->RestoreProperties(this);
+	AlphaProperties->Tool = this;
 	AddToolPropertySource(AlphaProperties);
 
 	SymmetryProperties = NewObject<UMeshSymmetryProperties>(this);
@@ -300,10 +301,18 @@ void UMeshVertexSculptTool::Setup()
 		[this](EMeshVertexSculptBrushType NewType) { UpdateBrushType(NewType); });
 
 	SculptProperties->WatchProperty( SculptProperties->PrimaryFalloffType,
-		[this](EMeshSculptFalloffType NewType) { SetPrimaryFalloffType(NewType); });
+		[this](EMeshSculptFalloffType NewType) { 
+			SetPrimaryFalloffType(NewType);
+			// Request to have the details panel rebuilt to ensure the new falloff property value is propagated to the details customization
+			OnDetailsPanelRequestRebuild.Broadcast();
+		});
 
 	SculptProperties->WatchProperty(AlphaProperties->Alpha,
-		[this](UTexture2D* NewAlpha) { UpdateBrushAlpha(AlphaProperties->Alpha); });
+		[this](UTexture2D* NewAlpha) {
+			UpdateBrushAlpha(AlphaProperties->Alpha);
+			// Request to have the details panel rebuilt to ensure the new alpha property value is propagated to the details customization
+			OnDetailsPanelRequestRebuild.Broadcast();
+		});
 
 	// must call before updating brush type so that we register all brush properties?
 	UMeshSculptToolBase::OnCompleteSetup();
