@@ -57,6 +57,10 @@ class UNiagaraDataInterfaceArrayPosition : public UNiagaraDataInterfaceArray
 public:
 	GENERATED_BODY()
 
+#if WITH_NIAGARA_DEBUGGER
+	virtual void DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const;
+#endif
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FNiagaraPosition> PositionData;
 
