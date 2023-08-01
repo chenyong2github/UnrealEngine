@@ -722,7 +722,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				}
 
 				// Set up secondary resolution fraction for the view family.
-				if (!bStereoRendering && ViewFamily.SupportsScreenPercentage())
+				if (ViewFamily.SupportsScreenPercentage())
 				{
 					float CustomSecondaryScreenPercentage = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SecondaryScreenPercentage.GameViewport"), false)->GetFloat();
 					if (CustomSecondaryScreenPercentage > 0.0)
@@ -781,7 +781,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 					float CustomBufferRatio = DCViewFamily.CustomBufferRatio;
 
 					float GlobalResolutionFraction = 1.0f;
-					float SecondaryScreenPercentage = 1.0f;
+					float SecondaryScreenPercentage = ViewFamily.SecondaryViewFraction;
 
 					if (ViewFamily.EngineShowFlags.ScreenPercentage)
 					{
