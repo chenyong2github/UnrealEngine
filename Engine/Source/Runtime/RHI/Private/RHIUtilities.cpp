@@ -610,6 +610,10 @@ ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasIn
 		{
 			ResourceState = ERHIAccess::SRVMask;
 		}
+		else if (EnumHasAnyFlags(InUsage, TexCreate_Foveation))
+		{
+			ResourceState = ERHIAccess::ShadingRateSource;
+		}
 	}
 
 	return ResourceState;
