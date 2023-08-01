@@ -1310,16 +1310,10 @@ void FAssetFileContextMenu::GetSelectedAssetSourceFilePaths(TArray<FString>& Out
 			{
 				GetSourceFilesArgs.Assets = TConstArrayView<FAssetData>(&AssetData, 1);
 
-				EAssetCommandResult Result = AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&OutFilePaths](const FAssetSourceFilesResult& AssetImportInfo)
+				EAssetCommandResult Result = AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&OutFilePaths, &OutUniqueSourceFileLabels](const FAssetSourceFilesResult& AssetImportInfo)
 				{
 					OutFilePaths.Add(AssetImportInfo.FilePath);
-					return true;
-				});
-
-				GetSourceFilesArgs.FilePathFormat = EPathUse::Display;
-				AssetDefinition->GetSourceFiles(GetSourceFilesArgs, [&OutUniqueSourceFileLabels](const FAssetSourceFilesResult& AssetImportInfo)
-				{
-					OutUniqueSourceFileLabels.Add(AssetImportInfo.FilePath);
+					OutUniqueSourceFileLabels.AddUnique(AssetImportInfo.DisplayLabel);
 					return true;
 				});
 

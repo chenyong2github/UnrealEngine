@@ -95,6 +95,7 @@ EAssetCommandResult UAssetDefinition::GetSourceFiles(const FAssetSourceFilesArgs
 				for (FAssetImportInfo::FSourceFile& SourceFiles : ImportInfo.SourceFiles)
 				{
 					Result.FilePath = MoveTemp(SourceFiles.RelativeFilename);
+					Result.DisplayLabel = MoveTemp(SourceFiles.DisplayLabelName);
 					Result.Timestamp = MoveTemp(SourceFiles.Timestamp);
 					Result.FileHash = MoveTemp(SourceFiles.FileHash);
 				

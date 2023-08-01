@@ -141,6 +141,9 @@ struct FAssetSourceFilesResult
 	/** The file path in the format requested. */
 	FString FilePath;
 
+	/** The Label was used to display this source file in the property editor. */
+	FString DisplayLabel;
+
 	/** The timestamp of the file when it was imported (as UTC). 0 when unknown. */
 	FDateTime Timestamp;
 
