@@ -19,7 +19,7 @@ public class WebRTC : ModuleRules
 	protected virtual bool bShouldUse5414WebRTC
 	{
 		get =>
-			false;
+			true;
 	}
 
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
@@ -62,14 +62,11 @@ public class WebRTC : ModuleRules
 			PublicSystemIncludePaths.Add(IncludePath);
 
 			// Include our compatiblity headers
-			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "WebRTC", "CompatInclude"));
+			string CompatIncludesPath = Path.Combine(Target.UEThirdPartySourceDirectory, "WebRTC", "CompatInclude");
+			PublicSystemIncludePaths.Add(CompatIncludesPath);
 
 			string AbslthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "abseil-cpp");
 			PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
-
-			// libVPX is linked inside WebRTC so just use those headers and binaries where avaliable
-			string libvpxthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "libvpx", "source", "libvpx");
-			PublicSystemIncludePaths.Add(libvpxthirdPartyIncludePath);
 
 			// libyuv is linked inside WebRTC so just use those headers and binaries where avaliable
 			string libyuvthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "libyuv", "include");
@@ -89,8 +86,7 @@ public class WebRTC : ModuleRules
 
 				// The version of webrtc we depend on, depends on an openssl that depends on zlib
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "libOpus");
+
 
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
@@ -101,9 +97,16 @@ public class WebRTC : ModuleRules
 				// This is slightly different than the other platforms
 				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, Target.Architecture.LinuxName, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libwebrtc.a"));
-				
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "libOpus");
+			}
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "libOpus");
+
+			// We remove LibVPX symbols from 5414 and instead depend on the ones provided
+			// in engine third party
+			if(bShouldUse5414WebRTC)
+			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "LibVpx");
 			}
 		}
 
