@@ -737,7 +737,7 @@ uint GetDiffuseIndirectSampleOcclusion(FGBufferData GBuffer, float3 V, float3 Wo
 uint GetSelectiveOutputMask()
 {
 	uint Mask = 0;
-#if MATERIAL_USES_ANISOTROPY
+#if MATERIAL_USES_ANISOTROPY && !IS_NANITE_PASS
 	Mask |= HAS_ANISOTROPY_MASK;
 #endif
 #if !GBUFFER_HAS_PRECSHADOWFACTOR
