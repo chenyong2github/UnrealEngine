@@ -9,10 +9,12 @@ namespace Chaos
 {
 	class FClothingSimulation;
 	class FClothingSimulationCloth;
+	class FClothingSimulationConfig;
 }
 class FClothingSimulationContextCommon;
 
 // Command signature for handling synced command buffer
+DECLARE_DELEGATE_TwoParams(FChaosClothingInteractorConfigCommand, Chaos::FClothingSimulationConfig*, int32)
 DECLARE_DELEGATE_OneParam(FChaosClothingInteractorCommand, Chaos::FClothingSimulationCloth*)
 DECLARE_DELEGATE_TwoParams(FChaosClothingSimulationInteractorCommand, Chaos::FClothingSimulation*, FClothingSimulationContextCommon*)
 
@@ -73,6 +75,7 @@ public:
 private:
 	// Cloth command queue processed when we hit a sync
 	TArray<FChaosClothingInteractorCommand> Commands;
+	TArray<FChaosClothingInteractorConfigCommand> ConfigCommands;
 };
 
 UCLASS(BlueprintType, MinimalAPI)
@@ -98,4 +101,5 @@ protected:
 private:
 	// Simulation command queue processed when we hit a sync
 	TArray<FChaosClothingSimulationInteractorCommand> Commands;
+	TArray<FChaosClothingInteractorConfigCommand> ConfigCommands;
 };

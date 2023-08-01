@@ -80,6 +80,12 @@ public:
 	void SetEnableSimulation(bool bEnabled);
 	bool IsSimulationEnabled() const;
 
+	// LODIndex == INDEX_NONE is LOD Auto
+	void SetLODModel(int32 LODIndex);
+	bool IsLODModelSelected(int32 LODIndex) const;
+	int32 GetLODModel() const;
+	int32 GetNumLODs() const;
+
 	UDataflowComponent* GetDataflowComponent() const;
 
 	TObjectPtr<UEditorInteractiveToolsContext> GetActiveToolsContext()

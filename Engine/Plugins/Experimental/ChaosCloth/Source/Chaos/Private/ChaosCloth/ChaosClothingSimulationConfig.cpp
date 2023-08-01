@@ -8,16 +8,19 @@
 namespace Chaos
 {
 	FClothingSimulationConfig::FClothingSimulationConfig()
-		: PropertyCollection(MakeShared<FManagedArrayCollection>())
-		, Properties(MakeUnique<Softs::FCollectionPropertyMutableFacade>(PropertyCollection))
 	{
 	}
 
 	FClothingSimulationConfig::FClothingSimulationConfig(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection)
-		: PropertyCollection(MakeShared<FManagedArrayCollection>())
-		, Properties(MakeUnique<Softs::FCollectionPropertyMutableFacade>(PropertyCollection))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Initialize(InPropertyCollection);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	FClothingSimulationConfig::FClothingSimulationConfig(const TArray<TSharedPtr<const FManagedArrayCollection>>& InPropertyCollections)
+	{
+		Initialize(InPropertyCollections);
 	}
 
 	FClothingSimulationConfig::~FClothingSimulationConfig() = default;
@@ -31,15 +34,20 @@ namespace Chaos
 			::Chaos::Softs::ECollectionPropertyFlags::Animatable;
 
 		// Clear all properties
-		PropertyCollection->Reset();
-		Properties->DefineSchema();
+		PropertyCollections.Reset(1);
+		Properties.Reset(1);
+
+		bIsLegacySingleLOD = true;
+		TSharedPtr<FManagedArrayCollection>& PropertyCollection = PropertyCollections.Add_GetRef(MakeShared<FManagedArrayCollection>());
+		TUniquePtr<Softs::FCollectionPropertyMutableFacade>& Property = Properties.Add_GetRef(MakeUnique<Softs::FCollectionPropertyMutableFacade>(PropertyCollection));
+		Property->DefineSchema();
 
 		// Solver properties
 		if (ClothSharedConfig)
 		{
-			Properties->AddValue(TEXT("NumIterations"), ClothSharedConfig->IterationCount, AnimatablePropertyFlags);
-			Properties->AddValue(TEXT("MaxNumIterations"), ClothSharedConfig->MaxIterationCount, AnimatablePropertyFlags);
-			Properties->AddValue(TEXT("NumSubsteps"), ClothSharedConfig->SubdivisionCount, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("NumIterations"), ClothSharedConfig->IterationCount, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("MaxNumIterations"), ClothSharedConfig->MaxIterationCount, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("NumSubsteps"), ClothSharedConfig->SubdivisionCount, AnimatablePropertyFlags);
 		}
 
 		// Cloth properties
@@ -61,17 +69,17 @@ namespace Chaos
 					MassValue = ClothConfig->Density;
 					break;
 				}
-				Properties->AddValue(TEXT("MassMode"), (int32)ClothConfig->MassMode, NonAnimatablePropertyFlags);
-				Properties->AddValue(TEXT("MassValue"), MassValue, NonAnimatablePropertyFlags);
-				Properties->AddValue(TEXT("MinPerParticleMass"), ClothConfig->MinPerParticleMass, NonAnimatablePropertyFlags);
+				Property->AddValue(TEXT("MassMode"), (int32)ClothConfig->MassMode, NonAnimatablePropertyFlags);
+				Property->AddValue(TEXT("MassValue"), MassValue, NonAnimatablePropertyFlags);
+				Property->AddValue(TEXT("MinPerParticleMass"), ClothConfig->MinPerParticleMass, NonAnimatablePropertyFlags);
 			}
 
 			// Edge constraint
 			if (ClothConfig->EdgeStiffnessWeighted.Low > 0.f || ClothConfig->EdgeStiffnessWeighted.High > 0.f)
 			{
-				const int32 EdgeSpringStiffnessIndex = Properties->AddProperty(TEXT("EdgeSpringStiffness"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(EdgeSpringStiffnessIndex, ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High);
-				Properties->SetStringValue(EdgeSpringStiffnessIndex, TEXT("EdgeStiffness"));
+				const int32 EdgeSpringStiffnessIndex = Property->AddProperty(TEXT("EdgeSpringStiffness"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(EdgeSpringStiffnessIndex, ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High);
+				Property->SetStringValue(EdgeSpringStiffnessIndex, TEXT("EdgeStiffness"));
 			}
 
 			// Bending constraint
@@ -80,151 +88,155 @@ namespace Chaos
 			{
 				if (ClothConfig->bUseBendingElements)
 				{
-					const int32 BendingElementStiffnessIndex = Properties->AddProperty(TEXT("BendingElementStiffness"), AnimatablePropertyFlags);
-					Properties->SetWeightedValue(BendingElementStiffnessIndex, ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High);
-					Properties->SetStringValue(BendingElementStiffnessIndex, TEXT("BendingStiffness"));
+					const int32 BendingElementStiffnessIndex = Property->AddProperty(TEXT("BendingElementStiffness"), AnimatablePropertyFlags);
+					Property->SetWeightedValue(BendingElementStiffnessIndex, ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High);
+					Property->SetStringValue(BendingElementStiffnessIndex, TEXT("BendingStiffness"));
 
-					Properties->AddValue(TEXT("BucklingRatio"), ClothConfig->BucklingRatio, NonAnimatablePropertyFlags);
+					Property->AddValue(TEXT("BucklingRatio"), ClothConfig->BucklingRatio, NonAnimatablePropertyFlags);
 
 					if (ClothConfig->BucklingStiffnessWeighted.Low > 0.f || ClothConfig->BucklingStiffnessWeighted.High > 0.f)
 					{
-						const int32 BucklingStiffnessIndex = Properties->AddProperty(TEXT("BucklingStiffness"), AnimatablePropertyFlags);
-						Properties->SetWeightedValue(BucklingStiffnessIndex, ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High);
-						Properties->SetStringValue(BucklingStiffnessIndex, TEXT("BucklingStiffness"));
+						const int32 BucklingStiffnessIndex = Property->AddProperty(TEXT("BucklingStiffness"), AnimatablePropertyFlags);
+						Property->SetWeightedValue(BucklingStiffnessIndex, ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High);
+						Property->SetStringValue(BucklingStiffnessIndex, TEXT("BucklingStiffness"));
 					}
 				}
 				else  // Not using bending elements
 				{
-					const int32 BendingSpringStiffnessIndex = Properties->AddProperty(TEXT("BendingSpringStiffness"), AnimatablePropertyFlags);
-					Properties->SetWeightedValue(BendingSpringStiffnessIndex, ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High);
-					Properties->SetStringValue(BendingSpringStiffnessIndex, TEXT("BendingStiffness"));
+					const int32 BendingSpringStiffnessIndex = Property->AddProperty(TEXT("BendingSpringStiffness"), AnimatablePropertyFlags);
+					Property->SetWeightedValue(BendingSpringStiffnessIndex, ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High);
+					Property->SetStringValue(BendingSpringStiffnessIndex, TEXT("BendingStiffness"));
 				}
 			}
 
 			// Area constraint
 			if (ClothConfig->AreaStiffnessWeighted.Low > 0.f || ClothConfig->AreaStiffnessWeighted.High > 0.f)
 			{
-				const int32 AreaSpringStiffnessIndex = Properties->AddProperty(TEXT("AreaSpringStiffness"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(AreaSpringStiffnessIndex, ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High);
-				Properties->SetStringValue(AreaSpringStiffnessIndex, TEXT("AreaStiffness"));
+				const int32 AreaSpringStiffnessIndex = Property->AddProperty(TEXT("AreaSpringStiffness"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(AreaSpringStiffnessIndex, ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High);
+				Property->SetStringValue(AreaSpringStiffnessIndex, TEXT("AreaStiffness"));
 			}
 
 			// Long range attachment
 			if (ClothConfig->TetherStiffness.Low > 0.f || ClothConfig->TetherStiffness.High > 0.f)
 			{
-				Properties->AddValue(TEXT("UseGeodesicTethers"), ClothConfig->bUseGeodesicDistance, NonAnimatablePropertyFlags);
+				Property->AddValue(TEXT("UseGeodesicTethers"), ClothConfig->bUseGeodesicDistance, NonAnimatablePropertyFlags);
 
-				const int32 TetherStiffnessIndex = Properties->AddProperty(TEXT("TetherStiffness"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(TetherStiffnessIndex, ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High);
-				Properties->SetStringValue(TetherStiffnessIndex, TEXT("TetherStiffness"));
+				const int32 TetherStiffnessIndex = Property->AddProperty(TEXT("TetherStiffness"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(TetherStiffnessIndex, ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High);
+				Property->SetStringValue(TetherStiffnessIndex, TEXT("TetherStiffness"));
 
-				const int32 TetherScaleIndex = Properties->AddProperty(TEXT("TetherScale"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(TetherScaleIndex, ClothConfig->TetherScale.Low, ClothConfig->TetherScale.High);
-				Properties->SetStringValue(TetherScaleIndex, TEXT("TetherScale"));
+				const int32 TetherScaleIndex = Property->AddProperty(TEXT("TetherScale"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(TetherScaleIndex, ClothConfig->TetherScale.Low, ClothConfig->TetherScale.High);
+				Property->SetStringValue(TetherScaleIndex, TEXT("TetherScale"));
 			}
 
 			// AnimDrive
 			if (ClothConfig->AnimDriveStiffness.Low > 0.f || ClothConfig->AnimDriveStiffness.High > 0.f)
 			{
-				const int32 AnimDriveStiffnessIndex = Properties->AddProperty(TEXT("AnimDriveStiffness"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(AnimDriveStiffnessIndex, ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High);
-				Properties->SetStringValue(AnimDriveStiffnessIndex, TEXT("AnimDriveStiffness"));
+				const int32 AnimDriveStiffnessIndex = Property->AddProperty(TEXT("AnimDriveStiffness"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(AnimDriveStiffnessIndex, ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High);
+				Property->SetStringValue(AnimDriveStiffnessIndex, TEXT("AnimDriveStiffness"));
 
-				const int32 AnimDriveDampingIndex = Properties->AddProperty(TEXT("AnimDriveDamping"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(AnimDriveDampingIndex, ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High);
-				Properties->SetStringValue(AnimDriveDampingIndex, TEXT("AnimDriveDamping"));
+				const int32 AnimDriveDampingIndex = Property->AddProperty(TEXT("AnimDriveDamping"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(AnimDriveDampingIndex, ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High);
+				Property->SetStringValue(AnimDriveDampingIndex, TEXT("AnimDriveDamping"));
 			}
 
 			// Gravity
 			{
-				Properties->AddValue(TEXT("GravityScale"), ClothConfig->GravityScale, AnimatablePropertyFlags);
-				Properties->AddValue(TEXT("UseGravityOverride"), ClothConfig->bUseGravityOverride, AnimatablePropertyFlags);
-				Properties->AddValue(TEXT("GravityOverride"), FVector3f(ClothConfig->Gravity), AnimatablePropertyFlags);
+				Property->AddValue(TEXT("GravityScale"), ClothConfig->GravityScale, AnimatablePropertyFlags);
+				Property->AddValue(TEXT("UseGravityOverride"), ClothConfig->bUseGravityOverride, AnimatablePropertyFlags);
+				Property->AddValue(TEXT("GravityOverride"), FVector3f(ClothConfig->Gravity), AnimatablePropertyFlags);
 			}
 
 			// Velocity scale
 			{
-				Properties->AddValue(TEXT("LinearVelocityScale"), FVector3f(ClothConfig->LinearVelocityScale), AnimatablePropertyFlags);
-				Properties->AddValue(TEXT("AngularVelocityScale"), ClothConfig->AngularVelocityScale, AnimatablePropertyFlags);
-				Properties->AddValue(TEXT("FictitiousAngularScale"), ClothConfig->FictitiousAngularScale, AnimatablePropertyFlags);
+				Property->AddValue(TEXT("LinearVelocityScale"), FVector3f(ClothConfig->LinearVelocityScale), AnimatablePropertyFlags);
+				Property->AddValue(TEXT("AngularVelocityScale"), ClothConfig->AngularVelocityScale, AnimatablePropertyFlags);
+				Property->AddValue(TEXT("FictitiousAngularScale"), ClothConfig->FictitiousAngularScale, AnimatablePropertyFlags);
 			}
 
 			// Aerodynamics
-			Properties->AddValue(TEXT("UsePointBasedWindModel"), ClothConfig->bUsePointBasedWindModel, NonAnimatablePropertyFlags);
-			if (!ClothConfig->bUsePointBasedWindModel && (ClothConfig->Drag.Low > 0.f || ClothConfig->Drag.High > 0.f || ClothConfig->Lift.Low > 0.f || ClothConfig->Lift.High > 0.f))
+			Property->AddValue(TEXT("UsePointBasedWindModel"), ClothConfig->bUsePointBasedWindModel, NonAnimatablePropertyFlags);
 			{
-				const int32 DragIndex = Properties->AddProperty(TEXT("Drag"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(DragIndex, ClothConfig->Drag.Low, ClothConfig->Drag.High);
-				Properties->SetStringValue(DragIndex, TEXT("Drag"));
+				const int32 DragIndex = Property->AddProperty(TEXT("Drag"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(DragIndex, ClothConfig->Drag.Low, ClothConfig->Drag.High);
+				Property->SetStringValue(DragIndex, TEXT("Drag"));
 
-				const int32 LiftIndex = Properties->AddProperty(TEXT("Lift"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(LiftIndex, ClothConfig->Lift.Low, ClothConfig->Lift.High);
-				Properties->SetStringValue(LiftIndex, TEXT("Lift"));
+				const int32 LiftIndex = Property->AddProperty(TEXT("Lift"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(LiftIndex, ClothConfig->Lift.Low, ClothConfig->Lift.High);
+				Property->SetStringValue(LiftIndex, TEXT("Lift"));
 
 				constexpr float AirDensity = 1.225f;  // Air density in kg/m^3
-				Properties->AddValue(TEXT("FluidDensity"), AirDensity, AnimatablePropertyFlags);
+				Property->AddValue(TEXT("FluidDensity"), AirDensity, AnimatablePropertyFlags);
 
-				Properties->AddValue(TEXT("WindVelocity"), FVector3f(0.f), AnimatablePropertyFlags);  // Wind velocity must exist to be animatable
+				Property->AddValue(TEXT("WindVelocity"), FVector3f(0.f), AnimatablePropertyFlags);  // Wind velocity must exist to be animatable
 			}
 
 			// Pressure
-			if (ClothConfig->Pressure.Low != 0.f || ClothConfig->Pressure.High != 0.f)
 			{
-				const int32 PressureIndex = Properties->AddProperty(TEXT("Pressure"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(PressureIndex, ClothConfig->Pressure.Low, ClothConfig->Pressure.High);
-				Properties->SetStringValue(PressureIndex, TEXT("Pressure"));
+				const int32 PressureIndex = Property->AddProperty(TEXT("Pressure"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(PressureIndex, ClothConfig->Pressure.Low, ClothConfig->Pressure.High);
+				Property->SetStringValue(PressureIndex, TEXT("Pressure"));
 			}
 
 			// Damping
-			Properties->AddValue(TEXT("DampingCoefficient"), ClothConfig->DampingCoefficient, AnimatablePropertyFlags);
-			Properties->AddValue(TEXT("LocalDampingCoefficient"), ClothConfig->LocalDampingCoefficient, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("DampingCoefficient"), ClothConfig->DampingCoefficient, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("LocalDampingCoefficient"), ClothConfig->LocalDampingCoefficient, AnimatablePropertyFlags);
 
 			// Collision
-			Properties->AddValue(TEXT("CollisionThickness"), ClothConfig->CollisionThickness, AnimatablePropertyFlags);
-			Properties->AddValue(TEXT("FrictionCoefficient"), ClothConfig->FrictionCoefficient, AnimatablePropertyFlags);
-			Properties->AddValue(TEXT("UseCCD"), ClothConfig->bUseCCD, AnimatablePropertyFlags);
-			Properties->AddValue(TEXT("UseSelfCollisions"), ClothConfig->bUseSelfCollisions, NonAnimatablePropertyFlags);
-			Properties->AddValue(TEXT("SelfCollisionThickness"), ClothConfig->SelfCollisionThickness, NonAnimatablePropertyFlags);
-			Properties->AddValue(TEXT("UseSelfIntersections"), ClothConfig->bUseSelfIntersections, NonAnimatablePropertyFlags);
-			Properties->AddValue(TEXT("SelfCollisionFriction"), ClothConfig->SelfCollisionFriction, NonAnimatablePropertyFlags);
+			Property->AddValue(TEXT("CollisionThickness"), ClothConfig->CollisionThickness, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("FrictionCoefficient"), ClothConfig->FrictionCoefficient, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("UseCCD"), ClothConfig->bUseCCD, AnimatablePropertyFlags);
+			Property->AddValue(TEXT("UseSelfCollisions"), ClothConfig->bUseSelfCollisions, NonAnimatablePropertyFlags);
+			Property->AddValue(TEXT("SelfCollisionThickness"), ClothConfig->SelfCollisionThickness, NonAnimatablePropertyFlags);
+			Property->AddValue(TEXT("UseSelfIntersections"), ClothConfig->bUseSelfIntersections, NonAnimatablePropertyFlags);
+			Property->AddValue(TEXT("SelfCollisionFriction"), ClothConfig->SelfCollisionFriction, NonAnimatablePropertyFlags);
 
 			// Max distance
 			{
-				const int32 MaxDistanceIndex = Properties->AddProperty(TEXT("MaxDistance"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(MaxDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
-				Properties->SetStringValue(MaxDistanceIndex, TEXT("MaxDistance"));
+				const int32 MaxDistanceIndex = Property->AddProperty(TEXT("MaxDistance"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(MaxDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
+				Property->SetStringValue(MaxDistanceIndex, TEXT("MaxDistance"));
 			}
 
 			// Backstop
 			{
-				const int32 BackstopDistanceIndex = Properties->AddProperty(TEXT("BackstopDistance"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(BackstopDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
-				Properties->SetStringValue(BackstopDistanceIndex, TEXT("BackstopDistance"));
+				const int32 BackstopDistanceIndex = Property->AddProperty(TEXT("BackstopDistance"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(BackstopDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
+				Property->SetStringValue(BackstopDistanceIndex, TEXT("BackstopDistance"));
 
-				const int32 BackstopRadiusIndex = Properties->AddProperty(TEXT("BackstopRadius"), AnimatablePropertyFlags);
-				Properties->SetWeightedValue(BackstopRadiusIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
-				Properties->SetStringValue(BackstopRadiusIndex, TEXT("BackstopRadius"));
+				const int32 BackstopRadiusIndex = Property->AddProperty(TEXT("BackstopRadius"), AnimatablePropertyFlags);
+				Property->SetWeightedValue(BackstopRadiusIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
+				Property->SetStringValue(BackstopRadiusIndex, TEXT("BackstopRadius"));
 
-				Properties->AddValue(TEXT("UseLegacyBackstop"), ClothConfig->bUseLegacyBackstop, NonAnimatablePropertyFlags);
+				Property->AddValue(TEXT("UseLegacyBackstop"), ClothConfig->bUseLegacyBackstop, NonAnimatablePropertyFlags);
 			}
 		}
 
 		// Mark this as a potential legacy config, but leave the behavior control to the client code (usually means constraint are removed with 0 stiffness, or missing weight maps)
-		Properties->AddValue(TEXT("UseLegacyConfig"), bUseLegacyConfig, NonAnimatablePropertyFlags);
+		Property->AddValue(TEXT("UseLegacyConfig"), bUseLegacyConfig, NonAnimatablePropertyFlags);
 	}
 
-	void FClothingSimulationConfig::Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection)
+	void FClothingSimulationConfig::Initialize(const TArray<TSharedPtr<const FManagedArrayCollection>>& InPropertyCollections)
 	{
-		Properties->Copy(*InPropertyCollection);
-	}
+		PropertyCollections.Reset(InPropertyCollections.Num());
+		Properties.Reset(InPropertyCollections.Num());
 
-	const Softs::FCollectionPropertyConstFacade& FClothingSimulationConfig::GetProperties() const
-	{
-		return *Properties;
+		for (const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection : InPropertyCollections)
+		{
+			TSharedPtr<FManagedArrayCollection>& PropertyCollection = PropertyCollections.Add_GetRef(MakeShared<FManagedArrayCollection>());
+			TUniquePtr<Softs::FCollectionPropertyMutableFacade>& Property = Properties.Add_GetRef(MakeUnique<Softs::FCollectionPropertyMutableFacade>(PropertyCollection));
+			Property->Copy(*InPropertyCollection);
+		}
 	}
-
-	Softs::FCollectionPropertyFacade& FClothingSimulationConfig::GetProperties()
+	const Softs::FCollectionPropertyConstFacade& FClothingSimulationConfig::GetProperties(int32 LODIndex) const
 	{
-		return *Properties;
+		return bIsLegacySingleLOD ? *Properties[0] : *Properties[LODIndex];
+	}
+	Softs::FCollectionPropertyFacade& FClothingSimulationConfig::GetProperties(int32 LODIndex)
+	{
+		return bIsLegacySingleLOD ? *Properties[0] : *Properties[LODIndex];
 	}
 }  // End namespace Chaos

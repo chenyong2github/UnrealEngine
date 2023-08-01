@@ -22,7 +22,9 @@ namespace Chaos
 	{
 	public:
 		CHAOSCLOTH_API FClothingSimulationConfig();
+		UE_DEPRECATED(5.3, "Use TArray version of this constructor.")
 		CHAOSCLOTH_API FClothingSimulationConfig(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
+		CHAOSCLOTH_API FClothingSimulationConfig(const TArray<TSharedPtr<const FManagedArrayCollection>>& InPropertyCollections);
 
 		CHAOSCLOTH_API ~FClothingSimulationConfig();
 
@@ -40,19 +42,68 @@ namespace Chaos
 		CHAOSCLOTH_API void Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig, bool bUseLegacyConfig = false);
 
 		/** Initialize config from a property collection. */
-		CHAOSCLOTH_API void Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
+		UE_DEPRECATED(5.3, "Use TArray version of Initialize.")
+		CHAOSCLOTH_API void Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection)
+		{
+			Initialize(TArray<TSharedPtr<const FManagedArrayCollection>>({ InPropertyCollection }));
+			bIsLegacySingleLOD = true;
+		}
+
+		/** Initialize config from an array of property collections (one per LOD). */
+		CHAOSCLOTH_API void Initialize(const TArray<TSharedPtr<const FManagedArrayCollection>>& InPropertyCollections);
 
 		/** Return a property collection facade for reading properties from this configuration. */
-		CHAOSCLOTH_API const Softs::FCollectionPropertyConstFacade& GetProperties() const;
+		CHAOSCLOTH_API const Softs::FCollectionPropertyConstFacade& GetProperties(int32 LODIndex) const;
+		CHAOSCLOTH_API const Softs::FCollectionPropertyConstFacade& GetProperties() const 
+		{
+			ensureMsgf(bIsLegacySingleLOD, TEXT("LODIndex-less version should only be used with legacy single LOD configs."));
+			return GetProperties(0); 
+		}
 
 		/** Return a property collection facade for setting properties for this configuration. */
-		CHAOSCLOTH_API Softs::FCollectionPropertyFacade& GetProperties();
+		CHAOSCLOTH_API Softs::FCollectionPropertyFacade& GetProperties(int32 LODIndex);
+		CHAOSCLOTH_API Softs::FCollectionPropertyFacade& GetProperties() 
+		{
+			ensureMsgf(bIsLegacySingleLOD, TEXT("LODIndex-less version should only be used with legacy single LOD configs."));
+			return GetProperties(0); 
+		}
 
 		/** Return this configuration's internal property collection. */
-		TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
+		TSharedPtr<const FManagedArrayCollection> GetPropertyCollection(int32 LODIndex) const 
+		{
+			return bIsLegacySingleLOD ? TSharedPtr<const FManagedArrayCollection>(PropertyCollections[0]) : 
+				TSharedPtr<const FManagedArrayCollection>(PropertyCollections[LODIndex]);
+		}
+		TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const 
+		{
+			ensureMsgf(bIsLegacySingleLOD, TEXT("LODIndex-less version should only be used with legacy single LOD configs."));
+			return GetPropertyCollection(0); 
+		}
+
+		bool IsLegacySingleLOD() const { return bIsLegacySingleLOD; }
+		int32 GetNumLODs() const { return PropertyCollections.Num(); }
+
+		template<typename FunctionType>
+		void ForAllProperties(FunctionType Func)
+		{
+			for (TUniquePtr<Softs::FCollectionPropertyMutableFacade>& Property : Properties)
+			{
+				Func((Softs::FCollectionPropertyFacade&)(*Property));
+			}
+		}
+
+		template<typename FunctionType>
+		void ForAllProperties(FunctionType Func) const
+		{
+			for (const TUniquePtr<Softs::FCollectionPropertyMutableFacade>& Property : Properties)
+			{
+				Func((Softs::FCollectionPropertyConstFacade&)(*Property));
+			}
+		}
 
 	private:
-		TSharedPtr<FManagedArrayCollection> PropertyCollection;
-		TUniquePtr<Softs::FCollectionPropertyMutableFacade> Properties;
+		bool bIsLegacySingleLOD = false;
+		TArray<TSharedPtr<FManagedArrayCollection>> PropertyCollections;
+		TArray<TUniquePtr<Softs::FCollectionPropertyMutableFacade>> Properties;
 	};
 } // namespace Chaos

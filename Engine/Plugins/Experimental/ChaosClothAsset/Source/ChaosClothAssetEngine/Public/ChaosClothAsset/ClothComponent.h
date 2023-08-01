@@ -91,11 +91,14 @@ public:
 	void RecreateClothSimulationProxy();
 
 	/**
-	 * Return the property collection holding the runtime properties for this cloth component.
+	 * Return the property collections holding the runtime properties for this cloth component (one per LOD).
 	 * This might be different from the cloth asset's since the component's properties can be modified in code or in blueprints.
 	 * This could also be different from the cloth simulation object until the cloth simulation thread synchronise the properties.
 	 */
-	TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
+	const TArray<TSharedPtr<const FManagedArrayCollection>>& GetPropertyCollections() const 
+	{
+		return reinterpret_cast<const TArray<TSharedPtr<const FManagedArrayCollection>>&>(PropertyCollections);
+	}
 
 	const UE::Chaos::ClothAsset::FClothSimulationProxy* GetClothSimulationProxy() const { return ClothSimulationProxy.Get(); }
 
@@ -178,8 +181,8 @@ private:
 	UPROPERTY()
 	float BlendWeight = 1.f;
 
-	TSharedPtr<FManagedArrayCollection> PropertyCollection;
-	TUniquePtr<::Chaos::Softs::FCollectionPropertyFacade> CollectionPropertyFacade;
+	TArray<TSharedPtr<FManagedArrayCollection>> PropertyCollections;
+	TArray<TUniquePtr<::Chaos::Softs::FCollectionPropertyFacade>> CollectionPropertyFacades;
 
 	TSharedPtr<UE::Chaos::ClothAsset::FClothSimulationProxy> ClothSimulationProxy;
 };

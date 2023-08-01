@@ -58,6 +58,12 @@ public:
 	void SetEnableSimulation(bool bEnable);
 	bool IsSimulationEnabled() const;
 
+	// LODIndex == INDEX_NONE is LOD Auto
+	void SetLODModel(int32 LODIndex);
+	bool IsLODModelSelected(int32 LODIndex) const;
+	int32 GetLODModel() const;
+	int32 GetNumLODs() const;
+
 	FBox PreviewBoundingBox() const;
 
 	TWeakPtr<FChaosClothPreviewScene> GetClothPreviewScene();

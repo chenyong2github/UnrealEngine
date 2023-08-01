@@ -72,5 +72,7 @@ public:
 	const static FString ToggleSimulationSuspendedIdentifier;
 	TSharedPtr<FUICommandInfo> ToggleSimulationSuspended;
 
+	TSharedPtr<FUICommandInfo> LODAuto;
+	TSharedPtr<FUICommandInfo> LOD0;
 };
 } // namespace UE::Chaos::ClothAsset

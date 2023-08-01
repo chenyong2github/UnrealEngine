@@ -215,8 +215,23 @@ namespace Chaos::Softs
 		return INDEX_NONE;
 	}
 
+	void FCollectionPropertyMutableFacade::Append(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, bool bUpdateExistingProperties)
+	{
+		
+		Update(InManagedArrayCollection, ECollectionPropertyUpdateFlags::AppendNewProperties | (bUpdateExistingProperties ? ECollectionPropertyUpdateFlags::UpdateExistingProperties : ECollectionPropertyUpdateFlags::None));
+	}
+
 	void FCollectionPropertyMutableFacade::Append(const FManagedArrayCollection& InManagedArrayCollection)
 	{
+		constexpr ECollectionPropertyUpdateFlags UpdateFlagsAppendNewOnly = ECollectionPropertyUpdateFlags::AppendNewProperties;
+		Update(MakeShared<const FManagedArrayCollection>(InManagedArrayCollection), UpdateFlagsAppendNewOnly);
+	}
+
+	void FCollectionPropertyMutableFacade::Copy(const FManagedArrayCollection& InManagedArrayCollection)
+	{
+		GetManagedArrayCollection()->Reset();
+		DefineSchema();
+
 		TArray<FName> GroupsToSkip = InManagedArrayCollection.GroupNames();
 		GroupsToSkip.RemoveSingleSwap(PropertyFacadeNames::PropertyGroup);
 
@@ -225,11 +240,85 @@ namespace Chaos::Softs
 		RebuildKeyIndices();
 	}
 
-	void FCollectionPropertyMutableFacade::Copy(const FManagedArrayCollection& InManagedArrayCollection)
+	void FCollectionPropertyMutableFacade::Update(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ECollectionPropertyUpdateFlags UpdateFlags)
 	{
-		GetManagedArrayCollection()->Reset();
-		DefineSchema();
-		Append(InManagedArrayCollection);
+		if (UpdateFlags == ECollectionPropertyUpdateFlags::None)
+		{
+			// Nothing to do
+			return;
+		}
+
+		const bool bAppendNewProperties = (UpdateFlags & ECollectionPropertyUpdateFlags::AppendNewProperties) != ECollectionPropertyUpdateFlags::None;
+		const bool bUpdateExistingProperties = (UpdateFlags & ECollectionPropertyUpdateFlags::UpdateExistingProperties) != ECollectionPropertyUpdateFlags::None;
+		const bool bRemoveMissingProperties = (UpdateFlags & ECollectionPropertyUpdateFlags::RemoveMissingProperties) != ECollectionPropertyUpdateFlags::None;
+		const bool bDisableMissingProperties = (UpdateFlags & ECollectionPropertyUpdateFlags::DisableMissingProperties) != ECollectionPropertyUpdateFlags::None;
+
+		FCollectionPropertyConstFacade InPropertyFacade(InManagedArrayCollection);
+		if (InPropertyFacade.IsValid())
+		{
+			DefineSchema();
+
+			const int32 PrevNumKeys = Num();
+
+			if (bAppendNewProperties || bUpdateExistingProperties)
+			{
+				const int32 NumInKeys = InPropertyFacade.Num();
+				for (int32 InKeyIndex = 0; InKeyIndex < NumInKeys; ++InKeyIndex)
+				{
+					const FString& PropertyName = InPropertyFacade.GetKey(InKeyIndex);
+					int32 NewPropertyIndex = GetKeyIndex(PropertyName);
+					if (NewPropertyIndex == INDEX_NONE)
+					{
+						if (bAppendNewProperties)
+						{
+							NewPropertyIndex = AddProperty(PropertyName, (ECollectionPropertyFlags)InPropertyFacade.GetFlags(InKeyIndex));
+						}
+						else
+						{
+							continue;
+						}
+					}
+					else if (!bUpdateExistingProperties)
+					{
+						continue;
+					}
+					else
+					{
+						SetFlags(NewPropertyIndex, InPropertyFacade.GetFlags(InKeyIndex));
+					}
+
+					// Setting as FVector3f since that is the underlying type
+					SetLowValue(NewPropertyIndex, InPropertyFacade.GetLowValue<FVector3f>(InKeyIndex));
+					SetHighValue(NewPropertyIndex, InPropertyFacade.GetHighValue<FVector3f>(InKeyIndex));
+					SetStringValue(NewPropertyIndex, InPropertyFacade.GetStringValue(InKeyIndex));
+				}
+			}
+			if (bRemoveMissingProperties || bDisableMissingProperties)
+			{
+				TArray<int32> KeyIndicesToRemove;
+				for (int32 ExistingKeyIndex = 0; ExistingKeyIndex < PrevNumKeys; ++ExistingKeyIndex)
+				{
+					if (InPropertyFacade.GetKeyIndex(GetKey(ExistingKeyIndex)) == INDEX_NONE)
+					{
+						if (bRemoveMissingProperties)
+						{
+							KeyIndicesToRemove.Add(ExistingKeyIndex);
+						}
+						else if(bDisableMissingProperties)
+						{
+							SetEnabled(ExistingKeyIndex, false);
+						}
+					}
+				}
+
+				if (!KeyIndicesToRemove.IsEmpty())
+				{
+					GetManagedArrayCollection()->RemoveElements(PropertyFacadeNames::PropertyGroup, KeyIndicesToRemove);
+					UpdateArrays();
+					RebuildKeyIndices();
+				}
+			}
+		}
 	}
 
 	int32 FCollectionPropertyMutableFacade::AddWeightedFloatValue(const FString& Key, const FVector2f& Value, bool bEnabled, bool bAnimatable)

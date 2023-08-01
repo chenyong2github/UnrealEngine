@@ -132,7 +132,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		//Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);  // TODO: External collision data
 
 		// Create cloth config simulation thread object
-		const int32 ClothConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));
+		const int32 ClothConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollections()));
 
 		// Create cloth simulation thread object
 		constexpr uint32 GroupId = 0;
@@ -154,7 +154,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		NumDynamicParticles = Cloths[ClothIndex]->GetNumActiveDynamicParticles();
 
 		// Create solver config simulation thread object
-		const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));  // TODO: Use a separate solver config for outfits
+		const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollections()));  // TODO: Use a separate solver config for outfits
 		Solver->SetConfig(Configs[SolverConfigIndex].Get());
 
 		// Set start pose (update the context, then the solver without advancing the simulation)
@@ -255,6 +255,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
 		static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 		SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
+
+		// Update particle counts (could have changed if lod changed)
+		NumKinematicParticles = 0;
+		NumDynamicParticles = 0;
+		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
+		{
+			NumKinematicParticles += Cloth->GetNumActiveKinematicParticles();
+			NumDynamicParticles += Cloth->GetNumActiveDynamicParticles();
+		}
 
 		// Visualization
 		Visualization->DrawPhysMeshWired();
@@ -446,8 +455,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Replace physics thread's configs with the game thread's configs
 		for (const TUniquePtr<::Chaos::FClothingSimulationConfig>& Config : Configs)
 		{
-			Config->Initialize(ClothComponent.GetPropertyCollection());  // TODO: Outfit and multi-cloths/solver config update
+			Config->Initialize(ClothComponent.GetPropertyCollections());  // TODO: Outfit and multi-cloths/solver config update
 		}
+		// TODO: separate solver config lod from cloth component
+		Solver->SetSolverLOD(ClothSimulationContext->LodIndex);
 	}
 
 	void FClothSimulationProxy::FillSimulationContext(float DeltaTime, bool bIsInitialization, FClothingSimulationCacheData* CacheData)

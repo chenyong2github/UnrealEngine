@@ -242,6 +242,41 @@ bool FChaosClothAssetEditor3DViewportClient::IsSimulationEnabled() const
 	return false;
 }
 
+void FChaosClothAssetEditor3DViewportClient::SetLODModel(int32 LODIndex)
+{
+	if (ClothEdMode)
+	{
+		ClothEdMode->SetLODModel(LODIndex);
+	}
+}
+
+bool FChaosClothAssetEditor3DViewportClient::IsLODModelSelected(int32 LODIndex) const
+{
+	if (ClothEdMode)
+	{
+		return ClothEdMode->IsLODModelSelected(LODIndex);
+	}
+	return false;
+}
+
+int32 FChaosClothAssetEditor3DViewportClient::GetLODModel() const
+{
+	if (ClothEdMode)
+	{
+		return ClothEdMode->GetLODModel();
+	}
+	return INDEX_NONE;
+}
+
+int32 FChaosClothAssetEditor3DViewportClient::GetNumLODs() const
+{
+	if (ClothEdMode)
+	{
+		return ClothEdMode->GetNumLODs();
+	}
+	return 0;
+}
+
 void FChaosClothAssetEditor3DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	FEditorViewportClient::Draw(View, PDI);

@@ -110,17 +110,27 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// ---- Animatable property setters ----
 		void SetMaxDistancesMultiplier(FRealSingle InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
-
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetMaterialProperties(const TVec2<FRealSingle>& InEdgeStiffness, const TVec2<FRealSingle>& InBendingStiffness, const TVec2<FRealSingle>& InAreaStiffness);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness, const TVec2<FRealSingle>& InTetherScale);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetBackstopProperties(bool bInEnableBackstop);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetDampingProperties(FRealSingle InDampingCoefficient, FRealSingle InLocalDampingCoefficient = 0.f);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity);  // AirDensity is here in kg/cm^3 for legacy reason (kg/m^3 in UI)
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetPressureProperties(const TVec2<FRealSingle>& InPressure);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetGravityProperties(FRealSingle InGravityScale, bool bInUseGravityOverride, const FVec3& InGravityOverride);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetAnimDriveProperties(const TVec2<FRealSingle>& InAnimDriveStiffness, const TVec2<FRealSingle>& InAnimDriveDamping);
+		UE_DEPRECATED(5.3, "Get properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void GetAnimDriveProperties(TVec2<FRealSingle>& OutAnimDriveStiffness, TVec2<FRealSingle>& OutAnimDriveDamping);
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, FRealSingle InAngularVelocityScale, FRealSingle InFictitiousAngularScale);
 
 		void Reset() { bNeedsReset = true; }

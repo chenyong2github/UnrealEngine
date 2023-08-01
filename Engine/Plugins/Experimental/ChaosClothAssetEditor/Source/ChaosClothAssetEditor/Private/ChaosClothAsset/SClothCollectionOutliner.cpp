@@ -202,6 +202,11 @@ namespace ClothCollectionOutlinerHelpers
 		return FString::FromInt(Value);
 	}
 
+	FString AttributeValueToString(uint8 Value)
+	{
+		return FString::FromInt(Value);
+	}
+
 	FString AttributeValueToString(const FString& Value)
 	{
 		return Value;
@@ -303,6 +308,9 @@ namespace ClothCollectionOutlinerHelpers
 			break;
 		case FManagedArrayCollection::EArrayType::FIntArrayType:
 			ValueAsString = AttributeValueToString<TSet<int32>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
+			break;
+		case FManagedArrayCollection::EArrayType::FUInt8Type:
+			ValueAsString = AttributeValueToString<uint8>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
 			break;
 		default:
 			ensure(false);

@@ -67,24 +67,29 @@ void UChaosClothComponent::ResetConfigProperties()
 {
 	if (IsRegistered())
 	{
-		check(PropertyCollection);
-
-		// Create a mutable facade for our component's property collection, and use it to copy the properties from the cloth collection
-		::Chaos::Softs::FCollectionPropertyMutableFacade CollectionPropertyMutableFacade(PropertyCollection);
-
-		// TODO: Make PropertyCollection also one per LOD.
-		if (GetClothAsset() && GetClothAsset()->GetClothCollections().Num() > 0)
+		if (GetClothAsset())
 		{
-			CollectionPropertyMutableFacade.Copy(*GetClothAsset()->GetClothCollections()[0]);
+			const TArray<TSharedRef<FManagedArrayCollection>>& ClothCollections = GetClothAsset()->GetClothCollections();
+			PropertyCollections.Reset();
+			PropertyCollections.Reserve(ClothCollections.Num());
+			CollectionPropertyFacades.Reset();
+			CollectionPropertyFacades.Reserve(ClothCollections.Num());
+			for (const TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
+			{
+				TSharedPtr<FManagedArrayCollection>& PropertyCollection = PropertyCollections.Add_GetRef(MakeShared<FManagedArrayCollection>());
+
+				::Chaos::Softs::FCollectionPropertyMutableFacade CollectionPropertyMutableFacade(PropertyCollection);
+				CollectionPropertyMutableFacade.Copy(*ClothCollection);
+
+				CollectionPropertyFacades.Add(MakeUnique<::Chaos::Softs::FCollectionPropertyFacade>(PropertyCollection));
+
+			}
 		}
 		else
 		{
-			PropertyCollection->Reset();
-			CollectionPropertyMutableFacade.DefineSchema();
+			PropertyCollections.Reset();
+			CollectionPropertyFacades.Reset();
 		}
-
-		// Now the component property facade must be updated
-		*CollectionPropertyFacade = MoveTemp(CollectionPropertyMutableFacade);
 	}
 	else
 	{
@@ -153,10 +158,6 @@ void UChaosClothComponent::OnRegister()
 	// Update the component bone transforms (for colliders) from the cloth asset until these are animated from a leader component
 	UpdateComponentSpaceTransforms();
 
-	// Create the runtime simulation property 
-	PropertyCollection = MakeShared<FManagedArrayCollection>();
-	CollectionPropertyFacade = MakeUnique<::Chaos::Softs::FCollectionPropertyFacade>(PropertyCollection);
-
 	// Fill up the property collection with the original cloth asset properties
 	ResetConfigProperties();
 
@@ -175,8 +176,8 @@ void UChaosClothComponent::OnUnregister()
 	ClothSimulationProxy.Reset();
 
 	// Release the runtime simulation collection and facade
-	PropertyCollection.Reset();
-	CollectionPropertyFacade.Reset();
+	CollectionPropertyFacades.Empty();
+	PropertyCollections.Empty();
 }
 
 bool UChaosClothComponent::IsComponentTickEnabled() const
@@ -188,6 +189,9 @@ void UChaosClothComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ClothComponentTick);
+	
+	// Tick USkinnedMeshComponent first so it will update the predicted lod
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// TODO: Fields
 	//if (ClothingSimulation)
@@ -208,8 +212,6 @@ void UChaosClothComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	{
 		HandleExistingParallelSimulation();
 	}
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 bool UChaosClothComponent::RequiresPreEndOfFrameSync() const
@@ -356,10 +358,11 @@ void UChaosClothComponent::StartNewParallelSimulation(float DeltaTime)
 	{
 		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 		const bool bIsSimulating = ClothSimulationProxy->Tick_GameThread(DeltaTime);
+		const int32 CurrentLOD = GetPredictedLODLevel();
 
-		if (bIsSimulating && CollectionPropertyFacade.IsValid())
+		if (bIsSimulating && CollectionPropertyFacades.IsValidIndex(CurrentLOD) && CollectionPropertyFacades[CurrentLOD].IsValid())
 		{
-			CollectionPropertyFacade->ClearDirtyFlags();
+			CollectionPropertyFacades[CurrentLOD]->ClearDirtyFlags();
 		}
 	}
 }

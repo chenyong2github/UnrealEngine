@@ -82,6 +82,8 @@ namespace Chaos
 
 		FClothingSimulationCloth* GetCloth(int32 ClothId);
 
+		FClothingSimulationSolver* GetSolver() { return Solver.Get(); }
+
 #if WITH_EDITOR
 		// Editor only debug draw function
 		void DebugDrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) const { Visualization.DrawPhysMeshShaded(PDI); }

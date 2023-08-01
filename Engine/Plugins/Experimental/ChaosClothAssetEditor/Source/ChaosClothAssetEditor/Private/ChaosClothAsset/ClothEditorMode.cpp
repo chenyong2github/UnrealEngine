@@ -714,6 +714,41 @@ bool UChaosClothAssetEditorMode::IsSimulationEnabled() const
 	return false;
 }
 
+void UChaosClothAssetEditorMode::SetLODModel(int32 LODIndex)
+{
+	if (PreviewScene && PreviewScene->GetClothComponent())
+	{
+		PreviewScene->GetClothComponent()->SetForcedLOD(LODIndex + 1);
+	}
+}
+
+bool UChaosClothAssetEditorMode::IsLODModelSelected(int32 LODIndex) const
+{
+	if (PreviewScene && PreviewScene->GetClothComponent())
+	{
+		return PreviewScene->GetClothComponent()->GetForcedLOD() == LODIndex + 1;
+	}
+	return false;
+}
+
+int32 UChaosClothAssetEditorMode::GetLODModel() const
+{
+	if (PreviewScene && PreviewScene->GetClothComponent())
+	{
+		return PreviewScene->GetClothComponent()->GetForcedLOD() - 1;
+	}
+	return INDEX_NONE;
+}
+
+int32 UChaosClothAssetEditorMode::GetNumLODs() const
+{
+	if (PreviewScene && PreviewScene->GetClothComponent())
+	{
+		return PreviewScene->GetClothComponent()->GetNumLODs();
+	}
+	return 0;
+}
+
 UDataflowComponent* UChaosClothAssetEditorMode::GetDataflowComponent() const
 {
 	return DataflowComponent;

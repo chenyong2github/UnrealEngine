@@ -56,10 +56,10 @@ void FChaosClothAssetSimulationDefaultConfigNode::Evaluate(Dataflow::FContext& C
 				FClothingSimulationConfig ClothingSimulationConfig;
 				ClothingSimulationConfig.Initialize(SimulationConfig.Get(), SharedSimulationConfig.Get());
 
-				ClothingSimulationConfig.GetPropertyCollection()->CopyTo(&ClothCollection.Get());
+				ClothingSimulationConfig.GetPropertyCollection(0)->CopyTo(&ClothCollection.Get());
 
 				// Generate tethers
-				const FCollectionPropertyConstFacade& Properties = ClothingSimulationConfig.GetProperties();
+				const FCollectionPropertyConstFacade& Properties = ClothingSimulationConfig.GetProperties(0);
 				constexpr bool bUseGeodesicTethersDefault = true;
 				const bool bUseGeodesicTethers = Properties.GetValue<bool>(TEXT("UseGeodesicTethers"), bUseGeodesicTethersDefault);
 				// Use the "MaxDistance" weight map to generate tethers. This follows legacy behavior.

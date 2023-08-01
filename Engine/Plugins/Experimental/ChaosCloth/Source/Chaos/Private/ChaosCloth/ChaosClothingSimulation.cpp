@@ -440,21 +440,26 @@ void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		constexpr bool bUseLegacyConfig = true;  // Make the config a legacy cloth config, so that the constraints disable themselves with missing masks, ...etc.
 		SolverConfig->Initialize(nullptr, ClothSharedSimConfig, bUseLegacyConfig);
 	}
+	else
+	{
+		// This will cause the solver to create a default config
+		Solver->SetConfig(nullptr);
+	}
 }
 
 void FClothingSimulation::SetNumIterations(int32 InNumIterations)
 {
-	Solver->SetNumIterations(InNumIterations);
+	Solver->GetConfig()->GetProperties(Solver->GetSolverLOD()).SetValue(TEXT("NumIterations"), InNumIterations);
 }
 
 void FClothingSimulation::SetMaxNumIterations(int32 MaxNumIterations)
 {
-	Solver->SetMaxNumIterations(MaxNumIterations);
+	Solver->GetConfig()->GetProperties(Solver->GetSolverLOD()).SetValue(TEXT("MaxNumIterations"), MaxNumIterations);
 }
 
 void FClothingSimulation::SetNumSubsteps(int32 InNumSubsteps)
 {
-	Solver->SetNumSubsteps(InNumSubsteps);
+	Solver->GetConfig()->GetProperties(Solver->GetSolverLOD()).SetValue(TEXT("NumSubsteps"), InNumSubsteps);
 }
 
 bool FClothingSimulation::ShouldSimulate() const

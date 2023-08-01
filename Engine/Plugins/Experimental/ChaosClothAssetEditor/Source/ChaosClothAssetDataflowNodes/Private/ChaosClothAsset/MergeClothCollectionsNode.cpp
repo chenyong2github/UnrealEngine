@@ -2,6 +2,7 @@
 
 #include "ChaosClothAsset/MergeClothCollectionsNode.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Chaos/CollectionPropertyFacade.h"
 #include "Dataflow/DataflowInputOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MergeClothCollectionsNode)
@@ -20,6 +21,7 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		using namespace UE::Chaos::ClothAsset;
+		using namespace Chaos::Softs;
 
 		// Evaluate in collection
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
@@ -35,6 +37,9 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 			ClothFacade.DefineSchema();
 		}
 
+		FCollectionPropertyMutableFacade PropertyFacade(ClothCollection);
+		bAreAnyValid |= PropertyFacade.IsValid();
+
 		// Iterate through the inputs and append them to LOD 0
 		const TArray<const FManagedArrayCollection*> Collections = GetCollections();
 		for (int32 InputIndex = 1; InputIndex < Collections.Num(); ++InputIndex)
@@ -45,6 +50,14 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 			if (OtherClothFacade.IsValid())
 			{
 				ClothFacade.Append(OtherClothFacade);
+				bAreAnyValid = true;
+			}
+			// Copy properties
+			const FCollectionPropertyConstFacade OtherPropertyFacade(OtherClothCollection);
+			if (OtherPropertyFacade.IsValid())
+			{
+				constexpr bool bUpdateExistingProperties = true; // Want last one wins.
+				PropertyFacade.Append(OtherClothCollection.ToSharedPtr(), bUpdateExistingProperties);
 				bAreAnyValid = true;
 			}
 		}

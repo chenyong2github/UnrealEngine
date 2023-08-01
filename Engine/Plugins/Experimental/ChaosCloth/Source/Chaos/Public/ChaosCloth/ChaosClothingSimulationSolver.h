@@ -56,10 +56,13 @@ namespace Chaos
 		CHAOSCLOTH_API void SetWindVelocity(const TVec3<FRealSingle>& InWindVelocity, FRealSingle InLegacyWindAdaption = (FRealSingle)0.);
 		const TVec3<FRealSingle>& GetWindVelocity() const { return WindVelocity; }
 
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetNumIterations(int32 InNumIterations);
 		CHAOSCLOTH_API int32 GetNumIterations() const;
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetMaxNumIterations(int32 InMaxNumIterations);
 		CHAOSCLOTH_API int32 GetMaxNumIterations() const;
+		UE_DEPRECATED(5.3, "Set properties directly through FClothingSimulationConfig")
 		CHAOSCLOTH_API void SetNumSubsteps(int32 InNumSubsteps);
 		CHAOSCLOTH_API int32 GetNumSubsteps() const;
 
@@ -84,9 +87,11 @@ namespace Chaos
 		/**
 		 * Set the solver configuration.
 		 * Can use a cloth config if a single cloth is being simulated.
-		 * When a solver configuration is set, the solver shared properties (e.g. NumIterations, MaxNumIterations, NumSubsteps) are overriden.
 		 */
-		void SetConfig(FClothingSimulationConfig* InConfig) { Config = InConfig; }
+		CHAOSCLOTH_API void SetConfig(FClothingSimulationConfig* InConfig);
+
+		void SetSolverLOD(int32 LODIndex) { SolverLOD = LODIndex; }
+		int32 GetSolverLOD() const { return SolverLOD; }
 
 		/** Advance the simulation. */
 		CHAOSCLOTH_API void Update(FSolverReal InDeltaTime);
@@ -254,7 +259,9 @@ namespace Chaos
 		TArray<FClothingSimulationCloth*> Cloths;
 		
 		// Solver config
+		int32 SolverLOD = 0; // Config may contain multiple LODs.
 		FClothingSimulationConfig* Config = nullptr;
+		TSharedPtr<FManagedArrayCollection> PropertyCollection;  // Used for backward compatibility only, otherwise the properties are owned by the Config
 
 		// Simulation group attributes
 		TArrayCollectionArray<Softs::FSolverRigidTransform3> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
@@ -289,11 +296,6 @@ namespace Chaos
 		// Time stepping
 		FSolverReal Time;
 		FSolverReal DeltaTime;
-
-		// Solver config properties, superseded by the config pointer
-		int32 NumIterations;
-		int32 MaxNumIterations;
-		int32 NumSubsteps;
 
 		// Solver colliders offset
 		int32 CollisionParticlesOffset;  // Collision particle offset on the first solver/non cloth collider

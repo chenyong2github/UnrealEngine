@@ -69,9 +69,9 @@ namespace Chaos::Softs
 		int32 GetKeyIndex(const FString& Key) const { const int32* const Index = KeyIndices.Find(Key); return Index ? *Index : INDEX_NONE; }
 
 		/** Return the property name (key) for the specified index. */
+		//~ Values access per index, fast, no check, index must be valid (0 <= KeyIndex < Num())
 		const FString& GetKey(int32 KeyIndex) const { return GetValue<const FString&>(KeyIndex, KeyArray); }
 
-		//~ Values access per index, fast, no check, index must be valid (0 <= KeyIndex < Num())
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
 		T GetLowValue(int32 KeyIndex) const { return GetValue<T>(KeyIndex, LowValueArray); }
 
@@ -90,7 +90,6 @@ namespace Chaos::Softs
 		UE_DEPRECATED(5.3, "Use GetStringValue(int32) or GetStringValue(const FString&, const FString&, int32*) instead.")
 		const FString& GetStringValue(int32 KeyIndex, const FString& Default) const { return GetValue<const FString&>(KeyIndex, StringValueArray); }
 
-		UE_DEPRECATED(5.3, "GetFlags is being phased out to promote correct dirtying operations.")
 		uint8 GetFlags(int32 KeyIndex) const { return FlagsArray[KeyIndex]; }
 
 		bool IsEnabled(int32 KeyIndex) const { return HasAnyFlags(KeyIndex, ECollectionPropertyFlags::Enabled); }
@@ -134,12 +133,9 @@ namespace Chaos::Softs
 			return SafeGet(Key, [this](int32 KeyIndex)->FString { return GetStringValue(KeyIndex); }, Default, OutKeyIndex);
 		}
 
-		UE_DEPRECATED(5.3, "GetFlags is being phased out to promote correct dirtying operations.")
 		uint8 GetFlags(const FString& Key, uint8 Default = 0, int32* OutKeyIndex = nullptr) const
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			return SafeGet(Key, [this](int32 KeyIndex)->uint8 { return GetFlags(KeyIndex); }, Default, OutKeyIndex);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		bool IsEnabled(const FString& Key, bool bDefault = false, int32* OutKeyIndex = nullptr) const
@@ -168,6 +164,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 	protected:
+
 		// No init constructor for FCollectionPropertyFacade
 		CHAOS_API FCollectionPropertyConstFacade(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ENoInit);
 
@@ -255,8 +252,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		void SetStringValue(int32 KeyIndex, const FString& Value) { if (GetStringValueArray()[KeyIndex] != Value) { GetStringValueArray()[KeyIndex] = Value; SetStringDirty(KeyIndex); } }
 
-		UE_DEPRECATED(5.3, "SetFlags is being phased out to promote correct dirtying operations.")
-		void SetFlags(int32 KeyIndex, uint8 Flags) { SetValue(KeyIndex, GetFlagsArray(), (ECollectionPropertyFlags)Flags); }
+		/** SetFlags cannot be used to remove dirty flags. Use ClearDirtyFlags to remove dirty flags.*/
+		void SetFlags(int32 KeyIndex, uint8 Flags) 
+		{ 
+			const ECollectionPropertyFlags DirtyFlags = (ECollectionPropertyFlags)GetFlags(KeyIndex) & (ECollectionPropertyFlags::Dirty | ECollectionPropertyFlags::StringDirty);
+
+			SetValue(KeyIndex, GetFlagsArray(), (ECollectionPropertyFlags)Flags | DirtyFlags);
+		}
 
 		void SetEnabled(int32 KeyIndex, bool bEnabled) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Enabled, bEnabled); }
 		void SetAnimatable(int32 KeyIndex, bool bAnimatable) { EnableFlags(KeyIndex, ECollectionPropertyFlags::Animatable, bAnimatable); }
@@ -301,12 +303,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return SafeSet(Key, [this, &Value](int32 KeyIndex) { SetStringValue(KeyIndex, Value); });
 		}
 
-		UE_DEPRECATED(5.3, "SetFlags is being phased out to promote correct dirtying operations.")
 		int32 SetFlags(const FString& Key, uint8 Flags)
 		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			return SafeSet(Key, [this, Flags](int32 KeyIndex) { SetFlags(KeyIndex, Flags); });
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		int32 SetEnabled(const FString& Key, bool bEnabled)
@@ -375,6 +374,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		CHAOS_API void EnableFlags(int32 KeyIndex, ECollectionPropertyFlags Flags, bool bEnable);
 	};
 
+	enum class ECollectionPropertyUpdateFlags : uint8
+	{
+		None = 0,
+		AppendNewProperties = 1 << 0, /** Add new properties.*/
+		UpdateExistingProperties = 1 << 1, /** Update values of existing properties.*/
+		RemoveMissingProperties = 1 << 2, /** Existing properties not in InManagedArrayCollection will be removed */
+		DisableMissingProperties = 1 << 3 /** Existing properties not in InManagedArrayCollection will be disabled. (Does nothing if RemoveMissingProperties is set).*/
+	};
+	ENUM_CLASS_FLAGS(ECollectionPropertyUpdateFlags)
+
 	/**
 	 * Defines common API for reading and writing, and adding/removing simulation properties data and metadata.
 	 * This is mainly used for the cloth simulation properties to provide
@@ -411,16 +420,31 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		/**
 		 * Append all properties and values from an existing collection to this property collection.
 		 * This won't copy any other groups, only data from PropertyGroup.
-		 * Any pre-existing data will be preserved.
+		 * Modified properties will be marked dirty.
+		 * 
+		 * @param bUpdateExistingProperties: Update existing property values. Otherwise, only new properties will be added.
 		 */
+		CHAOS_API void Append(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, bool bUpdateExistingProperties);
+
+		UE_DEPRECATED(5.3, "Use SharedPtr version of Append to avoid additional copy.")
 		CHAOS_API void Append(const FManagedArrayCollection& InManagedArrayCollection);
 
 		/**
 		 * Copy all properties and values from an existing collection to this property collection.
+		 * Dirty flags will be copied directly.
 		 * This won't copy any other groups, only data from PropertyGroup.
 		 * Any pre-xisting data will be removed/replaced.
 		 */
 		CHAOS_API void Copy(const FManagedArrayCollection& InManagedArrayCollection);
+
+
+		/**
+		 * Update all properties and values from an existing collection to this property collection.
+		 * This won't copy any other groups, only data from PropertyGroup.
+		 * Modified properties will be marked dirty.
+		 */
+		CHAOS_API void Update(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ECollectionPropertyUpdateFlags UpdateFlags);
+
 
 		//~ Add values
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
@@ -583,7 +607,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 	bool Is##PropertyName##Mutable(const FCollectionPropertyConstFacade& PropertyCollection) const \
 	{ \
 		return PropertyName##Index != INDEX_NONE && \
-			PropertyCollection.IsEnabled(PropertyName##Index) && PropertyCollection.IsAnimatable(PropertyName##Index) && PropertyCollection.IsDirty(PropertyName##Index); \
+			PropertyCollection.IsEnabled(PropertyName##Index) && PropertyCollection.IsAnimatable(PropertyName##Index) && (PropertyCollection.IsDirty(PropertyName##Index) || PropertyCollection.IsStringDirty(PropertyName##Index)); \
 	} \
 	struct F##PropertyName##Index \
 	{ \

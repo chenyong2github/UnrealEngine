@@ -93,7 +93,8 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 				}
 
 				// Set properties
-				Chaos::Softs::FCollectionPropertyMutableFacade(ClothCollection).Append(*InClothCollection);
+				constexpr bool bUpdateExistingProperties = false;
+				Chaos::Softs::FCollectionPropertyMutableFacade(ClothCollection).Append(InClothCollection.ToSharedPtr(), bUpdateExistingProperties);
 
 				// Set physics asset only with LOD 0 at the moment
 				if (LodIndex == 0)

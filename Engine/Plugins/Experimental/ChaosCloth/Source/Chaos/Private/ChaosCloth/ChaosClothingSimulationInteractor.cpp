@@ -3,6 +3,8 @@
 #include "ChaosCloth/ChaosClothingSimulationInteractor.h"
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
+#include "ChaosCloth/ChaosClothingSimulationSolver.h"
+#include "ChaosCloth/ChaosClothingSimulationConfig.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosClothingSimulationInteractor)
 
@@ -22,6 +24,12 @@ void UChaosClothingInteractor::Sync(IClothingSimulation* Simulation)
 			Command.Execute(Cloth);
 		}
 		Commands.Reset();
+		for (FChaosClothingInteractorConfigCommand& ConfigCommand : ConfigCommands)
+		{
+			check(Cloth->GetConfig()->IsLegacySingleLOD());
+			ConfigCommand.Execute(Cloth->GetConfig(), 0);
+		}
+		ConfigCommands.Reset();
 	}
 
 	// Call to base class' sync
@@ -30,125 +38,147 @@ void UChaosClothingInteractor::Sync(IClothingSimulation* Simulation)
 
 void UChaosClothingInteractor::SetMaterialLinear(float EdgeStiffnessLinear, float BendingStiffnessLinear, float AreaStiffnessLinear)
 {
-	const Chaos::TVec2<Chaos::FRealSingle> EdgeStiffness((FMath::Clamp(FMath::Loge(EdgeStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
-	const Chaos::TVec2<Chaos::FRealSingle> BendingStiffness((FMath::Clamp(FMath::Loge(BendingStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
-	const Chaos::TVec2<Chaos::FRealSingle> AreaStiffness((FMath::Clamp(FMath::Loge(AreaStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	const FVector2f EdgeStiffness((FMath::Clamp(FMath::Loge(EdgeStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	const FVector2f BendingStiffness((FMath::Clamp(FMath::Loge(BendingStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	const FVector2f AreaStiffness((FMath::Clamp(FMath::Loge(AreaStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
 
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([EdgeStiffness, BendingStiffness, AreaStiffness](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([EdgeStiffness, BendingStiffness, AreaStiffness](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetMaterialProperties(EdgeStiffness, BendingStiffness, AreaStiffness);
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("EdgeSpringStiffness"), EdgeStiffness);
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("BendingSpringStiffness"), BendingStiffness);
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("AreaSpringStiffness"), AreaStiffness);
 	}));
 }
 
 void UChaosClothingInteractor::SetMaterial(FVector2D EdgeStiffness, FVector2D BendingStiffness, FVector2D AreaStiffness)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([EdgeStiffness, BendingStiffness, AreaStiffness](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([EdgeStiffness, BendingStiffness, AreaStiffness](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetMaterialProperties(Chaos::TVec2<Chaos::FRealSingle>(EdgeStiffness[0], EdgeStiffness[1]), Chaos::TVec2<Chaos::FRealSingle>(BendingStiffness[0], BendingStiffness[1]), Chaos::TVec2<Chaos::FRealSingle>(AreaStiffness[0], AreaStiffness[1]));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("EdgeSpringStiffness"), FVector2f(EdgeStiffness));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("BendingSpringStiffness"), FVector2f(BendingStiffness));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("AreaSpringStiffness"), FVector2f(AreaStiffness));
 	}));
 }
 
 void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffnessLinear, float TetherScale)
 {
 	// Deprecated
-	const Chaos::TVec2<Chaos::FRealSingle> TetherStiffness((FMath::Clamp(FMath::Loge(TetherStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness, TetherScale](Chaos::FClothingSimulationCloth* Cloth)
+	const FVector2f TetherStiffness((FMath::Clamp(FMath::Loge(TetherStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([TetherStiffness, TetherScale](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetLongRangeAttachmentProperties(TetherStiffness, Chaos::TVec2<Chaos::FRealSingle>(TetherScale, TetherScale));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("TetherStiffness"), TetherStiffness);
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("TetherScale"), FVector2f(TetherScale));
 	}));
 }
 
 void UChaosClothingInteractor::SetLongRangeAttachment(FVector2D TetherStiffness, FVector2D TetherScale)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness, TetherScale](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([TetherStiffness, TetherScale](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetLongRangeAttachmentProperties(
-			Chaos::TVec2<Chaos::FRealSingle>(TetherStiffness[0], TetherStiffness[1]),
-			Chaos::TVec2<Chaos::FRealSingle>(TetherScale[0], TetherScale[1]));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("TetherStiffness"), FVector2f(TetherStiffness));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("TetherScale"), FVector2f(TetherScale));
 	}));
 }
 
 void UChaosClothingInteractor::SetCollision(float CollisionThickness, float FrictionCoefficient, bool bUseCCD, float SelfCollisionThickness)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([CollisionThickness, FrictionCoefficient, bUseCCD, SelfCollisionThickness](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([CollisionThickness, FrictionCoefficient, bUseCCD, SelfCollisionThickness](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetCollisionProperties(CollisionThickness, FrictionCoefficient, bUseCCD, SelfCollisionThickness);
+		Config->GetProperties(LODIndex).SetValue(TEXT("CollisionThickness"), CollisionThickness);
+		Config->GetProperties(LODIndex).SetValue(TEXT("FrictionCoefficient"), FrictionCoefficient);
+		Config->GetProperties(LODIndex).SetValue(TEXT("UseCCD"), bUseCCD);
+		Config->GetProperties(LODIndex).SetValue(TEXT("SelfCollisionThickness"), SelfCollisionThickness);
 	}));
 }
 
 void UChaosClothingInteractor::SetBackstop(bool bEnabled)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([bEnabled](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([bEnabled](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetBackstopProperties(bEnabled);
+		Config->GetProperties(LODIndex).SetEnabled(TEXT("BackstopScale"), bEnabled);  // BackstopScale controls whether the backstop is enabled or not
 	}));
 }
 void UChaosClothingInteractor::SetDamping(float DampingCoefficient, float LocalDampingCoefficient)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DampingCoefficient, LocalDampingCoefficient](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([DampingCoefficient, LocalDampingCoefficient](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetDampingProperties(DampingCoefficient, LocalDampingCoefficient);
+		Config->GetProperties(LODIndex).SetValue(TEXT("DampingCoefficient"), DampingCoefficient);
+		Config->GetProperties(LODIndex).SetValue(TEXT("LocalDampingCoefficient"), LocalDampingCoefficient);
 	}));
 }
 
 void UChaosClothingInteractor::SetAerodynamics(float DragCoefficient, float LiftCoefficient, FVector WindVelocity)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DragCoefficient, LiftCoefficient, WindVelocity](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([DragCoefficient, LiftCoefficient, WindVelocity](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		constexpr Chaos::FRealSingle AirDensity = 1.225e-6f;
-		Cloth->SetAerodynamicsProperties(Chaos::TVec2<Chaos::FRealSingle>(DragCoefficient, DragCoefficient), Chaos::TVec2<Chaos::FRealSingle>(LiftCoefficient, LiftCoefficient), AirDensity, WindVelocity);
+		constexpr float AirDensity = 1.225f;
+		constexpr float WorldScale = 100.f;  // Unreal's world unit is the cm
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("Drag"), FVector2f(DragCoefficient));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("Lift"), FVector2f(LiftCoefficient));
+		Config->GetProperties(LODIndex).SetValue(TEXT("FluidDensity"), AirDensity);
+		Config->GetProperties(LODIndex).SetValue(TEXT("WindVelocity"), FVector3f(WindVelocity) / WorldScale);
 	}));
 }
 
 void UChaosClothingInteractor::SetWind(FVector2D Drag, FVector2D Lift, float AirDensity, FVector WindVelocity)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([Drag, Lift, AirDensity, WindVelocity](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([Drag, Lift, AirDensity, WindVelocity](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetAerodynamicsProperties(Chaos::TVec2<Chaos::FRealSingle>(Drag[0], Drag[1]), Chaos::TVec2<Chaos::FRealSingle>(Lift[0], Lift[1]), AirDensity, WindVelocity);
+		constexpr float WorldScale = 100.f;  // Unreal's world unit is the cm
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("Drag"), FVector2f(Drag));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("Lift"), FVector2f(Lift));
+		Config->GetProperties(LODIndex).SetValue(TEXT("FluidDensity"), (float)AirDensity * FMath::Cube(WorldScale));  // AirDensity is here in kg/cm^3 for legacy reason but must be in kg/m^3 in the config UI
+		Config->GetProperties(LODIndex).SetValue(TEXT("WindVelocity"), FVector3f(WindVelocity) / WorldScale);
 	}));
 }
 
 void UChaosClothingInteractor::SetPressure(FVector2D Pressure)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([Pressure](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([Pressure](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetPressureProperties(Chaos::TVec2<Chaos::FRealSingle>(Pressure[0], Pressure[1]));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("Pressure"), FVector2f(Pressure));
 	}));
 }
 
 void UChaosClothingInteractor::SetGravity(float GravityScale, bool bIsGravityOverridden, FVector GravityOverride)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([GravityScale, bIsGravityOverridden, GravityOverride](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([GravityScale, bIsGravityOverridden, GravityOverride](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetGravityProperties(GravityScale, bIsGravityOverridden, GravityOverride);
+		Config->GetProperties(LODIndex).SetValue(TEXT("GravityScale"), GravityScale);
+		Config->GetProperties(LODIndex).SetValue(TEXT("UseGravityOverride"), bIsGravityOverridden);
+		Config->GetProperties(LODIndex).SetValue(TEXT("GravityOverride"), FVector3f(GravityOverride));
 	}));
 }
 
 void UChaosClothingInteractor::SetAnimDriveLinear(float AnimDriveStiffnessLinear)
 {
 	// Deprecated
-	const Chaos::TVec2<Chaos::FRealSingle> AnimDriveStiffness(0.f, FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f));
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffness](Chaos::FClothingSimulationCloth* Cloth)
+	const FVector2f AnimDriveStiffness(0.f, FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f));
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([AnimDriveStiffness](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
 		// The Anim Drive stiffness Low value needs to be 0 in order to keep backward compatibility with existing mask (this wouldn't be an issue if this property had no legacy mask)
-		static const Chaos::TVec2<Chaos::FRealSingle> AnimDriveDamping(0.f, 1.f);
-		Cloth->SetAnimDriveProperties(AnimDriveStiffness, AnimDriveDamping);
+		static const FVector2f AnimDriveDamping(0.f, 1.f);
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("AnimDriveStiffness"), AnimDriveStiffness);
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("AnimDriveDamping"), AnimDriveDamping);
 	}));
 }
 
 void UChaosClothingInteractor::SetAnimDrive(FVector2D AnimDriveStiffness, FVector2D AnimDriveDamping)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffness, AnimDriveDamping](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([AnimDriveStiffness, AnimDriveDamping](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetAnimDriveProperties(Chaos::TVec2<Chaos::FRealSingle>(AnimDriveStiffness.X, AnimDriveStiffness.Y), Chaos::TVec2<Chaos::FRealSingle>(AnimDriveDamping.X, AnimDriveDamping.Y));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("AnimDriveStiffness"), FVector2f(AnimDriveStiffness));
+		Config->GetProperties(LODIndex).SetWeightedFloatValue(TEXT("AnimDriveDamping"), FVector2f(AnimDriveDamping));
 	}));
 }
 
 void UChaosClothingInteractor::SetVelocityScale(FVector LinearVelocityScale, float AngularVelocityScale, float FictitiousAngularScale)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([LinearVelocityScale, AngularVelocityScale, FictitiousAngularScale](Chaos::FClothingSimulationCloth* Cloth)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([LinearVelocityScale, AngularVelocityScale, FictitiousAngularScale](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Cloth->SetVelocityScaleProperties(LinearVelocityScale, AngularVelocityScale, FictitiousAngularScale);
+		Config->GetProperties(LODIndex).SetValue(TEXT("LinearVelocityScale"), FVector3f(LinearVelocityScale));
+		Config->GetProperties(LODIndex).SetValue(TEXT("AngularVelocityScale"), AngularVelocityScale);
+		Config->GetProperties(LODIndex).SetValue(TEXT("FictitiousAngularScale"), FictitiousAngularScale);
 	}));
 }
 
@@ -180,6 +210,12 @@ void UChaosClothingSimulationInteractor::Sync(IClothingSimulation* Simulation, I
 		Command.Execute(static_cast<Chaos::FClothingSimulation*>(Simulation), static_cast<Chaos::FClothingSimulationContext*>(Context));
 	}
 	Commands.Reset();
+	for (FChaosClothingInteractorConfigCommand& ConfigCommand : ConfigCommands)
+	{
+		ensure(static_cast<Chaos::FClothingSimulation*>(Simulation)->GetSolver()->GetConfig()->IsLegacySingleLOD());
+		ConfigCommand.Execute(static_cast<Chaos::FClothingSimulation*>(Simulation)->GetSolver()->GetConfig(), 0);
+	}
+	ConfigCommands.Reset();
 
 	// Call base class' sync 
 	UClothingSimulationInteractor::Sync(Simulation, Context);
@@ -231,25 +267,25 @@ void UChaosClothingSimulationInteractor::DisableGravityOverride()
 
 void UChaosClothingSimulationInteractor::SetNumIterations(int32 NumIterations)
 {
-	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([NumIterations](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([NumIterations](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Simulation->SetNumIterations(NumIterations);
+		Config->GetProperties(LODIndex).SetValue(TEXT("NumIterations"), NumIterations);
 	}));
 }
 
 void UChaosClothingSimulationInteractor::SetMaxNumIterations(int32 MaxNumIterations)
 {
-	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([MaxNumIterations](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([MaxNumIterations](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Simulation->SetMaxNumIterations(MaxNumIterations);
+		Config->GetProperties(LODIndex).SetValue(TEXT("MaxNumIterations"), MaxNumIterations);
 	}));
 }
 
 void UChaosClothingSimulationInteractor::SetNumSubsteps(int32 NumSubsteps)
 {
-	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([NumSubsteps](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
+	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([NumSubsteps](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Simulation->SetNumSubsteps(NumSubsteps);
+		Config->GetProperties(LODIndex).SetValue(TEXT("NumSubsteps"), NumSubsteps);
 	}));
 }
 

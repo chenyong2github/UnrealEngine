@@ -6,6 +6,9 @@
 #include "ChaosClothAsset/ClothEditorSimulationVisualization.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "ChaosClothAsset/ClothEditorStyle.h"
+#include "ChaosClothAsset/ClothEditorPreviewScene.h"
+#include "ChaosClothAsset/ClothAsset.h"
+#include "ChaosClothAsset/ClothComponent.h"
 #include "EditorViewportCommands.h"
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -60,10 +63,23 @@ void SChaosClothAssetEditor3DViewportToolBar::Construct(const FArguments& InArgs
 		];
 
 	MainBoxPtr->AddSlot()
+		.AutoWidth()
 		.Padding(ToolbarSlotPadding)
 		.HAlign(HAlign_Left)
 		[
 			MakeDisplayToolBar(InArgs._Extenders)
+		];
+
+	MainBoxPtr->AddSlot()
+		.AutoWidth()
+		.Padding(ToolbarSlotPadding)
+		.HAlign(HAlign_Left)
+		[
+			SNew(SEditorViewportToolbarMenu)
+			.Label(this, &SChaosClothAssetEditor3DViewportToolBar::GetLODMenuLabel)
+			.Cursor(EMouseCursor::Default)
+			.ParentToolBar(SharedThis(this))
+			.OnGetMenuContent(this, &SChaosClothAssetEditor3DViewportToolBar::MakeLODMenu)
 		];
 
 	MainBoxPtr->AddSlot()
@@ -165,23 +181,76 @@ FText SChaosClothAssetEditor3DViewportToolBar::GetDisplayString() const
 	return FText();
 }
 
-void SChaosClothAssetEditor3DViewportToolBar::ExtendOptionsMenu(FMenuBuilder& OptionsMenuBuilder) const
+FText SChaosClothAssetEditor3DViewportToolBar::GetLODMenuLabel() const
 {
 	using namespace UE::Chaos::ClothAsset;
 
-	constexpr bool bOpenSubMenuOnClick = false;
-	constexpr bool bShouldCloseWindowAfterMenuSelection = false;
-	OptionsMenuBuilder.AddSubMenu(
-		LOCTEXT("ChaosClothAssetEditor_SimulationVisualization", "Simulation Visualization"),
-		LOCTEXT("ChaosClothAssetEditor_SimulationVisualizationToolTip", "Options to control simulation visualization"),
-		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder)
+	FText Label = LOCTEXT("LODMenu_AutoLabel", "LOD Auto"); 
+
+	TSharedRef<FChaosClothAssetEditor3DViewportClient> ViewportClient = 
+		StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(ChaosClothAssetEditor3DViewportPtr.Pin()->GetViewportClient()).ToSharedRef();
+
+	const int32 LODSelectionType = ViewportClient->GetLODModel();
+	if (LODSelectionType >= 0)
 	{
-		TSharedRef<FChaosClothAssetEditor3DViewportClient> ViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(ChaosClothAssetEditor3DViewportPtr.Pin()->GetViewportClient()).ToSharedRef();
-		if (FClothEditorSimulationVisualization* const Visualization = ViewportClient->GetSimulationVisualization().Pin().Get())
+		const FString TitleLabel = FString::Printf(TEXT("LOD %d"), LODSelectionType);
+		Label = FText::FromString(TitleLabel);
+	}
+	return Label;
+}
+
+TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeLODMenu() const
+{
+	using namespace UE::Chaos::ClothAsset;
+	TSharedRef<FChaosClothAssetEditor3DViewportClient> ViewportClient =
+		StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(ChaosClothAssetEditor3DViewportPtr.Pin()->GetViewportClient()).ToSharedRef();
+
+	constexpr bool bInShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
+
+	MenuBuilder.PushCommandList(CommandList.ToSharedRef());
+	const int32 NumLODs = ViewportClient->GetNumLODs();
+
+	MenuBuilder.BeginSection("ClothAssetPreviewLODs", LOCTEXT("ShowLOD_PreviewLabel", "Preview LODs"));
+	{
+		MenuBuilder.AddMenuEntry(FChaosClothAssetEditorCommands::Get().LODAuto);
+		MenuBuilder.AddMenuEntry(FChaosClothAssetEditorCommands::Get().LOD0);
+
+		for (int32 LODIndex = 1; LODIndex < NumLODs; ++LODIndex)
 		{
-			Visualization->ExtendViewportShowMenu(MenuBuilder, ViewportClient);
+			FString TitleLabel = FString::Printf(TEXT("LOD %d"), LODIndex);
+
+			FUIAction Action(FExecuteAction::CreateSP(ViewportClient, &FChaosClothAssetEditor3DViewportClient::SetLODModel, LODIndex),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(ViewportClient, &FChaosClothAssetEditor3DViewportClient::IsLODModelSelected, LODIndex));
+
+			MenuBuilder.AddMenuEntry(FText::FromString(TitleLabel), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::RadioButton);
 		}
-	}), bOpenSubMenuOnClick, FSlateIcon(), bShouldCloseWindowAfterMenuSelection);
+	}
+	MenuBuilder.EndSection();
+	MenuBuilder.PopCommandList();
+	return MenuBuilder.MakeWidget();
+}
+
+void SChaosClothAssetEditor3DViewportToolBar::ExtendOptionsMenu(FMenuBuilder& OptionsMenuBuilder) const
+{
+	using namespace UE::Chaos::ClothAsset;
+	{
+		// Debug visualization
+		constexpr bool bOpenSubMenuOnClick = false;
+		constexpr bool bShouldCloseWindowAfterMenuSelection = false;
+		OptionsMenuBuilder.AddSubMenu(
+			LOCTEXT("SimulationVisualization", "Simulation Visualization"),
+			LOCTEXT("SimulationVisualizationToolTip", "Options to control simulation visualization"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder)
+		{
+			TSharedRef<FChaosClothAssetEditor3DViewportClient> ViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(ChaosClothAssetEditor3DViewportPtr.Pin()->GetViewportClient()).ToSharedRef();
+			if (FClothEditorSimulationVisualization* const Visualization = ViewportClient->GetSimulationVisualization().Pin().Get())
+			{
+				Visualization->ExtendViewportShowMenu(MenuBuilder, ViewportClient);
+			}
+		}), bOpenSubMenuOnClick, FSlateIcon(), bShouldCloseWindowAfterMenuSelection);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

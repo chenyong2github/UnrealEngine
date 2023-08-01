@@ -118,6 +118,38 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 		FCanExecuteAction::CreateLambda([this]() { return true; }),
 		FIsActionChecked::CreateLambda([this]() { return StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->IsSimulationSuspended(); }) );
 
+	ToolkitCommandList->MapAction(
+		CommandInfos.LODAuto,
+		FExecuteAction::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+			ClothViewportClient->SetLODModel(INDEX_NONE);
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+			return ClothViewportClient->IsLODModelSelected(INDEX_NONE);
+		}
+		));
+
+	ToolkitCommandList->MapAction(
+		CommandInfos.LOD0,
+		FExecuteAction::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+			ClothViewportClient->SetLODModel(0);
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+			return ClothViewportClient->IsLODModelSelected(0);
+		}
+		));
+
+	// all other LODs will be added dynamically
+
 }
 
 TSharedPtr<SWidget> SChaosClothAssetEditor3DViewport::MakeViewportToolbar()
