@@ -1785,9 +1785,13 @@ void UMoviePipeline::GetSidecarCameraData(UMoviePipelineExecutorShot* InShot, in
 		BoundCamera->GetCameraView(GetWorld()->GetDeltaSeconds(), OutViewInfo);
 				
 		// We override the current/previous transform based on cached data though to ensure we accurately handle cur/next frame positions
-		OutViewInfo.Location = FrameInfo.CurrSidecarViewLocations[InCameraIndex];
-		OutViewInfo.Rotation = FrameInfo.CurrSidecarViewRotations[InCameraIndex];
-		OutViewInfo.PreviousViewTransform = FTransform(FrameInfo.PrevSidecarViewRotations[InCameraIndex], FrameInfo.PrevSidecarViewLocations[InCameraIndex]);
+		if (FrameInfo.CurrSidecarViewLocations.IsValidIndex(InCameraIndex) && FrameInfo.CurrSidecarViewRotations.IsValidIndex(InCameraIndex) &&
+			FrameInfo.PrevSidecarViewLocations.IsValidIndex(InCameraIndex) && FrameInfo.PrevSidecarViewRotations.IsValidIndex(InCameraIndex))
+		{
+			OutViewInfo.Location = FrameInfo.CurrSidecarViewLocations[InCameraIndex];
+			OutViewInfo.Rotation = FrameInfo.CurrSidecarViewRotations[InCameraIndex];
+			OutViewInfo.PreviousViewTransform = FTransform(FrameInfo.PrevSidecarViewRotations[InCameraIndex], FrameInfo.PrevSidecarViewLocations[InCameraIndex]);
+		}
 	}
 }
 

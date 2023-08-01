@@ -816,7 +816,15 @@ UE::MoviePipeline::FImagePassCameraViewData UMoviePipelineDeferredPassBase::GetC
 				UE::MoviePipeline::GetMetadataFromCineCamera(CineCameraComponent, PassIdentifier.CameraName, PassIdentifier.Name, OutCameraData.FileMetadata);
 
 				// We only do this in the multi-camera case because the single camera case is covered by the main Rendering loop.
-				UE::MoviePipeline::GetMetadataFromCameraLocRot(PassIdentifier.CameraName, PassIdentifier.Name, OutCameraData.ViewInfo.Location, OutCameraData.ViewInfo.Rotation, OutCameraData.ViewInfo.PreviousViewTransform->GetLocation(), FRotator(OutCameraData.ViewInfo.PreviousViewTransform->GetRotation()), OutCameraData.FileMetadata);
+				FVector PreviousLocation = OutCameraData.ViewInfo.Location;
+				FRotator PreviousRotation = OutCameraData.ViewInfo.Rotation;
+				if (OutCameraData.ViewInfo.PreviousViewTransform.IsSet())
+				{
+					PreviousLocation = OutCameraData.ViewInfo.PreviousViewTransform->GetLocation();
+					PreviousRotation = FRotator(OutCameraData.ViewInfo.PreviousViewTransform->GetRotation());
+				}
+
+				UE::MoviePipeline::GetMetadataFromCameraLocRot(PassIdentifier.CameraName, PassIdentifier.Name, OutCameraData.ViewInfo.Location, OutCameraData.ViewInfo.Rotation, PreviousLocation, PreviousRotation, OutCameraData.FileMetadata);
 			}
 		}
 		else
