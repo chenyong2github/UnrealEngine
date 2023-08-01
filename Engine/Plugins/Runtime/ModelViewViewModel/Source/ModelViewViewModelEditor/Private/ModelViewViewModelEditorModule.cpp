@@ -19,6 +19,7 @@
 #include "PropertyEditorModule.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Tabs/MVVMBindingSummoner.h"
+#include "Tabs/MVVMPreviewSourceSummoner.h"
 #include "Tabs/MVVMViewModelSummoner.h"
 #include "ToolMenus.h"
 #include "UMGEditorModule.h"
@@ -119,6 +120,10 @@ void FModelViewViewModelEditorModule::HandleRegisterBlueprintEditorTab(const FWi
 				ExtensionView->SetFilterSettings(GetDefault<UMVVMDeveloperProjectSettings>()->FilterSettings);
 			}
 		}
+	}
+	else if (ApplicationMode.GetModeName() == FWidgetBlueprintApplicationModes::PreviewMode)
+	{
+		TabFactories.RegisterFactory(MakeShared<UE::MVVM::FPreviewSourceSummoner>(ApplicationMode.GetBlueprintEditor()));
 	}
 }
 
