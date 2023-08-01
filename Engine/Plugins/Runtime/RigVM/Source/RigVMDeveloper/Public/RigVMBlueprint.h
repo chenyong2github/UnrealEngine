@@ -238,6 +238,15 @@ public:
 	URigVMEditorSettings* GetRigVMEditorSettings() const;
 
 #if WITH_EDITOR
+	/** Returns true if a given panel node factory is compatible this blueprint */
+	virtual const FName& GetPanelNodeFactoryName() const;
+
+	/** Returns true if a given panel pin factory is compatible this blueprint */
+	virtual const FName& GetPanelPinFactoryName() const;
+
+	static const FName RigVMPanelNodeFactoryName;
+	static const FName RigVMPanelPinFactoryName;
+
 	/** Returns the editor module to be used for this blueprint */
 	virtual IRigVMEditorModule* GetEditorModule() const;
 #endif

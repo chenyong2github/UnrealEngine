@@ -19,13 +19,31 @@
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 
+FName FRigVMEdGraphPanelPinFactory::GetFactoryName() const
+{
+	return URigVMBlueprint::RigVMPanelPinFactoryName;
+}
+
 TSharedPtr<SGraphPin> FRigVMEdGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
+	// we need to check if this is the right factory for the implementation
+	if(const UEdGraphNode* EdGraphNode = InPin->GetOuter())
+	{
+		if(const URigVMBlueprint* Blueprint = EdGraphNode->GetTypedOuter<URigVMBlueprint>())
+		{
+			if(Blueprint->GetPanelPinFactoryName() != GetFactoryName())
+			{
+				return nullptr;
+			}
+		}
+	}
+
 	TSharedPtr<SGraphPin> InternalResult = CreatePin_Internal(InPin);
 	if(InternalResult.IsValid())
 	{
 		return InternalResult;
 	}
+
 	return FNodeFactory::CreateK2PinWidget(InPin);
 }
 

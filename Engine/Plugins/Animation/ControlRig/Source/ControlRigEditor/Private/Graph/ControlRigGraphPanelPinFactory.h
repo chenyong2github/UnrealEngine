@@ -11,5 +11,6 @@ public:
 	virtual TSharedPtr<class SGraphPin> CreatePin(class UEdGraphPin* InPin) const override;
 
 	// FRigVMEdGraphPanelPinFactory interface
+	virtual FName GetFactoryName() const override;
 	virtual TSharedPtr<class SGraphPin> CreatePin_Internal(class UEdGraphPin* InPin) const override;
 };

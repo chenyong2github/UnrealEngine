@@ -47,6 +47,8 @@ public:
 	virtual TArray<FString> GeneratePythonCommands(const FString InNewBlueprintName) override;
 	virtual UClass* GetRigVMEditorSettingsClass() const override;
 #if WITH_EDITOR
+	virtual const FName& GetPanelPinFactoryName() const override;
+	static const FName ControlRigPanelNodeFactoryName;
 	virtual IRigVMEditorModule* GetEditorModule() const override;
 #endif
 

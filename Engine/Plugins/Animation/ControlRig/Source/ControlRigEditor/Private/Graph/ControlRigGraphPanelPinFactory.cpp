@@ -107,6 +107,11 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 	return K2PinWidget;
 }
 
+FName FControlRigGraphPanelPinFactory::GetFactoryName() const
+{
+	return UControlRigBlueprint::ControlRigPanelNodeFactoryName;
+}
+
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin_Internal(UEdGraphPin* InPin) const
 {
 	TSharedPtr<SGraphPin> SuperResult = FRigVMEdGraphPanelPinFactory::CreatePin_Internal(InPin);

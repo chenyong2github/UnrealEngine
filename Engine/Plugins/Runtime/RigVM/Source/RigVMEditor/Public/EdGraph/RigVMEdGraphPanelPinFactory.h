@@ -8,6 +8,8 @@
 class RIGVMEDITOR_API FRigVMEdGraphPanelPinFactory : public FGraphPanelPinFactory
 {
 public:
+	virtual FName GetFactoryName() const;
+	
 	// FGraphPanelPinFactory interface
 	virtual TSharedPtr<class SGraphPin> CreatePin(class UEdGraphPin* InPin) const override;
 

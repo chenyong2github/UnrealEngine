@@ -11,8 +11,22 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
+FName FRigVMEdGraphPanelNodeFactory::GetFactoryName() const
+{
+	return URigVMBlueprint::RigVMPanelNodeFactoryName;
+}
+
 TSharedPtr<SGraphNode> FRigVMEdGraphPanelNodeFactory::CreateNode(UEdGraphNode* Node) const
 {
+	// we need to check if this is the right factory for the implementation
+	if(const URigVMBlueprint* Blueprint = Node->GetTypedOuter<URigVMBlueprint>())
+	{
+		if(Blueprint->GetPanelNodeFactoryName() != GetFactoryName())
+		{
+			return nullptr;
+		}
+	}
+
 	if (URigVMEdGraphNode* RigVMEdGraphNode = Cast<URigVMEdGraphNode>(Node))
 	{
 		int32 InputPin = 0, OutputPin = 0;

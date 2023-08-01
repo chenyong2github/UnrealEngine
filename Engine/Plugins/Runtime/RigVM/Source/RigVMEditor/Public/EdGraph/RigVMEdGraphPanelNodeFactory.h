@@ -6,5 +6,8 @@
 
 class RIGVMEDITOR_API FRigVMEdGraphPanelNodeFactory : public FGraphPanelNodeFactory
 {
+public:
+	virtual FName GetFactoryName() const;
+private:
 	virtual TSharedPtr<class SGraphNode> CreateNode(UEdGraphNode* Node) const override;
 };

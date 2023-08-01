@@ -103,6 +103,10 @@ bool FRigVMOldPublicFunctionData::IsMutable() const
 FSoftObjectPath URigVMBlueprint::PreDuplicateAssetPath;
 FSoftObjectPath URigVMBlueprint::PreDuplicateHostPath;
 TArray<URigVMBlueprint*> URigVMBlueprint::sCurrentlyOpenedRigVMBlueprints;
+#if WITH_EDITOR
+const FName URigVMBlueprint::RigVMPanelNodeFactoryName(TEXT("FRigVMEdGraphPanelNodeFactory"));
+const FName URigVMBlueprint::RigVMPanelPinFactoryName(TEXT("FRigVMEdGraphPanelPinFactory"));
+#endif
 
 URigVMBlueprint::URigVMBlueprint()
 {
@@ -685,6 +689,16 @@ URigVMEditorSettings* URigVMBlueprint::GetRigVMEditorSettings() const
 }
 
 #if WITH_EDITOR
+const FName& URigVMBlueprint::GetPanelNodeFactoryName() const
+{
+	return RigVMPanelNodeFactoryName;
+}
+
+const FName& URigVMBlueprint::GetPanelPinFactoryName() const
+{
+	return RigVMPanelPinFactoryName;
+}
+
 IRigVMEditorModule* URigVMBlueprint::GetEditorModule() const
 {
 	return &IRigVMEditorModule::Get();
