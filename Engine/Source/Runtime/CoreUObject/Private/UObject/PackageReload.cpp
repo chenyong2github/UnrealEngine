@@ -18,7 +18,7 @@
 #if WITH_EDITOR
 TAutoConsoleVariable<bool> CVarPackageReloadEnableFastPath(
 	TEXT("PackageReload.EnableFastPath"),
-	true,
+	false,
 	TEXT("When 'true', an optimized codepath is used to speed up reloading packages (experimental)."),
 	ECVF_Default);
 #endif
