@@ -432,7 +432,7 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 			void* DestSliceData = DestMipData + MipSizeBytes * SourceTexIndex;
 			if (TextureSource.SizeX == SizeX && TextureSource.SizeY == SizeY && TextureSource.Format == Format)
 			{
-				void* SourceData = TextureSource.LockMip(0);
+				const uint8* SourceData = TextureSource.LockMipReadOnly(0);
 				check(TextureSource.CalcMipSize(0) == MipSizeBytes);
 				FMemory::Memcpy(DestSliceData, SourceData, MipSizeBytes);
 				TextureSource.UnlockMip(0);
