@@ -533,6 +533,8 @@ static void RunHairStrandsInterpolation_Strands(
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap)
 {
+	if (Instances.IsEmpty()) { return; }
+
 	check(IsInRenderingThread());
 
 	DECLARE_GPU_STAT(HairStrandsInterpolation);
@@ -589,6 +591,8 @@ static void RunHairStrandsInterpolation_Cards(
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap)
 {
+	if (Instances.IsEmpty()) { return; }
+
 	check(IsInRenderingThread());
 
 	DECLARE_GPU_STAT(HairCardsInterpolation);
@@ -1298,12 +1302,34 @@ void ProcessHairStrandsBookmark(
 {
 	check(Parameters.Instances != nullptr);
 
-	const bool bCulling =
-		IsInstanceFrustumCullingEnable() && (
-			Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation ||
-			Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation ||
-			Bookmark == EHairStrandsBookmark::ProcessDebug);
-	FHairStrandsInstances& Instances = bCulling ? Parameters.VisibleInstances : *Parameters.Instances;
+	FHairStrandsInstances* Instances = Parameters.Instances;
+
+	// Cards interpolation for ShadowView only needs to run when FrustumCulling is enabled
+	if (Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation_ShadowView && !IsInstanceFrustumCullingEnable())
+	{
+		return;
+	}
+
+	if (IsInstanceFrustumCullingEnable())
+	{
+		Instances = nullptr;
+		if (Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation_PrimaryView)
+		{
+			Instances = &Parameters.VisibleCardsOrMeshes_Primary;
+		}
+		else if (Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation_ShadowView)
+		{
+			Instances = &Parameters.VisibleCardsOrMeshes_Shadow;
+		}
+		else if (Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation)
+		{
+			Instances = &Parameters.VisibleStrands;
+		}
+		else
+		{
+			Instances = Parameters.Instances;
+		}
+	}
 
 	if (Bookmark == EHairStrandsBookmark::ProcessTasks)
 	{
@@ -1354,11 +1380,11 @@ void ProcessHairStrandsBookmark(
 			Parameters.Scene,
 			Parameters.View,
 			Parameters.ViewUniqueID,
-			Instances,
+			*Instances,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap);
 	}
-	else if (Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation)
+	else if (Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation_PrimaryView || Bookmark == EHairStrandsBookmark::ProcessCardsAndMeshesInterpolation_ShadowView)
 	{
 		check(GraphBuilder);
 		RunHairStrandsInterpolation_Cards(
@@ -1367,7 +1393,7 @@ void ProcessHairStrandsBookmark(
 			Parameters.AllViews,
 			Parameters.View,
 			Parameters.ViewUniqueID,
-			Instances,
+			*Instances,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap);
 	}
@@ -1380,19 +1406,29 @@ void ProcessHairStrandsBookmark(
 			Parameters.AllViews,
 			Parameters.View,
 			Parameters.ViewUniqueID,
-			Instances,
+			*Instances,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessDebug)
 	{
+		// Merge all visible instances
+		FHairStrandsInstances DebugInstance;
+		if (IsInstanceFrustumCullingEnable())
+		{
+			DebugInstance.Append(Parameters.VisibleStrands);
+			DebugInstance.Append(Parameters.VisibleCardsOrMeshes_Primary);
+			DebugInstance.Append(Parameters.VisibleCardsOrMeshes_Shadow);
+			Instances = &DebugInstance;
+		}
+
 		check(GraphBuilder);
 		RunHairStrandsDebug(
 			*GraphBuilder,
 			Parameters.ShaderMap,
 			Parameters.Scene,
 			*Parameters.View,
-			Instances,
+			*Instances,
 			Parameters.InstanceCountPerType,
 			Parameters.ShaderPrintData,
 			Parameters.SceneColorTexture,

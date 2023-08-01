@@ -3995,20 +3995,20 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
 
 	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
-		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views, AllFamilyViews);
+		FHairStrandsBookmarkParameters Parameters; 
+		CreateHairStrandsBookmarkParameters(Scene, Views, AllFamilyViews, Parameters);
+
 		if (Parameters.HasInstances())
 		{
+			// 1. Select appropriate LOD & geometry type
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessLODSelection, Parameters);
-		}
-	}
 
-	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
-	{
-		// If we are rendering from scene capture we don't need to run another time the hair bookmarks.
-		if (Views[0].AllowGPUParticleUpdate())
-		{
-			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views, AllFamilyViews);
-			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
+			// 2. Run guide/simulation update
+			// If we are rendering from scene capture we don't need to run another time the hair bookmarks.
+			if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views[0].AllowGPUParticleUpdate())
+			{
+				RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
+			}
 		}
 	}
 

@@ -1078,7 +1078,8 @@ static void InternalRenderHairStrandsDebugInfo(
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture)
 {
-	FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Scene, View);
+	FHairStrandsBookmarkParameters Params;
+	CreateHairStrandsBookmarkParameters(Scene, View, Params);
 	Params.SceneColorTexture = SceneColorTexture;
 	Params.SceneDepthTexture = SceneDepthTexture;
 	if (!Params.HasInstances())

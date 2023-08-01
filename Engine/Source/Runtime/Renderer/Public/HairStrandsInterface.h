@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "Containers/Array.h"
+#include "Containers/BitArray.h"
 #include "Engine/EngineTypes.h"
 #include "Shader.h"
 #include "RenderResource.h"
@@ -477,18 +478,20 @@ enum class EHairStrandsBookmark : uint8
 	ProcessTasks,
 	ProcessLODSelection,
 	ProcessGuideInterpolation,
-	ProcessCardsAndMeshesInterpolation,
+	ProcessCardsAndMeshesInterpolation_PrimaryView,
+	ProcessCardsAndMeshesInterpolation_ShadowView,
 	ProcessStrandsInterpolation,
 	ProcessDebug,
 	ProcessEndOfFrame
 };
 
-enum EHairInstanceCount : uint8
+enum class EHairInstanceCount : uint8
 {
-	HairInstanceCount_StrandsPrimaryView = 0,
-	HairInstanceCount_StrandsShadowView = 1,
-	HairInstanceCount_CardsOrMeshesPrimaryView = 2,
-	HairInstanceCount_CardsOrMeshesShadowView = 3
+	StrandsPrimaryView = 0,
+	StrandsShadowView = 1,
+	CardsOrMeshesPrimaryView = 2,
+	CardsOrMeshesShadowView = 3,
+	Count
 };
 
 struct FHairStrandsBookmarkParameters
@@ -498,8 +501,13 @@ struct FHairStrandsBookmarkParameters
 
 	uint32 ViewUniqueID = ~0; // View 0
 	FIntRect ViewRect; // View 0
-	FHairStrandsInstances VisibleInstances;
+
+	FHairStrandsInstances VisibleStrands; // Primary & Shadow
+	FHairStrandsInstances VisibleCardsOrMeshes_Primary;
+	FHairStrandsInstances VisibleCardsOrMeshes_Shadow;
+
 	FHairStrandsInstances* Instances = nullptr;
+	TBitArray<> InstancesVisibility;
 	const FSceneView* View = nullptr;// // View 0
 	FSceneInterface* Scene = nullptr;
 	TArray<const FSceneView*> AllViews;
@@ -507,9 +515,6 @@ struct FHairStrandsBookmarkParameters
 	FRDGTextureRef SceneDepthTexture = nullptr; 
 
 	FUintVector4 InstanceCountPerType = FUintVector4(0);
-
-	bool bHzbRequest = false;
-	uint32 FrameIndex = ~0;
 
 	inline bool HasInstances() const { return Instances != nullptr && Instances->Num() > 0; }
 };
