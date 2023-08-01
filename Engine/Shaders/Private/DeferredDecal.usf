@@ -160,7 +160,7 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 		StrataHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 
 		// Either propagate the BSDF opacity, or use the one for AlphaComposite (premultiplied alpha)
-		float CoverageOverBackground = StrataHeader.StrataTree.BSDFs[0].Coverage;
+		float CoverageOverBackground = StrataHeader.StrataTree.BSDFs[0].Coverage * DecalFading;
 #if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
 		CoverageOverBackground = GetMaterialOpacity(PixelMaterialInputs);
 #endif 
