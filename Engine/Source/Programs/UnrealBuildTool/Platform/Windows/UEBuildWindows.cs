@@ -169,6 +169,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns if this compiler toolchain based on Intel
+		/// </summary>
+		/// <param name="Compiler">The compiler to check</param>
+		/// <returns>true if Intel based</returns>
+		public static bool IsIntel(this WindowsCompiler Compiler)
+		{
+			return Compiler == WindowsCompiler.Intel;
+		}
+
+		/// <summary>
 		/// Returns if this compiler toolchain based on MSVC
 		/// </summary>
 		/// <param name="Compiler">The compiler to check</param>
