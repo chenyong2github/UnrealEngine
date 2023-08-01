@@ -113,7 +113,7 @@ void FSkeletalMeshModelingToolsModule::RegisterMenusAndToolbars()
 			{
 				if (const UContentBrowserAssetContextMenuContext* Context = InMenuContext.FindContext<UContentBrowserAssetContextMenuContext>())
 				{
-					ConvertStaticMeshToSkeletalMeshInteractive(
+					ConvertStaticMeshAssetsToSkeletalMeshesInteractive(
 						Context->GetSelectedAssetsOfType(UStaticMesh::StaticClass()));
 				}
 			});

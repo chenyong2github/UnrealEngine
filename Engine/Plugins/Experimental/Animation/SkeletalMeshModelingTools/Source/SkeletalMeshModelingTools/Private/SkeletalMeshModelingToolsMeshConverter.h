@@ -113,4 +113,4 @@ public:
 
 
 /** Converts a static mesh to a skeletal mesh, creating both a skeletal mesh and a skeleton assets that link up. */
-void ConvertStaticMeshToSkeletalMeshInteractive(const TArray<FAssetData>& InStaticMeshAssets);
+void ConvertStaticMeshAssetsToSkeletalMeshesInteractive(const TArray<FAssetData>& InStaticMeshAssets);

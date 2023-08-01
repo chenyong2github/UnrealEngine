@@ -62,6 +62,12 @@ struct FBoneReference
 	// it triggers ensure in those functions
 	ENGINE_API bool Initialize(const USkeleton* Skeleton);
 
+	/** Reset this container to default state */
+	void Reset()
+	{
+		BoneName = NAME_None;
+		InvalidateCachedBoneIndex();
+	}
 
 	/** return true if it has valid set up */
 	bool HasValidSetup() const
