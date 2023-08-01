@@ -25,7 +25,6 @@
 #include <memory>
 #include <utility>
 
-
 namespace mu
 {
 
@@ -112,7 +111,7 @@ namespace mu
 			}			
 
 			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
-			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
+			program.m_opAddress.Add((uint32)program.m_byteCode.Num());
 			AppendCode(program.m_byteCode, GetOpType());
 			AppendCode(program.m_byteCode, args);
 		}
@@ -931,8 +930,7 @@ namespace mu
 
 			at = NewSaturate;
 		}
-
-		// Disable this for now.
+		
 		// Swizzle with the same op as identity in RGB, a Layer op in the A that has one of the operands matching 
 		// the one in the swizzle RGB, but using its A. 
 		// The Layer operation can be flagged as alpha only and moved up the swizzle, then the swizzle is identity 
@@ -951,70 +949,76 @@ namespace mu
 		//	- A
 		//	- B
 		// In addition, if the blend operation done by LAYER is commutative, see if X is 3 from I instead.
-		//if (!at
-		//	&&
-		//	(Sources[0] == Sources[1]) && (Sources[0] == Sources[2])
-		//	&&
-		//	SourceChannels[0] == 0 && SourceChannels[1] == 1 && SourceChannels[2] == 2
-		//	&&
-		//	Sources[3] && Sources[3]->GetOpType() == OP_TYPE::IM_LAYER
-		//	)
-		//{
-		//	const ASTOpImageLayer* OldLayer = dynamic_cast<const ASTOpImageLayer*>(Sources[3].child().get());
+		if (!at
+			&&
+			(Sources[0] == Sources[1]) && (Sources[0] == Sources[2])
+			&&
+			SourceChannels[0] == 0 && SourceChannels[1] == 1 && SourceChannels[2] == 2
+			&&
+			Sources[3] && Sources[3]->GetOpType() == OP_TYPE::IM_LAYER
+			)
+		{
+			const ASTOpImageLayer* OldLayer = dynamic_cast<const ASTOpImageLayer*>(Sources[3].child().get());
 
-		//	Ptr<ASTOp> SwizzleRGBOp = Sources[0].child();
-		//	Ptr<ASTOp> OldLayerBlendOp = OldLayer->blend.child();
-		//	//{
-		//	//	auto DiscardNeutralOps = [](Ptr<ASTOp> Op)
-		//	//	{
-		//	//		bool bUpdated = true;
-		//	//		while (bUpdated)
-		//	//		{
-		//	//			bUpdated = false;
-		//	//			switch (Op->GetOpType())
-		//	//			{
-		//	//			case OP_TYPE::IM_PIXELFORMAT:
-		//	//			{
-		//	//				const ASTOpImagePixelFormat* Typed = dynamic_cast<const ASTOpImagePixelFormat*>(Op.get());
-		//	//				Op = Typed->Source.child();
-		//	//				bUpdated = true;
-		//	//				break;
-		//	//			}
+			Ptr<ASTOp> SwizzleRGBOp = Sources[0].child();
+			Ptr<ASTOp> OldLayerBlendOp = OldLayer->blend.child();
+			{
+				auto DiscardNeutralOps = [](Ptr<ASTOp> Op)
+				{
+					bool bUpdated = true;
+					while (bUpdated)
+					{
+						bUpdated = false;
+						switch (Op->GetOpType())
+						{
+						case OP_TYPE::IM_PIXELFORMAT:
+						{
+							const ASTOpImagePixelFormat* Typed = dynamic_cast<const ASTOpImagePixelFormat*>(Op.get());
+							Op = Typed->Source.child();
+							bUpdated = true;
+							break;
+						}
 
-		//	//			default: break;
-		//	//			}
-		//	//		}
-		//	//		return Op;
-		//	//	};
+						default: break;
+						}
+					}
+					return Op;
+				};
 
-		//	//	SwizzleRGBOp = DiscardNeutralOps(SwizzleRGBOp);
-		//	//	OldLayerBlendOp = DiscardNeutralOps(OldLayerBlendOp);
-		//	//}
-		//	bool bOldLayerBlendIsCompatibleWithSwizzleRGBs = OldLayerBlendOp == SwizzleRGBOp;
+				SwizzleRGBOp = DiscardNeutralOps(SwizzleRGBOp);
+				OldLayerBlendOp = DiscardNeutralOps(OldLayerBlendOp);
+			}
+			bool bOldLayerBlendIsCompatibleWithSwizzleRGBs = OldLayerBlendOp == SwizzleRGBOp;
 
-		//	// For now just check the case that we are observing in the working data: 
-		//	// A is in the blended of a multiply, and we take its alpha channel
-		//	// \TODO: Implement the other cases when we find instances of them.
-		//	if ( OldLayer->Flags==OP::ImageLayerArgs::FLAGS::F_BLENDED_RGB_FROM_ALPHA
-		//		&&
-		//		bOldLayerBlendIsCompatibleWithSwizzleRGBs
-		//		&& 
-		//		OldLayer->blendType==EBlendType::BT_MULTIPLY 
-		//		&&
-		//		OldLayer->blendTypeAlpha == EBlendType::BT_NONE 
-		//		&&
-		//		SourceChannels[3]==0)
-		//	{
-		//		Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(OldLayer);
-		//		NewLayer->blend = NewLayer->base.child();
-		//		NewLayer->base = Sources[0].child();
-		//		NewLayer->blendTypeAlpha = NewLayer->blendType;
-		//		NewLayer->blendType = EBlendType::BT_NONE;
-		//		NewLayer->Flags = OP::ImageLayerArgs::FLAGS::F_BASE_RGB_FROM_ALPHA;
+			// For now just check the case that we are observing in the working data: 
+			// A is in the blended of a multiply, and we take its alpha channel
+			// \TODO: Implement the other cases when we find instances of them.
+			if ( OldLayer->Flags==OP::ImageLayerArgs::FLAGS::F_BLENDED_RGB_FROM_ALPHA
+				&&
+				bOldLayerBlendIsCompatibleWithSwizzleRGBs
+				&& 
+				OldLayer->blendType==EBlendType::BT_MULTIPLY 
+				&&
+				OldLayer->blendTypeAlpha == EBlendType::BT_NONE 
+				&&
+				SourceChannels[3]==0)
+			{
+				// The new base needs to have the format of the root swizzle
+				Ptr<ASTOpImagePixelFormat> NewBase = new ASTOpImagePixelFormat;
+				NewBase->Source = Sources[0].child();
+				NewBase->Format = Format;
 
-		//		at = NewLayer;
-		//	}
-		//}
+				Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(OldLayer);
+				NewLayer->blend = OldLayer->base.child();
+				NewLayer->base = NewBase;
+				NewLayer->blendTypeAlpha = NewLayer->blendType;
+				NewLayer->blendType = EBlendType::BT_NONE;
+				NewLayer->BlendAlphaSourceChannel = 0;
+				NewLayer->Flags = 0;
+
+				at = NewLayer;
+			}
+		}
 
 
 		// If we have an alpha channel that has as children something that expands a single channel texture
