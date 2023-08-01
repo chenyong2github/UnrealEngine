@@ -36,6 +36,7 @@
 #include "BlueprintCompilationManager.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "UObject/UObjectGlobals.h"
 extern UNREALED_API class UEditorEngine* GEditor;
 #else
 #include "UObject/LinkerLoad.h"
@@ -114,6 +115,61 @@ namespace UE::Runtime::Engine::Private
 			}
 
 			return CurrentClass;
+		}
+
+		static bool RequiresCompleteValueForPostConstruction(FProperty* Property)
+		{
+			static TSet<FProperty*> PropertiesRequiringCompleteValueInitialization;
+
+			static bool bIsInitialized = false;
+#if WITH_EDITOR
+			FCoreUObjectDelegates::ReloadCompleteDelegate.AddLambda([](EReloadCompleteReason Reason)
+			{
+				switch(Reason)
+				{
+				case EReloadCompleteReason::HotReloadManual:
+				case EReloadCompleteReason::HotReloadAutomatic:
+				{
+					// Re-initialize after hot reload in editor context.
+					bIsInitialized = false;
+					PropertiesRequiringCompleteValueInitialization.Reset();
+				}
+					break;
+
+				default:
+					break;
+				}
+			});
+#endif	// WITH_EDITOR
+
+			if (!bIsInitialized)
+			{
+				static constexpr TCHAR ConfigSection[] = TEXT("/Script/Engine.BlueprintGeneratedClass");
+				static constexpr TCHAR ConfigKeyName[] = TEXT("RequiresCompleteValueForPostConstruction");
+
+				// List of native class-owned properties that require complete values for comparison when generating the post-construction
+				// property list due to how they are used. These properties can't be further reduced into a list of subfields (e.g. structs).
+				TArray<FString> RequiresCompleteValueForPostConstruction_Value;
+				if (GConfig->GetArray(ConfigSection, ConfigKeyName, RequiresCompleteValueForPostConstruction_Value, GEngineIni))
+				{
+					PropertiesRequiringCompleteValueInitialization.Reserve(RequiresCompleteValueForPostConstruction_Value.Num());
+
+					for (const FString& PropertyPathString : RequiresCompleteValueForPostConstruction_Value)
+					{
+						TFieldPath<FProperty> PropertyPath;
+						PropertyPath.Generate(*PropertyPathString);
+						if (FProperty* ResolvedProperty = PropertyPath.Get())
+						{
+							check(ResolvedProperty->IsNative());
+							PropertiesRequiringCompleteValueInitialization.Add(ResolvedProperty);
+						}
+					}
+				}
+
+				bIsInitialized = true;
+			}
+
+			return PropertiesRequiringCompleteValueInitialization.Contains(Property);
 		}
 
 		static bool ShouldInitializePropertyDuringPostConstruction(const FProperty& Property)
@@ -764,9 +820,7 @@ bool UBlueprintGeneratedClass::BuildCustomPropertyListForPostConstruction(FCusto
 		if (FBlueprintGeneratedClassUtils::ShouldInitializePropertyDuringPostConstruction(*Property))
 		{
 			// Some properties require a full value comparison; check for those cases here.
-			TStringBuilder<256> PathName;
-			Property->GetPathName(nullptr, PathName);
-			const bool bAlwaysUseCompleteValue = RequiresCompleteValueForPostConstruction.ContainsByPredicate([&](const FString& S) { return S == PathName.ToView(); });
+			const bool bAlwaysUseCompleteValue = FBlueprintGeneratedClassUtils::RequiresCompleteValueForPostConstruction(Property);
 
 			for (int32 Idx = 0; Idx < Property->ArrayDim; Idx++)
 			{
