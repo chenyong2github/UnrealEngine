@@ -29,7 +29,7 @@ class UMaterialExpressionSparseVolumeTextureObject : public UMaterialExpressionS
 };
 
 UCLASS(collapsecategories, hidecategories = (Object, MaterialExpressionTextureSample), MinimalAPI)
-class UMaterialExpressionSparseVolumeTextureTextureObjectParameter : public UMaterialExpressionSparseVolumeTextureSampleParameter
+class UMaterialExpressionSparseVolumeTextureObjectParameter : public UMaterialExpressionSparseVolumeTextureSampleParameter
 {
 	GENERATED_UCLASS_BODY()
 

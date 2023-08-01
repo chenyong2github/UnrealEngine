@@ -26604,10 +26604,10 @@ uint32 UMaterialExpressionSparseVolumeTextureObject::GetOutputType(int32 OutputI
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSparseVolumeTextureTextureObjectParameter
+// UMaterialExpressionSparseVolumeTextureObjectParameter
 ///////////////////////////////////////////////////////////////////////////////
 
-UMaterialExpressionSparseVolumeTextureTextureObjectParameter::UMaterialExpressionSparseVolumeTextureTextureObjectParameter(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionSparseVolumeTextureObjectParameter::UMaterialExpressionSparseVolumeTextureObjectParameter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
@@ -26640,24 +26640,24 @@ UMaterialExpressionSparseVolumeTextureTextureObjectParameter::UMaterialExpressio
 
 #if WITH_EDITOR
 
-void UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionSparseVolumeTextureObjectParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Param Tex Object"));
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
 
-int32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionSparseVolumeTextureObjectParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if (!SparseVolumeTexture)
 	{
-		return INDEX_NONE;
+		return CompilerError(Compiler, TEXT("Requires valid SparseVolumeTexture"));
 	}
 
 	int32 TextureReferenceIndex = INDEX_NONE;
 	return Compiler->SparseVolumeTextureParameter(ParameterName, SparseVolumeTexture, TextureReferenceIndex, SAMPLERTYPE_LinearColor);
 }
 
-uint32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetOutputType(int32 OutputIndex)
+uint32 UMaterialExpressionSparseVolumeTextureObjectParameter::GetOutputType(int32 OutputIndex)
 {
 	return MCT_SparseVolumeTexture;
 }
@@ -26811,8 +26811,10 @@ int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompi
 			return Mip0SampleIndex;
 		}
 	}
-
-	return INDEX_NONE;
+	else
+	{
+		return CompilerError(Compiler, TEXT("Missing input texture"));
+	}
 }
 
 void UMaterialExpressionSparseVolumeTextureSample::GetCaption(TArray<FString>& OutCaptions) const
