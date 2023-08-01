@@ -1291,6 +1291,13 @@ void FModelingToolsEditorModeToolkit::LoadPresetFromCollection(const int32 Prese
 	FModelingToolsEditorModeToolkitLocals::ExecuteWithPresetAndTool(*OwningEditorMode, EToolSide::Left, CollectionPath,
 	[this, PresetIndex](UInteractiveToolsPresetCollectionAsset& Preset, UInteractiveTool& Tool) {
 		TArray<UObject*> PropertySets = Tool.GetToolProperties();
+
+		// We only want to load the properties that are actual property sets, since the tool might have added other types of objects we don't
+		// want to deserialize.
+		PropertySets.RemoveAll([this](UObject* Object) {
+			return Cast<UInteractiveToolPropertySet>(Object) == nullptr;
+		});
+
 		if (!Preset.PerToolPresets.Contains(Tool.GetClass()->GetName()))			
 		{
 			return;

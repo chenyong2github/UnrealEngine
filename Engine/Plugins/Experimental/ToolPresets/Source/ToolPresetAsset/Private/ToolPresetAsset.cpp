@@ -52,15 +52,22 @@ void FInteractiveToolPresetDefinition::LoadStoredPropertyData(TArray<UObject*>& 
 		{
 			for (FProperty* Prop : TFieldRange<FProperty>(PropertySet->GetClass()))
 			{
-				FString FieldName;
-				Prop->GetName(FieldName);
-				TSharedPtr<FJsonValue>* JsonField = PropertyJsonObject->Values.Find(FieldName);
-				if (JsonField)
+#if WITH_EDITOR
+				if (!(Prop->HasMetaData(TEXT("TransientToolProperty")) ||
+					Prop->GetPropertyFlags() & EPropertyFlags::CPF_SkipSerialization ||
+					Prop->GetPropertyFlags() & EPropertyFlags::CPF_Transient))
+#endif
 				{
-					if (FJsonObjectConverter::JsonValueToUProperty(*JsonField, Prop, Prop->ContainerPtrToValuePtr<void>(PropertySet)))
+					FString FieldName;
+					Prop->GetName(FieldName);
+					TSharedPtr<FJsonValue>* JsonField = PropertyJsonObject->Values.Find(FieldName);
+					if (JsonField)
 					{
-						FPropertyChangedEvent ChangeEvent(Prop, EPropertyChangeType::ValueSet);
-						PropertySet->PostEditChangeProperty(ChangeEvent);
+						if (FJsonObjectConverter::JsonValueToUProperty(*JsonField, Prop, Prop->ContainerPtrToValuePtr<void>(PropertySet)))
+						{
+							FPropertyChangedEvent ChangeEvent(Prop, EPropertyChangeType::ValueSet);
+							PropertySet->PostEditChangeProperty(ChangeEvent);
+						}
 					}
 				}
 			}
