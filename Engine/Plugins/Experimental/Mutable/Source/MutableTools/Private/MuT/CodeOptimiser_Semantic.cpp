@@ -974,7 +974,6 @@ namespace mu
 
 			case OP_TYPE::IM_PIXELFORMAT:
 			{
-				// We move the mask creation down format.
 				// \todo: only if shrinking?
 				Ptr<ASTOpImagePixelFormat> newOp = mu::Clone<ASTOpImagePixelFormat>(at);
 				newOp->Source = Visit(newOp->Source.child(), currentSinkingOp);
@@ -1416,6 +1415,21 @@ namespace mu
 				NewBase->SetChild(NewBase->op.args.ImageResize.source, BaseAt);
 
 				NewOp->SetChild(NewOp->op.args.ImageInvert.base, NewBase);
+
+				at = NewOp;
+				break;
+			}
+
+			case OP_TYPE::IM_PIXELFORMAT:
+			{
+				// \todo: only if shrinking?
+				Ptr<ASTOpImagePixelFormat> NewOp = mu::Clone<ASTOpImagePixelFormat>(sourceAt);
+				Ptr<ASTOp> BaseAt = NewOp->Source.child();
+
+				Ptr<ASTOpFixed> NewBase = mu::Clone<ASTOpFixed>(this);
+				NewBase->SetChild(NewBase->op.args.ImageResize.source, BaseAt);
+
+				NewOp->Source = NewBase;
 
 				at = NewOp;
 				break;
