@@ -35,6 +35,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
+#include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "SToolPresetManager"
 
@@ -1281,9 +1282,10 @@ void SToolPresetManager::CollectionRenameEnded(TSharedPtr<FToolPresetViewEntry> 
 		}
 
 		TArray< FAssetRenameData> RenameData;
-
+		
 		FString NewPackageName, NewAssetName;
-		IAssetTools::Get().CreateUniqueAssetName(NewText.ToString(), "", NewPackageName, NewAssetName);
+		FString SanitizedName = UPackageTools::SanitizePackageName(NewText.ToString());
+		IAssetTools::Get().CreateUniqueAssetName(SanitizedName, "", NewPackageName, NewAssetName);
 
 		RenameData.SetNum(1);		
 		RenameData[0].Asset = CollectionObject;
