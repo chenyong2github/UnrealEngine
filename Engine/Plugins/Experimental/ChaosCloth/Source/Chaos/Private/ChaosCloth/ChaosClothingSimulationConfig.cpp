@@ -161,8 +161,10 @@ namespace Chaos
 				Properties->SetWeightedValue(LiftIndex, ClothConfig->Lift.Low, ClothConfig->Lift.High);
 				Properties->SetStringValue(LiftIndex, TEXT("Lift"));
 
-				constexpr float AirDensity = 1.225f;
+				constexpr float AirDensity = 1.225f;  // Air density in kg/m^3
 				Properties->AddValue(TEXT("FluidDensity"), AirDensity, AnimatablePropertyFlags);
+
+				Properties->AddValue(TEXT("WindVelocity"), FVector3f(0.f), AnimatablePropertyFlags);  // Wind velocity must exist to be animatable
 			}
 
 			// Pressure

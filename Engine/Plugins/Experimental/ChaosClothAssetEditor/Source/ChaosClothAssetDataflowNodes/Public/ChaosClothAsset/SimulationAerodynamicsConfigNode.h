@@ -40,6 +40,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Aerodynamics", Meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
 	FChaosClothAssetWeightedValue Lift = { true, 0.035f, 1.f, TEXT("Lift") };
 
+	/**
+	 * The fixed wind velocity [m/s] for this asset.
+	 * For reference a wind gust is above 8m/s (18mph).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Aerodynamics", Meta = (UIMin = "0", UIMax = "10"))
+	FVector3f WindVelocity = { 0.f, 0.f, 0.f };
+
 	FChaosClothAssetSimulationAerodynamicsConfigNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
 private:
