@@ -14,7 +14,8 @@
 APartyBeaconHost::APartyBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	State(NULL),
-	bLogoutOnSessionTimeout(true)
+	bLogoutOnSessionTimeout(true),
+	bIsValidationStrRequired(true)
 {
 	ClientBeaconActorClass = APartyBeaconClient::StaticClass();
 	BeaconTypeName = ClientBeaconActorClass->GetName();
@@ -508,7 +509,7 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 		return EPartyReservationResult::ReservationDenied;
 	}
 
-	if (ReservationRequest.IsValid())
+	if (ReservationRequest.IsValid(bIsValidationStrRequired))
 	{
 		TArray<FPartyReservation>& Reservations = State->GetReservations();
 		const int32 ExistingReservationIdx = State->GetExistingReservation(ReservationRequest.PartyLeader);
@@ -754,7 +755,7 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 		return EPartyReservationResult::ReservationDenied;
 	}
 
-	if (ReservationUpdateRequest.IsValid() || bIsRemovingMembers)
+	if (ReservationUpdateRequest.IsValid(bIsValidationStrRequired) || bIsRemovingMembers)
 	{
 		if (bIsRemovingMembers)
 		{

@@ -14,7 +14,8 @@
 ASpectatorBeaconHost::ASpectatorBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	State(NULL),
-	bLogoutOnSessionTimeout(true)
+	bLogoutOnSessionTimeout(true),
+	bIsValidationStrRequired(true)
 {
 	ClientBeaconActorClass = ASpectatorBeaconClient::StaticClass();
 	BeaconTypeName = ClientBeaconActorClass->GetName();
@@ -332,7 +333,7 @@ ESpectatorReservationResult::Type ASpectatorBeaconHost::AddSpectatorReservation(
 		return ESpectatorReservationResult::ReservationDenied;
 	}
 
-	if (ReservationRequest.IsValid())
+	if (ReservationRequest.IsValid(bIsValidationStrRequired))
 	{
 		TArray<FSpectatorReservation>& Reservations = State->GetReservations();
 		const int32 ExistingReservationIdx = State->GetExistingReservation(ReservationRequest.SpectatorId);

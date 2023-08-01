@@ -7,7 +7,7 @@
 
 DEFINE_LOG_CATEGORY(LogSpectatorBeacon);
 
-bool FSpectatorReservation::IsValid() const
+bool FSpectatorReservation::IsValid(bool bIsValidationStrRequired) const
 {
 	bool bIsValid = false;
 	if (SpectatorId.IsValid())
@@ -21,11 +21,11 @@ bool FSpectatorReservation::IsValid() const
 		{
 			bIsValid = false;
 		}
-		else if (SpectatorId == Spectator.UniqueId &&
-				Spectator.ValidationStr.IsEmpty())
+		else if (bIsValidationStrRequired &&
+			SpectatorId == Spectator.UniqueId &&
+			Spectator.ValidationStr.IsEmpty())
 		{
-				bIsValid = false;
-		
+			bIsValid = false;
 		}
 	}
 

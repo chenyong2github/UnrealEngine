@@ -387,6 +387,11 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconHost : public AOnlineBeaconHostObject
 	 */
 	virtual void DumpReservations() const;
 
+	/**
+	 * Do party members require validation strings.
+	 */
+	bool IsValidationStrRequired() const { return bIsValidationStrRequired; }
+
 protected:
 
 	/** State of the beacon */
@@ -409,6 +414,9 @@ protected:
 	/** Do the timeouts below cause a player to be removed from the reservation list */
 	UPROPERTY(Config)
 	bool bLogoutOnSessionTimeout;
+	/** Do party members require validation strings. */
+	UPROPERTY(Config)
+	bool bIsValidationStrRequired;
 	/** Seconds that can elapse before a reservation is removed due to player not being registered with the session */
 	UPROPERTY(Transient, Config)
 	float SessionTimeoutSecs;

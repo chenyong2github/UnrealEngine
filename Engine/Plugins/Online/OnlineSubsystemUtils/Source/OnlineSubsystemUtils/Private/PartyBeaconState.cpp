@@ -15,7 +15,7 @@ namespace ETeamAssignmentMethod
 	const FName Manual = FName(TEXT("Manual"));
 }
 
-bool FPartyReservation::IsValid() const
+bool FPartyReservation::IsValid(bool bIsValidationStrRequired) const
 {
 	bool bIsValid = false;
 	if (PartyLeader.IsValid() && PartyMembers.Num() >= 1)
@@ -35,7 +35,8 @@ bool FPartyReservation::IsValid() const
 				break;
 			}
 
-			if (PartyLeader == PlayerRes.UniqueId &&
+			if (bIsValidationStrRequired &&
+				PartyLeader == PlayerRes.UniqueId &&
 				PlayerRes.ValidationStr.IsEmpty())
 			{
 				bIsValid = false;

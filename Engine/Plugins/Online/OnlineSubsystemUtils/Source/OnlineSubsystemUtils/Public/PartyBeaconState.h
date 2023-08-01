@@ -197,7 +197,7 @@ struct ONLINESUBSYSTEMUTILS_API FPartyReservation
 	int32 RemoveAllPartyMembers(const FPlayerReservation& OtherRes);
 
 	/** Is this data well formed */
-	bool IsValid() const;
+	bool IsValid(bool bIsValidationStrRequired=true) const;
 
 	/** Dump this reservation to log */
 	void Dump() const;
