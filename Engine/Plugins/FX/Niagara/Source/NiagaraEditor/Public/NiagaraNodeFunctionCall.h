@@ -115,6 +115,7 @@ public:
 	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const override;
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 	//End UNiagaraNode interface
 
 	virtual void UpdateReferencedStaticsHashForNode(FSHA1& HashState) const;

@@ -61,6 +61,8 @@ public:
 	NIAGARAEDITOR_API virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	//~ End EdGraphNode Interface
 
+	virtual TSharedRef<SWidget> CreateTitleRightWidget();
+	
 	/** If this does not return an empty title, compact mode will be activated putting the text into the center of the node. Should be short. */
 	NIAGARAEDITOR_API virtual FText GetCompactTitle() const { return FText::GetEmpty(); }
 	NIAGARAEDITOR_API virtual bool ShouldShowPinNamesInCompactMode() { return false; }

@@ -388,7 +388,16 @@ public:
 class INiagaraDataInterfaceNodeActionProvider
 {
 public:
-
+	/** If a node displays its options 'inline' (title right widget), you can configure the way the combo button content is displayed and give it a tooltip. */
+	struct FInlineMenuDisplayOptions
+	{
+		/** This needs to be true to have any effect, as it will determine widget generation in the title right area of the node. */
+		bool bDisplayInline = false;
+		FText DisplayName;
+		const FSlateBrush* DisplayBrush = nullptr;
+		FText TooltipText;
+	};
+	
 	INiagaraDataInterfaceNodeActionProvider() = default;
 	INiagaraDataInterfaceNodeActionProvider(INiagaraDataInterfaceNodeActionProvider&) = delete;
 	INiagaraDataInterfaceNodeActionProvider(INiagaraDataInterfaceNodeActionProvider&&) = delete;
@@ -399,8 +408,12 @@ public:
 	/** Allows DIs to add context menu actions for the whole node. */
 	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const {}
 
+	virtual void GetInlineNodeContextMenuActionsImpl(UToolMenu* ToolMenu) const {}
+
+	virtual FInlineMenuDisplayOptions GetInlineMenuDisplayOptionsImpl(UClass* DIClass, UEdGraphNode* Source) const { return {}; }
+	
 	/** Allows DIs to add actions for add pins on the DI function call nodes. */
-	virtual void  CollectAddPinActionsImpl(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin) const {}
+	virtual void CollectAddPinActionsImpl(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin) const {}
 
 	template<typename DIClass, typename ActionProviderClass>
 	static void Register();
@@ -413,6 +426,10 @@ public:
 
 	static NIAGARAEDITOR_API void GetNodeContextMenuActions(UClass* DIClass, UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
 
+	static NIAGARAEDITOR_API void GetInlineNodeContextMenuActions(UClass* DIClass, UToolMenu* ToolMenu);
+	
+	static NIAGARAEDITOR_API FInlineMenuDisplayOptions GetInlineMenuDisplayOptions(UClass* DIClass, UEdGraphNode* Source);
+	
 	template<typename DIClass>
 	static void CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin);
 
@@ -469,5 +486,10 @@ class FNiagaraDataInterfaceNodeActionProvider_DataChannelRead : public INiagaraD
 public:
 
 	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const override;
+	virtual void GetInlineNodeContextMenuActionsImpl(UToolMenu* ToolMenu) const override;
+	virtual FInlineMenuDisplayOptions GetInlineMenuDisplayOptionsImpl(UClass* DIClass, UEdGraphNode* Source) const override;
 	virtual void CollectAddPinActionsImpl(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)const override;
+
+private:
+	static void AddDataChannelInitActions(UToolMenu* ToolMenu);
 };

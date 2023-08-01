@@ -550,7 +550,7 @@ void UNiagaraNode::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox)
 }
 
 void UNiagaraNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
-{
+{	
 	{
 		FToolMenuSection& Section = Menu->AddSection("Alignment");
 		Section.AddSubMenu(
@@ -582,6 +582,11 @@ void UNiagaraNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraph
 bool UNiagaraNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const
 {
 	return Schema->IsA<UEdGraphSchema_Niagara>();
+}
+
+TSharedRef<SWidget> UNiagaraNode::CreateTitleRightWidget()
+{
+	return SNullWidget::NullWidget;
 }
 
 void UNiagaraNode::MarkNodeRequiresSynchronization(FString Reason, bool bRaiseGraphNeedsRecompile)

@@ -136,6 +136,16 @@ void SNiagaraGraphNode::CreatePinWidgets()
 	}
 }
 
+TSharedRef<SWidget> SNiagaraGraphNode::CreateTitleRightWidget()
+{
+	if(NiagaraNode.IsValid())
+	{
+		return NiagaraNode->CreateTitleRightWidget();
+	}
+
+	return SGraphNode::CreateTitleRightWidget();
+}
+
 void SNiagaraGraphNode::UpdateGraphNodeCompact()
 {
 	InputPins.Empty();

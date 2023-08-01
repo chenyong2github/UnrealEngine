@@ -23,6 +23,7 @@ public:
 	virtual void CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox) override;
 	virtual void UpdateErrorInfo() override;
 	virtual void CreatePinWidgets() override;
+	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 
 protected:
 	void UpdateGraphNodeCompact();

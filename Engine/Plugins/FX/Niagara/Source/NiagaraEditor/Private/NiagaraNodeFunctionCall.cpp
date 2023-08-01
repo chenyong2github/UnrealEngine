@@ -29,6 +29,7 @@
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraSettings.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Input/SComboButton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeFunctionCall)
 
@@ -1200,6 +1201,81 @@ void UNiagaraNodeFunctionCall::GetNodeContextMenuActions(class UToolMenu* Menu, 
 	{
 		INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(DIClass, Menu, Context, Signature);
 	}
+}
+
+TSharedRef<SWidget> UNiagaraNodeFunctionCall::CreateTitleRightWidget()
+{
+	if ( FunctionScript != nullptr || Signature.Inputs.Num() == 0 )
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	if ( Signature.Inputs[0].GetType().IsDataInterface() == false )
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	if ( UClass* DIClass = Cast<UClass>(Signature.Inputs[0].GetType().GetClass()) )
+	{
+		FString MenuBaseName = "GraphEditor.Niagara.InlinePrimaryActions.";
+		FString MenuName = MenuBaseName.Append(DIClass->GetName());
+
+		if(UToolMenus::Get()->IsMenuRegistered(FName(*MenuName)) == false)
+		{
+			UToolMenu* InlinePrimaryMenu = UToolMenus::Get()->RegisterMenu(FName(*MenuName));
+			InlinePrimaryMenu->AddDynamicSection("GetInlineNodeContextActions", FNewToolMenuDelegate::CreateLambda([DIClass, this](UToolMenu* InMenu)
+			{
+				// it's important to pass in the menu from the lambda parameter instead of using the original menu
+				INiagaraDataInterfaceNodeActionProvider::GetInlineNodeContextMenuActions(DIClass, InMenu);
+			}));
+		}
+
+		TSharedPtr<SWidget> ButtonContentWidget = nullptr;
+
+		INiagaraDataInterfaceNodeActionProvider::FInlineMenuDisplayOptions DisplayOptions = INiagaraDataInterfaceNodeActionProvider::GetInlineMenuDisplayOptions(DIClass, this);
+
+		if(DisplayOptions.bDisplayInline == false)
+		{
+			return SNullWidget::NullWidget;
+		}
+		
+		if(DisplayOptions.DisplayBrush != nullptr)
+		{
+			ButtonContentWidget = SNew(SImage)
+				.Image(DisplayOptions.DisplayBrush);
+		}
+		else
+		{
+			ButtonContentWidget = SNew(STextBlock)
+				.Text(DisplayOptions.DisplayName.IsEmpty() ? LOCTEXT("NodeInlineOptionsMenuLabel", "Options") : DisplayOptions.DisplayName);
+		}
+
+		TSharedRef<SWidget> Result = SNew(SComboButton)
+		.ComboButtonStyle(&FAppStyle::GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+		.OnGetMenuContent(FOnGetContent::CreateLambda([this, MenuName, DIClass]()
+		{
+			UGraphNodeContextMenuContext* ContextObject = NewObject<UGraphNodeContextMenuContext>();
+			ContextObject->Init(this->GetGraph(), this, nullptr, false);
+			FToolMenuContext Context(ContextObject);
+
+			// we generate the menu instead of using FindMenu as this will cause the 'instance' of this menu to be created, with dynamic sections being generated.
+			UToolMenu* GeneratedMenu = UToolMenus::Get()->GenerateMenu(FName(*MenuName), Context);
+			return UToolMenus::Get()->GenerateWidget(GeneratedMenu);
+		}))
+		.ButtonContent()
+		[
+			ButtonContentWidget.ToSharedRef()
+		];
+
+		if(DisplayOptions.TooltipText.IsEmpty() == false)
+		{
+			Result->SetToolTipText(DisplayOptions.TooltipText);
+		}
+		
+		return Result;
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 void UNiagaraNodeFunctionCall::CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)const
