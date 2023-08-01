@@ -81,14 +81,15 @@ void FRetargetPlaybackManager::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
 	}
 }
 
-void FRetargetPlaybackManager::StopPlayback() const
+void FRetargetPlaybackManager::StopPlayback()
 {
 	UIKRetargetAnimInstance* AnimInstance = EditorController.Pin()->SourceAnimInstance.Get();
 	if (!AnimInstance)
 	{
 		return;
 	}
-	
+
+	AnimThatWasPlaying = AnimInstance->GetAnimationAsset();
 	AnimInstance->SetPlaying(false);
 	AnimInstance->SetAnimationAsset(nullptr);
 }
@@ -101,15 +102,13 @@ void FRetargetPlaybackManager::PausePlayback()
 		return;
 	}
 	
-	AnimThatWasPlaying = AnimInstance->GetAnimationAsset();
-	
 	if (AnimThatWasPlaying)
 	{
 		TimeWhenPaused = AnimInstance->GetCurrentTime();
 	}
-	
+
+	AnimThatWasPlaying = AnimInstance->GetAnimationAsset();
 	AnimInstance->SetPlaying(false);
-	AnimInstance->SetAnimationAsset(nullptr);
 }
 
 void FRetargetPlaybackManager::ResumePlayback() const

@@ -65,7 +65,7 @@ struct FRetargetPlaybackManager : public TSharedFromThis<FRetargetPlaybackManage
 {
 	FRetargetPlaybackManager(TWeakPtr<FIKRetargetEditorController> InEditorController);
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
-	void StopPlayback() const;
+	void StopPlayback();
 	void PausePlayback();
 	void ResumePlayback() const;
 	bool IsStopped() const;
