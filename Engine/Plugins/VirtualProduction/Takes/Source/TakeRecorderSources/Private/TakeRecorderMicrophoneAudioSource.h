@@ -41,11 +41,31 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
 	FText AudioTrackName;
 
-	/** The name of the audio asset. */
+	/** The name of the audio asset.
+	 * Supports any of the following format specifiers that will be substituted when a take is recorded :
+	 * {day} - The day of the timestamp for the start of the recording.
+	 * {month} - The month of the timestamp for the start of the recording.
+	 * {year} - The year of the timestamp for the start of the recording.
+	 * {hour} - The hour of the timestamp for the start of the recording.
+	 * {minute} - The minute of the timestamp for the start of the recording.
+	 * {second} - The second of the timestamp for the start of the recording.
+	 * {take} - The take number.
+	 * {slate} - The slate string.
+	 */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
 	FString AudioAssetName;
 
-	/** The name of the subdirectory audio will be placed in. Leave this empty to place into the same directory as the sequence base path */
+	/** The name of the subdirectory audio will be placed in. Leave this empty to place into the same directory as the sequence base path 
+	 * Supports any of the following format specifiers that will be substituted when a take is recorded :
+	 * {day} - The day of the timestamp for the start of the recording.
+	 * {month} - The month of the timestamp for the start of the recording.
+	 * {year} - The year of the timestamp for the start of the recording.
+	 * {hour} - The hour of the timestamp for the start of the recording.
+	 * {minute} - The minute of the timestamp for the start of the recording.
+	 * {second} - The second of the timestamp for the start of the recording.
+	 * {take} - The take number.
+	 * {slate} - The slate string.
+	 */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
 	FString AudioSubDirectory;
 };

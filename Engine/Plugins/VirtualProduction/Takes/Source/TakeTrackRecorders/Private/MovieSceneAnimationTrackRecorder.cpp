@@ -57,19 +57,23 @@ void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AA
 		ComponentTransform = SkeletalMeshComponent->GetComponentToWorld().GetRelativeTransform(Actor->GetTransform());
 		FString AnimationAssetName = Actor->GetActorLabel();
 
+		FString DirectoryPath = AnimationDirectory.Path;
+
 		if (ULevelSequence* LeaderLevelSequence = OwningTakeRecorderSource->GetRootLevelSequence())
 		{
 			UTakeMetaData* AssetMetaData = LeaderLevelSequence->FindMetaData<UTakeMetaData>();
 
 			AnimationAssetName = AssetMetaData->GenerateAssetPath(AnimSettings->AnimationAssetName);
+			DirectoryPath = AssetMetaData->GenerateAssetPath(DirectoryPath);
 
 			TMap<FString, FStringFormatArg> FormatArgs;
 			FormatArgs.Add(TEXT("actor"), Actor->GetActorLabel());
 
 			AnimationAssetName = FString::Format(*AnimationAssetName, FormatArgs);
+			DirectoryPath = FString::Format(*DirectoryPath, FormatArgs);
 		}
 
-		AnimSequence = TakesUtils::MakeNewAsset<UAnimSequence>(AnimationDirectory.Path, AnimationAssetName);
+		AnimSequence = TakesUtils::MakeNewAsset<UAnimSequence>(DirectoryPath, AnimationAssetName);
 		if (AnimSequence.IsValid())
 		{
 			AnimSequence.Get()->MarkPackageDirty();

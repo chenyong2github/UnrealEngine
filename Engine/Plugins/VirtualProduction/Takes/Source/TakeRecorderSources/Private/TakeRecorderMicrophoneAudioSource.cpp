@@ -280,7 +280,13 @@ TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(UL
 		AudioDirectory.Path = PathToRecordTo;
 		if (AudioSubDirectory.Len())
 		{
-			AudioDirectory.Path /= AudioSubDirectory;
+			FString TempStr = AudioSubDirectory;
+			if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+			{
+				TempStr = ReplaceStringTokens(TakeMetaData->GenerateAssetPath(TempStr));
+				TempStr = TempStr.Replace(TEXT(" "), TEXT("_"));
+			}
+			AudioDirectory.Path /= TempStr;
 		}
 
 		AssetFileName = MakeNewAssetName(AudioDirectory.Path, BaseName);
