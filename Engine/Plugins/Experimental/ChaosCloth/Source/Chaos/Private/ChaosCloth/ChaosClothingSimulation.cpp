@@ -532,6 +532,11 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		if(Solver->GetEnableSolver() || (!Context->CacheData.HasData() && Context->CachedPositions.Num() == 0))
 		{
 			Solver->Update(SmoothedDeltaTime);
+
+			for (TUniquePtr<FClothingSimulationConfig>& Config : Configs)
+			{
+				Config->GetProperties().ClearDirtyFlags();
+			}
 		}
 		else
 		{

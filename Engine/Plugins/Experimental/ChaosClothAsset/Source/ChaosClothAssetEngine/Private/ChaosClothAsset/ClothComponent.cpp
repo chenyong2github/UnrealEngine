@@ -82,6 +82,9 @@ void UChaosClothComponent::ResetConfigProperties()
 			PropertyCollection->Reset();
 			CollectionPropertyMutableFacade.DefineSchema();
 		}
+
+		// Now the component property facade must be updated
+		*CollectionPropertyFacade = MoveTemp(CollectionPropertyMutableFacade);
 	}
 	else
 	{

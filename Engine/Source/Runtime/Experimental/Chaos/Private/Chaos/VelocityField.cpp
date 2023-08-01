@@ -100,6 +100,13 @@ void FVelocityAndPressureField::SetGeometry(
 	const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
 	FSolverReal WorldScale)
 {
+	// Reinit indices
+	DragIndex = FDragIndex(PropertyCollection);
+	LiftIndex = FLiftIndex(PropertyCollection);
+	FluidDensityIndex = FFluidDensityIndex(PropertyCollection);
+	PressureIndex = FPressureIndex(PropertyCollection);
+
+	// Reset geometry, properties, and weight maps
 	SetGeometry(TriangleMesh);
 	SetProperties(
 		FSolverVec2(GetWeightedFloatDrag(PropertyCollection, 0.f)),  // If these properties don't exist, set their values to 0, not to DefaultCoefficients!
