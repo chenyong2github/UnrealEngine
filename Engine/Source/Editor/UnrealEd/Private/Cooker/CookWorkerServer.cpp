@@ -836,11 +836,25 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 			{
 				ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
 				FPackageRemoteResult::FPlatformResult& PlatformResult = Result.GetPlatforms()[PlatformIndex];
-				if (PlatformResult.GetCookResults() != ECookResult::Invalid)
+				FPackagePlatformData& ExistingData = PackageData->FindOrAddPlatformData(TargetPlatform);
+				if (!ExistingData.NeedsCooking(TargetPlatform))
 				{
-					PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.GetCookResults());
+					if (PlatformResult.GetCookResults() != ECookResult::Invalid)
+					{
+						UE_LOG(LogCook, Display,
+							TEXT("CookWorkerServer %d received FPackageResultsMessage for package %s, platform %s, but that platform has already been cooked. Ignoring the results for that platform."),
+							ProfileId, *Result.GetPackageName().ToString(), *TargetPlatform->PlatformName());
+					}
+					continue;
 				}
-				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, PlatformResult.ReleaseMessages());
+				else
+				{
+					if (PlatformResult.GetCookResults() != ECookResult::Invalid)
+					{
+						PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.GetCookResults());
+					}
+					HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, PlatformResult.ReleaseMessages());
+				}
 			}
 			COTFS.RecordExternalActorDependencies(Result.GetExternalActorDependencies());
 			if (Result.IsReferencedOnlyByEditorOnlyData())

@@ -896,6 +896,7 @@ void FCookWorkerClient::HandleRetractionMessage(FMPCollectorClientMessageContext
 	{
 		FPackageData* PackageData = COTFS.PackageDatas->FindPackageDataByPackageName(PackageName);
 		check(PackageData);
+		PackageData->ResetReachable();
 		COTFS.DemoteToIdle(*PackageData, ESendFlags::QueueAddAndRemove, ESuppressCookReason::RetractedByCookDirector);
 	}
 
