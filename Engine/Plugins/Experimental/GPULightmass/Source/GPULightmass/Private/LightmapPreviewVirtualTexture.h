@@ -14,6 +14,11 @@ class FLightmapPreviewVirtualTexture : public IVirtualTexture
 public:
 	FLightmapPreviewVirtualTexture(FLightmapRenderStateRef LightmapRenderState, FLightmapRenderer* Renderer);
 
+	virtual bool IsPageStreamed(uint8 vLevel, uint32 vAddress) const override
+	{
+		return false;
+	}
+
 	virtual FVTRequestPageResult RequestPageData(
 		FRHICommandList& RHICmdList,
 		const FVirtualTextureProducerHandle& ProducerHandle,
