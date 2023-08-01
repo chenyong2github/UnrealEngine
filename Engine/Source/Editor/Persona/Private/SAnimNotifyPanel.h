@@ -36,6 +36,7 @@ DECLARE_DELEGATE( FDeleteNotify )
 DECLARE_DELEGATE_RetVal( bool, FOnGetIsAnimNotifySelectionValidForReplacement )
 DECLARE_DELEGATE_TwoParams( FReplaceWithNotify, FString, UClass* )
 DECLARE_DELEGATE_TwoParams( FReplaceWithBlueprintNotify, FString, FString )
+DECLARE_DELEGATE_OneParam( FReplaceWithSyncMarker, FString )
 DECLARE_DELEGATE( FDeselectAllNotifies )
 DECLARE_DELEGATE_OneParam( FOnGetBlueprintNotifyData, TArray<FAssetData>& )
 DECLARE_DELEGATE_OneParam( FOnGetNativeNotifyClasses, TArray<UClass*>&)
@@ -259,6 +260,9 @@ public:
 
 	/** Handler for replacing with notify blueprint */
 	void OnReplaceSelectedWithNotifyBlueprint(FString NewBlueprintNotifyName, FString NewBlueprintNotifyClass);
+
+	/** Handler for replacing with sync marker */
+	void OnReplaceSelectedWithSyncMarker(FString NewBlueprintNotifyName);
 
 	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
 
