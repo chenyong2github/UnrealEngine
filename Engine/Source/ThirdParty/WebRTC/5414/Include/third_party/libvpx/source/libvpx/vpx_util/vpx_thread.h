@@ -54,17 +54,23 @@ typedef struct {
 #define USE_CREATE_THREAD
 #endif
 
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#define THREAD_RETURN_TYPE DWORD
+#else
+#define THREAD_RETURN_TYPE unsigned int
+#endif
+
 //------------------------------------------------------------------------------
 // simplistic pthread emulation layer
 
 // _beginthreadex requires __stdcall
 #if defined(__GNUC__) && \
     (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2))
-#define THREADFN __attribute__((force_align_arg_pointer)) unsigned int __stdcall
+#define THREADFN __attribute__((force_align_arg_pointer)) THREAD_RETURN_TYPE __stdcall
 #else
-#define THREADFN unsigned int __stdcall
+#define THREADFN THREAD_RETURN_TYPE __stdcall
 #endif
-#define THREAD_RETURN(val) (unsigned int)((DWORD_PTR)val)
+#define THREAD_RETURN(val) (THREAD_RETURN_TYPE)((DWORD_PTR)val)
 
 #if _WIN32_WINNT >= 0x0501  // Windows XP or greater
 #define WaitForSingleObject(obj, timeout) \
@@ -72,7 +78,11 @@ typedef struct {
 #endif
 
 static INLINE int pthread_create(pthread_t *const thread, const void *attr,
+#ifdef USE_CREATE_THREAD
+                                 LPTHREAD_START_ROUTINE start,
+#else
                                  unsigned int(__stdcall *start)(void *),
+#endif
                                  void *arg) {
   (void)attr;
 #ifdef USE_CREATE_THREAD

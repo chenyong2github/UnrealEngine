@@ -16,6 +16,7 @@
 #if defined(WEBRTC_WIN)
 #include <windows.h>
 #elif defined(WEBRTC_POSIX)
+#include <atomic>
 #include <pthread.h>
 #else
 #error "Must define either WEBRTC_WIN or WEBRTC_POSIX."
@@ -94,7 +95,7 @@ class Event {
   pthread_mutex_t event_mutex_;
   pthread_cond_t event_cond_;
   const bool is_manual_reset_;
-  bool event_status_;
+  std::atomic<bool> event_status_;
 #endif
 };
 

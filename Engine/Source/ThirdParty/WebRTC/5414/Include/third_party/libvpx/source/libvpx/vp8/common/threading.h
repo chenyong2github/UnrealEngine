@@ -24,12 +24,19 @@ extern "C" {
 /* Win32 */
 #include <process.h>
 #include <windows.h>
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#define THREAD_RETURN_TYPE DWORD
+#else
+#define THREAD_RETURN_TYPE unsigned int
+#endif
+
 #if defined(__GNUC__) && \
     (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2))
 #define THREAD_FUNCTION \
-  __attribute__((force_align_arg_pointer)) unsigned int __stdcall
+  __attribute__((force_align_arg_pointer)) THREAD_RETURN_TYPE __stdcall
 #else
-#define THREAD_FUNCTION unsigned int __stdcall
+#define THREAD_FUNCTION THREAD_RETURN_TYPE __stdcall
 #endif
 #define THREAD_FUNCTION_RETURN DWORD
 #define THREAD_SPECIFIC_INDEX DWORD

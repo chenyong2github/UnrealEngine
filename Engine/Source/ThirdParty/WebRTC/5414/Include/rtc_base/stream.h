@@ -78,9 +78,10 @@ class RTC_EXPORT StreamInterface {
   Read(void* buffer, size_t buffer_len, size_t* read, int* error) {
     RTC_CHECK_NOTREACHED();
   }
-
+#if !defined(WEBRTC_WIN)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif // !defined(WEBRTC_WIN)
   // Preserve backwards compatibility using a default implementation
   // because there are subclasses
   // outside of the WebRTC codebase that need to be converted.
@@ -91,7 +92,9 @@ class RTC_EXPORT StreamInterface {
                             int& error) {
     return Read(buffer.data(), buffer.size(), &read, &error);
   }
+#if !defined(WEBRTC_WIN)
 #pragma clang diagnostic pop
+#endif // !defined(WEBRTC_WIN)
 
   // The deprecated method has a default implementation that may be
   // overridden in subclasses, rather than being =0.
@@ -102,14 +105,18 @@ class RTC_EXPORT StreamInterface {
     RTC_CHECK_NOTREACHED();
   }
 
+#if !defined(WEBRTC_WIN)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif // !defined(WEBRTC_WIN)
   virtual StreamResult Write(rtc::ArrayView<const uint8_t> data,
                              size_t& written,
                              int& error) {
     return Write(data.data(), data.size(), &written, &error);
   }
+#if !defined(WEBRTC_WIN)
 #pragma clang diagnostic pop
+#endif // !defined(WEBRTC_WIN)
 
   // Attempt to transition to the SS_CLOSED state.  SE_CLOSE will not be
   // signalled as a result of this call.
@@ -142,8 +149,10 @@ class RTC_EXPORT StreamInterface {
   [[deprecated("Use version with ArrayView")]] StreamResult
   WriteAll(const void* data, size_t data_len, size_t* written, int* error);
 
+#if !defined(WEBRTC_WIN)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif // !defined(WEBRTC_WIN)
   // TODO(bugs.webrc.org/14632): Remove pragmas and change underlying
   // implementation when downstream code is converted.
   StreamResult WriteAll(ArrayView<const uint8_t> data,
@@ -151,7 +160,9 @@ class RTC_EXPORT StreamInterface {
                         int& error) {
     return WriteAll(data.data(), data.size(), &written, &error);
   }
+#if !defined(WEBRTC_WIN)
 #pragma clang diagnostic pop
+#endif // !defined(WEBRTC_WIN)
 
  protected:
   StreamInterface();

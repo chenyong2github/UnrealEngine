@@ -64,6 +64,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/types/optional.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/event.h"
@@ -127,11 +128,20 @@ class MethodCall {
     if (t->IsCurrent()) {
       Invoke(std::index_sequence_for<Args...>());
     } else {
+      // allocate a real event if it has not been done before
+      if (!event_.has_value()) {
+        event_.emplace();
+      }
+
       t->PostTask([this] {
         Invoke(std::index_sequence_for<Args...>());
-        event_.Set();
+
+        RTC_DCHECK(event_.has_value());
+        event_.value().Set();
       });
-      event_.Wait(rtc::Event::kForever);
+
+      RTC_DCHECK(event_.has_value());
+      event_.value().Wait(rtc::Event::kForever);
     }
     return r_.moved_result();
   }
@@ -146,7 +156,10 @@ class MethodCall {
   Method m_;
   ReturnType<R> r_;
   std::tuple<Args&&...> args_;
-  rtc::Event event_;
+  // as `rtc::Event` is used only when switching to another thread,
+  // we can avoid a useless system resource allocation in direct calls
+  // and do it by demand
+  absl::optional<rtc::Event> event_;
 };
 
 template <typename C, typename R, typename... Args>
@@ -162,11 +175,20 @@ class ConstMethodCall {
     if (t->IsCurrent()) {
       Invoke(std::index_sequence_for<Args...>());
     } else {
+      // allocate a real event if it has not been done before
+      if (!event_.has_value()) {
+        event_.emplace();
+      }
+
       t->PostTask([this] {
         Invoke(std::index_sequence_for<Args...>());
-        event_.Set();
+
+        RTC_DCHECK(event_.has_value());
+        event_.value().Set();
       });
-      event_.Wait(rtc::Event::kForever);
+
+      RTC_DCHECK(event_.has_value());
+      event_.value().Wait(rtc::Event::kForever);
     }
     return r_.moved_result();
   }
@@ -181,7 +203,10 @@ class ConstMethodCall {
   Method m_;
   ReturnType<R> r_;
   std::tuple<Args&&...> args_;
-  rtc::Event event_;
+  // as `rtc::Event` is used only when switching to another thread,
+  // we can avoid a useless system resource allocation in direct calls
+  // and do it by demand
+  absl::optional<rtc::Event> event_;
 };
 
 #define PROXY_STRINGIZE_IMPL(x) #x
