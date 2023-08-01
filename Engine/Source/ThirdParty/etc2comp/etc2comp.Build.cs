@@ -13,10 +13,13 @@ public class etc2comp : ModuleRules
 		
 		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "EtcLib", "Etc"));
 		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "EtcLib", "EtcCodec"));
-		
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib", "Win64", "Release", "EtcLib.lib"));
+			bool bUseDebugLibs = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT;
+			string ConfigName = bUseDebugLibs ? "Debug" : "Release";
+
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib", "Win64", ConfigName, "EtcLib.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

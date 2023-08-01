@@ -18,7 +18,10 @@ public class astcenc : ModuleRules
 		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "astcenc-sse4.1-static.lib")); 
+			bool bUseDebugLibs = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT;
+			string ConfigName = bUseDebugLibs ? "Debug" : "Release";
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", ConfigName, "astcenc-sse4.1-static.lib")); 
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
