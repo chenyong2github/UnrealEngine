@@ -133,6 +133,8 @@ namespace PCGMetadataMathsSettings
 			return PCGMetadataMaths::Pow(Value1, Value2);
 		case EPCGMedadataMathsOperation::Modulo:
 			return PCGMetadataMaths::Modulo(Value1, Value2);
+		case EPCGMedadataMathsOperation::Set:
+			return Value2;
 		default:
 			return T{};
 		}

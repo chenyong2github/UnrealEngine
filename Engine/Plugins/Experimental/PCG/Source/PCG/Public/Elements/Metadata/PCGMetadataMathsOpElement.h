@@ -33,6 +33,7 @@ enum class EPCGMedadataMathsOperation : uint16
 	ClampMin,
 	ClampMax,
 	Modulo,
+	Set,
 
 	// Ternary op
 	TernaryOp = 1 << 12 UMETA(Hidden),
