@@ -63,6 +63,8 @@ static FAutoConsoleVariableRef CVarNiagaraGrid3DOverrideFormat(
 	ECVF_Default
 );
 
+static constexpr EPixelFormatCapabilities GNDIGrid3DFomatCaps = EPixelFormatCapabilities::TypedUAVLoad | EPixelFormatCapabilities::TypedUAVStore | EPixelFormatCapabilities::Texture3D;
+
 const FString UNiagaraDataInterfaceGrid3DCollection::NumTilesName(TEXT("_NumTiles"));
 const FString UNiagaraDataInterfaceGrid3DCollection::OneOverNumTilesName(TEXT("_OneOverNumTiles"));
 const FString UNiagaraDataInterfaceGrid3DCollection::UnitClampMinName(TEXT("_UnitClampMin"));
@@ -3394,46 +3396,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		InstanceData->NumTiles.X = 1;
 		InstanceData->NumTiles.Y = 1;
 		InstanceData->NumTiles.Z = 1;
+		
+		InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat, GNDIGrid3DFomatCaps, NumAttribChannelsFound);
 
-		switch (BufferFormat)
-		{
-		case ENiagaraGpuBufferFormat::Float:
-		{
-			switch (NumAttribChannelsFound)
-			{
-			case 1: InstanceData->PixelFormat = EPixelFormat::PF_R32_FLOAT; break;
-			case 2:	InstanceData->PixelFormat = EPixelFormat::PF_G32R32F; break;
-			case 3: InstanceData->PixelFormat = EPixelFormat::PF_A32B32G32R32F; break;
-			case 4:	InstanceData->PixelFormat = EPixelFormat::PF_A32B32G32R32F; break;
-			}
-			break;
-		}
-		/** 16-bit per channel floating point, range [-65504, 65504] */
-		case ENiagaraGpuBufferFormat::HalfFloat:
-		{
-			switch (NumAttribChannelsFound)
-			{
-			case 1: InstanceData->PixelFormat = EPixelFormat::PF_R16F; break;
-			case 2:	InstanceData->PixelFormat = EPixelFormat::PF_G16R16F; break;
-			case 3: InstanceData->PixelFormat = EPixelFormat::PF_FloatRGBA; break; // #todo(dmp): PF_FloatRGB translates to r11g11b10
-			case 4:	InstanceData->PixelFormat = EPixelFormat::PF_FloatRGBA; break;
-			}
-			break;
-		}
-		/** 8-bit per channel fixed point, range [0, 1]. */
-		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:
-		{
-			switch (NumAttribChannelsFound)
-			{
-			case 1: InstanceData->PixelFormat = EPixelFormat::PF_R8; break;
-			case 2:	InstanceData->PixelFormat = EPixelFormat::PF_R8G8; break;
-			case 3: InstanceData->PixelFormat = EPixelFormat::PF_R8G8B8A8; break; // #todo(dmp): need a 3 channel variant
-			case 4:	InstanceData->PixelFormat = EPixelFormat::PF_R8G8B8A8; break;
-			}
-
-			break;
-		}
-		}
 		InstanceData->UseRGBATexture = true;
 	}
 	else
@@ -3473,7 +3438,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		check(InstanceData->NumTiles.Z > 0);
 
 		InstanceData->UseRGBATexture = false;
-		InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
+		InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat, GNDIGrid3DFomatCaps);
 	}
 
 	InstanceData->TargetTexture = nullptr;
@@ -4061,15 +4026,18 @@ bool FGrid3DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 	if (TargetTexture != nullptr)
 	{
 		const FIntVector RTSize(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z);
-		const EPixelFormat RenderTargetFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
-		if (TargetTexture->SizeX != RTSize.X || TargetTexture->SizeY != RTSize.Y || TargetTexture->SizeZ != RTSize.Z || TargetTexture->OverrideFormat != RenderTargetFormat)
+		const TOptional<EPixelFormat> RenderTargetFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat, GNDIGrid3DFomatCaps);
+		if (RenderTargetFormat.IsSet())
 		{
-			TargetTexture->OverrideFormat = RenderTargetFormat;
-			TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
-			TargetTexture->InitAutoFormat(RTSize.X, RTSize.Y, RTSize.Z);
-			TargetTexture->UpdateResourceImmediate(true);
+			if (TargetTexture->SizeX != RTSize.X || TargetTexture->SizeY != RTSize.Y || TargetTexture->SizeZ != RTSize.Z || TargetTexture->OverrideFormat != RenderTargetFormat.GetValue())
+			{
+				TargetTexture->OverrideFormat = RenderTargetFormat.GetValue();
+				TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
+				TargetTexture->InitAutoFormat(RTSize.X, RTSize.Y, RTSize.Z);
+				TargetTexture->UpdateResourceImmediate(true);
 
-			return true;
+				return true;
+			}
 		}
 	}
 
@@ -4088,13 +4056,13 @@ void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 		}
 	}
 
-	if (DestinationData == nullptr)
+	if (DestinationData == nullptr && PixelFormat.IsSet())
 	{
 		DestinationData = new FGrid3DBuffer();
 		Buffers.Emplace(DestinationData);
 
 		const FIntVector TextureSize(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z);
-		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create3D(TextureSize, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create3D(TextureSize, PixelFormat.GetValue(), FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
 		const TCHAR* GridTextureName = TEXT("Grid3D::GridTexture");
 	#if 0
@@ -4152,6 +4120,7 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(const FNDIGpuComp
 		const FIntVector3& ElementCount = SimStageData.DispatchArgs.ElementCount;
 
 		if (ProxyData->ClearBeforeNonIterationStage && 
+			ProxyData->DestinationData &&
 			(ElementCount.X != ProxyData->NumCells.X || ElementCount.Y != ProxyData->NumCells.Y || ElementCount.Z != ProxyData->NumCells.Z))
 		{
 			AddClearUAVPass(GraphBuilder, ProxyData->DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));

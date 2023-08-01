@@ -46,6 +46,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNDIGrid2DShaderParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<float>,	OutputGrid)
 END_SHADER_PARAMETER_STRUCT()
 
+static constexpr EPixelFormatCapabilities GNDIGrid2DFomatCaps = EPixelFormatCapabilities::TypedUAVLoad | EPixelFormatCapabilities::TypedUAVStore | EPixelFormatCapabilities::Texture2D;
+
 const FString UNiagaraDataInterfaceGrid2DCollection::GridName(TEXT("_Grid"));
 const FString UNiagaraDataInterfaceGrid2DCollection::OutputGridName(TEXT("_OutputGrid"));
 const FString UNiagaraDataInterfaceGrid2DCollection::SamplerName(TEXT("_GridSampler"));
@@ -1817,7 +1819,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
 	}
 
-	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
+	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat, GNDIGrid2DFomatCaps);
 
 	if (!FMath::IsNearlyEqual(GNiagaraGrid2DResolutionMultiplier, 1.0f))
 	{
@@ -2381,35 +2383,35 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 				BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
 			}
 
-			InstanceData->UpdateTargetTexture(BufferFormat);
+			bNeedsReset = InstanceData->UpdateTargetTexture(BufferFormat);
 		}
 
 		// Push Updates to Proxy.
 		FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
 		ENQUEUE_RENDER_COMMAND(FUpdateData)(
 			[RT_Resource=InstanceData->TargetTexture ? InstanceData->TargetTexture->GetResource() : nullptr, RT_Proxy, InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData](FRHICommandListImmediate& RHICmdList)
-		{
-			check(RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
-			FGrid2DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
-
-			TargetData->NumCells = RT_InstanceData.NumCells;
-			TargetData->NumAttributes = RT_InstanceData.NumAttributes;
-			TargetData->CellSize = RT_InstanceData.CellSize;
-
-			TargetData->Buffers.Empty();
-			TargetData->CurrentData = nullptr;
-			TargetData->DestinationData = nullptr;
-
-			if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 			{
-				TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
-			}
-			else
-			{
-				TargetData->RenderTargetToCopyTo = nullptr;
-			}
-		});
+				check(RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
+				FGrid2DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
 
+				TargetData->NumCells = RT_InstanceData.NumCells;
+				TargetData->NumAttributes = RT_InstanceData.NumAttributes;
+				TargetData->CellSize = RT_InstanceData.CellSize;
+
+				TargetData->Buffers.Empty();
+				TargetData->CurrentData = nullptr;
+				TargetData->DestinationData = nullptr;
+
+				if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+				{
+					TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
+				}
+				else
+				{
+					TargetData->RenderTargetToCopyTo = nullptr;
+				}
+			}
+		);
 	}
 
 	return false;
@@ -2473,14 +2475,17 @@ bool FGrid2DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 	{
 		if ( UTextureRenderTarget2DArray* TargetTextureArray = Cast<UTextureRenderTarget2DArray>(TargetTexture) )
 		{
-			const EPixelFormat RenderTargetFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
-			if (TargetTextureArray->SizeX != NumCells.X || TargetTextureArray->SizeY != NumCells.Y || TargetTextureArray->Slices != NumAttributes || TargetTextureArray->OverrideFormat != RenderTargetFormat)
+			const TOptional<EPixelFormat> RenderTargetFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat, GNDIGrid2DFomatCaps);
+			if (RenderTargetFormat.IsSet())
 			{
-				TargetTextureArray->OverrideFormat = RenderTargetFormat;
-				TargetTextureArray->ClearColor = FLinearColor(0.5, 0, 0, 0);
-				TargetTextureArray->InitAutoFormat(NumCells.X, NumCells.Y, NumAttributes);
-				TargetTextureArray->UpdateResourceImmediate(true);
-				return true;
+				if (TargetTextureArray->SizeX != NumCells.X || TargetTextureArray->SizeY != NumCells.Y || TargetTextureArray->Slices != NumAttributes || TargetTextureArray->OverrideFormat != RenderTargetFormat.GetValue())
+				{
+					TargetTextureArray->OverrideFormat = RenderTargetFormat.GetValue();
+					TargetTextureArray->ClearColor = FLinearColor(0.5, 0, 0, 0);
+					TargetTextureArray->InitAutoFormat(NumCells.X, NumCells.Y, NumAttributes);
+					TargetTextureArray->UpdateResourceImmediate(true);
+					return true;
+				}
 			}
 		}
 		else if (UTextureRenderTarget2D* TargetTexture2D = Cast<UTextureRenderTarget2D>(TargetTexture))
@@ -2497,15 +2502,18 @@ bool FGrid2DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 			{
 				const FNiagaraGrid2DLegacyTiled2DInfo Tiled2DInfo(NumCells, NumAttributes);
 
-				const ETextureRenderTargetFormat RenderTargetFormat  = FNiagaraUtilities::BufferFormatToRenderTargetFormat(BufferFormat);
-				if (TargetTexture2D->SizeX != Tiled2DInfo.Size.X || TargetTexture2D->SizeY != Tiled2DInfo.Size.Y || TargetTexture2D->RenderTargetFormat != RenderTargetFormat)
+				const TOptional<ETextureRenderTargetFormat> RenderTargetFormat  = FNiagaraUtilities::BufferFormatToRenderTargetFormat(BufferFormat, GNDIGrid2DFomatCaps);
+				if ( RenderTargetFormat.IsSet() )
 				{
-					TargetTexture2D->RenderTargetFormat = RenderTargetFormat;
-					TargetTexture2D->ClearColor = FLinearColor(0.5, 0, 0, 0);
-					TargetTexture2D->bAutoGenerateMips = false;
-					TargetTexture2D->InitAutoFormat(Tiled2DInfo.Size.X, Tiled2DInfo.Size.Y);
-					TargetTexture2D->UpdateResourceImmediate(true);
-					return true;
+					if (TargetTexture2D->SizeX != Tiled2DInfo.Size.X || TargetTexture2D->SizeY != Tiled2DInfo.Size.Y || TargetTexture2D->RenderTargetFormat != RenderTargetFormat.GetValue())
+					{
+						TargetTexture2D->RenderTargetFormat = RenderTargetFormat.GetValue();
+						TargetTexture2D->ClearColor = FLinearColor(0.5, 0, 0, 0);
+						TargetTexture2D->bAutoGenerateMips = false;
+						TargetTexture2D->InitAutoFormat(Tiled2DInfo.Size.X, Tiled2DInfo.Size.Y);
+						TargetTexture2D->UpdateResourceImmediate(true);
+						return true;
+					}
 				}
 			}
 		}
@@ -2526,12 +2534,12 @@ void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 		}
 	}
 
-	if (DestinationData == nullptr)
+	if (DestinationData == nullptr && PixelFormat.IsSet())
 	{
 		DestinationData = new FGrid2DBuffer();
 		Buffers.Emplace(DestinationData);
 
-		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, uint16(NumAttributes));
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat.GetValue(), FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, uint16(NumAttributes));
 
 		const TCHAR* GridTextureName = TEXT("Grid2D::GridTexture");
 	#if 0
@@ -2589,7 +2597,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(const FNDIGpuComp
 		const FNiagaraSimStageData& SimStageData = Context.GetSimStageData();
 		const FIntVector3& ElementCount = SimStageData.DispatchArgs.ElementCount;
 
-		if (ProxyData->ClearBeforeNonIterationStage && (ElementCount.X != ProxyData->NumCells.X || ElementCount.Y != ProxyData->NumCells.Y))
+		if (ProxyData->ClearBeforeNonIterationStage && ProxyData->DestinationData && (ElementCount.X != ProxyData->NumCells.X || ElementCount.Y != ProxyData->NumCells.Y))
 		{
 			AddClearUAVPass(GraphBuilder, ProxyData->DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 		}

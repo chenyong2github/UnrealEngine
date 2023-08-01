@@ -1159,28 +1159,106 @@ FString FNiagaraUtilities::SystemInstanceIDToString(FNiagaraSystemInstanceID ID)
 	return FString(Buffer);
 }
 
-EPixelFormat FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat)
+TOptional<EPixelFormat> FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat, EPixelFormatCapabilities RequiredCapabilities, int NumberOfChannels)
+{
+	if (!ensure(NumberOfChannels >= 1 && NumberOfChannels <= 4))
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Invalid number of channels %d"), NumberOfChannels);
+		return TOptional<EPixelFormat>();
+	}
+
+	static_assert(int(ENiagaraGpuBufferFormat::Float) == 0);
+	static_assert(int(ENiagaraGpuBufferFormat::HalfFloat) == 1);
+	static_assert(int(ENiagaraGpuBufferFormat::UnsignedNormalizedByte) == 2);
+	static const EPixelFormat FormatTable[4][int(ENiagaraGpuBufferFormat::Max)] =
+	{
+		{EPixelFormat::PF_R32_FLOAT,		EPixelFormat::PF_R16F,		EPixelFormat::PF_R8},
+		{EPixelFormat::PF_G32R32F,			EPixelFormat::PF_G16R16F,	EPixelFormat::PF_R8G8},
+		{EPixelFormat::PF_A32B32G32R32F,	EPixelFormat::PF_FloatRGBA,	EPixelFormat::PF_R8G8B8A8},
+		{EPixelFormat::PF_A32B32G32R32F,	EPixelFormat::PF_FloatRGBA,	EPixelFormat::PF_R8G8B8A8},
+	};
+
+	static const TPair<EPixelFormat, EPixelFormat> FormatFallbacks[] =
+	{
+		TPairInitializer(EPixelFormat::PF_R8,			EPixelFormat::PF_R16F),
+		TPairInitializer(EPixelFormat::PF_R16F,			EPixelFormat::PF_R32_FLOAT),
+		TPairInitializer(EPixelFormat::PF_R32_FLOAT,	EPixelFormat::PF_G32R32F),
+
+		TPairInitializer(EPixelFormat::PF_R8G8,			EPixelFormat::PF_G16R16F),
+		TPairInitializer(EPixelFormat::PF_G16R16F,		EPixelFormat::PF_G32R32F),
+		TPairInitializer(EPixelFormat::PF_G32R32F,		EPixelFormat::PF_A32B32G32R32F),
+
+		TPairInitializer(EPixelFormat::PF_R8G8B8A8,		EPixelFormat::PF_FloatRGBA),
+		TPairInitializer(EPixelFormat::PF_FloatRGBA,	EPixelFormat::PF_A32B32G32R32F),
+	};
+
+	EPixelFormat CurrentFormat = FormatTable[NumberOfChannels - 1][int(NiagaraFormat)];
+	while (true)
+	{
+		if (UE::PixelFormat::HasCapabilities(CurrentFormat, RequiredCapabilities))
+		{
+			return CurrentFormat;
+		}
+
+		bool bKeepTrying = false;
+		for (const TPair<EPixelFormat, EPixelFormat>& Fallback : FormatFallbacks)
+		{
+			if (Fallback.Key == CurrentFormat)
+			{
+				CurrentFormat = Fallback.Value;
+				bKeepTrying = true;
+				break;
+			}
+		}
+		if (bKeepTrying == false)
+		{
+			break;
+		}
+	};
+
+	UE_LOG(LogNiagara, Error, TEXT("Could not find a valid EPixelFormat for NiagaraFormat(%d) Channels(%d) Caps(%08x)"), int(NiagaraFormat), NumberOfChannels, int(RequiredCapabilities));
+	return TOptional<EPixelFormat>();
+}
+
+TOptional<ETextureRenderTargetFormat> FNiagaraUtilities::BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat, EPixelFormatCapabilities RequiredCapabilities)
 {
 	switch (NiagaraFormat)
 	{
-		case ENiagaraGpuBufferFormat::Float:					return EPixelFormat::PF_R32_FLOAT;
-		case ENiagaraGpuBufferFormat::HalfFloat:				return EPixelFormat::PF_R16F;
-		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:	return EPixelFormat::PF_R8;
+		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:
+			if (UE::PixelFormat::HasCapabilities(EPixelFormat::PF_R8, RequiredCapabilities))
+			{
+				return ETextureRenderTargetFormat::RTF_R8;
+			}
+			// Intentional fall through to next format to try
+
+		case ENiagaraGpuBufferFormat::HalfFloat:
+			if (UE::PixelFormat::HasCapabilities(EPixelFormat::PF_R16F, RequiredCapabilities))
+			{
+				return ETextureRenderTargetFormat::RTF_R16f;
+			}
+			// Intentional fall through to next format to try
+
+		case ENiagaraGpuBufferFormat::Float:
+			if (UE::PixelFormat::HasCapabilities(EPixelFormat::PF_R32_FLOAT, RequiredCapabilities))
+			{
+				return ETextureRenderTargetFormat::RTF_R32f;
+			}
+			// Intentional fall through to failure
+
+		default:
+			UE_LOG(LogNiagara, Error, TEXT("Could not find a valid ETextureRenderTargetFormat for NiagaraFormat(%d) Caps(%08x)"), int(NiagaraFormat), int(RequiredCapabilities));
+			return TOptional<ETextureRenderTargetFormat>();
 	}
-	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), int(NiagaraFormat));
-	return EPixelFormat::PF_R32_FLOAT;
+}
+
+EPixelFormat FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat)
+{
+	return BufferFormatToPixelFormat(NiagaraFormat, EPixelFormatCapabilities::TypedUAVLoad | EPixelFormatCapabilities::TypedUAVStore).Get(EPixelFormat::PF_R32_FLOAT);
 }
 
 ETextureRenderTargetFormat FNiagaraUtilities::BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat)
 {
-	switch (NiagaraFormat)
-	{
-		case ENiagaraGpuBufferFormat::Float:					return ETextureRenderTargetFormat::RTF_R32f;
-		case ENiagaraGpuBufferFormat::HalfFloat:				return ETextureRenderTargetFormat::RTF_R16f;
-		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:	return ETextureRenderTargetFormat::RTF_R8;
-	}
-	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), int(NiagaraFormat));
-	return ETextureRenderTargetFormat::RTF_R32f;
+	return BufferFormatToRenderTargetFormat(NiagaraFormat, EPixelFormatCapabilities::TypedUAVLoad | EPixelFormatCapabilities::TypedUAVStore).Get(ETextureRenderTargetFormat::RTF_R32f);
 }
 
 FString FNiagaraUtilities::SanitizeNameForObjectsAndPackages(const FString& InName)

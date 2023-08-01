@@ -26,7 +26,7 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 	int32 TotalNumNamedAttributes = 0;
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
-	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+	TOptional<EPixelFormat> PixelFormat;
 	bool UseRGBATexture = false;
 #if WITH_EDITOR
 	bool bPreviewGrid = false;
@@ -64,7 +64,7 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	int32 TotalNumNamedAttributes = 0;
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
-	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+	TOptional<EPixelFormat> PixelFormat;
 	bool UseRGBATexture = false;
 
 	TArray<int32> AttributeIndices;

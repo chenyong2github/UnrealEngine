@@ -39,6 +39,7 @@ class UNiagaraParameterDefinitionsBase;
 struct FNiagaraParameterStore;
 enum class EPSCPoolMethod : uint8;
 enum ETextureRenderTargetFormat : int;
+enum class EPixelFormatCapabilities : uint32;
 
 namespace ERHIFeatureLevel { enum Type : int; }
 enum EShaderPlatform : uint16;
@@ -1518,15 +1519,26 @@ namespace FNiagaraUtilities
 
 	NIAGARA_API FString SystemInstanceIDToString(FNiagaraSystemInstanceID ID);
 
-	/** Converts a Niagara format into a EPixelFormat */
-	NIAGARA_API EPixelFormat BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+	/**
+	Converts a Niagara format into a EPixelFormat, will look for fallback options if the requested format can not be satisfied based on the RequiredCapabilities.
+	If the return value optional is invalid that means no format was found.
+	*/
+	NIAGARA_API TOptional<EPixelFormat> BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat, EPixelFormatCapabilities RequiredCapabilities, int NumberOfChannels = 1);
 
-	/** Converts a Niagara format into a ETextureRenderTargetFormat */
-	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+	/**
+	Converts a Niagara format into a ETextureRenderTargetFormat, will look for fallback options if the requested format can not be satisfied based on the RequiredCapabilities.
+	If the return value optional is invalid that means no format was found.
+	*/
+	NIAGARA_API TOptional<ETextureRenderTargetFormat> BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat, EPixelFormatCapabilities RequiredCapabilities);
 
 	NIAGARA_API FString SanitizeNameForObjectsAndPackages(const FString& InName);
 
 	NIAGARA_API FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const FNiagaraAliasContext& InContext);
+
+	UE_DEPRECATED(5.3, "Please update your code to include EPixelFormatCapabilities.")
+	NIAGARA_API EPixelFormat BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+	UE_DEPRECATED(5.3, "Please update your code to include EPixelFormatCapabilities.")
+	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
 };
 
 USTRUCT()

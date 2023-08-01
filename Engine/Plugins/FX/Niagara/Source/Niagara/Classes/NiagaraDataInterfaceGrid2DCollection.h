@@ -24,7 +24,7 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
-	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+	TOptional<EPixelFormat> PixelFormat;
 #if WITH_EDITORONLY_DATA
 	bool bPreviewGrid = false;
 	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
@@ -59,7 +59,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
-	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
+	TOptional<EPixelFormat> PixelFormat;
 
 	TArray<TUniquePtr<FGrid2DBuffer>, TInlineAllocator<2>> Buffers;
 	FGrid2DBuffer* CurrentData = nullptr;
