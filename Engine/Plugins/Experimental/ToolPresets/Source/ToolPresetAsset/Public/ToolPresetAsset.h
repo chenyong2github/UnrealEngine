@@ -105,6 +105,7 @@ public:
 		{
 			ensure(0 != (RF_Public & Flags));
 			Preset = NewObject<UInteractiveToolsPresetCollectionAsset>(InParent, Class, Name, Flags);
+			Preset->CollectionLabel = FText::FromName(Name);
 		}
 		return Preset;
 	}
