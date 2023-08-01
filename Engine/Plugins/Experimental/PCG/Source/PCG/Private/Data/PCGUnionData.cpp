@@ -218,43 +218,6 @@ bool UPCGUnionData::HasNonTrivialTransform() const
 	return (FirstNonTrivialTransformData != nullptr || Super::HasNonTrivialTransform());
 }
 
-const UPCGSpatialData* UPCGUnionData::FindShapeFromNetwork(const int InDimension) const
-{
-	if (InDimension >= 0)
-	{
-		// Return first candidate that matches Dimension
-		for (TObjectPtr<const UPCGSpatialData> Datum : Data)
-		{
-			const UPCGSpatialData* Candidate = Datum ? Datum->FindShapeFromNetwork(InDimension) : nullptr;
-			if (Candidate)
-			{
-				return Candidate;
-			}
-		}
-	}
-	else
-	{
-		// Return lowest Dimension candidate
-		const UPCGSpatialData* Result = nullptr;
-		int LowestDimension = MAX_uint32;
-
-		for (TObjectPtr<const UPCGSpatialData> Datum : Data)
-		{
-			const UPCGSpatialData* Candidate = Datum ? Datum->FindShapeFromNetwork(InDimension) : nullptr;
-
-			if (Candidate && Candidate->GetDimension() < LowestDimension)
-			{
-				LowestDimension = Candidate->GetDimension();
-				Result = Candidate;
-			}
-		}
-
-		return Result;
-	}
-
-	return nullptr;
-}
-
 const UPCGSpatialData* UPCGUnionData::FindFirstConcreteShapeFromNetwork() const
 {
 	// Return first concrete candidate data.

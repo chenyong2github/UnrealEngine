@@ -170,47 +170,6 @@ bool UPCGIntersectionData::HasNonTrivialTransform() const
 	return GetA()->HasNonTrivialTransform() || GetB()->HasNonTrivialTransform();
 }
 
-const UPCGSpatialData* UPCGIntersectionData::FindShapeFromNetwork(const int InDimension) const
-{
-	check(GetA() && GetB());
-
-	if (InDimension >= 0)
-	{
-		// Return first candidate that matches Dimension
-		if (const UPCGSpatialData* CandidateA = GetA()->FindShapeFromNetwork(InDimension))
-		{
-			return CandidateA;
-		}
-
-		if (const UPCGSpatialData* CandidateB = GetB()->FindShapeFromNetwork(InDimension))
-		{
-			return CandidateB;
-		}
-	}
-	else
-	{
-		// Return lowest Dimension candidate
-		const UPCGSpatialData* Result = nullptr;
-
-		int LowestDimension = MAX_uint32;
-		const UPCGSpatialData* LowestDimensionalShape = nullptr;
-
-		if (const UPCGSpatialData* CandidateA = GetA()->FindShapeFromNetwork(InDimension))
-		{
-			Result = CandidateA;
-			LowestDimension = CandidateA->GetDimension();
-		}
-
-		const UPCGSpatialData* CandidateB = GetB()->FindShapeFromNetwork(InDimension);
-		if (CandidateB && CandidateB->GetDimension() < LowestDimension)
-		{
-			Result = CandidateB;
-		}
-	}
-
-	return nullptr;
-}
-
 const UPCGSpatialData* UPCGIntersectionData::FindFirstConcreteShapeFromNetwork() const
 {
 	check(GetA() && GetB());
