@@ -16,6 +16,7 @@ namespace UE::Geometry
 	class FDynamicMesh3;
 	template<typename MeshType> class TMeshAABBTree3;
 	typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
+	class FMeshNormals;
 }
 
 
@@ -190,6 +191,9 @@ protected:
 
 	/** If the caller doesn't pass BVH for the source mesh then we compute one. */
 	TUniquePtr<FDynamicMeshAABBTree3> InternalSourceBVH;
+
+	/** If the source mesh doesn't have per-vertex normals then compute them */
+	TUniquePtr<FMeshNormals> InternalSourceMeshNormals;
 
 public:
 	
