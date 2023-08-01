@@ -145,6 +145,11 @@ void FHittestGrid::FCell::RemoveIndex(int32 WidgetIndex)
 	WidgetIndexes.RemoveSingleSwap(WidgetIndex);
 }
 
+void FHittestGrid::FCell::Reset()
+{
+	WidgetIndexes.Reset();
+}
+
 //
 // FHittestGrid
 //
@@ -270,7 +275,8 @@ void FHittestGrid::ClearInternal(int32 TotalCells)
 #if UE_SLATE_ENABLE_HITTEST_STATS
 	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_Clear);
 #endif
-	Cells.Reset(TotalCells);
+	for (FCell& Cell : Cells)
+		Cell.Reset();
 	Cells.SetNumZeroed(TotalCells);
 
 	WidgetMap.Reset();

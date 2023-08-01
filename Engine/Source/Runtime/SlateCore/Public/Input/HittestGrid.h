@@ -243,6 +243,7 @@ private:
 
 		void AddIndex(int32 WidgetIndex);
 		void RemoveIndex(int32 WidgetIndex);
+		void Reset();
 
 		const TArray<int32>& GetWidgetIndexes() const { return WidgetIndexes; }
 		
