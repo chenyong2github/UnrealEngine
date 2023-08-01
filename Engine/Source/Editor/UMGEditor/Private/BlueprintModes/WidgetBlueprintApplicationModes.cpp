@@ -8,7 +8,8 @@
 // Mode constants
 const FName FWidgetBlueprintApplicationModes::DesignerMode("DesignerName");
 const FName FWidgetBlueprintApplicationModes::GraphMode("GraphName");
-const FName FWidgetBlueprintApplicationModes::DebugMode("DebugName");
+const FName FWidgetBlueprintApplicationModes::DebugMode("PreviewName");
+const FName FWidgetBlueprintApplicationModes::PreviewMode("PreviewName");
 
 FText FWidgetBlueprintApplicationModes::GetLocalizedMode(const FName InMode)
 {
@@ -20,21 +21,21 @@ FText FWidgetBlueprintApplicationModes::GetLocalizedMode(const FName InMode)
 	{
 		return NSLOCTEXT("WidgetBlueprintModes", "GraphMode", "Graph");
 	}
-	else if (InMode == FWidgetBlueprintApplicationModes::DebugMode)
+	else if (InMode == FWidgetBlueprintApplicationModes::PreviewMode)
 	{
-		return NSLOCTEXT("WidgetBlueprintModes", "DebugMode", "Debug");
+		return NSLOCTEXT("WidgetBlueprintModes", "PreviewMode", "Preview");
 	}
 	return FText::GetEmpty();
 }
 
-static bool EnableDebugMode = false;
-static FAutoConsoleVariableRef CVarEnableDebugMode(
-	TEXT("UMG.EnableDebugMode"), 
-	EnableDebugMode, 
-	TEXT("Whether or not to enable the UMG Debug mode.")
+static bool bEnablePreviewMode = false;
+static FAutoConsoleVariableRef CVarEnablePreviewMode(
+	TEXT("UMG.EnablePreviewMode"), 
+	bEnablePreviewMode, 
+	TEXT("Whether or not to enable the UMG Preview mode.")
 );
 
-bool FWidgetBlueprintApplicationModes::IsDebugModeEnabled()
+bool FWidgetBlueprintApplicationModes::IsPreviewModeEnabled()
 {
-	return EnableDebugMode;
+	return bEnablePreviewMode;
 }

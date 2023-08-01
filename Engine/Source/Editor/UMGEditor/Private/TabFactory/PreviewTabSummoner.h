@@ -2,20 +2,25 @@
 
 #pragma once
 
-#include "WidgetBlueprintEditor.h"
-#include "Widgets/SWidget.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 
-struct FPreviewTabSummoner : public FWorkflowTabFactory
+class FWidgetBlueprintEditor;
+
+namespace UE::UMG::Editor
+{
+
+struct FWidgetPreviewTabSummoner : public FWorkflowTabFactory
 {
 public:
 	static const FName TabID;
 	
 public:
-	FPreviewTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
+	FWidgetPreviewTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 	
 protected:
 	TWeakPtr<FWidgetBlueprintEditor> BlueprintEditor;
 };
+
+} // namespace

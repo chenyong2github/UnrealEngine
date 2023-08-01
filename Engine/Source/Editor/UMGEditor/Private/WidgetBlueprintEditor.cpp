@@ -38,9 +38,9 @@
 #include "Blueprint/WidgetTree.h"
 #include "WidgetBlueprintEditorUtils.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
-#include "BlueprintModes/WidgetDebugApplicationMode.h"
 #include "BlueprintModes/WidgetDesignerApplicationMode.h"
 #include "BlueprintModes/WidgetGraphApplicationMode.h"
+#include "BlueprintModes/WidgetPreviewApplicationMode.h"
 #include "WidgetModeManager.h"
 
 #include "WidgetBlueprintEditorToolbar.h"
@@ -67,6 +67,7 @@
 #include "GameProjectGenerationModule.h"
 #include "Tools/ToolCompatible.h"
 
+#include "Preview/PreviewMode.h"
 #include "Palette/SPaletteViewModel.h"
 #include "Library/SLibraryViewModel.h"
 
@@ -546,7 +547,7 @@ void FWidgetBlueprintEditor::RegisterApplicationModes(const TArray<UBlueprint*>&
 {
 	//Super::RegisterApplicationModes(InBlueprints, bShouldOpenInDefaultsMode);
 
-	if ( InBlueprints.Num() == 1 )
+	if (InBlueprints.Num() == 1)
 	{
 		TSharedPtr<FWidgetBlueprintEditor> ThisPtr(SharedThis(this));
 
@@ -555,12 +556,13 @@ void FWidgetBlueprintEditor::RegisterApplicationModes(const TArray<UBlueprint*>&
 		TempModeList.Add(MakeShared<FWidgetDesignerApplicationMode>(ThisPtr));
 		TempModeList.Add(MakeShared<FWidgetGraphApplicationMode>(ThisPtr));
 
-		if (FWidgetBlueprintApplicationModes::IsDebugModeEnabled())
+		if (FWidgetBlueprintApplicationModes::IsPreviewModeEnabled())
 		{
-			TempModeList.Add(MakeShared<FWidgetDebugApplicationMode>(ThisPtr));
+			TempModeList.Add(MakeShared<UE::UMG::Editor::FWidgetPreviewApplicationMode>(ThisPtr));
+			PreviewMode = MakeShared<UE::UMG::Editor::FPreviewMode>();
 		}
 
-		for ( TSharedRef<FApplicationMode>& AppMode : TempModeList )
+		for (TSharedRef<FApplicationMode>& AppMode : TempModeList)
 		{
 			AddApplicationMode(AppMode->GetModeName(), AppMode);
 		}

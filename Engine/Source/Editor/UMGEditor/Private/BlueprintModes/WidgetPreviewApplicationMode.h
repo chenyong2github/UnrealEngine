@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "BlueprintModes/WidgetBlueprintApplicationMode.h"
 
-class FWidgetDebugApplicationMode : public FWidgetBlueprintApplicationMode
+namespace UE::UMG::Editor
+{
+
+class FWidgetPreviewApplicationMode : public FWidgetBlueprintApplicationMode
 {
 public:
-	FWidgetDebugApplicationMode(TSharedPtr<FWidgetBlueprintEditor> InWidgetEditor);
+	FWidgetPreviewApplicationMode(TSharedPtr<FWidgetBlueprintEditor> InWidgetEditor);
 
 	static bool IsDebugModeEnabled();
 
@@ -17,3 +20,5 @@ public:
 	virtual void PostActivateMode() override;
 	// End of FApplicationMode interface
 };
+
+} // namespace

@@ -120,20 +120,20 @@ void FWidgetBlueprintEditorToolbar::FillWidgetBlueprintEditorModesToolbar(FToolB
 		// Right side padding
 		BlueprintEditorPtr->AddToolbarWidget(SNew(SSpacer).Size(FVector2D(10.0f, 1.0f)));
 
-		if (FWidgetBlueprintApplicationModes::IsDebugModeEnabled())
+		if (FWidgetBlueprintApplicationModes::IsPreviewModeEnabled())
 		{
 			BlueprintEditorPtr->AddToolbarWidget(
-				SNew(SModeWidget, FWidgetBlueprintApplicationModes::GetLocalizedMode(FWidgetBlueprintApplicationModes::DebugMode), FWidgetBlueprintApplicationModes::DebugMode)
+				SNew(SModeWidget, FWidgetBlueprintApplicationModes::GetLocalizedMode(FWidgetBlueprintApplicationModes::PreviewMode), FWidgetBlueprintApplicationModes::PreviewMode)
 				.OnGetActiveMode(GetActiveMode)
 				.OnSetActiveMode(SetActiveMode)
 				.CanBeSelected(BlueprintEditorPtr.Get(), &FBlueprintEditor::IsEditingSingleBlueprint)
 				.ToolTip(IDocumentation::Get()->CreateToolTip(
-					LOCTEXT("DebugModeButtonTooltip", "Switch to Debugging Mode"),
+					LOCTEXT("PreviewModeButtonTooltip", "Switch to Preview Mode"),
 					nullptr,
 					TEXT("Shared/Editors/BlueprintEditor"),
 					TEXT("DebugMode")))
 				.IconImage(FAppStyle::GetBrush("BlueprintDebugger.TabIcon"))
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("DebugMode")))
+				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("PreviewMode")))
 			);
 		
 			// Right side padding

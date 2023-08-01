@@ -2,30 +2,30 @@
 
 #pragma once
 
-#include "UObject/ObjectPtr.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FWidgetBlueprintEditor;
 class UPlayer;
 class UUserWidget;
 
-namespace UE::UMG
+namespace UE::UMG::Editor
 {
 
-class SDebugPreview : public SCompoundWidget
+class SWidgetPreview : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SDebugPreview) {}
+	SLATE_BEGIN_ARGS(SWidgetPreview) {}
 	SLATE_END_ARGS()
 
-	~SDebugPreview();
+	~SWidgetPreview();
 
 	void Construct(const FArguments& Args, TSharedPtr<FWidgetBlueprintEditor> InWidgetBlueprintEditor);
 
 private:
 
-	TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor;
-	TObjectPtr<UUserWidget> CreatedWidget;
+	TWeakPtr<FWidgetBlueprintEditor> WeakEditor;
+	TStrongObjectPtr<UUserWidget> CreatedWidget;
 };
 
 } // namespace UE::UMG

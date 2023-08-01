@@ -2,14 +2,19 @@
 
 #include "TabFactory/PreviewTabSummoner.h"
 
-#include "Debug/SDebugPreview.h"
+#include "Preview/SWidgetPreview.h"
 #include "UMGStyle.h"
+#include "WidgetBlueprintEditor.h"
+#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
-const FName FPreviewTabSummoner::TabID("WidgetPreview");
+namespace UE::UMG::Editor
+{
 
-FPreviewTabSummoner::FPreviewTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
+const FName FWidgetPreviewTabSummoner::TabID("WidgetPreview");
+
+FWidgetPreviewTabSummoner::FWidgetPreviewTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
 		: FWorkflowTabFactory(TabID, InBlueprintEditor)
 		, BlueprintEditor(InBlueprintEditor)
 {
@@ -22,12 +27,12 @@ FPreviewTabSummoner::FPreviewTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBl
 	ViewMenuTooltip = LOCTEXT("DebugPreview_ViewMenu_ToolTip", "Show the Preview");
 }
 
-TSharedRef<SWidget> FPreviewTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
+TSharedRef<SWidget> FWidgetPreviewTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	TSharedPtr<FWidgetBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<FWidgetBlueprintEditor>(BlueprintEditor.Pin());
-
-	return SNew(UE::UMG::SDebugPreview, BlueprintEditorPtr)
+	return SNew(SWidgetPreview, BlueprintEditor.Pin())
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Preview")));
 }
+
+} // namespace
 
 #undef LOCTEXT_NAMESPACE 

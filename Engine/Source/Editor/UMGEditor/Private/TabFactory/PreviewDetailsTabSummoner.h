@@ -7,17 +7,21 @@
 class FWidgetBlueprintEditor;
 class SWidget;
 
-struct FDebugLogTabSummoner : public FWorkflowTabFactory
+namespace UE::UMG::Editor
+{
+
+struct FPreviewDetailsTabSummoner : public FWorkflowTabFactory
 {
 public:
 	static const FName TabID;
 	
 public:
-	FDebugLogTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor, FName InLogName);
+	FPreviewDetailsTabSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 
-private:
-
-	FName LogName;
+protected:
+	TWeakPtr<FWidgetBlueprintEditor> BlueprintEditor;
 };
+
+} //namespace

@@ -25,6 +25,7 @@ class UWidgetAnimation;
 class UWidgetBlueprint;
 class FPaletteViewModel;
 class FLibraryViewModel;
+namespace UE::UMG::Editor { class FPreviewMode; }
 
 struct FNamedSlotSelection
 {
@@ -256,6 +257,9 @@ public:
 	TSharedPtr<FLibraryViewModel> GetLibraryViewModel() { return LibraryViewModel; };
 
 	void CreateEditorModeManager() override;
+
+	/** Get the relative info for the Debug mode. */
+	TSharedPtr<UE::UMG::Editor::FPreviewMode> GetPreviewMode() const { return PreviewMode; }
 
 public:
 	/** Fires whenever a new widget is being hovered over */
@@ -531,6 +535,8 @@ private:
 
 	/** ViewModel used by the Library View */
 	TSharedPtr<FLibraryViewModel> LibraryViewModel;
+
+	TSharedPtr<UE::UMG::Editor::FPreviewMode> PreviewMode;
 
 	/** When true the sequencer selection is being updated from changes to the external selection. */
 	bool bUpdatingSequencerSelection;
