@@ -842,7 +842,7 @@ FReply SProjectBrowser::FindProjects()
 	const TArray<FString>& NativeProjectFiles = DefaultProjectDictionary.GetProjectPaths();
 	for(const FString& ProjectFile : NativeProjectFiles)
 	{
-		if (!ProjectFile.Contains(TEXT("/Templates/")))
+		if (!ProjectFile.Contains(TEXT("/Templates/")) && !ProjectFile.Contains(TEXT("/Programs/")))
 		{
 			AllFoundProjectFiles.Add(ProjectFile);
 		}
