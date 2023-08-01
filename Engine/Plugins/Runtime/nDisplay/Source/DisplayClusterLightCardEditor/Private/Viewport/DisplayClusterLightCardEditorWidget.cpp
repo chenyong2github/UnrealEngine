@@ -173,7 +173,10 @@ float FDisplayClusterLightCardEditorWidget::GetLengthScreenScalar(const FSceneVi
 	const float ResolutionScale = View->UnconstrainedViewRect.Size().X / (DPIScale * ReferenceResolution);
 
 	const float DistanceFromView = FMath::Max(FVector::Dist(Origin, View->ViewMatrices.GetViewOrigin()), 1.f);
-	const float ProjectionScale = bIsOrthographic ? 1.0 / View->ViewMatrices.GetScreenScale() : DistanceFromView / View->ViewMatrices.GetScreenScale();
+	const FMatrix& ProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
+	const float ProjectionScale = bIsOrthographic ? 
+		1.0 / (View->ViewMatrices.GetScreenScale() * FMath::Abs(ProjectionMatrix.M[0][0])) :
+		DistanceFromView / View->ViewMatrices.GetScreenScale();
 
 	const float FinalScalar = DPIScale * ResolutionScale * ProjectionScale;
 	return FinalScalar;
