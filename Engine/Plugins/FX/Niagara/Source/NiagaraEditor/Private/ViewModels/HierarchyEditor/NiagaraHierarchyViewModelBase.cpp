@@ -733,6 +733,16 @@ const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& FNiagaraHierarchyI
 	return FilteredChildren;
 }
 
+int32 FNiagaraHierarchyItemViewModelBase::GetHierarchyDepth() const
+{
+	if(Parent.IsValid())
+	{
+		return 1 + Parent.Pin()->GetHierarchyDepth();
+	}
+
+	return 0;
+}
+
 void FNiagaraHierarchyItemViewModelBase::AddChildFilter(FOnFilterChild InFilterChild)
 {
 	if(ensure(InFilterChild.IsBound()))
@@ -1483,6 +1493,15 @@ void FNiagaraHierarchyCategoryViewModel::OnDroppedOnInternal(TSharedPtr<FNiagara
 
 void UNiagaraHierarchyViewModelBase::AddCategory(TSharedPtr<FNiagaraHierarchyItemViewModelBase> CategoryParent) const
 {
+	int32 HierarchyDepth = CategoryParent->GetHierarchyDepth();
+	if(HierarchyDepth > 15)
+	{
+		FNotificationInfo Info(LOCTEXT("TooManyNestedCategoriesToastText", "We currently only allow a hierarchy depth of 15."));
+		Info.ExpireDuration = 4.f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return;
+	}
+	
 	TSharedPtr<FNiagaraHierarchyItemViewModelBase> ViewModel = CategoryParent->AddNewItem(UNiagaraHierarchyCategory::StaticClass());
 
 	if(ensure(ViewModel.IsValid()))

@@ -558,7 +558,9 @@ struct FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyIte
 	
 	template<class DataClass, class ViewModelChildClass>
 	void GetChildrenViewModelsForType(TArray<TSharedPtr<ViewModelChildClass>>& OutChildren, bool bRecursive = false);
-	
+
+	/** Returns the hierarchy depth via number of parents above. */
+	int32 GetHierarchyDepth() const;
 	NIAGARAEDITOR_API bool HasParent(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ParentCandidate, bool bRecursive = false);
 
 	NIAGARAEDITOR_API void AddChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
