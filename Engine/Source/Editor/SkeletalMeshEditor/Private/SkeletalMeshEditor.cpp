@@ -1374,6 +1374,10 @@ void FSkeletalMeshEditor::HandleMeshDetailsCreated(const TSharedRef<IDetailsView
 void FSkeletalMeshEditor::HandleViewportCreated(const TSharedRef<IPersonaViewport>& InViewport)
 {
 	Viewport = InViewport;
+	
+	// we need the viewport client to start out focused, or else it won't get ticked until we click inside it.
+	FEditorViewportClient& ViewportClient = InViewport->GetViewportClient(); 
+	ViewportClient.ReceivedFocus(ViewportClient.Viewport);
 }
 
 UObject* FSkeletalMeshEditor::HandleGetAsset()
