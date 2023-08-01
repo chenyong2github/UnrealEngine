@@ -190,6 +190,29 @@ namespace Metasound
 				Invalid
 			};
 
+			static FString LexToString(ETransactionType InTransactionType)
+			{
+				using namespace Metasound;
+
+				switch (InTransactionType)
+				{
+					case ETransactionType::NodeRegistration:
+						return FString(TEXT("NodeRegistration"));
+
+					case ETransactionType::NodeUnregistration:
+						return FString(TEXT("NodeUnregistration"));
+
+					case ETransactionType::Invalid:
+						return FString(TEXT("Invalid"));
+
+					default:
+					{
+						checkNoEntry();
+					}
+				}
+				return FString(TEXT(""));
+			}
+
 			UE_DEPRECATED("5.1", "This constructor is deprecated. Use a different constructor for FNodeREegistryTransaction")
 			FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo, FTimeType InTimestamp);
 			FNodeRegistryTransaction(ETransactionType InType, const FNodeClassInfo& InNodeClassInfo, FTimeType InTimestamp);

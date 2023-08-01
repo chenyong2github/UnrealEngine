@@ -1112,11 +1112,8 @@ namespace Metasound
 		{
 			if (const FFrontendQueryPartition* Partition = InSelection.Find(Key))
 			{
-				if (Partition->Num() > 0)
-				{
-					OutKeysModified.Add(Key);
-					OutSelection.FindOrAdd(Key) = *Partition;
-				}
+				OutKeysModified.Add(Key);
+				OutSelection.FindOrAdd(Key) = *Partition;
 			}
 		}
 	}
