@@ -63,6 +63,16 @@ public:
 	{
 	}
 
+	virtual bool IsPageStreamed(uint8 vLevel, uint32 vAddress) const override
+	{
+		uint64 X = FMath::ReverseMortonCode2_64(vAddress) + (AddressOffset.X >> (vLevel + LevelOffset));
+		uint64 Y = FMath::ReverseMortonCode2_64(vAddress >> 1) + (AddressOffset.Y >> (vLevel + LevelOffset));
+		vAddress = FMath::MortonCode2_64(X) | (FMath::MortonCode2_64(Y) << 1);
+		vLevel = (uint8)(FMath::Max((int32)vLevel + LevelOffset, 0));
+
+		return VirtualTexture->IsPageStreamed(vLevel, vAddress);
+	}
+
 	virtual FVTRequestPageResult RequestPageData(
 		FRHICommandList& RHICmdList,
 		const FVirtualTextureProducerHandle& ProducerHandle,

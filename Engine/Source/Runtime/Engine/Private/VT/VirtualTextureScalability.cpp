@@ -29,6 +29,15 @@ namespace VirtualTextureScalability
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+	static TAutoConsoleVariable<int32> CVarVTMaxUploadsPerFrameStreaming(
+		TEXT("r.VT.MaxUploadsPerFrame.Streaming"),
+		0,
+		TEXT("If positive, max number of page uploads per frame in game for streaming VT. Negative means no limit.\n")
+		TEXT("If zero, SVTs won't be budgeted separately. They will be limited by r.VT.MaxUploadsPerFrame along with other types of VTs. This is the old behavior.\n")
+		TEXT("This limit should be high if streaming pages is slow so that I/O requests are not throttled which can cause long delays to acquire page data."),
+		ECVF_RenderThreadSafe | ECVF_Scalability
+	);
+
 	static TAutoConsoleVariable<int32> CVarMaxPagesProducedPerFrame(
 		TEXT("r.VT.MaxTilesProducedPerFrame"),
 		30,
@@ -238,6 +247,22 @@ namespace VirtualTextureScalability
 		return GIsEditor ? CVarVTMaxUploadsPerFrameInEditor.GetValueOnAnyThread() : CVarVTMaxUploadsPerFrame.GetValueOnAnyThread();
 #else
 		return CVarVTMaxUploadsPerFrame.GetValueOnAnyThread();
+#endif
+	}
+
+	int32 GetMaxUploadsPerFrameForStreamingVT()
+	{
+		int32 Budget = CVarVTMaxUploadsPerFrameStreaming.GetValueOnAnyThread();
+
+		if (Budget < 0)
+		{
+			Budget = MAX_int32;
+		}
+#if WITH_EDITOR
+		// Don't want this scalability setting to affect editor because we rely on reactive updates while editing.
+		return GIsEditor ? CVarVTMaxUploadsPerFrameInEditor.GetValueOnAnyThread() : Budget;
+#else
+		return Budget;
 #endif
 	}
 

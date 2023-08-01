@@ -175,7 +175,8 @@ FVirtualTextureUpdateSettings::FVirtualTextureUpdateSettings()
 	NumFeedbackTasks = CVarVTNumFeedbackTasks.GetValueOnRenderThread();
 	NumGatherTasks = CVarVTNumGatherTasks.GetValueOnRenderThread();
 	MaxGatherPagesBeforeFlush = CVarVTPageUpdateFlushCount.GetValueOnRenderThread();
-	MaxPageUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
+	MaxRVTPageUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
+	MaxSVTPageUploads = VirtualTextureScalability::GetMaxUploadsPerFrameForStreamingVT();
 	MaxPagesProduced = VirtualTextureScalability::GetMaxPagesProducedPerFrame();
 	MaxContinuousUpdates = VirtualTextureScalability::GetMaxContinuousUpdatesPerFrame();
 }
@@ -1808,7 +1809,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 						}
 					}
 
-					const uint16 LoadRequestIndex = RequestList->AddLoadRequest(FVirtualTextureLocalTile(ProducerHandle, PrefetchLocal_vAddress, PrefetchLocal_vLevel), ProducerPhysicalGroupMaskToPrefetch, PageCount);
+					const bool bStreamingRequest = Producer->GetVirtualTexture()->IsPageStreamed(PrefetchLocal_vLevel, PrefetchLocal_vAddress);
+					const uint16 LoadRequestIndex = RequestList->AddLoadRequest(FVirtualTextureLocalTile(ProducerHandle, PrefetchLocal_vAddress, PrefetchLocal_vLevel), ProducerPhysicalGroupMaskToPrefetch, PageCount, bStreamingRequest);
 					if (LoadRequestIndex != 0xffff)
 					{
 						const uint32 PrefetchMapping_vLevel = PrefetchLocal_vLevel + ProducerMipBias;
@@ -1832,7 +1834,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 			if (GroupMaskToLoad != 0u)
 			{
-				const uint16 LoadRequestIndex = RequestList->AddLoadRequest(FVirtualTextureLocalTile(ProducerHandle, Local_vAddress, Local_vLevel), GroupMaskToLoad, PageCount);
+				const bool bStreamingRequest = Producer->GetVirtualTexture()->IsPageStreamed(Local_vLevel, Local_vAddress);
+				const uint16 LoadRequestIndex = RequestList->AddLoadRequest(FVirtualTextureLocalTile(ProducerHandle, Local_vAddress, Local_vLevel), GroupMaskToLoad, PageCount, bStreamingRequest);
 				if (LoadRequestIndex != 0xffff)
 				{
 					for (uint32 LoadLayerIndex = 0u; LoadLayerIndex < NumPageTableLayersToLoad; ++LoadLayerIndex)
@@ -2035,28 +2038,32 @@ void FVirtualTextureSystem::SubmitThrottledRequests(FRHICommandList& RHICmdList,
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_Sort);
 
-		// Limit the number of uploads (account for MappedTilesToProduce this frame)
-		// Are all pages equal? Should there be different limits on different types of pages?
-		const int32 MaxNumUploads = Settings.MaxPageUploads;
-		const int32 MaxRequestUploads = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num() - (int32)Updater->NumProcessedLoadRequests, 1);
+		// Limit the number of uploads (account for MappedTilesToProduce this frame but only for RVTs since SVT pages will take a while to load and likely won't be produced this frame).
+		// Use a separate budget for SVTs since we may want more of them to go through so that I/O can be initiated as early as possible
+		const int32 MaxNonStreamingLoadRequests = FMath::Max(Settings.MaxRVTPageUploads - MappedTilesToProduce.Num(), 1);
+		const int32 MaxStreamingLoadRequests = Settings.MaxSVTPageUploads;
+		check(MaxStreamingLoadRequests >= 0);
+		// 0 is a special value that enables the old behavior where all pages are limited by a single budget
+		const bool bUseCombinedLimit = !MaxStreamingLoadRequests;
+		const uint32 OldNumLoadRequests = MergedRequestList->GetNumLoadRequests();
 
-		if (MaxRequestUploads < (int32)MergedRequestList->GetNumLoadRequests())
+		MergedRequestList->SortRequests(Producers, Allocator, MaxNonStreamingLoadRequests, MaxStreamingLoadRequests, bUseCombinedLimit);
+
+		if (MergedRequestList->GetNumLoadRequests() < OldNumLoadRequests)
 		{
 			// Dropping requests is normal but track to log here if we want to tune settings.
 			if (CVarVTVerbose.GetValueOnRenderThread())
 			{
-				UE_LOG(LogConsoleResponse, Display, TEXT("VT dropped %d load requests."), MergedRequestList->GetNumLoadRequests() - MaxRequestUploads);
+				UE_LOG(LogConsoleResponse, Display, TEXT("VT dropped %d load requests."), MergedRequestList->GetNumLoadRequests() - OldNumLoadRequests);
 			}
 		}
-
-		MergedRequestList->SortRequests(Producers, Allocator, MaxRequestUploads);
 	}
 
 	if (bContinousUpdates)
 	{
-		// After sorting and clamping the load requests, if we still have unused upload bandwidth then use it to add some continous updates
-		const int32 MaxNumUploads = Settings.MaxPageUploads;
-		const int32 MaxTilesToProduce = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num() - (int32)MergedRequestList->GetNumLoadRequests() - (int32)Updater->NumProcessedLoadRequests, 0);
+		// After sorting and clamping the load requests, if we still have unused upload bandwidth then use it to add some continuous updates.
+		// Not taking SVT requests into account since they take a while to load and likely won't be produced this frame
+		const int32 MaxTilesToProduce = FMath::Max(Settings.MaxRVTPageUploads - MappedTilesToProduce.Num() - (int32)MergedRequestList->GetNumNonStreamingLoadRequests(), 0);
 		const int32 MaxContinuousUpdates = Settings.MaxContinuousUpdates;
 
 		GetContinuousUpdatesToProduce(MergedRequestList, MaxTilesToProduce, MaxContinuousUpdates);
@@ -2580,7 +2587,8 @@ void FVirtualTextureSystem::GatherLockedTileRequests(FUniqueRequestList* MergedR
 
 			if (ProducerLayerMaskToLoad != 0u)
 			{
-				const uint16 LoadRequestIndex = MergedRequestList->LockLoadRequest(FVirtualTextureLocalTile(Tile.GetProducerHandle(), Tile.Local_vAddress, Tile.Local_vLevel), ProducerLayerMaskToLoad);
+				const bool bStreamingRequest = Producer->GetVirtualTexture()->IsPageStreamed(Tile.Local_vLevel, Tile.Local_vAddress);
+				const uint16 LoadRequestIndex = MergedRequestList->LockLoadRequest(FVirtualTextureLocalTile(Tile.GetProducerHandle(), Tile.Local_vAddress, Tile.Local_vLevel), ProducerLayerMaskToLoad, bStreamingRequest);
 				if (LoadRequestIndex == 0xffff)
 				{
 					// Overflowed the request list...try to lock the tile again next frame

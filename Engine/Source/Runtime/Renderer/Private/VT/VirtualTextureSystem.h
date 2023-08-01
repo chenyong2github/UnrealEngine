@@ -43,7 +43,8 @@ struct FVirtualTextureUpdateSettings
 	{
 		if (!bEnable)
 		{
-			MaxPageUploads = 99999;
+			MaxRVTPageUploads = 99999;
+			MaxSVTPageUploads = 99999;
 			MaxPagesProduced = 99999;
 		}
 		return *this;
@@ -72,7 +73,8 @@ struct FVirtualTextureUpdateSettings
 	int32 NumFeedbackTasks;
 	int32 NumGatherTasks;
 	int32 MaxGatherPagesBeforeFlush;
-	int32 MaxPageUploads;
+	int32 MaxRVTPageUploads;
+	int32 MaxSVTPageUploads;
 	int32 MaxPagesProduced;
 	int32 MaxContinuousUpdates;
 };

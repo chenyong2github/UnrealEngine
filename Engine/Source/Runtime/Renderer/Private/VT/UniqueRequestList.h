@@ -74,8 +74,10 @@ public:
 		, AdaptiveAllocationsRequests(Allocator.MallocArray<uint32>(LoadRequestCapacity))
 		, LoadRequestCount(Allocator.MallocArray<uint16>(LoadRequestCapacity))
 		, LoadRequestGroupMask(Allocator.MallocArray<uint8>(LoadRequestCapacity))
+		, LoadRequestFlags(Allocator.MallocArray<FLoadRequestFlags>(LoadRequestCapacity))
 		, NumLoadRequests(0u)
 		, NumLockRequests(0u)
+		, NumNonStreamingLoadRequests(0u)
 		, NumMappingRequests(0u)
 		, NumDirectMappingRequests(0u)
 		, NumContinuousUpdateRequests(0u)
@@ -98,6 +100,7 @@ public:
 		DirectMappingRequestHash.Clear();
 		NumLoadRequests = 0;
 		NumLockRequests = 0;
+		NumNonStreamingLoadRequests = 0;
 		NumMappingRequests = 0;
 		NumDirectMappingRequests = 0;
 		NumAdaptiveAllocationRequests = 0;
@@ -110,6 +113,7 @@ public:
 	}
 
 	inline uint32 GetNumLoadRequests() const { return NumLoadRequests; }
+	inline uint32 GetNumNonStreamingLoadRequests() const { return NumNonStreamingLoadRequests; }
 	inline uint32 GetNumMappingRequests() const { return NumMappingRequests; }
 	inline uint32 GetNumDirectMappingRequests() const { return NumDirectMappingRequests; }
 	inline uint32 GetNumContinuousUpdateRequests() const { return NumContinuousUpdateRequests; }
@@ -124,8 +128,8 @@ public:
 	inline uint8 GetGroupMask(uint32 i) const { checkSlow(i < NumLoadRequests); return LoadRequestGroupMask[i]; }
 	inline bool IsLocked(uint32 i) const { checkSlow(i < NumLoadRequests); return i < NumLockRequests; }
 
-	uint16 AddLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask, uint16 Count);
-	uint16 LockLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask);
+	uint16 AddLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask, uint16 Count, bool bStreamingRequest);
+	uint16 LockLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask, bool bStreamingRequest);
 
 	void AddMappingRequest(uint16 LoadRequestIndex, uint8 ProducerPhysicalGroupIndex, uint8 SpaceID, uint8 PageTableLayerIndex, uint32 MaxLevel, uint32 vAddress, uint8 vLevel, uint8 Local_vLevel);
 
@@ -138,7 +142,7 @@ public:
 
 	void MergeRequests(const FUniqueRequestList* RESTRICT Other, FConcurrentLinearBulkObjectAllocator& Allocator);
 
-	void SortRequests(FVirtualTextureProducerCollection& Producers, FConcurrentLinearBulkObjectAllocator& Allocator, uint32 MaxNumRequests);
+	void SortRequests(FVirtualTextureProducerCollection& Producers, FConcurrentLinearBulkObjectAllocator& Allocator, uint32 MaxNonStreamingLoadRequests, uint32 MaxStreamingLoadRequests, bool bUseCombinedLimit);
 
 private:
 	static const uint32 LoadRequestCapacity = 4u * 1024;
@@ -161,8 +165,22 @@ private:
 	uint16* LoadRequestCount;
 	uint8* LoadRequestGroupMask;
 
+	struct FLoadRequestFlags
+	{
+		uint8 bLocked : 1;
+		uint8 bStreaming : 1;
+		uint8 Padding : 6;
+
+		FLoadRequestFlags(bool bInLocked, bool bInStreaming)
+			: bLocked(bInLocked)
+			, bStreaming(bInStreaming)
+		{}
+	};
+	FLoadRequestFlags* LoadRequestFlags;
+
 	uint32 NumLoadRequests;
 	uint32 NumLockRequests;
+	uint32 NumNonStreamingLoadRequests;
 	uint32 NumMappingRequests;
 	uint32 NumDirectMappingRequests;
 	uint32 NumContinuousUpdateRequests;
@@ -170,7 +188,7 @@ private:
 };
 
 
-inline uint16 FUniqueRequestList::AddLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask, uint16 Count)
+inline uint16 FUniqueRequestList::AddLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask, uint16 Count, bool bStreamingRequest)
 {
 	const uint16 Hash = MurmurFinalize64(Tile.PackedValue);
 	check(GroupMask != 0u);
@@ -179,12 +197,9 @@ inline uint16 FUniqueRequestList::AddLoadRequest(const FVirtualTextureLocalTile&
 	{
 		if (Tile == LoadRequests[Index])
 		{
-			const uint32 PrevCount = LoadRequestCount[Index];
-			if (PrevCount != 0xffff)
-			{
-				// Don't adjust count if already locked, don't allow request to transition to lock
-				LoadRequestCount[Index] = FMath::Min<uint32>(PrevCount + Count, 0xfffe);
-			}
+			check(LoadRequestFlags[Index].bStreaming == bStreamingRequest);
+
+			LoadRequestCount[Index] = FMath::Min<uint32>((uint32)LoadRequestCount[Index] + Count, MAX_uint16);
 			LoadRequestGroupMask[Index] |= GroupMask;
 			return Index;
 		}
@@ -195,14 +210,15 @@ inline uint16 FUniqueRequestList::AddLoadRequest(const FVirtualTextureLocalTile&
 		const uint32 Index = NumLoadRequests++;
 		LoadRequestHash.Add(Hash, Index);
 		LoadRequests[Index] = Tile;
-		LoadRequestCount[Index] = FMath::Min<uint32>(Count, 0xfffe);
+		LoadRequestCount[Index] = Count;
 		LoadRequestGroupMask[Index] = GroupMask;
+		LoadRequestFlags[Index] = FLoadRequestFlags(false, bStreamingRequest);
 		return Index;
 	}
 	return 0xffff;
 }
 
-inline uint16 FUniqueRequestList::LockLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask)
+inline uint16 FUniqueRequestList::LockLoadRequest(const FVirtualTextureLocalTile& Tile, uint8 GroupMask, bool bStreamingRequest)
 {
 	const uint16 Hash = MurmurFinalize64(Tile.PackedValue);
 	check(GroupMask != 0u);
@@ -211,9 +227,13 @@ inline uint16 FUniqueRequestList::LockLoadRequest(const FVirtualTextureLocalTile
 	{
 		if (Tile == LoadRequests[Index])
 		{
-			if (LoadRequestCount[Index] != 0xffff)
+			FLoadRequestFlags& Flags = LoadRequestFlags[Index];
+			check(bStreamingRequest == Flags.bStreaming);
+
+			if (!Flags.bLocked)
 			{
-				LoadRequestCount[Index] = 0xffff;
+				Flags.bLocked = true;
+				LoadRequestCount[Index] = MAX_uint16;
 				++NumLockRequests;
 			}
 			LoadRequestGroupMask[Index] |= GroupMask;
@@ -226,8 +246,9 @@ inline uint16 FUniqueRequestList::LockLoadRequest(const FVirtualTextureLocalTile
 		const uint32 Index = NumLoadRequests++;
 		LoadRequestHash.Add(Hash, Index);
 		LoadRequests[Index] = Tile;
-		LoadRequestCount[Index] = 0xffff;
+		LoadRequestCount[Index] = MAX_uint16;
 		LoadRequestGroupMask[Index] = GroupMask;
+		LoadRequestFlags[Index] = FLoadRequestFlags(true, bStreamingRequest);
 		++NumLockRequests;
 		return Index;
 	}
@@ -317,11 +338,11 @@ inline void FUniqueRequestList::MergeRequests(const FUniqueRequestList* RESTRICT
 	{
 		if (Other->IsLocked(Index))
 		{
-			LoadRequestIndexRemap[Index] = LockLoadRequest(Other->GetLoadRequest(Index), Other->LoadRequestGroupMask[Index]);
+			LoadRequestIndexRemap[Index] = LockLoadRequest(Other->GetLoadRequest(Index), Other->LoadRequestGroupMask[Index], Other->LoadRequestFlags[Index].bStreaming);
 		}
 		else
 		{
-			LoadRequestIndexRemap[Index] = AddLoadRequest(Other->GetLoadRequest(Index), Other->LoadRequestGroupMask[Index], Other->LoadRequestCount[Index]);
+			LoadRequestIndexRemap[Index] = AddLoadRequest(Other->GetLoadRequest(Index), Other->LoadRequestGroupMask[Index], Other->LoadRequestCount[Index], Other->LoadRequestFlags[Index].bStreaming);
 		}
 	}
 
@@ -352,7 +373,7 @@ inline void FUniqueRequestList::MergeRequests(const FUniqueRequestList* RESTRICT
 	}
 }
 
-inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& Producers, FConcurrentLinearBulkObjectAllocator& Allocator, uint32 MaxNumRequests)
+inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& Producers, FConcurrentLinearBulkObjectAllocator& Allocator, uint32 MaxNonStreamingLoadRequests, uint32 MaxStreamingLoadRequests, bool bUseCombinedLimit)
 {
 	struct FPriorityAndIndex
 	{
@@ -360,53 +381,103 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 		uint16 Index;
 
 		// sort from largest to smallest
-		inline bool operator<(const FPriorityAndIndex& Rhs) const{ return Priroity > Rhs.Priroity; }
+		inline bool operator<(const FPriorityAndIndex& Rhs) const { return Priroity > Rhs.Priroity; }
 	};
+
+	if (bUseCombinedLimit)
+	{
+		MaxNonStreamingLoadRequests += MaxStreamingLoadRequests;
+		MaxStreamingLoadRequests = 0;
+	}
 
 	// Compute priority of each load request
 	uint32 CheckNumLockRequests = 0u;
+	uint32 NumNonStreamingLockRequests = 0u;
+	uint32 NumStreamingNonLockRequests = 0u;
 	FPriorityAndIndex* SortedKeys = Allocator.CreateArray<FPriorityAndIndex>(NumLoadRequests);
+
 	for (uint32 i = 0u; i < NumLoadRequests; ++i)
 	{
 		const uint32 Count = LoadRequestCount[i];
+		const FLoadRequestFlags Flags = LoadRequestFlags[i];
+
+		// Try to load higher mips first
+		const FVirtualTextureLocalTile& TileToLoad = GetLoadRequest(i);
+		const uint32 Priority = (Count * (1u + TileToLoad.Local_vLevel)) & 0x0fffffff;
+
 		SortedKeys[i].Index = i;
-		if (Count == 0xffff)
+		if (Flags.bLocked)
 		{
 			// Lock request, use max priority
-			SortedKeys[i].Priroity = 0xffffffff;
+			SortedKeys[i].Priroity = MAX_uint32;
+			NumNonStreamingLockRequests += (bUseCombinedLimit || !Flags.bStreaming ? 1 : 0);
 			++CheckNumLockRequests;
+		}
+		else if (bUseCombinedLimit || !Flags.bStreaming)
+		{
+			SortedKeys[i].Priroity = 0xd | Priority;
 		}
 		else
 		{
-			// Try to load higher mips first
-			const FVirtualTextureLocalTile& TileToLoad = GetLoadRequest(i);
-			const uint32 Priority = Count * (1u + TileToLoad.Local_vLevel);
-			SortedKeys[i].Priroity = Priority;
+			SortedKeys[i].Priroity = 0xe | Priority;
+			++NumStreamingNonLockRequests;
 		}
 	}
 	checkSlow(CheckNumLockRequests == NumLockRequests);
 
 	// Sort so highest priority requests are at the front of the list
+	// [ Lock requests | streaming non-lock requests | non-streaming non-lock requests ]
 	Algo::Sort(MakeArrayView(SortedKeys, NumLoadRequests));
 
 	// Clamp number of load requests to maximum, but also ensure all lock requests are considered
-	const uint32 NewNumLoadRequests = FMath::Min(NumLoadRequests, FMath::Max(NumLockRequests, MaxNumRequests));
+	const uint32 NumStreamingLockRequests = NumLockRequests - NumNonStreamingLockRequests;
+	const uint32 NumStreamingRequests = NumStreamingNonLockRequests + NumStreamingLockRequests;
+	const uint32 NumNonStreamingRequests = NumLoadRequests - NumStreamingRequests;
+
+	const uint32 NewNumNonStreamingRequests = FMath::Min(NumNonStreamingRequests, FMath::Max(NumNonStreamingLockRequests, MaxNonStreamingLoadRequests));
+	const uint32 NewNumStreamingRequests = FMath::Min(NumStreamingRequests, FMath::Max(NumStreamingLockRequests, MaxStreamingLoadRequests));
+	const uint32 NewNumLoadRequests = NewNumNonStreamingRequests + NewNumStreamingRequests;
 
 	// Re-index load request list, using sorted indices
 	FVirtualTextureLocalTile* SortedLoadRequests = Allocator.CreateArray<FVirtualTextureLocalTile>(NewNumLoadRequests);
 	uint8* SortedGroupMask = Allocator.MallocArray<uint8>(NewNumLoadRequests);
+	FLoadRequestFlags* SortedFlags = Allocator.MallocArray<FLoadRequestFlags>(NewNumLoadRequests);
 	uint16* LoadIndexToSortedLoadIndex = Allocator.MallocArray<uint16>(NumLoadRequests);
 	FMemory::Memset(LoadIndexToSortedLoadIndex, 0xff, NumLoadRequests * sizeof(uint16));
-	for (uint32 i = 0u; i < NewNumLoadRequests; ++i)
+
+	uint32 WriteIndex = 0;
+	auto CopyRequestToSorted = [this, &WriteIndex, SortedKeys, SortedLoadRequests, SortedGroupMask, SortedFlags, LoadIndexToSortedLoadIndex](uint32 SortedIndex)
 	{
-		const uint32 SortedIndex = SortedKeys[i].Index;
-		SortedLoadRequests[i] = LoadRequests[SortedIndex];
-		SortedGroupMask[i] = LoadRequestGroupMask[SortedIndex];
-		checkSlow(SortedIndex < NumLoadRequests);
-		LoadIndexToSortedLoadIndex[SortedIndex] = i;
+		const uint32 OldIndex = SortedKeys[SortedIndex].Index;
+		checkSlow(OldIndex < NumLoadRequests);
+
+		SortedLoadRequests[WriteIndex] = LoadRequests[OldIndex];
+		SortedGroupMask[WriteIndex] = LoadRequestGroupMask[OldIndex];
+		SortedFlags[WriteIndex] = LoadRequestFlags[OldIndex];
+		LoadIndexToSortedLoadIndex[OldIndex] = WriteIndex;
+
+		++WriteIndex;
+	};
+
+	for (uint32 i = 0u; i < NumLockRequests; ++i)
+	{
+		CopyRequestToSorted(i);
 	}
-	FMemory::Memcpy(LoadRequests, SortedLoadRequests, sizeof(FVirtualTextureLocalTile) * NewNumLoadRequests);
-	FMemory::Memcpy(LoadRequestGroupMask, SortedGroupMask, sizeof(uint8) * NewNumLoadRequests);
+
+	for (uint32 i = 0u; i < NewNumStreamingRequests - NumStreamingLockRequests; ++i)
+	{
+		CopyRequestToSorted(NumLockRequests + i);
+	}
+
+	for (uint32 i = 0u; i < NewNumNonStreamingRequests - NumNonStreamingLockRequests; ++i)
+	{
+		CopyRequestToSorted(NumLockRequests + NumStreamingNonLockRequests + i);
+	}
+	
+	check(NewNumLoadRequests == WriteIndex);
+	LoadRequests = SortedLoadRequests;
+	LoadRequestGroupMask = SortedGroupMask;
+	LoadRequestFlags = SortedFlags;
 
 	// Remap LoadRequest indices for all the mapping requests
 	// Can discard any mapping request that refers to a LoadRequest that's no longer being performed this frame
@@ -425,5 +496,7 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 	}
 
 	NumLoadRequests = NewNumLoadRequests;
+	NumNonStreamingLoadRequests = NewNumNonStreamingRequests;
+	check(!bUseCombinedLimit || NumLoadRequests == NumNonStreamingLoadRequests);
 	NumMappingRequests = NewNumMappingRequests;
 }

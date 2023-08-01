@@ -14,6 +14,13 @@ FVirtualTextureLevelRedirector::~FVirtualTextureLevelRedirector()
 	delete VirtualTextures[1];
 }
 
+bool FVirtualTextureLevelRedirector::IsPageStreamed(uint8 vLevel, uint32 vAddress) const
+{
+	const int32 VirtualTextureIndex = vLevel < TransitionLevel ? 0 : 1;
+	const int32 vLevelOffset = vLevel < TransitionLevel ? 0 : TransitionLevel;
+	return VirtualTextures[VirtualTextureIndex]->IsPageStreamed(vLevel - vLevelOffset, vAddress);
+}
+
 FVTRequestPageResult FVirtualTextureLevelRedirector::RequestPageData(
 	FRHICommandList& RHICmdList,
 	const FVirtualTextureProducerHandle& ProducerHandle,

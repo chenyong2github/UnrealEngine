@@ -8,6 +8,8 @@ namespace VirtualTextureScalability
 {
 	/** Get max upload rate to virtual textures. */
 	ENGINE_API int32 GetMaxUploadsPerFrame();
+	/** Get max upload rate to streaming virtual textures. May return 0 which means SVTs aren't budgeted separately. */
+	ENGINE_API int32 GetMaxUploadsPerFrameForStreamingVT();
 	/** Get max produce rate to virtual textures. */
 	ENGINE_API int32 GetMaxPagesProducedPerFrame();
 	/** Get max update rate of already mapped virtual texture pages. */

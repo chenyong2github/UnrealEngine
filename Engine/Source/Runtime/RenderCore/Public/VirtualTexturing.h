@@ -285,6 +285,11 @@ public:
 	virtual uint32 GetLocalMipBias(uint8 vLevel, uint32 vAddress) const { return 0u; }
 
 	/**
+	 * Whether data for the given page is streamed (e.g. loading from disk).
+	 */
+	virtual bool IsPageStreamed(uint8 vLevel, uint32 vAddress) const = 0;
+
+	/**
 	* Makes a request for the given page data.
 	* For data sources that can generate data immediately, it's reasonable for this method to do nothing, and simply return 'Available'
 	* Only called from render thread

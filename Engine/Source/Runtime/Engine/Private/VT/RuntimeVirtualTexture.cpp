@@ -40,6 +40,11 @@ namespace
 		}
 
 		//~ Begin IVirtualTexture Interface.
+		virtual bool IsPageStreamed(uint8 vLevel, uint32 vAddress) const override
+		{
+			return false;
+		}
+
 		virtual FVTRequestPageResult RequestPageData(
 			FRHICommandList& RHICmdList,
 			const FVirtualTextureProducerHandle& ProducerHandle,

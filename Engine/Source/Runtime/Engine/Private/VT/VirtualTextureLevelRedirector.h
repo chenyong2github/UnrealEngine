@@ -16,6 +16,8 @@ public:
 	virtual ~FVirtualTextureLevelRedirector();
 
 	//~ Begin IVirtualTexture Interface.
+	virtual bool IsPageStreamed(uint8 vLevel, uint32 vAddress) const override;
+
 	virtual FVTRequestPageResult RequestPageData(
 		FRHICommandList& RHICmdList,
 		const FVirtualTextureProducerHandle& ProducerHandle,
