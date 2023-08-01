@@ -2678,6 +2678,7 @@ void FHttpCacheStore::GetChunks(
 				{
 					FRequestStats& RequestStats = Op->EditStats();
 					RequestStats.Type = ERequestType::Record;
+					RequestStats.Bucket = Request.Key.Bucket;
 					RequestStats.Op = ERequestOp::GetChunk;
 					Op->RecordStats(OpStatus);
 					TRACE_COUNTER_ADD(HttpDDC_BytesReceived, Op->ReadStats().PhysicalReadSize);
