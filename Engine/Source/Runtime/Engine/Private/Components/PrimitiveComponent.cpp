@@ -1894,7 +1894,16 @@ void UPrimitiveComponent::SetSelectionOutlineColorIndex(uint8 InSelectionOutline
 		SceneProxy->SetSelectionOutlineColorIndex_GameThread(InSelectionOutlineColorIndex);
 	}
 }
+
 #endif// WITH_EDITOR
+
+void UPrimitiveComponent::ResetSceneVelocity()
+{
+	if (SceneProxy)
+	{
+		SceneProxy->ResetSceneVelocity_GameThread();
+	}
+}
 
 void UPrimitiveComponent::PushHoveredToProxy(const bool bInHovered)
 {

@@ -599,6 +599,11 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			{
 				SceneComponent->SetVisibility(true, true);
 				SceneComponent->Activate(false);
+				if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SceneComponent))
+				{
+					// prevent motion blur when reusing components
+					PrimitiveComponent->ResetSceneVelocity();
+				}
 			}
 		}
 

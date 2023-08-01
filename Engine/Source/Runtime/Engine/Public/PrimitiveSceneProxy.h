@@ -241,6 +241,9 @@ public:
 	void SetSelectionOutlineColorIndex_GameThread(uint8 ColorIndex);
 #endif	// WITH_EDITOR
 
+	/** Enqueue and update for the render thread to remove the velocity data for this component from the scene. */
+	ENGINE_API void ResetSceneVelocity_GameThread();
+
 	/** Enqueue updated setting for evaluation of World Position Offset. */
 	void SetEvaluateWorldPositionOffset_GameThread(bool bEvaluate);
 

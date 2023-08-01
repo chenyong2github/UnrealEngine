@@ -2534,6 +2534,9 @@ public:
 	ENGINE_API void SetSelectionOutlineColorIndex(uint8 SelectionOutlineColorIndex);
 #endif// WITH_EDITOR
 
+	/** Resets the cached scene velocity. Useful to prevent motion blur when teleporting components. See also SetIsBeingMovedByEditor(). */
+	ENGINE_API void ResetSceneVelocity();
+
 	/**
 	 *	Set the angular velocity of all bodies in this component.
 	 *

@@ -406,6 +406,7 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 			// activate the component
 			if (!GeometryComponent->IsActive())
 			{
+				GeometryComponent->ResetSceneVelocity();
 				GeometryComponent->SetVisibility(true, true);
 				GeometryComponent->Activate(false);
 			}
@@ -494,6 +495,7 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 			// activate the component
 			if (!GeometryComponent->IsActive())
 			{
+				GeometryComponent->ResetSceneVelocity();
 				GeometryComponent->SetVisibility(true, true);
 				GeometryComponent->Activate(false);
 			}
