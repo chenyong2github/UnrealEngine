@@ -11,7 +11,7 @@ struct FPropertyChangedEvent;
 class UEditableGameplayTagQuery;
 
 /** Widget allowing user to tag assets with gameplay tags */
-class SGameplayTagQueryWidget : public SCompoundWidget
+class SGameplayTagQueryWidget : public SCompoundWidget, public FNotifyHook
 {
 public:
 
@@ -40,6 +40,8 @@ public:
 	
 	virtual ~SGameplayTagQueryWidget() override;
 
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
+
 private:
 
 	void OnGetCategoriesMetaFromPropertyHandle(TSharedPtr<IPropertyHandle> PropertyHandle, FString& MetaString) const;
@@ -48,7 +50,7 @@ private:
 	FReply OnOkClicked();
 
 	/** Called when the user clicks the "Close Without Saving" button */
-	FReply OnCancelClicked() const;
+	FReply OnCancelClicked();
 
 	/** Controls visibility of the "Save and Close" button */
 	EVisibility GetSaveAndCloseButtonVisibility() const;
@@ -80,7 +82,10 @@ private:
 	TSharedPtr<IDetailsView> Details;
 
 	static UEditableGameplayTagQuery* CreateEditableQuery(FGameplayTagQuery& Q);
+	
 	TWeakObjectPtr<UEditableGameplayTagQuery> EditableQuery;
+	
+	TArray<FGameplayTagQuery> OriginalTagQueries;
 };
 
 struct FGameplayTagQueryWindowArgs

@@ -29,9 +29,12 @@ void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<F
 	UEditableGameplayTagQuery* const EditableGameplayTagQuery = CreateEditableQuery(TagQueries[0]);
 	EditableQuery = EditableGameplayTagQuery;
 
+	OriginalTagQueries = TagQueries;
+	
 	// create details view for the editable query object
 	FDetailsViewArgs ViewArgs;
 	ViewArgs.bAllowSearch = false;
+	ViewArgs.NotifyHook = this;
 	ViewArgs.bHideSelectionTip = true;
 	ViewArgs.bShowObjectLabel = false;
 
@@ -133,6 +136,15 @@ SGameplayTagQueryWidget::~SGameplayTagQueryWidget()
 	UGameplayTagsManager::Get().OnGetCategoriesMetaFromPropertyHandle.RemoveAll(this);
 }
 
+void SGameplayTagQueryWidget::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
+{
+	if (!bReadOnly)
+	{
+		FScopedTransaction Transaction( LOCTEXT("GameplayTagQueryWidget_Edit", "Edit Gameplay Tag Query") );
+		SaveToTagQuery();
+		OnQueriesCommitted.ExecuteIfBound(TagQueries);
+	}
+}
 
 void SGameplayTagQueryWidget::SaveToTagQuery()
 {
@@ -177,9 +189,13 @@ FReply SGameplayTagQueryWidget::OnOkClicked()
 	return FReply::Handled();
 }
 
-FReply SGameplayTagQueryWidget::OnCancelClicked() const
+FReply SGameplayTagQueryWidget::OnCancelClicked()
 {
+	TagQueries = OriginalTagQueries;
+	
+	OnQueriesCommitted.ExecuteIfBound(TagQueries);	
 	OnCancel.ExecuteIfBound();
+	
 	return FReply::Handled();
 }
 
@@ -194,6 +210,12 @@ TWeakPtr<SGameplayTagQueryWidget> OpenGameplayTagQueryWindow(const FGameplayTagQ
 	CloseGameplayTagQueryWindow(nullptr);
 	
 	const FVector2D WindowSize(600, 400);
+	
+	FText Title = Args.Title;
+	if (Title.IsEmpty())
+	{
+		Title = LOCTEXT("GameplayTagQueryWidget_Title", "Tag Query Editor");
+	}
 
 	// Determine the position of the window so that it will spawn near the mouse, but not go off the screen.
 	FSlateRect AnchorRect;
@@ -207,14 +229,8 @@ TWeakPtr<SGameplayTagQueryWidget> OpenGameplayTagQueryWindow(const FGameplayTagQ
 	}
 	AnchorRect = AnchorRect.ExtendBy(FMargin(20));
 	
-	const FVector2D ProposedPlacement = AnchorRect.GetTopLeft() + FVector2D(-WindowSize.X, -WindowSize.Y*0.2);
-	const FVector2D AdjustedSummonLocation = FSlateApplication::Get().CalculatePopupWindowPosition(AnchorRect, WindowSize, true, ProposedPlacement, Orient_Horizontal);
-
-	FText Title = Args.Title;
-	if (Title.IsEmpty())
-	{
-		Title = LOCTEXT("GameplayTagQueryWidget_Title", "Tag Query Editor");
-	}
+	const FVector2D ProposedPlacement = AnchorRect.GetTopLeft() + FVector2D(-WindowSize.X, -WindowSize.Y * 0.2);
+	const FVector2D AdjustedSummonLocation = FSlateApplication::Get().CalculatePopupWindowPosition(AnchorRect, WindowSize, true, ProposedPlacement, Orient_Vertical);
 
 	TSharedRef<SGameplayTagQueryWidget> QueryWidget = SNew(SGameplayTagQueryWidget, Args.EditableQueries)
 			.OnQueriesCommitted(Args.OnQueriesCommitted)
@@ -223,10 +239,10 @@ TWeakPtr<SGameplayTagQueryWidget> OpenGameplayTagQueryWindow(const FGameplayTagQ
 
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(Args.Title)
-		.HasCloseButton(true)
 		.SupportsMinimize(false)
 		.SupportsMaximize(false)
 		.AutoCenter(EAutoCenter::None)
+		.IsTopmostWindow(true)
 		.ScreenPosition(AdjustedSummonLocation)
 		.ClientSize(WindowSize)
 		[
@@ -266,7 +282,7 @@ void CloseGameplayTagQueryWindow(TWeakPtr<SGameplayTagQueryWidget> QueryWidget)
 			GlobalTagQueryWidgetWindow.Pin()->RequestDestroyWindow();
 		}
 	}
-	
+
 	GlobalTagQueryWidget = nullptr;
 	GlobalTagQueryWidgetWindow = nullptr;
 }
