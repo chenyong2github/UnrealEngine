@@ -638,14 +638,14 @@ UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass
 	const int32* Index = OverrideParameters.FindParameterOffset(Variable, true);
 	if (Index == nullptr)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface \"%s\" was not found"), *OverrideName.ToString(), *GetNameSafe(DIClass));
+		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter(%s) System(%s) DataInterface(%s) was not found"), *OverrideName.ToString(), *GetNameSafe(NiagaraSystem->GetAsset()), *GetNameSafe(DIClass));
 		return nullptr;
 	}
 
 	UNiagaraDataInterface* UntypedDI = OverrideParameters.GetDataInterface(*Index);
 	if (UntypedDI == nullptr)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface is nullptr."), *OverrideName.ToString());
+		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter(%s) System(%s) DataInterface is nullptr."), *OverrideName.ToString(), *GetNameSafe(NiagaraSystem->GetAsset()));
 		return nullptr;
 	}
 
@@ -653,7 +653,7 @@ UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass
 	{
 		return UntypedDI;
 	}
-	UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface is a \"%s\" and not expected type \"%s\""), *OverrideName.ToString(), *GetNameSafe(UntypedDI->GetClass()), *GetNameSafe(DIClass));
+	UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter(%s) System(%s) DataInterface is a (%s) and not expected type (%s)"), *OverrideName.ToString(), *GetNameSafe(NiagaraSystem->GetAsset()), *GetNameSafe(UntypedDI->GetClass()), *GetNameSafe(DIClass));
 	return nullptr;
 }
 
