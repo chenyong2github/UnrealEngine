@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
+#include "Misc/NotifyHook.h"
 
 class IPropertyHandle;
 struct FGameplayTagQuery;
