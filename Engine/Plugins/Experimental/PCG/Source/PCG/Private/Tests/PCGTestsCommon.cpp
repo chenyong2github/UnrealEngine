@@ -4,15 +4,16 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
+#include "PCGCrc.h"
 #include "PCGElement.h"
 #include "PCGGraph.h"
 #include "PCGParamData.h"
+#include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPolyLineData.h" // IWYU pragma: keep
 #include "Data/PCGPrimitiveData.h" // IWYU pragma: keep
 #include "Data/PCGSurfaceData.h" // IWYU pragma: keep
 #include "Data/PCGVolumeData.h"
-#include "PCGPin.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -48,6 +49,9 @@ namespace PCGTestsCommon
 		UPCGGraph* TestGraph = NewObject<UPCGGraph>(TestPCGComponent, FName(TEXT("Test PCG Graph")), RF_Transient);
 		check(TestGraph);
 		TestPCGComponent->SetGraphLocal(TestGraph);
+
+		// Tests don't currently need CRCs, so just assigned a trivial valid CRC to avoid asserts.
+		InputData.Crc = FPCGCrc(0);
 #else
 		TestActor = nullptr;
 		TestPCGComponent = nullptr;

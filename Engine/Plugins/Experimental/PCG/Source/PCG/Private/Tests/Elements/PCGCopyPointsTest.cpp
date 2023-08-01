@@ -267,15 +267,15 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 				Color = TargetPoint.Color;
 			}
 
-			if (Settings->ColorInheritance == EPCGCopyPointsInheritanceMode::Relative)
+			if (Settings->SeedInheritance == EPCGCopyPointsInheritanceMode::Relative)
 			{
-				Seed = PCGHelpers::ComputeSeed((int)Location.X, (int)Location.Y, (int)Location.Z);
+				Seed = PCGHelpers::ComputeSeed(SourcePoint.Seed, TargetPoint.Seed);
 			}
-			else if (Settings->ColorInheritance == EPCGCopyPointsInheritanceMode::Source)
+			else if (Settings->SeedInheritance == EPCGCopyPointsInheritanceMode::Source)
 			{
 				Seed = SourcePoint.Seed;
 			}
-			else // if (Settings->ColorInheritance == EPCGCopyPointsInheritanceMode::Target)
+			else // if (Settings->SeedInheritance == EPCGCopyPointsInheritanceMode::Target)
 			{
 				Seed = TargetPoint.Seed;
 			}
@@ -284,7 +284,7 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 			bTestPassed &= TestEqual("Valid scale", Scale, OutTransform.GetScale3D());
 			bTestPassed &= TestEqual("Valid color", Color, OutPoint.Color);
 			bTestPassed &= TestEqual("Valid location", Location, OutTransform.GetLocation());
-			bTestPassed &= TestEqual("Valid location", Seed, OutPoint.Seed);		
+			bTestPassed &= TestEqual("Valid seed", Seed, OutPoint.Seed);		
 
 			// Validate point value keys
 			for (int AttributeIndex = 0; AttributeIndex < InheritedAttributes.Num(); ++AttributeIndex)

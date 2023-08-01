@@ -46,7 +46,7 @@ bool FPCGDistanceTest_PointToPoint::RunTest(const FString& Parameters)
 	// test our point data
 	const TArray<FPCGTaggedData>& Outputs = Context->OutputData.GetInputsByPin(PCGPinConstants::DefaultOutputLabel);
 
-	UTEST_EQUAL("Output count", Outputs.Num(), 2);
+	UTEST_EQUAL("Output count", Outputs.Num(), 1);
 
 	UPCGPointData *OutPointData = Cast<UPCGPointData>(Outputs[0].Data);
 
@@ -106,7 +106,7 @@ bool FPCGDistanceTest_SetDensity::RunTest(const FString& Parameters)
 	// test our point data
 	const TArray<FPCGTaggedData>& Outputs = Context->OutputData.GetInputsByPin(PCGPinConstants::DefaultOutputLabel);
 
-	UTEST_EQUAL("Output count", Outputs.Num(), 2);
+	UTEST_EQUAL("Output count", Outputs.Num(), 1);
 
 	UPCGPointData *OutPointData = Cast<UPCGPointData>(Outputs[0].Data);
 
@@ -168,7 +168,7 @@ bool FPCGDistanceTest_PointToSphere::RunTest(const FString& Parameters)
 	// test our point data
 	const TArray<FPCGTaggedData>& Outputs = Context->OutputData.GetInputsByPin(PCGPinConstants::DefaultOutputLabel);
 
-	UTEST_EQUAL("Output count", Outputs.Num(), 2);
+	UTEST_EQUAL("Output count", Outputs.Num(), 1);
 
 	UPCGPointData *OutPointData = Cast<UPCGPointData>(Outputs[0].Data);
 
@@ -233,7 +233,7 @@ bool FPCGDistanceTest_PointToBox::RunTest(const FString& Parameters)
 	// test our point data
 	const TArray<FPCGTaggedData>& Outputs = Context->OutputData.GetInputsByPin(PCGPinConstants::DefaultOutputLabel);
 
-	UTEST_EQUAL("Output count", Outputs.Num(), 2);
+	UTEST_EQUAL("Output count", Outputs.Num(), 1);
 
 	UPCGPointData *OutPointData = Cast<UPCGPointData>(Outputs[0].Data);
 

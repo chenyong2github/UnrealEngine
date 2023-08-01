@@ -13,8 +13,8 @@ bool FPCGSpatialNoise_CalcLocalCoordinates2D::RunTest(const FString& Parameters)
 	const FBox TestBox(-FVector::One(), FVector::One());
 	const FVector2D Scale = FVector2D::One();
 
-	UTEST_EQUAL("Disabled Edge value", CalcEdgeBlendAmount2D(PCGSpatialNoise::CalcLocalCoordinates2D(TestBox, FTransform::Identity, Scale, FVector::One()), 0.0), 0.0);
-	UTEST_EQUAL("Disabled Edge value", CalcEdgeBlendAmount2D(PCGSpatialNoise::CalcLocalCoordinates2D(TestBox, FTransform::Identity, Scale, FVector::Zero()), 0.0), 0.0);
+	UTEST_EQUAL("Disabled Edge value", CalcEdgeBlendAmount2D(PCGSpatialNoise::CalcLocalCoordinates2D(TestBox, FTransform::Identity, Scale, FVector::One()), 0.0), 1.0);
+	UTEST_EQUAL("Disabled Edge value", CalcEdgeBlendAmount2D(PCGSpatialNoise::CalcLocalCoordinates2D(TestBox, FTransform::Identity, Scale, FVector::Zero()), 0.0), 1.0);
 
 	PCGSpatialNoise::FLocalCoordinates2D Test0 = PCGSpatialNoise::CalcLocalCoordinates2D(TestBox, FTransform::Identity, Scale, FVector::One());
 	const double EdgeBlendAmount0 = CalcEdgeBlendAmount2D(Test0, 1.0);

@@ -102,6 +102,7 @@ bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 		Settings->InRangeMax = 1.f;
 		Settings->OutRangeMin = 0.f;
 		Settings->OutRangeMax = 1.f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Input and Output are identical when InRange and OutRange are identical", ValidateDensityRemap({ 0.f, 0.2f, 0.4f, 0.6f, 0.8f, 1.f }));
 	}
 
@@ -111,12 +112,14 @@ bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 		Settings->InRangeMax = 0.4f;
 		Settings->OutRangeMin = 0.f;
 		Settings->OutRangeMax = 1.f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Valid densities for partial InRange", ValidateDensityRemap({ 0.f, 0.5f, 1.f, 0.6f, 0.8f, 1.f }));
 
 		Settings->InRangeMin = 0.4f;
 		Settings->InRangeMax = 0.f;
 		Settings->OutRangeMin = 1.f;
 		Settings->OutRangeMax = 0.f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Inverting ranges does not effect output", ValidateDensityRemap({ 0.f, 0.5f, 1.f, 0.6f, 0.8f, 1.f }));
 	}
 
@@ -126,12 +129,14 @@ bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 		Settings->InRangeMax = 1.f;
 		Settings->OutRangeMin = 0.5f;
 		Settings->OutRangeMax = 1.f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Valid densities for partial OutRange", ValidateDensityRemap({ 0.f, 0.2f, 3.f / 6.f, 4.f / 6.f, 5.f / 6.f, 1.f }));
 
 		Settings->InRangeMin = 1.f;
 		Settings->InRangeMax = 0.4f;
 		Settings->OutRangeMin = 1.f;
 		Settings->OutRangeMax = 0.5f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Inverting ranges does not effect output", ValidateDensityRemap({ 0.f, 0.2f, 3.f / 6.f, 4.f / 6.f, 5.f / 6.f, 1.f }));
 	}
 
@@ -142,10 +147,7 @@ bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 		Settings->OutRangeMin = 0.5f;
 		Settings->OutRangeMax = 1.f;
 		Settings->bExcludeValuesOutsideInputRange = false;
-
 		bTestPassed &= TestTrue("All values are remapped when Range Exclusion is disabled", ValidateDensityRemap({ 1.f / 6.f, 2.f / 6.f, 3.f / 6.f, 4.f / 6.f, 5.f / 6.f, 1.f }));
-
-		Settings->bExcludeValuesOutsideInputRange = true;
 	}
 
 	// Test Point to Point, Point to Range, and Range to Point
@@ -154,18 +156,21 @@ bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 		Settings->InRangeMax = 0.2f;
 		Settings->OutRangeMin = 0.f;
 		Settings->OutRangeMax = 1.f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Point input to Range output", ValidateDensityRemap({ 0.f, 0.5f, 0.4f, 0.6f, 0.8f, 1.f }));
 
 		Settings->InRangeMin = 0.2f;
 		Settings->InRangeMax = 0.2f;
 		Settings->OutRangeMin = 0.5f;
 		Settings->OutRangeMax = 0.5f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Point input to Point output", ValidateDensityRemap({ 0.f, 0.5f, 0.4f, 0.6f, 0.8f, 1.f }));
 
 		Settings->InRangeMin = 0.2f;
 		Settings->InRangeMax = 1.f;
 		Settings->OutRangeMin = 0.5f;
 		Settings->OutRangeMax = 0.5f;
+		Settings->bExcludeValuesOutsideInputRange = true;
 		bTestPassed &= TestTrue("Range input to Point output", ValidateDensityRemap({ 0.f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f }));
 	}
 
