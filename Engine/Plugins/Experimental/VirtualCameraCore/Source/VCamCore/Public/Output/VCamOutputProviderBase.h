@@ -110,6 +110,9 @@ public:
 	/** Utility that gets the owning VCam component and gets another output provider by its index. */
 	UVCamOutputProviderBase* GetOtherOutputProviderByIndex(int32 Index) const;
 
+	/** Gets the index of this output provider in the owning UVCamComponent::OutputProviders array. */
+	int32 FindOwnIndexInOwner() const;
+
 	/** Reapplies the override resolution or restores back to the viewport settings. */
 	void ReapplyOverrideResolution();
 

@@ -19,6 +19,7 @@
 #include "SceneViewExtensionContext.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "Util/ObjectMessageAggregation.h"
 #include "Util/WidgetSnapshotUtils.h"
 #include "Util/WidgetTreeUtils.h"
 #include "ViewTargetPolicy/FocusFirstPlayerViewTargetPolicy.h"
@@ -37,6 +38,8 @@
 #endif
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
+
+#define LOCTEXT_NAMESPACE "UVCamOutputProviderBase"
 
 namespace UE::VCamCore::Private
 {
@@ -199,6 +202,29 @@ void UVCamOutputProviderBase::CreateUMG()
 		return;
 	}
 
+	// Warn the user if the viewport is not available
+	const TSharedPtr<FSceneViewport> Viewport = GetSceneViewport(TargetViewport);
+	if (!Viewport)
+	{
+		AActor* OwningActor = GetTypedOuter<AActor>();
+		check(OwningActor);
+		
+		using namespace UE::VCamCore;
+		const FString ActorName =
+#if WITH_EDITOR
+			OwningActor->GetActorLabel();
+#else
+			OwningActor->GetPathName();
+#endif
+		AddAggregatedNotification(*OwningActor,
+			{
+				NotificationKey_MissingTargetViewport,
+				FText::Format(LOCTEXT("MissingTargetViewport.Title", "Missing target viewport: {0}"), FText::FromString(ActorName)),
+				FText::Format(LOCTEXT("MissingTargetViewport.Subtext", "Edit output provider {1} or open {0} (Window > Viewports)."), FText::FromString(ViewportIdToString(TargetViewport)), FindOwnIndexInOwner())
+			});
+		return;
+	}
+
 	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass());
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	if (UMGWidget->DoesDisplayTypeUsePostProcessSettings(DisplayType))
@@ -221,8 +247,8 @@ void UVCamOutputProviderBase::CreateUMG()
 		};
 		UMGWidget->GetPostProcessDisplayTypeWithSceneViewExtensionsSettings().RegisterIsActiveFunctor(MoveTemp(IsActiveFunctor));
 	}
-
-	UMGWidget->SetEditorTargetViewport(GetSceneViewport(TargetViewport));
+	
+	UMGWidget->SetEditorTargetViewport(Viewport);
 #endif
 
 	UMGWidget->SetWidgetClass(UMGClass);
@@ -408,7 +434,7 @@ UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(
 {
 	if (Index > INDEX_NONE)
 	{
-		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+		if (const UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
 		{
 			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
 			{
@@ -422,6 +448,21 @@ UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(
 	return nullptr;
 }
 
+int32 UVCamOutputProviderBase::FindOwnIndexInOwner() const
+{
+	if (const UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		for (int32 Index = 0; Index < OuterComponent->GetNumberOfOutputProviders(); ++Index)
+		{
+			if (OuterComponent->GetOutputProviderByIndex(Index) == this)
+			{
+				return Index;
+			}
+		}
+	}
+	return INDEX_NONE;
+}
+
 void UVCamOutputProviderBase::Serialize(FArchive& Ar)
 {
 	using namespace UE::VCamCore;
@@ -430,7 +471,7 @@ void UVCamOutputProviderBase::Serialize(FArchive& Ar)
 	
 	if (Ar.IsLoading() && Ar.CustomVer(FVCamCoreCustomVersion::GUID) < FVCamCoreCustomVersion::MoveTargetViewportFromComponentToOutput)
 	{
-		UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>();
+		const UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>();
 		TargetViewport = OuterComponent
 			? OuterComponent->TargetViewport_DEPRECATED
 			: TargetViewport;
@@ -761,3 +802,5 @@ void UVCamOutputProviderBase::CleanUpGameplayViewTargets()
 	PlayersWhoseViewTargetsWereSet.Reset();
 	GameplayViewTargetPolicy->UpdateViewTarget(Params);
 }
+
+#undef LOCTEXT_NAMESPACE
