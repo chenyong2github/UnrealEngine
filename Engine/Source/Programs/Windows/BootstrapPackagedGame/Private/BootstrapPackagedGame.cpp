@@ -96,8 +96,8 @@ int InstallMissingPrerequisites(const WCHAR* BaseDirectory, const WCHAR* ExecDir
 			// This minimum should match the version installed by
 			// Engine/Source/Programs/PrereqInstaller/Resources/VCRedist/VC_redist.x64.exe
 			const DWORD RequiredMajor = 14;
-			const DWORD RequiredMinor = 34;
-			const DWORD RequiredBld = 31938;
+			const DWORD RequiredMinor = 36;
+			const DWORD RequiredBld = 32532;
 			const DWORD RequiredRbld = 0;
 
 			const DWORD InstalledMajor = RegGetDwordOrZero(Hkey, L"Major");
