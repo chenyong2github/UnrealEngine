@@ -100,6 +100,69 @@ namespace UE::Private::InterchangeMeshPipeline
 			LodChildUids.Shrink();
 		}
 	}
+
+	void CollectAllChildren(UInterchangeBaseNodeContainer* BaseNodeContainer, const FString SceneNodeUids, TArray<FString>& AllChildrenUids)
+	{
+		AllChildrenUids.Add(SceneNodeUids);
+		TArray<FString> ChildrenUids = BaseNodeContainer->GetNodeChildrenUids(SceneNodeUids);
+		for (const FString& ChildUid : ChildrenUids)
+		{
+			CollectAllChildren(BaseNodeContainer, ChildUid, AllChildrenUids);
+		}
+	}
+
+	bool IsSceneNodeNestedInSkeleton(UInterchangeBaseNodeContainer* BaseNodeContainer, const UInterchangeSceneNode* SceneNode)
+	{
+		auto IsJointHookToDeformer = [&BaseNodeContainer](const FString JointNodeUid)->bool
+		{
+			TArray<FString> AllChildrenUids;
+			CollectAllChildren(BaseNodeContainer, JointNodeUid, AllChildrenUids);
+			bool bResult = false;
+			BaseNodeContainer->BreakableIterateNodesOfType<UInterchangeMeshNode>([&AllChildrenUids, &bResult](const FString& MeshUid, UInterchangeMeshNode* MeshNode)
+			{
+				if (MeshNode->IsSkinnedMesh())
+				{
+					TArray<FString> SkeletonDependencies;
+					MeshNode->GetSkeletonDependencies(SkeletonDependencies);
+					for (const FString& MeshJointUid : SkeletonDependencies)
+					{
+						if (AllChildrenUids.Contains(MeshJointUid))
+						{
+							bResult = true;
+							return true;
+						}
+					}
+				}
+				return false;
+			});
+
+			return bResult;
+		};
+
+		if (SceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+		{
+			if(IsJointHookToDeformer(SceneNode->GetUniqueID()))
+			{
+				return true;
+			}
+		}
+		FString ParentUid = SceneNode->GetParentUid();
+		const UInterchangeSceneNode* ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUid));
+		while (ParentNode)
+		{
+			if (ParentNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+			{
+				if (IsJointHookToDeformer(ParentNode->GetUniqueID()))
+				{
+					return true;
+				}
+			}
+			ParentUid = ParentNode->GetParentUid();
+			ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUid));
+		}
+		return false;
+	}
+
 }
 
 static bool IsSceneNodeASocket(const UInterchangeSceneNode* SceneNode)
@@ -110,12 +173,85 @@ static bool IsSceneNodeASocket(const UInterchangeSceneNode* SceneNode)
 	return NodeDisplayName.StartsWith(TEXT("SOCKET_"));
 }
 
+bool FInterchangePipelineMeshesUtilitiesContext::IsStaticMeshInstance(const FInterchangeMeshInstance& MeshInstance, UInterchangeBaseNodeContainer* BaseNodeContainer)
+{
+	return !IsSkeletalMeshInstance(MeshInstance, BaseNodeContainer);
+}
+
+bool FInterchangePipelineMeshesUtilitiesContext::IsSkeletalMeshInstance(const FInterchangeMeshInstance& MeshInstance, UInterchangeBaseNodeContainer* BaseNodeContainer)
+{
+	bool bOutIsStaticMeshNestedInSkeleton = false;
+	return IsSkeletalMeshInstance(MeshInstance, BaseNodeContainer, bOutIsStaticMeshNestedInSkeleton);
+}
+
+bool FInterchangePipelineMeshesUtilitiesContext::IsSkeletalMeshInstance(const FInterchangeMeshInstance& MeshInstance, UInterchangeBaseNodeContainer* BaseNodeContainer, bool& bOutIsStaticMeshNestedInSkeleton)
+{
+	bOutIsStaticMeshNestedInSkeleton = false;
+	if (bConvertSkeletalMeshToStaticMesh)
+	{
+		return false;
+	}
+	if ((bConvertStaticMeshToSkeletalMesh || MeshInstance.bReferenceSkinnedMesh || (bConvertStaticsWithMorphTargetsToSkeletals && MeshInstance.bHasMorphTargets)) && !MeshInstance.bReferenceMorphTarget)
+	{
+		return true;
+	}
+	else if (bImportMeshesInBoneHierarchy)
+	{
+		if (MeshInstance.SceneNodePerLodIndex.Contains(0))
+		{
+			const FInterchangeLodSceneNodeContainer& LodSceneNodeContainer = MeshInstance.SceneNodePerLodIndex.FindChecked(0);
+			for (const TObjectPtr<const UInterchangeSceneNode>& SceneNode : LodSceneNodeContainer.SceneNodes)
+			{
+				if (UE::Private::InterchangeMeshPipeline::IsSceneNodeNestedInSkeleton(BaseNodeContainer, SceneNode))
+				{
+					bOutIsStaticMeshNestedInSkeleton = true;
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool FInterchangePipelineMeshesUtilitiesContext::IsStaticMeshGeometry(const FInterchangeMeshGeometry& MeshGeometry)
+{
+	if (bQueryGeometryOnlyIfNoInstance && MeshGeometry.ReferencingMeshInstanceUids.Num() > 0)
+	{
+		return false;
+	}
+
+	return !IsSkeletalMeshGeometry(MeshGeometry);
+}
+
+bool FInterchangePipelineMeshesUtilitiesContext::IsSkeletalMeshGeometry(const FInterchangeMeshGeometry& MeshGeometry)
+{
+	if (bConvertSkeletalMeshToStaticMesh)
+	{
+		return false;
+	}
+
+	if (bQueryGeometryOnlyIfNoInstance && MeshGeometry.ReferencingMeshInstanceUids.Num() > 0)
+	{
+		return false;
+	}
+
+	if (bConvertStaticMeshToSkeletalMesh
+		|| MeshGeometry.MeshNode->IsSkinnedMesh()
+		|| (bConvertStaticsWithMorphTargetsToSkeletals && (MeshGeometry.MeshNode->GetMorphTargetDependeciesCount() > 0)))
+	{
+		return true;
+	}
+	return false;
+}
 
 UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::CreateInterchangePipelineMeshesUtilities(UInterchangeBaseNodeContainer* BaseNodeContainer)
 {
 	check(BaseNodeContainer);
 	UInterchangePipelineMeshesUtilities* PipelineMeshesUtilities = NewObject<UInterchangePipelineMeshesUtilities>(GetTransientPackage(), NAME_None);
 	
+	//Set the container
+	PipelineMeshesUtilities->BaseNodeContainer = BaseNodeContainer;
+
 	TArray<FString> SkeletonRootNodeUids;
 	
 	//Find all translated node we need for this pipeline
@@ -340,50 +476,50 @@ void UInterchangePipelineMeshesUtilities::IterateAllMeshInstance(TFunctionRef<vo
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::GetAllSkinnedMeshInstance(TArray<FString>& MeshInstanceUids, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::GetAllSkinnedMeshInstance(TArray<FString>& MeshInstanceUids) const
 {
 	MeshInstanceUids.Empty(MeshInstancesPerMeshInstanceUid.Num());
 	for (const TPair<FString, FInterchangeMeshInstance>& MeshInstanceUidAndMeshInstance : MeshInstancesPerMeshInstanceUid)
 	{
 		const FInterchangeMeshInstance& MeshInstance = MeshInstanceUidAndMeshInstance.Value;
-		if((bConvertStaticMeshToSkeletalMesh || MeshInstance.bReferenceSkinnedMesh || (bConvertStaticsWithMorphTargetsToSkeletals && MeshInstance.bHasMorphTargets)) && !MeshInstance.bReferenceMorphTarget)
+		if (CurrentDataContext.IsSkeletalMeshInstance(MeshInstance, BaseNodeContainer))
 		{
 			MeshInstanceUids.Add(MeshInstance.MeshInstanceUid);
 		}
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::IterateAllSkinnedMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::IterateAllSkinnedMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda) const
 {
 	for (const TPair<FString, FInterchangeMeshInstance>& MeshInstanceUidAndMeshInstance : MeshInstancesPerMeshInstanceUid)
 	{
 		const FInterchangeMeshInstance& MeshInstance = MeshInstanceUidAndMeshInstance.Value;
-		if ((bConvertStaticMeshToSkeletalMesh || MeshInstance.bReferenceSkinnedMesh || (bConvertStaticsWithMorphTargetsToSkeletals && MeshInstance.bHasMorphTargets)) && !MeshInstance.bReferenceMorphTarget)
+		if (CurrentDataContext.IsSkeletalMeshInstance(MeshInstance, BaseNodeContainer))
 		{
 			IterationLambda(MeshInstance);
 		}
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::GetAllStaticMeshInstance(TArray<FString>& MeshInstanceUids, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::GetAllStaticMeshInstance(TArray<FString>& MeshInstanceUids) const
 {
 	MeshInstanceUids.Empty(MeshInstancesPerMeshInstanceUid.Num());
 	for (const TPair<FString, FInterchangeMeshInstance>& MeshInstanceUidAndMeshInstance : MeshInstancesPerMeshInstanceUid)
 	{
 		const FInterchangeMeshInstance& MeshInstance = MeshInstanceUidAndMeshInstance.Value;
-		if ((bConvertSkeletalMeshToStaticMesh || !MeshInstance.bReferenceSkinnedMesh) && !MeshInstance.bReferenceMorphTarget && !(bConvertStaticsWithMorphTargetsToSkeletals && MeshInstance.bHasMorphTargets))
+		if (CurrentDataContext.IsStaticMeshInstance(MeshInstance, BaseNodeContainer))
 		{
 			MeshInstanceUids.Add(MeshInstance.MeshInstanceUid);
 		}
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::IterateAllStaticMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::IterateAllStaticMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda) const
 {
 	for (const TPair<FString, FInterchangeMeshInstance>& MeshInstanceUidAndMeshInstance : MeshInstancesPerMeshInstanceUid)
 	{
 		const FInterchangeMeshInstance& MeshInstance = MeshInstanceUidAndMeshInstance.Value;
-		if ((bConvertSkeletalMeshToStaticMesh || !MeshInstance.bReferenceSkinnedMesh) && !MeshInstance.bReferenceMorphTarget && !(bConvertStaticsWithMorphTargetsToSkeletals && MeshInstance.bHasMorphTargets))
+		if (CurrentDataContext.IsStaticMeshInstance(MeshInstance, BaseNodeContainer))
 		{
 			IterationLambda(MeshInstance);
 		}
@@ -410,7 +546,7 @@ void UInterchangePipelineMeshesUtilities::GetAllSkinnedMeshGeometry(TArray<FStri
 	for (const TPair<FString, FInterchangeMeshGeometry>& MeshGeometryUidAndMeshGeometry : MeshGeometriesPerMeshUid)
 	{
 		const FInterchangeMeshGeometry& MeshGeometry = MeshGeometryUidAndMeshGeometry.Value;
-		if (MeshGeometry.MeshNode->IsSkinnedMesh())
+		if(CurrentDataContext.IsSkeletalMeshGeometry(MeshGeometry))
 		{
 			MeshGeometryUids.Add(MeshGeometry.MeshUid);
 		}
@@ -422,32 +558,32 @@ void UInterchangePipelineMeshesUtilities::IterateAllSkinnedMeshGeometry(TFunctio
 	for (const TPair<FString, FInterchangeMeshGeometry>& MeshGeometryUidAndMeshGeometry : MeshGeometriesPerMeshUid)
 	{
 		const FInterchangeMeshGeometry& MeshGeometry = MeshGeometryUidAndMeshGeometry.Value;
-		if (MeshGeometry.MeshNode->IsSkinnedMesh())
+		if (CurrentDataContext.IsSkeletalMeshGeometry(MeshGeometry))
 		{
 			IterationLambda(MeshGeometry);
 		}
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::GetAllStaticMeshGeometry(TArray<FString>& MeshGeometryUids, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::GetAllStaticMeshGeometry(TArray<FString>& MeshGeometryUids) const
 {
 	MeshGeometryUids.Empty(MeshGeometriesPerMeshUid.Num());
 	for (const TPair<FString, FInterchangeMeshGeometry>& MeshGeometryUidAndMeshGeometry : MeshGeometriesPerMeshUid)
 	{
 		const FInterchangeMeshGeometry& MeshGeometry = MeshGeometryUidAndMeshGeometry.Value;
-		if ((bConvertSkeletalMeshToStaticMesh || !MeshGeometry.MeshNode->IsSkinnedMesh()) && !MeshGeometry.MeshNode->IsMorphTarget() && !(bConvertStaticsWithMorphTargetsToSkeletals && (MeshGeometry.MeshNode->GetMorphTargetDependeciesCount() > 0)))
+		if (CurrentDataContext.IsStaticMeshGeometry(MeshGeometry))
 		{
 			MeshGeometryUids.Add(MeshGeometry.MeshUid);
 		}
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::IterateAllStaticMeshGeometry(TFunctionRef<void(const FInterchangeMeshGeometry&)> IterationLambda, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::IterateAllStaticMeshGeometry(TFunctionRef<void(const FInterchangeMeshGeometry&)> IterationLambda) const
 {
 	for (const TPair<FString, FInterchangeMeshGeometry>& MeshGeometryUidAndMeshGeometry : MeshGeometriesPerMeshUid)
 	{
 		const FInterchangeMeshGeometry& MeshGeometry = MeshGeometryUidAndMeshGeometry.Value;
-		if ((bConvertSkeletalMeshToStaticMesh || !MeshGeometry.MeshNode->IsSkinnedMesh()) && !MeshGeometry.MeshNode->IsMorphTarget() && !(bConvertStaticsWithMorphTargetsToSkeletals && (MeshGeometry.MeshNode->GetMorphTargetDependeciesCount() > 0)))
+		if (CurrentDataContext.IsStaticMeshGeometry(MeshGeometry))
 		{
 			IterationLambda(MeshGeometry);
 		}
@@ -515,20 +651,23 @@ void UInterchangePipelineMeshesUtilities::IterateAllMeshInstanceUsingMeshGeometr
 	}
 }
 
-void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(UInterchangeBaseNodeContainer* BaseNodeContainer, TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const
+void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid) const
 {
 	check(BaseNodeContainer);
 
 	for (const TPair<FString, FInterchangeMeshInstance>& MeshInstanceUidAndMeshInstance : MeshInstancesPerMeshInstanceUid)
 	{
 		const FInterchangeMeshInstance& MeshInstance = MeshInstanceUidAndMeshInstance.Value;
-		if (!(bConvertStaticMeshToSkeletalMesh || bConvertStaticsWithMorphTargetsToSkeletals) && !MeshInstance.bReferenceSkinnedMesh)
+
+		bool bIsNestedIntoSkeleton = false;
+		if (!CurrentDataContext.IsSkeletalMeshInstance(MeshInstance, BaseNodeContainer, bIsNestedIntoSkeleton))
 		{
 			continue;
 		}
-		bool bIsStaticMesh = (bConvertStaticMeshToSkeletalMesh || (bConvertStaticsWithMorphTargetsToSkeletals && MeshInstance.bHasMorphTargets)) && !MeshInstance.bReferenceSkinnedMesh;
+		bool bIsStaticMesh = !MeshInstance.bReferenceSkinnedMesh;
 		//Find the root skeleton for this MeshInstance
-		FString SkeletonRootUid;
+		FString SkeletonRootUid; // = CurrentDataContext.FindSkeletalMeshSkeletonRootFromMeshInstance(MeshInstance, BaseNodeContainer);
+		
 		for (const FString& MeshGeometryUid : MeshInstance.ReferencingMeshGeometryUids)
 		{
 			if (const FString* SkeletonRootUidPtr = SkeletonRootUidPerMeshUid.Find(MeshGeometryUid))
@@ -548,20 +687,29 @@ void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(UInter
 			{
 				//Create a joint from the instance node (the scene node pointing on the mesh).
 				SkeletonRootUid = MeshInstance.MeshInstanceUid;
-
-				if (!MeshInstance.bHasMorphTargets)
+				if (bIsNestedIntoSkeleton || !MeshInstance.bHasMorphTargets)
 				{
-					//Since we are dealing with rigid mesh and combine we will use the outermost valid parent
+					//Find the deepest joint node
 					if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(MeshInstance.MeshInstanceUid)))
 					{
 						FString ParentUid = SceneNode->GetParentUid();
+						FString LastSceneNodeUid = SkeletonRootUid;
 						while (!ParentUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
 						{
 							if (const UInterchangeSceneNode* ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUid)))
 							{
-								SkeletonRootUid = ParentUid;
+								if(ParentNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+								{
+									SkeletonRootUid = ParentUid;
+								}
+								LastSceneNodeUid = ParentUid;
 								ParentUid = ParentNode->GetParentUid();
 							}
+						}
+						//If we did not find any joint because we have non nested mesh, get the deepest scene node
+						if (!bIsNestedIntoSkeleton && SkeletonRootUid.Equals(MeshInstance.MeshInstanceUid))
+						{
+							SkeletonRootUid = LastSceneNodeUid;
 						}
 					}
 				}
@@ -579,39 +727,6 @@ void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshInstances(UInter
 		}
 		TArray<FString>& MeshInstanceUids = OutMeshInstanceUidsPerSkeletonRootUid.FindOrAdd(SkeletonRootUid);
 		MeshInstanceUids.Add(MeshInstanceUidAndMeshInstance.Key);
-	}
-}
-
-void UInterchangePipelineMeshesUtilities::GetCombinedSkinnedMeshGeometries(TMap<FString, TArray<FString>>& OutMeshGeometryUidsPerSkeletonRootUid) const
-{
-	for (const TPair<FString, FInterchangeMeshGeometry>& MeshGeometryUidAndMeshGeometry : MeshGeometriesPerMeshUid)
-	{
-		const FInterchangeMeshGeometry& MeshGeometry = MeshGeometryUidAndMeshGeometry.Value;
-		if (!MeshGeometry.MeshNode || !MeshGeometry.MeshNode->IsSkinnedMesh())
-		{
-			continue;
-		}
-		//Find the root skeleton for this MeshInstance
-		FString SkeletonRootUid;
-		if (const FString* SkeletonRootUidPtr = SkeletonRootUidPerMeshUid.Find(MeshGeometryUidAndMeshGeometry.Key))
-		{
-			if (SkeletonRootUid.IsEmpty())
-			{
-				SkeletonRootUid = *SkeletonRootUidPtr;
-			}
-		}
-		else
-		{
-			//every skinned geometry should have a skeleton root node ???
-		}
-
-		if (SkeletonRootUid.IsEmpty())
-		{
-			//Skip this MeshGeometry
-			continue;
-		}
-		TArray<FString>& MeshGeometryUids = OutMeshGeometryUidsPerSkeletonRootUid.FindOrAdd(SkeletonRootUid);
-		MeshGeometryUids.Add(MeshGeometryUidAndMeshGeometry.Key);
 	}
 }
 

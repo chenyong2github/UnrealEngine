@@ -86,6 +86,7 @@ namespace UE
 			mutable FCriticalSection ResultPayloadsCriticalSection;
 			TMap<FString, FString> ResultPayloads;
 			TUniquePtr<UE::Interchange::Private::FFbxParser> FbxParserPrivate;
+			TAtomic<int64> UniqueIdCounter = 0;
 		};
 	} // ns Interchange
 }//ns UE

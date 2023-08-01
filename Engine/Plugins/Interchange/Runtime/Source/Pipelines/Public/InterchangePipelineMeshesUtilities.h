@@ -19,7 +19,7 @@ class UInterchangeSceneNode;
 /*
 * This container exist only because UPROPERTY cannot support nested container. See FInterchangeMeshInstance
 */
-USTRUCT(BlueprintType, Experimental)
+USTRUCT(BlueprintType)
 struct FInterchangeLodSceneNodeContainer
 {
 	GENERATED_BODY()
@@ -36,7 +36,7 @@ struct FInterchangeLodSceneNodeContainer
 * A mesh instance pointing on a lod group can have many lods and many scene mesh nodes per lod index.
 * A mesh instance pointing on a mesh node will have only the lod 0 and will point on one scene mesh node.
 */
-USTRUCT(BlueprintType, Experimental)
+USTRUCT(BlueprintType)
 struct FInterchangeMeshInstance
 {
 	GENERATED_BODY()
@@ -85,7 +85,7 @@ struct FInterchangeMeshInstance
 /*
 * A mesh geometry is a description of a translated mesh asset node that define a geometry.
 */
-USTRUCT(BlueprintType, Experimental)
+USTRUCT(BlueprintType)
 struct FInterchangeMeshGeometry
 {
 	GENERATED_BODY()
@@ -120,9 +120,54 @@ struct FInterchangeMeshGeometry
 	TArray<FString> AttachedSocketUids;
 };
 
+/*
+* Represent the context UInterchangePipelineMeshesUtilities will use when client query the data
+*/
+USTRUCT(BlueprintType)
+struct FInterchangePipelineMeshesUtilitiesContext
+{
+	GENERATED_BODY()
+
+	/**
+	 * Convert static mesh to skeletal mesh
+	 */
+	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesContext")
+	bool bConvertStaticMeshToSkeletalMesh = false;
+
+	/**
+	 * Convert static mesh to skeletal mesh
+	 */
+	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesContext")
+	bool bConvertSkeletalMeshToStaticMesh = false;
+
+	/**
+	 * Convert static mesh that has morph target to skeletal mesh
+	 */
+	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesContext")
+	bool bConvertStaticsWithMorphTargetsToSkeletals = false;
+
+	/**
+	 * If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. If the mesh are not skinned they will
+	 * be added to skeletal mesh and remove from the static meshes.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesContext")
+	bool bImportMeshesInBoneHierarchy = true;
+
+	/**
+	 * When querying geometry, this flag will not add MeshGeometry if there is a scene node pointing on a geometry.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesContext")
+	bool bQueryGeometryOnlyIfNoInstance = true;
+
+	bool IsStaticMeshInstance(const FInterchangeMeshInstance& MeshInstance, UInterchangeBaseNodeContainer* BaseNodeContainer);
+	bool IsSkeletalMeshInstance(const FInterchangeMeshInstance& MeshInstance, UInterchangeBaseNodeContainer* BaseNodeContainer);
+	bool IsSkeletalMeshInstance(const FInterchangeMeshInstance& MeshInstance, UInterchangeBaseNodeContainer* BaseNodeContainer, bool& bOutIsStaticMeshNestedInSkeleton);
+	bool IsStaticMeshGeometry(const FInterchangeMeshGeometry& MeshGeometry);
+	bool IsSkeletalMeshGeometry(const FInterchangeMeshGeometry& MeshGeometry);
+};
 
 /**/
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType)
 class INTERCHANGEPIPELINES_API UInterchangePipelineMeshesUtilities : public UObject
 {
 	GENERATED_BODY()
@@ -148,23 +193,23 @@ public:
 	* Get all skinned mesh instance unique ids.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline | Meshes")
-	void GetAllSkinnedMeshInstance(TArray<FString>& MeshInstanceUids, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void GetAllSkinnedMeshInstance(TArray<FString>& MeshInstanceUids) const;
 
 	/**
 	* Iterate all skinned mesh instance.
 	*/
-	void IterateAllSkinnedMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void IterateAllSkinnedMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda) const;
 
 	/**
 	* Get all static mesh instance unique ids.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline | Meshes")
-	void GetAllStaticMeshInstance(TArray<FString>& MeshInstanceUids, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void GetAllStaticMeshInstance(TArray<FString>& MeshInstanceUids) const;
 
 	/**
 	* Iterate all static mesh instance.
 	*/
-	void IterateAllStaticMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void IterateAllStaticMeshInstance(TFunctionRef<void(const FInterchangeMeshInstance&)> IterationLambda) const;
 
 	/**
 	* Get all mesh geometry unique ids.
@@ -192,12 +237,12 @@ public:
 	* Get all static mesh geometry unique ids.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline | Meshes")
-	void GetAllStaticMeshGeometry(TArray<FString>& MeshGeometryUids, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void GetAllStaticMeshGeometry(TArray<FString>& MeshGeometryUids) const;
 
 	/**
 	* Iterate all static mesh geometry.
 	*/
-	void IterateAllStaticMeshGeometry(TFunctionRef<void(const FInterchangeMeshGeometry&)> IterationLambda, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void IterateAllStaticMeshGeometry(TFunctionRef<void(const FInterchangeMeshGeometry&)> IterationLambda) const;
 
 	/**
 	* Get all not instanced mesh geometry unique ids.
@@ -249,14 +294,8 @@ public:
 	* Return a list of skinned FInterchangeMeshInstance uid that can be combined together.
 	* We cannot create a skinned mesh with multiple skeleton root node, This function return combined MeshInstance per skeleton roots
 	*/
-	void GetCombinedSkinnedMeshInstances(UInterchangeBaseNodeContainer* BaseNodeContainer, TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
+	void GetCombinedSkinnedMeshInstances(TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid) const;
 	
-	/**
-	* Return a list of skinned FInterchangeMeshGeometry uid that can be combined together.
-	* We cannot create a skinned mesh with multiple skeleton root node, This function return combined FInterchangeMeshGeometry per skeleton roots
-	*/
-	void GetCombinedSkinnedMeshGeometries(TMap<FString, TArray<FString>>& OutMeshGeometryUidsPerSkeletonRootUid) const;
-
 	/**
 	* Return the skeleton root node Uid, this is the uid for a UInterchangeSceneNode that has a "Joint" specialized type.
 	* Return an empty string if the MeshInstanceUid parameter point on nothing.
@@ -275,10 +314,20 @@ public:
 
 	FString GetMeshGeometrySkeletonRootUid(const FInterchangeMeshGeometry& MeshGeometry) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline | Meshes")
+	void SetContext(const FInterchangePipelineMeshesUtilitiesContext& Context) const
+	{
+		CurrentDataContext = Context;
+	}
+	
 protected:
 	TMap<FString, FInterchangeMeshGeometry> MeshGeometriesPerMeshUid;
 	TMap<FString, FInterchangeMeshInstance> MeshInstancesPerMeshInstanceUid;
 	TMap<FString, FString> SkeletonRootUidPerMeshUid;
+
+	UInterchangeBaseNodeContainer* BaseNodeContainer;
+
+	mutable FInterchangePipelineMeshesUtilitiesContext CurrentDataContext;
 };
 
 namespace UE::Interchange::MeshesUtilities

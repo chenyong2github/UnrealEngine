@@ -104,7 +104,6 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 		});
 #endif
 
-	const bool bConvertStaticMeshToSkeletalMesh = (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
 	TMap<FString, TArray<FString>> SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid;
 
 	auto SetSkeletalMeshDependencies = [&SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid](const FString& JointNodeUid, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode)
@@ -174,18 +173,10 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 			return bFoundInstances;
 		};
 
-		PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(BaseNodeContainer, MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh, CommonSkeletalMeshesAndAnimationsProperties->bConvertStaticsWithMorphTargetsToSkeletals);
-		bool bUseMeshInstance = true;
-		bool bFoundMeshes = CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
 
-		if (!bFoundMeshes)
-		{
-			//Fall back to support mesh not reference by any scene node
-			MeshUidsPerSkeletonRootUid.Empty();
-			PipelineMeshesUtilities->GetCombinedSkinnedMeshGeometries(MeshUidsPerSkeletonRootUid);
-			bUseMeshInstance = false;
-			CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
-		}
+		PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(MeshUidsPerSkeletonRootUid);
+		bool bUseMeshInstance = true;
+		CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
 	}
 	else
 	{
@@ -252,17 +243,9 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 			return bFoundInstances;
 		};
 		
-		PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids, bConvertStaticMeshToSkeletalMesh, CommonSkeletalMeshesAndAnimationsProperties->bConvertStaticsWithMorphTargetsToSkeletals);
+		PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids);
 		bool bUseMeshInstance = true;
-		bool bFoundMeshes = CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
-
-		if (!bFoundMeshes)
-		{
-			MeshUids.Empty();
-			PipelineMeshesUtilities->GetAllSkinnedMeshGeometry(MeshUids);
-			bUseMeshInstance = false;
-			CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
-		}
+		CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
 	}
 }
 

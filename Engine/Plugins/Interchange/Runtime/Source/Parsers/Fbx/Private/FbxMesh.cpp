@@ -1623,19 +1623,15 @@ bool FFbxMesh::ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, UInterchangeBase
 				continue;
 			}
 			FbxNode* Link = Cluster->GetLink();
-			//Any valid link should be under the scene root node
-			if (Link->GetParent() != nullptr)
+			bFoundValidJoint = true;
+
+			FString JointNodeUniqueID = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Link);
+
+			// find the bone index
+			if (!JointNodeUniqueIDs.Contains(JointNodeUniqueID))
 			{
-				bFoundValidJoint = true;
-
-				FString JointNodeUniqueID = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Link);
-
-				// find the bone index
-				if (!JointNodeUniqueIDs.Contains(JointNodeUniqueID))
-				{
-					JointNodeUniqueIDs.Add(JointNodeUniqueID);
-					MeshNode->SetSkeletonDependencyUid(JointNodeUniqueID);
-				}
+				JointNodeUniqueIDs.Add(JointNodeUniqueID);
+				MeshNode->SetSkeletonDependencyUid(JointNodeUniqueID);
 			}
 		}
 	}

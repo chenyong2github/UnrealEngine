@@ -27,6 +27,9 @@ void UInterchangeGenericAnimationPipeline::AdjustSettingsForContext(EInterchange
 
 	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 	
+	bSceneImport = ImportType == EInterchangePipelineContext::SceneImport
+				|| ImportType == EInterchangePipelineContext::SceneReimport;
+
 	if (ImportType == EInterchangePipelineContext::AssetCustomLODImport
 		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
 		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningImport
@@ -126,8 +129,9 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 		}
 	}
 
-	if (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh)
+	if (!bSceneImport)
 	{
+		//Support rigid mesh animation animation data  (UAnimSequence for rigid mesh)
 		for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)
 		{
 			if (!TrackSetNode) continue;
@@ -165,6 +169,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 								if (!bCustomSkeletonNodeUidSet)
 								{
 									FString SkeletonRootUid;
+									FString LastSceneNode = ActorNodeUid;
 									if (const UInterchangeSceneNode* SceneNode = ActorNode)
 									{
 										FString ParentUid = SceneNode->GetParentUid();
@@ -172,9 +177,17 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 										{
 											if (const UInterchangeSceneNode* ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUid)))
 											{
-												SkeletonRootUid = ParentUid;
+												if(ParentNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+												{
+													SkeletonRootUid = ParentUid;
+												}
+												LastSceneNode = ParentUid;
 												ParentUid = ParentNode->GetParentUid();
 											}
+										}
+										if (SkeletonRootUid.IsEmpty())
+										{
+											SkeletonRootUid = LastSceneNode;
 										}
 									}
 
@@ -195,6 +208,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 	}
 	else
 	{
+		//Support scene node animation (ULevelSequence, only supported when doing scene import)
 		for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)
 		{
 			if (TrackSetNode)
@@ -226,6 +240,7 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 			TrackNodes.Add(Node);
 		});
 
+	//Support skeletal mesh animation (UAnimSequence)
 	for (UInterchangeSkeletalAnimationTrackNode* TrackNode : TrackNodes)
 	{
 		if (TrackNode)

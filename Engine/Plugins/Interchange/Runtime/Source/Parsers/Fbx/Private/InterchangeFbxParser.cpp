@@ -90,7 +90,7 @@ namespace UE::Interchange
 			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
 			//To avoid file path with too many character, we hash the payloadKey so we have a deterministic length for the file path.
 			FString PayloadKeyHash = Private::HashString(PayloadKey);
-			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + TEXT(".payload");
+			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + FString::FromInt(UniqueIdCounter.IncrementExchange()) + TEXT(".payload");
 
 			//Copy the map filename key because we are multithreaded and the TMap can be reallocated
 			PayloadFilepathCopy = PayloadFilepath;
@@ -114,7 +114,7 @@ namespace UE::Interchange
 			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
 			//To avoid file path with too many character, we hash the payloadKey so we have a deterministic length for the file path.
 			FString PayloadKeyHash = Private::HashString(PayloadKey);
-			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + TEXT(".payload");
+			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + FString::FromInt(UniqueIdCounter.IncrementExchange()) + TEXT(".payload");
 
 			//Copy the map filename key because we are multithreaded and the TMap can be reallocated
 			PayloadFilepathCopy = PayloadFilepath;
@@ -138,7 +138,7 @@ namespace UE::Interchange
 			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
 			//To avoid file path with too many character, we hash the payloadKey so we have a deterministic length for the file path.
 			FString PayloadKeyHash = Private::HashString(PayloadKey);
-			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + TEXT(".payload");
+			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKeyHash + FString::FromInt(UniqueIdCounter.IncrementExchange()) + TEXT(".payload");
 
 			//Copy the map filename key because we are multithreaded and the TMap can be reallocated
 			PayloadFilepathCopy = PayloadFilepath;

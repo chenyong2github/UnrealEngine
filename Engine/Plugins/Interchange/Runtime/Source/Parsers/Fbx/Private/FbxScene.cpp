@@ -118,14 +118,8 @@ namespace UE
 				
 				auto GetConvertedTransform = [Node](FbxAMatrix& NewFbxMatrix)
 				{
-					FTransform Transform;
-					FbxVector4 NewLocalT = NewFbxMatrix.GetT();
-					FbxVector4 NewLocalS = NewFbxMatrix.GetS();
-					FbxQuaternion NewLocalQ = NewFbxMatrix.GetQ();
-					Transform.SetTranslation(FFbxConvert::ConvertPos(NewLocalT));
-					Transform.SetScale3D(FFbxConvert::ConvertScale(NewLocalS));
-					Transform.SetRotation(FFbxConvert::ConvertRotToQuat(NewLocalQ));
-
+					FTransform Transform = FTransform(FFbxConvert::ConvertMatrix(NewFbxMatrix));
+					
 					if (FbxNodeAttribute* NodeAttribute = Node->GetNodeAttribute())
 					{
 						switch (NodeAttribute->GetAttributeType())
@@ -444,9 +438,24 @@ namespace UE
 
 			void FFbxScene::AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
 			{
-				 FbxNode* RootNode = SDKScene->GetRootNode();
+				FbxNode* RootNode = SDKScene->GetRootNode();
 
-				 AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer, PayloadContexts);
+				AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer, PayloadContexts);
+
+				int32 NodeCount = SDKScene->GetNodeCount();
+				for (int32 NodeIndex = 0; NodeIndex < NodeCount; ++NodeIndex)
+				{
+					if (FbxNode* Node = SDKScene->GetNode(NodeIndex))
+					{
+						if(Node != RootNode)
+						{
+							if (Node->GetParent() == nullptr)
+							{
+								AddHierarchyRecursively(nullptr, Node, SDKScene, NodeContainer, PayloadContexts);
+							}
+						}
+					}
+				}
 			}
 
 			void FFbxScene::AddRigidAnimation(FbxNode* Node
@@ -704,6 +713,20 @@ namespace UE
 				for (int32 AnimationIndex = 0; AnimationIndex < NumAnimations; AnimationIndex++)
 				{
 					AddAnimationRecursively(RootNode, SDKScene, NodeContainer, PayloadContexts, nullptr, false, RootSceneNodeUniqueID, SkeletonRootNodeUids, AnimationIndex);
+					int32 NodeCount = SDKScene->GetNodeCount();
+					for (int32 NodeIndex = 0; NodeIndex < NodeCount; ++NodeIndex)
+					{
+						if (FbxNode* Node = SDKScene->GetNode(NodeIndex))
+						{
+							if (Node != RootNode)
+							{
+								if (Node->GetParent() == nullptr)
+								{
+									AddAnimationRecursively(Node, SDKScene, NodeContainer, PayloadContexts, nullptr, false, RootSceneNodeUniqueID, SkeletonRootNodeUids, AnimationIndex);
+								}
+							}
+						}
+					}
 				}
 
 				TArray<FString> TransformAnimTrackNodeUids;
