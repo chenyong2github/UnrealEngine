@@ -202,7 +202,11 @@ void UChaosClothAssetEditorMode::RegisterAddNodeCommand(TSharedPtr<FUICommandInf
 		const FName ConnectionType = FManagedArrayCollection::StaticType();
 		UEdGraphNode* const CurrentlySelectedNode = GetSingleSelectedNodeWithOutputType(ConnectionType);
 		checkf(CurrentlySelectedNode, TEXT("No node with FManagedArrayCollection output is currently selected in the Dataflow graph"));
-		verifyf(CreateAndConnectNewNode(NewNodeType, *CurrentlySelectedNode, ConnectionType), TEXT("Failed to create a new node: %s"), *NewNodeType.ToString());
+
+		const UEdGraphNode* const NewNode = CreateAndConnectNewNode(NewNodeType, *CurrentlySelectedNode, ConnectionType);
+		verifyf(NewNode, TEXT("Failed to create a new node: %s"), *NewNodeType.ToString());
+
+		StartToolForSelectedNode(NewNode);
 	};
 
 	auto CanAddNode = [this](const FName& NewNodeType) -> bool
