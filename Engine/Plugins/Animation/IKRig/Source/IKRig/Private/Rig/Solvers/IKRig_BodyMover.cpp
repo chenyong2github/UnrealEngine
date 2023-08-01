@@ -174,6 +174,7 @@ void UIKRig_BodyMover::RenameGoal(const FName& OldName, const FName& NewName)
 	}
 
 	// rename
+	Effectors[GoalIndex]->Modify();
 	Effectors[GoalIndex]->GoalName = NewName;
 }
 
