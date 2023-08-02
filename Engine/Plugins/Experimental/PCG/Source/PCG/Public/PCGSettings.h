@@ -47,6 +47,7 @@ enum class EPCGSettingsType : uint8
 	Generic,
 	Param,
 	HierarchicalGeneration,
+	ControlFlow
 };
 
 #if WITH_EDITOR

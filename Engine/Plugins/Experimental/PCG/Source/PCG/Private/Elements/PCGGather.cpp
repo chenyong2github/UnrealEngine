@@ -44,24 +44,41 @@ FPCGElementPtr UPCGGatherSettings::CreateElement() const
 	return MakeShared<FPCGGatherElement>();
 }
 
+namespace PCGGather
+{
+	FPCGDataCollection GatherDataForPin(const FPCGDataCollection& InputData, const FName InputLabel, const FName OutputLabel)
+	{
+		TArray<FPCGTaggedData> GatheredData = InputData.GetInputsByPin(InputLabel);
+		FPCGDataCollection Output;
+
+		if (GatheredData.IsEmpty())
+		{
+			return Output;
+		}
+	
+		if (GatheredData.Num() == InputData.TaggedData.Num())
+		{
+			Output = InputData;
+		}
+		else
+		{
+			Output.TaggedData = MoveTemp(GatheredData);
+		}
+
+		for(FPCGTaggedData& TaggedData : Output.TaggedData)
+		{
+			TaggedData.Pin = OutputLabel;
+		}
+
+		return Output;
+	}
+}
+
 bool FPCGGatherElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGatherElement::Execute);
 
-	TArray<FPCGTaggedData> GatheredData = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
-	if (GatheredData.Num() == Context->InputData.TaggedData.Num())
-	{
-		Context->OutputData = Context->InputData;
-	}
-	else
-	{
-		Context->OutputData.TaggedData = MoveTemp(GatheredData);
-	}
-
-	for(FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
-	{
-		TaggedData.Pin = PCGPinConstants::DefaultOutputLabel;
-	}
+	Context->OutputData = PCGGather::GatherDataForPin(Context->InputData);
 
 	return true;
 }

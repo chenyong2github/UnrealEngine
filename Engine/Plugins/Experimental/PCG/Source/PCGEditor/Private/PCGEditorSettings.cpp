@@ -23,7 +23,9 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	SubgraphNodeColor = FLinearColor(1.0f, 0.05f, 0.05f);
 	ParamDataNodeColor = FLinearColor(1.0f, 0.38f, 0.02f);
 	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
-	HierarchicalGenerationNodeColor = FLinearColor(1.0f, 0.4f, 0.0f);
+	ControlFlowNodeColor = FLinearColor(0.66f, .6f, 0.15f);
+	// HiGen are also a subset of Control Flow
+	HierarchicalGenerationNodeColor = ControlFlowNodeColor;
 
 	DefaultPinColor = FLinearColor(0.29f, 0.29f, 0.29f);
 	SpatialDataPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
@@ -49,64 +51,46 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 	{
 		return DefaultNodeColor;
 	}
+
 	// First: check if there's an override
-	else if (const FLinearColor* Override = OverrideNodeColorByClass.Find(Settings->GetClass()))
+	if (const FLinearColor* Override = OverrideNodeColorByClass.Find(Settings->GetClass()))
 	{
 		return *Override;
 	}
+
 	// Otherwise, check against the classes we know
-	else if (Settings->GetType() == EPCGSettingsType::InputOutput)
+	switch (Settings->GetType())
 	{
-		return InputOutputNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Spatial)
-	{
-		return SetOperationNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Density)
-	{
-		return DensityOperationNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Blueprint)
-	{
-		return BlueprintNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Metadata)
-	{
-		return MetadataNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Filter)
-	{
-		return FilterNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Sampler)
-	{
-		return SamplerNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Spawner)
-	{
-		return SpawnerNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Subgraph)
-	{
-		return SubgraphNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Debug)
-	{
-		return DebugNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::Param)
-	{
-		return ParamDataNodeColor;
-	}
-	else if (Settings->GetType() == EPCGSettingsType::HierarchicalGeneration)
-	{
-		return HierarchicalGenerationNodeColor;
-	}
-	else
-	{
-		// Finally, we couldn't find any match, so return the default value
-		return DefaultNodeColor;
+		case EPCGSettingsType::InputOutput:
+			return InputOutputNodeColor;
+		case EPCGSettingsType::Spatial:
+			return SetOperationNodeColor;
+		case EPCGSettingsType::Density:
+			return DensityOperationNodeColor;
+		case EPCGSettingsType::Blueprint:
+			return BlueprintNodeColor;
+		case EPCGSettingsType::Metadata:
+			return MetadataNodeColor;
+		case EPCGSettingsType::Filter:
+			return FilterNodeColor;
+		case EPCGSettingsType::Sampler:
+			return SamplerNodeColor;
+		case EPCGSettingsType::Spawner:
+			return SpawnerNodeColor;
+		case EPCGSettingsType::Subgraph:
+			return SubgraphNodeColor;
+		case EPCGSettingsType::Debug:
+			return DebugNodeColor;
+		case EPCGSettingsType::Param:
+			return ParamDataNodeColor;
+		case EPCGSettingsType::HierarchicalGeneration:
+			return HierarchicalGenerationNodeColor;
+		case EPCGSettingsType::ControlFlow:
+			return ControlFlowNodeColor;
+		case EPCGSettingsType::Generic: // falls through
+		default:
+			// Finally, we couldn't find any match, so return the default value
+			return DefaultNodeColor;
 	}
 }
 
