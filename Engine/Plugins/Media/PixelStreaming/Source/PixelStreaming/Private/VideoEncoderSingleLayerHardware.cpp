@@ -58,6 +58,10 @@ namespace UE::PixelStreaming
 				VideoConfig->IntraRefreshPeriodFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshPeriodFrames.GetValueOnAnyThread();
 				VideoConfig->IntraRefreshCountFrames = PixelStreaming::Settings::CVarPixelStreamingEncoderIntraRefreshCountFrames.GetValueOnAnyThread();
 				VideoConfig->KeyframeInterval = PixelStreaming::Settings::CVarPixelStreamingEncoderKeyframeInterval.GetValueOnAnyThread();
+				// The WebRTC spec can only guarantee that the Baseline profile is supported. Therefore we use Baseline, but enable these extra
+				// features to improve bitrate usage
+				VideoConfig->AdaptiveTransformMode = EH264AdaptiveTransformMode::Enable;
+				VideoConfig->EntropyCodingMode = EH264EntropyCodingMode::CABAC;
 				InitialVideoConfig = MoveTemp(VideoConfig);
 				return WEBRTC_VIDEO_CODEC_OK;
 			}
@@ -175,7 +179,7 @@ namespace UE::PixelStreaming
 		if (TSharedPtr<FVideoEncoderHardware> const& PinnedHardwareEncoder = HardwareEncoder.Pin())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("PixelStreaming Hardware Encoding", PixelStreamingChannel);
-			
+
 			IPixelCaptureOutputFrame* AdaptedLayer = FrameBuffer->RequestFormat(PixelCaptureBufferFormat::FORMAT_RHI);
 
 			if (AdaptedLayer == nullptr)

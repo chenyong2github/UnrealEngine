@@ -12,6 +12,8 @@ struct FVideoEncoderConfigH264 : public FVideoEncoderConfig
 {
 public:
 	EH264Profile Profile = EH264Profile::Main;
+	EH264AdaptiveTransformMode AdaptiveTransformMode = EH264AdaptiveTransformMode::Auto;
+	EH264EntropyCodingMode EntropyCodingMode = EH264EntropyCodingMode::Auto;
 
 	bool RepeatSPSPPS = false;
 

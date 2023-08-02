@@ -71,19 +71,19 @@ TAVResult<NV_ENC_BUFFER_FORMAT> FVideoEncoderConfigNVENC::ConvertFormat(EVideoFo
 {
 	switch (Format)
 	{
-	case EVideoFormat::BGRA:
-		return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_ARGB;
-	case EVideoFormat::ABGR10:
-		return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_ARGB10;
-	case EVideoFormat::NV12:
-		return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_NV12;
-	case EVideoFormat::P010:
-		return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_YUV420_10BIT;
-	default:
-		return FAVResult(EAVResult::ErrorUnsupported, FString::Printf(TEXT("Pixel format %d is not supported"), Format), TEXT("NVENC"));
+		case EVideoFormat::BGRA:
+			return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_ARGB;
+		case EVideoFormat::ABGR10:
+			return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_ARGB10;
+		case EVideoFormat::NV12:
+			return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_NV12;
+		case EVideoFormat::P010:
+			return NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_YUV420_10BIT;
+		default:
+			return FAVResult(EAVResult::ErrorUnsupported, FString::Printf(TEXT("Pixel format %d is not supported"), Format), TEXT("NVENC"));
 	}
 
-	//NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_YUV420_10BIT : NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_IYUV;
+	// NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_YUV420_10BIT : NV_ENC_BUFFER_FORMAT::NV_ENC_BUFFER_FORMAT_IYUV;
 }
 
 static uint32 DEFAULT_BITRATE_TARGET = 1000000;
@@ -212,9 +212,7 @@ template <>
 DLLEXPORT FAVResult FAVExtension::TransformConfig(FVideoEncoderConfigNVENC& OutConfig, FVideoEncoderConfigH264 const& InConfig)
 {
 	// Unused from preset
-	/*Config.encodeCodecConfig.h264Config.adaptiveTransformMode = NV_ENC_H264_ADAPTIVE_TRANSFORM_ENABLE;
-	Config.encodeCodecConfig.h264Config.entropyCodingMode = NV_ENC_H264_ENTROPY_CODING_MODE_CABAC;
-	Config.encodeCodecConfig.h264Config.h264VUIParameters.videoFormat = 5;
+	/*Config.encodeCodecConfig.h264Config.h264VUIParameters.videoFormat = 5;
 	Config.encodeCodecConfig.h264Config.h264VUIParameters.colourPrimaries = 2;
 	Config.encodeCodecConfig.h264Config.h264VUIParameters.transferCharacteristics = 2;
 	Config.encodeCodecConfig.h264Config.h264VUIParameters.colourMatrix = 2;*/
@@ -259,6 +257,50 @@ DLLEXPORT FAVResult FAVExtension::TransformConfig(FVideoEncoderConfigNVENC& OutC
 	NV_ENC_CONFIG_H264& OutH264Config = OutConfig.encodeConfig->encodeCodecConfig.h264Config;
 	OutH264Config.chromaFormatIDC = 1;
 	OutH264Config.enableFillerDataInsertion = InConfig.bFillData ? 1 : 0;
+
+	static auto const ConvertAdaptiveTransformMode = [](EH264AdaptiveTransformMode TransformMode) -> TAVResult<NV_ENC_H264_ADAPTIVE_TRANSFORM_MODE> {
+		switch (TransformMode)
+		{
+			case EH264AdaptiveTransformMode::Auto:
+				return NV_ENC_H264_ADAPTIVE_TRANSFORM_AUTOSELECT;
+			case EH264AdaptiveTransformMode::Disable:
+				return NV_ENC_H264_ADAPTIVE_TRANSFORM_DISABLE;
+			case EH264AdaptiveTransformMode::Enable:
+				return NV_ENC_H264_ADAPTIVE_TRANSFORM_ENABLE;
+			default:
+				return FAVResult(EAVResult::ErrorUnsupported, FString::Printf(TEXT("H264 transform mode %d is not supported"), TransformMode), TEXT("NVENC"));
+		}
+	};
+
+	TAVResult<NV_ENC_H264_ADAPTIVE_TRANSFORM_MODE> const ConvertedAdaptiveTransformMode = ConvertAdaptiveTransformMode(InConfig.AdaptiveTransformMode);
+	if (ConvertedAdaptiveTransformMode.IsNotSuccess())
+	{
+		return ConvertedAdaptiveTransformMode;
+	}
+
+	OutH264Config.adaptiveTransformMode = ConvertedAdaptiveTransformMode;
+
+	static auto const ConvertEntropyCodingMode = [](EH264EntropyCodingMode EntropyCodingMode) -> TAVResult<NV_ENC_H264_ENTROPY_CODING_MODE> {
+		switch (EntropyCodingMode)
+		{
+			case EH264EntropyCodingMode::Auto:
+				return NV_ENC_H264_ENTROPY_CODING_MODE_AUTOSELECT;
+			case EH264EntropyCodingMode::CABAC:
+				return NV_ENC_H264_ENTROPY_CODING_MODE_CABAC;
+			case EH264EntropyCodingMode::CAVLC:
+				return NV_ENC_H264_ENTROPY_CODING_MODE_CAVLC;
+			default:
+				return FAVResult(EAVResult::ErrorUnsupported, FString::Printf(TEXT("H264 entropy coding mode %d is not supported"), EntropyCodingMode), TEXT("NVENC"));
+		}
+	};
+
+	TAVResult<NV_ENC_H264_ENTROPY_CODING_MODE> const ConvertedEntropyCodingMode = ConvertEntropyCodingMode(InConfig.EntropyCodingMode);
+	if (ConvertedEntropyCodingMode.IsNotSuccess())
+	{
+		return ConvertedEntropyCodingMode;
+	}
+
+	OutH264Config.entropyCodingMode = ConvertedEntropyCodingMode;
 
 	if (InConfig.RateControlMode == ERateControlMode::CBR && InConfig.bFillData)
 	{
