@@ -8,6 +8,7 @@
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundTrace.h"
 #include "MetasoundWaveTable.h"
 #include "WaveTable.h"
@@ -56,7 +57,7 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ },
+					{ NodeCategories::WaveTables },
 					{ },
 					{ }
 				};

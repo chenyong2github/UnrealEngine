@@ -2,15 +2,16 @@
 
 #include "MetasoundFacade.h"
 
+#include "DSP/VolumeFader.h"
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundTime.h"
-#include "DSP/VolumeFader.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_InterpNode"
 
@@ -176,6 +177,7 @@ namespace Metasound
 			Info.Description = METASOUND_LOCTEXT("Metasound_InterpNodeDescription", "Interpolates between the current value and a target value over the specified time.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
+			Info.CategoryHierarchy = { NodeCategories::Math };
 			Info.DefaultInterface = GetVertexInterface();
 			Info.Keywords.Add(METASOUND_LOCTEXT("LerpKeyword", "Lerp"));
 

@@ -7,6 +7,7 @@
 namespace AudioModulation
 {
 	const FString PluginAuthor = TEXT("Epic Games, Inc.");
+	const FText PluginNodeCategory = NSLOCTEXT("AudioModulation", "AudioModulationNodeCategory", "Modulation");
 	const FText PluginNodeMissingPrompt = NSLOCTEXT("AudioModulation", "DefaultMissingNodePrompt", "The node was likely removed, renamed, or the AudioModulation plugin is not loaded.");
 
 	FSoundModulatorAsset::FSoundModulatorAsset(const TSharedPtr<Audio::IProxyData>& InProxyPtr)

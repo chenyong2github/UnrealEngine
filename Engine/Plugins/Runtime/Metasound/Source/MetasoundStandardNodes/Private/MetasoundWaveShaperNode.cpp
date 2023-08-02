@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DSP/WaveShaper.h"
 #include "Internationalization/Text.h"
 #include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundExecutableOperator.h"
@@ -7,11 +8,12 @@
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundAudioBuffer.h"
-#include "DSP/WaveShaper.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_WaveShaperNode"
+
 
 namespace Metasound
 {
@@ -178,6 +180,7 @@ namespace Metasound
 			Info.DisplayName = METASOUND_LOCTEXT("Metasound_WaveShaperDisplayName", "WaveShaper");
 			Info.Description = METASOUND_LOCTEXT("Metasound_WaveShaperNodeDescription", "Applies non-linear shaping to the audio input.");
 			Info.Author = PluginAuthor;
+			Info.CategoryHierarchy = { NodeCategories::Filters };
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
 

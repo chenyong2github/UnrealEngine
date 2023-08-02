@@ -92,8 +92,8 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ NodeCategories::Generators },
-					{ METASOUND_LOCTEXT("WaveTablePlayerSynthesisKeyword", "Synthesis")},
+					{ NodeCategories::WaveTables },
+					{ NodeCategories::Generators, METASOUND_LOCTEXT("WaveTablePlayerSynthesisKeyword", "Synthesis")},
 					{ }
 				};
 

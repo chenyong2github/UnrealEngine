@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Internationalization/Text.h"
-#include "MetasoundFacade.h"
-#include "MetasoundExecutableOperator.h"
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundPrimitives.h"
-#include "MetasoundStandardNodesNames.h"
-#include "MetasoundStandardNodesCategories.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Flanger.h"
+#include "Internationalization/Text.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_FlangerNode"
+
 
 namespace Metasound
 {
@@ -45,6 +46,7 @@ namespace Metasound
 				Info.DisplayName = NodeDisplayName;
 				Info.Description = NodeDescription;
 				Info.Author = PluginAuthor;
+				Info.CategoryHierarchy = { NodeCategories::Filters };
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
 

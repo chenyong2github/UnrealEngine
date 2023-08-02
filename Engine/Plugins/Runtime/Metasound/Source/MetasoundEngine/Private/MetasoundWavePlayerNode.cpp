@@ -1194,7 +1194,7 @@ namespace Metasound
 
 	struct FMonoAudioChannelConfigurationInfo
 	{
-		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerMonoNodeDisplayName", "Wave Player (Mono)"); }
+		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerMonoNodeDisplayName", "Wave Player (1.0, Mono)"); }
 		static FName GetVariantName() { return Metasound::EngineNodes::MonoVariant; }
 
 		static TArray<FOutputDataVertex> GetAudioOutputs()
@@ -1210,7 +1210,7 @@ namespace Metasound
 
 	struct FStereoAudioChannelConfigurationInfo
 	{
-		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerStereoNodeDisplayName", "Wave Player (Stereo)"); }
+		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerStereoNodeDisplayName", "Wave Player (2.0, Stereo)"); }
 		static FName GetVariantName() { return Metasound::EngineNodes::StereoVariant; }
 
 		static TArray<FOutputDataVertex> GetAudioOutputs()
@@ -1227,7 +1227,7 @@ namespace Metasound
 
 	struct FQuadAudioChannelConfigurationInfo
 	{
-		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerQuadNodeDisplayName", "Wave Player (Quad)"); }
+		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerQuadNodeDisplayName", "Wave Player (4.0, Quad)"); }
 		static FName GetVariantName() { return Metasound::EngineNodes::QuadVariant; }
 
 		static TArray<FOutputDataVertex> GetAudioOutputs()
@@ -1246,7 +1246,7 @@ namespace Metasound
 
 	struct FFiveDotOneAudioChannelConfigurationInfo
 	{
-		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerFiveDotOneNodeDisplayName", "Wave Player (5.1)"); }
+		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerFiveDotOneNodeDisplayName", "Wave Player (5.1, Surround)"); }
 		static FName GetVariantName() { return Metasound::EngineNodes::FiveDotOneVariant; }
 
 		static TArray<FOutputDataVertex> GetAudioOutputs()
@@ -1267,7 +1267,7 @@ namespace Metasound
 
 	struct FSevenDotOneAudioChannelConfigurationInfo
 	{
-		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerSevenDotOneNodeDisplayName", "Wave Player (7.1)"); }
+		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerSevenDotOneNodeDisplayName", "Wave Player (7.1, Surround)"); }
 		static FName GetVariantName() { return Metasound::EngineNodes::SevenDotOneVariant; }
 
 		static TArray<FOutputDataVertex> GetAudioOutputs()

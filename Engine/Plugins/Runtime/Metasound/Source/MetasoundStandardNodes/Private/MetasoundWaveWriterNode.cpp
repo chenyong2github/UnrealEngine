@@ -324,7 +324,7 @@ namespace Metasound
 			{
 				// For backwards compatibility with previous (mono) WaveWriters keep the node name the same.
 				FName OperatorName = TEXT("WaveWriter");
-				FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_WaveWriterNodeMonoDisplayName", "Wave Writer (Mono)");
+				FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_WaveWriterNodeMonoDisplayName", "Wave Writer (1-channel, Mono)");
 				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_WaveWriterNodeMonoDescription", "Write a mono audio signal to disk");
 				FVertexInterface NodeInterface = DeclareVertexInterface();
 
@@ -335,7 +335,7 @@ namespace Metasound
 			auto CreateNodeClassMetadataStereo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = TEXT("Wave Writer (Stereo)");
-				FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_WaveWriterNodeStereoDisplayName", "Wave Writer (Stereo)");
+				FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_WaveWriterNodeStereoDisplayName", "Wave Writer (2-channel, Stereo)");
 				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_WaveWriterNodeStereoDescription", "Write a stereo audio signal to disk");
 				FVertexInterface NodeInterface = DeclareVertexInterface();
 

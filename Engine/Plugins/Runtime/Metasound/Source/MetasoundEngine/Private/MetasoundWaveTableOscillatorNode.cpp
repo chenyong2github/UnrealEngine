@@ -67,7 +67,7 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ NodeCategories::Generators },
+					{ NodeCategories::WaveTables },
 					{ METASOUND_LOCTEXT("WaveTableOscillatorSynthesisKeyword", "Synthesis")},
 					{ }
 				};

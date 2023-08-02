@@ -84,8 +84,8 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ NodeCategories::Envelopes },
-					{ METASOUND_LOCTEXT("WaveTableEnvelopeSynthesisKeyword", "Synthesis")},
+					{ NodeCategories::WaveTables },
+					{ NodeCategories::Generators, METASOUND_LOCTEXT("WaveTableEnvelopeSynthesisKeyword", "Synthesis")},
 					{ }
 				};
 

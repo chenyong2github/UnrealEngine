@@ -4,6 +4,7 @@
 
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundFrontendNodesCategories.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
@@ -166,6 +167,7 @@ namespace Metasound
 			Info.DisplayName = METASOUND_LOCTEXT("BPMToSecondsNode_DisplayName", "BPM To Seconds");
 			Info.Description = METASOUND_LOCTEXT("BPMToSecondsNode_Desc", "Calculates a beat time in seconds from the given BPM, beat multiplier and divisions of a whole note.");
 			Info.Author = PluginAuthor;
+			Info.CategoryHierarchy = { NodeCategories::Conversions };
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
 			Info.Keywords = { METASOUND_LOCTEXT("BPMNodeRhythmKeyword", "Rhythm"), METASOUND_LOCTEXT("BPMNodeTempoKeyword", "Tempo") };

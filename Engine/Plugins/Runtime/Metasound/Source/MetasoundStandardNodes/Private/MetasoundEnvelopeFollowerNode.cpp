@@ -3,6 +3,7 @@
 #include "MetasoundEnvelopeFollowerNode.h"
 
 #include "Algo/MaxElement.h"
+#include "DSP/EnvelopeFollower.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundEnvelopeFollowerTypes.h"
@@ -12,15 +13,16 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundTime.h"
 #include "MetasoundVertex.h"
-#include "MetasoundParamHelper.h"
-#include "DSP/EnvelopeFollower.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_EnvelopeFollower"
+
 
 namespace Metasound
 {
@@ -224,6 +226,7 @@ namespace Metasound
 			Info.DisplayName = METASOUND_LOCTEXT("Metasound_EnvelopeFollowerDisplayName", "Envelope Follower");
 			Info.Description = METASOUND_LOCTEXT("Metasound_EnvelopeFollowerDescription", "Outputs an envelope from an input audio signal.");
 			Info.Author = PluginAuthor;
+			Info.CategoryHierarchy = { NodeCategories::Envelopes };
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
 

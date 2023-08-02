@@ -65,8 +65,8 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ NodeCategories::Envelopes },
-					{ METASOUND_LOCTEXT("WaveTableEvaluateEnvelopeKeyword", "Envelope"), METASOUND_LOCTEXT("WaveTableEvaluateCurveKeyword", "Curve")},
+					{ NodeCategories::WaveTables },
+					{ NodeCategories::Envelopes, METASOUND_LOCTEXT("WaveTableEvaluateCurveKeyword", "Curve")},
 					{ }
 				};
 

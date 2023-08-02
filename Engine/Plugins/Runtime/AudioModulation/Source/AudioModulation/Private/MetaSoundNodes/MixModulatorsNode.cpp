@@ -52,7 +52,7 @@ namespace AudioModulation
 					AudioModulation::PluginAuthor,
 					AudioModulation::PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ },
+					{ AudioModulation::PluginNodeCategory },
 					{ },
 					{ }
 				};

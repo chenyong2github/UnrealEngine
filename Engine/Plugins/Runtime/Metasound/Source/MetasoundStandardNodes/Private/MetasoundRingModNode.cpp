@@ -7,9 +7,9 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundAudioBuffer.h"
-#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundFacade.h"
 #include "MetasoundParamHelper.h"
+#include "MetasoundStandardNodesCategories.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_MetasoundRingModNodes"
 
@@ -50,12 +50,12 @@ namespace Metasound
 					FNodeClassName { StandardNodes::Namespace, "RingMod", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					METASOUND_LOCTEXT("RingModDisplayName", "RingMod"),
+					METASOUND_LOCTEXT("RingModDisplayName2", "Ring Modulator"),
 					METASOUND_LOCTEXT("RingModDesc", "Modulates a carrier signal."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{ NodeCategories::Functions},
+					{ NodeCategories::Filters },
 					{ },
 					FNodeDisplayStyle{}
 				};
