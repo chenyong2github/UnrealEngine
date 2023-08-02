@@ -175,13 +175,13 @@ static void RegisterGameEditorMenus()
 			FCanExecuteAction::CreateStatic(&HasNoPlayWorld),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateStatic(&HasNoPlayWorld)),
-		LOCTEXT( "CheckContentButton", "Check Content" ),
-		LOCTEXT( "CheckContentDescription", "Runs the Content Validation job on all checked out assets to look for warnings and errors" ),
+		LOCTEXT("CheckContentButton", "Check Content"),
+		LOCTEXT("CheckContentDescription", "Runs the Content Validation job on all checked out assets to look for warnings and errors"),
 		FSlateIcon(FGameEditorStyle::GetStyleSetName(), "GameEditor.CheckContent")
 	);
 	CheckContentEntry.StyleNameOverride = "CalloutToolbar";
 	Section.AddEntry(CheckContentEntry);
-	
+
 	FToolMenuEntry CommonMapEntry = FToolMenuEntry::InitComboButton(
 		"CommonMapOptions",
 		FUIAction(
@@ -217,7 +217,7 @@ class FLyraEditorModule : public FDefaultGameModuleImpl
 
 			if (FSlateApplication::IsInitialized())
 			{
-				UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateStatic(&RegisterGameEditorMenus));
+				ToolMenusHandle = UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateStatic(&RegisterGameEditorMenus));
 			}
 
 			FEditorDelegates::BeginPIE.AddRaw(this, &ThisClass::OnBeginPIE);
@@ -225,9 +225,12 @@ class FLyraEditorModule : public FDefaultGameModuleImpl
 		}
 
 		// Register the Context Effects Library asset type actions.
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_LyraContextEffectsLibrary));
+		{
+			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+			TSharedRef<FAssetTypeActions_LyraContextEffectsLibrary> AssetAction = MakeShared<FAssetTypeActions_LyraContextEffectsLibrary>();
+			LyraContextEffectsLibraryAssetAction = AssetAction;
+			AssetTools.RegisterAssetTypeActions(AssetAction);
+		}
 	}
 
 	void OnBeginPIE(bool bIsSimulating)
@@ -243,7 +246,28 @@ class FLyraEditorModule : public FDefaultGameModuleImpl
 
 	virtual void ShutdownModule() override
 	{
+		// Unregister the Context Effects Library asset type actions.
+		{
+			FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+			TSharedPtr<IAssetTypeActions> AssetAction = LyraContextEffectsLibraryAssetAction.Pin();
+			if (AssetToolsModule && AssetAction)
+			{
+				AssetToolsModule->Get().UnregisterAssetTypeActions(AssetAction.ToSharedRef());
+			}
+		}
+
+		FEditorDelegates::BeginPIE.RemoveAll(this);
+		FEditorDelegates::EndPIE.RemoveAll(this);
+
+		// Undo UToolMenus
+		if (UObjectInitialized() && ToolMenusHandle.IsValid())
+		{
+			UToolMenus::UnRegisterStartupCallback(ToolMenusHandle);
+		}
+
+		UnbindGameplayAbilitiesEditorDelegates();
 		FModuleManager::Get().OnModulesChanged().RemoveAll(this);
+		FGameEditorStyle::Shutdown();
 	}
 
 protected:
@@ -257,6 +281,17 @@ protected:
 		GameplayAbilitiesEditorModule.GetGameplayCueNotifyPathDelegate().BindStatic(&GetGameplayCuePath);
 	}
 
+	static void UnbindGameplayAbilitiesEditorDelegates()
+	{
+		if (IGameplayAbilitiesEditorModule::IsAvailable())
+		{
+			IGameplayAbilitiesEditorModule& GameplayAbilitiesEditorModule = IGameplayAbilitiesEditorModule::Get();
+			GameplayAbilitiesEditorModule.GetGameplayCueNotifyClassesDelegate().Unbind();
+			GameplayAbilitiesEditorModule.GetGameplayCueInterfaceClassesDelegate().Unbind();
+			GameplayAbilitiesEditorModule.GetGameplayCueNotifyPathDelegate().Unbind();
+		}
+	}
+
 	void ModulesChangedCallback(FName ModuleThatChanged, EModuleChangeReason ReasonForChange)
 	{
 		if ((ReasonForChange == EModuleChangeReason::ModuleLoaded) && (ModuleThatChanged.ToString() == TEXT("GameplayAbilitiesEditor")))
@@ -264,6 +299,10 @@ protected:
 			BindGameplayAbilitiesEditorDelegates();
 		}
 	}
+
+private:
+	TWeakPtr<IAssetTypeActions> LyraContextEffectsLibraryAssetAction;
+	FDelegateHandle ToolMenusHandle;
 };
 
 IMPLEMENT_MODULE(FLyraEditorModule, LyraEditor);
