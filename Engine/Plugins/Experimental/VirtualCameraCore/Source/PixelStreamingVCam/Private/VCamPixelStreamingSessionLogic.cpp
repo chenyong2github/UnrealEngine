@@ -125,7 +125,7 @@ namespace UE::PixelStreamingVCam::Private
 			}
 
 			StopSignallingServer();
-			MediaCapture->StopCapture(true);
+			MediaCapture->StopCapture(false);
 			MediaCapture = nullptr;
 		}
 		else
