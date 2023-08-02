@@ -830,7 +830,7 @@ namespace EditorUtilities
 		 * Provides a mapping from an exported path to a new instance to which it should be remapped 
 		 * Imported object will be added to this map when possible during the create objects step.
 		 */
-		TMap<FString, UObject*>* ObjectRemapper = nullptr;
+		TMap<FSoftObjectPath, UObject*>* ObjectRemapper = nullptr;
 
 		/** 
 		 * Tell what properties shouldn't be imported when importing the properties

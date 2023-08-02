@@ -205,7 +205,7 @@ TArray<FTypedElementHandle> FActorElementEditorPasteImporter::GetImportedElement
 
 void FActorElementEditorPasteImporter::PostImportProcess()
 {
-	TMap<FString, UObject*> InExportedPathToObjectCreated;
+	TMap<FSoftObjectPath, UObject*> InExportedPathToObjectCreated;
 	// CreateObjects
 	{
 		UWorld* World = Context.World;

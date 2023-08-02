@@ -917,7 +917,7 @@ static const TCHAR* ImportCreateSubObjectsStep(
 	FFeedbackContext* Warn,
 	int32 Depth,
 	FObjectInstancingGraph& InstanceGraph,
-	TMap<FString, UObject*>* ObjectRemapper
+	TMap<FSoftObjectPath, UObject*>* ObjectRemapper
 	)
 {
 	check(ObjectStruct!=nullptr);
@@ -1307,7 +1307,7 @@ static const TCHAR* ImportPropertiesStep(
 	FFeedbackContext* Warn,
 	int32 Depth,
 	FObjectInstancingGraph& InstanceGraph,
-	TMap<FString, UObject*>* ObjectRemapper,
+	TMap<FSoftObjectPath, UObject*>* ObjectRemapper,
 	TSet<FProperty*>* PropertiesToSkip
 	)
 {
@@ -1502,10 +1502,9 @@ static const TCHAR* ImportPropertiesStep(
 							{ 
 								// Select the next character
 								PtrToEqual++;
-								FString PropertyValue(PtrToEqual, FullPropertyText.Len() - (PtrToEqual - FullPropertyText.GetData()));
-								if (UObject* const* PointerToObject = ObjectRemapper->Find(PropertyValue))
+								FStringView PropertyValue(PtrToEqual, FullPropertyText.Len() - (PtrToEqual - FullPropertyText.GetData()));
+								if (UObject* const* PointerToObject = ObjectRemapper->Find(FSoftObjectPath(PropertyValue)))
 								{
-
 									FString RedirectedFullName = FObjectPropertyBase::GetExportPath(*PointerToObject, nullptr, nullptr, PortFlags | PPF_Delimited);
 
 									FStringView TextBeforeValue(FullPropertyText.GetData(), PtrToEqual - FullPropertyText.GetData());
