@@ -316,7 +316,12 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 	}
 
 	//FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, ExtractRootTrackTransform(0.f, &RequiredBones), IsValidAdditive());
-	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, FTransform(), false); // MDW Does not support root motion yet
+	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock,
+#if WITH_EDITOR
+	!ExtractionContext.bIgnoreRootLock &&
+#endif // WITH_EDITOR
+	bForceRootLock,
+	FTransform(), false); // MDW Does not support root motion yet
 
 #if WITH_EDITOR
 	if (IsDataModelValid() && (!HasRunningPlatformData() || RequiredBones.ShouldUseRawData()))

@@ -1655,7 +1655,12 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 	const int32 NumTracks = CompressedData.CompressedTrackToSkeletonMapTable.Num();
 #endif 
 	const bool bTreatAnimAsAdditive = (IsValidAdditive() && !bUseRawDataForPoseExtraction); // Raw data is never additive
-	const FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, ExtractRootTrackTransform(0.0f, &RequiredBones), bTreatAnimAsAdditive);
+	const FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock,
+#if WITH_EDITOR
+		!ExtractionContext.bIgnoreRootLock &&
+#endif // WITH_EDITOR
+		bForceRootLock,
+		ExtractRootTrackTransform(0.0f, &RequiredBones), bTreatAnimAsAdditive);
 
 #if WITH_EDITOR
 	// Evaluate raw (source) curve and bone data

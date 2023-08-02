@@ -632,6 +632,9 @@ void UAnimPoseExtensions::GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* An
 
         FAnimationPoseData PoseData(CompactPose, Curve, Attributes);
         FAnimExtractContext Context(0.0, EvaluationOptions.bExtractRootMotion);
+#if WITH_EDITOR
+		Context.bIgnoreRootLock = EvaluationOptions.bIncorporateRootMotionIntoPose;
+#endif // WITH_EDITOR
     
         FCompactPose BasePose;
         BasePose.SetBoneContainer(&RequiredBones);

@@ -63,6 +63,10 @@ struct ANIMATIONBLUEPRINTLIBRARY_API FAnimPoseEvaluationOptions
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
 	bool bExtractRootMotion = false;
 
+	// Whether or not to force root motion being incorporated into retrieved pose
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
+	bool bIncorporateRootMotionIntoPose = true;
+
 	// Optional skeletal mesh with proportions to use when evaluating a pose
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
 	TObjectPtr<USkeletalMesh> OptionalSkeletalMesh = nullptr;
