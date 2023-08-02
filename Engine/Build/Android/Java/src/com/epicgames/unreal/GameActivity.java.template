@@ -5391,7 +5391,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		new DeviceInfoData(0x1532, 0x0037, "Razer Kishi V2 Pro XBox360"),
 		new DeviceInfoData(0x1532, 0x0705, "Razer Razer Claire T1 Wired"),
 		new DeviceInfoData(0x1532, 0x0712, "Razer Kishi V2"),
-		new DeviceInfoData(0x1532, 0x0718, "Razer Kishi V2 Pro XBox360")
+		new DeviceInfoData(0x1532, 0x0718, "Razer Kishi V2 Pro XBox360"),
+		new DeviceInfoData(0x0171, 0x0419, "Luna Gamepad")
 	};
 
 	public class InputDeviceInfo {

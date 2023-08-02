@@ -1160,6 +1160,10 @@ void FAndroidInputInterface::SendControllerEvents()
 								CurrentDevice.bTriggersUseThresholdForClick = true;
 							}
 						}
+						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Luna")))
+						{
+							CurrentDevice.bTriggersUseThresholdForClick = true;
+						}
 
 						IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
 						FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE;
