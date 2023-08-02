@@ -224,7 +224,7 @@ public:
 	 * @param OutReason					When returning false, this will provide a description of what was wrong with the name.
 	 * @return							true if a valid object path
 	 */
-	static COREUOBJECT_API bool IsValidObjectPath(const FString& InObjectPath, FText* OutReason = nullptr);
+	static COREUOBJECT_API bool IsValidObjectPath(FStringView InObjectPath, FText* OutReason = nullptr);
 
 	/**
 	 * Returns true if the path starts with a valid root (i.e. /Game/, /Engine/, etc).
@@ -232,7 +232,7 @@ public:
 	 * @param InObjectPath				The object path to test
 	 * @return							true if a valid object path
 	 */
-	static COREUOBJECT_API bool IsValidPath(const FString& InPath);
+	static COREUOBJECT_API bool IsValidPath(FStringView InPath);
 
 	/**
 	 * Checks if the string is a ShortPackageName. A ShortPackageName is the leaf name after the last

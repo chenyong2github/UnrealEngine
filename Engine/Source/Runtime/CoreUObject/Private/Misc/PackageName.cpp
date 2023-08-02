@@ -1257,10 +1257,10 @@ bool FPackageName::IsValidLongPackageName(FStringView InLongPackageName, bool bI
 	return false;
 }
 
-bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReason)
+bool FPackageName::IsValidObjectPath(FStringView InObjectPath, FText* OutReason)
 {
-	FString PackageName;
-	FString RemainingObjectPath;
+	FStringView PackageName;
+	FStringView RemainingObjectPath;
 
 	// Check for package delimiter
 	int32 ObjectDelimiterIdx;
@@ -1321,7 +1321,7 @@ bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReas
 	return true;
 }
 
-bool FPackageName::IsValidPath(const FString& InPath)
+bool FPackageName::IsValidPath(FStringView InPath)
 {
 	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
 	FReadScopeLock ScopeLock(Paths.MountLock);
