@@ -138,12 +138,6 @@ namespace UE
 		public virtual int LogIdleTimeout { get; set; } = 30 * 60;
 
 		/// <summary>
-		/// Maximum of events display per test
-		/// </summary>
-		[AutoParam]
-		public virtual int MaxEventsDisplayPerTest { get; set; } = 10;
-
-		/// <summary>
 		/// Used for having the editor and any client communicate
 		/// </summary>
 		public string SessionID = Guid.NewGuid().ToString();
@@ -414,6 +408,9 @@ namespace UE
 		private UnrealAutomatedTestPassResults TestPassResults = null;
 
 		private DateTime LastAutomationEntryTime = DateTime.MinValue;
+
+		/// Maximum of events display per test
+		protected virtual int MaxEventsDisplayPerTest { get; set; } = 10;
 
 		public AutomationNodeBase(Gauntlet.UnrealTestContext InContext)
 			: base(InContext)
@@ -864,12 +861,6 @@ namespace UE
 		/// <returns></returns>
 		protected override void LogTestSummaryHeader()
 		{
-			int kMaxErrorsOrWarningsToDisplay = 10;
-			if (GetConfiguration() is AutomationTestConfig TestConfig)
-			{
-				kMaxErrorsOrWarningsToDisplay = TestConfig.MaxEventsDisplayPerTest;
-			}
-
 			base.LogTestSummaryHeader();
 
 			// Everything we need is in the editor artifacts
@@ -887,17 +878,17 @@ namespace UE
 
 				Func<IEnumerable<UnrealAutomationEvent>, IEnumerable<UnrealAutomationEvent>> CapErrorOrWarningList = (E) =>
 				{
-					if (E.Count() > kMaxErrorsOrWarningsToDisplay)
+					if (E.Count() > MaxEventsDisplayPerTest)
 					{
-						E = E.Take(kMaxErrorsOrWarningsToDisplay);
+						E = E.Take(MaxEventsDisplayPerTest);
 					}
 					return E;
 				};
 				Action<IEnumerable<UnrealAutomationEvent>> NotifyMoreIfNeeded = E =>
 				{
-					if (E.Count() > kMaxErrorsOrWarningsToDisplay)
+					if (E.Count() > MaxEventsDisplayPerTest)
 					{
-						Log.Info(" (and {Count} more)", E.Count() - kMaxErrorsOrWarningsToDisplay);
+						Log.Info(" (and {Count} more)", E.Count() - MaxEventsDisplayPerTest);
 					}
 				};
 				// If there were abnormal exits then look only at the failed and incomplete tests only to avoid confusing things.
