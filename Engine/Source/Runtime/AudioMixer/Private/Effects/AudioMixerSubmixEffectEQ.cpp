@@ -223,6 +223,14 @@ void FSubmixEffectSubmixEQ::UpdateParameters(const int32 InNumOutputChannels)
 	if (PendingSettings.GetParams(&NewSettings))
 	{
 		bParamsChanged = true;
+
+		// Make sure we clamp our freq and bandwidth to reasonable values here
+		for (FSubmixEffectEQBand& Band : NewSettings.EQBands)
+		{
+			Band.Frequency = GetClampedFrequency(Band.Frequency);
+			Band.Bandwidth = GetClampedBandwidth(Band.Bandwidth);
+		}
+
 		RenderThreadEQSettings = NewSettings;
 	}
 
