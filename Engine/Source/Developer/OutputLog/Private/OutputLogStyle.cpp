@@ -46,7 +46,7 @@ FOutputLogStyle::FOutputLogStyle()
 	{
 		const UOutputLogSettings* Settings = GetDefault<UOutputLogSettings>();
 		
-		const int32 LogFontSize = Settings ? Settings->LogFontSize : 9;
+		const float LogFontSize = Settings ? static_cast<float>(Settings->LogFontSize) : 9.0f;
 
 		FTextBlockStyle NormalText = FAppStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
 

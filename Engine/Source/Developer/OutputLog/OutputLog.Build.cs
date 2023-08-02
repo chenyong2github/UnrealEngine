@@ -44,5 +44,7 @@ public class OutputLog : ModuleRules
 			// Required for output log drawer in editor / engine builds. 
 			PrivateDependencyModuleNames.Add("Engine");
 		}
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }
