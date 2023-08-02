@@ -214,7 +214,7 @@ void FAnimTimelineTrack_NotifiesPanel::RemoveTrack(int32 InTrackIndexToRemove)
 			AnimSequence->Modify();
 
 			// before insert, make sure everything behind is fixed
-			for (int32 TrackIndex = InTrackIndexToRemove + 1; TrackIndex < AnimSequence->AnimNotifyTracks.Num(); ++TrackIndex)
+			for (int32 TrackIndex = InTrackIndexToRemove; TrackIndex < AnimSequence->AnimNotifyTracks.Num() && TrackIndex > 0; ++TrackIndex)
 			{
 				FAnimNotifyTrack& Track = AnimSequence->AnimNotifyTracks[TrackIndex];
 				const int32 NewTrackIndex = TrackIndex - 1;
