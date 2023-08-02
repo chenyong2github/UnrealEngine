@@ -101,7 +101,7 @@ const int32 UGeometryCacheTrackUsd::FindSampleIndexFromTime(const float Time, co
 		SampleTime = GeometyCacheHelpers::WrapAnimationTime(Time, Duration);
 	}
 	// Which is converted to an index
-	int32 FrameIndex = FMath::RoundToInt(Time * FramesPerSecond);
+	int32 FrameIndex = FMath::FloorToInt(Time * FramesPerSecond);
 
 	// The final computed frame index must be offset by the start frame index
 	return FMath::Clamp(FrameIndex + StartFrameIndex, StartFrameIndex, EndFrameIndex - 1);
@@ -125,8 +125,8 @@ void UGeometryCacheTrackUsd::GetFractionalFrameIndexFromTime(const float Time, c
 	// Time at ThisFrameIndex with index normalized to 0
 	const float FrameIndexTime = (OutFrameIndex - StartFrameIndex) / FramesPerSecond;
 	OutFraction = float((AdjustedTime - FrameIndexTime) * FramesPerSecond);
-	// The fractional part is clamped to (-0.5, 0.5) for subframe interpolation that is centered around FrameIndex
-	OutFraction = FMath::Clamp(OutFraction, -0.5f, 0.5f);
+	// The fractional part is clamped to (0, 1) for subframe interpolation since the FrameIndex is floored
+	OutFraction = FMath::Clamp(OutFraction, 0.0f, 1.0f);
 }
 
 const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackUsd::GetSampleInfo(float Time, bool bLooping)
