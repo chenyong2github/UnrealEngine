@@ -28,6 +28,11 @@ public:
 	// END Pre import pipeline properties
 	//////////////////////////////////////////////////////////////////////////
 
+	/*
+	 * This pipeline must never be save into any asset import data
+	 */
+	virtual bool SupportReimport() const override { return false; }
+
 protected:
 
 	virtual void ExecutePipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas) override;

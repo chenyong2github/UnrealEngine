@@ -81,10 +81,27 @@ namespace UE::Interchange
 			TArray<UObject*> NewPipelines;
 			for (const UObject* Pipeline : Parameters.Pipelines)
 			{
-				UObject* DupPipeline = Cast<UObject>(StaticDuplicateObject(Pipeline, AssetImportData));
-				if (DupPipeline)
+				//Do not copy pipeline that cannot be use at reimport
+				bool bPipelineSupportReimport = false;
+				if (const UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(Pipeline))
 				{
-					NewPipelines.Add(DupPipeline);
+					if (PythonPipelineAsset->GeneratedPipeline)
+					{
+						bPipelineSupportReimport = PythonPipelineAsset->GeneratedPipeline->SupportReimport();
+					}
+				}
+				else if (const UInterchangePipelineBase* PipelineBase = Cast<UInterchangePipelineBase>(Pipeline))
+				{
+					bPipelineSupportReimport = PipelineBase->SupportReimport();
+				}
+
+				if(bPipelineSupportReimport)
+				{
+					UObject* DupPipeline = Cast<UObject>(StaticDuplicateObject(Pipeline, AssetImportData));
+					if (DupPipeline)
+					{
+						NewPipelines.Add(DupPipeline);
+					}
 				}
 			}
 			AssetImportData->SetPipelines(NewPipelines);

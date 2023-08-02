@@ -1482,7 +1482,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 						SourcePipeline = PythonPipelineAsset->GeneratedPipeline;
 					}
 				}
-				if (SourcePipeline) //Its possible a pipeline doesnt exist anymore so it wont load into memory when we loading the outer asset
+				if (SourcePipeline && SourcePipeline->SupportReimport()) //Its possible a pipeline doesnt exist anymore so it wont load into memory when we loading the outer asset
 				{
 					//Duplicate the pipeline saved in the asset import data
 					UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SourcePipeline, PipelineInstancesPackage));
@@ -1491,7 +1491,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 					AdjustPipelineSettingForContext(GeneratedPipeline);
 					StackInfo.Pipelines.Add(GeneratedPipeline);
 				}
-				else
+				else if(!SourcePipeline)
 				{
 					//A pipeline was not loaded
 					UE_LOG(LogInterchangeEngine, Warning, TEXT("Interchange Reimport: Missing import pipeline from the reimpoting asset. The reimport might fail."));

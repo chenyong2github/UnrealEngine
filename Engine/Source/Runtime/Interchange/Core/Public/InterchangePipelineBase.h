@@ -333,6 +333,13 @@ public:
 	INTERCHANGECORE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	/** End UObject overrides */
 
+	/*
+	 * If it return true it mean we want to save this pipeline in the asset import data.
+	 * We will reuse this pipeline when re-importing the asset.
+	 * If false its probably a debug helper pipeline we do not want to save into assets
+	 */
+	INTERCHANGECORE_API virtual bool SupportReimport() const { return true; }
+
 protected:
 
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")
