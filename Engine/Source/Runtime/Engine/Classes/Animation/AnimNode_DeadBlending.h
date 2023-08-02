@@ -131,6 +131,14 @@ private:
 	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"))
 	float MaximumCurveVelocity = 100.0f;
 
+	/**
+	 * Enable this to pre-allocate memory for the node rather than to allocate and deallocate memory when blending 
+	 * becomes active and inactive. This improves performance, but causes larger memory usage, in particular when you 
+	 * have multiple Dead Blending nodes in an animation graph that are not all used at once.
+	 */
+	UPROPERTY(EditAnywhere, Category = Memory)
+	bool bPreallocateMemory = false;
+
 #if WITH_EDITORONLY_DATA
 	
 	// This setting can be used to show what the extrapolation of the animation looks like.
@@ -160,6 +168,11 @@ public: // FAnimNode_Base
 
 private:
 	
+	/**
+	 * Deactivates the inertialization and frees any temporary memory (unless bPreallocateMemory is set).
+	 */
+	void Deactivate();
+
 	/**
 	 * Records the pose and velocity of the animation being transitioned from, and computes the extrapolation half-lives.
 	 * 

@@ -254,6 +254,30 @@ namespace UE::Anim::DeadBlending::Private
 	}
 }
 
+void FAnimNode_DeadBlending::Deactivate()
+{
+	InertializationState = EInertializationState::Inactive;
+
+	if (!bPreallocateMemory)
+	{
+		BoneValid.Empty();
+		BoneTranslations.Empty();
+		BoneRotations.Empty();
+		BoneRotationDirections.Empty();
+		BoneScales.Empty();
+
+		BoneTranslationVelocities.Empty();
+		BoneRotationVelocities.Empty();
+		BoneScaleVelocities.Empty();
+
+		BoneTranslationDecayHalfLives.Empty();
+		BoneRotationDecayHalfLives.Empty();
+		BoneScaleDecayHalfLives.Empty();
+
+		InertializationDurationPerBone.Empty();
+	}
+}
+
 void FAnimNode_DeadBlending::InitFrom(
 	const FCompactPose& InPose,
 	const FBlendedCurve& InCurves,
@@ -571,7 +595,7 @@ void FAnimNode_DeadBlending::Initialize_AnyThread(const FAnimationInitializeCont
 
 	RequestQueue.Reserve(8);
 
-	const int32 NumSkeletonBones = Context.AnimInstanceProxy->GetSkeleton()->GetReferenceSkeleton().GetNum();
+	const int32 NumSkeletonBones = bPreallocateMemory ? Context.AnimInstanceProxy->GetSkeleton()->GetReferenceSkeleton().GetNum() : 0;
 
 	BoneValid.Empty(NumSkeletonBones);
 	BoneTranslations.Empty(NumSkeletonBones);
@@ -700,7 +724,7 @@ void FAnimNode_DeadBlending::Evaluate_AnyThread(FPoseContext& Output)
 
 	if (bTeleported)
 	{
-		InertializationState = EInertializationState::Inactive;
+		Deactivate();
 	}
 	
 	// If we don't have any Pose Snapshots recorded it means this is the first time this node has been evaluated in 
@@ -821,7 +845,7 @@ void FAnimNode_DeadBlending::Evaluate_AnyThread(FPoseContext& Output)
 
 		if (InertializationTime >= InertializationMaxDuration)
 		{
-			InertializationState = EInertializationState::Inactive;
+			Deactivate();
 		}
 	}
 
