@@ -602,6 +602,8 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		// The dynamic operator & generator will then consume these transforms after it has finished 
 		// being built.
 
+		BuilderSettings.bEnableOperatorRebind = true;
+
 		FMetasoundDynamicGraphGeneratorInitParams InitParams
 		{
 			{
