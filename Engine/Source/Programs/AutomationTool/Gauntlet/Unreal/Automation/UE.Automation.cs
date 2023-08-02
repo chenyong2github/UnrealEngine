@@ -138,6 +138,12 @@ namespace UE
 		public virtual int LogIdleTimeout { get; set; } = 30 * 60;
 
 		/// <summary>
+		/// Maximum of events display per test
+		/// </summary>
+		[AutoParam]
+		public virtual int MaxEventsDisplayPerTest { get; set; } = 10;
+
+		/// <summary>
 		/// Used for having the editor and any client communicate
 		/// </summary>
 		public string SessionID = Guid.NewGuid().ToString();
@@ -858,7 +864,11 @@ namespace UE
 		/// <returns></returns>
 		protected override void LogTestSummaryHeader()
 		{
-			const int kMaxErrorsOrWarningsToDisplay = 10;
+			int kMaxErrorsOrWarningsToDisplay = 10;
+			if (GetConfiguration() is AutomationTestConfig TestConfig)
+			{
+				kMaxErrorsOrWarningsToDisplay = TestConfig.MaxEventsDisplayPerTest;
+			}
 
 			base.LogTestSummaryHeader();
 
@@ -882,6 +892,13 @@ namespace UE
 						E = E.Take(kMaxErrorsOrWarningsToDisplay);
 					}
 					return E;
+				};
+				Action<IEnumerable<UnrealAutomationEvent>> NotifyMoreIfNeeded = E =>
+				{
+					if (E.Count() > kMaxErrorsOrWarningsToDisplay)
+					{
+						Log.Info(" (and {Count} more)", E.Count() - kMaxErrorsOrWarningsToDisplay);
+					}
 				};
 				// If there were abnormal exits then look only at the failed and incomplete tests only to avoid confusing things.
 				if (GetRolesThatExitedAbnormally().Any())
@@ -907,11 +924,13 @@ namespace UE
 									EventId ErrorEventType = Error.IsCriticalFailure ? KnownLogEvents.Gauntlet_FatalEvent : KnownLogEvents.Gauntlet_UnrealEngineTestEvent;
 									Log.Error(ErrorEventType, "    " + Error.FormatToString());
 								}
+								NotifyMoreIfNeeded(Result.ErrorEvents);
 								var Warnings = CapErrorOrWarningList(Result.WarningEvents.Distinct());
 								foreach (var Warning in Warnings)
 								{
 									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning.FormatToString());
 								}
+								NotifyMoreIfNeeded(Result.WarningEvents);
 								Log.Info("");
 							}
 						}
@@ -944,10 +963,12 @@ namespace UE
 							{
 								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Error.FormatToString());
 							}
+							NotifyMoreIfNeeded(Errors);
 							foreach (var Warning in CapErrorOrWarningList(Warnings))
 							{
 								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning.FormatToString());
 							}
+							NotifyMoreIfNeeded(Warnings);
 							Log.Info("");
 						}
 						else
@@ -966,12 +987,12 @@ namespace UE
 							{
 								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' failed.", Result.FullTestPath);
 								IEnumerable<UnrealAutomationEvent> Events = Result.ErrorEvents.Distinct();
-								Events = CapErrorOrWarningList(Events);
-								foreach (var Event in Events)
+								foreach (var Event in CapErrorOrWarningList(Events))
 								{
 									EventId ErrorEventType = Event.IsCriticalFailure ? KnownLogEvents.Gauntlet_FatalEvent : KnownLogEvents.Gauntlet_UnrealEngineTestEvent;
 									Log.Error(ErrorEventType, "    " + Event.FormatToString());
 								}
+								NotifyMoreIfNeeded(Events);
 								Log.Info("");
 							}
 						}
@@ -985,11 +1006,11 @@ namespace UE
 								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' completed with warnings.", Result.FullTestPath);
 								// only show the first N items
 								IEnumerable<UnrealAutomationEvent> WarningEvents = Result.WarningEvents.Distinct();
-								WarningEvents = CapErrorOrWarningList(WarningEvents);
-								foreach (var Event in WarningEvents)
+								foreach (var Event in CapErrorOrWarningList(WarningEvents))
 								{
 									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event.FormatToString());
 								}
+								NotifyMoreIfNeeded(WarningEvents);
 								Log.Info("");
 							}
 						}
@@ -1003,11 +1024,11 @@ namespace UE
 								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' did not run or complete.", Result.FullTestPath);
 								// only show the first N items
 								IEnumerable<UnrealAutomationEvent> ErrorAndWarningEvents = Result.WarningAndErrorEvents.Distinct();
-								ErrorAndWarningEvents = CapErrorOrWarningList(ErrorAndWarningEvents);
-								foreach (var Event in ErrorAndWarningEvents)
+								foreach (var Event in CapErrorOrWarningList(ErrorAndWarningEvents))
 								{
 									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event.FormatToString());
 								}
+								NotifyMoreIfNeeded(ErrorAndWarningEvents);
 							}
 							Log.Info("");
 						}
