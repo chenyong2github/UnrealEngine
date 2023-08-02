@@ -1071,7 +1071,7 @@ void UClothEditorWeightMapPaintTool::ComputeGradient()
 			}
 		}
 
-		const float Value = FMath::LerpStable(0.0f, 1.0f, DistanceToLowSq / (DistanceToLowSq + DistanceToHighSq));
+		const float Value = FMath::LerpStable(FilterProperties->GradientLowValue, FilterProperties->GradientHighValue, DistanceToLowSq / (DistanceToLowSq + DistanceToHighSq));
 		if (bHaveDynamicMeshToWeightConversion)
 		{
 			for (const int32 Idx : WeightToDynamicMesh[DynamicMeshToWeight[VertexIndex]])
