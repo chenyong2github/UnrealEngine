@@ -633,6 +633,7 @@ public:
 	 * Apply all pending UNiagaraScriptConversionContexts and UNiagaraRendererProperties to the owned
 	 * UNiagaraEmitterContexts by creating clipboard inputs and pasting them onto the emitter conversion context's
 	 * Emitter.
+	 * Afterwards compile the system so the changes take effect.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void Finalize();

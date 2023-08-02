@@ -1625,6 +1625,8 @@ void UNiagaraSystemConversionContext::Finalize()
 	{
 		EmitterConversionContextIt.Value()->InternalFinalizeStackEntryAddActions();
 	}
+
+	System->RequestCompile(false);
 }
 
 UNiagaraEmitterConversionContext* const* UNiagaraSystemConversionContext::FindEmitterConversionContextByName(const FName& EmitterName)
