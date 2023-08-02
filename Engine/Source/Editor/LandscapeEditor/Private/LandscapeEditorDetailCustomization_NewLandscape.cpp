@@ -1057,11 +1057,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 
 	TArray<uint16> OutHeightData;
 	
-	if (bIsNewLandscape || bNeedsLandscapeRegions)
-	{
-		UISettings->InitializeDefaultHeightData(OutHeightData);
-	}
-	else
+	if (!(bIsNewLandscape || bNeedsLandscapeRegions))
 	{
 		UISettings->ExpandImportData(OutHeightData, MaterialImportLayers);
 	}
