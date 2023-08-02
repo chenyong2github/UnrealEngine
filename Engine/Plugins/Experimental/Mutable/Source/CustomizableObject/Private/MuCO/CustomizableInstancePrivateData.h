@@ -12,7 +12,12 @@
 #include "UObject/Package.h"
 #include "CustomizableInstancePrivateData.generated.h"
 
-namespace mu { class PhysicsBody; }
+namespace mu 
+{
+	class PhysicsBody;
+	typedef uint64 FResourceID;
+}
+
 struct FMutableModelImageProperties;
 struct FMutableRefSkeletalMeshData;
 struct FMutableImageCacheKey;
@@ -137,8 +142,8 @@ struct FCustomizableInstanceComponentData
 
 	/** Array of generated MeshIds per each LOD, used to decide if the mesh should be updated or not.
 	 *  Size == NumLODsAvailable
-	 *  LODs without mesh will be set to -1 */
-	TArray<int32> LastMeshIdPerLOD;
+	 *  LODs without mesh will be set to the maximum value of FResourceID (Max_uint64). */
+	TArray<mu::FResourceID> LastMeshIdPerLOD;
 
 	bool operator==(const FCustomizableInstanceComponentData& Other) const { return ComponentIndex == Other.ComponentIndex; }
 };
@@ -286,8 +291,8 @@ private:
 
 	bool DoComponentsNeedUpdate(UCustomizableObjectInstance* CustomizableObjectInstance, const TSharedPtr<FMutableOperationData>& OperationData, TArray<bool>& OutComponentNeedsUpdate, bool& bOutEmptyMesh);
 
-	int32 GetLastMeshId(int32 ComponentIndex, int32 LODIndex) const;
-	void SetLastMeshId(int32 ComponentIndex, int32 LODIndex, int32 MeshId);
+	mu::FResourceID GetLastMeshId(int32 ComponentIndex, int32 LODIndex) const;
+	void SetLastMeshId(int32 ComponentIndex, int32 LODIndex, mu::FResourceID MeshId);
 
 public:
 
