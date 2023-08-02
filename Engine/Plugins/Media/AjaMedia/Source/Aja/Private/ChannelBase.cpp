@@ -299,6 +299,7 @@ namespace AJA
 			
 			const bool bConnectChannel = true;
 			const bool bAsOwner = true;
+			const bool bAsGenlock = false;
 
 			// Get the override channel in case we need to reroute an input to a different channel.
 			// ie. HDMI2 4K should go to channel 3
@@ -311,7 +312,7 @@ namespace AJA
 				DesiredVideoFormat = Helpers::GetLevelA(DesiredVideoFormat);
 			}
 
-			if (!InCommandList.RegisterChannel(GetOptions().TransportType, InputSource, Channel, IsInput(), bConnectChannel, GetOptions().TimecodeFormat, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
+			if (!InCommandList.RegisterChannel(GetOptions().TransportType, InputSource, Channel, IsInput(), bAsGenlock, bConnectChannel, GetOptions().TimecodeFormat, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
 			{
 				return false;
 			}
@@ -547,8 +548,10 @@ namespace AJA
 					if (UseKey())
 					{
 						bConnectedChannel = false;
-						const bool bAsOwner = true;
-						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
+						constexpr bool bAsOwner = true;
+						constexpr bool bAsGenlock = false;
+
+						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bAsGenlock, bConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
 						{
 							return false;
 						}
@@ -588,8 +591,10 @@ namespace AJA
 					if (UseKey())
 					{
 						const bool bUseKeyConnectedChannel = false;
-						const bool bAsOwner = true;
-						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bUseKeyConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
+						constexpr bool bAsOwner = true;
+						constexpr bool bAsGenlock = false;
+
+						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bAsGenlock, bUseKeyConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
 						{
 							return false;
 						}

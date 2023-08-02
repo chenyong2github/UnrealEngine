@@ -135,6 +135,7 @@ namespace AJA
 			static bool IsSdiTransport(ETransportType InTransportType);
 			static bool IsHdmiTransport(ETransportType InTransportType);
 			static const char* TransportTypeToString(ETransportType InTransportType);
+			static const char* ReferenceTypeToString(EAJAReferenceType InReferenceType);
 
 			static NTV2VideoFormat Get372Format(NTV2VideoFormat InFormat);
 			static NTV2VideoFormat GetLevelA(NTV2VideoFormat InFormat);

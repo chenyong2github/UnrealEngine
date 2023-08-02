@@ -1197,6 +1197,17 @@ namespace AJA
 			return "<Invalid>";
 		}
 
+		const char* Helpers::ReferenceTypeToString(EAJAReferenceType InReferenceType)
+		{
+			switch (InReferenceType)
+			{
+			case EAJAReferenceType::EAJA_REFERENCETYPE_EXTERNAL: return "External";
+			case EAJAReferenceType::EAJA_REFERENCETYPE_FREERUN: return "Free Run";
+			case EAJAReferenceType::EAJA_REFERENCETYPE_INPUT: return "Input";
+			}
+			return "<Invalid>";
+		}
+
 		NTV2VideoFormat Helpers::Get372Format(NTV2VideoFormat InFormat)
 		{
 			switch (InFormat)

@@ -253,11 +253,13 @@ namespace AJA
 					return false;
 				}
 
-				const bool bRegisteredAsInput = true;
-				const bool bConnectChannel = false;
-				const bool bAsOwner = false;
+				constexpr bool bRegisteredAsInput = true;
+				constexpr bool bConnectChannel = false;
+				constexpr bool bAsOwner = false;
+				constexpr bool bAsGenlock = false;
+
 				const EPixelFormat DefaultPixelFormat = EPixelFormat::PF_8BIT_YCBCR;
-				if (!InCommandList.RegisterChannel(TimecodeOption.TransportType, InputSource, Channel, bRegisteredAsInput, bConnectChannel, TimecodeOption.TimecodeFormat, DefaultPixelFormat, DesiredVideoFormat, bAsOwner, TimecodeOption.bAutoDetectFormat))
+				if (!InCommandList.RegisterChannel(TimecodeOption.TransportType, InputSource, Channel, bRegisteredAsInput, bAsGenlock, bConnectChannel, TimecodeOption.TimecodeFormat, DefaultPixelFormat, DesiredVideoFormat, bAsOwner, TimecodeOption.bAutoDetectFormat))
 				{
 					return false;
 				}

@@ -254,10 +254,11 @@ namespace AJA
 			}
 
 			const bool bRegisteredAsInput = !SyncOption.bOutput;
-			const bool bConnectChannel = false;
-			const bool bAsOwner = false;
+			constexpr bool bConnectChannel = false;
+			constexpr bool bAsOwner = false;
+			constexpr bool bAsGenlock = true;
 			const EPixelFormat DefaultPixelFormat = EPixelFormat::PF_8BIT_YCBCR;
-			if (!InCommandList.RegisterChannel(SyncOption.TransportType, InputSource, Channel, bRegisteredAsInput, bConnectChannel, SyncOption.TimecodeFormat, DefaultPixelFormat, DesiredVideoFormat, bAsOwner, SyncOption.bAutoDetectFormat))
+			if (!InCommandList.RegisterChannel(SyncOption.TransportType, InputSource, Channel, bRegisteredAsInput, bAsGenlock, bConnectChannel, SyncOption.TimecodeFormat, DefaultPixelFormat, DesiredVideoFormat, bAsOwner, SyncOption.bAutoDetectFormat))
 			{
 				return false;
 			}

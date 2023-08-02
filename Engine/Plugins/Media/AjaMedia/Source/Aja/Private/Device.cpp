@@ -153,6 +153,7 @@ namespace AJA
 			, bIsOwned(false)
 			, bIsInput(false)
 			, bIsAutoDetected(false)
+			, bGenlockChannel(false)
 		{
 		}
 
@@ -162,13 +163,13 @@ namespace AJA
 			: Connection(InConnection)
 		{}
 
-		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInAsInput, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, bool bInAsOwner, bool bInIsAutoDetected)
+		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInAsInput, bool bInAsGenlock, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, bool bInAsOwner, bool bInIsAutoDetected)
 		{
 			FAjaHDROptions UnusedOptions;
-			return RegisterChannel(InTransportType, InInputSource, InChannel, bInAsInput, bConnectChannel, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, UnusedOptions, bInAsOwner, bInIsAutoDetected);
+			return RegisterChannel(InTransportType, InInputSource, InChannel, bInAsInput, bInAsGenlock, bConnectChannel, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, UnusedOptions, bInAsOwner, bInIsAutoDetected);
 		}
 
-		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInIsInput, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, FAjaHDROptions& InOutHDROptions, bool bInAsOwner, bool bInIsAutoDetected)
+		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInIsInput, bool bInAsGenlock, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, FAjaHDROptions& InOutHDROptions, bool bInAsOwner, bool bInIsAutoDetected)
 		{
 			AJAAutoLock Lock(&Connection.ChannelLock);
 
@@ -225,6 +226,7 @@ namespace AJA
 					Info->bIsInput = bInIsInput;
 					Info->bConnected = bConnectChannel;
 					Info->bIsAutoDetected = bInIsAutoDetected;
+					Info->bGenlockChannel = bInAsGenlock;
 
 					{
 						AJAAutoLock AutoLock(&Connection.ChannelInfoLock);
@@ -283,7 +285,11 @@ namespace AJA
 				if (bResult)
 				{
 					std::string FailureReason;
-					if (!Helpers::GetInputVideoFormat(Connection.Card, InTransportType, InChannel, InInputSource, InDesiredInputFormat, VideoFormat, false, FailureReason))
+					if (bInAsGenlock || FoundChannel->bGenlockChannel)
+					{
+						VideoFormat = InDesiredInputFormat;
+					} 
+					else if (!Helpers::GetInputVideoFormat(Connection.Card, InTransportType, InChannel, InInputSource, InDesiredInputFormat, VideoFormat, false, FailureReason))
 					{
 						UE_LOG(LogAjaCore, Error, TEXT("Device: Initialization of the input failed for channel %d on device %S. %S"), uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str(), FailureReason.c_str());
 						bResult = false;
@@ -300,7 +306,7 @@ namespace AJA
 					}
 				}
 
-				if (bResult && FoundChannel->TimecodeFormat != InTimecodeFormat && !bInIsAutoDetected)
+				if (bResult && FoundChannel->TimecodeFormat != InTimecodeFormat && !bInIsAutoDetected && bInAsGenlock)
 				{
 					UE_LOG(LogAjaCore, Warning,  TEXT("Device: Try to enable the channel '%d' on device '%S' with a timecode format that is not the same as the previous one. Timecode may not be decoded properly.\n")
 						, uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str());
@@ -414,6 +420,12 @@ namespace AJA
 			}
 			else
 			{
+				if (Connection.bOutputReferenceSet)
+				{
+					// Connection was also used for genlock but was not initialized as a genlock connection, so mark it as so.
+					FoundChannel->bGenlockChannel = true;
+				}
+
 				if (bInAsOwner)
 				{
 					FoundChannel->bIsOwned = false;
@@ -586,13 +598,13 @@ namespace AJA
 			{
 				if (Connection.OutputReferenceType != InOutputReferenceType)
 				{
-					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference for output on device %S. The type was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), int(Connection.OutputReferenceType));
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference (%S) for output on device %S. The type was already setup with %S.\n"), Helpers::ReferenceTypeToString(InOutputReferenceType), Connection.Card->GetDisplayName().c_str(), Helpers::ReferenceTypeToString(Connection.OutputReferenceType));
 					return false;
 				}
 
 				if (Connection.OutputReferenceType == EAJAReferenceType::EAJA_REFERENCETYPE_INPUT && Connection.OutputReferenceChannel != InOutputReferenceChannel)
 				{
-					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference for output on device %S. The input was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceChannel);
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference (%S) for output on device %S. The input was already setup with %S.\n"), Helpers::ReferenceTypeToString(InOutputReferenceType), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceChannel, Helpers::ReferenceTypeToString(Connection.OutputReferenceType));
 					return false;
 				}
 
@@ -605,7 +617,7 @@ namespace AJA
 			{
 				if (Connection.bAnalogLtcFromReferenceInput)
 				{
-					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference for output channel %d on device %S. The reference is used to read analog LTC.\n"), InOutputReferenceChannel, Connection.Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference (%S) for output channel %d on device %S. The reference is used to read analog LTC.\n"), Helpers::ReferenceTypeToString(InOutputReferenceType), InOutputReferenceChannel, Connection.Card->GetDisplayName().c_str());
 					return false;
 				}
 				AJA_CHECK(Connection.Card->SetLTCInputEnable(false));
