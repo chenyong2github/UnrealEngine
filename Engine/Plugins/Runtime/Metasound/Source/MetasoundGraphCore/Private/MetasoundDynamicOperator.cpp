@@ -3,6 +3,7 @@
 #include "MetasoundDynamicOperator.h"
 
 #include "Containers/Array.h"
+#include "MetasoundDynamicOperatorAudioFade.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundVertexData.h"
@@ -602,6 +603,58 @@ namespace Metasound
 			}
 
 			return Result;
+		}
+
+		FBeginAudioFadeTransform::FBeginAudioFadeTransform(FOperatorID InOperatorIDToFade, EAudioFadeType InFadeType, TArrayView<const FVertexName> InInputVerticesToFade, TArrayView<const FVertexName> InOutputVerticesToFade)
+		: OperatorIDToFade(InOperatorIDToFade)
+		, InitFadeState(InFadeType == EAudioFadeType::FadeIn ? FAudioFadeOperatorWrapper::EFadeState::FadingIn : FAudioFadeOperatorWrapper::EFadeState::FadingOut)
+		, InputVerticesToFade(InInputVerticesToFade)
+		, OutputVerticesToFade(InOutputVerticesToFade)
+		{
+		}
+
+		EDynamicOperatorTransformQueueAction FBeginAudioFadeTransform::FBeginAudioFadeTransform::Transform(FDynamicGraphOperatorData& InGraphOperatorData)
+		{
+		  	if (FOperatorInfo* OperatorInfo = InGraphOperatorData.OperatorMap.Find(OperatorIDToFade))
+			{
+				// Make wrapped operator
+				OperatorInfo->Operator = MakeUnique<FAudioFadeOperatorWrapper>(InitFadeState, InGraphOperatorData.OperatorSettings, OperatorInfo->VertexData.GetInputs(), MoveTemp(OperatorInfo->Operator), InputVerticesToFade, OutputVerticesToFade);
+
+				// Update data references in graph
+				RebindWrappedOperator(OperatorIDToFade, *OperatorInfo, InGraphOperatorData);
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("Could not find operator with ID %d when applying audio fade out."), OperatorIDToFade);
+			}
+			
+			return EDynamicOperatorTransformQueueAction::Continue;
+		}
+
+		FEndAudioFadeTransform::FEndAudioFadeTransform(FOperatorID InOperatorIDToFade)
+		: OperatorIDToFade(InOperatorIDToFade)
+		{
+		}
+
+		EDynamicOperatorTransformQueueAction FEndAudioFadeTransform::Transform(FDynamicGraphOperatorData& InGraphOperatorData)
+		{
+		  	if (FOperatorInfo* OperatorInfo = InGraphOperatorData.OperatorMap.Find(OperatorIDToFade))
+			{
+				FAudioFadeOperatorWrapper* Wrapper = static_cast<FAudioFadeOperatorWrapper*>(OperatorInfo->Operator.Get());
+				check(Wrapper);
+
+				// Unwrap operator
+				OperatorInfo->Operator = Wrapper->ReleaseOperator();
+
+				// Update data references in graph
+				RebindWrappedOperator(OperatorIDToFade, *OperatorInfo, InGraphOperatorData);
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("Could not find operator with ID %d when applying audio fade out."), OperatorIDToFade);
+			}
+			
+			return EDynamicOperatorTransformQueueAction::Continue;
 		}
 	} // namespace DynamicGraph
 }

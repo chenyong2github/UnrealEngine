@@ -61,5 +61,9 @@ REGISTER_METASOUND_DATATYPE(float, "Float", ::Metasound::ELiteralType::Float)
 REGISTER_METASOUND_DATATYPE(FString, "String", ::Metasound::ELiteralType::String)
 REGISTER_METASOUND_DATATYPE(Metasound::FTrigger, "Trigger", ::Metasound::ELiteralType::Boolean)
 REGISTER_METASOUND_DATATYPE(Metasound::FTime, "Time", ::Metasound::ELiteralType::Float)
-REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio")
 REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address", ::Metasound::ELiteralType::String)
+
+// FAudioBuffer is declared and defined in the MetaSoundGraphCore module. Here we only
+// enqueue the registration command to avoid linker issues caused by the interplay
+// of the REGISTER_METASOUND_DATATYPE and DEFINE_METASOUND_DATA_TYPE macros.
+ENQUEUE_METASOUND_DATATYPE_REGISTRATION_COMMAND(Metasound::FAudioBuffer, "Audio");

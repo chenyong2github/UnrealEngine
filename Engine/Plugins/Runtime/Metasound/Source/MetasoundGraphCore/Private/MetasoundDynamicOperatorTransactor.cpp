@@ -22,8 +22,9 @@ namespace Metasound
 		namespace DynamicOperatorTransactorPrivate
 		{
 			// Literal nodes always have output vertex with this name. 
-			static FLazyName LiteralNodeOutputVertexName("Value");
-
+			static const FLazyName LiteralNodeOutputVertexName("Value");
+			
+			// Sorts the graph and determines order of operator execution.
 			TArray<FOperatorID> DetermineOperatorOrder(const IGraph& InGraph)
 			{
 				/* determine new operator order. */
@@ -39,6 +40,18 @@ namespace Metasound
 				Algo::Transform(NodeOrder, OperatorOrder, static_cast<FOperatorID(*)(const INode*)>(DirectedGraphAlgo::GetOperatorID)); //< Static cast to help deduce which overloaded version of GetOperatorID to call in Algo::Transform
 
 				return OperatorOrder;
+			}
+
+			static const FLazyName AudioBufferDataTypeName("Audio");
+
+			FString GetDebugNodeNameString(const INode& InNode)
+			{
+				return FString::Printf(TEXT("%s_v%d.%d"), *InNode.GetMetadata().ClassName.GetFullName().ToString(), InNode.GetMetadata().MajorVersion, InNode.GetMetadata().MinorVersion);
+			}
+
+			FString GetDebugNodeNameString(const FGuid& InNodeID, const INode& InNode)
+			{
+				return FString::Printf(TEXT("%s:%s"), *InNodeID.ToString(), *GetDebugNodeNameString(InNode));
 			}
 		}
 
@@ -107,12 +120,24 @@ namespace Metasound
 
 			if (const INode* Node = Graph.FindNode(InNodeID))
 			{
-				FOperatorID OperatorID = GetOperatorID(Node);
-				auto CreateRemoveNodeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+				TArray<FVertexName> OutputsToFade;
+				const FOutputVertexInterface& OutputInterface = Node->GetVertexInterface().GetOutputInterface();
+				for (const FOutputDataVertex& OutputVertex : OutputInterface)
 				{
-					return MakeUnique<FRemoveOperator>(OperatorID);
-				};
-				EnqueueTransformOnOperatorQueues(CreateRemoveNodeTransform);
+					if (OutputVertex.DataTypeName == DynamicOperatorTransactorPrivate::AudioBufferDataTypeName)
+					{
+						OutputsToFade.Add(OutputVertex.VertexName);
+					}
+				}
+
+				if (OutputsToFade.Num())
+				{
+					EnqueueFadeAndRemoveOperatorTransform(*Node, OutputsToFade);
+				}
+				else
+				{
+					EnqueueRemoveOperatorTransform(*Node);
+				}
 
 				constexpr bool bRemoveDataEdgesWithNode = true;
 				bool bRemovedNodeFromGraph = Graph.RemoveNode(InNodeID, bRemoveDataEdgesWithNode);
@@ -189,41 +214,20 @@ namespace Metasound
 			}
 
 			/* enqueue an update. */
-			const FOperatorID FromOperatorID = GetOperatorID(FromNode);
-			const FOperatorID LiteralOperatorID = GetOperatorID(ReplacementLiteralNode);
-			const FOperatorID ToOperatorID = GetOperatorID(ToNode);
 			TArray<FOperatorID> OperatorOrder = DynamicOperatorTransactorPrivate::DetermineOperatorOrder(Graph);
 
-			auto CreateRemoveEdgeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			if (ToNode->GetVertexInterface().GetInputVertex(InToVertex).DataTypeName == DynamicOperatorTransactorPrivate::AudioBufferDataTypeName)
 			{
-				// Add the literal node.
-				TUniquePtr<IDynamicOperatorTransform> AddNodeTransform = CreateAddOperatorTransform(*ReplacementLiteralNode, InOperatorSettings, InEnvironment);
+				// Handle audio edge removal with a fade out.
+				EnqueueFadeAndRemoveEdgeOperatorTransform(*FromNode, InFromVertex, *ToNode, InToVertex, *ReplacementLiteralNode, OperatorOrder);
+			}
+			else
+			{
+				// Immediately disconnect non-audio edges. 
+				EnqueueRemoveEdgeOperatorTransform(*FromNode, InFromVertex, *ToNode, InToVertex, *ReplacementLiteralNode, OperatorOrder);
+			}
 
-				// Connect literal node to target node.
-				TUniquePtr<IDynamicOperatorTransform> ConnectOperatorsTransform = MakeUnique<FConnectOperators>(LiteralOperatorID, DynamicOperatorTransactorPrivate::LiteralNodeOutputVertexName, ToOperatorID, InToVertex);
 
-				// Reorder the node graph.
-				TUniquePtr<IDynamicOperatorTransform> SetOrderTransform = MakeUnique<FSetOperatorOrder>(OperatorOrder);
-
-				if (AddNodeTransform.IsValid() && ConnectOperatorsTransform.IsValid() && SetOrderTransform.IsValid())
-				{
-					// Create an atomic transform so all sub-transforms happen before next execution.
-					TArray<TUniquePtr<IDynamicOperatorTransform>> AtomicTransforms;
-
-					AtomicTransforms.Emplace(MoveTemp(AddNodeTransform));
-					AtomicTransforms.Emplace(MoveTemp(ConnectOperatorsTransform));
-					AtomicTransforms.Emplace(MoveTemp(SetOrderTransform));
-
-					return MakeUnique<FAtomicTransform>(MoveTemp(AtomicTransforms));
-				}
-				else
-				{
-					UE_LOG(LogMetaSound, Error, TEXT("Cannot remove edge from %s:%s to %s:%s because of failure to create all transforms needed to perform operatorn."), *InFromNodeID.ToString(), *InFromVertex.ToString(), *InToNodeID.ToString(), *InToVertex.ToString());
-					return TUniquePtr<IDynamicOperatorTransform>(nullptr);
-				}
-			};
-
-			EnqueueTransformOnOperatorQueues(CreateRemoveEdgeTransform);
 		}
 
 		void FDynamicOperatorTransactor::SetValue(const FGuid& InNodeID, const FVertexName& InVertex, TUniquePtr<INode> InLiteralNode)
@@ -369,18 +373,24 @@ namespace Metasound
 		void FDynamicOperatorTransactor::AddDataEdgeInternal(const INode& InFromNode, const FVertexName& InFromVertex, const FGuid& InToNodeID, const INode& InToNode, const FVertexName& InToVertex)
 		{
 			using namespace DirectedGraphAlgo;
+			using namespace DynamicOperatorTransactorPrivate;
 
-			/* Determine if there is an existing literal node connected to the node. */
-			const FLiteralNodeID LiteralNodeKey{InToNodeID, InToVertex};
-			bool bIsAlreadyConnectedToALiteralNode = false;
-			FOperatorID PriorLiteralOperatorID;
-			if (const TUniquePtr<INode>* PriorLiteralNode = LiteralNodeMap.Find(LiteralNodeKey))
+			const FInputDataVertex* InputVertex = InToNode.GetVertexInterface().GetInputInterface().Find(InToVertex);
+			if (nullptr == InputVertex)
 			{
-				bIsAlreadyConnectedToALiteralNode = true;
-				PriorLiteralOperatorID = GetOperatorID(PriorLiteralNode->Get());
-				
-				Graph.RemoveDataEdge(**PriorLiteralNode, DynamicOperatorTransactorPrivate::LiteralNodeOutputVertexName, InToNode, InToVertex);
-				LiteralNodeMap.Remove(LiteralNodeKey);
+				UE_LOG(LogMetaSound, Error, TEXT("Cannot connect nodes because destination node %s does not contain input vertex %s"), *GetDebugNodeNameString(InToNodeID, InToNode), *InToVertex.ToString());
+				return;
+			}
+
+			/* Determine if there is an existing literal node connected to the node. 
+			 * Literal nodes are stored on the FDynamicOperatorTransactor and need to be 
+			 * disconnected and removed if they are no longer being used. 
+			 */
+			const FLiteralNodeID LiteralNodeKey{InToNodeID, InToVertex};
+			TUniquePtr<INode> PriorLiteralNode;
+			if (LiteralNodeMap.RemoveAndCopyValue(LiteralNodeKey, PriorLiteralNode))
+			{
+				Graph.RemoveDataEdge(*PriorLiteralNode, DynamicOperatorTransactorPrivate::LiteralNodeOutputVertexName, InToNode, InToVertex);
 			}
 
 			/* add edge to internal graph. */
@@ -388,20 +398,54 @@ namespace Metasound
 
 			// Find order of operators after adding edge. 
 			TArray<FOperatorID> OperatorOrder = DynamicOperatorTransactorPrivate::DetermineOperatorOrder(Graph);
+			
+			if (InputVertex->DataTypeName == DynamicOperatorTransactorPrivate::AudioBufferDataTypeName)
+			{
+				// If edge is audio, then the connection needs to be faded
+				EnqueueFadeAndAddEdgeOperatorTransform(InFromNode, InFromVertex, InToNode, InToVertex, PriorLiteralNode.Get(), OperatorOrder);
+			}
+			else
+			{
+				// If the edge is not audio, then no fading is performed. 
+				EnqueueAddEdgeOperatorTransform(InFromNode, InFromVertex, InToNode, InToVertex, PriorLiteralNode.Get(), OperatorOrder);
+			}
+		}
+		
+		void FDynamicOperatorTransactor::EnqueueFadeAndRemoveOperatorTransform(const INode& InNode, TArrayView<const FVertexName> InOutputsToFade)
+		{
+			TArrayView<const FVertexName> InputsToFade; // We do not need to fade any inputs when removing a node.
 
+			EnqueueBeginFadeOperatorTransform(InNode, EAudioFadeType::FadeOut, InputsToFade, InOutputsToFade);
+
+			const FOperatorID OperatorID = DirectedGraphAlgo::GetOperatorID(InNode);
+
+			auto CreateEndFadeOutTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				// We can skip the FEndAudioFadeTransform as an optimization here.
+				// FEndAudioFadeTransform removes the fading wrapper around the node,
+				// but since the node is being removed, we can remove the wrapper
+				// and the node with a single FRemoveOperator transform.
+				return MakeUnique<FRemoveOperator>(OperatorID);
+			};
+
+			EnqueueTransformOnOperatorQueues(CreateEndFadeOutTransform);
+		}
+
+		void FDynamicOperatorTransactor::EnqueueAddEdgeOperatorTransform(const INode& InFromNode, const FVertexName& InFromVertex, const INode& InToNode, const FVertexName& InToVertex, const INode* InPriorLiteralNode, const TArray<FOperatorID>& InNewOperatorOrder)
+		{
 			/* enqueue an update. */
-			FOperatorID FromOperatorID = GetOperatorID(InFromNode);
-			FOperatorID ToOperatorID = GetOperatorID(InToNode);
+			FOperatorID FromOperatorID = DirectedGraphAlgo::GetOperatorID(InFromNode);
+			FOperatorID ToOperatorID = DirectedGraphAlgo::GetOperatorID(InToNode);
 
 			auto CreateAddEdgeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
 			{
 				TArray<TUniquePtr<IDynamicOperatorTransform>> AtomicTransforms;
 
-				if (bIsAlreadyConnectedToALiteralNode)
+				if (InPriorLiteralNode)
 				{
-					AtomicTransforms.Add(MakeUnique<FRemoveOperator>(PriorLiteralOperatorID));
+					AtomicTransforms.Add(MakeUnique<FRemoveOperator>(DirectedGraphAlgo::GetOperatorID(InPriorLiteralNode)));
 				}
-				AtomicTransforms.Add(MakeUnique<FSetOperatorOrder>(OperatorOrder));
+				AtomicTransforms.Add(MakeUnique<FSetOperatorOrder>(InNewOperatorOrder));
 				AtomicTransforms.Add(MakeUnique<FConnectOperators>(FromOperatorID, InFromVertex, ToOperatorID, InToVertex));
 
 				return MakeUnique<FAtomicTransform>(MoveTemp(AtomicTransforms));
@@ -410,8 +454,159 @@ namespace Metasound
 			EnqueueTransformOnOperatorQueues(CreateAddEdgeTransform);
 		}
 
+		void FDynamicOperatorTransactor::EnqueueFadeAndAddEdgeOperatorTransform(const INode& InFromNode, const FVertexName& InFromVertex, const INode& InToNode, const FVertexName& InToVertex, const INode* InPriorLiteralNode, const TArray<FOperatorID>& InNewOperatorOrder)
+		{
+			FOperatorID FromOperatorID = DirectedGraphAlgo::GetOperatorID(InFromNode);
+			FOperatorID ToOperatorID = DirectedGraphAlgo::GetOperatorID(InToNode);
+			
+			// Fade inputs on the receiving node when adding an edge. We don't fade the source node's outputs
+			// because those outputs could also be connected to other nodes which we do not want to fade. 
+			TArrayView<const FVertexName> InputsToFade(&InToVertex, 1);
+			TArrayView<const FVertexName> OutputsToFade;
+
+			auto CreateBeginFadeAndAddEdgeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				TArray<TUniquePtr<IDynamicOperatorTransform>> AtomicTransforms;
+
+				if (InPriorLiteralNode)
+				{
+					// We assume that any FAudioBuffer created from a literal node is just silent audio. That means we can
+					// Remove that literal node without fading out the audio from the literal node connected to the destination node. 
+					AtomicTransforms.Add(MakeUnique<FRemoveOperator>(DirectedGraphAlgo::GetOperatorID(InPriorLiteralNode)));
+				}
+				
+				AtomicTransforms.Add(MakeUnique<FSetOperatorOrder>(InNewOperatorOrder));
+				AtomicTransforms.Add(MakeUnique<FConnectOperators>(FromOperatorID, InFromVertex, ToOperatorID, InToVertex));
+				AtomicTransforms.Add(MakeUnique<FBeginAudioFadeTransform>(ToOperatorID, EAudioFadeType::FadeIn, InputsToFade, OutputsToFade));
+				
+				// Fence must be the last transform since the fade must be performed
+				// before anything else happens in the graph. To apply a fade, the 
+				// graph must execute. This FExecuteFence transform ensures that the graph
+				// is executed before any additional transforms are applied. 
+				AtomicTransforms.Add(MakeUnique<FExecuteFence>());
+
+				return MakeUnique<FAtomicTransform>(MoveTemp(AtomicTransforms));
+			};
+
+			EnqueueTransformOnOperatorQueues(CreateBeginFadeAndAddEdgeTransform);
+
+			EnqueueEndFadeOperatorTransform(InToNode);
+		}
+
+		void FDynamicOperatorTransactor::EnqueueBeginFadeOperatorTransform(const INode& InNode, EAudioFadeType InFadeType, TArrayView<const FVertexName> InInputsToFade, TArrayView<const FVertexName> InOutputsToFade)
+		{
+			const FOperatorID OperatorID = DirectedGraphAlgo::GetOperatorID(InNode);
+
+			auto CreateBeginAudioFadeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				TArray<TUniquePtr<IDynamicOperatorTransform>> BeginAudioFadeAtomicTransforms;
+
+				BeginAudioFadeAtomicTransforms.Add(MakeUnique<FBeginAudioFadeTransform>(OperatorID, InFadeType, InInputsToFade, InOutputsToFade));
+				// Fence must be the last transform since the fade must be performed
+				// before anything else happens in the graph. To apply a fade, the 
+				// graph must execute. This FExecuteFence transform ensures that the graph
+				// is executed before any additional transforms are applied. 
+				BeginAudioFadeAtomicTransforms.Add(MakeUnique<FExecuteFence>());
+
+				return MakeUnique<FAtomicTransform>(MoveTemp(BeginAudioFadeAtomicTransforms));
+			};
+
+			EnqueueTransformOnOperatorQueues(CreateBeginAudioFadeTransform);
+		}
+
+		void FDynamicOperatorTransactor::EnqueueEndFadeOperatorTransform(const INode& InNode)
+		{
+			const FOperatorID OperatorID = DirectedGraphAlgo::GetOperatorID(InNode);
+
+			auto CreateEndAudioFadeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				return MakeUnique<FEndAudioFadeTransform>(OperatorID);
+			};
+
+			EnqueueTransformOnOperatorQueues(CreateEndAudioFadeTransform);
+		}
+
+		void FDynamicOperatorTransactor::EnqueueRemoveOperatorTransform(const INode& InNode)
+		{
+			FOperatorID OperatorID = DirectedGraphAlgo::GetOperatorID(InNode);
+
+			auto CreateRemoveNodeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				return MakeUnique<FRemoveOperator>(OperatorID);
+			};
+			EnqueueTransformOnOperatorQueues(CreateRemoveNodeTransform);
+		}
+
+		void FDynamicOperatorTransactor::EnqueueRemoveEdgeOperatorTransform(const INode& InFromNode, const FVertexName& InFromVertex, const INode& InToNode, const FVertexName& InToVertex, const INode& InReplacementLiteralNode, const TArray<FOperatorID>& InNewOperatorOrder)
+		{
+			using namespace DynamicOperatorTransactorPrivate;
+
+			const FOperatorID FromOperatorID = DirectedGraphAlgo::GetOperatorID(InFromNode);
+			const FOperatorID ToOperatorID = DirectedGraphAlgo::GetOperatorID(InToNode);
+			const FOperatorID LiteralOperatorID = DirectedGraphAlgo::GetOperatorID(InReplacementLiteralNode);
+
+			auto CreateRemoveEdgeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				// Add the literal node.
+				TUniquePtr<IDynamicOperatorTransform> AddNodeTransform = CreateAddOperatorTransform(InReplacementLiteralNode, InOperatorSettings, InEnvironment);
+
+				// Connect literal node to target node.
+				TUniquePtr<IDynamicOperatorTransform> ConnectOperatorsTransform = MakeUnique<FConnectOperators>(LiteralOperatorID, DynamicOperatorTransactorPrivate::LiteralNodeOutputVertexName, ToOperatorID, InToVertex);
+
+				// Reorder the node graph.
+				TUniquePtr<IDynamicOperatorTransform> SetOrderTransform = MakeUnique<FSetOperatorOrder>(InNewOperatorOrder);
+
+				if (AddNodeTransform.IsValid() && ConnectOperatorsTransform.IsValid() && SetOrderTransform.IsValid())
+				{
+					// Create an atomic transform so all sub-transforms happen before next execution.
+					TArray<TUniquePtr<IDynamicOperatorTransform>> AtomicTransforms;
+
+					AtomicTransforms.Emplace(MoveTemp(AddNodeTransform));
+					AtomicTransforms.Emplace(MoveTemp(ConnectOperatorsTransform));
+					AtomicTransforms.Emplace(MoveTemp(SetOrderTransform));
+
+					return MakeUnique<FAtomicTransform>(MoveTemp(AtomicTransforms));
+				}
+				else
+				{
+
+					UE_LOG(LogMetaSound, Error, TEXT("Cannot remove edge from %s:%s to %s:%s because of failure to create all transforms needed to perform operatorn."), *GetDebugNodeNameString(InFromNode), *InFromVertex.ToString(), *GetDebugNodeNameString(InToNode), *InToVertex.ToString());
+					return TUniquePtr<IDynamicOperatorTransform>(nullptr);
+				}
+			};
+
+			EnqueueTransformOnOperatorQueues(CreateRemoveEdgeTransform);
+		}
+
+		void FDynamicOperatorTransactor::EnqueueFadeAndRemoveEdgeOperatorTransform(const INode& InFromNode, const FVertexName& InFromVertex, const INode& InToNode, const FVertexName& InToVertex, const INode& InReplacementLiteralNode, const TArray<FOperatorID>& InNewOperatorOrder)
+		{
+			// Fade the input to the node getting disconnected rather than the output of the source node. The source node
+			// may be connected to other nodes and fading it's output would fade all the other connected nodes' inputs. 
+			TArrayView<const FVertexName> InputVerticesToFade(&InToVertex, 1);
+			TArrayView<const FVertexName> OutputVerticesToFade;
+
+			EnqueueBeginFadeOperatorTransform(InToNode, EAudioFadeType::FadeOut, InputVerticesToFade, OutputVerticesToFade);
+
+			// Replace input with literal. This assumes that the replacement audio
+			// buffer contains silent audio. The fade transform will get the input
+			// audio to silent which will then seamlessly be swapped with a silent
+			// audio buffer as a permanent connection. 
+			//
+			// If we ever find ourselves creating audio buffers with literals which 
+			// are anything other than silent buffers, we should rework this operation
+			// to do either a cross-fade, or an additional "fade in" to the new value. 
+			EnqueueRemoveEdgeOperatorTransform(InFromNode, InFromVertex, InToNode, InToVertex, InReplacementLiteralNode, InNewOperatorOrder);
+
+			// Remove fade operation. 
+			EnqueueEndFadeOperatorTransform(InToNode);
+		}
+
+
+
 		TUniquePtr<IDynamicOperatorTransform> FDynamicOperatorTransactor::CreateAddOperatorTransform(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) const
 		{
+			using namespace DynamicOperatorTransactorPrivate;
+
 			const FOperatorID OperatorID = DirectedGraphAlgo::GetOperatorID(InNode);
 			FVertexInterfaceData InterfaceData(InNode.GetVertexInterface());
 			FBuildOperatorParams OperatorParams
@@ -429,7 +624,7 @@ namespace Metasound
 			{
 				if (Error.IsValid())
 				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Encountered error while building operator for node %s. %s:%s"), *InNode.GetMetadata().ClassName.GetFullName().ToString(), *Error->GetErrorType().ToString(), *Error->GetErrorDescription().ToString());
+					UE_LOG(LogMetaSound, Warning, TEXT("Encountered error while building operator for node %s. %s:%s"), *GetDebugNodeNameString(InNode), *Error->GetErrorType().ToString(), *Error->GetErrorDescription().ToString());
 				}
 			}
 

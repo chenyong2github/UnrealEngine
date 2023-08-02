@@ -30,6 +30,7 @@ namespace Metasound
 				{
 					// Update the existing entry
 					InOutTable[EntryIndex].Function = InFunction;
+					InOutTable[EntryIndex].Operator = &InOperator;
 				}
 				else if (bEntryCurrentlyExists)
 				{
@@ -63,6 +64,13 @@ namespace Metasound
 
 					InOutTable.Insert(EntryType{InOperatorID, InOperator, InFunction}, InsertLocation);
 				}
+			}
+
+			void UpdateGraphRuntimeTables(const FOperatorID& InOperatorID, IOperator& InOperator, FDynamicGraphOperatorData& InOutGraphOperatorData)
+			{
+				UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.ExecuteTable, InOperator.GetExecuteFunction());
+				UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.PostExecuteTable, InOperator.GetPostExecuteFunction());
+				UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.ResetTable, InOperator.GetResetFunction());
 			}
 		} // namespace DynamicGraphAlgoPrivate
 
@@ -102,9 +110,7 @@ namespace Metasound
 					Operator.BindOutputs(OpInfo->VertexData.GetOutputs());
 
 					// Update execute/postexecute/reset tables in case those have changed after rebinding.
-					UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, Current.OperatorID, Operator, InOutGraphOperatorData.ExecuteTable, Operator.GetExecuteFunction());
-					UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, Current.OperatorID, Operator, InOutGraphOperatorData.PostExecuteTable, Operator.GetPostExecuteFunction());
-					UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, Current.OperatorID, Operator, InOutGraphOperatorData.ResetTable, Operator.GetResetFunction());
+					UpdateGraphRuntimeTables(Current.OperatorID, Operator, InOutGraphOperatorData);
 
 					// See if binding altered the outputs. 
 					OutputUpdates.Reset();
@@ -231,6 +237,55 @@ namespace Metasound
 					UE_LOG(LogMetaSound, Error, TEXT("Failed to update graph operator outputs. Could not find output operator info with ID %s for vertex %s"), *LexToString(OperatorID), *VertexName.ToString());
 				}
 			}
+		}
+
+		void RebindWrappedOperator(const FOperatorID& InOperatorID, FOperatorInfo& InOperatorInfo, FDynamicGraphOperatorData& InOutGraphOperatorData)
+		{
+			using namespace DirectedGraphAlgo;
+			using namespace DynamicGraphAlgoPrivate;
+
+			check(InOperatorInfo.Operator);
+
+			/* Bind and diff the graph's interface to determine if there is an update to any vertices */
+
+			// Cache current state of operators output data. 
+			FOutputVertexInterfaceData& OutputVertexData = InOperatorInfo.VertexData.GetOutputs();
+			TArray<FVertexDataState> InitialVertexDataState;
+			GetVertexInterfaceDataState(OutputVertexData, InitialVertexDataState);
+
+			// Bind the operator to trigger any updates. 
+			InOperatorInfo.Operator->BindInputs(InOperatorInfo.VertexData.GetInputs());
+			InOperatorInfo.Operator->BindOutputs(InOperatorInfo.VertexData.GetOutputs());
+
+			// Update any execution tables that need updating after wrapping
+			UpdateGraphRuntimeTables(InOperatorID, *(InOperatorInfo.Operator), InOutGraphOperatorData);
+
+			// Determine if there have been changes to `OutputVertexData`. 
+			TSortedVertexNameMap<FAnyDataReference> OutputsToUpdate;
+			CompareVertexInterfaceDataToPriorState(OutputVertexData, InitialVertexDataState, OutputsToUpdate);
+
+			// If there have been any changes to `OutputVertexData`, then these need to be propagated
+			// through the graph to route them to operator inputs and to handle any knock-on updates
+			// to other data references. 
+
+			// Update the graph data by propagating the updates through the inputs nodes. 
+			for (const TPair<FVertexName, FAnyDataReference>& OutputToUpdate : OutputsToUpdate)
+			{
+				const FVertexName& VertexName = OutputToUpdate.Get<0>();
+				if (const TArray<FGraphOperatorData::FVertexDestination>* Destinations  = InOperatorInfo.OutputConnections.Find(VertexName))
+				{
+					for (const FGraphOperatorData::FVertexDestination& Destination : *Destinations)
+					{
+						PropagateBindUpdate(Destination.OperatorID, Destination.VertexName, OutputToUpdate.Get<1>(), InOutGraphOperatorData);
+						
+					}
+				}
+			}
+
+			// Refresh output vertex interface data in case any graph output 
+			// nodes were updated when bind updates were propagated through 
+			// the graph.
+			UpdateOutputVertexData(InOutGraphOperatorData);
 		}
 		
 		void RebindGraphInputs(FInputVertexInterfaceData& InOutVertexData, FDynamicGraphOperatorData& InOutGraphOperatorData)

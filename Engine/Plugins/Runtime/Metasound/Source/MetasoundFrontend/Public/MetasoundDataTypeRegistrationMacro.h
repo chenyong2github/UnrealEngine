@@ -801,15 +801,6 @@ namespace Metasound
 	};
 }
 
-// This should be used to expose a datatype as a potential input or output for a metasound graph.
-// The first argument to the macro is the class to expose.
-// the second argument is the display name of that type in the Metasound editor.
-// Optionally, a Metasound::ELiteralType can be passed in to designate a preferred literal type-
-// For example, if Metasound::ELiteralType::Float is passed in, we will default to using a float parameter to create this datatype.
-// If no argument is passed in, we will infer a literal type to use.
-// If 
-// Metasound::ELiteralType::Invalid can be used to enforce that we don't provide space for a literal, in which case you should have a default constructor or a constructor that takes [const FOperatorSettings&] implemented.
-// If you pass in a preferred arg type, please make sure that the passed in datatype has a matching constructor, since we won't check this until runtime.
 
 #define CANNOT_REGISTER_METASOUND_DATA_TYPE_ASSERT_STRING(DataType) \
 "To register " #DataType " to be used as a Metasounds input or output type, it needs a default constructor or one of the following constructors must be implemented:  " \
@@ -828,8 +819,20 @@ namespace Metasound
 #DataType "(const ::Metasound::FOperatorSettings& InSettings, const Audio::IProxyDataPtr& InData),  or " \
 #DataType "(const ::Metasound::FOperatorSettings& InSettings, const TArray<Audio::IProxyDataPtr>& InProxyArray)."
 
-#define REGISTER_METASOUND_DATATYPE(DataType, DataTypeName, ...) \
-	DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName); \
+#define ENQUEUE_METASOUND_DATATYPE_REGISTRATION_COMMAND(DataType, DataTypeName, ...) \
 	static_assert(::Metasound::TMetasoundDataTypeRegistration<DataType>::bCanRegister, CANNOT_REGISTER_METASOUND_DATA_TYPE_ASSERT_STRING(DataType)); \
 	template<> const bool ::Metasound::TMetasoundDataTypeRegistration<DataType>::bSuccessfullyRegistered = ::FMetasoundFrontendRegistryContainer::Get()->EnqueueInitCommand([](){ ::Metasound::RegisterDataTypeWithFrontend<DataType, ##__VA_ARGS__>(); }); // This static bool is useful for debugging, but also is the only way the compiler will let us call this function outside of an expression.
+
+// This should be used to expose a datatype as a potential input or output for a metasound graph.
+// The first argument to the macro is the class to expose.
+// the second argument is the display name of that type in the Metasound editor.
+// Optionally, a Metasound::ELiteralType can be passed in to designate a preferred literal type-
+// For example, if Metasound::ELiteralType::Float is passed in, we will default to using a float parameter to create this datatype.
+// If no argument is passed in, we will infer a literal type to use.
+// If 
+// Metasound::ELiteralType::Invalid can be used to enforce that we don't provide space for a literal, in which case you should have a default constructor or a constructor that takes [const FOperatorSettings&] implemented.
+// If you pass in a preferred arg type, please make sure that the passed in datatype has a matching constructor, since we won't check this until runtime.
+#define REGISTER_METASOUND_DATATYPE(DataType, DataTypeName, ...) \
+	DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName); \
+	ENQUEUE_METASOUND_DATATYPE_REGISTRATION_COMMAND(DataType, DataTypeName, ##__VA_ARGS__)
 

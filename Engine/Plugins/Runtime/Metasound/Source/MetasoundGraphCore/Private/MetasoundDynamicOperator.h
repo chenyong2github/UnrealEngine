@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/SpscQueue.h"
 #include "MetasoundDynamicGraphAlgo.h"
+#include "MetasoundDynamicOperatorAudioFade.h"
 #include "MetasoundDynamicOperatorTransactor.h"
 #include "MetasoundGraphAlgoPrivate.h"
 #include "MetasoundNodeInterface.h"
@@ -212,6 +213,47 @@ namespace Metasound
 			virtual EDynamicOperatorTransformQueueAction Transform(FDynamicGraphOperatorData& InGraphOperatorData) override;
 		private:
 			TArray<TUniquePtr<IDynamicOperatorTransform>> Transforms;
+		};
+
+		enum class EAudioFadeType : uint8
+		{
+			FadeIn, //< Fade from silent to full volume.
+			FadeOut //< Fade from full volume to silent.
+		};
+
+		/* Marks the beginning of an audio fade. 
+		 *
+		 * When scheduling fade transformations on a dynamic operator, an FBeginAudioFadeTransform 
+		 * must be matched with an FEndAudioTransform with an FExecuteFence between them. 
+		 *
+		 * The FBeginAudioFadeTransform sets up the graph to perform a set of audio
+		 * fades. 
+		 * The FExecuteFence forces the fade to occur before any additional transforms 
+		 * are performed.
+		 * The FEndAudioFadeTransform cleans up any temporary state that was needed
+		 * to perform the fade. 
+		 * */
+		class FBeginAudioFadeTransform : public IDynamicOperatorTransform
+		{
+		public:
+
+			FBeginAudioFadeTransform(FOperatorID InOperatorIDToFade, EAudioFadeType InFadeType, TArrayView<const FVertexName> InInputVerticesToFade, TArrayView<const FVertexName> InOutputVerticesToFade);
+			virtual EDynamicOperatorTransformQueueAction Transform(FDynamicGraphOperatorData& InGraphOperatorData) override;
+		private:
+			FOperatorID OperatorIDToFade;
+			FAudioFadeOperatorWrapper::EFadeState InitFadeState;
+			TArray<FVertexName> InputVerticesToFade;
+			TArray<FVertexName> OutputVerticesToFade;
+		};
+
+		/** Marks the end of an audio fade. */
+		class FEndAudioFadeTransform : public IDynamicOperatorTransform
+		{
+		public:
+			FEndAudioFadeTransform(FOperatorID InOperatorIDToFade);
+			virtual EDynamicOperatorTransformQueueAction Transform(FDynamicGraphOperatorData& InGraphOperatorData) override;
+		private:
+			FOperatorID OperatorIDToFade;
 		};
 	}
 }

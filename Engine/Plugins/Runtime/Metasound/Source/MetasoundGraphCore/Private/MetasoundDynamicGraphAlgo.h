@@ -105,6 +105,9 @@ namespace Metasound
 		 */
 		void UpdateOutputVertexData(FDynamicGraphOperatorData& InOutGraphOperatorData);
 
+		/** Rebinds an operator which is wrapping another operator. */
+		void RebindWrappedOperator(const FOperatorID& InOperatorID, FOperatorInfo& InOperatorInfo, FDynamicGraphOperatorData& InGraphOperatorData);
+
 		/** Rebind the graph inputs, updating internal operator bindings as needed. */
 		void RebindGraphInputs(FInputVertexInterfaceData& InOutVertexData, FDynamicGraphOperatorData& InOutGraphOperatorData);
 

@@ -75,6 +75,65 @@ namespace Metasound
 				}
 			}
 		};
+
+		// Helper template to determine whether a member function is declared
+		// for a given template class.
+		template <typename U>
+		class TIsPostExecuteMethodDeclared 
+		{
+			private:
+				template<typename T, T> 
+				struct Helper;
+
+				template<typename T>
+				static uint8 Check(Helper<void(T::*)(), &T::PostExecute>*);
+
+				template<typename T> static uint16 Check(...);
+
+			public:
+				static constexpr bool Value = sizeof(Check<U>(0)) == sizeof(uint8);
+		};
+
+		// Helper to determine whether an PostExecute(...) function exists. 
+		//
+		// Note: This helper must be instantiated inside the functions and cannot
+		// be part of the `TExecutableOperator<OperatorType>` class definition as
+		// classes are not completely defined at the point in the compilation process
+		// when static constexpr class members are evaluated. 
+		template<typename OperatorType>
+		struct TPostExecuteFunctionAdapter
+		{
+			// Returns an IOperator::FPostExecuteFunction if the OperatorType has a
+			// PostExecute(...) class member function.
+			static IOperator::FPostExecuteFunction GetPostExecuteFunction() 
+			{
+				if (TIsPostExecuteMethodDeclared<OperatorType>::Value)
+				{
+					return &TPostExecuteFunctionAdapter::PostExecuteFunction;
+				}
+				else
+				{
+					return nullptr;
+				}
+			}
+
+		private:
+			static void PostExecuteFunction(IOperator* InOperator)
+			{
+				if constexpr (TIsPostExecuteMethodDeclared<OperatorType>::Value)
+				{
+					OperatorType* DerivedOperator = static_cast<OperatorType*>(InOperator);
+
+					check(nullptr != DerivedOperator);
+
+					DerivedOperator->PostExecute();
+				}
+				else
+				{
+					checkNoEntry();
+				}
+			}
+		};
 	}
 
 	// As a general rule, ExecutableDataTypes should be avoided whenever possible
@@ -142,7 +201,7 @@ namespace Metasound
 
 		virtual FPostExecuteFunction GetPostExecuteFunction() override
 		{
-			return nullptr;
+			return MetasoundExecutableOperatorPrivate::TPostExecuteFunctionAdapter<DerivedOperatorType>::GetPostExecuteFunction();
 		}
 
 	private:

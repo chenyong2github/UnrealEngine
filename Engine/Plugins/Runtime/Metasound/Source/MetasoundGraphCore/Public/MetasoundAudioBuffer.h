@@ -144,11 +144,11 @@ return Buffer;
 #endif
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDFRONTEND_API, FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDGRAPHCORE_API, FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
 
 
 	// This empty base class is used so that we can specialize various nodes (Send, Receive, etc.) for subclasses of IAudioDatatype.
-	class METASOUNDFRONTEND_API IAudioDataType
+	class METASOUNDGRAPHCORE_API IAudioDataType
 	{
 		/**
 		 * Audio datatypes require the following member functions:
