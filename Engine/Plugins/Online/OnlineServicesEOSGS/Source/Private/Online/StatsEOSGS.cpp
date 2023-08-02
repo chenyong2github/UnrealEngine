@@ -121,7 +121,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 		{
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Stats_IngestStat failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Stats_IngestStat failed with result=[%s]"), *LexToString(Data->ResultCode));
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
 			}
@@ -215,7 +215,7 @@ void FStatsEOSGS::ReadStatsFromEOSResult(const EOS_Stats_OnQueryStatsCompleteCal
 		else
 		{
 			// Put an empty stat in
-			UE_LOG(LogTemp, VeryVerbose, TEXT("Value not found for stat %s, adding empty value"), *StatName);
+			UE_LOG(LogOnlineServices, VeryVerbose, TEXT("Value not found for stat %s, adding empty value"), *StatName);
 		}
 		OutStats.Add(StatName, MoveTemp(StatValue));
 	}
@@ -243,7 +243,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsEOSGS::QueryStats(FQueryStats::Params&& 
 		{
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Stats_QueryStats failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Stats_QueryStats failed with result=[%s]"), *LexToString(Data->ResultCode));
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
 			}
@@ -293,7 +293,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsEOSGS::BatchQueryStats(FBatchQueryS
 			{
 				if (Data->ResultCode != EOS_EResult::EOS_Success)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_Stats_QueryStats failed with result=[%s]"), *LexToString(Data->ResultCode));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Stats_QueryStats failed with result=[%s]"), *LexToString(Data->ResultCode));
 					BatchQueriedUsersStats.Reset();
 					InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 					return;

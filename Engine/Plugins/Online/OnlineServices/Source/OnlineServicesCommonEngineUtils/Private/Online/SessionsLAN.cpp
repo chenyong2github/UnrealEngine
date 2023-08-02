@@ -102,7 +102,7 @@ const FSessionLAN& FSessionLAN::Cast(const ISession& InSession)
 void FSessionLAN::DumpState() const
 {
 	FSessionCommon::DumpState();
-	UE_LOG(LogTemp, Log, TEXT("OwnerInternetAddr [%s]"), *OwnerInternetAddr->ToString(true));
+	UE_LOG(LogOnlineServices, Log, TEXT("OwnerInternetAddr [%s]"), *OwnerInternetAddr->ToString(true));
 }
 
 /** FSessionsLAN */
@@ -227,7 +227,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsLAN::JoinSessionImpl(const FJoinSe
 		// If no result is found, the id might be expired, which we should notify
 		if (FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).IsSessionIdExpired(Params.SessionId))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 		}
 
 		Promise.EmplaceValue(GetSessionByIdResult.GetErrorValue());
@@ -292,13 +292,13 @@ TOptional<FOnlineError> FSessionsLAN::TryHostLANSession()
 
 		if (LANSessionManager->Host(QueryPacketDelegate))
 		{
-			UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon hosting..."));
+			UE_LOG(LogOnlineServices, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon hosting..."));
 
 			PublicSessionsHosted++;
 		}
 		else
 		{
-			UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon failed to host!"));
+			UE_LOG(LogOnlineServices, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon failed to host!"));
 
 			LANSessionManager->StopLANSession();
 
@@ -307,7 +307,7 @@ TOptional<FOnlineError> FSessionsLAN::TryHostLANSession()
 	}
 	else
 	{
-		UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon already in use!"));
+		UE_LOG(LogOnlineServices, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon already in use!"));
 
 		Result.Emplace(Errors::AlreadyPending());
 	}
@@ -328,7 +328,7 @@ void FSessionsLAN::FindLANSessions(const FAccountId& LocalAccountId)
 	LANSessionManager->CreateClientQueryPacket(Packet, LANSessionManager->LanNonce);
 	if (LANSessionManager->Search(Packet, ResponseDelegate, TimeoutDelegate) == false)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::FindLANSessions] Search failed!"));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsLAN::FindLANSessions] Search failed!"));
 
 		if (LANSessionManager->GetBeaconState() == ELanBeaconState::Searching)
 		{
@@ -347,7 +347,7 @@ void FSessionsLAN::FindLANSessions(const FAccountId& LocalAccountId)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[]FSessionsLAN::FindLANSessions] Searching...."));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[]FSessionsLAN::FindLANSessions] Searching...."));
 	}
 }
 
@@ -386,7 +386,7 @@ void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLen
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnValidQueryPacketReceived] LAN broadcast packet overflow, cannot broadcast on LAN"));
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsLAN::OnValidQueryPacketReceived] LAN broadcast packet overflow, cannot broadcast on LAN"));
 			}
 		}
 	}
@@ -409,7 +409,7 @@ void FSessionsLAN::OnLANSearchTimeout(const FAccountId LocalAccountId)
 		LANSessionManager->StopLANSession();
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] %d sessions found!"), SearchResultsUserMap.FindChecked(LocalAccountId).Num());
+	UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] %d sessions found!"), SearchResultsUserMap.FindChecked(LocalAccountId).Num());
 
 	TArray<FOnlineSessionId>& FoundSessionIds = SearchResultsUserMap.FindChecked(LocalAccountId);
 

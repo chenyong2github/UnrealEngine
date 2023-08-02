@@ -70,7 +70,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo:
 			{
 				if (CallbackInfo->ResultCode != EOS_EResult::EOS_Success)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_UserInfo_QueryUserInfo failed with result=[%s]"), *LexToString(CallbackInfo->ResultCode));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_UserInfo_QueryUserInfo failed with result=[%s]"), *LexToString(CallbackInfo->ResultCode));
 					Op.SetError(Errors::FromEOSResult(CallbackInfo->ResultCode));
 				}
 			});
@@ -114,7 +114,7 @@ TOnlineResult<FGetUserInfo> FUserInfoEOS::GetUserInfo(FGetUserInfo::Params&& Par
 	const EOS_EResult EosResult = EOS_UserInfo_CopyUserInfo(UserInfoHandle, &Options, &EosUserInfo);
 	if(EosResult != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_UserInfo_CopyUserInfo failed with result=[%s]"), *LexToString(EosResult));
+		UE_LOG(LogOnlineServices, Warning, TEXT("EOS_UserInfo_CopyUserInfo failed with result=[%s]"), *LexToString(EosResult));
 		return TOnlineResult<FGetUserInfo>(Errors::FromEOSResult(EosResult));
 	}
 

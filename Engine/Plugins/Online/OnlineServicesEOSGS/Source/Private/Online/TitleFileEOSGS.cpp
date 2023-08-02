@@ -70,7 +70,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 		{
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_TitleStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
 			}
@@ -101,7 +101,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 				const EOS_EResult Result = EOS_TitleStorage_CopyFileMetadataAtIndex(TitleStorageHandle, &CopyOptions, &FileMetadata);
 				if (Result != EOS_EResult::EOS_Success)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_CopyFileMetadataAtIndex failed with result=[%s]"), *LexToString(Result));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_TitleStorage_CopyFileMetadataAtIndex failed with result=[%s]"), *LexToString(Result));
 					InAsyncOp.SetError(Errors::FromEOSResult(Result));
 					return;
 				}
@@ -210,7 +210,7 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_TitleStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 			}
 
@@ -236,19 +236,19 @@ EOS_TitleStorage_EReadResult EOS_CALL FTitleFileEOSGS::OnReadFileDataStatic(cons
 		FileContents.Reserve(Data->TotalFileSizeBytes);
 		FileContents.Append((uint8*)Data->DataChunk, Data->DataChunkLengthBytes);
 
-		UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile ReadProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), FileContents.Num(), Data->TotalFileSizeBytes);
+		UE_LOG(LogOnlineServices, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile ReadProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), FileContents.Num(), Data->TotalFileSizeBytes);
 	}
 
 	return EOS_TitleStorage_EReadResult::EOS_TS_RR_ContinueReading;
 }
 void EOS_CALL FTitleFileEOSGS::OnFileTransferProgressStatic(const EOS_TitleStorage_FileTransferProgressCallbackInfo* Data)
 {
-	UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile TransferProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), Data->BytesTransferred, Data->TotalFileSizeBytes);
+	UE_LOG(LogOnlineServices, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile TransferProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), Data->BytesTransferred, Data->TotalFileSizeBytes);
 }
 
 void EOS_CALL FTitleFileEOSGS::OnReadFileCompleteStatic(const EOS_TitleStorage_ReadFileCallbackInfo* Data)
 {
-	UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
+	UE_LOG(LogOnlineServices, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
 
 	FTitleFileReadFileClientData* ClientData = (FTitleFileReadFileClientData*)Data->ClientData;
 	check(ClientData);

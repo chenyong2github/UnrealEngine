@@ -215,7 +215,7 @@ bool FAchievementsCommon::MeetUnlockCondition(const FAchievementUnlockRule& Achi
 			const FStatValue* StatValue = Stats.Find(Condition.StatName);
 			if (!StatValue)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Can't find stat %s when check if it can unlock achievement."), *Condition.StatName);
+				UE_LOG(LogOnlineServices, Warning, TEXT("Can't find stat %s when check if it can unlock achievement."), *Condition.StatName);
 				return false;
 			}
 
@@ -259,7 +259,7 @@ bool FAchievementsCommon::IsUnlocked(const FAccountId& AccountId, const FString&
 		return FMath::IsNearlyEqual(AchievementState.Progress, 1.0f);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Can't find state of achievement %s when check if it's unlocked."), *AchievementName);
+	UE_LOG(LogOnlineServices, Warning, TEXT("Can't find state of achievement %s when check if it's unlocked."), *AchievementName);
 
 	return false;
 }

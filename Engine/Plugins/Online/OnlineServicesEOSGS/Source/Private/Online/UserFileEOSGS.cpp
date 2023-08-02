@@ -66,7 +66,7 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 			if (Data->ResultCode != EOS_EResult::EOS_Success
 				&& Data->ResultCode != EOS_EResult::EOS_NotFound)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
 				Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
 			}
@@ -82,7 +82,7 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 			EOS_EResult Result = EOS_PlayerDataStorage_GetFileMetadataCount(PlayerDataStorageHandle, &GetCountOptions, &NumFiles);
 			if (Result != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_GetFileMetadataCount failed with result=[%s]"), *LexToString(Result));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_GetFileMetadataCount failed with result=[%s]"), *LexToString(Result));
 				Op.SetError(Errors::FromEOSResult(Result));
 				return;
 			}
@@ -104,7 +104,7 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 				Result = EOS_PlayerDataStorage_CopyFileMetadataAtIndex(PlayerDataStorageHandle, &CopyOptions, &FileMetadata);
 				if (Result != EOS_EResult::EOS_Success)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_CopyFileMetadataAtIndex failed with result=[%s]"), *LexToString(Result));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_CopyFileMetadataAtIndex failed with result=[%s]"), *LexToString(Result));
 					Op.SetError(Errors::FromEOSResult(Result));
 					return;
 				}
@@ -213,7 +213,7 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileEOSGS::ReadFile(FUserFileReadFi
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
 				Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 			}
 
@@ -287,7 +287,7 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileEOSGS::WriteFile(FUserFileWrit
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_WriteFile failed with result=[%s]"), *LexToString(Data->ResultCode));
+			UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_WriteFile failed with result=[%s]"), *LexToString(Data->ResultCode));
 			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 
@@ -342,7 +342,7 @@ TOnlineAsyncOpHandle<FUserFileCopyFile> FUserFileEOSGS::CopyFile(FUserFileCopyFi
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_DuplicateFile failed with result=[%s]"), *LexToString(Data->ResultCode));
+			UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_DuplicateFile failed with result=[%s]"), *LexToString(Data->ResultCode));
 			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 	})
@@ -390,7 +390,7 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileEOSGS::DeleteFile(FUserFileDe
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_DeleteFile failed with result=[%s]"), *LexToString(Data->ResultCode));
+			UE_LOG(LogOnlineServices, Warning, TEXT("EOS_PlayerDataStorage_DeleteFile failed with result=[%s]"), *LexToString(Data->ResultCode));
 			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 	})
@@ -410,7 +410,7 @@ EOS_PlayerDataStorage_EReadResult EOS_CALL FUserFileEOSGS::OnReadFileDataStatic(
 		FileContents.Reserve(Data->TotalFileSizeBytes);
 		FileContents.Append((uint8*)Data->DataChunk, Data->DataChunkLengthBytes);
 
-		UE_LOG(LogTemp, VeryVerbose, TEXT("EOS_PlayerDataStorage_ReadFile Progress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), FileContents.Num(), Data->TotalFileSizeBytes);
+		UE_LOG(LogOnlineServices, VeryVerbose, TEXT("EOS_PlayerDataStorage_ReadFile Progress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), FileContents.Num(), Data->TotalFileSizeBytes);
 	}
 
 	return EOS_PlayerDataStorage_EReadResult::EOS_RR_ContinueReading;
@@ -418,7 +418,7 @@ EOS_PlayerDataStorage_EReadResult EOS_CALL FUserFileEOSGS::OnReadFileDataStatic(
 
 void EOS_CALL FUserFileEOSGS::OnReadFileCompleteStatic(const EOS_PlayerDataStorage_ReadFileCallbackInfo* Data)
 {
-	UE_LOG(LogTemp, VeryVerbose, TEXT("EOS_PlayerDataStorage_ReadFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
+	UE_LOG(LogOnlineServices, VeryVerbose, TEXT("EOS_PlayerDataStorage_ReadFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
 
 	FUserFileReadFileClientData* ClientData = (FUserFileReadFileClientData*)Data->ClientData;
 	check(ClientData);
@@ -444,7 +444,7 @@ EOS_PlayerDataStorage_EWriteResult EOS_CALL FUserFileEOSGS::OnWriteFileDataStati
 	const uint32_t BytesWrittenTotal = BytesWrittenBefore + BytesToWrite;
 	ClientData->BytesWritten = BytesWrittenTotal;
 
-	UE_LOG(LogTemp, VeryVerbose, TEXT("EOS_PlayerDataStorage_WriteFile Progress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), BytesWrittenTotal, FileContents.Num());
+	UE_LOG(LogOnlineServices, VeryVerbose, TEXT("EOS_PlayerDataStorage_WriteFile Progress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), BytesWrittenTotal, FileContents.Num());
 
 	const bool bDone = BytesWrittenTotal == FileContents.Num();
 	if (bDone)
@@ -459,7 +459,7 @@ EOS_PlayerDataStorage_EWriteResult EOS_CALL FUserFileEOSGS::OnWriteFileDataStati
 
 void EOS_CALL FUserFileEOSGS::OnWriteFileCompleteStatic(const EOS_PlayerDataStorage_WriteFileCallbackInfo* Data)
 {
-	UE_LOG(LogTemp, VeryVerbose, TEXT("EOS_PlayerDataStorage_WriteFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
+	UE_LOG(LogOnlineServices, VeryVerbose, TEXT("EOS_PlayerDataStorage_WriteFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
 
 	FUserFileWriteFileClientData* ClientData = (FUserFileWriteFileClientData*)Data->ClientData;
 	check(ClientData);
@@ -470,7 +470,7 @@ void EOS_CALL FUserFileEOSGS::OnWriteFileCompleteStatic(const EOS_PlayerDataStor
 
 void EOS_CALL FUserFileEOSGS::OnFileTransferProgressStatic(const EOS_PlayerDataStorage_FileTransferProgressCallbackInfo* Data)
 {
-	UE_LOG(LogTemp, VeryVerbose, TEXT("FUserFileEOSGS TransferProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), Data->BytesTransferred, Data->TotalFileSizeBytes);
+	UE_LOG(LogOnlineServices, VeryVerbose, TEXT("FUserFileEOSGS TransferProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), Data->BytesTransferred, Data->TotalFileSizeBytes);
 }
 
 /* UE::Online */ }

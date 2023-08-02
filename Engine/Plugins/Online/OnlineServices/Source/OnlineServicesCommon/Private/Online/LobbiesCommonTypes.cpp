@@ -2,6 +2,8 @@
 
 #include "Online/LobbiesCommonTypes.h"
 
+#include "Online/OnlineServicesLog.h"
+
 namespace UE::Online {
 
 FSchemaId LobbyBaseSchemaId = TEXT("LobbyBase");
@@ -33,7 +35,7 @@ TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareS
 		InternalPublicData->SchemaData.PrepareServiceSnapshot({ TOptional<FSchemaId>(), MoveTemp(Params.LobbySnapshot.SchemaServiceSnapshot) });
 	if (PrepareLobbyServiceSnapshotResult.IsError())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Failed to prepare lobby service snapshot: Lobby[%s], Result[%s]"),
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Failed to prepare lobby service snapshot: Lobby[%s], Result[%s]"),
 			*ToLogString(InternalPublicData->LobbyId), *PrepareLobbyServiceSnapshotResult.GetErrorValue().GetLogString());
 		return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(MoveTemp(PrepareLobbyServiceSnapshotResult.GetErrorValue()));
 	}
@@ -58,7 +60,7 @@ TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareS
 			{
 				const ELobbyMemberLeaveReason DefaultLeaveReason = ELobbyMemberLeaveReason::Disconnected;
 				NewPreparedServiceChanges.LeavingMembers.Add({ MemberData.Value, DefaultLeaveReason });
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Member left lobby without giving reason, defaulting to %s: Lobby[%s], Member[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Member left lobby without giving reason, defaulting to %s: Lobby[%s], Member[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), LexToString(DefaultLeaveReason), *ToLogString(MemberData.Key));
 			}
 		}
@@ -70,7 +72,7 @@ TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareS
 	{
 		if (!Params.LobbySnapshot.Members.Contains(MemberSnapshotPair.Key))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Member update ignored for unknown member: Lobby[%s], Member[%s]"),
+			UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Member update ignored for unknown member: Lobby[%s], Member[%s]"),
 				*ToLogString(InternalPublicData->LobbyId), *ToLogString(MemberSnapshotPair.Key));
 		}
 		else
@@ -98,7 +100,7 @@ TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareS
 				PreparingMemberData->SchemaData.PrepareServiceSnapshot({ NewDerivedSchemaId, MoveTemp(MemberSnapshot.SchemaServiceSnapshot) });
 			if (PrepareLobbyMemberServiceSnapshotResult.IsError())
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Failed to prepare lobby member service snapshot: Lobby[%s], Member[%s], Result[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Failed to prepare lobby member service snapshot: Lobby[%s], Member[%s], Result[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(MemberSnapshot.AccountId), *PrepareLobbyMemberServiceSnapshotResult.GetErrorValue().GetLogString());
 				return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(MoveTemp(PrepareLobbyMemberServiceSnapshotResult.GetErrorValue()));
 			}
@@ -110,7 +112,7 @@ TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareS
 	{
 		if (!Params.LobbySnapshot.Members.Contains(Params.LobbySnapshot.OwnerAccountId))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Lobby owner chage failed - lobby member data not found: Lobby[%s], Member[%s]"),
+			UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Lobby owner chage failed - lobby member data not found: Lobby[%s], Member[%s]"),
 				*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LobbySnapshot.OwnerAccountId));
 			return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(Errors::InvalidState());
 		}
@@ -143,7 +145,7 @@ FLobbyClientDataCommitServiceSnapshot::Result FLobbyClientData::CommitServiceSna
 
 	if (!PreparedServiceChanges)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::CommitServiceSnapshot] Commit failed, no pending changes found: Lobby[%s]"),
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::CommitServiceSnapshot] Commit failed, no pending changes found: Lobby[%s]"),
 			*ToLogString(InternalPublicData->LobbyId));
 		return CommitResult;
 	}
@@ -301,7 +303,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 		{
 			if (InternalPublicData->LocalName != FName())
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Local name chage failed - local name cannot be changed once set: Lobby[%s], CurrentName[%s], NewName[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Local name chage failed - local name cannot be changed once set: Lobby[%s], CurrentName[%s], NewName[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *InternalPublicData->LocalName.ToString().ToLower(), *Params.ClientChanges.LocalName->ToString().ToLower());
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 			}
@@ -322,7 +324,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 		{
 			if (!MemberDataStorage.Contains(*Params.ClientChanges.OwnerAccountId))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Lobby owner chage failed - new owner is not in lobby: Lobby[%s], NewOwner[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Lobby owner chage failed - new owner is not in lobby: Lobby[%s], NewOwner[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(*Params.ClientChanges.OwnerAccountId));
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 			}
@@ -337,7 +339,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 		{
 			if (!MemberDataStorage.Contains(*Params.ClientChanges.KickedTargetMember))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Kick target member failed - target is not in the lobby: Lobby[%s], KickedTargetMember[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Kick target member failed - target is not in the lobby: Lobby[%s], KickedTargetMember[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(*Params.ClientChanges.KickedTargetMember));
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 			}
@@ -371,7 +373,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 				InternalPublicData->SchemaData.PrepareClientChanges(MoveTemp(PrepareClientChangesParams));
 			if (PrepareClientChangesResult.IsError())
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby attribute changes: Lobby[%s], Result[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby attribute changes: Lobby[%s], Result[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *PrepareClientChangesResult.GetErrorValue().GetLogString());
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(MoveTemp(PrepareClientChangesResult.GetErrorValue()));
 			}
@@ -388,7 +390,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 			// Check that the local user can make lobby changes.
 			if (Params.LocalAccountId != InternalPublicData->OwnerAccountId)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby changes. LocalAccountId is not the lobby owner: Lobby[%s], LocalAccountId[%s], OwnerAccountId[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby changes. LocalAccountId is not the lobby owner: Lobby[%s], LocalAccountId[%s], OwnerAccountId[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId), *ToLogString(InternalPublicData->OwnerAccountId));
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 			}
@@ -396,7 +398,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 			// Check that the local user is not trying to change the lobby while leaving.
 			if (Params.ClientChanges.LocalUserLeaveReason)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby changes. Unable to modify the lobby while leaving: Lobby[%s], LocalAccountId[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby changes. Unable to modify the lobby while leaving: Lobby[%s], LocalAccountId[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId));
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 			}
@@ -408,7 +410,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 		// Check that the local user is not joining and leaving.
 		if (Params.ClientChanges.MemberAttributes && Params.ClientChanges.LocalUserLeaveReason)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby member changes. Member cannot be updated and removed: Lobby[%s], LocalAccountId[%s]"),
+			UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby member changes. Member cannot be updated and removed: Lobby[%s], LocalAccountId[%s]"),
 				*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId));
 			return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 		}
@@ -453,7 +455,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 				PreparingMemberData->SchemaData.PrepareClientChanges(MoveTemp(PrepareClientChangesParams));
 			if (PrepareClientChangesResult.IsError())
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby member attribute changes: Lobby[%s], LocalMember[%s], Result[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby member attribute changes: Lobby[%s], LocalMember[%s], Result[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId), *PrepareClientChangesResult.GetErrorValue().GetLogString());
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(MoveTemp(PrepareClientChangesResult.GetErrorValue()));
 			}
@@ -468,7 +470,7 @@ TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareCli
 		{
 			if (!MemberDataStorage.Contains(Params.LocalAccountId))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Local user leave faild - user is not in the lobby: Lobby[%s], LocalAccountId[%s]"),
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Local user leave faild - user is not in the lobby: Lobby[%s], LocalAccountId[%s]"),
 					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId));
 				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
 			}
@@ -488,7 +490,7 @@ FLobbyClientDataCommitClientChanges::Result FLobbyClientData::CommitClientChange
 
 	if (!PreparedClientChanges)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::CommitClientChanges] Commit failed, no pending changes found: Lobby[%s]"),
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FLobbyClientData::CommitClientChanges] Commit failed, no pending changes found: Lobby[%s]"),
 			*ToLogString(InternalPublicData->LobbyId));
 		return CommitResult;
 	}

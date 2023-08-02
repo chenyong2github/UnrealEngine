@@ -38,7 +38,7 @@ namespace UE::Online {
 
 	void FSessionCommon::DumpState() const
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ISession]"));
+		UE_LOG(LogOnlineServices, Log, TEXT("[ISession]"));
 		DumpMemberData();
 		DumpSessionInfo();
 		DumpSessionSettings();
@@ -46,41 +46,41 @@ namespace UE::Online {
 
 	void FSessionCommon::DumpMemberData() const
 	{
-		UE_LOG(LogTemp, Log, TEXT("OwnerAccountId [%s]"), *UE::Online::ToLogString(OwnerAccountId));
-		UE_LOG(LogTemp, Log, TEXT("SessionMemberIdsSet:"));
+		UE_LOG(LogOnlineServices, Log, TEXT("OwnerAccountId [%s]"), *UE::Online::ToLogString(OwnerAccountId));
+		UE_LOG(LogOnlineServices, Log, TEXT("SessionMemberIdsSet:"));
 
 		for (const FAccountId& SessionMemberId : SessionMembers)
 		{
-			UE_LOG(LogTemp, Log, TEXT("	[%s]"), *UE::Online::ToLogString(SessionMemberId));
+			UE_LOG(LogOnlineServices, Log, TEXT("	[%s]"), *UE::Online::ToLogString(SessionMemberId));
 		}
 	}
 
 	void FSessionCommon::DumpSessionInfo() const
 	{
-		UE_LOG(LogTemp, Log, TEXT("SessionInfo:"));
-		UE_LOG(LogTemp, Log, TEXT("	SessionId [%s]"), *UE::Online::ToLogString(SessionInfo.SessionId));
-		UE_LOG(LogTemp, Log, TEXT("	bAllowSanctionedPlayers [%d]"), SessionInfo.bAllowSanctionedPlayers);
-		UE_LOG(LogTemp, Log, TEXT("	bAntiCheatProtected [%d]"), SessionInfo.bAntiCheatProtected);
-		UE_LOG(LogTemp, Log, TEXT("	bIsDedicatedServerSession [%d]"), SessionInfo.bIsDedicatedServerSession);
-		UE_LOG(LogTemp, Log, TEXT("	bIsLANSession [%d]"), SessionInfo.bIsLANSession);
-		UE_LOG(LogTemp, Log, TEXT("	SessionIdOverride [%s]"), *SessionInfo.SessionIdOverride);
+		UE_LOG(LogOnlineServices, Log, TEXT("SessionInfo:"));
+		UE_LOG(LogOnlineServices, Log, TEXT("	SessionId [%s]"), *UE::Online::ToLogString(SessionInfo.SessionId));
+		UE_LOG(LogOnlineServices, Log, TEXT("	bAllowSanctionedPlayers [%d]"), SessionInfo.bAllowSanctionedPlayers);
+		UE_LOG(LogOnlineServices, Log, TEXT("	bAntiCheatProtected [%d]"), SessionInfo.bAntiCheatProtected);
+		UE_LOG(LogOnlineServices, Log, TEXT("	bIsDedicatedServerSession [%d]"), SessionInfo.bIsDedicatedServerSession);
+		UE_LOG(LogOnlineServices, Log, TEXT("	bIsLANSession [%d]"), SessionInfo.bIsLANSession);
+		UE_LOG(LogOnlineServices, Log, TEXT("	SessionIdOverride [%s]"), *SessionInfo.SessionIdOverride);
 	}
 
 	void FSessionCommon::DumpSessionSettings() const
 	{
-		UE_LOG(LogTemp, Log, TEXT("SessionSettings:"));
-		UE_LOG(LogTemp, Log, TEXT("	bAllowNewMembers [%d]"), SessionSettings.bAllowNewMembers);
-		UE_LOG(LogTemp, Log, TEXT("	JoinPolicy [%s]"), LexToString(SessionSettings.JoinPolicy));
-		UE_LOG(LogTemp, Log, TEXT("	NumMaxConnections [%d]"), SessionSettings.NumMaxConnections);
-		UE_LOG(LogTemp, Log, TEXT("	SchemaName [%s]"), *SessionSettings.SchemaName.ToString());
-		UE_LOG(LogTemp, Log, TEXT("	CustomSettings:"));
+		UE_LOG(LogOnlineServices, Log, TEXT("SessionSettings:"));
+		UE_LOG(LogOnlineServices, Log, TEXT("	bAllowNewMembers [%d]"), SessionSettings.bAllowNewMembers);
+		UE_LOG(LogOnlineServices, Log, TEXT("	JoinPolicy [%s]"), LexToString(SessionSettings.JoinPolicy));
+		UE_LOG(LogOnlineServices, Log, TEXT("	NumMaxConnections [%d]"), SessionSettings.NumMaxConnections);
+		UE_LOG(LogOnlineServices, Log, TEXT("	SchemaName [%s]"), *SessionSettings.SchemaName.ToString());
+		UE_LOG(LogOnlineServices, Log, TEXT("	CustomSettings:"));
 
 		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : SessionSettings.CustomSettings)
 		{
-			UE_LOG(LogTemp, Log, TEXT("		Key: [%s]"), *Entry.Key.ToString());
-			UE_LOG(LogTemp, Log, TEXT("		Value:	Visibility [%s]"), LexToString(Entry.Value.Visibility));
-			UE_LOG(LogTemp, Log, TEXT("				ID [%d]"), Entry.Value.ID);
-			UE_LOG(LogTemp, Log, TEXT("				Data [%s]"), *LexToString(Entry.Value.Data));
+			UE_LOG(LogOnlineServices, Log, TEXT("		Key: [%s]"), *Entry.Key.ToString());
+			UE_LOG(LogOnlineServices, Log, TEXT("		Value:	Visibility [%s]"), LexToString(Entry.Value.Visibility));
+			UE_LOG(LogOnlineServices, Log, TEXT("				ID [%d]"), Entry.Value.ID);
+			UE_LOG(LogOnlineServices, Log, TEXT("				Data [%s]"), *LexToString(Entry.Value.Data));
 		}
 	}
 
@@ -143,14 +143,14 @@ namespace UE::Online {
 #define CHECK_PARAMS_ID_HANDLE(IdHandle, MethodName) \
 	if (!IdHandle.IsValid()) \
 	{ \
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#IdHandle)); \
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#IdHandle)); \
 		return TOnlineResult<MethodName>(Errors::InvalidParams()); \
 	} \
 
 #define CHECK_PARAMS_FNAME(Name, MethodName) \
 	if (Name.IsNone()) \
 	{ \
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#Name)); \
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#Name)); \
 		return TOnlineResult<MethodName>(Errors::InvalidParams()); \
 	} \
 
@@ -210,7 +210,7 @@ namespace UE::Online {
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] No data found for user [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No data found for user [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
 			return TOnlineResult<FGetPresenceSession>({ Errors::InvalidState() });
 		}
 	}
@@ -226,7 +226,7 @@ namespace UE::Online {
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] No data found for user [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No data found for user [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
 			return TOnlineResult<FIsPresenceSession>({ Errors::InvalidState() });
 		}
 	}
@@ -273,7 +273,7 @@ namespace UE::Online {
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] No session found for name [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *Params.LocalName.ToString());
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No session found for name [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *Params.LocalName.ToString());
 			return TOnlineResult<FGetMutableSessionByName>(Errors::NotFound());
 		}
 	}
@@ -288,7 +288,7 @@ namespace UE::Online {
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] No session found for id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No session found for id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 			return TOnlineResult<FGetMutableSessionById>(Errors::NotFound());
 		}
 	}
@@ -306,13 +306,13 @@ namespace UE::Online {
 			}
 			else
 			{
-				UE_LOG(LogTemp, Verbose, TEXT("[%s] No invite found for invite id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionInviteId));
+				UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No invite found for invite id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionInviteId));
 				return TOnlineResult<FGetSessionInviteById>(Errors::NotFound());
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] No invite data found for account id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No invite data found for account id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
 			return TOnlineResult<FGetSessionInviteById>(Errors::InvalidState());
 		}
 	}
@@ -342,14 +342,14 @@ namespace UE::Online {
 #define CHECK_PARAMS_ID_HANDLE(IdHandle) \
 	if (!IdHandle.IsValid()) \
 	{ \
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#IdHandle)); \
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#IdHandle)); \
 		return TOptional<FOnlineError>(Errors::InvalidParams()); \
 	} \
 
 #define CHECK_PARAMS_FNAME(Name) \
 	if (Name.IsNone()) \
 	{ \
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#Name)); \
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Value of [%s] invalid."), UTF8_TO_TCHAR(__FUNCTION__), UTF8_TO_TCHAR(#Name)); \
 		return TOptional<FOnlineError>(Errors::InvalidParams()); \
 	} \
 
@@ -357,7 +357,7 @@ namespace UE::Online {
 	TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ SessionName }); \
 	if (GetSessionByNameResult.IsError()) \
 	{ \
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] Could not find session with name [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *SessionName.ToString()); \
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Could not find session with name [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *SessionName.ToString()); \
 		return TOptional<FOnlineError>(Errors::InvalidState()); \
 	} \
 
@@ -427,7 +427,7 @@ namespace UE::Online {
 
 		if (Params.SessionSettings.NumMaxConnections == 0)
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] NumMaxConnections invalid, can't be 0."), UTF8_TO_TCHAR(__FUNCTION__));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] NumMaxConnections invalid, can't be 0."), UTF8_TO_TCHAR(__FUNCTION__));
 			return Errors::InvalidParams();
 		}
 
@@ -446,7 +446,7 @@ namespace UE::Online {
 		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
 		if (GetSessionByNameResult.IsOk())
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] Another session with the name [%s] already exists."), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionName.ToString());
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Another session with the name [%s] already exists."), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionName.ToString());
 			return TOptional<FOnlineError>(Errors::InvalidState());
 		}
 
@@ -457,7 +457,7 @@ namespace UE::Online {
 				TOnlineResult<FGetPresenceSession> GetPresenceSessionResult = GetPresenceSession({ Params.LocalAccountId });
 				if (GetPresenceSessionResult.IsOk())
 				{
-					UE_LOG(LogTemp, Verbose, TEXT("[%s] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *Entry.Key.ToString());
+					UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *Entry.Key.ToString());
 					return Errors::InvalidState();
 				}
 			}
@@ -492,7 +492,7 @@ namespace UE::Online {
 		{
 			if (Params.Mutations.NumMaxConnections.GetValue() == 0)
 			{
-				UE_LOG(LogTemp, Verbose, TEXT("[%s] NumMaxConnections invalid, can't be 0."), UTF8_TO_TCHAR(__FUNCTION__));
+				UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] NumMaxConnections invalid, can't be 0."), UTF8_TO_TCHAR(__FUNCTION__));
 				return Errors::InvalidParams();
 			}
 		}
@@ -564,7 +564,7 @@ namespace UE::Online {
 
 		if (Params.MaxResults == 0)
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] MaxResults can't be 0"), UTF8_TO_TCHAR(__FUNCTION__));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] MaxResults can't be 0"), UTF8_TO_TCHAR(__FUNCTION__));
 			return TOptional<FOnlineError>(Errors::InvalidParams());
 		}
 
@@ -590,7 +590,7 @@ namespace UE::Online {
 	{
 		if (CurrentSessionSearchPromisesUserMap.Contains(Params.LocalAccountId))
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] Search already in progress"), UTF8_TO_TCHAR(__FUNCTION__));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Search already in progress"), UTF8_TO_TCHAR(__FUNCTION__));
 			return Errors::AlreadyPending();
 		}
 
@@ -662,7 +662,7 @@ namespace UE::Online {
 		{
 			if (GetSessionByNameResult.GetOkValue().Session->GetSessionId() != Params.SessionId)
 			{
-				UE_LOG(LogTemp, Verbose, TEXT("[%s] Another session with the name [%s] already exists."), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionName.ToString());
+				UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Another session with the name [%s] already exists."), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionName.ToString());
 				return TOptional<FOnlineError>(Errors::InvalidState());
 			}
 		}
@@ -670,7 +670,7 @@ namespace UE::Online {
 		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] Session [%s] not found. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Session [%s] not found. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 			return TOptional<FOnlineError>(GetSessionByIdResult.GetErrorValue());
 		}
 
@@ -680,13 +680,13 @@ namespace UE::Online {
 
 		if (FoundSession->GetSessionMembers().Contains(Params.LocalAccountId))
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] User [%s] already in session [%s]"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] User [%s] already in session [%s]"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId), *ToLogString(Params.SessionId));
 			return TOptional<FOnlineError>(Errors::AccessDenied());
 		}
 
 		if (!FoundSession->IsJoinable())
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] Session [%s] not joinable "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Session [%s] not joinable "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 			return TOptional<FOnlineError>(Errors::AccessDenied());
 		}
 
@@ -697,7 +697,7 @@ namespace UE::Online {
 				TOnlineResult<FGetPresenceSession> GetPresenceSessionResult = GetPresenceSession({ Params.LocalAccountId });
 				if (GetPresenceSessionResult.IsOk())
 				{
-					UE_LOG(LogTemp, Verbose, TEXT("[%s] Could not join session with bPresenceEnabled set to true when another presence session already exists [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *Entry.Key.ToString());
+					UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] Could not join session with bPresenceEnabled set to true when another presence session already exists [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *Entry.Key.ToString());
 					return TOptional<FOnlineError>(Errors::InvalidState());
 				}
 			}
@@ -823,7 +823,7 @@ namespace UE::Online {
 
 		if (Params.TargetUsers.IsEmpty())
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] TargetUsers array is empty"), UTF8_TO_TCHAR(__FUNCTION__));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] TargetUsers array is empty"), UTF8_TO_TCHAR(__FUNCTION__));
 			return TOptional<FOnlineError>(Errors::InvalidParams());
 		}
 
@@ -868,13 +868,13 @@ namespace UE::Online {
 		{
 			if (!UserMap->Contains(Params.SessionInviteId))
 			{
-				UE_LOG(LogTemp, Verbose, TEXT("[%s] No invite found for invite id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionInviteId));
+				UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No invite found for invite id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionInviteId));
 				return TOptional<FOnlineError>(Errors::NotFound());
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[%s] No invite data found for account id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] No invite data found for account id [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
 			return TOptional<FOnlineError>(Errors::InvalidState());
 		}
 

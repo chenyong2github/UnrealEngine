@@ -104,7 +104,7 @@ FSchemaVariant GetV2SessionVariant(const FVariantData& InValue)
 	case EOnlineKeyValuePairDataType::Json:	// Intentional fallthrough
 	case EOnlineKeyValuePairDataType::MAX:	// Intentional fallthrough
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("[GetV2SessionVariant] FVariantData type not supported by FSessionsVariant. No value was set."));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[GetV2SessionVariant] FVariantData type not supported by FSessionsVariant. No value was set."));
 		break;
 	}
 
@@ -130,7 +130,7 @@ FVariantData GetV1VariantData(const FSchemaVariant& InValue)
 		Result.SetValue(InValue.GetString());
 		break;
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("[GetV1VariantData] FSchemaVariant type not supported by FVariantData. No value was set."));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[GetV1VariantData] FSchemaVariant type not supported by FVariantData. No value was set."));
 		break;
 	}
 
@@ -274,7 +274,7 @@ const FOnlineSession& FSessionOSSAdapter::GetV1Session() const
 void FSessionOSSAdapter::DumpState() const
 {
 	FSessionCommon::DumpState();
-	UE_LOG(LogTemp, Log, TEXT("V1Session: SessionId [%s]"), *V1Session.GetSessionIdStr());
+	UE_LOG(LogOnlineServices, Log, TEXT("V1Session: SessionId [%s]"), *V1Session.GetSessionIdStr());
 }
 
 /** FSessionsOSSAdapter */ 
@@ -567,7 +567,7 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsOSSAdapter::FindSessionsImpl(cons
 		}
 		else
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] UniqueNetId could not be found for SessionId %s"), *ToLogString(*Params.SessionId));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] UniqueNetId could not be found for SessionId %s"), *ToLogString(*Params.SessionId));
 			Promise.EmplaceValue(Errors::InvalidParams());
 			return Future;
 		}
@@ -657,14 +657,14 @@ TOptional<FOnlineError> FSessionsOSSAdapter::CheckState(const FFindSessions::Par
 	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
 	if (!LocalAccountId->IsValid())
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] UniqueId not found for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] UniqueId not found for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
 		
 		return TOptional<FOnlineError>(Errors::InvalidUser());
 	}
 
 	if (PendingV1SessionSearchesPerUser.Contains(Params.LocalAccountId))
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] Session search already in progress for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] Session search already in progress for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
 		
 		return TOptional<FOnlineError>(Errors::AlreadyPending());
 	}
@@ -736,7 +736,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsOSSAdapter::JoinSessionImpl(const 
 			// If no result is found, the id might be expired, which we should notify
 			if (GetSessionIdRegistry().IsHandleExpired(Params.SessionId))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+				UE_LOG(LogOnlineServices, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 			}
 
 			Promise.EmplaceValue(MoveTemp(GetSessionByIdResult.GetErrorValue()));
@@ -794,7 +794,7 @@ TOptional<FOnlineError> FSessionsOSSAdapter::CheckState(const FJoinSession::Para
 	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
 	if (!LocalAccountId->IsValid())
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] UniqueId not found for LocalAccountId %s"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] UniqueId not found for LocalAccountId %s"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
 		
 		return TOptional<FOnlineError>(Errors::InvalidUser());
 	}
@@ -902,7 +902,7 @@ TOptional<FOnlineError> FSessionsOSSAdapter::CheckState(const FSendSessionInvite
 	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
 	if (!LocalAccountId->IsValid())
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[%s] UniqueId not found for LocalAccountId %s"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[%s] UniqueId not found for LocalAccountId %s"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
 
 		return TOptional<FOnlineError>(Errors::InvalidUser());
 	}
@@ -939,7 +939,7 @@ TOnlineResult<FGetResolvedConnectString> FSessionsOSSAdapter::GetResolvedConnect
 	else
 	{
 		// No valid session id set
-		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::GetResolvedConnectString] Invalid SessionId %s"), *ToLogString(Params.SessionId));
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[FSessionsOSSAdapter::GetResolvedConnectString] Invalid SessionId %s"), *ToLogString(Params.SessionId));
 		return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
 	}
 }

@@ -82,7 +82,7 @@ TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUIEOS::ShowFriendsUI(FEx
 	EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 	if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FExternalUIEOS::ShowFriendsUI] LocalAccountId=[%s] EpicAccountId not found"), *ToLogString(Params.LocalAccountId));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FExternalUIEOS::ShowFriendsUI] LocalAccountId=[%s] EpicAccountId not found"), *ToLogString(Params.LocalAccountId));
 		Op->SetError(Errors::Unknown()); // TODO
 		return Op->GetHandle();
 	}
@@ -98,7 +98,7 @@ TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUIEOS::ShowFriendsUI(FEx
 	})
 	.Then([this](TOnlineAsyncOp<FExternalUIShowFriendsUI>& InAsyncOp, const EOS_UI_ShowFriendsCallbackInfo* Data)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[FExternalUIEOS::ShowFriendsUI] EOS_UI_ShowFriends Result [%s] for User [%s]."), *LexToString(Data->ResultCode), *LexToString(Data->LocalUserId));
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[FExternalUIEOS::ShowFriendsUI] EOS_UI_ShowFriends Result [%s] for User [%s]."), *LexToString(Data->ResultCode), *LexToString(Data->LocalUserId));
 
 		if (Data->ResultCode == EOS_EResult::EOS_Success)
 		{

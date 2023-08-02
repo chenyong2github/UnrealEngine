@@ -1291,19 +1291,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&, typename SecondaryOpType::Param
 		TPromise<void> Promise;
 		auto Future = Promise.GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared()](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 		{
 			if (Future.Get().IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 			}
 			Promise.EmplaceValue();
 		});
@@ -1320,19 +1320,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&)> ConsumeStepResult(TOnlineAsync
 		TPromise<void> Promise;
 		auto Future = Promise.GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared()](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 		{
 			if (Future.Get().IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 			}
 			Promise.EmplaceValue();
 		});
@@ -1349,19 +1349,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&, typename SecondaryOpType::Param
 		TPromise<void> Promise;
 		auto Future = Promise.GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared(), ResultKey](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 		{
 			if (Future.Get().IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 				Op->Data.Set(ResultKey, MoveTempIfPossible(Future.Get().GetOkValue()));
 			}
 			Promise.EmplaceValue();
@@ -1379,19 +1379,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&)> CaptureStepResult(TOnlineAsync
 		TPromise<void> Promise;
 		auto Future = Promise.GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared(), ResultKey](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 		{
 			if (Future.Get().IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 				Op->Data.Set(ResultKey, MoveTempIfPossible(Future.Get().GetOkValue()));
 			}
 			Promise.EmplaceValue();
@@ -1409,19 +1409,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&, typename SecondaryOpType::Param
 		auto Promise = MakeShared<TPromise<void>>();
 		auto Future = Promise->GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.OnComplete([Promise, Op = InAsyncOp.AsShared()](const TOnlineResult<SecondaryOpType>& Result) mutable -> void
 		{
 			if (Result.IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 			}
 			Promise->EmplaceValue();
 		});
@@ -1438,19 +1438,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&)> ConsumeOperationStepResult(TOn
 		auto Promise = MakeShared<TPromise<void>>();
 		auto Future = Promise->GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.OnComplete([Promise, Op = InAsyncOp.AsShared()](const TOnlineResult<SecondaryOpType>& Result) mutable
 		{
 			if (Result.IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 			}
 			Promise->EmplaceValue();
 		});
@@ -1467,19 +1467,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&, typename SecondaryOpType::Param
 		auto Promise = MakeShared<TPromise<void>>();
 		auto Future = Promise->GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.OnComplete([Promise, Op = InAsyncOp.AsShared(), ResultKey](const TOnlineResult<SecondaryOpType>& Result) mutable -> void
 		{
 			if (Result.IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 				Op->Data.Set(ResultKey, Result.GetOkValue());
 			}
 			Promise->EmplaceValue();
@@ -1497,19 +1497,19 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&)> CaptureOperationStepResult(TOn
 		auto Promise = MakeShared<TPromise<void>>();
 		auto Future = Promise->GetFuture();
 
-		UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+		UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 		Func(MoveTempIfPossible(InParams))
 		.OnComplete([Promise, Op = InAsyncOp.AsShared(), ResultKey](const TOnlineResult<SecondaryOpType>& Result) mutable
 		{
 			if (Result.IsError())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 				Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+				UE_LOG(LogOnlineServices, Log, TEXT("[LobbiesFunctionalTest::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 				Op->Data.Set(ResultKey, Result.GetOkValue());
 			}
 			Promise->EmplaceValue();

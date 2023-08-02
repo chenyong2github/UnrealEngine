@@ -47,7 +47,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsOSSAdapter::ReadEntriesF
 			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(AccountId);
 			if (!UniqueNetId)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Failed to get unique net id for user %s"), *ToLogString(AccountId));
+				UE_LOG(LogOnlineServices, Warning, TEXT("Failed to get unique net id for user %s"), *ToLogString(AccountId));
 				Op.SetError(Errors::InvalidUser());
 				return MakeFulfilledPromise<void>().GetFuture();
 			}

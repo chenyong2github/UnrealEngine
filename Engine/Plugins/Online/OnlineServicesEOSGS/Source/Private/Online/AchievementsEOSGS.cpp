@@ -39,7 +39,7 @@ void FAchievementsEOSGS::Initialize()
 			const FString AchievementId = UTF8_TO_TCHAR(Data->AchievementId);
 			const FDateTime UnlockTime = FDateTime::FromUnixTimestamp(Data->UnlockTime);
 
-			UE_LOG(LogTemp, Verbose, TEXT("EOS_Achievements_OnAchievementsUnlocked User=%s AchievId=%s"), *ToLogString(LocalAccountId), *AchievementId);
+			UE_LOG(LogOnlineServices, Verbose, TEXT("EOS_Achievements_OnAchievementsUnlocked User=%s AchievId=%s"), *ToLogString(LocalAccountId), *AchievementId);
 
 			if (FAchievementStateMap* LocalUserAchievementStates = This->AchievementStates.Find(LocalAccountId))
 			{
@@ -103,7 +103,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 		{
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Achievements_QueryDefinitions failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Achievements_QueryDefinitions failed with result=[%s]"), *LexToString(Data->ResultCode));
 
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
@@ -127,7 +127,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 				const EOS_EResult CopyResult = EOS_Achievements_CopyAchievementDefinitionV2ByIndex(AchievementsHandle, &CopyOptions, &EOSDefinition);
 				if (CopyResult != EOS_EResult::EOS_Success)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_Achievements_CopyAchievementDefinitionV2ByIndex failed with result=[%s]"), *LexToString(CopyResult));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Achievements_CopyAchievementDefinitionV2ByIndex failed with result=[%s]"), *LexToString(CopyResult));
 
 					InAsyncOp.SetError(Errors::FromEOSResult(CopyResult));
 					return;
@@ -136,7 +136,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 				const int ExpectedDefinitionApiVersion = 2;
 				UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_DEFINITIONV2_API_LATEST, ExpectedDefinitionApiVersion);
 				const bool bDefsApiVersionOk = EOSDefinition->ApiVersion == ExpectedDefinitionApiVersion;
-				UE_CLOG(!bDefsApiVersionOk, LogTemp, Warning, TEXT("EOS_Achievements_DefinitionV2 version mismatch Expected=%d Actual=%d"), ExpectedDefinitionApiVersion, EOSDefinition->ApiVersion);
+				UE_CLOG(!bDefsApiVersionOk, LogOnlineServices, Warning, TEXT("EOS_Achievements_DefinitionV2 version mismatch Expected=%d Actual=%d"), ExpectedDefinitionApiVersion, EOSDefinition->ApiVersion);
 
 				FString AchievementId = UTF8_TO_TCHAR(EOSDefinition->AchievementId);
 				FAchievementDefinition& AchievementDefinition = NewAchievementDefinitions.Emplace(AchievementId);
@@ -156,7 +156,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 					const int ExpectedStatThresholdsApiVersion = 1;
 					UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_STATTHRESHOLDS_API_LATEST, ExpectedStatThresholdsApiVersion);
 					const bool bStatsApiVersionOk = EOSStatThreshold.ApiVersion == ExpectedStatThresholdsApiVersion;
-					UE_CLOG(!bStatsApiVersionOk, LogTemp, Warning, TEXT("EOS_Achievements_StatThresholds version mismatch Expected=%d Actual=%d"), ExpectedStatThresholdsApiVersion, EOSStatThreshold.ApiVersion);
+					UE_CLOG(!bStatsApiVersionOk, LogOnlineServices, Warning, TEXT("EOS_Achievements_StatThresholds version mismatch Expected=%d Actual=%d"), ExpectedStatThresholdsApiVersion, EOSStatThreshold.ApiVersion);
 
 					FAchievementStatDefinition& StatDefinition = AchievementDefinition.StatDefinitions.Emplace_GetRef();
 					StatDefinition.StatId = UTF8_TO_TCHAR(EOSStatThreshold.Name);
@@ -253,7 +253,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Achievements_QueryPlayerAchievements failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Achievements_QueryPlayerAchievements failed with result=[%s]"), *LexToString(Data->ResultCode));
 
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
@@ -280,7 +280,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 				const EOS_EResult CopyResult = EOS_Achievements_CopyPlayerAchievementByIndex(AchievementsHandle, &CopyOptions, &EOSPlayerAchievement);
 				if (CopyResult != EOS_EResult::EOS_Success)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_Achievements_CopyPlayerAchievementByIndex failed with result=[%s]"), *LexToString(CopyResult));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Achievements_CopyPlayerAchievementByIndex failed with result=[%s]"), *LexToString(CopyResult));
 
 					InAsyncOp.SetError(Errors::FromEOSResult(CopyResult));
 					return;
@@ -289,7 +289,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 				const int ExpectedPlayerAchievementApiVersion = 2;
 				UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_PLAYERACHIEVEMENT_API_LATEST, ExpectedPlayerAchievementApiVersion);
 				const bool bPlayerAchievementApiVersionOk = EOSPlayerAchievement->ApiVersion == ExpectedPlayerAchievementApiVersion;
-				UE_CLOG(!bPlayerAchievementApiVersionOk, LogTemp, Warning, TEXT("EOS_Achievements_PlayerAchievement version mismatch Expected=%d Actual=%d"), ExpectedPlayerAchievementApiVersion, EOSPlayerAchievement->ApiVersion);
+				UE_CLOG(!bPlayerAchievementApiVersionOk, LogOnlineServices, Warning, TEXT("EOS_Achievements_PlayerAchievement version mismatch Expected=%d Actual=%d"), ExpectedPlayerAchievementApiVersion, EOSPlayerAchievement->ApiVersion);
 
 				FString AchievementId = UTF8_TO_TCHAR(EOSPlayerAchievement->AchievementId);
 				FAchievementState& AchievementState = NewAchievementStates.Emplace(AchievementId);
@@ -402,12 +402,12 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 		{
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Achievements_UnlockAchievements failed with result=[%s]"), *LexToString(Data->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Achievements_UnlockAchievements failed with result=[%s]"), *LexToString(Data->ResultCode));
 				InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				return;
 			}
 
-			UE_LOG(LogTemp, Verbose, TEXT("EOS_Achievements_UnlockAchievements succeeded"), *LexToString(Data->ResultCode));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("EOS_Achievements_UnlockAchievements succeeded"), *LexToString(Data->ResultCode));
 
 			const FUnlockAchievements::Params& Params = InAsyncOp.GetParams();
 			const FDateTime TimeNow = FDateTime::Now();

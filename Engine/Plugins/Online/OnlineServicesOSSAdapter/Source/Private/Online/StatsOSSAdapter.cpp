@@ -62,7 +62,7 @@ void FStatsOSSAdapter::ConvertStatValueV2ToStatUpdateV1(const FString& StatName,
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Can't find stat definition %s"), *StatName);
+		UE_LOG(LogOnlineServices, Warning, TEXT("Can't find stat definition %s"), *StatName);
 	}
 
 	OutOnlineStatUpdate.Set(OnlineStatValue, OnlineStatModificationType);

@@ -6,8 +6,6 @@
 #include "Online/OnlineAsyncOpCache_Meta.inl"
 #include "Online/OnlineExecHandler.h"
 
-DEFINE_LOG_CATEGORY(LogOnlineServices);
-
 namespace UE::Online {
 
 struct FOnlineServicesCommonConfig

@@ -12,6 +12,7 @@
 #include "Online/SessionsEOSGS.h"
 #include "Online/TitleFileEOSGS.h"
 #include "Online/UserFileEOSGS.h"
+#include "IEOSSDKManager.h"
 
 #if WITH_ENGINE
 #include "InternetAddrEOS.h"

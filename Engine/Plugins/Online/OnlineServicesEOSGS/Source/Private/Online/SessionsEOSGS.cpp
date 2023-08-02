@@ -115,13 +115,13 @@ FSessionEOSGS::FSessionEOSGS(const TSharedPtr<FSessionDetailsHandleEOSGS>& InSes
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopySessionAttributeByIndex failed with result [%s]"), *LexToString(CopyInfoResult));
+				UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopySessionAttributeByIndex failed with result [%s]"), *LexToString(CopyInfoResult));
 			}
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
 	}
 }
 
@@ -340,7 +340,7 @@ TFuture<TOnlineResult<FCreateSession>> FSessionsEOSGS::CreateSessionImpl(const F
 	{
 		int32 BuildUniqueId = GetBuildUniqueId();
 
-		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsEOSGS::CreateSession] 'EOSGS_BUCKET_ID_ATTRIBUTE_KEY' (FString) Custom Setting needed to create EOS sessions not found. Setting \"%d\" as default."), BuildUniqueId);
+		UE_LOG(LogOnlineServices, Verbose, TEXT("[FSessionsEOSGS::CreateSession] 'EOSGS_BUCKET_ID_ATTRIBUTE_KEY' (FString) Custom Setting needed to create EOS sessions not found. Setting \"%d\" as default."), BuildUniqueId);
 
 		BucketIdStr = FString::FromInt(BuildUniqueId);
 	}
@@ -364,7 +364,7 @@ TFuture<TOnlineResult<FCreateSession>> FSessionsEOSGS::CreateSessionImpl(const F
 	EOS_EResult ResultCode = EOS_Sessions_CreateSessionModification(SessionsHandle, &CreateSessionModificationOptions, &SessionModificationHandle);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::CreateSession] EOS_Sessions_CreateSessionModification failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Error, TEXT("[FSessionsEOSGS::CreateSession] EOS_Sessions_CreateSessionModification failed with result [%s]"), *LexToString(ResultCode));
 
 		Promise.EmplaceValue(Errors::FromEOSResult(ResultCode));
 
@@ -419,7 +419,7 @@ TOptional<FOnlineError> FSessionsEOSGS::CheckState(const FCreateSession::Params&
 
 		if (Length < EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH || Length > EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] Could not create session with SessionIdOverride [%s] of size [%d]. SessionIdOverride size must be between [%d] and [%d] characters long"), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionIdOverride, Length, EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH, EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH);
+			UE_LOG(LogOnlineServices, Warning, TEXT("[%s] Could not create session with SessionIdOverride [%s] of size [%d]. SessionIdOverride size must be between [%d] and [%d] characters long"), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionIdOverride, Length, EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH, EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH);
 
 			return TOptional<FOnlineError>(Errors::InvalidParams());
 		}
@@ -440,7 +440,7 @@ void FSessionsEOSGS::SetHostAddress(EOS_HSessionModification& SessionModHandle, 
 	EOS_EResult ResultCode = EOS_SessionModification_SetHostAddress(SessionModHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetHostAddress failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("EOS_SessionModification_SetHostAddress failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -455,7 +455,7 @@ void FSessionsEOSGS::SetJoinInProgressAllowed(EOS_HSessionModification& SessionM
 	EOS_EResult ResultCode = EOS_SessionModification_SetJoinInProgressAllowed(SessionModHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetJoinInProgressAllowed failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("EOS_SessionModification_SetJoinInProgressAllowed failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -470,7 +470,7 @@ void FSessionsEOSGS::SetInvitesAllowed(EOS_HSessionModification& SessionModHandl
 	EOS_EResult ResultCode = EOS_SessionModification_SetInvitesAllowed(SessionModHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetInvitesAllowed failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("EOS_SessionModification_SetInvitesAllowed failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -485,7 +485,7 @@ void FSessionsEOSGS::SetPermissionLevel(EOS_HSessionModification& SessionModific
 	EOS_EResult ResultCode = EOS_SessionModification_SetPermissionLevel(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetPermissionLevel] EOS_SessionModification_SetPermissionLevel failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetPermissionLevel] EOS_SessionModification_SetPermissionLevel failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -501,7 +501,7 @@ void FSessionsEOSGS::SetBucketId(EOS_HSessionModification& SessionModificationHa
 	EOS_EResult ResultCode = EOS_SessionModification_SetBucketId(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetBucketId] EOS_SessionModification_SetBucketId failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetBucketId] EOS_SessionModification_SetBucketId failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -516,7 +516,7 @@ void FSessionsEOSGS::SetMaxPlayers(EOS_HSessionModification& SessionModification
 	EOS_EResult ResultCode = EOS_SessionModification_SetMaxPlayers(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetMaxPlayers] EOS_SessionModification_SetMaxPlayers failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetMaxPlayers] EOS_SessionModification_SetMaxPlayers failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -534,7 +534,7 @@ void FSessionsEOSGS::AddAttribute(EOS_HSessionModification& SessionModificationH
 	EOS_EResult ResultCode = EOS_SessionModification_AddAttribute(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::AddAttribute] EOS_SessionModification_AddAttribute failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::AddAttribute] EOS_SessionModification_AddAttribute failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -550,7 +550,7 @@ void FSessionsEOSGS::RemoveAttribute(EOS_HSessionModification& SessionModificati
 	EOS_EResult ResultCode = EOS_SessionModification_RemoveAttribute(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::RemoveAttribute] EOS_SessionModification_RemoveAttribute failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::RemoveAttribute] EOS_SessionModification_RemoveAttribute failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -679,7 +679,7 @@ TFuture<TOnlineResult<FUpdateSessionSettings>> FSessionsEOSGS::UpdateSessionSett
 	EOS_EResult ResultCode = EOS_Sessions_UpdateSessionModification(SessionsHandle, &UpdateSessionModificationOptions, &SessionModificationHandle);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
 
 		Promise.EmplaceValue(Errors::FromEOSResult(ResultCode));
 
@@ -750,7 +750,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionImplEOSGS>> FSessionsEOSGS::UpdateSess
 		// If we only change bAllowNewMembers, the session update will yield an EOS_NoChange result, but we still need to continue to the next step
 		if (Result->ResultCode != EOS_EResult::EOS_Success && Result->ResultCode != EOS_EResult::EOS_Sessions_OutOfSync && Result->ResultCode != EOS_EResult::EOS_NoChange)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_UpdateSession failed with result [%s]"), *LexToString(Result->ResultCode));
+			UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_UpdateSession failed with result [%s]"), *LexToString(Result->ResultCode));
 			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
@@ -797,7 +797,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionJoinabilityImpl>> FSessionsEOSGS::Upda
 	EOS_EResult CopyActiveSessionHandleResult = EOS_Sessions_CopyActiveSessionHandle(SessionsHandle, &CopyActiveSessionHandleOptions, &ActiveSessionHandle);
 	if (CopyActiveSessionHandleResult != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_CopyActiveSessionHandle failed with result [%s]"), *LexToString(CopyActiveSessionHandleResult));
+		UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_CopyActiveSessionHandle failed with result [%s]"), *LexToString(CopyActiveSessionHandleResult));
 	}
 
 	// We get the active session info with the handle
@@ -809,7 +809,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionJoinabilityImpl>> FSessionsEOSGS::Upda
 	EOS_EResult CopyInfoResult = EOS_ActiveSession_CopyInfo(ActiveSessionHandle, &CopyInfoOptions, &ActiveSessionInfo);
 	if (CopyInfoResult != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_ActiveSession_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
+		UE_LOG(LogOnlineServices, Warning, TEXT("EOS_ActiveSession_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
 	}
 
 	// If not, we start or end the session to make it joinable or not (as we set JIP to false at creation time)
@@ -829,7 +829,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionJoinabilityImpl>> FSessionsEOSGS::Upda
 			{
 				if (Result->ResultCode != EOS_EResult::EOS_Success && Result->ResultCode != EOS_EResult::EOS_Sessions_OutOfSync)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_EndSession failed with result [%s]"), *LexToString(Result->ResultCode));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_EndSession failed with result [%s]"), *LexToString(Result->ResultCode));
 					Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 					return;
 				}
@@ -858,7 +858,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionJoinabilityImpl>> FSessionsEOSGS::Upda
 			{
 				if (Result->ResultCode != EOS_EResult::EOS_Success && Result->ResultCode != EOS_EResult::EOS_Sessions_OutOfSync)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_StartSession failed with result [%s]"), *LexToString(Result->ResultCode));
+					UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_StartSession failed with result [%s]"), *LexToString(Result->ResultCode));
 					Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 					return;
 				}
@@ -896,7 +896,7 @@ TFuture<TDefaultErrorResult<FSendSingleSessionInviteImpl>> FSessionsEOSGS::SendS
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_SendInvite failed with result [%s]"), *LexToString(Result->ResultCode));
+			UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_SendInvite failed with result [%s]"), *LexToString(Result->ResultCode));
 			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 		}
 		else
@@ -934,7 +934,7 @@ TFuture<TOnlineResult<FLeaveSession>> FSessionsEOSGS::LeaveSessionImpl(const FLe
 		{
 			if (Result->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_DestroySession failed with result [%s]"), *LexToString(Result->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_DestroySession failed with result [%s]"), *LexToString(Result->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 				return;
 			}
@@ -973,7 +973,7 @@ void FSessionsEOSGS::SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& Sessi
 	EOS_EResult ResultCode = EOS_SessionSearch_SetMaxResults(SessionSearchHandle.SearchHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchMaxResults] EOS_SessionSearch_SetMaxResults failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchMaxResults] EOS_SessionSearch_SetMaxResults failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -993,7 +993,7 @@ void FSessionsEOSGS::SetSessionSearchParameters(FSessionSearchHandleEOSGS& Sessi
 		EOS_EResult ResultCode = EOS_SessionSearch_SetParameter(SessionSearchHandle.SearchHandle, &Options);
 		if (ResultCode != EOS_EResult::EOS_Success)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchParameters] EOS_SessionSearch_SetParameter failed with result [%s]"), *LexToString(ResultCode));
+			UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchParameters] EOS_SessionSearch_SetParameter failed with result [%s]"), *LexToString(ResultCode));
 		}
 	}
 }
@@ -1010,7 +1010,7 @@ void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& Sessio
 	EOS_EResult ResultCode = EOS_SessionSearch_SetSessionId(SessionSearchHandle.SearchHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchSessionId] EOS_SessionSearch_SetSessionId failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchSessionId] EOS_SessionSearch_SetSessionId failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -1024,7 +1024,7 @@ void FSessionsEOSGS::SetSessionSearchTargetId(FSessionSearchHandleEOSGS& Session
 	EOS_EResult ResultCode = EOS_SessionSearch_SetTargetUserId(SessionSearchHandle.SearchHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchTargetId] EOS_SessionSearch_SetTargetUserId failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchTargetId] EOS_SessionSearch_SetTargetUserId failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -1080,7 +1080,7 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsEOSGS::FindSessionsImpl(const FFi
 	EOS_EResult ResultCode = EOS_Sessions_CreateSessionSearch(SessionsHandle, &CreateSessionSearchOptions, &SearchHandle);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_Sessions_CreateSessionSearch failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogOnlineServices, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_Sessions_CreateSessionSearch failed with result [%s]"), *LexToString(ResultCode));
 
 		Promise.EmplaceValue(Errors::FromEOSResult(ResultCode));
 		return Future;
@@ -1107,7 +1107,7 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsEOSGS::FindSessionsImpl(const FFi
 
 			if (FindCallbackInfoResult->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_SessionSearch_Find failed with result [%s]"), *LexToString(FindCallbackInfoResult->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_SessionSearch_Find failed with result [%s]"), *LexToString(FindCallbackInfoResult->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(FindCallbackInfoResult->ResultCode));
 				CurrentSessionSearchPromisesUserMap.Remove(Params.LocalAccountId);
 				CurrentSessionSearchHandleEOSGSUserMap.Remove(Params.LocalAccountId);
@@ -1156,7 +1156,7 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsEOSGS::FindSessionsImpl(const FFi
 				}
 				else
 				{
-					UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_SessionSearch_CopySearchResultByIndex failed for index [%d] with result [%s]"), Index, *LexToString(CopySearchResultByIndexResult));
+					UE_LOG(LogOnlineServices, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_SessionSearch_CopySearchResultByIndex failed for index [%d] with result [%s]"), Index, *LexToString(CopySearchResultByIndexResult));
 
 					Promise.EmplaceValue(Errors::FromEOSResult(CopySearchResultByIndexResult));
 					return;
@@ -1202,7 +1202,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 		// If no result is found, the id might be expired, which we should notify
 		if (FOnlineSessionIdRegistryEOSGS::Get().IsSessionIdExpired(Params.SessionId))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 		}
 
 		Promise.EmplaceValue(GetSessionByIdResult.GetErrorValue());
@@ -1239,7 +1239,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 		{
 			if (Result->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_JoinSession failed with result [%s]"), *LexToString(Result->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_JoinSession failed with result [%s]"), *LexToString(Result->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 				return;
 			}
@@ -1250,7 +1250,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 				// If no result is found, the id might be expired, which we should notify
 				if (FOnlineSessionIdRegistryEOSGS::Get().IsSessionIdExpired(Params.SessionId))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+					UE_LOG(LogOnlineServices, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 				}
 
 				Promise.EmplaceValue(MoveTemp(GetSessionByIdResult.GetErrorValue()));
@@ -1292,7 +1292,7 @@ TOptional<FOnlineError> FSessionsEOSGS::CheckState(const FJoinSession::Params& P
 		const FSessionEOSGS& SessionEOSGS = FSessionEOSGS::Cast(*FoundSession);
 		if (!FoundSession->GetSessionInfo().bIsLANSession && !SessionEOSGS.SessionDetailsHandle.IsValid())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s] Could not join session with invalid session details handle in session with id [%s]"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			UE_LOG(LogOnlineServices, Warning, TEXT("[%s] Could not join session with invalid session details handle in session with id [%s]"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
 
 			return TOptional<FOnlineError>(Errors::InvalidState());
 		}
@@ -1322,7 +1322,7 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::BuildSessionFromInvite] EOS_Sessions_CopySessionHandleByInviteId failed with result [%s]"), *LexToString(CopySessionHandleByInviteIdResult));
+		UE_LOG(LogOnlineServices, Error, TEXT("[FSessionsEOSGS::BuildSessionFromInvite] EOS_Sessions_CopySessionHandleByInviteId failed with result [%s]"), *LexToString(CopySessionHandleByInviteIdResult));
 
 		TOnlineAsyncOpPtr<FBuildSessionFromDetailsHandle> Operation;
 		Operation->SetError(Errors::FromEOSResult(CopySessionHandleByInviteIdResult));
@@ -1346,7 +1346,7 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::BuildSessionFromUIEvent] EOS_Sessions_CopySessionHandleByUiEventId failed with result [%s]"), *LexToString(CopySessionHandleByUiEventIdResult));
+		UE_LOG(LogOnlineServices, Error, TEXT("[FSessionsEOSGS::BuildSessionFromUIEvent] EOS_Sessions_CopySessionHandleByUiEventId failed with result [%s]"), *LexToString(CopySessionHandleByUiEventIdResult));
 
 		TOnlineAsyncOpPtr<FBuildSessionFromDetailsHandle> Operation;
 		Operation->SetError(Errors::FromEOSResult(CopySessionHandleByUiEventIdResult));
@@ -1372,7 +1372,7 @@ TResult<TArray<EOS_ProductUserId>, FOnlineError> GetProductUserIdsFromEOSGSSessi
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::BuildSessionFromDetailsHandle] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FSessionsEOSGS::BuildSessionFromDetailsHandle] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
 
 		TResult<TArray<EOS_ProductUserId>, FOnlineError>(Errors::FromEOSResult(CopyInfoResult));
 	}*/
@@ -1476,7 +1476,7 @@ TFuture<TOnlineResult<FRejectSessionInvite>> FSessionsEOSGS::RejectSessionInvite
 		{
 			if (Result->ResultCode != EOS_EResult::EOS_Success)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_RejectInvite failed with result [%s]"), *LexToString(Result->ResultCode));
+				UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_RejectInvite failed with result [%s]"), *LexToString(Result->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 				return;
 			}
@@ -1528,7 +1528,7 @@ TFuture<TOnlineResult<FAddSessionMember>> FSessionsEOSGS::AddSessionMemberImpl(c
 						{
 							if (Result->ResultCode != EOS_EResult::EOS_Success)
 							{
-								UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_RegisterPlayers failed with result [%s]"), *LexToString(Result->ResultCode));
+								UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_RegisterPlayers failed with result [%s]"), *LexToString(Result->ResultCode));
 								Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 								return;
 							}
@@ -1581,7 +1581,7 @@ TFuture<TOnlineResult<FRemoveSessionMember>> FSessionsEOSGS::RemoveSessionMember
 						{
 							if (Result->ResultCode != EOS_EResult::EOS_Success)
 							{
-								UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_UnregisterPlayers failed with result [%s]"), *LexToString(Result->ResultCode));
+								UE_LOG(LogOnlineServices, Warning, TEXT("EOS_Sessions_UnregisterPlayers failed with result [%s]"), *LexToString(Result->ResultCode));
 								Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 								return;
 							}
