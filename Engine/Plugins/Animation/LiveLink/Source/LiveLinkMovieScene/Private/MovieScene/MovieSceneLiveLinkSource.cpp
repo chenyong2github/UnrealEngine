@@ -3,6 +3,7 @@
 #include "MovieSceneLiveLinkSource.h"
 #include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
+#include "ILiveLinkSource.h"
 
 FMovieSceneLiveLinkSource::FMovieSceneLiveLinkSource()
 	: Client(nullptr)
@@ -66,6 +67,13 @@ void FMovieSceneLiveLinkSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	}
 
 	Client->CreateSubject(SubjectPreset);
+}
+
+void FMovieSceneLiveLinkSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
+{
+	ILiveLinkSource::InitializeSettings(Settings);
+
+	Settings->BufferSettings.MaxNumberOfFrameToBuffered = 1;
 }
 
 bool FMovieSceneLiveLinkSource::IsSourceStillValid() const
