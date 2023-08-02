@@ -132,10 +132,25 @@ void FScheduledTask::Run(const FEntitySystemScheduler* Scheduler, FTaskExecution
 	//     this happens in FEntitySystemScheduler::CompleteTask if Parent is valid
 	if (!ChildTasks.IsEmpty())
 	{
-		 for (int32 Index : ChildTasks)
-		 {
-		 	Scheduler->PrerequisiteCompleted(FTaskID(Index), nullptr);
-		 }
+		// Increment the child completion count to protect CompleteTask being called for _this_ parent task
+		// while the loop over ChildTasks is running. This prevents a race condition where the final child can end up being
+		// the last task altogether, which triggers OnAllTasksFinished, potentially allowing the waiting thread to continue
+		// and destroy or  otherwise mutate the contents of FEntitySystemScheduler resulting in a crash.
+		//
+		// Once our loop has finished we check the child complete count to see if this was the last one
+		ChildCompleteCount.fetch_add(1);
+
+		for (int32 Index : ChildTasks)
+		{
+			Scheduler->PrerequisiteCompleted(FTaskID(Index), nullptr);
+		}
+
+		// Subtract our count added on ln 205. If this is the last count, complete this task (all children have completed)
+		const int32 PreviousCompleteCount = ChildCompleteCount.fetch_sub(1);
+		if (PreviousCompleteCount == 1)
+		{
+			Scheduler->CompleteTask(this, InFlags);
+		}
 	}
 	else
 	{
