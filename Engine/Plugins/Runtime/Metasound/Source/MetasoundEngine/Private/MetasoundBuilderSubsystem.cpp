@@ -348,6 +348,56 @@ void UMetaSoundBuilderBase::ConnectNodeInputToGraphInput(FName GraphInputName, c
 	}
 }
 
+void UMetaSoundBuilderBase::ConvertFromPreset(EMetaSoundBuilderResult& OutResult)
+{
+	const bool bSuccess = Builder.ConvertFromPreset();
+	OutResult = bSuccess ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+}
+
+void UMetaSoundBuilderBase::ConvertToPreset(const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult)
+{
+	const IMetaSoundDocumentInterface* ReferencedInterface = ReferencedNodeClass.GetInterface();
+	if (!ReferencedInterface)
+	{
+		OutResult = EMetaSoundBuilderResult::Failed;
+		return;
+	}
+	
+	// Ensure the referenced node class isn't transient 
+	if (Cast<UMetaSoundBuilderDocument>(ReferencedInterface))
+	{
+		UE_LOG(LogMetaSound, Warning, TEXT("Transient document builders cannot be referenced when converting builder '%s' to a preset. Build the referenced node class an asset first or use an existing asset instead"), *GetName());
+		OutResult = EMetaSoundBuilderResult::Failed;
+		return;
+	}
+
+	// Ensure the referenced node class is a matching object type 
+	const UClass& BaseMetaSoundClass = ReferencedInterface->GetBaseMetaSoundUClass();
+	UObject* ReferencedObject = ReferencedNodeClass.GetObject();
+	if (!ReferencedObject || (ReferencedObject && !ReferencedObject->IsA(&BaseMetaSoundClass)))
+	{
+		UE_LOG(LogMetaSound, Warning, TEXT("The referenced node type must match the base MetaSound class when converting builder '%s' to a preset (ex. source preset must reference another source)"), *GetName());
+		OutResult = EMetaSoundBuilderResult::Failed;
+		return;
+	}
+
+	// Ensure the referenced node is registered
+	if (FMetasoundAssetBase* ReferencedMetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ReferencedObject))
+	{
+		ReferencedMetaSoundAsset->RegisterGraphWithFrontend();
+	}
+
+	const FMetasoundFrontendDocument& ReferencedDocument = ReferencedInterface->GetDocument();
+	if (Builder.ConvertToPreset(ReferencedDocument))
+	{
+		OutResult = EMetaSoundBuilderResult::Succeeded;
+	}
+	else
+	{
+		OutResult = EMetaSoundBuilderResult::Failed;
+	}
+}
+
 void UMetaSoundBuilderBase::DisconnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	const bool bEdgeRemoved = Builder.RemoveEdge(FMetasoundFrontendEdge
@@ -615,6 +665,11 @@ bool UMetaSoundBuilderBase::InterfaceIsDeclared(FName InterfaceName) const
 	return Builder.IsInterfaceDeclared(InterfaceName);
 }
 
+bool UMetaSoundBuilderBase::IsPreset() const
+{
+	return Builder.IsPreset();
+}
+
 bool UMetaSoundBuilderBase::NodesAreConnected(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, const FMetaSoundBuilderNodeInputHandle& InputHandle) const
 {
 	const FMetasoundFrontendEdge Edge = { OutputHandle.NodeID, OutputHandle.VertexID, InputHandle.NodeID, InputHandle.VertexID };
@@ -629,17 +684,6 @@ bool UMetaSoundBuilderBase::NodeInputIsConnected(const FMetaSoundBuilderNodeInpu
 bool UMetaSoundBuilderBase::NodeOutputIsConnected(const FMetaSoundBuilderNodeOutputHandle& OutputHandle) const
 {
 	return Builder.IsNodeOutputConnected(OutputHandle.NodeID, OutputHandle.VertexID);
-}
-
-bool UMetaSoundBuilderBase::IsPreset() const
-{
-	return Builder.IsPreset();
-}
-
-void UMetaSoundBuilderBase::ConvertFromPreset(EMetaSoundBuilderResult& OutResult)
-{
-	const bool bSuccess = Builder.ConvertFromPreset();
-	OutResult = bSuccess ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
 void UMetaSoundBuilderBase::RemoveGraphInput(FName Name, EMetaSoundBuilderResult& OutResult)
@@ -805,46 +849,6 @@ void UMetaSoundBuilderBase::GetNodeOutputData(const FMetaSoundBuilderNodeOutputH
 	{
 		Name = { };
 		DataType = { };
-		OutResult = EMetaSoundBuilderResult::Failed;
-	}
-}
-
-void UMetaSoundBuilderBase::ConvertToPreset(const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult)
-{
-	const IMetaSoundDocumentInterface* ReferencedInterface = ReferencedNodeClass.GetInterface();
-	check(ReferencedInterface);
-	
-	// Ensure the referenced node class isn't transient 
-	if (Cast<UMetaSoundBuilderDocument>(ReferencedInterface))
-	{
-		UE_LOG(LogMetaSound, Warning, TEXT("Transient document builders cannot be referenced when converting builder '%s' to a preset. Build the referenced node class an asset first or use an existing asset instead"), *GetName());
-		OutResult = EMetaSoundBuilderResult::Failed;
-		return;
-	}
-
-	// Ensure the referenced node class is a matching object type 
-	const UClass& BaseMetaSoundClass = ReferencedInterface->GetBaseMetaSoundUClass();
-	UObject* ReferencedObject = ReferencedNodeClass.GetObject();
-	if (!ReferencedObject || (ReferencedObject && !ReferencedObject->IsA(&BaseMetaSoundClass)))
-	{
-		UE_LOG(LogMetaSound, Warning, TEXT("The referenced node type must match the base MetaSound class when converting builder '%s' to a preset (ex. source preset must reference another source)"), *GetName());
-		OutResult = EMetaSoundBuilderResult::Failed;
-		return;
-	}
-
-	// Ensure the referenced node is registered
-	if (FMetasoundAssetBase* ReferencedMetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ReferencedObject))
-	{
-		ReferencedMetaSoundAsset->RegisterGraphWithFrontend();
-	}
-
-	const FMetasoundFrontendDocument& ReferencedDocument = ReferencedInterface->GetDocument();
-	if (Builder.ConvertToPreset(ReferencedDocument))
-	{
-		OutResult = EMetaSoundBuilderResult::Succeeded;
-	}
-	else
-	{
 		OutResult = EMetaSoundBuilderResult::Failed;
 	}
 }
@@ -1454,9 +1458,15 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchPresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult)
 {
-	UMetaSoundPatchBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>(BuilderName);
-	Builder.ConvertToPreset(ReferencedNodeClass, OutResult);
-	return &Builder;
+	if (ReferencedNodeClass)
+	{
+		UMetaSoundPatchBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>(BuilderName);
+		Builder.ConvertToPreset(ReferencedNodeClass, OutResult);
+		return &Builder;
+	}
+
+	OutResult = EMetaSoundBuilderResult::Failed;
+	return nullptr;
 }
 
 UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::CreatePresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedPatchClass, EMetaSoundBuilderResult& OutResult)
@@ -1479,9 +1489,15 @@ UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::CreatePresetBuilder(FName Bui
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourcePresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult)
 {
-	UMetaSoundSourceBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundSourceBuilder>();
-	Builder.ConvertToPreset(ReferencedNodeClass, OutResult);
-	return &Builder;
+	if (ReferencedNodeClass)
+	{
+		UMetaSoundSourceBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundSourceBuilder>();
+		Builder.ConvertToPreset(ReferencedNodeClass, OutResult);
+		return &Builder;
+	}
+
+	OutResult = EMetaSoundBuilderResult::Failed;
+	return nullptr;
 }
 
 UMetaSoundBuilderSubsystem& UMetaSoundBuilderSubsystem::GetChecked()
@@ -1559,7 +1575,7 @@ FMetasoundFrontendLiteral UMetaSoundBuilderSubsystem::CreateMetaSoundLiteralFrom
 	return FMetasoundFrontendLiteral { Param };
 }
 
-bool UMetaSoundBuilderSubsystem::DetachBuilderFromAsset(const FMetasoundFrontendClassName& InClassName)
+bool UMetaSoundBuilderSubsystem::DetachBuilderFromAsset(const FMetasoundFrontendClassName& InClassName) const
 {
 	return AssetBuilders.Remove(InClassName.GetFullName()) > 0;
 }

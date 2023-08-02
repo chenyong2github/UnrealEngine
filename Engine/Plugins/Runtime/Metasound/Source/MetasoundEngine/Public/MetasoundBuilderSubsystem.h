@@ -553,13 +553,13 @@ public:
 
 	UMetaSoundBuilderBase& AttachBuilderToAssetChecked(UObject& InMetaSound) const;
 
-	// May move these to UFUNCTIONS in the future, but right now too many unguarded cases
-	// where a user could mutate these and potentially improperly reference transient assets.
+	// Moving toward becoming UFUNCTIONS in the future, but right now unguarded case
+	// where a user could improperly reference transient assets. Also, unsafe where
+	// legacy controller system are potentially mutating and not notifying delegates
+	// appropriately.
 	UMetaSoundPatchBuilder* AttachPatchBuilderToAsset(UMetaSoundPatch* InPatch) const;
 	UMetaSoundSourceBuilder* AttachSourceBuilderToAsset(UMetaSoundSource* InSource) const;
-
-	// Unregisters builder for MetaSound class asset.
-	bool DetachBuilderFromAsset(const FMetasoundFrontendClassName& InClassName);
+	bool DetachBuilderFromAsset(const FMetasoundFrontendClassName& InClassName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder",  meta = (ExpandEnumAsExecs = "OutResult"))
 	UPARAM(DisplayName = "Patch Builder") UMetaSoundPatchBuilder* CreatePatchBuilder(FName BuilderName, EMetaSoundBuilderResult& OutResult);

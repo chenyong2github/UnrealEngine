@@ -189,9 +189,18 @@ void UMetaSoundSource::PostEditChangeOutputFormat()
 {
 	using namespace Metasound::Frontend;
 
-	UMetaSoundSourceBuilder* SourceBuilder = UMetaSoundBuilderSubsystem::GetConstChecked().AttachSourceBuilderToAsset(this);
-	EMetaSoundBuilderResult Result;
-	SourceBuilder->SetFormat(OutputFormat, Result);
+	EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
+	{
+
+		const UMetaSoundBuilderSubsystem& BuilderSubsystem = UMetaSoundBuilderSubsystem::GetConstChecked();
+		UMetaSoundSourceBuilder* SourceBuilder = BuilderSubsystem.AttachSourceBuilderToAsset(this);
+		SourceBuilder->SetFormat(OutputFormat, Result);
+		// TODO: Once builders are notified of controller changes and can be safely persistent, this
+		// can be removed so builders can be shared and not have to be created for each change output
+		// format mutation transaction.
+		BuilderSubsystem.DetachBuilderFromAsset(GetDocument().RootGraph.Metadata.GetClassName());
+	}
+
 	if (Result == EMetaSoundBuilderResult::Succeeded)
 	{
 		// Update the data in this UMetaSoundSource to reflect what is in the metasound document.
