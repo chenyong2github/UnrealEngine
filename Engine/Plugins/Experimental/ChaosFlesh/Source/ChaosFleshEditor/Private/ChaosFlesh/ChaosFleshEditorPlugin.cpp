@@ -88,7 +88,7 @@ void IChaosFleshEditorPlugin::ShutdownModule()
 	}
 }
 
-IMPLEMENT_MODULE(IChaosFleshEditorPlugin, FleshAssetEditor)
+IMPLEMENT_MODULE(IChaosFleshEditorPlugin, ChaosFleshEditor)
 
 
 #undef LOCTEXT_NAMESPACE
