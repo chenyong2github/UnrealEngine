@@ -204,19 +204,19 @@ private:
 
 	// Recorded pose state at point of transition.
 
-	TBitArray<TInlineAllocator<512>> BoneValid;
+	TBitArray<TInlineAllocator<16>> BoneValid;
 	TArray<FVector> BoneTranslations;
 	TArray<FQuat> BoneRotations;
-	TArray<FQuat> BoneRotationDirections;
+	TArray<FQuat4f> BoneRotationDirections;
 	TArray<FVector> BoneScales;
 
-	TArray<FVector> BoneTranslationVelocities;
-	TArray<FVector> BoneRotationVelocities;
-	TArray<FVector> BoneScaleVelocities;
+	TArray<FVector3f> BoneTranslationVelocities;
+	TArray<FVector3f> BoneRotationVelocities;
+	TArray<FVector3f> BoneScaleVelocities;
 
-	TArray<FVector> BoneTranslationDecayHalfLives;
-	TArray<FVector> BoneRotationDecayHalfLives;
-	TArray<FVector> BoneScaleDecayHalfLives;
+	TArray<FVector3f> BoneTranslationDecayHalfLives;
+	TArray<FVector3f> BoneRotationDecayHalfLives;
+	TArray<FVector3f> BoneScaleDecayHalfLives;
 
 	// Recorded curve state at the point of transition.
 
@@ -228,7 +228,7 @@ private:
 		FDeadBlendingCurveElement() = default;
 	};
 
-	TBaseBlendedCurve<TInlineAllocator<32>, FDeadBlendingCurveElement> CurveData;
+	TBaseBlendedCurve<TInlineAllocator<8>, FDeadBlendingCurveElement> CurveData;
 
 private:
 
