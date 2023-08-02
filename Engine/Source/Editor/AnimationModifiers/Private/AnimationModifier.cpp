@@ -70,6 +70,8 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* AnimSeque
 	UAnimationModifier* AppliedModifier = DuplicateObject(this, AppliedModifierOuter);
 	// Set the revision guid on applied modifier to latest
 	AppliedModifier->RevisionGuid = GetLatestRevisionGuid();
+	
+	AnimSequence->Modify();
 
 	FTransaction AnimationDataTransaction;
 	AnimationDataTransaction.SaveObject(AnimSequence);
