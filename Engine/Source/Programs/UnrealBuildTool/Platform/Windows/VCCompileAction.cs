@@ -164,6 +164,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public UnrealArch Architecture { get; set; }
 
+		/// <summary>
+		/// Whether this compile is static code analysis (used for display)
+		/// </summary>
+		public bool bIsAnalyzing { get; set; }
+
 		#region Public IAction implementation
 
 		/// <summary>
@@ -197,7 +202,7 @@ namespace UnrealBuildTool
 
 		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
 		public DirectoryReference WorkingDirectory => Unreal.EngineSourceDirectory;
-		string IExternalAction.CommandDescription => $"Compile [{Architecture}]";
+		string IExternalAction.CommandDescription => $"{(bIsAnalyzing ? "Analyze" : "Compile")} [{Architecture}]";
 		bool IExternalAction.bIsGCCCompiler => false;
 		bool IExternalAction.bProducesImportLibrary => false;
 		string IExternalAction.StatusDescription => (SourceFile == null) ? "Compiling" : SourceFile.Location.GetFileName();

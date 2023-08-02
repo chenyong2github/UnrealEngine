@@ -899,6 +899,12 @@ namespace UnrealBuildTool
 				// this is parsed by external tools wishing to open this file directly.
 				Logger.LogInformation("PreProcessPath: {File}", OutputFile.AbsolutePath);
 			}
+			else if (IsAnalyzing(CompileEnvironment))
+			{
+				// Clang analysis does not actually create an object, use the dependency list as the response filename
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".d")));
+				CompileResult.ObjectFiles.Add(OutputFile);
+			}
 			else
 			{
 				string ObjectFileExtension = (CompileEnvironment.AdditionalArguments != null && CompileEnvironment.AdditionalArguments.Contains("-emit-llvm")) ? ".bc" : ".o";
@@ -912,6 +918,15 @@ namespace UnrealBuildTool
 			// Add the source file path to the command-line.
 			Arguments.Add(GetSourceFileArgument(SourceFile));
 
+			// Generate the included header dependency list
+			if (!PreprocessDepends)
+			{
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".d")));
+				Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.ProducedItems.Add(DependencyListFile);
+			}
+
 			if (!IsAnalyzing(CompileEnvironment))
 			{
 				// Generate the timing info
@@ -922,22 +937,9 @@ namespace UnrealBuildTool
 					CompileAction.ProducedItems.Add(TraceFile);
 				}
 
-				// Generate the included header dependency list
-				if (!PreprocessDepends)
-				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".d")));
-					Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.ProducedItems.Add(DependencyListFile);
-				}
+				// Add the parameters needed to compile the output file to the command-line.
+				Arguments.Add(GetOutputFileArgument(OutputFile));
 			}
-			else
-			{
-				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, GetFileNameFromExtension(FileName, ".analysis")));
-			}
-
-			// Add the parameters needed to compile the output file to the command-line.
-			Arguments.Add(GetOutputFileArgument(OutputFile));
 
 			return OutputFile;
 		}

@@ -1108,6 +1108,32 @@ namespace UnrealBuildTool
 		/// Nonunity
 		/// </summary>
 		NonUnity,
+		/// <summary>
+		/// Static code analysis
+		/// </summary>
+		Analyze,
+	}
+
+	/// <summary>
+	/// Extension methods for UnrealIntermediateEnvironment enum
+	/// </summary>
+	public static class UEBuildTargetExtensions
+	{
+		/// <summary>
+		/// Returns if this environment should default to a unity build
+		/// </summary>
+		/// <param name="Environment">The environment to check</param>
+		/// <returns>true if shold build unity by default</returns>
+		public static bool IsUnity(this UnrealIntermediateEnvironment Environment)
+		{
+			switch (Environment)
+			{
+				case UnrealIntermediateEnvironment.IWYU:
+				case UnrealIntermediateEnvironment.NonUnity:
+					return false;
+			}
+			return true;
+		}
 	}
 
 	/// <summary>
@@ -1742,6 +1768,9 @@ namespace UnrealBuildTool
 					break;
 				case UnrealIntermediateEnvironment.NonUnity:
 					TargetFolderName += "NU";
+					break;
+				case UnrealIntermediateEnvironment.Analyze:
+					TargetFolderName += "SA";
 					break;
 			}
 			return TargetFolderName;
