@@ -156,7 +156,7 @@ namespace UnrealBuildTool
 
 			if (bForceDummySigning)
 			{
-				ExtraOptions += " CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=-";
+				ExtraOptions += " CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY= PROVISIONING_PROFILE_SPECIFIER=";
 			}
 			else
 			{

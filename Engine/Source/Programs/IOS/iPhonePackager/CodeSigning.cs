@@ -910,8 +910,11 @@ namespace iPhonePackager
 					if (CodeSigningBlobLC != null)
 					{
 						RequirementsBlob OldRequirements = CodeSigningBlobLC.Payload.GetBlobByMagic(AbstractBlob.CSMAGIC_REQUIREMENTS_TABLE) as RequirementsBlob;
-						RequirementBlob OldRequire = OldRequirements.GetBlobByKey(0x00003) as RequirementBlob;
-						OldExpression = OldRequire.Expression;
+						if (OldRequirements.GetBlobByKey(0x00003) != null)
+						{
+							RequirementBlob OldRequire = OldRequirements.GetBlobByKey(0x00003) as RequirementBlob;
+							OldExpression = OldRequire.Expression;
+						}
 					}
 					FinalRequirementsBlob = RequirementsBlob.CreateEmpty();
 					FinalRequirementsBlob.Add(0x00003, RequirementBlob.CreateFromCertificate(SigningCert, CFBundleIdentifier, OldExpression));

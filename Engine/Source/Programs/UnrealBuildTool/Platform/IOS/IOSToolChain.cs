@@ -795,6 +795,18 @@ namespace UnrealBuildTool
 			string ZipWorkingDir = String.Format("Payload/{0}.app/", GameName);
 			string ZipSourceDir = String.Format(bUseModernXcode ? "{0}/{1}.app" : "{0}/Payload/{1}.app", BinaryPath, GameName);
 
+			if (bUseModernXcode)
+			{
+				// with modern, we don't codesign when building the source .app due to keychain issues over ssh and Xcode wants provision setup, even if using the - identity
+				// so, now codesign right at the end with the dummy signature so that there is signature at all, which IPP on windows will replace
+				int ExitCode;
+				string Output = Utils.RunLocalProcessAndReturnStdOut("/bin/sh", $"-c 'codesign -f -s - \"{ZipSourceDir}\"", null, out ExitCode);
+				if (ExitCode != 0)
+				{
+					throw new BuildException($"Failed to codesign with dummy identity, which should never happen [ExitCode = {ExitCode}, output = {Output}");
+				}
+			}
+
 			// create the file
 			using (ZipFile Zip = new ZipFile())
 			{
