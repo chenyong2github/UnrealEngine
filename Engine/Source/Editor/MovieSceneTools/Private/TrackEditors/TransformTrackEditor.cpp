@@ -1134,7 +1134,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 
 	UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator.GetLinker()->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
-	if (ensure(System && ValidEntities.Num() != 0))
+	if (ensure(System))
 	{
 		FDecompositionQuery Query;
 		Query.Entities = ValidEntities;
