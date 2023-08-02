@@ -284,16 +284,16 @@ uint UseConservativeDepthTexture;
 
 RaytracingAccelerationStructure TLAS;
 
-float ComputeRayTracedShadowFactor(float3 TranslatedWorldPosition, float3 ToLight)
+float ComputeRayTracedShadowFactor(float3 TranslatedWorldPosition, float3 LightDirection, float TMax)
 {
 	uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 	uint RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
 
 	FRayDesc Ray;
 	Ray.Origin = TranslatedWorldPosition;
-	Ray.Direction = normalize(ToLight);
+	Ray.Direction = LightDirection;
 	Ray.TMin = 0.0f;
-	Ray.TMax = length(ToLight);
+	Ray.TMax = TMax;
 
 	FMinimalPayload MinimalPayload = TraceVisibilityRay(
 		TLAS,
@@ -383,7 +383,7 @@ float4 InjectShadowedLocalLightCommon(uint3 GridCoordinate)
 			if (CombinedAttenuation > 0)
 			{
 #if USE_RAYTRACED_SHADOWS
-				ShadowFactor = ComputeRayTracedShadowFactor(TranslatedWorldPosition, ToLight);
+				ShadowFactor = ComputeRayTracedShadowFactor(TranslatedWorldPosition, normalize(ToLight), length(ToLight));
 #else
 				bool bUnused = false;
 				ShadowFactor = ComputeVolumeShadowing(TranslatedWorldPosition, IsPointLight, LightData.bSpotLight, bUnused);
@@ -441,6 +441,21 @@ RAY_TRACING_ENTRY_RAYGEN(InjectShadowedLocalLightRGS)
 
 	float4 DestValue = OutVolumeTexture[Position];
 	OutVolumeTexture[Position] = DestValue + OutScattering;
+}
+
+RWTexture3D<float> OutShadowVolumeTexture;
+
+RAY_TRACING_ENTRY_RAYGEN(InjectShadowedDirectionalLightRGS)
+{
+	int3 Position = GetVoxelIndex(DispatchRaysIndex().x, VolumetricFog.ResourceGridSizeInt);
+
+	const int SampleIndex = 0;
+	uint3 Rand32Bits = Rand4DPCG32(int4(Position.xyz, View.StateFrameIndexMod8 + 8 * SampleIndex)).xyz;
+	float3 Rand3D = (float3(Rand32Bits) / float(uint(0xffffffff))) * 2.0f - 1.0f;
+	float3 CellOffset = FrameJitterOffsets[SampleIndex].xyz + LightScatteringSampleJitterMultiplier * Rand3D;
+
+	const float3 TranslatedWorldPosition = ComputeCellTranslatedWorldPosition(Position, CellOffset);
+	OutShadowVolumeTexture[Position] = ComputeRayTracedShadowFactor(TranslatedWorldPosition, ForwardLightData.DirectionalLightDirection, 1.0e27);
 }
 
 #endif // USE_RAYTRACED_SHADOWS
@@ -584,6 +599,8 @@ float2 UseHeightFogColors;	// x=override directional light using height fog insc
 float UseDirectionalLightShadowing;
 float StaticLightingScatteringIntensity;
 
+Texture3D<float> RaytracedShadowsVolume;
+
 [numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, THREADGROUP_SIZE_Z)]
 void LightScatteringCS(
 	uint3 GroupId : SV_GroupID,
@@ -666,6 +683,10 @@ void LightScatteringCS(
 #if VIRTUAL_SHADOW_MAP
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition);
 				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+#endif
+
+#if USE_RAYTRACED_SHADOWS_VOLUME
+				ShadowFactor *= RaytracedShadowsVolume[GridCoordinate];
 #endif
 
 #if USE_CLOUD_TRANSMITTANCE
