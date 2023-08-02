@@ -109,6 +109,8 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	, bIsClothGravityOverrideEnabled(false)
 	, bEnableSolver(true)
 {
+	SetConfig(nullptr); // This will generate a local default config so we have something to use if there are no cloth assets..
+
 	Softs::FSolverParticles LocalParticles;
 	Softs::FSolverRigidParticles RigidParticles;
 	Evolution.Reset(
