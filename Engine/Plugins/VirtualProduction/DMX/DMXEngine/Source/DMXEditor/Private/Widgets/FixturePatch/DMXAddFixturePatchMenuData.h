@@ -25,4 +25,7 @@ public:
 
 	UPROPERTY(Config)
 	int32 NumPatches = 0;
+
+	UPROPERTY(Config)
+	bool bIncrementChannelAfterPatching = true;
 };

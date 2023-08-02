@@ -73,8 +73,14 @@ namespace UE::DMXEditor::AutoAssign::Private
 	{
 		if (UDMXEntityFixturePatch* Patch = WeakFixturePatch.Get())
 		{
-			const int64 Universe = (GetLowerBoundValue() + 1) / DMX_UNIVERSE_SIZE;
-			const int64 Channel =  GetLowerBoundValue() + 1 - Universe * DMX_UNIVERSE_SIZE;
+			// Transition back to the 1-512 range
+			int64 Universe = (GetLowerBoundValue() + 1) / DMX_UNIVERSE_SIZE;
+			int64 Channel =  (GetLowerBoundValue() + 1) % DMX_UNIVERSE_SIZE;
+			if (Channel == 0)
+			{
+				Channel = 512;
+				--Universe;
+			}
 			if (!ensureMsgf(Universe >= 1 && Channel >= 1 && Channel <= DMX_UNIVERSE_SIZE, TEXT("Invalid universe and channel resulting from auto assign. Channels not applied for '%s'."), *Patch->Name))
 			{
 				return;

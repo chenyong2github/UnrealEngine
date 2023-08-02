@@ -16,10 +16,11 @@
 #include "TimerManager.h"
 #include "UObject/Package.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SDMXEntityDropdownMenu.h"
-#include "Widgets/Input/SEditableTextBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SAddFixturePatchMenu"
@@ -112,7 +113,20 @@ namespace UE::DMXEditor::FixturePatchEditor
 				.Padding(4.f)
 				.VAlign(VAlign_Center)
 				[
-					MakeUniverseChannelSelectWidget()
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						MakeUniverseChannelSelectWidget()
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(4.f, 0.f, 0.f, 0.f)
+					[
+						MakeAutoIncrementChannelCheckBox()
+					]
 				]
 
 				// Num Fixture Patches Label
@@ -207,6 +221,30 @@ namespace UE::DMXEditor::FixturePatchEditor
 			];
 	}
 
+	TSharedRef<SWidget> SAddFixturePatchMenu::MakeAutoIncrementChannelCheckBox()
+	{
+		return 
+			SNew(SCheckBox)
+			.IsEnabled(this, &SAddFixturePatchMenu::HasValidFixtureTypeAndMode)
+			.IsChecked_Lambda([]()
+				{
+					const UDMXAddFixturePatchMenuData* MenuData = GetDefault<UDMXAddFixturePatchMenuData>();
+					return MenuData->bIncrementChannelAfterPatching ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})
+			.OnCheckStateChanged_Lambda([](ECheckBoxState NewState)
+				{
+					UDMXAddFixturePatchMenuData* MenuData = GetMutableDefault<UDMXAddFixturePatchMenuData>();
+					MenuData->bIncrementChannelAfterPatching = NewState == ECheckBoxState::Checked;
+					MenuData->SaveConfig();
+				})
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("AutoIncrementChannelLabel", "Increment after patching"))
+				.ToolTipText(LOCTEXT("AutoIncrementChannelTooltip", "Automatically increments the universe/channel to the first subsequent channel after patching."))
+			];
+	}
+
 	TSharedRef<SWidget> SAddFixturePatchMenu::MakeNumFixturePatchesEditableTextBox()
 	{
 		return
@@ -298,6 +336,7 @@ namespace UE::DMXEditor::FixturePatchEditor
 	{
 		RequestRefreshModeComboBoxTimerHandle.Invalidate();
 
+		// Mend the fixture type
 		if (!WeakFixtureType.IsValid() && WeakDMXEditor.IsValid())
 		{
 			if (UDMXLibrary* DMXLibrary = WeakDMXEditor.Pin()->GetDMXLibrary())
@@ -305,6 +344,14 @@ namespace UE::DMXEditor::FixturePatchEditor
 				const TArray<UDMXEntityFixtureType*> FixtureTypes = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixtureType>();
 				WeakFixtureType = FixtureTypes.IsEmpty() ? nullptr : FixtureTypes[0];
 			}
+		}
+
+		// Mend the active mode index
+		UDMXAddFixturePatchMenuData* MenuData = GetMutableDefault<UDMXAddFixturePatchMenuData>();
+		if (WeakFixtureType.IsValid() && !WeakFixtureType->Modes.IsValidIndex(MenuData->ActiveModeIndex))
+		{
+			MenuData->ActiveModeIndex = 0;
+			MenuData->SaveConfig();
 		}
 
 		ModeSources.Reset();
@@ -516,6 +563,18 @@ namespace UE::DMXEditor::FixturePatchEditor
 		NewWeakFixturePatches.Reserve(NumFixturePatchesToAdd);
 		Algo::Copy(NewFixturePatches, NewWeakFixturePatches);
 		SharedData->SelectFixturePatches(NewWeakFixturePatches);
+
+		// Increment universe/channel if desired
+		if (!NewFixturePatches.IsEmpty() && GetDefault<UDMXAddFixturePatchMenuData>()->bIncrementChannelAfterPatching)
+		{
+			Channel = NewFixturePatches.Last()->GetStartingChannel() + NewFixturePatches.Last()->GetChannelSpan();
+			Universe = NewFixturePatches.Last()->GetUniverseID();
+			if (Channel.GetValue() > DMX_UNIVERSE_SIZE)
+			{
+				Channel = 1;
+				Universe = Universe.GetValue() + 1;
+			}
+		}
 
 		return FReply::Handled();
 	}

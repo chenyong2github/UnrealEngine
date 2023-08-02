@@ -45,6 +45,9 @@ namespace UE::DMXEditor::FixturePatchEditor
 
 		/** Creates an widget to select the Universe and Channel */
 		TSharedRef<SWidget> MakeUniverseChannelSelectWidget();
+		
+		/** Creates a widget to toggle if the channels should be auto-incremented after patching */
+		TSharedRef<SWidget> MakeAutoIncrementChannelCheckBox();
 
 		/** Creates an editable text box to specify the number of patches */
 		TSharedRef<SWidget> MakeNumFixturePatchesEditableTextBox();
