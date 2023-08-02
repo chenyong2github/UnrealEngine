@@ -669,9 +669,10 @@ void ULandscapeEditorObject::RefreshImports()
 		{
 			ChooseBestComponentSizeForImport();
 			ImportLandscapeData();
-			ImportLandscape_HeightmapImportResult = FileInfo.ResultCode;
-			ImportLandscape_HeightmapErrorMessage = FileInfo.ErrorMessage;
 		}
+
+		ImportLandscape_HeightmapImportResult = FileInfo.ResultCode;
+		ImportLandscape_HeightmapErrorMessage = FileInfo.ErrorMessage;
 	}
 
 	RefreshLayerImports();
