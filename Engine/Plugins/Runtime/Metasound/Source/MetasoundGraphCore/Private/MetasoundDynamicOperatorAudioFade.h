@@ -21,7 +21,7 @@ namespace Metasound::DynamicGraph
 	// wrapper. 
 	//
 	// The wrapped operator can be release if desired, though it leaves this operator
-	// in a zombie state.
+	// in a state where it will have no effect on any audio buffers.
 	class FAudioFadeOperatorWrapper : public TExecutableOperator<FAudioFadeOperatorWrapper>
 	{
 	public:
