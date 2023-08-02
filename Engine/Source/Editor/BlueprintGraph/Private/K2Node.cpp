@@ -444,8 +444,16 @@ void UK2Node::AutowireNewNode(UEdGraphPin* FromPin)
 		{
 			UEdGraphNode* FromPinNode = FromPin->GetOwningNode();
 			UEdGraphPin* FromThenPin = FromPinNode->FindPin(UEdGraphSchema_K2::PN_Then);
-
+			
+			// Prefer a pin named "Execute", but also accept "Exec" and "In", since some loop macros use those as their input pin names,
+			// and it's easier to add a workaround here that allows them to be better autowired than add more "special" pin names to the schema
 			UEdGraphPin* ToExecutePin = FindPin(UEdGraphSchema_K2::PN_Execute);
+
+			static const FName PN_Exec = TEXT("exec");
+			if (!ToExecutePin) ToExecutePin = FindPin(PN_Exec);
+
+			static const FName PN_In = TEXT("in");
+			if (!ToExecutePin) ToExecutePin = FindPin(PN_In);
 
 			if ((FromThenPin != nullptr) && (FromThenPin->LinkedTo.Num() == 0) && (ToExecutePin != nullptr) && K2Schema->ArePinsCompatible(FromThenPin, ToExecutePin, NULL))
 			{
