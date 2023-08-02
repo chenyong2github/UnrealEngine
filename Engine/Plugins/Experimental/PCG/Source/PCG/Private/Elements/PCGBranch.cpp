@@ -27,6 +27,7 @@ FText UPCGBranchSettings::GetNodeTooltipText() const
 {
 	return LOCTEXT("NodeTooltip", "Control flow node that will allow all input data on either Pin A or Pin B only, based on the 'Use Input B' property - which can also be overridden.");
 }
+#endif // WITH_EDITOR
 
 EPCGDataType UPCGBranchSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
 {
@@ -40,7 +41,6 @@ EPCGDataType UPCGBranchSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
 	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGBranchConstants::InputLabelA) | GetTypeUnionOfIncidentEdges(PCGBranchConstants::InputLabelB);
 	return InputTypeUnion != EPCGDataType::None ? InputTypeUnion : EPCGDataType::Any;
 }
-#endif // WITH_EDITOR
 
 
 TArray<FPCGPinProperties> UPCGBranchSettings::InputPinProperties() const
