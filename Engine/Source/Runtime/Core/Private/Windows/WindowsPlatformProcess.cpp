@@ -513,15 +513,25 @@ void FWindowsPlatformProcess::CloseProc(FProcHandle & ProcessHandle)
 
 void FWindowsPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool KillTree )
 {
-	TerminateProcTreeWithPredicate(ProcessHandle, [](uint32 ProcessId, const TCHAR* ApplicationName) { return true; });
+	if (KillTree)
+	{
+		TerminateProcTreeWithPredicate(ProcessHandle, [](uint32 ProcessId, const TCHAR* ApplicationName) { return true; });
+	}
+	else
+	{
+		TerminateProcess(ProcessHandle.Get(),0);
+	}
 }
 
-void FWindowsPlatformProcess::TerminateProcTreeWithPredicate(
-	FProcHandle& ProcessHandle,
-	TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate)
+static void TerminateProcTreeWithPredicateInternal(
+	HANDLE ProcessHandle,
+	TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate,
+	TSet<DWORD>& VisitedProcessIds)
 {
-	::DWORD ProcessId = ::GetProcessId(ProcessHandle.Get());
+	::DWORD ProcessId = ::GetProcessId(ProcessHandle);
 	FString ProcessName = FPlatformProcess::GetApplicationName(ProcessId);
+
+	VisitedProcessIds.Add(ProcessId);
 
 	if (!Predicate(ProcessId, *ProcessName))
 	{
@@ -546,16 +556,28 @@ void FWindowsPlatformProcess::TerminateProcTreeWithPredicate(
 
 					if (ChildProcHandle)
 					{
-						FProcHandle ChildHandle(ChildProcHandle);
-						TerminateProcTreeWithPredicate(ChildHandle, Predicate);
+						if (!VisitedProcessIds.Contains(Entry.th32ProcessID))
+						{
+							TerminateProcTreeWithPredicateInternal(ChildProcHandle, Predicate, VisitedProcessIds);
+						}
+						::CloseHandle(ChildProcHandle);
 					}
 				}
 			}
 			while(::Process32Next(SnapShot, &Entry));
 		}
 	}
+	::CloseHandle(SnapShot);
 
-	TerminateProcess(ProcessHandle.Get(),0);
+	TerminateProcess(ProcessHandle,0);
+}
+
+void FWindowsPlatformProcess::TerminateProcTreeWithPredicate(
+	FProcHandle& ProcessHandle,
+	TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate)
+{
+	TSet<DWORD> VisitedProcessIds;
+	TerminateProcTreeWithPredicateInternal(ProcessHandle.Get(), Predicate, VisitedProcessIds);
 }
 
 uint32 FWindowsPlatformProcess::GetCurrentProcessId()
