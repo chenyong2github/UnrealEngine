@@ -244,6 +244,10 @@ FString FMVVMViewClass_SourceCreator::ToString(const FMVVMCompiledBindingLibrary
 				StringBuilder << FieldPathString.GetError();
 			}
 		}
+		else
+		{
+			StringBuilder << TEXT("None"); // The setting is Manual. At runtime, do nothing.
+		}
 	}
 
 	return StringBuilder.ToString();
@@ -568,7 +572,7 @@ void UMVVMViewClass::HandleBlueprintCompiled()
 #if UE_WITH_MVVM_DEBUGGING
 void UMVVMViewClass::Log(FMVVMViewClass_SourceCreator::FToStringArgs SourceArgs, FMVVMViewClass_CompiledBinding::FToStringArgs BindingArgs) const
 {
-	bool bPreviousLoad = ViewCounter >= 0;
+	bool bPreviousLoad = ViewCounter > 0;
 	if (!bPreviousLoad)
 	{
 		const_cast<UMVVMViewClass*>(this)->BindingLibrary.Load();
