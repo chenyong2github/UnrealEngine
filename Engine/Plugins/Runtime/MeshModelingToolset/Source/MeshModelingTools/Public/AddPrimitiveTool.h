@@ -176,6 +176,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int DepthSubdivisions = 1;
 
+	/** Whether to preserve the overall Width and Depth for a Rounded Rectangle, or to allow the rounded corners to extend outside those dimensions. */
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (EditCondition = "RectangleType == EProceduralRectType::RoundedRectangle"))
+	bool bMaintainDimension = true;
+
 	/** Radius of rounded corners. This is only available for Rounded Rectangles. */
 	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting,

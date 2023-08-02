@@ -519,10 +519,25 @@ void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 		FRoundedRectangleMeshGenerator RectGen;
 		RectGen.Width = RectangleSettings->Depth;
 		RectGen.Height = RectangleSettings->Width;
+		RectGen.Radius = RectangleSettings->CornerRadius;
+		if (RectangleSettings->bMaintainDimension)
+		{
+			constexpr double MinSide = UE_DOUBLE_KINDA_SMALL_NUMBER;
+			constexpr double MinRadius = MinSide * .5;
+			double SmallSide = FMath::Min(RectGen.Width, RectGen.Height);
+			RectGen.Radius = FMath::Clamp(RectGen.Radius, MinRadius, (SmallSide - MinSide) * .5);
+			RectGen.Width = FMath::Max(MinSide, RectGen.Width - RectGen.Radius * 2);
+			RectGen.Height = FMath::Max(MinSide, RectGen.Height - RectGen.Radius * 2);
+			// Update the Radius in the UI, if it was clamped
+			if (RectGen.Radius != RectangleSettings->CornerRadius)
+			{
+				RectangleSettings->CornerRadius = RectGen.Radius;
+				NotifyOfPropertyChangeByTool(RectangleSettings);
+			}
+		}
 		RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
 		RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
 		RectGen.bSinglePolyGroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
-		RectGen.Radius = RectangleSettings->CornerRadius;
 		RectGen.AngleSamples = RectangleSettings->CornerSlices - 1;
 		RectGen.Generate();
 		OutMesh->Copy(&RectGen);
