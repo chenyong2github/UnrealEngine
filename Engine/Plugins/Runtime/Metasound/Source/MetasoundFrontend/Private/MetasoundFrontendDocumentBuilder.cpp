@@ -156,8 +156,8 @@ namespace Metasound::Frontend
 					if (INDEX_NONE != RemoveIndex)
 					{
 						PairedInputs.Add(FVertexPair { InputsToRemove[RemoveIndex], InputsToAdd[AddIndex].Key });
-						InputsToRemove.RemoveAtSwap(RemoveIndex);
-						InputsToAdd.RemoveAtSwap(AddIndex);
+						InputsToRemove.RemoveAtSwap(RemoveIndex, 1, false);
+						InputsToAdd.RemoveAtSwap(AddIndex, 1, false);
 					}
 				}
 
@@ -219,40 +219,52 @@ namespace Metasound::Frontend
 
 			bool RemoveUnsupportedVertices(FMetaSoundFrontendDocumentBuilder& OutBuilder) const
 			{
+				bool bDidEdit = false;
+
+				for (const TPair<FMetasoundFrontendClassInput, const FMetasoundFrontendInterface*>& Pair : InputsToAdd)
+				{
+					if (OutBuilder.RemoveGraphInput(Pair.Key.Name))
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Removed existing targeted input '%s' to avoid name collision/member data descrepancies while modifying interface(s). Desired edges may have been removed as a result."), *Pair.Key.Name.ToString());
+						bDidEdit = true;
+					}
+				}
+
+				for (const TPair<FMetasoundFrontendClassOutput, const FMetasoundFrontendInterface*>& Pair : OutputsToAdd)
+				{
+					if (OutBuilder.RemoveGraphOutput(Pair.Key.Name))
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Removed existing targeted output '%s' to avoid name collision/member data descrepancies while modifying interface(s). Desired edges may have been removed as a result."), *Pair.Key.Name.ToString());
+						bDidEdit = true;
+					}
+				}
+
 				if (!InputsToRemove.IsEmpty() || !OutputsToRemove.IsEmpty())
 				{
-					auto RemoveMemberNodes = [&OutBuilder](
-						const FMetasoundFrontendClassVertex& ToRemove,
-						TFunctionRef<const FMetasoundFrontendClassVertex*(FName)> FindVertexFunc,
-						TFunctionRef<const FMetasoundFrontendNode* (FName)> FindNodeFunc)
-					{
-						if (const FMetasoundFrontendClassVertex* ClassInput = FindVertexFunc(ToRemove.Name))
-						{
-							if (FMetasoundFrontendClassVertex::IsFunctionalEquivalent(*ClassInput, ToRemove))
-							{
-								if (const FMetasoundFrontendNode* Node = FindNodeFunc(ToRemove.Name))
-								{
-									const bool bNodeRemoved = OutBuilder.RemoveNode(Node->GetID());
-									checkf(bNodeRemoved, TEXT("Failed to remove member while attempting to modify MetaSound graph interfaces"));
-								}
-							}
-						}
-					};
-
 					// Remove unsupported inputs
 					for (const FMetasoundFrontendClassVertex& InputToRemove : InputsToRemove)
 					{
-						RemoveMemberNodes(InputToRemove,
-							[&OutBuilder](FName Name) { return OutBuilder.FindGraphInput(Name); },
-							[&OutBuilder](FName Name) { return OutBuilder.FindGraphInputNode(Name); });
+						if (OutBuilder.RemoveGraphInput(InputToRemove.Name))
+						{
+							bDidEdit = true;
+						}
+						else
+						{
+							UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove existing input '%s', which was an expected member of a removed interface."), *InputToRemove.Name.ToString());
+						}
 					}
 
 					// Remove unsupported outputs
 					for (const FMetasoundFrontendClassVertex& OutputToRemove : OutputsToRemove)
 					{
-						RemoveMemberNodes(OutputToRemove,
-							[&OutBuilder](FName Name) { return OutBuilder.FindGraphOutput(Name); },
-							[&OutBuilder](FName Name) { return OutBuilder.FindGraphOutputNode(Name); });
+						if (OutBuilder.RemoveGraphOutput(OutputToRemove.Name))
+						{
+							bDidEdit = true;
+						}
+						else
+						{
+							UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove existing output '%s', which was an expected member of a removed interface."), *OutputToRemove.Name.ToString());
+						}
 					}
 
 					return true;
@@ -894,10 +906,10 @@ const FMetasoundFrontendNode* FMetaSoundFrontendDocumentBuilder::AddGraphOutput(
 		UE_LOG(LogMetaSound, Error, TEXT("TypeName unset when attempting to add class output '%s'"), *InClassOutput.Name.ToString());
 		return nullptr;
 	}
-	else if (const FMetasoundFrontendClassInput* Input = DocumentCache->GetInterfaceCache().FindInput(InClassOutput.Name))
+	else if (const FMetasoundFrontendClassOutput* Output = DocumentCache->GetInterfaceCache().FindOutput(InClassOutput.Name))
 	{
 		UE_LOG(LogMetaSound, Error, TEXT("Attempting to add MetaSound graph output '%s' when output with name already exists"), *InClassOutput.Name.ToString());
-		return DocumentCache->GetNodeCache().FindNode(Input->NodeID);
+		return DocumentCache->GetNodeCache().FindNode(Output->NodeID);
 	}
 
 	auto FindRegistryClass = [&InClassOutput](FMetasoundFrontendClass& OutClass) -> bool

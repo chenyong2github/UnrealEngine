@@ -34,9 +34,13 @@ namespace Metasound::Frontend
 			IDToIndex.Add(Class.ID, Index);
 		}
 
-		OutDelegates.OnDependencyAdded.AddSP(this, &FDocumentCache::OnDependencyAdded);
-		OutDelegates.OnRemovingDependency.AddSP(this, &FDocumentCache::OnRemovingDependency);
-		OutDelegates.OnRenamingDependencyClass.AddSP(this, &FDocumentCache::OnRenamingDependencyClass);
+		OutDelegates.OnDependencyAdded.Remove(OnDependencyAddedHandle);
+		OutDelegates.OnRemovingDependency.Remove(OnRemovingDependencyHandle);
+		OutDelegates.OnRenamingDependencyClass.Remove(OnRenamingDependencyClassHandle);
+
+		OnDependencyAddedHandle = OutDelegates.OnDependencyAdded.AddSP(this, &FDocumentCache::OnDependencyAdded);
+		OnRemovingDependencyHandle = OutDelegates.OnRemovingDependency.AddSP(this, &FDocumentCache::OnRemovingDependency);
+		OnRenamingDependencyClassHandle = OutDelegates.OnRenamingDependencyClass.AddSP(this, &FDocumentCache::OnRenamingDependencyClass);
 
 		if (!EdgeCache.IsValid())
 		{
@@ -192,10 +196,15 @@ namespace Metasound::Frontend
 			OutputNameToIndex.Add(Outputs[Index].Name, Index);
 		};
 
-		OutDelegates.OnInputAdded.AddSP(this, &FDocumentGraphInterfaceCache::OnInputAdded);
-		OutDelegates.OnOutputAdded.AddSP(this, &FDocumentGraphInterfaceCache::OnOutputAdded);
-		OutDelegates.OnRemovingInput.AddSP(this, &FDocumentGraphInterfaceCache::OnRemovingInput);
-		OutDelegates.OnRemovingOutput.AddSP(this, &FDocumentGraphInterfaceCache::OnRemovingOutput);
+		OutDelegates.OnInputAdded.Remove(OnInputAddedHandle);
+		OutDelegates.OnOutputAdded.Remove(OnOutputAddedHandle);
+		OutDelegates.OnRemovingInput.Remove(OnRemovingInputHandle);
+		OutDelegates.OnRemovingOutput.Remove(OnRemovingOutputHandle);
+
+		OnInputAddedHandle = OutDelegates.OnInputAdded.AddSP(this, &FDocumentGraphInterfaceCache::OnInputAdded);
+		OnOutputAddedHandle = OutDelegates.OnOutputAdded.AddSP(this, &FDocumentGraphInterfaceCache::OnOutputAdded);
+		OnRemovingInputHandle = OutDelegates.OnRemovingInput.AddSP(this, &FDocumentGraphInterfaceCache::OnRemovingInput);
+		OnRemovingOutputHandle = OutDelegates.OnRemovingOutput.AddSP(this, &FDocumentGraphInterfaceCache::OnRemovingOutput);
 	}
 
 	void FDocumentGraphInterfaceCache::OnInputAdded(int32 NewIndex)
@@ -253,8 +262,11 @@ namespace Metasound::Frontend
 			ClassIDToNodeIndices.FindOrAdd(Node.ClassID).Add(Index);
 		}
 
-		OutDelegates.OnNodeAdded.AddSP(this, &FDocumentGraphNodeCache::OnNodeAdded);
-		OutDelegates.OnRemovingNode.AddSP(this, &FDocumentGraphNodeCache::OnRemovingNode);
+		OutDelegates.OnNodeAdded.Remove(OnNodeAddedHandle);
+		OnNodeAddedHandle = OutDelegates.OnNodeAdded.AddSP(this, &FDocumentGraphNodeCache::OnNodeAdded);
+
+		OutDelegates.OnRemovingNode.Remove(OnRemovingNodeHandle);
+		OnRemovingNodeHandle = OutDelegates.OnRemovingNode.AddSP(this, &FDocumentGraphNodeCache::OnRemovingNode);
 	}
 
 	bool FDocumentGraphNodeCache::ContainsNode(const FGuid& InNodeID) const
@@ -427,8 +439,11 @@ namespace Metasound::Frontend
 			InputToEdgeIndex.Add(Edge.GetToVertexHandle()) = Index;
 		}
 
-		OutDelegates.OnEdgeAdded.AddSP(this, &FDocumentGraphEdgeCache::OnEdgeAdded);
-		OutDelegates.OnRemovingEdge.AddSP(this, &FDocumentGraphEdgeCache::OnRemovingEdge);
+		OutDelegates.OnEdgeAdded.Remove(OnAddedHandle);
+		OnAddedHandle = OutDelegates.OnEdgeAdded.AddSP(this, &FDocumentGraphEdgeCache::OnEdgeAdded);
+
+		OutDelegates.OnRemovingEdge.Remove(OnRemovedHandle);
+		OnRemovedHandle = OutDelegates.OnRemovingEdge.AddSP(this, &FDocumentGraphEdgeCache::OnRemovingEdge);
 	}
 
 	bool FDocumentGraphEdgeCache::ContainsEdge(const FMetasoundFrontendEdge& InEdge) const
@@ -490,8 +505,8 @@ namespace Metasound::Frontend
 		const FMetasoundFrontendDocument& Document = Parent->GetDocument();
 		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
 		const FMetasoundFrontendEdge& NewEdge = Graph.Edges[InNewIndex];
-		InputToEdgeIndex.Add(FMetasoundFrontendVertexHandle { NewEdge.ToNodeID, NewEdge.ToVertexID }, InNewIndex);
-		OutputToEdgeIndices.FindOrAdd({ NewEdge.FromNodeID, NewEdge.FromVertexID }).Add(InNewIndex);
+		InputToEdgeIndex.Add(NewEdge.GetToVertexHandle(), InNewIndex);
+		OutputToEdgeIndices.FindOrAdd(NewEdge.GetFromVertexHandle()).Add(InNewIndex);
 	}
 
 	void FDocumentGraphEdgeCache::OnRemovingEdge(int32 IndexToRemove)
@@ -499,12 +514,12 @@ namespace Metasound::Frontend
 		const FMetasoundFrontendDocument& Document = Parent->GetDocument();
 		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
 		const FMetasoundFrontendEdge& EdgeToRemove = Graph.Edges[IndexToRemove];
-		InputToEdgeIndex.Remove(FMetasoundFrontendVertexHandle { EdgeToRemove.ToNodeID, EdgeToRemove.ToVertexID });
+		InputToEdgeIndex.Remove(EdgeToRemove.GetToVertexHandle());
 		TArray<int32>& Indices = OutputToEdgeIndices.FindChecked(EdgeToRemove.GetFromVertexHandle());
 		Indices.RemoveAllSwap([&IndexToRemove](const int32& Index) { return Index == IndexToRemove; }, false /* bAllowShrinking */);
 		if (Indices.IsEmpty())
 		{
-			OutputToEdgeIndices.Remove(FMetasoundFrontendVertexHandle { EdgeToRemove.FromNodeID, EdgeToRemove.FromVertexID });
+			OutputToEdgeIndices.Remove(EdgeToRemove.GetFromVertexHandle());
 		}
 	}
 } // namespace Metasound::Frontend

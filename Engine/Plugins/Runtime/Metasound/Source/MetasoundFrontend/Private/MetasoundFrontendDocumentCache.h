@@ -46,6 +46,9 @@ namespace Metasound::Frontend
 		TMap<FMetasoundFrontendVertexHandle, int32> InputToEdgeIndex;
 
 		TSharedPtr<IDocumentCache> Parent;
+
+		FDelegateHandle OnAddedHandle;
+		FDelegateHandle OnRemovedHandle;
 	};
 
 
@@ -85,6 +88,9 @@ namespace Metasound::Frontend
 		TSortedMap<FGuid, TArray<int32>> ClassIDToNodeIndices;
 
 		TSharedPtr<IDocumentCache> Parent;
+
+		FDelegateHandle OnNodeAddedHandle;
+		FDelegateHandle OnRemovingNodeHandle;
 	};
 
 
@@ -114,6 +120,11 @@ namespace Metasound::Frontend
 		TMap<FName, int32> OutputNameToIndex;
 
 		TSharedPtr<IDocumentCache> Parent;
+
+		FDelegateHandle OnInputAddedHandle;
+		FDelegateHandle OnOutputAddedHandle;
+		FDelegateHandle OnRemovingInputHandle;
+		FDelegateHandle OnRemovingOutputHandle;
 	};
 
 
@@ -152,6 +163,10 @@ namespace Metasound::Frontend
 		TSharedPtr<FDocumentGraphEdgeCache> EdgeCache;
 		TSharedPtr<FDocumentGraphNodeCache> NodeCache;
 		TSharedPtr<FDocumentGraphInterfaceCache> InterfaceCache;
+
+		FDelegateHandle OnDependencyAddedHandle;
+		FDelegateHandle OnRemovingDependencyHandle;
+		FDelegateHandle OnRenamingDependencyClassHandle;
 
 		const FMetasoundFrontendDocument* Document = nullptr;
 	};
