@@ -892,7 +892,7 @@ void FTopologicalEdge::TransferCuttingPointFromMeshedEdge(bool bOnlyWithOpposite
 {
 	const FTopologicalEdge* PreMeshedTwin = GetPreMeshedTwin();
 
-	if ((PreMeshedTwin == nullptr) || (PreMeshedTwin == this) || (PreMeshedTwin->GetFace() == GetFace()))
+	if ((PreMeshedTwin == nullptr) || (PreMeshedTwin == this) /*|| (PreMeshedTwin->GetFace() == GetFace())*/ )
 	{
 		return;
 	}

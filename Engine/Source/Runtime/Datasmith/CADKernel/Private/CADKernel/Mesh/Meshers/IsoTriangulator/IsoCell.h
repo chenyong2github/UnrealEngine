@@ -55,7 +55,7 @@ struct FCellLoop
 		return bIsOuterLoop;
 	}
 
-	void SpreadAsConnected();
+	void PropagateAsConnected();
 };
 
 struct FCellCorner : public FCellLoop
@@ -411,20 +411,42 @@ struct FCell
 		PreviousNode = nullptr;
 		for (FLoopNode* Node : InNodes)
 		{
-			if (Node->IsDelete())
+			Node->SetMarker1();
+		}
+
+		for (FLoopNode* Node : InNodes)
+		{
+			if (Node->IsDeleteOrHasMarker2() )
 			{
 				continue;
 			}
 
-			if (&Node->GetPreviousNode() != PreviousNode)
+			FLoopNode* StartNode = &Node->GetPreviousNode();
+			while (StartNode->HasMarker1() && (StartNode != Node))
 			{
-				MakeLoopCell(LoopNodes);
-				LoopNodes.Reset(NodeCount);
+				StartNode = &StartNode->GetPreviousNode();
 			}
-			LoopNodes.Add(Node);
-			PreviousNode = Node;
+			if (!StartNode->HasMarker1())
+			{
+				StartNode = &StartNode->GetNextNode();
+			}
+
+			LoopNodes.Reset(NodeCount);
+			FLoopNode* NextNode = StartNode;
+			while (NextNode->HasMarker1NotMarker2())
+			{
+				LoopNodes.Add(NextNode);
+				NextNode->SetMarker2();
+				NextNode = &NextNode->GetNextNode();
+			}
+
+			MakeLoopCell(LoopNodes);
 		}
-		MakeLoopCell(LoopNodes);
+
+		for (FLoopNode* Node : InNodes)
+		{
+			Node->ResetMarkers();
+		}
 
 		for(const FCellLoop& LoopCell : CellLoops)
 		{

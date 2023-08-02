@@ -5,6 +5,7 @@
 #include "CADKernel/Math/Geometry.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Math/SlopeUtils.h"
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionIsoSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
@@ -126,7 +127,7 @@ protected:
 	FIntersectionSegmentTool InnerSegmentsIntersectionTool;
 	
 	/** To check if the candidate segment intersect a iso line */
-	FIntersectionNodePairTool InnerToOuterIsoSegmentsIntersectionTool;
+	FIntersectionIsoSegmentTool InnerToOuterIsoSegmentsIntersectionTool;
 	
 	/** To check if a candidate segment intersect a thin zone that is already meshed */
 	FIntersectionSegmentTool ThinZoneIntersectionTool;

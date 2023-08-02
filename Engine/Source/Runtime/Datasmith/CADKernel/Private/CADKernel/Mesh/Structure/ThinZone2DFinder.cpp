@@ -404,7 +404,7 @@ void FThinZone2DFinder::CheckIfCloseSideOfThinSidesAreNotDegenerated()
 		if (!CheckIfCloseSideOfThinSideIsNotDegenerated(Side))
 		{
 #ifdef DEBUG_CHECK_THIN_SIDE
-			if(bDisplay)
+			if (bDisplay)
 			{
 				F3DDebugSession _(TEXT("Delete Thin Zone"));
 				ThinZone::DisplayThinZoneSide(Side, 0, EVisuProperty::RedCurve);
@@ -415,7 +415,7 @@ void FThinZone2DFinder::CheckIfCloseSideOfThinSidesAreNotDegenerated()
 				Segment->ResetCloseData();
 				Segment->SetChainIndex(Ident::Undefined);
 			}
- 			Side.Empty();
+			Side.Empty();
 		}
 	}
 #ifdef DEBUG_CHECK_THIN_SIDE
@@ -603,7 +603,11 @@ bool FThinZone2DFinder::CheckIfCloseSideOfThinSideIsNotDegenerated(TArray<FEdgeS
 void FThinZone2DFinder::ImproveThinSide()
 {
 #ifdef DEBUG_THIN_ZONES_IMPROVE
-	F3DDebugSession _(bDisplay, ("Improve Thin Zone"));
+	if (bDisplay)
+	{
+		F3DDebugSession _(bDisplay, ("Improve Thin Zone"));
+		Wait(false);
+	}
 #endif
 
 	TFunction<TArray<FEdgeSegment*>(const FEdgeSegment*)> GetComplementary = [this](const FEdgeSegment* EdgeSegment) ->TArray<FEdgeSegment*>
@@ -951,8 +955,11 @@ void FThinZone2DFinder::ImproveThinSide()
 
 
 #ifdef DEBUG_THIN_ZONES_IMPROVE_
-	ThinZone::DisplayThinZoneSides(ThinZoneSides);
-	Wait();
+	if (bDisplay)
+	{
+		ThinZone::DisplayThinZoneSides(ThinZoneSides);
+		Wait(false);
+	}
 #endif
 }
 
@@ -969,8 +976,8 @@ void FThinZone2DFinder::SplitThinSide()
 		}
 
 		FIdent CloseSideIndex = ThinZoneSide[0]->GetCloseSegment()->GetChainIndex();
-		if (!Algo::AllOf(ThinZoneSide, [&](const FEdgeSegment* EdgeSegment) 
-			{ 
+		if (!Algo::AllOf(ThinZoneSide, [&CloseSideIndex](const FEdgeSegment* EdgeSegment)
+			{
 				if (!EdgeSegment->GetCloseSegment())
 				{
 					return false;
@@ -979,6 +986,11 @@ void FThinZone2DFinder::SplitThinSide()
 			}))
 		{
 			int32 Index = 0;
+
+			const FEdgeSegment* FirstSegment = ThinZoneSide[0];
+			const FEdgeSegment* LastSegment = ThinZoneSide.Last();
+			const bool bIsCloseZone = (LastSegment->GetNext() == FirstSegment);
+
 			for (; Index < ThinZoneSide.Num(); ++Index)
 			{
 				if (!ThinZoneSide[Index]->GetCloseSegment() || ThinZoneSide[Index]->GetCloseSegment()->GetChainIndex() != CloseSideIndex)
@@ -1009,7 +1021,18 @@ void FThinZone2DFinder::SplitThinSide()
 				}
 				++NewSideIndex;
 			}
+
 			ThinZoneSide.SetNum(LastIndexFirstSide);
+			if (bIsCloseZone && (FirstSegment->GetCloseSegment()->GetChainIndex() == LastSegment->GetCloseSegment()->GetChainIndex()))
+			{
+				--NewSideIndex;
+				TArray<FEdgeSegment*>& NewThinZoneSide = NewThinZoneSides.Last();
+				for (FEdgeSegment* Segment : ThinZoneSide)
+				{
+					Segment->SetChainIndex(NewSideIndex);
+				}
+				NewThinZoneSide += MoveTemp(ThinZoneSide);
+			}
 		}
 	}
 
@@ -1019,6 +1042,27 @@ void FThinZone2DFinder::SplitThinSide()
 		NewThinZoneSide = MoveTemp(ThinZoneSide);
 	}
 
+}
+
+namespace ThinZone2DFinderTool
+{
+void AlignStartEndPoints(TArray<FEdgeSegment*>& ClosedSide, TArray<FEdgeSegment*>& OpenSide)
+{
+	FEdgeSegment* OpenSideFirst = OpenSide[0];
+	FEdgeSegment* OpenSideLast = OpenSide.Last();
+
+	TArray<FEdgeSegment*> NewClosedSide;
+	NewClosedSide.Reserve(ClosedSide.Num());
+
+	FEdgeSegment* CloseSideSegment = OpenSideLast->GetCloseSegment();
+	FEdgeSegment* CloseSideEnd = OpenSideFirst->GetCloseSegment();
+	while (CloseSideSegment != CloseSideEnd)
+	{
+		NewClosedSide.Add(CloseSideSegment);
+		CloseSideSegment = CloseSideSegment->GetNext();
+	}
+	ClosedSide = MoveTemp(NewClosedSide);
+}
 }
 
 void FThinZone2DFinder::BuildThinZone()
@@ -1044,6 +1088,26 @@ void FThinZone2DFinder::BuildThinZone()
 		if (SecondSide.IsEmpty())
 		{
 			continue;
+		}
+
+		if (SecondSide[0]->GetCloseSegment()->GetChainIndex() != FirstSideSegment->GetChainIndex())
+		{
+			continue;
+		}
+
+		const bool FirstSideIsClosed = (FirstSide[0]->GetPrevious() == FirstSide.Last());
+		const bool SecondSideIsClosed = (SecondSide[0]->GetPrevious() == SecondSide.Last());
+
+		if (FirstSideIsClosed ^ SecondSideIsClosed)
+		{
+			if (!SecondSideIsClosed)
+			{
+				ThinZone2DFinderTool::AlignStartEndPoints(FirstSide, SecondSide);
+			}
+			else
+			{
+				ThinZone2DFinderTool::AlignStartEndPoints(SecondSide, FirstSide);
+			}
 		}
 
 		BuildThinZone(FirstSide, SecondSide);
@@ -1091,6 +1155,11 @@ void FThinZone2DFinder::GetThinZoneSideConnectionsLength(const TArray<FEdgeSegme
 
 void FThinZone2DFinder::BuildThinZone(const TArray<FEdgeSegment*>& FirstSide, const TArray<FEdgeSegment*>& SecondSide)
 {
+	if (FirstSide.IsEmpty() || SecondSide.IsEmpty())
+	{
+		return;
+	}
+
 	TFunction<void(const TArray<FEdgeSegment*>&, double&, double&)> ComputeThicknessAndLength = [](const TArray<FEdgeSegment*>& Side, double& MaxThickness, double& SideLength)
 	{
 		SideLength = 0;
@@ -1227,7 +1296,7 @@ bool FThinZone2DFinder::SearchThinZones(double InTolerance)
 	if (bDisplay)
 	{
 		DisplayCloseSegments();
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -1238,7 +1307,7 @@ bool FThinZone2DFinder::SearchThinZones(double InTolerance)
 	if (bDisplay)
 	{
 		ThinZone::DisplayThinZoneSides(ThinZoneSides);
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -1248,7 +1317,7 @@ bool FThinZone2DFinder::SearchThinZones(double InTolerance)
 	if (bDisplay)
 	{
 		ThinZone::DisplayThinZoneSides(ThinZoneSides);
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -1258,6 +1327,7 @@ bool FThinZone2DFinder::SearchThinZones(double InTolerance)
 	if (bDisplay)
 	{
 		ThinZone::DisplayThinZoneSides2(ThinZoneSides);
+		Wait(false);
 	}
 #endif
 
@@ -1266,8 +1336,8 @@ bool FThinZone2DFinder::SearchThinZones(double InTolerance)
 #ifdef DEBUG_SEARCH_THIN_ZONES
 	if (bDisplay)
 	{
-		ThinZone::DisplayThinZoneSides(ThinZoneSides);
-		//Wait();
+		ThinZone::DisplayThinZoneSidesAndCloses(ThinZoneSides);
+		Wait(false);
 	}
 #endif
 
@@ -1660,6 +1730,8 @@ void FThinZone2D::AddToEdge()
 void FThinZoneSide::GetExistingMeshNodes(const FTopologicalFace& Face, FModelMesh& MeshModel, FReserveContainerFunc& Reserve, FAddMeshNodeFunc& AddMeshNode, const bool bWithTolerance) const
 {
 	bool bEdgeIsForward = true;
+	bool bEdgeIsClosed = false;
+
 	int32 Index = 0;
 	int32 Increment = 1;
 	double SegmentUMin = 0.;
@@ -1683,46 +1755,50 @@ void FThinZoneSide::GetExistingMeshNodes(const FTopologicalFace& Face, FModelMes
 		}
 	};
 
-	TFunction<void(const FTopologicalEdge*, const FEdgeSegment&, ELimit)> AddEdgeVertexIfInclude = [&](const FTopologicalEdge* Edge, const FEdgeSegment& EdgeSegment, ELimit VertexExtremity)
+	TFunction<double(const int32)> ComputeTolerance = [&EdgeElementLength, &EdgeMeshNodeCount](const int32 Index)
 	{
-		const bool bIsStartVertex = (bEdgeIsForward == (VertexExtremity == ELimit::Start));
-
-		double VertexCoordinate = bIsStartVertex ? Edge->GetStartCurvilinearCoordinates() : Edge->GetEndCurvilinearCoordinates();
-
-		if (VertexCoordinate > SegmentUMin - DOUBLE_SMALL_NUMBER && VertexCoordinate < SegmentUMax + DOUBLE_SMALL_NUMBER)
+		if (Index == 0)
 		{
-			FTopologicalVertex& Vertex = bIsStartVertex ? *Edge->GetStartVertex() : *Edge->GetEndVertex();
-			int32 MeshVertexId = Vertex.GetOrCreateMesh(MeshModel).GetMesh();
-			FPoint2D Vertex2DCoordinate = EdgeSegment.ComputeEdgePoint(VertexCoordinate);
-
-			FPairOfIndex OppositeNodeIndices = FPairOfIndex::Undefined;
-
-			const TArray<FCuttingPoint>& CuttingPoints = Edge->GetCuttingPoints();
-			if (CuttingPoints.Num())
-			{
-				const FCuttingPoint& CuttingPoint = bIsStartVertex ? CuttingPoints[0] : CuttingPoints.Last();
-				if (FMath::IsNearlyEqual(CuttingPoint.Coordinate, VertexCoordinate))
-				{
-					OppositeNodeIndices = CuttingPoint.OppositNodeIndices;
-				}
-			}
-
-			const double MeshingTolerance = FMath::Max(DOUBLE_KINDA_SMALL_NUMBER, bWithTolerance ? (bIsStartVertex ? EdgeElementLength[0] : EdgeElementLength.Last()) * ASixth : DOUBLE_KINDA_SMALL_NUMBER);
-			AddMeshNode(MeshVertexId, Vertex2DCoordinate, MeshingTolerance, EdgeSegment, OppositeNodeIndices);
+			return EdgeElementLength[0] * ASixth;
 		}
+		else if (Index == EdgeMeshNodeCount - 1)
+		{
+			return EdgeElementLength[EdgeMeshNodeCount - 2] * ASixth;
+		}
+		return FMath::Min(EdgeElementLength[Index - 1], EdgeElementLength[Index]) * AThird;
 	};
 
 	TFunction<void(const FEdgeSegment&)> AddEdgeMeshNodeIfInclude = [&](const FEdgeSegment& EdgeSegment)
 	{
-		for (; Index >= 0 && Index < EdgeMeshNodeCount; Index += Increment)
+		bool bAlreadyDone = false;
+		for (;; Index += Increment)
 		{
+			if (Index < 0)
+			{
+				if (bAlreadyDone)
+				{
+					break;
+				}
+				bAlreadyDone = true;
+				Index = EdgeMeshNodeCount - 1;
+			}
+			else if (Index == EdgeMeshNodeCount)
+			{
+				if (bAlreadyDone)
+				{
+					break;
+				}
+				bAlreadyDone = true;
+				Index = 0;
+			}
+
 			const double MeshNodeCoordinate = CoordinatesOfMesh[Index];
 			if (MeshNodeCoordinate < SegmentUMin || MeshNodeCoordinate > SegmentUMax)
 			{
 				break;
 			}
 
-			const double MeshingTolerance = bWithTolerance ? FMath::Min(EdgeElementLength[Index], EdgeElementLength[Index + 1]) * AThird : 0;
+			const double MeshingTolerance = bWithTolerance ? ComputeTolerance(Index) : 0;
 			const FPoint2D MeshNode2D = EdgeSegment.ComputeEdgePoint(MeshNodeCoordinate);
 			AddMeshNode(NodeIndices[Index], MeshNode2D, MeshingTolerance, EdgeSegment, OppositeNodeIndices[Index]);
 		}
@@ -1776,114 +1852,99 @@ void FThinZoneSide::GetExistingMeshNodes(const FTopologicalFace& Face, FModelMes
 				bEdgeIsForward = EdgeSegment.IsForward();
 				EdgeMeshNodeCount = 0;
 
-				if (bWithTolerance)
+				bEdgeIsClosed = Edge->IsClosed();
+
+				if (!Edge->IsDegenerated())
 				{
-					if (ActiveEdge->IsMeshed())
+					if (ActiveEdge->IsPreMeshed())
 					{
-						EdgeElementLength = Edge->GetMesh()->GetElementLengths();
-					}
-					else
-					{
-						EdgeElementLength = Edge->GetPreElementLengths();
-					}
-				}
-
-				AddEdgeVertexIfInclude(Edge, EdgeSegment, ELimit::Start);
-
-				if (ActiveEdge->IsPreMeshed() && !Edge->IsDegenerated())
-				{
-					{
-						FAddCuttingPointFunc AddCuttingPoint = [&Edge](const double Coordinate, const ECoordinateType Type, const FPairOfIndex OppositNodeIndices, const double DeltaU)
 						{
-							Edge->AddTwinsCuttingPoint(Coordinate, DeltaU);
-						};
+							FAddCuttingPointFunc AddCuttingPoint = [&Edge](const double Coordinate, const ECoordinateType Type, const FPairOfIndex OppositNodeIndices, const double DeltaU)
+							{
+								Edge->AddTwinsCuttingPoint(Coordinate, DeltaU);
+							};
 
-						const bool bOnlyWithOppositeNode = false;
-						Edge->TransferCuttingPointFromMeshedEdge(bOnlyWithOppositeNode, AddCuttingPoint);
-					}
-
-					const TArray<FCuttingPoint>& CuttingPoints = Edge->GetCuttingPoints();
-					EdgeMeshNodeCount = CuttingPoints.Num();
-					if (EdgeMeshNodeCount > 2)
-					{
-						CoordinatesOfMesh.Empty(EdgeMeshNodeCount);
-						OppositeNodeIndices.Empty(EdgeMeshNodeCount);
-						EdgeMeshNodeCount -= 2;
-						for (int32 Cndex = 1; Cndex <= EdgeMeshNodeCount; ++Cndex)
-						{
-							const FCuttingPoint& CuttingPoint = CuttingPoints[Cndex];
-							CoordinatesOfMesh.Add(CuttingPoint.Coordinate);
-							OppositeNodeIndices.Emplace(CuttingPoint.OppositNodeIndices);
+							const bool bOnlyWithOppositeNode = false;
+							Edge->TransferCuttingPointFromMeshedEdge(bOnlyWithOppositeNode, AddCuttingPoint);
 						}
 
-						if (ActiveEdge->IsMeshed())
+						const TArray<FCuttingPoint>& CuttingPoints = Edge->GetCuttingPoints();
+						EdgeMeshNodeCount = CuttingPoints.Num();
+						if (EdgeMeshNodeCount >= 2)
 						{
-							NodeIndices.Empty(EdgeMeshNodeCount);
-							const FEdgeMesh* EdgeMesh = Edge->GetMesh();
-							if (!EdgeMesh)
+							CoordinatesOfMesh.Empty(EdgeMeshNodeCount);
+							OppositeNodeIndices.Empty(EdgeMeshNodeCount);
+							for (int32 Cndex = 0; Cndex < EdgeMeshNodeCount; ++Cndex)
 							{
-								continue;
+								const FCuttingPoint& CuttingPoint = CuttingPoints[Cndex];
+								CoordinatesOfMesh.Add(CuttingPoint.Coordinate);
+								OppositeNodeIndices.Emplace(CuttingPoint.OppositNodeIndices);
 							}
 
-							int32 StartMeshVertexId = EdgeMesh->GetStartVertexId();
-							if (Edge->IsSameDirection(*ActiveEdge))
+							if (ActiveEdge->IsMeshed())
 							{
-								for (int32 Cndex = 0; Cndex < EdgeMeshNodeCount; ++Cndex)
+								NodeIndices.Empty(EdgeMeshNodeCount);
+								const FEdgeMesh* EdgeMesh = Edge->GetMesh();
+								if (!EdgeMesh)
 								{
-									NodeIndices.Add(StartMeshVertexId++);
+									continue;
 								}
+
+								NodeIndices.Add(Edge->GetStartVertex()->GetMesh()->GetMesh());
+
+								const int32 InnerEdgeMeshNodeCount = EdgeMeshNodeCount - 2;
+								int32 StartMeshVertexId = EdgeMesh->GetStartVertexId();
+								if (Edge->IsSameDirection(*ActiveEdge))
+								{
+									for (int32 Cndex = 0; Cndex < InnerEdgeMeshNodeCount; ++Cndex)
+									{
+										NodeIndices.Add(StartMeshVertexId++);
+									}
+								}
+								else
+								{
+									StartMeshVertexId += InnerEdgeMeshNodeCount;
+									for (int32 Cndex = 0; Cndex < InnerEdgeMeshNodeCount; ++Cndex)
+									{
+										NodeIndices.Add(--StartMeshVertexId);
+									}
+								}
+
+								NodeIndices.Add(Edge->GetEndVertex()->GetMesh()->GetMesh());
 							}
 							else
 							{
-								StartMeshVertexId += EdgeMeshNodeCount;
-								for (int32 Cndex = 0; Cndex < EdgeMeshNodeCount; ++Cndex)
-								{
-									NodeIndices.Add(--StartMeshVertexId);
-								}
+								NodeIndices.Init(-1, EdgeMeshNodeCount);
+								NodeIndices[0] = Edge->GetStartVertex()->GetMesh()->GetMesh();
+								NodeIndices.Last() = Edge->GetEndVertex()->GetMesh()->GetMesh();
 							}
 						}
-						else
-						{
-							NodeIndices.Init(-1, EdgeMeshNodeCount);
-						}
-					}
-					else if (EdgeMeshNodeCount > 0)
-					{
-						EdgeMeshNodeCount = 0;
 					}
 					else
 					{
-						const FEdgeMesh* EdgeMesh = Edge->GetMesh();
-						if (!EdgeMesh)
-						{
-							continue;
-						}
+						CoordinatesOfMesh.Reset(2);
+						NodeIndices.Reset(2);
+						OppositeNodeIndices.Reset(2);
 
-						const TArray<FPoint>& MeshVertices = EdgeMesh->GetNodeCoordinates();
-						int32 LocIncrement = 1;
-
-						int32 StartMeshVertexId = EdgeMesh->GetStartVertexId();
-						TArray<FPoint> ProjectedPoints;
-						Edge->ProjectPoints(MeshVertices, CoordinatesOfMesh, ProjectedPoints);
-						if (EdgeMeshNodeCount > 1 && CoordinatesOfMesh[0] > CoordinatesOfMesh[1])
-						{
-							Algo::Reverse(CoordinatesOfMesh);
-							LocIncrement = -1;
-							StartMeshVertexId += EdgeMeshNodeCount - 1;
-						}
-
-						NodeIndices.Empty(EdgeMeshNodeCount);
-						OppositeNodeIndices.Init(FPairOfIndex::Undefined, EdgeMeshNodeCount);
-						for (const double& Coordinate : CoordinatesOfMesh)
-						{
-							NodeIndices.Add(StartMeshVertexId);
-							StartMeshVertexId += LocIncrement;
-						}
+						CoordinatesOfMesh.Add(Edge->GetBoundary().GetMin());
+						CoordinatesOfMesh.Add(Edge->GetBoundary().GetMax());
+						NodeIndices.Add(Edge->GetStartVertex()->GetMesh()->GetMesh());
+						NodeIndices.Add(Edge->GetEndVertex()->GetMesh()->GetMesh());
+						OppositeNodeIndices.Add(FPairOfIndex::Undefined);
+						OppositeNodeIndices.Add(FPairOfIndex::Undefined);
+						EdgeMeshNodeCount = 2;
 					}
 
-					if (EdgeElementLength.Num() != CuttingPoints.Num())
+					if (bWithTolerance)
 					{
-						EdgeElementLength = Edge->GetPreElementLengths();
+						if (ActiveEdge->IsMeshed())
+						{
+							EdgeElementLength = Edge->GetMesh()->GetElementLengths();
+						}
+						else
+						{
+							EdgeElementLength = Edge->GetPreElementLengths();
+						}
 					}
 
 					if (bEdgeIsForward)
@@ -1899,28 +1960,15 @@ void FThinZoneSide::GetExistingMeshNodes(const FTopologicalFace& Face, FModelMes
 						FindFirstIndex(SegmentUMax, [](double Value1, double Value2) { return (Value1 > Value2); });
 					}
 				}
-				else if (bWithTolerance)
-				{
-					EdgeElementLength.Empty(1);
-					EdgeElementLength.Add(Edge->Length());
-				}
 			}
 
-			if (EdgeMeshNodeCount > Index)
+			if(EdgeMeshNodeCount)
 			{
 				AddEdgeMeshNodeIfInclude(EdgeSegment);
 			}
 		}
-
-		// Last vertex, last segment 
-		{
-			const FEdgeSegment& EdgeSegment = GetSegments().Last();
-			AddEdgeVertexIfInclude(Edge, EdgeSegment, ELimit::End);
-		}
 	}
 }
-
-
 
 }
 

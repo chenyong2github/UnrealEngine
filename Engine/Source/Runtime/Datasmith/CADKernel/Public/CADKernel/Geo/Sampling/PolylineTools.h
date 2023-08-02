@@ -206,34 +206,46 @@ protected:
 
 		OutCurvilinearCoordinates.Reserve(BoundaryIndices[1] - BoundaryIndices[0] + 2);
 
-		double LastSegmentLength;
-		double Length = 0;
+		double LastEdgeSegmentLength;
+		double EdgeLength = 0;
+		double LengthOfSegment = 0;
 
 		OutCurvilinearCoordinates.Add(0);
-		if (BoundaryIndices[1] > BoundaryIndices[0] + 1)
+		if (BoundaryIndices[1] > BoundaryIndices[0])
 		{
 			PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
-			PointType EndPoint = ComputePoint(BoundaryIndices[1], InBoundary.Max);
-			Length = StartPoint.Distance(PolylinePoints[BoundaryIndices[0] + 1]);
-			LastSegmentLength = EndPoint.Distance(PolylinePoints[BoundaryIndices[1]]);
+			PointType PointIndice0 = PolylinePoints[BoundaryIndices[0]];
 
-			OutCurvilinearCoordinates.Add(Length);
+			PointType EndPoint = ComputePoint(BoundaryIndices[1], InBoundary.Max);
+			PointType NextPointIndice1 = PolylinePoints[BoundaryIndices[1] + 1];
+
+			EdgeLength = StartPoint.Distance(PolylinePoints[BoundaryIndices[0] + 1]);
+			double LengthOfSegments = PointIndice0.Distance(PolylinePoints[BoundaryIndices[0] + 1]);
+
+			LastEdgeSegmentLength = EndPoint.Distance(PolylinePoints[BoundaryIndices[1]]);
+			const double LastSegmentLength = NextPointIndice1.Distance(PolylinePoints[BoundaryIndices[1]]);
+
+			OutCurvilinearCoordinates.Add(LengthOfSegments);
 			for (int32 Index = BoundaryIndices[0] + 1; Index < BoundaryIndices[1]; ++Index)
 			{
-				Length += PolylinePoints[Index].Distance(PolylinePoints[Index + 1]);
-				OutCurvilinearCoordinates.Add(Length);
+				const double SegLength = PolylinePoints[Index].Distance(PolylinePoints[Index + 1]);
+				EdgeLength += SegLength;
+				LengthOfSegments += SegLength;
+				OutCurvilinearCoordinates.Add(LengthOfSegments);
 			}
-			Length += LastSegmentLength;
-			OutCurvilinearCoordinates.Add(Length);
+			EdgeLength += LastEdgeSegmentLength;
+			LengthOfSegments += LastSegmentLength;
+			OutCurvilinearCoordinates.Add(LengthOfSegments);
 		}
 		else
 		{
 			PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
 			PointType EndPoint = ComputePoint(BoundaryIndices[1], InBoundary.Max);
-			Length = StartPoint.Distance(EndPoint);
-			OutCurvilinearCoordinates.Add(Length);
+			EdgeLength = StartPoint.Distance(EndPoint);
+			const double SegLength = PolylinePoints[BoundaryIndices[0]].Distance(PolylinePoints[BoundaryIndices[0] + 1]);
+			OutCurvilinearCoordinates.Add(SegLength);
 		}
-		return Length;
+		return EdgeLength;
 	}
 
 	PointType ComputePoint(const int32 Index, const double PointCoordinate) const
@@ -446,6 +458,9 @@ public:
 		TArray<double> CurvilinearCoordinates;
 		double CurveLength = ComputeCurvilinearCoordinatesOfPolyline(InBoundary, CurvilinearCoordinates, BoundaryIndices);
 
+		PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
+		double FromStartSegmentLength = PolylinePoints[BoundaryIndices[0]].Distance(StartPoint);
+
 		if (CurveLength < 2. * DesiredSegmentLength)
 		{
 			OutCoordinates.SetNum(3);
@@ -465,19 +480,22 @@ public:
 
 		TFunction<double(const int32, const int32, const double, const double)> ComputeSamplePointCoordinate = [&](const int32 IndexCurvilinear, const int32 IndexCoordinate, const double Length, const double Coordinate)
 		{
-			return Coordinate + (PolylineCoordinates[IndexCoordinate] - Coordinate) * (Length - CurvilinearCoordinates[IndexCurvilinear - 1u]) / (CurvilinearCoordinates[IndexCurvilinear] - CurvilinearCoordinates[IndexCurvilinear - 1u]);
+			return Coordinate + (PolylineCoordinates[IndexCoordinate] - Coordinate) * (Length - CurvilinearCoordinates[IndexCurvilinear - 1]) / (CurvilinearCoordinates[IndexCurvilinear] - CurvilinearCoordinates[IndexCurvilinear - 1]);
 		};
 
 		double CurvilinearLength = SectionLength;
+		FromStartSegmentLength += SectionLength;
+
 		double LastCoordinate = InBoundary.Min;
 		for (int32 IndexCurvilinear = 1, IndexCoordinate = BoundaryIndices[0] + 1; IndexCurvilinear < CurvilinearCoordinates.Num(); ++IndexCurvilinear, ++IndexCoordinate)
 		{
-			while (CurvilinearLength + DOUBLE_SMALL_NUMBER < CurvilinearCoordinates[IndexCurvilinear])
+			while (FromStartSegmentLength + DOUBLE_SMALL_NUMBER < CurvilinearCoordinates[IndexCurvilinear])
 			{
-				double Coordinate = ComputeSamplePointCoordinate(IndexCurvilinear, IndexCoordinate, CurvilinearLength, LastCoordinate);
+				double Coordinate = ComputeSamplePointCoordinate(IndexCurvilinear, IndexCoordinate, FromStartSegmentLength, LastCoordinate);
 				OutCoordinates.Add(Coordinate);
 				CurvilinearLength += SectionLength;
-				if (CurvilinearLength + DOUBLE_SMALL_NUMBER > CurveLength)
+				FromStartSegmentLength += SectionLength;
+				if (OutCoordinates.Num() == SegmentNum)
 				{
 					OutCoordinates.Add(InBoundary.Max);
 					break;

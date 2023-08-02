@@ -10,6 +10,85 @@
 
 namespace UE::CADKernel
 {
+namespace IntersectionTool
+{
+static double IntersectionToolTolerance = 0.01;
+
+void SetTolerance(const double Tolerance)
+{
+	IntersectionToolTolerance = Tolerance;
+}
+
+struct FIntersectionContext
+{
+	const FSegment2D& SegmentAB;
+	const FSegment2D& SegmentCD;
+	const FPoint2D AB;
+	const FPoint2D CD;
+	const FPoint2D CA;
+
+	double NormAB = 0;
+	double NormCD = 0;
+
+	FIntersectionContext(const FSegment2D& InSegmentAB, const FSegment2D& InSegmentCD)
+		: SegmentAB(InSegmentAB)
+		, SegmentCD(InSegmentCD)
+		, AB(SegmentAB.GetVector())
+		, CD(SegmentCD.GetVector())
+		, CA(SegmentAB[0] - SegmentCD[0])
+	{
+	}
+};
+
+bool DoCoincidentSegmentsIntersectInside(double A, double B, double C, double D)
+{
+	return !((D < A + DOUBLE_KINDA_SMALL_NUMBER) || (B < C + DOUBLE_KINDA_SMALL_NUMBER));
+}
+
+bool DoCoincidentSegmentsIntersect(double A, double B, double C, double D)
+{
+	return !((D < A) || (B < C));
+}
+
+constexpr double MinValue(bool OnlyInside)
+{
+	return OnlyInside ? DOUBLE_KINDA_SMALL_NUMBER : -DOUBLE_KINDA_SMALL_NUMBER;
+}
+
+constexpr double MaxValue(bool OnlyInside)
+{
+	return OnlyInside ? 1. - DOUBLE_KINDA_SMALL_NUMBER : 1. + DOUBLE_KINDA_SMALL_NUMBER;
+}
+
+bool ConfirmIntersectionWhenNearlyCoincident(const FPoint2D& AB, const FPoint2D& AC, const FPoint2D& AD, const double NormAB)
+{
+	double HeightC = (AB ^ AC) / NormAB;
+	double HeightD = (AB ^ AD) / NormAB;
+
+	if (fabs(HeightC) < IntersectionToolTolerance || fabs(HeightD) < IntersectionToolTolerance)
+	{
+		return true;
+	}
+	return HeightC * HeightD < 0;
+};
+
+bool ConfirmIntersectionWhenNearlyCoincident(const FIntersectionContext& Context)
+{
+	if (Context.NormAB > Context.NormCD)
+	{
+		const FPoint2D DA = Context.SegmentAB[0] - Context.SegmentCD[1];
+		return ConfirmIntersectionWhenNearlyCoincident(Context.AB, Context.CA, DA, Context.NormAB);
+	}
+	else
+	{
+		const FPoint2D CB = Context.SegmentAB[1] - Context.SegmentCD[0];
+		return ConfirmIntersectionWhenNearlyCoincident(Context.CD, Context.CA, CB, Context.NormCD);
+	}
+}
+
+}
+
+
 double ComputeCurvature(const FPoint& Gradient, const FPoint& Laplacian)
 {
 	const FPoint GradientCopy = Gradient.Normalize();
@@ -65,132 +144,99 @@ void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, con
 	Algo::Sort(OutIntersections);
 }
 
-bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
+bool DoIntersect(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD, TFunction<bool(double, double, double, double)> DoCoincidentSegmentsIntersect, const double Min, const double Max)
 {
-	constexpr const double Min = DOUBLE_KINDA_SMALL_NUMBER;
-	constexpr const double Max = 1. - DOUBLE_KINDA_SMALL_NUMBER;
+	using namespace IntersectionTool;
 
-	TFunction<bool(double, double, double, double)> Intersect = [](double A, double B, double C, double D)
-	{
-		return !((D < A + DOUBLE_KINDA_SMALL_NUMBER) || (B < C + DOUBLE_KINDA_SMALL_NUMBER));
-	};
-
-	TFunction<bool(double, double, double, double)> TestWhenParallel = [&](double A, double B, double C, double D)
+	TFunction<bool(double, double, double, double)> FastIntersectionTestWhenCoincident = [&DoCoincidentSegmentsIntersect](double A, double B, double C, double D) -> bool
 	{
 		if (A < B)
 		{
 			if (C < D)
 			{
-				return Intersect(A, B, C, D);
+				return DoCoincidentSegmentsIntersect(A, B, C, D);
 			}
 			else
 			{
-				return Intersect(A, B, D, C);
+				return DoCoincidentSegmentsIntersect(A, B, D, C);
 			}
 		}
 		else
 		{
 			if (C < D)
 			{
-				return Intersect(B, A, C, D);
+				return DoCoincidentSegmentsIntersect(B, A, C, D);
 			}
 			else
 			{
-				return Intersect(B, A, D, C);
+				return DoCoincidentSegmentsIntersect(B, A, D, C);
 			}
 		}
 	};
 
-	const FPoint2D AB = SegmentAB[1] - SegmentAB[0];
-	const FPoint2D CD = SegmentCD[1] - SegmentCD[0];
-	const FPoint2D CA = SegmentAB[0] - SegmentCD[0];
+	FIntersectionContext Context(SegmentAB, SegmentCD);
 
-	const double ParallelCoef = CD ^ AB;
+	const double ParallelCoef = Context.CD ^ Context.AB;
 	if (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
 	{
-		const double ParallelCoef2 = CA ^ AB;
-		if (!FMath::IsNearlyZero(ParallelCoef2, DOUBLE_KINDA_SMALL_NUMBER))
+		// double check with normalized vectors
 		{
-			return false;
-		}
+			FPoint2D NormalizedAB = Context.AB;
+			FPoint2D NormalizedCD = Context.CD;
+			FPoint2D NormalizedCA = Context.CA;
 
-		if (fabs(AB.U) > fabs(AB.V))
-		{
-			return TestWhenParallel(SegmentAB[0].U, SegmentAB[1].U, SegmentCD[0].U, SegmentCD[1].U);
-		}
-		else
-		{
-			return TestWhenParallel(SegmentAB[0].V, SegmentAB[1].V, SegmentCD[0].V, SegmentCD[1].V);
+			NormalizedAB.Normalize(Context.NormAB);
+			NormalizedCD.Normalize(Context.NormCD);
+			NormalizedCA.Normalize();
+
+			const double NormalizedParallelCoef = NormalizedCD ^ NormalizedAB;
+			if (FMath::IsNearlyZero(NormalizedParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
+			{
+				const double NormalizedParallelCoef2 = NormalizedCA ^ NormalizedAB;
+				if (!FMath::IsNearlyZero(NormalizedParallelCoef2, DOUBLE_KINDA_SMALL_NUMBER))
+				{
+					return false;
+				}
+
+				if (fabs(Context.AB.U) > fabs(Context.AB.V))
+				{
+					if (FastIntersectionTestWhenCoincident(SegmentAB[0].U, SegmentAB[1].U, SegmentCD[0].U, SegmentCD[1].U))
+					{
+						return ConfirmIntersectionWhenNearlyCoincident(Context);
+					}
+					else
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (FastIntersectionTestWhenCoincident(SegmentAB[0].V, SegmentAB[1].V, SegmentCD[0].V, SegmentCD[1].V))
+					{
+						return ConfirmIntersectionWhenNearlyCoincident(Context);
+					}
+					else
+					{
+						return false;
+					}
+				}
+			}
 		}
 	}
 
-	const double ABIntersectionCoordinate = (CA ^ CD) / ParallelCoef;
-	const double CDIntersectionCoordinate = (CA ^ AB) / ParallelCoef;
-	return (ABIntersectionCoordinate < Max && ABIntersectionCoordinate > Min && CDIntersectionCoordinate < Max && CDIntersectionCoordinate > Min);
+	const double ABIntersectionCoordinate = (Context.CA ^ Context.CD) / ParallelCoef;
+	const double CDIntersectionCoordinate = (Context.CA ^ Context.AB) / ParallelCoef;
+	return (ABIntersectionCoordinate <= Max && ABIntersectionCoordinate >= Min && CDIntersectionCoordinate <= Max && CDIntersectionCoordinate >= Min);
 }
 
-bool DoIntersect(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
+bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
 {
-	constexpr const double Min = -DOUBLE_KINDA_SMALL_NUMBER;
-	constexpr const double Max = 1. + DOUBLE_KINDA_SMALL_NUMBER;
+	return DoIntersect(SegmentAB, SegmentCD, IntersectionTool::DoCoincidentSegmentsIntersectInside, IntersectionTool::MinValue(true), IntersectionTool::MaxValue(true));
+}
 
-	TFunction<bool(double, double, double, double)> Intersect = [](double A, double B, double C, double D)
-	{
-		return !((D < A) || (B < C));
-	};
-
-	TFunction<bool(double, double, double, double)> TestWhenParallel = [&](double A, double B, double C, double D)
-	{
-		if (A < B)
-		{
-			if (C < D)
-			{
-				return Intersect(A, B, C, D);
-			}
-			else
-			{
-				return Intersect(A, B, D, C);
-			}
-		}
-		else
-		{
-			if (C < D)
-			{
-				return Intersect(B, A, C, D);
-			}
-			else
-			{
-				return Intersect(B, A, D, C);
-			}
-		}
-	};
-
-	const FPoint2D AB = SegmentAB[1] - SegmentAB[0];
-	const FPoint2D CD = SegmentCD[1] - SegmentCD[0];
-	const FPoint2D CA = SegmentAB[0] - SegmentCD[0];
-
-	const double ParallelCoef = CD ^ AB;
-	if (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
-	{
-		const double ParallelCoef2 = CA ^ AB;
-		if (!FMath::IsNearlyZero(ParallelCoef2, DOUBLE_KINDA_SMALL_NUMBER))
-		{
-			return false;
-		}
-
-		if (fabs(AB.U) > fabs(AB.V))
-		{
-			return TestWhenParallel(SegmentAB[0].U, SegmentAB[1].U, SegmentCD[0].U, SegmentCD[1].U);
-		}
-		else
-		{
-			return TestWhenParallel(SegmentAB[0].V, SegmentAB[1].V, SegmentCD[0].V, SegmentCD[1].V);
-		}
-	}
-
-	const double ABIntersectionCoordinate = (CA ^ CD) / ParallelCoef;
-	const double CDIntersectionCoordinate = (CA ^ AB) / ParallelCoef;
-	return (ABIntersectionCoordinate <= Max && ABIntersectionCoordinate >= Min && CDIntersectionCoordinate <= Max && CDIntersectionCoordinate >= Min);
+bool DoIntersect(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
+{
+	return DoIntersect(SegmentAB, SegmentCD, IntersectionTool::DoCoincidentSegmentsIntersect, IntersectionTool::MinValue(false), IntersectionTool::MaxValue(false));
 }
 
 }

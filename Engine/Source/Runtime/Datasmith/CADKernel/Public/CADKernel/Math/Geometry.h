@@ -19,6 +19,12 @@ enum EPolygonSide : uint8
 	Side30,
 };
 
+namespace IntersectionTool
+{
+CADKERNEL_API void SetTolerance(const double Tolerance);
+}
+
+
 /**
  * https://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_2
  * With A = (0, 0)
@@ -500,37 +506,6 @@ inline double CoordinateOfProjectedPointOnSegment(const PointType& Point, const 
 }
 
 CADKERNEL_API void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, const TArray<TArray<FPoint2D>>& Loops, TArray<double>& OutIntersections);
-
-/**
- * Similar as DoIntersect but do not check intersection if both segment are carried by the same line.
- * Must be done before (with BBox comparison for example)
- * This method is 50% faster than IntersectSegments2D even if
- */
-inline bool FastDoIntersect(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
-{
-	constexpr const double Min = -DOUBLE_SMALL_NUMBER;
-	constexpr const double Max = 1. + DOUBLE_SMALL_NUMBER;
-
-	FPoint2D AB = SegmentAB[1] - SegmentAB[0];
-	FPoint2D CD = SegmentCD[1] - SegmentCD[0];
-	FPoint2D CA = SegmentAB[0] - SegmentCD[0];
-
-	double ParallelCoef = CD ^ AB;
-	double ABIntersectionCoordinate = (CA ^ CD) / ParallelCoef;
-	double CDIntersectionCoordinate = (CA ^ AB) / ParallelCoef;
-
-	if (FMath::IsNearlyZero(ParallelCoef))
-	{
-		ParallelCoef = CA ^ AB;
-		if (!FMath::IsNearlyZero(ParallelCoef))
-		{
-			return false;
-		}
-		return true;
-	}
-
-	return (ABIntersectionCoordinate <= Max && ABIntersectionCoordinate >= Min && CDIntersectionCoordinate <= Max && CDIntersectionCoordinate >= Min);
-}
 
 /**
  * The segments must intersect because no check is done

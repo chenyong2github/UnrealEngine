@@ -127,6 +127,15 @@ namespace UE::CADKernel
 			return Segments[0].IsInner();
 		}
 
+		bool IsClosed() const
+		{
+			if (Segments.Num() && (Segments[0].GetPrevious() == &Segments.Last()))
+			{
+				return true;
+			}
+			return false;
+		}
+
 		FThinZoneSide& GetFrontThinZoneSide()
 		{
 			return FrontSide;

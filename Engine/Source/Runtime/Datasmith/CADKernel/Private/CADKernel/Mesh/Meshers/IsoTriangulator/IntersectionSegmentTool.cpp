@@ -41,20 +41,6 @@ IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const double Tole
 {
 }
 
-IntersectionNodePairTool::FSegment::FSegment(const double Tolerance, const FIsoNode* InStartNode, const FIsoNode* InEndNode, const FPoint2D& InStartPoint, const FPoint2D& InEndPoint)
-	: IntersectionToolBase::FSegment(Tolerance, InStartPoint, InEndPoint)
-	, StartNode(InStartNode)
-	, EndNode(InEndNode)
-{
-}
-
-IntersectionNodePairTool::FSegment::FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& InStartNode, const FIsoNode& InEndNode)
-	: IntersectionToolBase::FSegment(Tolerance, InStartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), InEndNode.Get2DPoint(EGridSpace::UniformScaled, Grid))
-	, StartNode(&InStartNode)
-	, EndNode(&InEndNode)
-{
-}
-
 bool IntersectionSegmentTool::FSegment::IsValid() const
 {
 	return IsoSegment != nullptr && !IsoSegment->IsDelete();

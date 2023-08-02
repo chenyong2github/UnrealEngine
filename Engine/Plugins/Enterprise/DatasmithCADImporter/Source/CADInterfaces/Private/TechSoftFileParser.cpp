@@ -290,7 +290,7 @@ void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImp
 double ExtractUniformScale(FVector3d& Scale)
 {
 	double UniformScale = (Scale.X + Scale.Y + Scale.Z) / 3.;
-	double Tolerance = UniformScale * KINDA_SMALL_NUMBER;
+	double Tolerance = UniformScale * DOUBLE_KINDA_SMALL_NUMBER;
 
 	if (!FMath::IsNearlyEqual(UniformScale, Scale.X, Tolerance) && !FMath::IsNearlyEqual(UniformScale, Scale.Y, Tolerance))
 	{
@@ -1884,7 +1884,7 @@ void FTechSoftFileParser::ExtractGeneralTransformation(const A3DMiscTransformati
 
 		FTransform3d Transform(Matrix);
 		FVector3d Scale = Transform.GetScale3D();
-		if (Scale.Equals(FVector3d::OneVector, KINDA_SMALL_NUMBER))
+		if (Scale.Equals(FVector3d::OneVector, DOUBLE_KINDA_SMALL_NUMBER))
 		{
 			const double TranslationScale = Component.Unit * FImportParameters::GUnitScale;
 			for (Index = 0; Index < 3; ++Index)

@@ -48,6 +48,8 @@ void FParametricFaceMesher::Mesh()
 		return;
 	}
 
+	MeshVerticesOfFace(Face);
+
 	FMessage::Printf(EVerboseLevel::Debug, TEXT("Meshing of surface %d\n"), Face.GetId());
 
 	FProgress _(1, TEXT("Meshing Entities : Mesh Surface"));
@@ -57,7 +59,6 @@ void FParametricFaceMesher::Mesh()
 #endif
 
 	FTimePoint StartTime = FChrono::Now();
-
 
 	if (!GenerateCloud() || Grid.IsDegenerated())
 	{
@@ -145,6 +146,7 @@ void FParametricFaceMesher::MeshThinZones(TArray<FTopologicalEdge*>& EdgesToMesh
 			}
 
 #ifdef DEBUG_MESH_THINZONE_EDGES
+			if(bDisplay)
 			{
 				F3DDebugSession B(bDisplay, FString::Printf(TEXT("Edge %d"), Edge->GetId()));
 				Display2DWithScale(*Edge, EVisuProperty::GreenCurve);
@@ -434,7 +436,7 @@ void FParametricFaceMesher::DefineImposedCuttingPointsBasedOnOtherSideMesh(FThin
 
 	FAddMeshNodeFunc AddToCrossZoneElements = [&CrossZoneElements](const int32 NodeIndice, const FPoint2D& MeshNode2D, double MeshingTolerance3D, const FEdgeSegment& EdgeSegment, const FPairOfIndex& OppositeNodeIndices)
 	{
-		if (CrossZoneElements.Num() && CrossZoneElements.Last().VertexId == NodeIndice)
+		if (CrossZoneElements.Num() && CrossZoneElements.Last().VertexId >= 0 && CrossZoneElements.Last().VertexId == NodeIndice)
 		{
 			CrossZoneElements.Last().Add(OppositeNodeIndices);
 		}
@@ -496,11 +498,13 @@ void FParametricFaceMesher::DefineImposedCuttingPointsBasedOnOtherSideMesh(FThin
 				}
 			}
 		}
-		//Wait();
+		Wait(false);
 	}
 
 	F3DDebugSession A(bDisplay, TEXT("Find the best projection of existing mesh vertices"));
 #endif
+
+	const double MaxSquareThickness = FrontSide.GetMaxThickness() > SideToConstrain.GetMaxThickness() ? FMath::Square(3. * FrontSide.GetMaxThickness()) : FMath::Square(3. * SideToConstrain.GetMaxThickness());
 
 	// Find the best projection of existing mesh vertices (CrossZone Vertex)
 	for (FCrossZoneElement& CrossZoneElement : CrossZoneElements)
@@ -516,16 +520,16 @@ void FParametricFaceMesher::DefineImposedCuttingPointsBasedOnOtherSideMesh(FThin
 			continue;
 		}
 
-#ifdef DEBUG_MESHTHINSURF_
+#ifdef DEBUG_MESHTHINSURF
 		if (bDisplay)
 		{
 			F3DDebugSession A(TEXT("Point"));
 			DisplayPoint2DWithScale(CrossZoneElement.VertexPoint2D, EVisuProperty::BluePoint, CrossZoneElement.VertexId);
-			Wait();
+			Wait(false);
 		}
 #endif
 
-		double MinSquareThickness = HUGE_VALUE;
+		double MinSquareThickness = MaxSquareThickness;
 		FPoint2D ClosePoint;
 		FEdgeSegment* CloseSegment = nullptr;
 		double ClosePointCoordinate = -1;
@@ -654,7 +658,7 @@ void FParametricFaceMesher::DefineImposedCuttingPointsBasedOnOtherSideMesh(FThin
 				DisplaySegmentWithScale(CrossZoneElement.VertexPoint2D, CrossZoneElement.OppositePoint2D, 0, EVisuProperty::YellowCurve);
 			}
 		}
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -695,6 +699,18 @@ void FParametricFaceMesher::MeshFaceLoops()
 void FParametricFaceMesher::Mesh(FTopologicalVertex& InVertex)
 {
 	InVertex.GetOrCreateMesh(MeshModel);
+}
+
+void FParametricFaceMesher::MeshVerticesOfFace(FTopologicalFace& FaceToProcess)
+{
+	for (const TSharedPtr<FTopologicalLoop>& Loop : FaceToProcess.GetLoops())
+	{
+		for (FOrientedEdge& Edge : Loop->GetEdges())
+		{
+			Mesh(*Edge.Entity->GetStartVertex());
+			Mesh(*Edge.Entity->GetEndVertex());
+		}
+	}
 }
 
 #ifdef DEBUG_INTERSECTEDGEISOS
@@ -907,8 +923,9 @@ void FParametricFaceMesher::Mesh(FTopologicalEdge& InEdge, bool bFinalMeshing)
 	}
 
 
-	const double EdgeDeltaUAtMin = DeltaUs[0] * AQuarter;
-	const double EdgeDeltaUAtMax = DeltaUs.Last() * AQuarter;
+	const double EdgeBoundsLength = EdgeBounds.Length();
+	const double EdgeDeltaUAtMin = FMath::Min(DeltaUs[0] * AQuarter, EdgeBoundsLength * AEighth);
+	const double EdgeDeltaUAtMax = FMath::Min(DeltaUs.Last() * AQuarter, EdgeBoundsLength * AEighth);
 
 	ImposedIsoCuttingPoints.Emplace(EdgeBounds.GetMin(), ECoordinateType::VertexCoordinate, FPairOfIndex::Undefined, EdgeDeltaUAtMin);
 	ImposedIsoCuttingPoints.Emplace(EdgeBounds.GetMax(), ECoordinateType::VertexCoordinate, FPairOfIndex::Undefined, EdgeDeltaUAtMax);
@@ -1155,9 +1172,12 @@ void FParametricFaceMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
 {
 	FTopologicalEdge& ActiveEdge = *Edge.GetLinkActiveEdge();
 
-	if (Edge.Length() < Edge.GetTolerance3D())
+	if (Edge.Length() < 2. * Tolerances.GeometricTolerance)
 	{
-		Edge.SetAsDegenerated();
+		for (FTopologicalEdge* TwinEdge : Edge.GetTwinEntities())
+		{
+			TwinEdge->SetAsDegenerated();
+		}
 	}
 
 	Edge.ComputeCrossingPointCoordinates();

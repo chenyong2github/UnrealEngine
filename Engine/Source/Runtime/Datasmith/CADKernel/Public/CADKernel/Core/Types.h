@@ -7,14 +7,22 @@
 #include "CoreMinimal.h"
 #endif
 
-#define SMALL_NUMBER_SQUARE 10e-16
-#define HUGE_VALUE 10e8
-#define HUGE_VALUE_SQUARE 10e16
+#define SMALL_NUMBER_SQUARE (1.e-16)
+#define DOUBLE_SMALL_NUMBER_SQUARE (1.e-16)
 
-#define AThird 0.33333333333333333333333333333333
-#define AQuarter 0.25
-constexpr double ASixth = 1. / 6.; //0.16666666666666666666666666666667
-#define AEighth 0.125
+#define KINDA_SMALL_NUMBER_SQUARE (1.e-8)
+#define DOUBLE_KINDA_SMALL_NUMBER_SQUARE (1.e-8)
+
+#define HUGE_VALUE (1e8)
+#define DOUBLE_HUGE_VALUE (1e8)
+
+#define HUGE_VALUE_SQUARE (1e16)
+#define DOUBLE_HUGE_VALUE_SQUARE (1e16)
+
+constexpr double AThird = 1. / 3.;
+constexpr double AQuarter = 0.25;
+constexpr double ASixth = 1. / 6.;
+constexpr double AEighth  = 0.125;
 
 typedef uint32 FIdent;
 

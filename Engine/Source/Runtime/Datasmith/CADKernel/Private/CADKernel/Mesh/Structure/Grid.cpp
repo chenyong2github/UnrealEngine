@@ -11,7 +11,6 @@
 #include "CADKernel/Utils/Util.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-//#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 namespace UE::CADKernel
 {
 
@@ -46,7 +45,7 @@ void FGrid::ProcessPointCloud()
 		DisplayGridLoops(TEXT("FGrid::Loop 2D Scaled"), GetLoops2D(EGridSpace::Scaled), true, false, false);
 		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D Scaled"), GetInner2DPoints(EGridSpace::Scaled));
 
-		DisplayGridLoops(TEXT("FGrid::Loop 2D UniformScaled"), GetLoops2D(EGridSpace::UniformScaled), true, false, false);
+		DisplayGridLoops(TEXT("FGrid::Loop 2D UniformScaled"), GetLoops2D(EGridSpace::UniformScaled), true, true, false);
 		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D UniformScaled"), GetInner2DPoints(EGridSpace::UniformScaled));
 
 		DisplayGridLoops(TEXT("FGrid::Loop 3D"), GetLoops3D(), true, false, false);
@@ -1173,20 +1172,16 @@ void FGrid::GetMeshOfThinZone(const FThinZone2D& ThinZone)
 		}
 	};
 
-	TArray<FPoint2D>* ThinZoneMesh = &FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
+	const bool FirstSideIsClosed = ThinZone.GetFirstSide().IsClosed();
+	const bool SecondSideIsClosed = ThinZone.GetSecondSide().IsClosed();
 
+	TArray<FPoint2D>* ThinZoneMesh = &FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
 	GetThinZoneSideMesh(ThinZone.GetFirstSide(), *ThinZoneMesh);
-	if (ThinZone.GetCategory() == EThinZone2DType::BetweenLoops)
+	if (FirstSideIsClosed && SecondSideIsClosed)
 	{
 		RemoveDuplicatedNode(*ThinZoneMesh);
-		if (ThinZoneMesh->Num() < 3)
-		{
-			FaceLoops2D[EGridSpace::UniformScaled].Pop();
-		}
-
 		ThinZoneMesh = &FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
 	}
-
 	GetThinZoneSideMesh(ThinZone.GetSecondSide(), *ThinZoneMesh);
 	RemoveDuplicatedNode(*ThinZoneMesh);
 

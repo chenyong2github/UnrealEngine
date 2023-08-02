@@ -150,7 +150,7 @@ public:
 private:
 
 	bool CleanLoops();
-	bool UncrossLoops();
+	bool UncrossLoops(bool bAddProcessedLoop);
 
 	/**
 	 * For each loop, find the best starting node i.e. a node well oriented
@@ -166,6 +166,8 @@ private:
 	 * @return false if the process failed => the surface cannot be meshed
 	 */
 	bool RemoveLoopPicks();
+	bool RemoveLoopPicks(TArray<FIsoSegment*>& Loop);
+
 	bool RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1);
 	bool FindAndRemoveCoincidence(FLoopNode*& StartNode);
 
@@ -266,8 +268,8 @@ private:
 	//bool TryToRemoveSelfIntersectionByMovingTheClosedOusidePoint(const FIsoSegment& Segment0, const FIsoSegment& Segment1);
 	//bool TryToRemoveIntersectionByMovingTheClosedOusidePoint(const FIsoSegment& Segment0, const FIsoSegment& Segment1);
 
-	void OffsetSegment(FIsoSegment& Segment, TSegment<FPoint2D>& Segment2D, TSegment<FPoint2D>& IntersectingSegment2D);
-	void OffsetNode(FLoopNode& Node, TSegment<FPoint2D>& IntersectingSegment2D);
+	void OffsetSegment(FIsoSegment& Segment, FSegment2D& Segment2D, FSegment2D& IntersectingSegment2D);
+	void OffsetNode(FLoopNode& Node, FSegment2D& IntersectingSegment2D);
 
 
 	//

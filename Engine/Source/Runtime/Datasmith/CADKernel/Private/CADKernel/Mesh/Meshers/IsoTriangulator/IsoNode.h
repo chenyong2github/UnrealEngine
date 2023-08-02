@@ -46,6 +46,9 @@ enum class EIsoNodeStates : uint16
 	NearlyIsoU = 0x1000u,  // Loop nodes
 	NearlyIsoV = 0x2000u,  // Loop nodes
 
+	HasMarker1 = 0x4000u,
+	HasMarker2 = 0x8000u,
+
 	All = 0xFFFFu
 };
 
@@ -220,6 +223,44 @@ public:
 		default:
 			States |= EIsoNodeStates::LinkedToPreviousV;
 		}
+	}
+
+	bool HasMarker1() const
+	{
+		return ((States & EIsoNodeStates::HasMarker1) == EIsoNodeStates::HasMarker1);
+	}
+
+	bool HasMarker2() const
+	{
+		return ((States & EIsoNodeStates::HasMarker2) == EIsoNodeStates::HasMarker2);
+	}
+
+	bool IsDeleteOrHasMarker2() const
+	{
+		constexpr EIsoNodeStates HasMarkerDeleteOrMarker2 = EIsoNodeStates::Delete | EIsoNodeStates::HasMarker2;
+		return ((States & HasMarkerDeleteOrMarker2) != EIsoNodeStates::None);
+	}
+
+	bool HasMarker1NotMarker2() const
+	{
+		constexpr EIsoNodeStates HasMarker12 = EIsoNodeStates::HasMarker1 | EIsoNodeStates::HasMarker2;
+		return ((States & HasMarker12) == EIsoNodeStates::HasMarker1);
+	}
+
+	void SetMarker1()
+	{
+		States |= EIsoNodeStates::HasMarker1;
+	}
+
+	void SetMarker2()
+	{
+		States |= EIsoNodeStates::HasMarker2;
+	}
+
+	void ResetMarkers()
+	{
+		constexpr EIsoNodeStates ResetAllMarkers = ~(EIsoNodeStates::HasMarker1 | EIsoNodeStates::HasMarker2);
+		States &= ResetAllMarkers;
 	}
 
 	/**

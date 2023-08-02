@@ -353,81 +353,7 @@ bool FCycleTriangulator::FindTheBestAcuteTriangle()
 		return true;
 	}
 
-	double BestIsoscelesCriteria = Slope::NullSlope;
-
-	// Check in the acute Triangles the most isosceles
-	int32 AcuteNodeIndex = -1;
-	constexpr double MaxSlopeToBeSelected = Slope::ThreeQuaterPiSlope;
-
-//	for (; false && NIndex < SubCycleNodeCount; ++NIndex)
-//	{
-//		const TPair<int, double>& Candidate = VertexIndexToSlopes[NIndex];
-//
-//		if (Candidate.Value > MaxSlopeToBeSelected)
-//		{
-//			break;
-//		}
-//
-//		GetCandidateTriangleNodes(Candidate.Key);
-//
-//		// Check that the cycle is not inside the selected triangle
-//		if (IsCycleInsideCandidate(*CandidatePoint, *StartPoint, *EndPoint, *NextPoint, TransformIntoCounterClockwise)
-//			|| IsCycleInsideCandidate(*CandidatePoint, *EndPoint, *StartPoint, *PrevPoint, TransformIntoClockwise))
-//		{
-//			continue;
-//		}
-//
-//		//FIsoSegment* Segment;
-//		if (!CycleIntersectionTool.DoesIntersect(NewSegmentStart, NewSegmentEnd/*, &Segment*/))
-//		{
-//			double IsoscelesCriteria = IsoTriangulatorImpl::IsoscelesCriteriaMin(*StartPoint, *EndPoint, *CandidatePoint);
-//
-//			if (BestIsoscelesCriteria < IsoscelesCriteria)
-//			{
-//				double Length1 = StartPoint->SquareDistance(*CandidatePoint);
-//
-//				if (Length1 > MaxEdgeSquareLength)
-//				{
-//#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
-//					if (Grid.bDisplay)
-//					{
-//						F3DDebugSession W(FString::Printf(TEXT("cancel due to Seg Length %f vs %f"), sqrt(Length1), sqrt(MaxEdgeSquareLength)));
-//						Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NewSegmentStart, *CandidateNode, 0, EVisuProperty::YellowCurve);
-//						Wait();
-//					}
-//#endif
-//					continue;
-//				}
-//
-//				double Length2 = EndPoint->SquareDistance(*CandidatePoint);
-//
-//				if (Length2 > MaxEdgeSquareLength)
-//				{
-//#ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
-//					if (Grid.bDisplay)
-//					{
-//						F3DDebugSession W(FString::Printf(TEXT("cancel due to Seg Length %f vs %f"), sqrt(Length2), sqrt(MaxEdgeSquareLength)));
-//						Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NewSegmentEnd, *CandidateNode, 0, EVisuProperty::YellowCurve);
-//						Wait();
-//					}
-//#endif
-//					continue;
-//				}
-//
-//				BestIsoscelesCriteria = IsoscelesCriteria;
-//				AcuteNodeIndex = Index;
-//				bAcuteTriangle = true;
-//			}
-//		}
-//	}
-
-	if (bAcuteTriangle)
-	{
-		GetCandidateTriangleNodes(AcuteNodeIndex);
-		SetFinalCandidate();
-	}
-
-	return bAcuteTriangle;
+	return false;
 }
 
 // Find candidate nodes i.e. Nodes that can be linked with the Segment to build a valid triangle without intersection with other segments
@@ -568,7 +494,7 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 	{
 		F3DDebugSession _(FString::Printf(TEXT("Start Segment %d"), BestCandidateNode));
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *FirstSideEndNode, 1, EVisuProperty::RedCurve);
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -1195,12 +1121,12 @@ void FCycleTriangulator::ValidateComplementaryNodesWithInsideAndIntersectionsCri
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Side.Nodes[0], *Side.Nodes[1], 1, EVisuProperty::RedCurve);
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Side.Nodes[1], *Side.EndNode, 1, EVisuProperty::BlueCurve);
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Side.Nodes[0], *Side.StartNode, 1, EVisuProperty::BlueCurve);
-			Wait();
+			Wait(false);
 		}
 #endif
 		// Check if [Side.Nodes[0] - Side.Nodes[1]] intersect cycle
 		const FIsoSegment* Segment = Side.Nodes[0]->GetSegmentConnectedTo(Side.Nodes[1]);
-		if (!Segment && (CycleIntersectionTool.DoesIntersect(Side.Nodes[0], Side.Nodes[1]) || !IsInnerSideSegmentInsideCycle(Side)))
+		if (!IsInnerSideSegmentInsideCycle(Side) || (!Segment && CycleIntersectionTool.DoesIntersect(Side.Nodes[0], Side.Nodes[1])))
 		{
 			// intersect => choose between NextFinalNode and LastPotentialNode
 #ifdef DEBUG_VALID_COMPLEMENTARY_NODE
@@ -1209,7 +1135,7 @@ void FCycleTriangulator::ValidateComplementaryNodesWithInsideAndIntersectionsCri
 				F3DDebugSession _(TEXT("choose between NextFinalNode and LastPotentialNode"));
 				Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Side.Nodes[0], *Side.EndNode, 1, EVisuProperty::BlueCurve);
 				Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Side.Nodes[1], *Side.StartNode, 1, EVisuProperty::BlueCurve);
-				Wait();
+				Wait(false);
 			}
 #endif
 			ValidComplementaryNodeOrDeleteIt(Side, 0);
@@ -1982,7 +1908,16 @@ bool FCycleTriangulator::BuildSegmentIfNeeded(FIsoNode* NodeA, FIsoNode* NodeB, 
 
 		FIsoSegment& NewSegment = IsoSegmentFactory.New();
 		NewSegment.Init(*NodeA, *NodeB, ESegmentType::Unknown);
-		NewSegment.ConnectToNode();
+		if (!NewSegment.ConnectToNode())
+		{
+#ifdef DEBUG_BUILD_SEGMENT_IF_NEEDED
+			F3DDebugSession _(FString::Printf(TEXT("ERROR Segment")));
+			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NodeA, *NodeB, 0, EVisuProperty::RedCurve);
+			Wait();
+#endif
+			IsoSegmentFactory.DeleteEntity(&NewSegment);
+			return false;
+		}
 		NewSegment.SetHasTriangleOnLeft();
 		SegmentStack.Add(&NewSegment);
 

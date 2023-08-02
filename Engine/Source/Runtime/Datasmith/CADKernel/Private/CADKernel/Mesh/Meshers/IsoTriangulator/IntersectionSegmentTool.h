@@ -4,7 +4,6 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Geometry.h"
-#include "CADKernel/UI/Message.h"
 #include "CADKernel/UI/Visu.h"
 
 namespace UE::CADKernel
@@ -205,46 +204,6 @@ struct FSegment : public IntersectionToolBase::FSegment
 
 }
 
-namespace IntersectionNodePairTool
-{
-
-struct FSegment : public IntersectionToolBase::FSegment
-{
-	const FIsoNode* StartNode;
-	const FIsoNode* EndNode;
-
-	FSegment(const double Tolerance, const FIsoNode* StartNode, const FIsoNode* EndNode, const FPoint2D& StartPoint, const FPoint2D& EndPoint);
-	FSegment(const FGrid& Grid, const double Tolerance, const FIsoNode& StartNode, const FIsoNode& EndNode);
-
-	virtual bool IsValid() const override
-	{
-		return true;
-	}
-
-	virtual const FIsoNode* GetFirstNode() const override
-	{
-		return StartNode;
-	}
-
-	virtual const FIsoNode* GetSecondNode() const override
-	{
-		return EndNode;
-	}
-
-	virtual bool DoesItIntersect(const IntersectionToolBase::FSegment& Segment) const override
-	{
-		if (!CouldItIntersect(Segment.Boundary))
-		{
-			return false;
-		}
-
-		return DoIntersectInside(Segment2D, Segment.Segment2D);
-	}
-
-};
-
-}
-
 template<typename SegmentType>
 class TIntersectionSegmentTool
 {
@@ -256,17 +215,11 @@ protected:
 
 	const double Tolerance;
 
-	// Allow a candidate segment to be parallel with and overlap an existing segment.
-	// This is used by InnerToOuterIsoSegmentsIntersectionTool, which existing segment are Isolines. 
-	// So this allow candidate segment to overlap iso segment. Otherwise, the candidate segment has one intersection with an isoline when we just want that is parallel with.
-	const bool bAllowOverlapping;
-
 public:
-	TIntersectionSegmentTool(const FGrid& InGrid, const double InTolerance, const bool bInAllowOverlapping = false)
+	TIntersectionSegmentTool(const FGrid& InGrid, const double InTolerance)
 		: Grid(InGrid)
 		, bSegmentsAreSorted(false)
 		, Tolerance(InTolerance)
-		, bAllowOverlapping(bInAllowOverlapping)
 	{
 	}
 
@@ -274,7 +227,7 @@ public:
 
 	void Empty(int32 InMaxNum)
 	{
-		Segments.Empty(InMaxNum);
+		Segments.Reset(InMaxNum);
 		bSegmentsAreSorted = false;
 	}
 
@@ -336,16 +289,6 @@ public:
 				}
 			}
 
-			if (Segment.IsParallelWith(InSegment))
-			{
-				printf("");
-			}
-
-			if (bAllowOverlapping && Segment.IsParallelWith(InSegment))
-			{
-				continue;
-			}
-
 			switch (Segment.DoesItStartFromAndSuperimposed(StartExtremity, EndExtremity, InSegment.Segment2D))
 			{
 			case EConnectionType::SameSegment:
@@ -373,7 +316,7 @@ public:
 		SegmentType InSegment(Grid, Tolerance, *StartExtremity, *EndExtremity);
 		if (OutIntersectedSegments)
 		{
-			OutIntersectedSegments->Empty(10);
+			OutIntersectedSegments->Reset(10);
 		}
 
 		int32 IntersectionCount = 0;
@@ -395,11 +338,6 @@ public:
 				{
 					break;
 				}
-			}
-
-			if (bAllowOverlapping && Segment.IsParallelWith(InSegment))
-			{
-				continue;
 			}
 
 			switch (Segment.DoesItStartFromAndSuperimposed(StartExtremity, EndExtremity, InSegment.Segment2D))
@@ -601,38 +539,6 @@ public:
 	int32 CountIntersections(const FIsoNode* StartNode, const FIsoNode* EndNode) const
 	{
 		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegments(StartNode, EndNode, nullptr);
-	}
-};
-
-class FIntersectionNodePairTool : public TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>
-{
-
-public:
-	FIntersectionNodePairTool(const FGrid& InGrid, const double Tolerance, bool bInAllowOverlaping)
-		: TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>(InGrid, Tolerance, bInAllowOverlaping)
-	{
-	}
-
-	void AddSegment(const FIsoNode& StartNode, const FIsoNode& EndNode)
-	{
-		bSegmentsAreSorted = false;
-		Segments.Emplace(Grid, Tolerance, StartNode, EndNode);
-	}
-
-	void AddSegment(const FIsoNode* StartNode, const FIsoNode* EndNode, const FPoint2D& StartPoint, const FPoint2D& EndPoint)
-	{
-		bSegmentsAreSorted = false;
-		Segments.Emplace(Tolerance, StartNode, EndNode, StartPoint, EndPoint);
-	}
-
-	int32 CountIntersections(const FIsoNode& StartNode, const FIsoNode& EndNode) const
-	{
-		return TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>::FindIntersectingSegments(&StartNode, &EndNode, nullptr);
-	}
-
-	bool DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const
-	{
-		return TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>::FindIntersectingSegment(&StartNode, &EndNode) != nullptr;
 	}
 };
 

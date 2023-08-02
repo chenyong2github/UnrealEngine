@@ -1127,7 +1127,7 @@ void FTopomaker::SplitIntoConnectedShells()
 		}
 	};
 
-	TFunction<void(FFaceSubset&)> SpreadFront = [&](FFaceSubset& Shell)
+	TFunction<void(FFaceSubset&)> PropagateFront = [&](FFaceSubset& Shell)
 	{
 		while (Front.Num())
 		{
@@ -1157,7 +1157,7 @@ void FTopomaker::SplitIntoConnectedShells()
 
 		Face->SetProcessedMarker();
 		Front.Add(Face.Get());
-		SpreadFront(Shell);
+		PropagateFront(Shell);
 		ProcessFaceCount += Shell.Faces.Num();
 
 		if (ProcessFaceCount == TopologicalFaceCount)

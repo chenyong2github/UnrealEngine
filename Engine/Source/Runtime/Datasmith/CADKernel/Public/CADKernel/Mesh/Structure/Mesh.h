@@ -30,6 +30,9 @@ public:
 		: FEntityGeom()
 		, ModelMesh(InMeshModel)
 		, TopologicalEntity(InTopologicalEntity)
+		, StartNodeId(0)
+		, LastNodeIndex(0)
+		, MeshModelIndex(0)
 	{
 	}
 

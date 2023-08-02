@@ -6,6 +6,7 @@
 #include "CADKernel/Math/SlopeUtils.h"
 #include "CADKernel/Mesh/MeshEnum.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionIsoSegmentTool.h"
 
 #ifdef CADKERNEL_DEV
 #include "CADKernel/UI/DefineForDebug.h"
@@ -121,7 +122,7 @@ private:
 	const TArray<bool>& CycleOrientation;
 
 	const EGridSpace Space = EGridSpace::UniformScaled;
-	const FIntersectionNodePairTool& InnerToOuterIsoSegmentsIntersectionTool;
+	const FIntersectionIsoSegmentTool& InnerToOuterIsoSegmentsIntersectionTool;
 	FFaceMesh& Mesh;
 	TFactory<FIsoSegment>& IsoSegmentFactory;
 
@@ -246,20 +247,6 @@ private:
 				{
 					return true;
 				}
-			}
-		}
-		return false;
-	}
-
-	int32 IsIntersectingIso(const TArray<FCandidateNode>& Nodes)
-	{
-		const FIsoNode* StartNode = Nodes.Last().Node;
-		for (const FCandidateNode& CNode : Nodes)
-		{
-			const FIsoNode* Node = CNode.Node;
-			if (InnerToOuterIsoSegmentsIntersectionTool.DoesIntersect(*StartNode, *Node))
-			{
-				return true;
 			}
 		}
 		return false;

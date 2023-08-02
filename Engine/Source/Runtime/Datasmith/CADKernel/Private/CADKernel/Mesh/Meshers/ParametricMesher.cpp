@@ -79,7 +79,7 @@ void FParametricMesher::MeshEntities(TArray<FTopologicalShapeEntity*>& InEntitie
 		Face->ResetMarkers();
 	}
 
-	// Get independent Faces and spread body's shells orientation
+	// Get independent Faces and propagate body's shells orientation
 	for (FTopologicalShapeEntity* TopologicalEntity : InEntities)
 	{
 		if (TopologicalEntity == nullptr)

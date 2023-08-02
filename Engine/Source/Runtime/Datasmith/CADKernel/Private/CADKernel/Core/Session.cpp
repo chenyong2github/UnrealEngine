@@ -96,5 +96,6 @@ void FSession::SetGeometricTolerance(double NewTolerance)
 {
 	ensure(Database.GetModel().EntityCount() == 0);
 	GeometricTolerance = NewTolerance;
+	IntersectionTool::SetTolerance(NewTolerance);
 }
 } // namespace UE::CADKernel

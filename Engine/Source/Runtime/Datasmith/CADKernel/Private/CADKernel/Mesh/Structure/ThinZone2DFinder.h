@@ -164,10 +164,12 @@ void DisplayEdgeSegmentAndProjection(const FEdgeSegment* Segment, EVisuProperty 
 void DisplayEdgeSegmentAndProjection(const FEdgeSegment* Segment, const FEdgeSegment* Opposite, EVisuProperty SegColor, EVisuProperty OppositeColor, EVisuProperty ProjectionColor);
 void DisplayEdgeSegment(const FEdgeSegment* EdgeSegment, EVisuProperty Color);
 void DisplayEdgeSegment(const FEdgeSegment* EdgeSegment, EVisuProperty Color, int32 Index);
+void DisplayThinZoneSidesAndCloses(const TArray<TArray<FEdgeSegment*>>& ThinZoneSides);
 void DisplayThinZoneSides(const TArray<TArray<FEdgeSegment*>>& ThinZoneSides);
 void DisplayThinZoneSides2(const TArray<TArray<FEdgeSegment*>>& ThinZoneSides);
 void DisplayThinZoneSide2(const TArray<FEdgeSegment*>& Side, int32 Index, bool bSplitBySide = false, bool bSplitBySegment = false);
 void DisplayThinZoneSide(const TArray<FEdgeSegment*>& Side, int32 Index, EVisuProperty Color, bool bSplitBySegment = false);
+void DisplayThinZoneSideAndClose(const TArray<FEdgeSegment*>& Side, int32 Index, bool bSplitBySegment = false);
 void DisplayThinZoneSide(const FThinZoneSide& Side, int32 Index, EVisuProperty Color, bool bSplitBySegment = false);
 void DisplayThinZones(const TArray<FThinZone2D>& ThinZones);
 }

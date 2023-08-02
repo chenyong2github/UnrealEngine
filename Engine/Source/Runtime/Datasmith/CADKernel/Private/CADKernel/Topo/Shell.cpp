@@ -266,7 +266,7 @@ void FShell::CheckTopology(TArray<FFaceSubset>& Subshells)
 		}
 	};
 	
-	TFunction<void(FFaceSubset&)> SpreadFront = [&](FFaceSubset& Shell)
+	TFunction<void(FFaceSubset&)> PropagateFront = [&](FFaceSubset& Shell)
 	{
 		while (Front.Num())
 		{
@@ -292,7 +292,7 @@ void FShell::CheckTopology(TArray<FFaceSubset>& Subshells)
 		Front.Empty(TopologicalFaceCount);
 		Face->SetMarker1();
 		Front.Add(Face);
-		SpreadFront(Shell);
+		PropagateFront(Shell);
 		ProcessFaceCount += Shell.Faces.Num();
 
 		if (ProcessFaceCount == TopologicalFaceCount)
@@ -394,7 +394,7 @@ int32 FShell::Orient()
 		}
 	};
 
-	TFunction<void()> SpreadFront = [&]()
+	TFunction<void()> PropagateFront = [&]()
 	{
 		while (Front.Num())
 		{
@@ -537,7 +537,7 @@ int32 FShell::Orient()
 		Face.Entity->SetProcessedMarker();
 		Front.Add(Face.Entity.Get());
 
-		SpreadFront();
+		PropagateFront();
 
 		CheckAndFixSubshellMainOrientation();
 

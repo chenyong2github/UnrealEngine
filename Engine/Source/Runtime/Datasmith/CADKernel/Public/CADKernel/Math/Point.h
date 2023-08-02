@@ -467,8 +467,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 class CADKERNEL_API FPoint2D
 {
 public:
-	double U;
-	double V;
+	union
+	{
+		struct
+		{
+			double U;
+			double V;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		double UV[2];
+	};
+
 
 public:
 
@@ -537,9 +547,9 @@ public:
 		return FMath::Square(U) + FMath::Square(V);
 	}
 
-	FPoint2D& Normalize()
+	FPoint2D& Normalize(double& Norm)
 	{
-		double Norm = Length();
+		Norm = Length();
 		if (FMath::IsNearlyZero(Norm))
 		{
 			U = V = 0.0;
@@ -552,14 +562,24 @@ public:
 		return *this;
 	}
 
+	FPoint2D& Normalize()
+	{
+		double Norm = 0;
+		return Normalize(Norm);
+	}
+
 	constexpr double& operator[](int32 Index)
 	{
-		return *(&U + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return UV[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr double operator[](int32 Index) const
 	{
-		return *(&U + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return UV[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	bool operator==(const FPoint2D& Point) const

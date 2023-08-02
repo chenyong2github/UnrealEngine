@@ -58,7 +58,7 @@ public:
 
 	/**
 	 * Each face of model is set by its orientation. This allow to make oriented mesh and to keep the face orientation in topological function.
-	 * Marker2 of spread face is set. It must be reset after the process
+	 * Marker2 of propagate face is set. It must be reset after the process
 	 */
 	virtual void PropagateBodyOrientation() = 0;
 

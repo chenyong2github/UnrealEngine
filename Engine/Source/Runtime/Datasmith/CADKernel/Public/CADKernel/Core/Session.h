@@ -5,6 +5,7 @@
 #include "CADKernel/Core/Database.h"
 #include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Math/Geometry.h"
 
 class FArchive;
 
@@ -32,6 +33,7 @@ public:
 	FSession(double InGeometricTolerance)
 		: GeometricTolerance(InGeometricTolerance)
 	{
+		IntersectionTool::SetTolerance(InGeometricTolerance);
 	}
 
 	FModel& GetModel();
@@ -39,6 +41,7 @@ public:
 	void Serialize(FCADKernelArchive& Ar)
 	{
 		Ar << GeometricTolerance;
+		IntersectionTool::SetTolerance(GeometricTolerance);
 	}
 
 	FDatabase& GetDatabase()

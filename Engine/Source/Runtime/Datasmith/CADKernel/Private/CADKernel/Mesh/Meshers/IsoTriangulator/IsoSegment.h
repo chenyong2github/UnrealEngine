@@ -86,22 +86,16 @@ public:
 		}
 	}
 
-	void ConnectToNode()
+	bool ConnectToNode()
 	{
-		TFunction<bool()> CheckExistingSegment = [&]()
+		if (IsItAlreadyDefined(FirstNode, SecondNode))
 		{
-			if (IsItAlreadyDefined(FirstNode, SecondNode))
-			{
-				//Wait();
-				return false;
-			}
-			return true;
-		};
-
-		ensureCADKernel(CheckExistingSegment());
+			return false;
+		}
 
 		FirstNode->ConnectSegment(*this);
 		SecondNode->ConnectSegment(*this);
+		return true;
 	}
 
 	static bool	IsItAlreadyDefined(const FIsoNode* StartNode, const FIsoNode* EndNode)
