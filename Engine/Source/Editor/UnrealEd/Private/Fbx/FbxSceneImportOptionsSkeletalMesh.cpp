@@ -16,6 +16,7 @@ UFbxSceneImportOptionsSkeletalMesh::UFbxSceneImportOptionsSkeletalMesh(const FOb
 	, bCreatePhysicsAsset(false)
 	, bUseT0AsRefPose(false)
 	, bPreserveSmoothingGroups(false)
+	, bKeepSectionsSeparate(false)
 	, bImportMeshesInBoneHierarchy(true)
 	, bImportMorphTargets(false)
 	, bImportVertexAttributes(false)
@@ -48,6 +49,7 @@ void UFbxSceneImportOptionsSkeletalMesh::FillSkeletalMeshInmportData(UFbxSkeleta
 	SkeletalMeshImportData->ThresholdUV = ThresholdUV;
 	SkeletalMeshImportData->MorphThresholdPosition = MorphThresholdPosition;
 	SkeletalMeshImportData->bPreserveSmoothingGroups = bPreserveSmoothingGroups;
+	SkeletalMeshImportData->bKeepSectionsSeparate = bKeepSectionsSeparate;
 	SkeletalMeshImportData->bUpdateSkeletonReferencePose = bUpdateSkeletonReferencePose;
 	SkeletalMeshImportData->bUseT0AsRefPose = bUseT0AsRefPose;
 

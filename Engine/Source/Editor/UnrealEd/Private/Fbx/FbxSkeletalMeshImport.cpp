@@ -271,6 +271,16 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 	}
 }
 
+// Utility function for creating a unique material import name based on the node's initial name and its material/section index
+FString MakeNodeMaterialIndexName(FbxNode* Node, int32 MaterialIndex)
+{
+	FString NodeName = FFbxImporter::MakeName(Node->GetInitialName());
+	NodeName.Append("_");
+	NodeName.AppendInt(MaterialIndex);
+
+	return NodeName;
+}
+
 void FFbxImporter::SkinControlPointsToPose(FSkeletalMeshImportData& ImportData, FbxMesh* FbxMesh, FbxShape* FbxShape, bool bUseT0 )
 {
 	FbxTime poseTime = FBXSDK_TIME_INFINITE;
@@ -1371,13 +1381,29 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray
 		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
 			FbxSurfaceMaterial* FbxMaterial = Node->GetMaterial(MaterialIndex);
-			if (!FbxMaterials.Contains(FbxMaterial))
+
+			// Store unique FbxNode materials resulting in sections being combined.
+			if (!ImportOptions->bKeepSectionsSeparate)
 			{
+				if (!FbxMaterials.Contains(FbxMaterial))
+				{
+					FbxMaterials.Add(FbxMaterial);
+
+					SkeletalMeshImportData::FMaterial NewMaterial;
+
+					NewMaterial.MaterialImportName = MakeName(FbxMaterial->GetName());
+					// Add an entry for each unique material
+					SkelMeshImportDataPtr->Materials.Add(NewMaterial);
+				}
+			}
+			else
+			{
+				// Store each FbxNode material regardless of duplicates to avoid sections being combined.
 				FbxMaterials.Add(FbxMaterial);
 
 				SkeletalMeshImportData::FMaterial NewMaterial;
 
-				NewMaterial.MaterialImportName = MakeName(FbxMaterial->GetName());
+				NewMaterial.MaterialImportName = MakeNodeMaterialIndexName(Node, MaterialIndex);
 				// Add an entry for each unique material
 				SkelMeshImportDataPtr->Materials.Add(NewMaterial);
 			}
@@ -3205,6 +3231,8 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 		ImportTexturesFromNode(Node);
 	}
 
+	ImportData.bKeepSectionsSeparate = ImportOptions->bKeepSectionsSeparate;
+
 	// Maps local mesh material index to global material index
 	const int32 MaterialCount = Node->GetMaterialCount();
 	TArray<int32> MaterialMapping;
@@ -3215,15 +3243,49 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 		FbxSurfaceMaterial* FbxMaterial = Node->GetMaterial( MaterialIndex );
 
 		int32 ExistingMatIndex = INDEX_NONE;
-		FbxMaterials.Find( FbxMaterial, ExistingMatIndex ); 
-		if( ExistingMatIndex != INDEX_NONE )
+
+		// Default behavior finds the first material in FbxMaterials that matches the node's materials.
+		// This results in combining nodes/sections that use the same material.
+		if (!ImportOptions->bKeepSectionsSeparate)
+		{
+			FbxMaterials.Find(FbxMaterial, ExistingMatIndex);
+		}
+		else
+		{
+			// Otherwise find the material in FbxMaterials specific to that node's section/surface
+			for (int32 FbxMatIndex = 0; FbxMatIndex < FbxMaterials.Num(); FbxMatIndex++)
+			{
+				FString NodeMaterialIndexName = MakeNodeMaterialIndexName(Node, MaterialIndex);
+				bool MaterialImportNameMatches = ImportData.Materials[FbxMatIndex].MaterialImportName == NodeMaterialIndexName;
+				bool MaterialInitialNameMatches = FbxMaterials[FbxMatIndex]->GetInitialName() == FbxMaterial->GetInitialName();
+
+				if (MaterialImportNameMatches && MaterialInitialNameMatches)
+				{
+					ExistingMatIndex = FbxMatIndex;
+					break;
+				}
+			}
+		}
+
+		if (ExistingMatIndex != INDEX_NONE)
 		{
 			// Reuse existing material
 			MaterialMapping[MaterialIndex] = ExistingMatIndex;
 
-			if (Materials.IsValidIndex(MaterialIndex) )
+			if (!ImportOptions->bKeepSectionsSeparate)
 			{
-				ImportData.Materials[ExistingMatIndex].Material = Materials[MaterialIndex];
+				if (Materials.IsValidIndex(MaterialIndex))
+				{
+					ImportData.Materials[ExistingMatIndex].Material = Materials[MaterialIndex];
+				}
+			}
+			else
+			{
+				if (Materials.IsValidIndex(MaterialIndex) && ImportData.Materials.IsValidIndex(ExistingMatIndex))
+				{
+					ImportData.Materials[ExistingMatIndex].MaterialImportName = MakeNodeMaterialIndexName(Node, MaterialIndex);
+					ImportData.Materials[ExistingMatIndex].Material = Materials[MaterialIndex];
+				}
 			}
 		}
 		else

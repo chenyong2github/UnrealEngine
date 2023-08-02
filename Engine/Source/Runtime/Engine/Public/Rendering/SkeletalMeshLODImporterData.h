@@ -340,6 +340,7 @@ public:
 	bool bHasTangents; // If true there are tangents in the imported file
 	bool bUseT0AsRefPose; // If true, then the pose at time=0 will be used instead of the ref pose
 	bool bDiffPose; // If true, one of the bones has a different pose at time=0 vs the ref pose
+	bool bKeepSectionsSeparate; // If true, sections with matching materials are kept separate and will not get combined
 
 	// Morph targets imported(i.e. FBX) data. The name is the morph target name
 	TArray<FSkeletalMeshImportData> MorphTargets;
@@ -363,6 +364,7 @@ public:
 		, bHasTangents(false)
 		, bUseT0AsRefPose(false)
 		, bDiffPose(false)
+		, bKeepSectionsSeparate(false)
 	{
 
 	}

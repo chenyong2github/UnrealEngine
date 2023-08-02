@@ -239,6 +239,8 @@ bool GetFbxSceneReImportOptions(UnFbx::FFbxImporter* FbxImporter
 	GlobalImportSettings->bImportMaterials = true;
 	//TODO support T0AsRefPose
 	GlobalImportSettings->bUseT0AsRefPose = false;
+	//Make sure skeletal mesh sections with the same material are combined (and not kept separate)
+	GlobalImportSettings->bKeepSectionsSeparate = false;
 	//Make sure we do not mess with AutoComputeLodDistances when re-importing
 	GlobalImportSettings->bAutoComputeLodDistances = true;
 	GlobalImportSettings->LodNumber = 0;

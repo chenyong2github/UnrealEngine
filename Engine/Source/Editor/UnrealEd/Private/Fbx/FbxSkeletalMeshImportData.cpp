@@ -13,6 +13,7 @@ UFbxSkeletalMeshImportData::UFbxSkeletalMeshImportData(const FObjectInitializer&
 	bBakePivotInVertex = false;
 	VertexColorImportOption = EVertexColorImportOption::Replace;
 	LastImportContentType = EFBXImportContentType::FBXICT_All;
+	bKeepSectionsSeparate = false;
 }
 
 void UFbxSkeletalMeshImportData::Serialize(FArchive& Ar)

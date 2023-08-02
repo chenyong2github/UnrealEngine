@@ -184,6 +184,7 @@ struct FBXImportOptions
 	bool bImportRigidMesh;
 	bool bUseT0AsRefPose;
 	bool bPreserveSmoothingGroups;
+	bool bKeepSectionsSeparate;
 	FOverlappingThresholds OverlappingThresholds;
 	bool bImportMeshesInBoneHierarchy;
 	bool bCreatePhysicsAsset;

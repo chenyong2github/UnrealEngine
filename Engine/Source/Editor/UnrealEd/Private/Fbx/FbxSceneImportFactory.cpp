@@ -123,6 +123,8 @@ bool GetFbxSceneImportOptions(UnFbx::FFbxImporter* FbxImporter
 	GlobalImportSettings->bImportTextures = true;
 	//Make sure Material get imported
 	GlobalImportSettings->bImportMaterials = true;
+	//Make sure skeletal mesh sections with the same material are combined (and not kept separate)
+	GlobalImportSettings->bKeepSectionsSeparate = false;
 	//TODO support T0AsRefPose
 	GlobalImportSettings->bUseT0AsRefPose = false;
 

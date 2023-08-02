@@ -30,6 +30,7 @@ void FSkeletalMeshImportData::CopyDataNeedByMorphTargetImport(FSkeletalMeshImpor
 	Other.PointToRawMap = PointToRawMap;
 	Other.bDiffPose = bDiffPose;
 	Other.bUseT0AsRefPose = bUseT0AsRefPose;
+	Other.bKeepSectionsSeparate = bKeepSectionsSeparate;
 }
 
 void FSkeletalMeshImportData::KeepAlternateSkinningBuildDataOnly()
@@ -158,6 +159,7 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 	ImportData->bHasTangents = OriginalSkeletalMeshImportData.bHasTangents;
 	ImportData->bHasVertexColors = OriginalSkeletalMeshImportData.bHasVertexColors;
 	ImportData->NumTexCoords = OriginalSkeletalMeshImportData.NumTexCoords;
+	ImportData->bKeepSectionsSeparate = OriginalSkeletalMeshImportData.bKeepSectionsSeparate;
 
 	ImportData->Materials.Reset();
 	ImportData->Points.Reset();
@@ -215,6 +217,7 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshRigImportData(const USkeletalMe
 
 	ImportData->bDiffPose = OriginalSkeletalMeshImportData.bDiffPose;
 	ImportData->bUseT0AsRefPose = OriginalSkeletalMeshImportData.bUseT0AsRefPose;
+	ImportData->bKeepSectionsSeparate = OriginalSkeletalMeshImportData.bKeepSectionsSeparate;
 
 	ImportData->RefBonesBinary.Reset();
 	ImportData->RefBonesBinary += OriginalSkeletalMeshImportData.RefBonesBinary;
@@ -659,6 +662,7 @@ enum
 	RAW_SKELETAL_MESH_BULKDATA_VER_RebuildSystem = 2,
 	RAW_SKELETAL_MESH_BULKDATA_VER_CompressMorphTargetData = 3,
 	RAW_SKELETAL_MESH_BULKDATA_VER_VertexAttributes = 4,
+	RAW_SKELETAL_MESH_BULKDATA_VER_Keep_Sections_Separate = 5,
 	// Add new raw mesh versions here.
 
 	RAW_SKELETAL_MESH_BULKDATA_VER_PLUS_ONE,
@@ -758,6 +762,15 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 				ToCompressShapeImportData.Points = CompressPoints;
 			}
 		}
+	}
+
+	if (Version >= RAW_SKELETAL_MESH_BULKDATA_VER_Keep_Sections_Separate)
+	{
+		Ar << RawMesh.bKeepSectionsSeparate;
+	}
+	else if (Ar.IsLoading())
+	{
+		RawMesh.bKeepSectionsSeparate = false;
 	}
 
 	return Ar;

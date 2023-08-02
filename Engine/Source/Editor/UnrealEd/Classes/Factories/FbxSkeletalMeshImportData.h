@@ -76,6 +76,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Mesh, meta=(ImportType="SkeletalMesh|GeoOnly"))
 	uint32 bPreserveSmoothingGroups:1;
 
+	/** If checked, sections with matching materials are kept separate and will not get combined. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Mesh, meta=(ImportType="SkeletalMesh|GeoOnly"))
+	uint32 bKeepSectionsSeparate:1;
+
 	/** If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Mesh, meta=(ImportType="SkeletalMesh"))
 	uint32 bImportMeshesInBoneHierarchy:1;
