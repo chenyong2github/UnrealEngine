@@ -450,6 +450,11 @@ void USplineMeshComponent::SetStartRoll(float StartRoll, bool bUpdateMesh)
 	}
 }
 
+void USplineMeshComponent::SetStartRollDegrees(float StartRollDegrees, bool bUpdateMesh)
+{
+	SetStartRoll(FMath::DegreesToRadians(StartRollDegrees), bUpdateMesh);
+}
+
 FVector2D USplineMeshComponent::GetStartOffset() const
 {
 	return SplineParams.StartOffset;
@@ -498,6 +503,11 @@ void USplineMeshComponent::SetEndRoll(float EndRoll, bool bUpdateMesh)
 	{
 		UpdateRenderStateAndCollision();
 	}
+}
+
+void USplineMeshComponent::SetEndRollDegrees(float EndRollDegrees, bool bUpdateMesh)
+{
+	SetEndRoll(FMath::DegreesToRadians(EndRollDegrees), bUpdateMesh);
 }
 
 FVector2D USplineMeshComponent::GetEndOffset() const
