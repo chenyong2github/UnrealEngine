@@ -526,8 +526,7 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 				{
 					TArray<FString> PropertyNames;
 					PropertyTrackSettings.PropertyPath.ParseIntoArray(PropertyNames, TEXT("."));
-
-					ExcludePropertyTracksMap.Add(PropertyOwner, PropertyNames);
+					ExcludePropertyTracksMap.FindOrAdd(PropertyOwner).Append(PropertyNames);
 				}
 			}
 		}
