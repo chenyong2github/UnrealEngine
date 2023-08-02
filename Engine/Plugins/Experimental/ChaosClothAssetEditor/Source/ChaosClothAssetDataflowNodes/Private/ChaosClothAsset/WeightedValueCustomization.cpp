@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/WeightedValueCustomization.h"
+#include "ChaosClothAsset/WeightedValue.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -168,8 +169,9 @@ namespace UE::Chaos::ClothAsset
 						{
 							OverrideHandlePtr->GetValue(Text);
 						}
-						if (Text.IsEmpty())
+						if (Text == UE::Chaos::ClothAsset::FWeightMapTools::NotOverridden)
 						{
+							Text.Empty();  // GetValue seems to concatenate the text if the string isn't emptied first
 							if (const TSharedPtr<IPropertyHandle> HandlePtr = HandleWeakPtr.Pin())
 							{
 								HandlePtr->GetValue(Text);
@@ -192,7 +194,7 @@ namespace UE::Chaos::ClothAsset
 						{
 							OverrideHandlePtr->GetValue(Text);
 						}
-						return Text.IsEmpty();
+						return Text == UE::Chaos::ClothAsset::FWeightMapTools::NotOverridden;
 					})
 				.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
 		}

@@ -22,8 +22,6 @@ namespace UE::Chaos::ClothAsset
 		static void AddSimPatternsFromSkeletalMeshSection(const TSharedRef<FManagedArrayCollection>& ClothCollection, const FSkeletalMeshLODModel& SkeletalMeshModel, const int32 SectionIndex, const int32 UVChannelIndex, const FVector2f& UVScale);
 
 		static void LogAndToastWarning(const FDataflowNode& DataflowNode, const FText& Headline, const FText& Details);
-
-		static FString MakeAttributeName(const FString& String);
 	};
 }  // End namespace UE::Chaos::ClothAsset
 

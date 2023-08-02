@@ -45,6 +45,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Visualization, meta = (DisplayName = "Show Edges"))
 	bool bShowEdges = false;
 
+private:
+
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 };
 
 UCLASS()

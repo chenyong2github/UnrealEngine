@@ -5,6 +5,30 @@
 #include "Containers/UnrealString.h"
 #include "WeightedValue.generated.h"
 
+namespace UE::Chaos::ClothAsset
+{
+	struct FWeightMapTools
+	{
+		/**
+		 * String code used to disable the override field in the UI.
+		 * Uses a character that is removed from the names made by MakeWeightMapName to avoid conflicts.
+		 */
+		inline static const FString NotOverridden = TEXT("#");
+
+		/**
+		 * Modifies a string to make it suitable as an attribute name.
+		 * Replaces any deemed special characters and spaces by underscores, and remove leading and ending underscores from the name.
+		 * Note that leading underscores are reserved for non user/internal attribute names.
+		 */
+		static void MakeWeightMapName(FString& InOutString)
+		{
+			InOutString = SlugStringForValidName(InOutString, TEXT("_")).Replace(TEXT("\\"), TEXT("_"));
+			bool bCharsWereRemoved;
+			do { InOutString.TrimCharInline(TEXT('_'), &bCharsWereRemoved); } while (bCharsWereRemoved);
+		}
+	};
+}
+
 USTRUCT()
 struct FChaosClothAssetWeightedValue
 {
@@ -39,11 +63,11 @@ struct FChaosClothAssetWeightedValue
 
 	/** The name of the weight map for this property. */
 	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DataflowInput))
-	FString WeightMap = TEXT("WeightMap");
+	mutable FString WeightMap = TEXT("WeightMap");  // Mutable so that it can be name checked in the evaluate function
 
 	/** The weight map override value for when the WeightMap has a connection that replaces the provided weight map value. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Weighted Value")
-	mutable FString WeightMap_Override;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
+	mutable FString WeightMap_Override = UE::Chaos::ClothAsset::FWeightMapTools::NotOverridden;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
 };
 
 USTRUCT()
@@ -75,11 +99,11 @@ struct FChaosClothAssetWeightedValueNonAnimatable
 
 	/** The name of the weight map for this property. */
 	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DataflowInput))
-	FString WeightMap = TEXT("WeightMap");
+	mutable FString WeightMap = TEXT("WeightMap");  // Mutable so that it can be name checked in the evaluate function
 
 	/** The weight map override value for when the WeightMap has a connection that replaces the provided weight map value. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Weighted Value")
-	mutable FString WeightMap_Override;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
+	mutable FString WeightMap_Override = UE::Chaos::ClothAsset::FWeightMapTools::NotOverridden;  // _Override has a special meaning to the property customization, mutable because this property is set while getting the original value
 };
 
 

@@ -5,6 +5,7 @@
 #include "ChaosClothAsset/ClothPatternVertexType.h"
 #include "ChaosClothAsset/SelectionNode.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/WeightedValue.h"
 #include "InteractiveToolManager.h"
 #include "PreviewMesh.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
@@ -59,6 +60,16 @@ UInteractiveTool* UClothMeshSelectionToolBuilder::BuildTool(const FToolBuilderSt
 	}
 
 	return NewTool;
+}
+
+// ------------------- Properties -------------------
+
+void UClothMeshSelectionToolProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UClothMeshSelectionToolProperties, Name))
+	{
+		UE::Chaos::ClothAsset::FWeightMapTools::MakeWeightMapName(Name);
+	}
 }
 
 

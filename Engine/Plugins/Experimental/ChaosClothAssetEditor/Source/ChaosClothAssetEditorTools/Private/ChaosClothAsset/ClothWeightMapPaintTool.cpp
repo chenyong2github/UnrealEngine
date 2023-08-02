@@ -34,6 +34,7 @@
 #include "ChaosClothAsset/ClothEditorContextObject.h"
 #include "ChaosClothAsset/ClothPatternVertexType.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/WeightedValue.h"
 #include "ContextObjectStore.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowObject.h"
@@ -88,7 +89,7 @@ UMeshSurfacePointTool* UClothEditorWeightMapPaintToolBuilder::CreateNewTool(cons
 
 
 /*
- * Properties
+ * ToolActions
  */
 void UClothEditorMeshWeightMapPaintToolActions::PostAction(EClothEditorWeightMapPaintToolActions Action)
 {
@@ -99,7 +100,16 @@ void UClothEditorMeshWeightMapPaintToolActions::PostAction(EClothEditorWeightMap
 }
 
 
-
+/*
+ * Properties
+ */
+void UClothEditorUpdateWeightMapProperties::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UClothEditorUpdateWeightMapProperties, Name))
+	{
+		UE::Chaos::ClothAsset::FWeightMapTools::MakeWeightMapName(Name);
+	}
+}
 
 
 /*

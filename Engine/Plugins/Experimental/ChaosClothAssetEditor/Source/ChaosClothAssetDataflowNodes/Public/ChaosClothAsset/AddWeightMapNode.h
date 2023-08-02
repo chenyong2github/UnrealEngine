@@ -20,7 +20,7 @@ public:
 
 	/** The name to be set as a weight map attribute. */
 	UPROPERTY(EditAnywhere, Category = "Add Weight Map", Meta = (DataflowOutput))
-	FString Name;
+	mutable FString Name;  // Mutable so that it can be name checked in the evaluate function
 
 	UPROPERTY()
 	TArray<float> VertexWeights;
