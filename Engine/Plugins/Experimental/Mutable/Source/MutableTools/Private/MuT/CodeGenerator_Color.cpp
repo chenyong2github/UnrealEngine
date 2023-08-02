@@ -371,49 +371,49 @@ namespace mu
 		// X
 		if (Node* pX = node.m_pX.get())
 		{
-			op->SetChild(op->op.args.ColourFromScalars.x, Generate(pX));
+			op->SetChild(op->op.args.ColourFromScalars.v[0], Generate(pX));
 		}
 		else
 		{
 			NodeScalarConstantPtr pNode = new NodeScalarConstant();
 			pNode->SetValue(1.0f);
-			op->SetChild(op->op.args.ColourFromScalars.x, Generate(pNode));
+			op->SetChild(op->op.args.ColourFromScalars.v[0], Generate(pNode));
 		}
 
 		// Y
 		if (Node* pY = node.m_pY.get())
 		{
-			op->SetChild(op->op.args.ColourFromScalars.y, Generate(pY));
+			op->SetChild(op->op.args.ColourFromScalars.v[1], Generate(pY));
 		}
 		else
 		{
 			NodeScalarConstantPtr pNode = new NodeScalarConstant();
 			pNode->SetValue(1.0f);
-			op->SetChild(op->op.args.ColourFromScalars.y, Generate(pNode));
+			op->SetChild(op->op.args.ColourFromScalars.v[1], Generate(pNode));
 		}
 
 		// Z
 		if (Node* pZ = node.m_pZ.get())
 		{
-			op->SetChild(op->op.args.ColourFromScalars.z, Generate(pZ));
+			op->SetChild(op->op.args.ColourFromScalars.v[2], Generate(pZ));
 		}
 		else
 		{
 			NodeScalarConstantPtr pNode = new NodeScalarConstant();
 			pNode->SetValue(1.0f);
-			op->SetChild(op->op.args.ColourFromScalars.z, Generate(pNode));
+			op->SetChild(op->op.args.ColourFromScalars.v[2], Generate(pNode));
 		}
 
 		// W
 		if (Node* pW = node.m_pW.get())
 		{
-			op->SetChild(op->op.args.ColourFromScalars.w, Generate(pW));
+			op->SetChild(op->op.args.ColourFromScalars.v[3], Generate(pW));
 		}
 		else
 		{
 			NodeScalarConstantPtr pNode = new NodeScalarConstant();
 			pNode->SetValue(1.0f);
-			op->SetChild(op->op.args.ColourFromScalars.w, Generate(pNode));
+			op->SetChild(op->op.args.ColourFromScalars.v[3], Generate(pNode));
 		}
 
 		result.op = op;

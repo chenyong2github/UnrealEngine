@@ -32,6 +32,7 @@
 #include <memory>
 #include <utility>
 
+
 namespace mu
 {
 
@@ -250,6 +251,106 @@ namespace mu
 
             break;
         }
+
+		case OP_TYPE::CO_SWIZZLE:
+		{
+			// Optimizations that can be applied per-channel
+			{
+				Ptr<ASTOpFixed> NewAt;
+
+				for (int32 ChannelIndex = 0; ChannelIndex < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++ChannelIndex)
+				{
+					Ptr<ASTOp> Candidate = children[op.args.ColourSwizzle.sources[ChannelIndex]].child();
+					if (!Candidate)
+					{
+						continue;
+					}
+
+					switch (Candidate->GetOpType())
+					{
+
+						// Swizzle + swizzle = swizzle
+					case OP_TYPE::CO_SWIZZLE:
+					{
+						if (!NewAt)
+						{
+							NewAt = mu::Clone<ASTOpFixed>(this);
+						}
+						const ASTOpFixed* TypedCandidate = dynamic_cast<const ASTOpFixed*>(Candidate.get());
+						int32 CandidateChannel = op.args.ColourSwizzle.sourceChannels[ChannelIndex];
+
+						NewAt->SetChild(NewAt->op.args.ColourSwizzle.sources[ChannelIndex], TypedCandidate->children[TypedCandidate->op.args.ColourSwizzle.sources[CandidateChannel]]);
+						NewAt->op.args.ColourSwizzle.sourceChannels[ChannelIndex] = TypedCandidate->op.args.ColourSwizzle.sourceChannels[CandidateChannel];
+						break;
+					}
+
+					default:
+						break;
+
+					}
+				}
+
+				at = NewAt;
+			}
+
+			// Not optimized yet?
+			if (!at)
+			{
+				// Optimizations that depend on all channels.
+				bool bAllChannelsSameType = true;
+				OP_TYPE AllChannelsType = OP_TYPE::NONE;
+				for (int32 ChannelIndex = 0; ChannelIndex < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++ChannelIndex)
+				{
+					Ptr<ASTOp> Candidate = children[op.args.ColourSwizzle.sources[ChannelIndex]].child();
+					if (!Candidate)
+					{
+						continue;
+					}
+
+					if (ChannelIndex == 0)
+					{
+						AllChannelsType = Candidate->GetOpType();
+					}
+					else if (Candidate->GetOpType()!=AllChannelsType)
+					{
+						bAllChannelsSameType = false;
+						break;
+					}
+				}
+
+				if (bAllChannelsSameType)
+				{
+					switch (AllChannelsType)
+					{
+					case OP_TYPE::CO_FROMSCALARS:
+					{
+						// We can remove the swizzle and replace it with a new FromScalars actually swizzling the inputs.
+
+						Ptr<ASTOpFixed> NewAt = new ASTOpFixed();
+						NewAt->op.type = OP_TYPE::CO_FROMSCALARS;
+
+						for (int32 ChannelIndex = 0; ChannelIndex < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++ChannelIndex)
+						{
+							const ASTOpFixed* SelectedSource = dynamic_cast<const ASTOpFixed*>(children[op.args.ColourSwizzle.sources[ChannelIndex]].child().get());
+							if (SelectedSource)
+							{
+								int32 SelectedChannel = op.args.ColourSwizzle.sourceChannels[ChannelIndex];
+								Ptr<ASTOp> SelectedFloatInput = SelectedSource->children[SelectedSource->op.args.ColourFromScalars.v[SelectedChannel]].child();
+								NewAt->SetChild(NewAt->op.args.ColourFromScalars.v[ChannelIndex], SelectedFloatInput);
+							}
+						}
+
+						at = NewAt;
+						break;
+					}
+
+					default: break;
+					}
+				}
+			}
+			
+			break;
+		}
 
 		//-------------------------------------------------------------------------------------
 		case OP_TYPE::IM_RESIZEREL:
@@ -1640,4 +1741,3 @@ namespace mu
     }
 
 }
-

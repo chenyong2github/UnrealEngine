@@ -5464,37 +5464,25 @@ namespace mu
             {
             case 0:
                     AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.x, item),
-                           FScheduledOp( args.y, item),
-                           FScheduledOp( args.z, item),
-                           FScheduledOp( args.w, item));
+                           FScheduledOp( args.v[0], item),
+                           FScheduledOp( args.v[1], item),
+                           FScheduledOp( args.v[2], item),
+                           FScheduledOp( args.v[3], item));
                 break;
 
             case 1:
             {
-				FVector4f result = FVector4f(1, 1, 1, 1);
+				FVector4f Result = FVector4f(1, 1, 1, 1);
 
-                if (args.x)
-                {
-                    result[0] = LoadScalar( FCacheAddress(args.x,item) );
-                }
+				for (int32 t = 0; t < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++t)
+				{
+					if (args.v[t])
+					{
+						Result[t] = LoadScalar(FCacheAddress(args.v[t], item));
+					}
+				}
 
-                if (args.y)
-                {
-                    result[1] = LoadScalar( FCacheAddress(args.y,item) );
-                }
-
-                if (args.z)
-                {
-                    result[2] = LoadScalar( FCacheAddress(args.z,item) );
-                }
-
-                if (args.w)
-                {
-                    result[3] = LoadScalar( FCacheAddress(args.w,item) );
-                }
-
-                StoreColor( item, result );
+                StoreColor( item, Result );
                 break;
             }
 

@@ -222,7 +222,7 @@ namespace mu
             break;
 
         case OP_TYPE::CO_SWIZZLE:
-            for (int t=0;t<MUTABLE_OP_MAX_SWIZZLE_CHANNELS;++t)
+            for (int32 t=0;t<MUTABLE_OP_MAX_SWIZZLE_CHANNELS;++t)
             {
                 f(&op.args.ColourSwizzle.sources[t] );
             }
@@ -237,10 +237,10 @@ namespace mu
             break;
 
         case OP_TYPE::CO_FROMSCALARS:
-            f(&op.args.ColourFromScalars.x);
-            f(&op.args.ColourFromScalars.y);
-            f(&op.args.ColourFromScalars.z);
-            f(&op.args.ColourFromScalars.w);
+			for (int32 t = 0; t < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++t)
+			{
+				f(&op.args.ColourFromScalars.v[t]);
+			}
             break;
 
         case OP_TYPE::CO_ARITHMETIC:
@@ -558,10 +558,10 @@ namespace mu
         case OP_TYPE::CO_FROMSCALARS:
         {
 			OP::ColourFromScalarsArgs args = program.GetOpArgs<OP::ColourFromScalarsArgs>(at);
-            f(args.x);
-            f(args.y);
-            f(args.z);
-            f(args.w);
+			for (int32 t = 0; t < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++t)
+			{
+				f(args.v[t]);
+			}
             break;
         }
 

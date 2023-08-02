@@ -499,7 +499,7 @@ namespace mu
 
 		struct ColourFromScalarsArgs
 		{
-			ADDRESS x, y, z, w;
+			ADDRESS v[MUTABLE_OP_MAX_SWIZZLE_CHANNELS];
 		};
 
         struct ArithmeticArgs
