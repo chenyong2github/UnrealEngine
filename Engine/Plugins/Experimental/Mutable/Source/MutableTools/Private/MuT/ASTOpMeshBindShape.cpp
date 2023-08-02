@@ -24,7 +24,6 @@ namespace mu
 		: Mesh(this)
 		, Shape(this)
 		, bReshapeSkeleton(false)
-		, bEnableRigidParts(false)
 		, bReshapePhysicsVolumes(false)
 	{
 	}
@@ -43,7 +42,6 @@ namespace mu
 		{
 			const bool bSameFlags =
 				bReshapeSkeleton == Other->bReshapeSkeleton	&&
-				bEnableRigidParts == Other->bEnableRigidParts &&
 				bReshapePhysicsVolumes == Other->bReshapePhysicsVolumes &&
 				bReshapeVertices == Other->bReshapeVertices;
 
@@ -52,7 +50,11 @@ namespace mu
 				Shape == Other->Shape &&
 				BonesToDeform == Other->BonesToDeform &&
 				PhysicsToDeform == Other->PhysicsToDeform &&
-				BindingMethod == Other->BindingMethod;
+				BindingMethod == Other->BindingMethod &&
+				RChannelUsage == Other->RChannelUsage && 
+				GChannelUsage == Other->GChannelUsage && 
+				BChannelUsage == Other->BChannelUsage && 
+				AChannelUsage == Other->AChannelUsage;
 		}
 
 		return false;
@@ -64,10 +66,14 @@ namespace mu
 		uint64 res = std::hash<void*>()(Mesh.child().get());
 		hash_combine(res, Shape.child().get());
 		hash_combine(res, bool(bReshapeSkeleton));
-		hash_combine(res, bool(bEnableRigidParts));
 		hash_combine(res, bool(bReshapePhysicsVolumes));
 		hash_combine(res, bool(bReshapeVertices));
 		hash_combine(res, bool(BindingMethod));
+
+		hash_combine(res, static_cast<uint32>(RChannelUsage));
+		hash_combine(res, static_cast<uint32>(GChannelUsage));
+		hash_combine(res, static_cast<uint32>(BChannelUsage));
+		hash_combine(res, static_cast<uint32>(AChannelUsage));
 
 		for (const uint16 S : BonesToDeform)
 		{
@@ -89,12 +95,16 @@ namespace mu
 		NewOp->Mesh = mapChild(Mesh.child());
 		NewOp->Shape = mapChild(Shape.child());
 		NewOp->bReshapeSkeleton	= bReshapeSkeleton;
-		NewOp->bEnableRigidParts = bEnableRigidParts;
 		NewOp->bReshapePhysicsVolumes = bReshapePhysicsVolumes;
 		NewOp->bReshapeVertices = bReshapeVertices;
 		NewOp->BonesToDeform = BonesToDeform;
 		NewOp->PhysicsToDeform = PhysicsToDeform;
 		NewOp->BindingMethod = BindingMethod;
+
+		NewOp->RChannelUsage = RChannelUsage;
+		NewOp->GChannelUsage = GChannelUsage;
+		NewOp->BChannelUsage = BChannelUsage;
+		NewOp->AChannelUsage = AChannelUsage;
 
 		return NewOp;
 	}
@@ -118,9 +128,30 @@ namespace mu
 			constexpr EMeshBindShapeFlags NoFlags = EMeshBindShapeFlags::None;
 			EMeshBindShapeFlags BindFlags = NoFlags;
 			EnumAddFlags(BindFlags, bReshapeSkeleton ? EMeshBindShapeFlags::ReshapeSkeleton : NoFlags);
-			EnumAddFlags(BindFlags, bEnableRigidParts ? EMeshBindShapeFlags::EnableRigidParts : NoFlags);
 			EnumAddFlags(BindFlags, bReshapePhysicsVolumes ? EMeshBindShapeFlags::ReshapePhysicsVolumes : NoFlags);
 			EnumAddFlags(BindFlags, bReshapeVertices ? EMeshBindShapeFlags::ReshapeVertices : NoFlags);
+
+			{
+				auto ConvertColorUsage = [](EVertexColorUsage Usage)
+				{
+					switch (Usage)
+					{
+					case EVertexColorUsage::None:			   return EMeshBindColorChannelUsage::None;
+					case EVertexColorUsage::ReshapeClusterId:  return EMeshBindColorChannelUsage::ClusterId;
+					case EVertexColorUsage::ReshapeMaskWeight: return EMeshBindColorChannelUsage::MaskWeight;
+					default: check(false); return EMeshBindColorChannelUsage::None;
+					};
+				};
+	
+				const FMeshBindColorChannelUsages ColorUsages = {
+					ConvertColorUsage(RChannelUsage),
+					ConvertColorUsage(GChannelUsage),
+					ConvertColorUsage(BChannelUsage),
+					ConvertColorUsage(AChannelUsage) };
+
+				FMemory::Memcpy(&Args.ColorUsage, &ColorUsages, sizeof(Args.ColorUsage));
+				static_assert(sizeof(Args.ColorUsage) == sizeof(ColorUsages));
+			}
 
 			Args.flags = static_cast<uint32>(BindFlags);
 

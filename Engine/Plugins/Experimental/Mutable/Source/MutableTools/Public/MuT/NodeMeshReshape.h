@@ -5,7 +5,7 @@
 #include "MuR/Ptr.h"
 #include "MuT/Node.h"
 #include "MuT/NodeMesh.h"
-
+#include "MuR/Mesh.h"
 
 namespace mu
 {
@@ -58,8 +58,8 @@ namespace mu
 		/** Also deform the mesh skeleton. Disabled by default. */
 		void SetReshapeSkeleton(bool);
 		
-		/** Search for clusters of rigid parts and not deform them. */
-		void SetEnableRigidParts(bool);
+		/** Set vertex color channel usages for Reshape operations. */
+		void SetColorUsages(EVertexColorUsage R, EVertexColorUsage G, EVertexColorUsage B, EVertexColorUsage A);
 
 		/** Deform Mesh Physics Volumes */
 		void SetReshapePhysicsVolumes(bool);

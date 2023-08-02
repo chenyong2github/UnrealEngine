@@ -117,6 +117,13 @@ namespace mu
 		ClipDeformNormalProject = 3	
 	};
 
+	enum class EVertexColorUsage : uint32
+	{
+		None = 0,
+		ReshapeMaskWeight = 1,
+		ReshapeClusterId = 2
+	};
+
 	enum class EMeshCopyFlags : uint32
 	{
 		None = 0,
@@ -559,5 +566,6 @@ namespace mu
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EBoneUsageFlags)
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EMeshBufferType)
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EShapeBindingMethod)
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(EVertexColorUsage)
 }
 

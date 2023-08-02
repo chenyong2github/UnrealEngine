@@ -130,9 +130,12 @@ namespace mu
 	
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshReshape::SetEnableRigidParts(bool bEnable)
-	{
-		m_pD->m_enableRigidParts = bEnable;
+	void NodeMeshReshape::SetColorUsages(EVertexColorUsage R, EVertexColorUsage G, EVertexColorUsage B, EVertexColorUsage A)
+	{	
+		m_pD->ColorRChannelUsage = R;
+		m_pD->ColorGChannelUsage = G;
+		m_pD->ColorBChannelUsage = B;
+		m_pD->ColorAChannelUsage = A;
 	}	
 
 	//---------------------------------------------------------------------------------------------

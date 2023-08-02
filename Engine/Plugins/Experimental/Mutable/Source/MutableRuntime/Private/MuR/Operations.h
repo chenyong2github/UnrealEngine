@@ -368,6 +368,24 @@ namespace mu
 	};
 	ENUM_CLASS_FLAGS(EMeshBindShapeFlags);
 
+	enum class EMeshBindColorChannelUsage : uint8
+	{
+		None       = 0,
+		ClusterId  = 1,
+		MaskWeight = 2,
+	};
+
+	struct FMeshBindColorChannelUsages
+	{
+		EMeshBindColorChannelUsage R;
+		EMeshBindColorChannelUsage G;
+		EMeshBindColorChannelUsage B;
+		EMeshBindColorChannelUsage A;
+	};
+
+
+	static_assert(sizeof(FMeshBindColorChannelUsages) == sizeof(uint32));
+
     //---------------------------------------------------------------------------------------------
     //!
     //---------------------------------------------------------------------------------------------
@@ -953,6 +971,7 @@ namespace mu
 			ADDRESS shape;
 			uint32 flags;
 			uint32 bindingMethod;
+			uint32 ColorUsage;
 		};
 
 		struct MeshApplyShapeArgs

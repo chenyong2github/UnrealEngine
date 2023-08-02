@@ -26,16 +26,19 @@ namespace mu
 		Ptr<NodeMesh> m_pTargetShape;
 		bool m_reshapeVertices = true;
 		bool m_reshapeSkeleton = false;
-		bool m_enableRigidParts = false;
 		bool m_reshapePhysicsVolumes = false;
-	
+
+		EVertexColorUsage ColorRChannelUsage = EVertexColorUsage::None;
+		EVertexColorUsage ColorGChannelUsage = EVertexColorUsage::None;
+		EVertexColorUsage ColorBChannelUsage = EVertexColorUsage::None;
+		EVertexColorUsage ColorAChannelUsage = EVertexColorUsage::None;
 
 		TArray<uint16> BonesToDeform;
 		TArray<uint16> PhysicsToDeform;
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 9;
+            uint32_t ver = 10;
 			arch << ver;
 
 			arch << m_pBaseMesh;
@@ -43,10 +46,14 @@ namespace mu
 			arch << m_pTargetShape;
 			arch << m_reshapeVertices;
 			arch << m_reshapeSkeleton;
-			arch << m_enableRigidParts;
 			arch << BonesToDeform;
 			arch << m_reshapePhysicsVolumes;
 			arch << PhysicsToDeform;
+
+			arch << ColorRChannelUsage;
+			arch << ColorGChannelUsage;
+			arch << ColorBChannelUsage;
+			arch << ColorAChannelUsage;
         }
 
 		//!
@@ -54,7 +61,7 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver <= 9);
+			check(ver <= 10);
 
 			arch >> m_pBaseMesh;
 			arch >> m_pBaseShape;
@@ -66,7 +73,16 @@ namespace mu
 			}
 
 			arch >> m_reshapeSkeleton;
-			arch >> m_enableRigidParts;
+			if (ver <= 9)
+			{
+				bool bEnableRigidParts_DEPRECATED;
+				arch >> bEnableRigidParts_DEPRECATED;
+
+				if (bEnableRigidParts_DEPRECATED)
+				{
+					ColorRChannelUsage = ColorGChannelUsage = ColorBChannelUsage = ColorAChannelUsage = EVertexColorUsage::ReshapeClusterId;
+				}
+			}
 
 			if (ver <= 5)
 			{
@@ -117,6 +133,14 @@ namespace mu
 				{
 					PhysicsToDeform.Add(BoneIndex);
 				}
+			}
+
+			if (ver >= 10)
+			{
+				arch >> ColorRChannelUsage;
+				arch >> ColorGChannelUsage;
+				arch >> ColorBChannelUsage;
+				arch >> ColorAChannelUsage;
 			}
 		}
 

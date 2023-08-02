@@ -12,6 +12,33 @@ class UObject;
 struct FMeshReshapeBoneReference;
 enum class EBoneDeformSelectionMethod : uint8;
 
+
+UENUM()
+enum class EMeshReshapeVertexColorChannelUsage
+{
+	None = 0,
+	RigidClusterId = 1,
+	MaskWeight = 2
+};
+
+USTRUCT()
+struct FMeshReshapeColorUsage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	EMeshReshapeVertexColorChannelUsage R = EMeshReshapeVertexColorChannelUsage::None;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	EMeshReshapeVertexColorChannelUsage G = EMeshReshapeVertexColorChannelUsage::None;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	EMeshReshapeVertexColorChannelUsage B = EMeshReshapeVertexColorChannelUsage::None;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	EMeshReshapeVertexColorChannelUsage A = EMeshReshapeVertexColorChannelUsage::None;
+};
+
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshReshape : public UCustomizableObjectNode
 {
@@ -58,9 +85,11 @@ public:
     UPROPERTY(EditAnywhere, Category = CustomizableObject)
     bool bReshapePhysicsVolumes = false;
 	
-	/** Enable rigid parts base mesh. */
+	UPROPERTY()
+	bool bEnableRigidParts_DEPRECATED = false;
+
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	bool bEnableRigidParts = false;
+	FMeshReshapeColorUsage VertexColorUsage;
 
 	/** Bone Reshape Selection Method */
 	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta = (EditCondition = "bReshapeSkeleton"))

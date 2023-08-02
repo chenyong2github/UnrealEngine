@@ -2412,10 +2412,14 @@ namespace mu
 
 					const EMeshBindShapeFlags BindFlags = static_cast<EMeshBindShapeFlags>(Args.flags);
 
+					FMeshBindColorChannelUsages ColorChannelUsages;
+					FMemory::Memcpy(&ColorChannelUsages, &Args.ColorUsage, sizeof(ColorChannelUsages));
+					static_assert(sizeof(ColorChannelUsages) == sizeof(Args.ColorUsage));
+
 					Ptr<Mesh> BindMeshResult = CreateMesh();
 
 					bool bOutSuccess = false;
-					MeshBindShapeReshape(BindMeshResult.get(), BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, BindFlags, bOutSuccess);
+					MeshBindShapeReshape(BindMeshResult.get(), BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, BindFlags, ColorChannelUsages, bOutSuccess);
 				
 					Release(Shape);
 					// not success indicates nothing has bond so the base mesh can be reused.

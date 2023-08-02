@@ -30,10 +30,13 @@ struct FProgram;
 		uint32 BindingMethod = 0;
 		
 		uint32 bReshapeSkeleton	      : 1;
-		uint32 bEnableRigidParts      : 1;
 		uint32 bReshapePhysicsVolumes : 1;
 		uint32 bReshapeVertices       : 1;
 
+		EVertexColorUsage RChannelUsage = EVertexColorUsage::None;
+		EVertexColorUsage GChannelUsage = EVertexColorUsage::None;
+		EVertexColorUsage BChannelUsage = EVertexColorUsage::None;
+		EVertexColorUsage AChannelUsage = EVertexColorUsage::None;
 	public:
 
 		ASTOpMeshBindShape();

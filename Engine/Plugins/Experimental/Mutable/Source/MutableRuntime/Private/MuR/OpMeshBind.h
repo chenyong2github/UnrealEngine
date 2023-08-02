@@ -31,7 +31,6 @@
 
 namespace mu
 {
-
 	template<class PositionCompType, class NormalCompType>
 	struct FShapeMeshDescriptor
 	{
@@ -41,7 +40,7 @@ namespace mu
 	};
 
 	using FShapeMeshDescriptorBind = FShapeMeshDescriptor<double, float>;
-		
+
 	struct FShapeMeshAdapter
 	{
 		const FShapeMeshDescriptorBind& Mesh;
@@ -224,13 +223,40 @@ namespace mu
 		}
 	};
 
+	struct FMeshBindColorChannelUsageMasks
+	{
+		uint32 MaskWeight = 0;
+		uint32 ClusterId  = 0;
+	};
+
 	//---------------------------------------------------------------------------------------------
     //! Generate the mesh-shape binding data for Reshape operations
     //---------------------------------------------------------------------------------------------
 
+	inline float GetVertexMaskWeight(const UntypedMeshBufferIteratorConst& ColorIter, const FMeshBindColorChannelUsageMasks& ChannelUsages)
+	{
+		check(ColorIter.GetFormat() == MBF_UINT8 || ColorIter.GetFormat() == MBF_NUINT8);
+		check(ColorIter.GetComponents() == 4);
+		check(ColorIter.ptr());
+
+		const uint32 Value = *reinterpret_cast<const uint32*>(ColorIter.ptr());
+		return static_cast<float>((Value >> FMath::CountTrailingZeros(ChannelUsages.MaskWeight) & 0xFF)) / 255.0f;
+	}
+
+	inline uint32 GetVertexClusterId(const UntypedMeshBufferIteratorConst& ColorIter, const FMeshBindColorChannelUsageMasks& ChannelUsages)
+	{	
+		check(ColorIter.GetFormat() == MBF_UINT8 || ColorIter.GetFormat() == MBF_NUINT8);
+		check(ColorIter.GetComponents() == 4);
+		check(ColorIter.ptr());
+
+		const uint32 MaskedValue = *reinterpret_cast<const uint32*>(ColorIter.ptr()) & ChannelUsages.ClusterId;
+		// Set all unused bits to 1 so we have a consistent value, in that case white, for the non clustered vertices.
+		return MaskedValue | ~ChannelUsages.ClusterId;
+	}
+
 	inline void BindReshapePoint(
 			FShapeMeshTree& ShapeMeshTree,
-			const FVector3f& Point, FReshapeVertexBindingData& OutBindData, 
+			const FVector3f& Point, float MaskWeight, FReshapeVertexBindingData& OutBindData, 
 			const float ValidityTolerance = UE_KINDA_SMALL_NUMBER)
 	{
 
@@ -242,11 +268,16 @@ namespace mu
 		OutBindData.Triangle = -1;
 		OutBindData.ShapeNormal = FVector3f::Zero();
 		OutBindData.AttachmentPoint = Point;
-		float Weight = 1.0f;
+		float Weight = MaskWeight;
+
+		if (FMath::IsNearlyZero(MaskWeight))
+		{
+			return;
+		}
 
 		double DistSqr = 0.0;
 
-		int32 FoundIndex = ShapeMeshTree.FindNearestTriangle( FVector3d(Point), DistSqr );
+		int32 FoundIndex = ShapeMeshTree.FindNearestTriangle(FVector3d(Point), DistSqr);
 			
 		if (FoundIndex < 0)
 		{
@@ -305,133 +336,36 @@ namespace mu
 
 		// Arbitrary factor, a binding will be considered valid (with its corresponding weight) to ErrorFalloffFactor times the validity tolerance.
 		constexpr float ErrorFalloffFactor = 4.0f;
-		OutBindData.Weight = 1.0f - FMath::Clamp( (ErrorEstimate - ValidityTolerance) / (ValidityTolerance * ErrorFalloffFactor), 0.0f, 1.0f );
+		OutBindData.Weight = FMath::Min(
+			MaskWeight, 
+			1.0f - FMath::Clamp( (ErrorEstimate - ValidityTolerance) / (ValidityTolerance * ErrorFalloffFactor), 0.0f, 1.0f));
 		
 		OutBindData.Triangle = FMath::IsNearlyZero(OutBindData.Weight) ? -1 : OutBindData.Triangle;
-	}
-
-	inline void BindPointReference(
-			const TArray<UE::Geometry::FIndex3i>& ShapeTriangles, const TArray<FVector3f>& ShapePositions, const TArray<FVector3f>& ShapeNormals,
-			const FVector3f& Point, FReshapeVertexBindingData& BindData,
-			const float ValidityTolerance = UE_KINDA_SMALL_NUMBER)
-	{
-		BindData.S = 0.0f;
-		BindData.T = 0.0f;
-		BindData.D = 0.0f;
-		BindData.Triangle = -1;
-		BindData.ShapeNormal = FVector3f::Zero();
-		BindData.AttachmentPoint = Point;
-		float Weight = 1.0f;
-
-		// Find the best shape triangle for each base mesh vertex
-
-		// Select the triangle closest to the vertex.
-		// \TODO: review this strategy.
-		int32 TriangleIndex = -1;
-		float BestDistSquared = TNumericLimits<float>::Max();
-		for (int ShapeTriangleIndex = 0; ShapeTriangleIndex < ShapeTriangles.Num(); ++ShapeTriangleIndex)
-		{
-			UE::Geometry::FIndex3i Triangle = ShapeTriangles[ShapeTriangleIndex];
-			FVector3f TriangleA = ShapePositions[Triangle.A];
-			FVector3f TriangleB = ShapePositions[Triangle.B];
-			FVector3f TriangleC = ShapePositions[Triangle.C];
-			FVector3f ClosestPoint = (FVector3f)FMath::ClosestPointOnTriangleToPoint((FVector)Point, (FVector)TriangleA, (FVector)TriangleB, (FVector)TriangleC);
-			float DistSquared = (ClosestPoint - Point).SquaredLength();
-			if (DistSquared < BestDistSquared)
-			{
-				TriangleIndex = ShapeTriangleIndex;
-				BestDistSquared = DistSquared;
-			}
-		}
-
-		if (TriangleIndex < 0)
-		{
-			//check(false);
-			return;
-		}
-
-		// Calculate the binding data of the base mesh vertex to its bound shape triangle
-		UE::Geometry::FIndex3i Triangle = ShapeTriangles[TriangleIndex];
-
-		// Project on the triangle, but using the vertex normals.
-		// See figure 3 in https://www.sciencedirect.com/science/article/pii/S1319157820303931
-		FVector3f TriangleA = ShapePositions[Triangle.A];
-		FVector3f TriangleB = ShapePositions[Triangle.B];
-		FVector3f TriangleC = ShapePositions[Triangle.C];
-
-		FPlane4f TrianglePlane(TriangleA, TriangleB, TriangleC);
-		FPlane4f VertexPlane(Point, TrianglePlane.GetNormal());
-	
-		// T1 = Triangle projected on the vertex plane along the triangle vertex normals
-		FVector3f TriangleA_VertexPlane = FMath::RayPlaneIntersection(TriangleA, ShapeNormals[Triangle.A], VertexPlane);
-		FVector3f TriangleB_VertexPlane = FMath::RayPlaneIntersection(TriangleB, ShapeNormals[Triangle.B], VertexPlane);
-		FVector3f TriangleC_VertexPlane = FMath::RayPlaneIntersection(TriangleC, ShapeNormals[Triangle.C], VertexPlane);
-	
-		// Barycentric coordinates of the vertex on in T1
-		FVector3f Barycentric = (FVector3f)FMath::ComputeBaryCentric2D((FVector)Point, (FVector)TriangleA_VertexPlane, (FVector)TriangleB_VertexPlane, (FVector)TriangleC_VertexPlane);
-
-		FVector3f ProjectedPoint = TriangleA * Barycentric.X + TriangleB * Barycentric.Y + TriangleC * Barycentric.Z;
-
-		FVector3f InterpolatedVertexNormal = ShapeNormals[Triangle.A] * Barycentric.X + ShapeNormals[Triangle.B] * Barycentric.Y + ShapeNormals[Triangle.C] * Barycentric.Z;
-		FVector3f ProjectedToVertex = (Point - ProjectedPoint);
-
-		// If the interpolated normal is not normalized the dot product gives the distance to the point times the length of the normal.
-		// We don't want that since when deforming a point, using the interpolated normal, we'd multiply by the length twice. See GetDeform().
-		// One option would be to normalize here (computing the distance) and when deforming the mesh.
-		// We can also compensate the signed distance so that the same interpolated normal (not normalized) gives us the correct point
-		// ( InterpolatedVertexNormal * d = ProjectedToVertex). That way modifications in the interpolated bound normal will affect the
-		// resulting point. We are doing the later.
-		const float InterpolatedNormalSizeSquared = InterpolatedVertexNormal.SizeSquared();
-		const float InvInterpolatedNormalSizeSquared = InterpolatedNormalSizeSquared > SMALL_NUMBER ? 1.0f / InterpolatedNormalSizeSquared : 0.0f;	
-		float d = FVector3f::DotProduct(ProjectedToVertex, InterpolatedVertexNormal) * InvInterpolatedNormalSizeSquared;
-	
-		BindData.S = Barycentric.Y;
-		BindData.T = Barycentric.Z;
-		BindData.D = d;
-		
-		BindData.Triangle = TriangleIndex;
-		
-		BindData.ShapeNormal = ((TriangleB - TriangleA) ^ (TriangleC - TriangleA)).GetSafeNormal();
-		
-		const FVector3f ReprojectedPoint = ProjectedPoint + InterpolatedVertexNormal * d;
-		
-		const FVector3f ReprojectedVector = ReprojectedPoint - Point;
-		const float ErrorEstimate = (ReprojectedPoint - Point).GetAbsMax();
-		
-		// If within the tolerance, 1.0, otherwise linear falloff based on the tolerance
-
-		// Arbitrary factor, a binding will be considered valid (with its corresponding weight) to ErrorFalloffFactor times the validity tolerance.
-		constexpr float ErrorFalloffFactor = 4.0f;
-		BindData.Weight = 1.0f - FMath::Clamp( (ErrorEstimate - ValidityTolerance) / (ValidityTolerance * ErrorFalloffFactor), 0.0f, 1.0f );
-		
-		BindData.Triangle = FMath::IsNearlyZero(BindData.Weight) ? -1 : BindData.Triangle;
 	}
 	
     //---------------------------------------------------------------------------------------------
     //! Find mesh clusters.
-	//! Colour {1,1,1} is reserved for the non rigid cluster
+	//! Colour {1,1,1,1} is reserved for the non rigid cluster
     //---------------------------------------------------------------------------------------------
 	
-	inline void FindRigidClusters( const Mesh* Mesh, TArray<TArray<int32>>& OutClusters, int32& OutNonRigidClusterIdx)
+	inline void FindRigidClusters(const Mesh* Mesh, const FMeshBindColorChannelUsageMasks& ColorUsageMasks, TArray<TArray<int32>>& OutClusters, int32& OutNonRigidClusterIdx)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(MeshFindRigidClusters);
 		
-		const FVector3f NonRigidColour = FVector3f(1.0f, 1.0f, 1.0f);
+		constexpr uint32 NonRigidId = ~0;
 
 		OutNonRigidClusterIdx = -1;
 		
-		const UntypedMeshBufferIteratorConst ItColoursBase(Mesh->GetVertexBuffers(), MBS_COLOUR);
-		if (ItColoursBase.ptr())
+		const UntypedMeshBufferIteratorConst ItColorBase(Mesh->GetVertexBuffers(), MBS_COLOUR);
+		if (ItColorBase.ptr())
 		{
 			const int32 VertexCount = Mesh->GetVertexCount();
 
-			// Check if all colors are the same. (maybe should only search for white as it indicates no rigidity)
 			{
 				int32 VertexIndex = 0;
 				for (; VertexIndex < VertexCount; ++VertexIndex)
 				{
-					 // Colours are treated as ids, no need to use tolerance with the comparison.
-					 if (NonRigidColour != (ItColoursBase + VertexIndex).GetAsVec3f())
+					 if (NonRigidId != GetVertexClusterId(ItColorBase + VertexIndex, ColorUsageMasks))
 					 {
 						  break;
 					 }
@@ -446,13 +380,12 @@ namespace mu
 			
 			OutClusters.Empty(16);
 			TArray<TArray<int32>>& ClusterData = OutClusters;
-			// Consider using NUINT8 colors for id and pack them in a uint32 as key.
-			TMap<FVector3f, int32> ClusterSet;
+			TMap<uint32, int32> ClusterSet;
 
 			for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 			{
-				FVector3f Colour = (ItColoursBase + VertexIndex).GetAsVec3f();
-				int32& ClusterIdx = ClusterSet.FindOrAdd( Colour, INDEX_NONE );
+				const uint32 ClusterId = GetVertexClusterId(ItColorBase + VertexIndex, ColorUsageMasks);
+				int32& ClusterIdx = ClusterSet.FindOrAdd(ClusterId, INDEX_NONE);
 				TArray<int32>& Cluster = ClusterIdx < 0 ? ClusterData.Emplace_GetRef() : ClusterData[ClusterIdx];
 				if (ClusterIdx < 0)
 				{
@@ -460,12 +393,12 @@ namespace mu
 					Cluster.Reserve(32);
 				}
 
-				Cluster.Push(VertexIndex);	
+				Cluster.Add(VertexIndex);	
 			}
 
-			// Colour {1, 1, 1} is reserved for the nonrigid cluster. The choice if this value is not arbitrary,
+			// Cluster id 0xFFFFFFFF is reserved for the nonrigid cluster. The choice if this value is not arbitrary,
 			// meshes without colour will get white as default.
-			const int32* NonRigidClusterIdxFound = ClusterSet.Find( NonRigidColour );
+			const int32* NonRigidClusterIdxFound = ClusterSet.Find(NonRigidId);
 
 			// If not found, add an empty cluster for the non rigid id.
 			OutNonRigidClusterIdx = NonRigidClusterIdxFound ? *NonRigidClusterIdxFound : ClusterData.Emplace();
@@ -474,19 +407,22 @@ namespace mu
 	
 	inline void FindBindingForCluster( 
 			const Mesh* BaseMesh, FShapeMeshTree& ShapeMeshTree,
-			const TArray<int32>& Cluster, FReshapeVertexBindingData& OutBindingData, float BindTolerance )
+			const TArray<int32>& Cluster, FReshapeVertexBindingData& OutBindingData, float BindTolerance)
 	{
 		const UntypedMeshBufferIteratorConst ItPositionBase(BaseMesh->GetVertexBuffers(), MBS_POSITION);
 
 		FBox3f ClusterBoundingBox(ForceInit);
-		for ( const int32& V : Cluster)
+		for (const int32& V : Cluster)
 		{
 			ClusterBoundingBox += (ItPositionBase + V).GetAsVec3f();
 		}
 
 		FVector3f BoundPoint = ClusterBoundingBox.GetCenter();
-		
-		BindReshapePoint(ShapeMeshTree, BoundPoint, OutBindingData, BindTolerance);
+
+		// Mask weight is set on a vertex by vertex basis, ignore weight for the shared data.
+		// This will be filled in afterwards.
+		constexpr float MaskWeight = 1.0f;
+		BindReshapePoint(ShapeMeshTree, BoundPoint, MaskWeight, OutBindingData, BindTolerance);
 	}
 
 	inline TTuple<TArray<FReshapePointBindingData>, TArray<int32>, TArray<int32>> BindPhysicsBodies( 
@@ -742,7 +678,8 @@ namespace mu
 
 		for (int32 PointIndex = 0; PointIndex < TotalNumPoints; ++PointIndex)
 		{
-			BindReshapePoint(ShapeMeshTree, Points[PointIndex], VertexBindData, 0.1f);
+			constexpr float MaskWeight = 1.0f;
+			BindReshapePoint(ShapeMeshTree, Points[PointIndex], MaskWeight, VertexBindData, 0.1f);
 			PhysicsBodyBindData[PointIndex] = FReshapePointBindingData
 				{ VertexBindData.S, VertexBindData.T, VertexBindData.D, VertexBindData.Triangle, VertexBindData.Weight };
 		}
@@ -751,7 +688,7 @@ namespace mu
 	}
 
 	inline TArray<FReshapeVertexBindingData> BindVerticesReshape(
-			const Mesh* BaseMesh, FShapeMeshTree& ShapeMeshTree, bool bEnableRigidParts )	
+			const Mesh* BaseMesh, FShapeMeshTree& ShapeMeshTree, const FMeshBindColorChannelUsageMasks& ColorUsageMasks)	
 	{
 	
 		UE::Geometry::FAxisAlignedBox3d ShapeAABBox = ShapeMeshTree.GetBoundingBox();
@@ -763,9 +700,9 @@ namespace mu
 		TArray<TArray<int32>> VertexClusters;
 		int32 NonRigidClusterIdx = -1;
 
-		if (bEnableRigidParts)
+		if (ColorUsageMasks.ClusterId != 0)
 		{
-			FindRigidClusters( BaseMesh, VertexClusters, NonRigidClusterIdx );
+			FindRigidClusters(BaseMesh, ColorUsageMasks, VertexClusters, NonRigidClusterIdx);
 		}
 		
 		// Find nearest shape triangle for each base mesh vertex		
@@ -774,9 +711,14 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Project);
 
-			BindData.SetNum( MeshVertexCount );
+			BindData.SetNum(MeshVertexCount);
 
-			UntypedMeshBufferIteratorConst ItPositionBase(BaseMesh->GetVertexBuffers(), MBS_POSITION);
+			const UntypedMeshBufferIteratorConst ItPositionBase(BaseMesh->GetVertexBuffers(), MBS_POSITION);
+
+			// Disable vertex color reads if the color is not used for mask weights.
+			const UntypedMeshBufferIteratorConst ItColorBase = ColorUsageMasks.MaskWeight == 0 
+				? UntypedMeshBufferIteratorConst()
+				: UntypedMeshBufferIteratorConst(BaseMesh->GetVertexBuffers(), MBS_COLOUR);
 
 			// Special case for non rigid parts
 
@@ -787,8 +729,10 @@ namespace mu
 				const int32 VertexCount = BaseMesh->GetVertexCount();
 				for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 				{
-					FVector3f VertexPosition = (ItPositionBase + VertexIndex).GetAsVec3f();
-					BindReshapePoint(ShapeMeshTree, VertexPosition, BindData[VertexIndex], BindValidityTolerance);
+					const FVector3f VertexPosition = (ItPositionBase + VertexIndex).GetAsVec3f();
+					const float MaskWeight = ItColorBase.ptr() ? GetVertexMaskWeight(ItColorBase + VertexIndex, ColorUsageMasks) : 1.0f;
+
+					BindReshapePoint(ShapeMeshTree, VertexPosition, MaskWeight, BindData[VertexIndex], BindValidityTolerance);
 				}
 			}
 			else
@@ -799,8 +743,10 @@ namespace mu
 				for (int32 I = 0; I < NonRigidVertexCount; ++I)
 				{
 					const int32 VertexIndex = NonRigidCluster[I];
-					FVector3f VertexPosition = (ItPositionBase + VertexIndex).GetAsVec3f();
-					BindReshapePoint(ShapeMeshTree, VertexPosition, BindData[VertexIndex], BindValidityTolerance);
+					const FVector3f VertexPosition = (ItPositionBase + VertexIndex).GetAsVec3f();
+					const float MaskWeight = ItColorBase.ptr() ? GetVertexMaskWeight(ItColorBase + VertexIndex, ColorUsageMasks) : 1.0f;
+					
+					BindReshapePoint(ShapeMeshTree, VertexPosition, MaskWeight, BindData[VertexIndex], BindValidityTolerance);
 				}
 
 				// Remove data form the non rigid cluster so it ios not processed in the rigid parts binding step.
@@ -810,14 +756,21 @@ namespace mu
 				{
 					FReshapeVertexBindingData ClusterBinding;
 
-					// Copy cluster binding to every vertex of the cluster.
 					const int32 ClusterVertexCount = RigidCluster.Num();
 					if (ClusterVertexCount)
 					{
-						FindBindingForCluster(BaseMesh, ShapeMeshTree, RigidCluster, ClusterBinding, BindValidityTolerance );
+						FindBindingForCluster(BaseMesh, ShapeMeshTree, RigidCluster, ClusterBinding, BindValidityTolerance);
+						// Copy cluster binding to every vertex of the cluster modifing weight if the vertex color is used.
 						for (int32 I = 0; I < ClusterVertexCount; ++I)
 						{
 							const int32 VertexIndex = RigidCluster[I];
+
+							const float MaskWeight = ItColorBase.ptr() ? GetVertexMaskWeight(ItColorBase + VertexIndex, ColorUsageMasks) : 1.0f;
+
+							ClusterBinding.Weight = FMath::Min(ClusterBinding.Weight, MaskWeight);
+							// Invalidate binding for very small weights.
+							ClusterBinding.Triangle = FMath::IsNearlyZero(ClusterBinding.Weight) ? -1 : ClusterBinding.Triangle;
+
 							BindData[VertexIndex] = ClusterBinding;
 						}
 					}
@@ -861,8 +814,8 @@ namespace mu
 			}
 
 			FReshapeVertexBindingData BindData;
-
-			BindReshapePoint(ShapeMeshTree, Mesh->BonePoses[BoneIndex].BoneTransform.GetLocation(), BindData, BindValidityTolerance);
+			constexpr float MaskWeight = 1.0f;
+			BindReshapePoint(ShapeMeshTree, Mesh->BonePoses[BoneIndex].BoneTransform.GetLocation(), MaskWeight, BindData, BindValidityTolerance);
 
 			// Only add binding  if there is a chance of the bone moving.
 			if (BindData.Weight > UE_SMALL_NUMBER && BindData.Triangle >= 0)
@@ -877,6 +830,33 @@ namespace mu
 	}
 
 
+	inline FMeshBindColorChannelUsageMasks MakeColorChannelUsageMasks(FMeshBindColorChannelUsages Usages)
+	{
+		FMeshBindColorChannelUsageMasks Masks;
+	
+		// We assume the color will have the FColor layout
+		Masks.MaskWeight =
+			(Usages.B == EMeshBindColorChannelUsage::MaskWeight ? 0x000000FF : 0) |
+			(Usages.G == EMeshBindColorChannelUsage::MaskWeight ? 0x0000FF00 : 0) |
+			(Usages.R == EMeshBindColorChannelUsage::MaskWeight ? 0x00FF0000 : 0) |
+			(Usages.A == EMeshBindColorChannelUsage::MaskWeight ? 0xFF000000 : 0);
+
+		Masks.ClusterId =
+			(Usages.B == EMeshBindColorChannelUsage::ClusterId ? 0x000000FF : 0) |
+			(Usages.G == EMeshBindColorChannelUsage::ClusterId ? 0x0000FF00 : 0) |
+			(Usages.R == EMeshBindColorChannelUsage::ClusterId ? 0x00FF0000 : 0) |
+			(Usages.A == EMeshBindColorChannelUsage::ClusterId ? 0xFF000000 : 0);
+
+		// Maximum one weight channel.
+		check(Masks.MaskWeight == 0 ||
+			FMath::CountLeadingZeros(Masks.MaskWeight) + FMath::CountTrailingZeros(Masks.MaskWeight) == 32 - 8);
+		
+		// No overlaped channels.
+		check((Masks.ClusterId & Masks.MaskWeight) == 0);
+
+		return Masks;
+	}
+
 	//---------------------------------------------------------------------------------------------
     //! Generate the mesh-shape binding data
     //---------------------------------------------------------------------------------------------
@@ -884,7 +864,7 @@ namespace mu
 			Mesh* Result,
 			const Mesh* BaseMesh, const Mesh* ShapeMesh, 
 			const TArray<uint16>& BonesToDeform, const TArray<uint16>& PhysicsToDeform, 
-			EMeshBindShapeFlags BindFlags,
+			EMeshBindShapeFlags BindFlags, FMeshBindColorChannelUsages ColorChannelUsages,
 			bool& bOutSuccess)
     {
 		MUTABLE_CPUPROFILER_SCOPE(MeshBindShape);
@@ -898,8 +878,9 @@ namespace mu
 
 		const bool bReshapeVertices = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices);
 		const bool bReshapeSkeleton = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeSkeleton);
-		const bool bReshapePhysics = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapePhysicsVolumes);
-		const bool bEnableRigidParts = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::EnableRigidParts);
+		const bool bReshapePhysics  = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapePhysicsVolumes);
+
+		const FMeshBindColorChannelUsageMasks ColorUsagesMasks = MakeColorChannelUsageMasks(ColorChannelUsages);
 
 		// Early out if nothing will be modified and the vertices discarted. return null in this
 		// case indicating nothing has modified so the Base Mesh can be reused.
@@ -998,7 +979,7 @@ namespace mu
 		int32 BindingDataIndex = 0;
 		if (bReshapeVertices)
 		{
-			TArray<FReshapeVertexBindingData> VerticesBindData = BindVerticesReshape(BaseMesh, ShapeMeshTree, bEnableRigidParts);
+			TArray<FReshapeVertexBindingData> VerticesBindData = BindVerticesReshape(BaseMesh, ShapeMeshTree, ColorUsagesMasks);
 			
 			// Add the binding information to the mesh
 			// \TODO: Check that there is no other binding data.

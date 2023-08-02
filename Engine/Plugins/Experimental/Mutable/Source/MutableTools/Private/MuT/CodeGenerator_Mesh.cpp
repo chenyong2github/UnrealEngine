@@ -1791,13 +1791,17 @@ class Node;
 		Ptr<ASTOpMeshBindShape> OpBind = new ASTOpMeshBindShape();
 		Ptr<ASTOpMeshApplyShape> OpApply = new ASTOpMeshApplyShape();
 
-		OpBind->bReshapeSkeleton = node.m_reshapeSkeleton;
-    	OpBind->bEnableRigidParts = node.m_enableRigidParts;
+		OpBind->bReshapeSkeleton = node.m_reshapeSkeleton;	
 		OpBind->BonesToDeform = node.BonesToDeform;
     	OpBind->bReshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
 		OpBind->PhysicsToDeform = node.PhysicsToDeform;
 		OpBind->bReshapeVertices = node.m_reshapeVertices;
 		OpBind->BindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
+
+		OpBind->RChannelUsage = node.ColorRChannelUsage;
+		OpBind->GChannelUsage = node.ColorGChannelUsage;
+		OpBind->BChannelUsage = node.ColorBChannelUsage;
+		OpBind->AChannelUsage = node.ColorAChannelUsage;
 
 		OpApply->bReshapeVertices = OpBind->bReshapeVertices;
 		OpApply->bReshapeSkeleton = OpBind->bReshapeSkeleton;

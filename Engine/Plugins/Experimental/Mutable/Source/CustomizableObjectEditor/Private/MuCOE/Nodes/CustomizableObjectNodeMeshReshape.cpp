@@ -73,6 +73,17 @@ void UCustomizableObjectNodeMeshReshape::Serialize(FArchive& Ar)
 			BonesToDeform.Empty();
 		}
 	}
+
+	if (Ar.CustomVer(FCustomizableObjectCustomVersion::GUID) < FCustomizableObjectCustomVersion::MeshReshapeVertexColorUsageSelection)
+	{
+		if (bEnableRigidParts_DEPRECATED)
+		{
+			VertexColorUsage.R = EMeshReshapeVertexColorChannelUsage::RigidClusterId;
+			VertexColorUsage.G = EMeshReshapeVertexColorChannelUsage::RigidClusterId;
+			VertexColorUsage.B = EMeshReshapeVertexColorChannelUsage::RigidClusterId;
+			VertexColorUsage.A = EMeshReshapeVertexColorChannelUsage::RigidClusterId;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

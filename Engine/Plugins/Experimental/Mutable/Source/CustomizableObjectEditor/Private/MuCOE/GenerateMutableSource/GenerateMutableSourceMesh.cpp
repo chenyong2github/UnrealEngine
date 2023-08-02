@@ -828,8 +828,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 	// Vertices
 	TArray<FSoftSkinVertex> Vertices;
 	ImportedModel->LODModels[LODIndex].GetVertices(Vertices);
-	int VertexStart = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].GetVertexBufferIndex();
-	int VertexCount = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].GetNumVertices();
+	int32 VertexStart = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].GetVertexBufferIndex();
+	int32 VertexCount = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].GetNumVertices();
 
 	MutableMesh->GetVertexBuffers().SetElementCount(VertexCount);
 
@@ -1772,7 +1772,6 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(const USkeletalMesh* InSkeletalMesh, co
 
 	return MutableMesh;
 }
-
 
 mu::MeshPtr ConvertStaticMeshToMutable(const UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex, FMutableGraphGenerationContext& GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
@@ -3369,7 +3368,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin* Pin,
 		}
 		else
 		{
-			GenerationContext.Compiler->CompilerLog(LOCTEXT("MeshGeometryMissingDef", "Mesh variation node requires a default value."), Node);
+			GenerationContext.Compiler->CompilerLog(LOCTEXT("MeshReshapeMissingDef", "Mesh reshape node requires a default value."), Node);
 		}
 	
 		{
@@ -3377,7 +3376,58 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin* Pin,
 			MeshNode->SetReshapeVertices(TypedNodeReshape->bReshapeVertices);
 			MeshNode->SetReshapeSkeleton(TypedNodeReshape->bReshapeSkeleton);
 			MeshNode->SetReshapePhysicsVolumes(TypedNodeReshape->bReshapePhysicsVolumes);
-			MeshNode->SetEnableRigidParts(TypedNodeReshape->bEnableRigidParts);
+
+			EMeshReshapeVertexColorChannelUsage ChannelUsages[4] =
+			{
+				TypedNodeReshape->VertexColorUsage.R,
+				TypedNodeReshape->VertexColorUsage.G,
+				TypedNodeReshape->VertexColorUsage.B,
+				TypedNodeReshape->VertexColorUsage.A
+			};
+
+			{
+				int32 MaskWeightChannelNum = 0;
+				for (int32 I = 0; I < 4; ++I)
+				{
+					if (ChannelUsages[I] == EMeshReshapeVertexColorChannelUsage::MaskWeight)
+					{
+						++MaskWeightChannelNum;
+					}
+				}
+
+				if (MaskWeightChannelNum > 1)
+				{
+					for (int32 I = 0; I < 4; ++I)
+					{
+						if (ChannelUsages[I] == EMeshReshapeVertexColorChannelUsage::MaskWeight)
+						{
+							ChannelUsages[I] = EMeshReshapeVertexColorChannelUsage::None;
+						}
+					}
+
+					GenerationContext.Compiler->CompilerLog(
+						LOCTEXT("MeshReshapeColorUsageMask", 
+								"Only one color channel with mask weight usage is allowed, multiple found. Reshape masking disabled."),
+						Node);
+				}
+			}
+
+			auto ConvertColorUsage = [](EMeshReshapeVertexColorChannelUsage Usage) -> mu::EVertexColorUsage
+			{
+				switch (Usage)
+				{
+				case EMeshReshapeVertexColorChannelUsage::None:			  return mu::EVertexColorUsage::None;
+				case EMeshReshapeVertexColorChannelUsage::RigidClusterId: return mu::EVertexColorUsage::ReshapeClusterId;
+				case EMeshReshapeVertexColorChannelUsage::MaskWeight:     return mu::EVertexColorUsage::ReshapeMaskWeight;
+				default: check(false); return mu::EVertexColorUsage::None;
+				};
+			};
+
+			MeshNode->SetColorUsages(
+				ConvertColorUsage(ChannelUsages[0]),
+				ConvertColorUsage(ChannelUsages[1]),
+				ConvertColorUsage(ChannelUsages[2]),
+				ConvertColorUsage(ChannelUsages[3]));
 				
 			const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeReshape->BaseMeshPin());
 			const UEdGraphPin* SourceMeshPin = ConnectedPin ? FindMeshBaseSource(*ConnectedPin, false) : nullptr;
