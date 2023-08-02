@@ -19,27 +19,6 @@
 		</if>		
 	</init>
 
-	<baseBuildGradleAdditions>
-	<if condition="bSupported">
-		<true>
-			<insert>
-				allprojects {
-				repositories {
-				repositories {
-				flatDir {
-			</insert>
-			<insertValue value="dirs '$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/SDK/Bin/Android/static-stdc++/aar'"/>
-			<insertNewline/>
-			<insert>
-				}
-				}
-				}
-				}
-			</insert>
-		</true>
-	</if>
-	</baseBuildGradleAdditions>
-
 	<buildGradleAdditions>
 		<if condition="bSupported">
 			<true>
@@ -49,7 +28,11 @@
 					exclude 'build-data.properties'
 					}
 					}
-			
+				</insert>
+
+				<insertValue value="dependencies.implementation files ('$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/SDK/Bin/Android/static-stdc++/aar/eos-sdk.aar')"/>
+				<insertNewline/>
+				<insert>
 					dependencies.implementation(name: 'eos-sdk', ext: 'aar')
 					dependencies {
 					implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
