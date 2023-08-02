@@ -392,13 +392,27 @@ void UTransformableControlHandle::OnControlModified(
 		return;
 	}
 
-	if (ControlRig == InControlRig && InControl->GetName() == ControlName)
+	if (OnHandleModified.IsBound() && (ControlRig == InControlRig))
 	{
-		if(OnHandleModified.IsBound())
-		{
-			const EHandleEvent Event = InContext.bConstraintUpdate ?
-				EHandleEvent::GlobalTransformUpdated : EHandleEvent::LocalTransformUpdated; 
+		const EHandleEvent Event = InContext.bConstraintUpdate ?
+			EHandleEvent::GlobalTransformUpdated : EHandleEvent::LocalTransformUpdated;
+
+		if (InControl->GetName() == ControlName)
+		{	// if that handle is wrapping InControl  
 			OnHandleModified.Broadcast(this, Event);
+		}
+		else if (Event == EHandleEvent::GlobalTransformUpdated)
+		{
+			if (const FRigControlElement* Control = ControlRig->FindControl(ControlName))
+			{	// if that handle control's transform has been dirtied
+				const bool bIsTransformDirty =
+					Control->Pose.IsDirty(ERigTransformType::CurrentLocal) ||
+					Control->Pose.IsDirty(ERigTransformType::CurrentGlobal);
+				if (bIsTransformDirty)
+				{
+					OnHandleModified.Broadcast(this, Event);
+				}
+			}
 		}
 	}
 }

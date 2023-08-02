@@ -569,6 +569,16 @@ void UTickableTransformConstraint::OnHandleModified(UTransformableHandle* InHand
 			return;
 		}
 	}
+
+	// update the constraint if the parent's transform has been modified 
+	if (InHandle == ParentTRSHandle && InNotification == EHandleEvent::GlobalTransformUpdated)
+	{
+		if (IsFullyActive() && ConstraintTick.IsTickFunctionRegistered() && ConstraintTick.IsTickFunctionEnabled())
+		{
+			Evaluate();
+		}
+		return;
+	}
 }
 
 bool UTickableTransformConstraint::IsFullyActive() const
