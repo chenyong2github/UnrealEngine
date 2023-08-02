@@ -126,14 +126,14 @@ namespace Metasound
 					else if (InState.bLooping)
 					{
 						InState.CurrentSampleIndex = 0;
-						OutFinishedFrames.Add(0);
+						OutFinishedFrames.Add(EndFrame);
 					}
 					else
 					{
 						// Envelope is done
 						InState.CurrentSampleIndex = INDEX_NONE;
 						OutEnvelopeValue = 0.0f;
-						OutFinishedFrames.Add(0);
+						OutFinishedFrames.Add(EndFrame);
 					}
 				}
 			}
