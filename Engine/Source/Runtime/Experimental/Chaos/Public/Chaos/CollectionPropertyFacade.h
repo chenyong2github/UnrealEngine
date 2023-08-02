@@ -164,7 +164,6 @@ namespace Chaos::Softs
 		}
 
 	protected:
-
 		// No init constructor for FCollectionPropertyFacade
 		CHAOS_API FCollectionPropertyConstFacade(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ENoInit);
 
@@ -437,14 +436,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		 */
 		CHAOS_API void Copy(const FManagedArrayCollection& InManagedArrayCollection);
 
-
 		/**
 		 * Update all properties and values from an existing collection to this property collection.
 		 * This won't copy any other groups, only data from PropertyGroup.
 		 * Modified properties will be marked dirty.
 		 */
 		CHAOS_API void Update(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ECollectionPropertyUpdateFlags UpdateFlags);
-
 
 		//~ Add values
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
@@ -607,7 +604,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 	bool Is##PropertyName##Mutable(const FCollectionPropertyConstFacade& PropertyCollection) const \
 	{ \
 		return PropertyName##Index != INDEX_NONE && \
-			PropertyCollection.IsEnabled(PropertyName##Index) && PropertyCollection.IsAnimatable(PropertyName##Index) && (PropertyCollection.IsDirty(PropertyName##Index) || PropertyCollection.IsStringDirty(PropertyName##Index)); \
+			PropertyCollection.IsAnimatable(PropertyName##Index) && (PropertyCollection.IsDirty(PropertyName##Index) || PropertyCollection.IsStringDirty(PropertyName##Index)); \
 	} \
 	struct F##PropertyName##Index \
 	{ \

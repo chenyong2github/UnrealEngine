@@ -193,8 +193,8 @@ class FPBDSphericalBackstopConstraint final
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		return IsBackstopDistanceEnabled(PropertyCollection, false) ||
-			IsBackstopDistanceAnimatable(PropertyCollection, false);  // Backstop can be re-enabled if animated
+		return IsBackstopRadiusEnabled(PropertyCollection, false) ||  // Radius makes more sense than distance to enable the constraint here, since without any radius there isn't a backstop
+			IsBackstopRadiusAnimatable(PropertyCollection, false);  // Backstop can be re-enabled if animated
 	}
 
 	FPBDSphericalBackstopConstraint(

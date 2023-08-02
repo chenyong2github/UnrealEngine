@@ -1138,7 +1138,7 @@ void FClothingSimulationCloth::SetCollisionProperties(FRealSingle InCollisionThi
 
 void FClothingSimulationCloth::SetBackstopProperties(bool bInEnableBackstop)
 {
-	Config->GetProperties().SetEnabled(TEXT("BackstopDistance"), bInEnableBackstop);  // BackstopScale controls whether the backstop is enabled or not
+	Config->GetProperties().SetEnabled(TEXT("BackstopRadius"), bInEnableBackstop);  // BackstopRadius controls whether the backstop is enabled or not
 }
 
 void FClothingSimulationCloth::SetDampingProperties(FRealSingle InDampingCoefficient, FRealSingle InLocalDampingCoefficient)

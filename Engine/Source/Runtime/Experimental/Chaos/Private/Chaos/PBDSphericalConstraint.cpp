@@ -81,6 +81,9 @@ void FPBDSphericalBackstopConstraint::SetProperties(
 		{
 			SphereRadii = WeightMaps.FindRef(GetBackstopRadiusString(PropertyCollection));
 		}
+
+		// Update enable status using the radius property
+		SetEnabled(IsBackstopRadiusEnabled(PropertyCollection));
 	}
 
 	if (IsBackstopDistanceMutable(PropertyCollection))

@@ -95,7 +95,7 @@ void UChaosClothingInteractor::SetBackstop(bool bEnabled)
 {
 	ConfigCommands.Add(FChaosClothingInteractorConfigCommand::CreateLambda([bEnabled](Chaos::FClothingSimulationConfig* Config, int32 LODIndex)
 	{
-		Config->GetProperties(LODIndex).SetEnabled(TEXT("BackstopScale"), bEnabled);  // BackstopScale controls whether the backstop is enabled or not
+		Config->GetProperties(LODIndex).SetEnabled(TEXT("BackstopRadius"), bEnabled);  // BackstopRadius controls whether the backstop is enabled or not
 	}));
 }
 void UChaosClothingInteractor::SetDamping(float DampingCoefficient, float LocalDampingCoefficient)
