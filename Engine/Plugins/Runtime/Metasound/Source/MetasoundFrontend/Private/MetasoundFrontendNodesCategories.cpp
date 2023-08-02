@@ -23,10 +23,10 @@ namespace Metasound
 		// Base category for all inputs
 		const FText Inputs = LOCTEXT("Metasound_InputsCategory", "Inputs");
 
-		// Base cateogry for all outputs
+		// Base category for all outputs
 		const FText Outputs = LOCTEXT("Metasound_OutputsCategory", "Outputs");
 
-		// Base cateogry for all variables 
+		// Base category for all variables 
 		const FText Variables = LOCTEXT("Metasound_VariablesCategory", "Variables");
 	}
 }
