@@ -84,11 +84,18 @@
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
 int32 GAllowUnversionedContentInEditor = 0;
-
 static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(
 	TEXT("s.AllowUnversionedContentInEditor"),
 	GAllowUnversionedContentInEditor,
 	TEXT("If true, allows unversioned content to be loaded by the editor."),
+	ECVF_Default
+);
+
+bool GAllowParseObjectLoading = true;
+static FAutoConsoleVariableRef CVarAllowParseObjectLoading(
+	TEXT("s.AllowParseObjectLoading"),
+	GAllowParseObjectLoading,
+	TEXT("If true, allows ParseObject to load fully qualified objects if needed and requested."),
 	ECVF_Default
 );
 
@@ -1199,58 +1206,76 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 	}
 }
 
-bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, bool* bInvalidObject )
+bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, EParseObjectLoadingPolicy LoadingPolicy, bool* bInvalidObject )
 {
+	if (!GAllowParseObjectLoading)
+	{
+		LoadingPolicy = EParseObjectLoadingPolicy::Find;
+	}
+
 	TCHAR TempStr[1024];
-	if( !FParse::Value( Stream, Match, TempStr, UE_ARRAY_COUNT(TempStr) ) )
+	if (!FParse::Value(Stream, Match, TempStr, UE_ARRAY_COUNT(TempStr)))
 	{
 		// Match not found
-		return 0;
+		return false;
 	}
-	else if( FCString::Stricmp(TempStr,TEXT("NONE"))==0 )
+	else if (FCString::Stricmp(TempStr, TEXT("NONE")) == 0)
 	{
 		// Match found, object explicit set to be None
 		DestRes = nullptr;
-		return 1;
+		return true;
 	}
 	else
 	{
+		auto ResolveObjectImpl = [Class, InParent, LoadingPolicy](const TCHAR* ObjNameOrPathName)
+		{
+			if (FPackageName::IsValidObjectPath(ObjNameOrPathName))
+			{
+				// A fully qualified object path can be resolved with no parent
+				return LoadingPolicy == EParseObjectLoadingPolicy::FindOrLoad
+					? StaticLoadObject(Class, nullptr, ObjNameOrPathName)
+					: StaticFindObject(Class, nullptr, ObjNameOrPathName);
+			}
+			else if (InParent && InParent != ANY_PACKAGE_DEPRECATED)
+			{
+				// Try to find the object within its parent
+				return StaticFindObject(Class, InParent, ObjNameOrPathName);
+			}
+			else
+			{
+				// Try to find first object matching the provided name
+				return StaticFindFirstObject(Class, ObjNameOrPathName, EFindFirstObjectOptions::EnsureIfAmbiguous);
+			}
+		};
+
 		UObject* Res = nullptr;
 		// Look this object up.
-		if ((!InParent || InParent == ANY_PACKAGE_DEPRECATED) && !FPackageName::IsValidObjectPath(TempStr))
-		{
-			// Try to find first object matching the provided name
-			Res = StaticFindFirstObject(Class, TempStr, EFindFirstObjectOptions::EnsureIfAmbiguous);
-		}
-		else
-		{
-			Res = StaticFindObject(Class, InParent, TempStr);
-		}
-		if( !Res )
+		Res = ResolveObjectImpl(TempStr);
+		if (!Res)
 		{
 			if (Class->IsChildOf<UClass>())
 			{
 				FString RedirectedObjectName = FLinkerLoad::FindNewPathNameForClass(TempStr, false);
 				if (!RedirectedObjectName.IsEmpty())
 				{
-					Res = StaticFindObject(Class, InParent, *RedirectedObjectName);
+					Res = ResolveObjectImpl(*RedirectedObjectName);
 				}
 			}
 
 			if (!Res)
-			{ 
+			{
 				// Match found, object not found
 				if (bInvalidObject)
 				{
 					*bInvalidObject = true;
 				}
-				return 0;
+				return false;
 			}
 		}
 
 		// Match found, object found
 		DestRes = Res;
-		return 1;
+		return true;
 	}
 }
 

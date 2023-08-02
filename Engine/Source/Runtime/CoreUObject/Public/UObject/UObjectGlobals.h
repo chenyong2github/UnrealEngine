@@ -498,19 +498,33 @@ COREUOBJECT_API UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name,
  */
 COREUOBJECT_API UObject* StaticFindFirstObjectSafe(UClass* Class, const TCHAR* Name, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* InCurrentOperation = nullptr);
 
+/** Loading policy to use with ParseObject */
+enum class EParseObjectLoadingPolicy : uint8
+{
+	/** Try and find the object, but do not attempt to load it */
+	Find,
+	/** Try and find the object, or attempt of load it if it cannot be found (note: loading may be globally disabled via the CVar "s.AllowParseObjectLoading") */
+	FindOrLoad,
+};
+
 /**
  * Parse a reference to an object from a text representation
  *
- * @param Stream		String containing text to parse
+ * @param Stream			String containing text to parse
  * @param Match				Tag to search for object representation within string
- * @param Class			The class of the object to be loaded.
+ * @param Class				The class of the object to be found.
  * @param DestRes			Returned object pointer
- * @param InParent		Outer to search
+ * @param InParent			Outer to search
+ * @oaran LoadingPolicy		Controls whether the parse will attempt to load a fully qualified object reference, if needed.
  * @param bInvalidObject	[opt] Optional output.  If true, Tag was matched but the specified object wasn't found.
  *
  * @return True if the object parsed successfully, even if object was not found
  */
-COREUOBJECT_API bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, bool* bInvalidObject=nullptr );
+COREUOBJECT_API bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, EParseObjectLoadingPolicy LoadingPolicy, bool* bInvalidObject=nullptr );
+inline bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent, bool* bInvalidObject=nullptr )
+{
+	return ParseObject( Stream, Match, Class, DestRes, InParent, EParseObjectLoadingPolicy::Find, bInvalidObject );
+}
 
 /**
  * Find or load an object by string name with optional outer and filename specifications.
@@ -1694,9 +1708,14 @@ COREUOBJECT_API FString GetConfigFilename( UObject* SourceObject );
 
 /** Parse a reference to an object from the input stream. */
 template< class T > 
+inline bool ParseObject( const TCHAR* Stream, const TCHAR* Match, T*& Obj, UObject* Outer, EParseObjectLoadingPolicy LoadingPolicy, bool* bInvalidObject=nullptr )
+{
+	return ParseObject( Stream, Match, T::StaticClass(), (UObject*&)Obj, Outer, LoadingPolicy, bInvalidObject );
+}
+template< class T > 
 inline bool ParseObject( const TCHAR* Stream, const TCHAR* Match, T*& Obj, UObject* Outer, bool* bInvalidObject=nullptr )
 {
-	return ParseObject( Stream, Match, T::StaticClass(), (UObject*&)Obj, Outer, bInvalidObject );
+	return ParseObject( Stream, Match, T::StaticClass(), (UObject*&)Obj, Outer, EParseObjectLoadingPolicy::Find, bInvalidObject );
 }
 
 /** 
