@@ -93,6 +93,9 @@ namespace UnrealBuildTool
 					// Create the rules object
 					ReadOnlyTargetRules Target = new ReadOnlyTargetRules(RulesAssembly.CreateTargetRules(TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetDescriptor.Architectures, TargetDescriptor.ProjectFile, TargetDescriptor.AdditionalArguments, Logger));
 
+					// Get the intermediate environment for this target
+					UnrealIntermediateEnvironment IntermediateEnvironment = TargetDescriptor.IntermediateEnvironment != UnrealIntermediateEnvironment.Default ? TargetDescriptor.IntermediateEnvironment : Target.IntermediateEnvironment;
+
 					if (!bSkipPreBuildTargets && Target.PreBuildTargets.Count > 0)
 					{
 						foreach (TargetInfo PreBuildTarget in Target.PreBuildTargets)
@@ -141,7 +144,7 @@ namespace UnrealBuildTool
 					}
 
 					// Add all the makefiles and caches to be deleted
-					FilesToDelete.Add(TargetMakefile.GetLocation(Target.ProjectFile, Target.Name, Target.Platform, Target.Architectures, Target.Configuration, TargetDescriptor.IntermediateEnvironment));
+					FilesToDelete.Add(TargetMakefile.GetLocation(Target.ProjectFile, Target.Name, Target.Platform, Target.Architectures, Target.Configuration, IntermediateEnvironment));
 					FilesToDelete.UnionWith(SourceFileMetadataCache.GetFilesToClean(Target.ProjectFile));
 
 					// Add all the intermediate folders to be deleted
@@ -149,7 +152,7 @@ namespace UnrealBuildTool
 					{
 						foreach (string NamePrefix in NamePrefixes)
 						{
-							string NamePrefixWithEnv = UEBuildTarget.GetTargetIntermediateFolderName(NamePrefix, TargetDescriptor.IntermediateEnvironment);
+							string NamePrefixWithEnv = UEBuildTarget.GetTargetIntermediateFolderName(NamePrefix, IntermediateEnvironment);
 							// This is actually wrong.. the generated code is not in this dir.. if changing "Target.Architectures" parameter to null it will delete the right files.
 							// However, this also means that it will cause a rebuild for both unity, nonunity and iwyu targets since they share this folder.
 							DirectoryReference GeneratedCodeDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architectures, false), NamePrefixWithEnv, "Inc");

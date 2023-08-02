@@ -1097,15 +1097,15 @@ namespace UnrealBuildTool
 	public enum UnrealIntermediateEnvironment
 	{
 		/// <summary>
-		/// 
+		/// Default environment
 		/// </summary>
 		Default,
 		/// <summary>
-		/// 
+		/// Include what you use
 		/// </summary>
 		IWYU,
 		/// <summary>
-		/// 
+		/// Nonunity
 		/// </summary>
 		NonUnity,
 	}
@@ -1631,7 +1631,7 @@ namespace UnrealBuildTool
 			Platform = InDescriptor.Platform;
 			Configuration = InDescriptor.Configuration;
 			Architectures = InDescriptor.Architectures;
-			IntermediateEnvironment = InDescriptor.IntermediateEnvironment;
+			IntermediateEnvironment = InDescriptor.IntermediateEnvironment != UnrealIntermediateEnvironment.Default ? InDescriptor.IntermediateEnvironment : InRules.IntermediateEnvironment;
 			Rules = InRules;
 			RulesAssembly = InRulesAssembly;
 			TargetType = Rules.Type;
@@ -1691,11 +1691,11 @@ namespace UnrealBuildTool
 			}
 			else if (Configuration == UnrealTargetConfiguration.DebugGame)
 			{
-				EngineIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, UnrealTargetConfiguration.Development.ToString());
+				EngineIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, GetTargetIntermediateFolderName(TargetName, IntermediateEnvironment), UnrealTargetConfiguration.Development.ToString());
 			}
 			else
 			{
-				EngineIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
+				EngineIntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, GetTargetIntermediateFolderName(TargetName, IntermediateEnvironment), Configuration.ToString());
 			}
 
 			// Get the receipt path for this target
@@ -4622,7 +4622,7 @@ namespace UnrealBuildTool
 			DirectoryReference IntermediateDirectory;
 			if (LaunchModule.RulesFile.IsUnderDirectory(Unreal.EngineDirectory) && !ShouldCompileMonolithic())
 			{
-				IntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, AppName, Configuration.ToString());
+				IntermediateDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, PlatformIntermediateFolder, UEBuildTarget.GetTargetIntermediateFolderName(AppName, IntermediateEnvironment), Configuration.ToString());
 			}
 			else
 			{
@@ -5336,7 +5336,7 @@ namespace UnrealBuildTool
 					}
 
 					// Get the subfolder containing generated code - we don't need architeceture information since these are shared between all arches for a platform
-					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, PlatformIntermediateFolderNoArch, AppName, "Inc");
+					GeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory, PlatformIntermediateFolderNoArch, GetTargetIntermediateFolderName(AppName, IntermediateEnvironment), "Inc");
 
 					// Append the binaries subfolder, if present. We rely on this to ensure that build products can be filtered correctly.
 					if (RulesObject.BinariesSubFolder != null)
