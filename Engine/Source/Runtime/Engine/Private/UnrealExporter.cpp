@@ -469,7 +469,7 @@ void UExporter::EmitBeginObject( FOutputDevice& Ar, UObject* Obj, uint32 PortFla
 			UObject* Archetype = Obj->GetArchetype();
 			// since we could have two object owners with the same name (like named Blueprints in different folders),
 			// we need the fully qualified path for the archetype (so we don't get confused when unpacking this)
-			Ar.Logf(TEXT(" Archetype=%s"), *FObjectPropertyBase::GetExportPath(Archetype, Archetype->GetOutermost(), /*ExportRootScope =*/nullptr, PortFlags & ~PPF_ExportsNotFullyQualified));
+			Ar.Logf(TEXT(" Archetype=%s"), *FObjectPropertyBase::GetExportPath(Archetype, nullptr, /*ExportRootScope =*/nullptr, (PortFlags | PPF_Delimited) & ~PPF_ExportsNotFullyQualified));
 		}
 	}
 
@@ -478,10 +478,10 @@ void UExporter::EmitBeginObject( FOutputDevice& Ar, UObject* Obj, uint32 PortFla
 	if (!(PortFlags & PPF_ForDiff))
 	{
 		// Emit the object path
-		Ar.Logf(TEXT(" ExportPath=%s"), *FObjectPropertyBase::GetExportPath(Obj, nullptr, nullptr, PortFlags | (PPF_Delimited  & ~PPF_ExportsNotFullyQualified)));
+		Ar.Logf(TEXT(" ExportPath=%s"), *FObjectPropertyBase::GetExportPath(Obj, nullptr, nullptr, (PortFlags | PPF_Delimited) & ~PPF_ExportsNotFullyQualified));
 	}
 	// end in a return
-	Ar.Logf(TEXT("\r\n"));
+	Ar.Logf(LINE_TERMINATOR);
 
 	if ( bEnableDebugBrackets )
 	{

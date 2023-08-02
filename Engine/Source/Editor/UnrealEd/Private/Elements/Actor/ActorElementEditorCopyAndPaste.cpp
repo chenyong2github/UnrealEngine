@@ -70,13 +70,20 @@ bool UActorElementsExporterT3D::ExportText(const FExportObjectInnerContext* Cont
 			                           ? FString::Printf(
 				                           TEXT(" ActorFolderPath=%s"), *Actor->GetFolderPath().ToString())
 			                           : TEXT(""));
-		FString ActorPath = FString::Printf(
-			TEXT(" ExportPath=%s"),
-			*FObjectPropertyBase::GetExportPath(Actor, nullptr, nullptr, PortFlags | PPF_Delimited));
-		Out.Logf(TEXT("%sBegin Actor Class=%s Name=%s Archetype=%s'%s'%s%s%s%s%s%s") LINE_TERMINATOR,
+		Out.Logf(TEXT("%sBegin Actor Class=%s Name=%s Archetype=%s%s%s%s%s%s"),
 		        FCString::Spc(TextIndent), *Actor->GetClass()->GetPathName(), *Actor->GetName(),
-		        *Actor->GetArchetype()->GetClass()->GetPathName(), *Actor->GetArchetype()->GetPathName(),
-		        *ParentActorString, *SocketNameString, *GroupActor, *GroupFolder, *ActorFolderPath, *ActorPath);
+				*FObjectPropertyBase::GetExportPath(Actor->GetArchetype(), nullptr, nullptr, (PortFlags | PPF_Delimited) & ~PPF_ExportsNotFullyQualified),
+		        *ParentActorString, *SocketNameString, *GroupActor, *GroupFolder, *ActorFolderPath);
+
+		// When exporting for diffs, export paths can cause false positives. since diff files don't get imported, we can
+		// skip adding this info the file.
+		if (!(PortFlags & PPF_ForDiff))
+		{
+			// Emit the actor path
+			Out.Logf(TEXT(" ExportPath=%s"), *FObjectPropertyBase::GetExportPath(Actor, nullptr, nullptr, (PortFlags | PPF_Delimited) & ~PPF_ExportsNotFullyQualified));
+		}
+
+		Out.Logf(LINE_TERMINATOR);
 
 		ExportRootScope = Actor;
 		ExportObjectInner(Context, Actor, Out, PortFlags);
