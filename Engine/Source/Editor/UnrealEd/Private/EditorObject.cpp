@@ -116,7 +116,7 @@ void UEditorEngine::RenameObject(UObject* Object,UObject* NewOuter,const TCHAR* 
 }
 
 
-static void RemapProperty(FProperty* Property, int32 Index, const TMap<AActor*, AActor*>& ActorRemapper, uint8* DestData)
+static void RemapProperty(FProperty* Property, int32 Index, const TMap<FSoftObjectPath, UObject*>& ObjectRemapper, uint8* DestData)
 {
 	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
@@ -126,16 +126,24 @@ static void RemapProperty(FProperty* Property, int32 Index, const TMap<AActor*, 
 		for (int32 Count = 0; Count < Num; Count++)
 		{
 			uint8* PropertyAddr = ObjectProperty->ContainerPtrToValuePtr<uint8>(DestData, StartIndex + Count);
-			AActor* Actor = Cast<AActor>(ObjectProperty->GetObjectPropertyValue(PropertyAddr));
-			if (Actor)
+			UObject* Object = ObjectProperty->GetObjectPropertyValue(PropertyAddr);
+			if (Object)
 			{
-				AActor* const* RemappedObject = ActorRemapper.Find(Actor);
+				UObject* const* RemappedObject = ObjectRemapper.Find(Object);
 				if (RemappedObject && (*RemappedObject)->GetClass()->IsChildOf(ObjectProperty->PropertyClass))
 				{
 					ObjectProperty->SetObjectPropertyValue(PropertyAddr, *RemappedObject);
 				}
 			}
-
+			else if (FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
+			{
+				const FSoftObjectPtr& SoftObjectPtr = SoftObjectProperty->GetPropertyValue(PropertyAddr);
+				UObject* const* RemappedObject = ObjectRemapper.Find(SoftObjectPtr.ToSoftObjectPath());
+				if (RemappedObject && (*RemappedObject)->GetClass()->IsChildOf(SoftObjectProperty->PropertyClass))
+				{
+					SoftObjectProperty->SetObjectPropertyValue(PropertyAddr, *RemappedObject);
+				}
+			}
 		}
 	}
 	else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -143,24 +151,38 @@ static void RemapProperty(FProperty* Property, int32 Index, const TMap<AActor*, 
 		FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(DestData));
 		if (Index != INDEX_NONE)
 		{
-			RemapProperty(ArrayProperty->Inner, INDEX_NONE, ActorRemapper, ArrayHelper.GetRawPtr(Index));
+			RemapProperty(ArrayProperty->Inner, INDEX_NONE, ObjectRemapper, ArrayHelper.GetRawPtr(Index));
 		}
 		else
 		{
 			for (int32 ArrayIndex = 0; ArrayIndex < ArrayHelper.Num(); ArrayIndex++)
 			{
-				RemapProperty(ArrayProperty->Inner, INDEX_NONE, ActorRemapper, ArrayHelper.GetRawPtr(ArrayIndex));
+				RemapProperty(ArrayProperty->Inner, INDEX_NONE, ObjectRemapper, ArrayHelper.GetRawPtr(ArrayIndex));
 			}
 		}
 	}
 	else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
-		if (Index != INDEX_NONE)
+		if (StructProperty->Struct == TBaseStructure<FSoftObjectPath>::Get())
+		{
+			// If there's a concrete index, use that, otherwise iterate all array members (for the case that this property is inside a struct, or there is exactly one element)
+			const int32 Num = (Index == INDEX_NONE) ? ObjectProperty->ArrayDim : 1;
+			const int32 StartIndex = (Index == INDEX_NONE) ? 0 : Index;
+			for (int32 Count = 0; Count < Num; Count++)
+			{
+				FSoftObjectPath* SoftObjectPathPtr = ObjectProperty->ContainerPtrToValuePtr<FSoftObjectPath>(DestData, StartIndex + Count);
+				if (UObject* const* RemappedObject = ObjectRemapper.Find(*SoftObjectPathPtr))
+				{
+					*SoftObjectPathPtr = *RemappedObject;
+				}
+			}
+		}
+		else if (Index != INDEX_NONE)
 		{
 			// If a concrete index was given, remap just that
 			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 			{
-				RemapProperty(*It, INDEX_NONE, ActorRemapper, StructProperty->ContainerPtrToValuePtr<uint8>(DestData, Index));
+				RemapProperty(*It, INDEX_NONE, ObjectRemapper, StructProperty->ContainerPtrToValuePtr<uint8>(DestData, Index));
 			}
 		}
 		else
@@ -171,7 +193,7 @@ static void RemapProperty(FProperty* Property, int32 Index, const TMap<AActor*, 
 			{
 				for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 				{
-					RemapProperty(*It, INDEX_NONE, ActorRemapper, StructProperty->ContainerPtrToValuePtr<uint8>(DestData, Count));
+					RemapProperty(*It, INDEX_NONE, ObjectRemapper, StructProperty->ContainerPtrToValuePtr<uint8>(DestData, Count));
 				}
 			}
 		}
@@ -216,7 +238,7 @@ static bool IsEndOfProperties(const TCHAR* Str, int32 Depth)
  * @param	Warn						output device to use for log messages
  * @param	Depth						current nesting level
  * @param	InstanceGraph				contains the mappings of instanced objects and components to their templates
- * @param	ActorRemapper				a map of existing actors to new instances, used to replace internal references when a number of actors are copy+pasted
+ * @param	ObjectRemapper				a map of existing objects, typically actors, to new instances, used to replace internal references when a number of objects are copy+pasted
  *
  * @return	NULL if the default values couldn't be imported
  */
@@ -229,7 +251,7 @@ static const TCHAR* ImportProperties(
 	FFeedbackContext*			Warn,
 	int32						Depth,
 	FObjectInstancingGraph&		InstanceGraph,
-	const TMap<AActor*, AActor*>* ActorRemapper
+	const TMap<FSoftObjectPath, UObject*>* ObjectRemapper
 	)
 {
 	check(ObjectStruct!=NULL);
@@ -482,7 +504,7 @@ static const TCHAR* ImportProperties(
 			{
 				// since we're redefining an object in the same text block, only need to import properties again
 				SourceText = ImportObjectProperties( (uint8*)BaseTemplate, SourceText, TemplateClass, SubobjectRoot, BaseTemplate,
-													Warn, Depth + 1, ContextSupplier ? ContextSupplier->CurrentLine : 0, &InstanceGraph, ActorRemapper );
+													Warn, Depth + 1, ContextSupplier ? ContextSupplier->CurrentLine : 0, &InstanceGraph, ObjectRemapper );
 			}
 			else 
 			{
@@ -663,7 +685,7 @@ static const TCHAR* ImportProperties(
 					Depth+1,
 					ContextSupplier ? ContextSupplier->CurrentLine : 0,
 					&InstanceGraph,
-					ActorRemapper
+					ObjectRemapper
 					);
 			}
 		}
@@ -689,11 +711,11 @@ static const TCHAR* ImportProperties(
 		}
 	}
 
-	if (ActorRemapper)
+	if (ObjectRemapper)
 	{
 		for (const auto& DefinedProperty : DefinedProperties)
 		{
-			RemapProperty(DefinedProperty.Property, DefinedProperty.Index, *ActorRemapper, DestData);
+			RemapProperty(DefinedProperty.Property, DefinedProperty.Index, *ObjectRemapper, DestData);
 		}
 	}
 
@@ -775,7 +797,7 @@ const TCHAR* ImportObjectProperties( FImportObjectParams& InParams )
 			InParams.Warn,
 			InParams.Depth,
 			InstanceGraph,
-			InParams.ActorRemapper
+			InParams.ObjectRemapper
 			);
 
 	if ( InParams.SubobjectOuter != NULL )
@@ -844,7 +866,7 @@ const TCHAR* ImportObjectProperties(
 	int32					Depth,
 	int32					LineNumber,
 	FObjectInstancingGraph* InInstanceGraph,
-	const TMap<AActor*, AActor*>* ActorRemapper
+	const TMap<FSoftObjectPath, UObject*>* ObjectRemapper
 	)
 {
 	FImportObjectParams Params;
@@ -858,7 +880,7 @@ const TCHAR* ImportObjectProperties(
 		Params.Depth = Depth;
 		Params.LineNumber = LineNumber;
 		Params.InInstanceGraph = InInstanceGraph;
-		Params.ActorRemapper = ActorRemapper;
+		Params.ObjectRemapper = ObjectRemapper;
 
 		// This implementation always calls PreEditChange/PostEditChange
 		Params.bShouldCallEditChange = true;
@@ -1502,15 +1524,6 @@ static const TCHAR* ImportPropertiesStep(
 			}
 		}
 	}
-
-	/**
-	if (ActorRemapper)
-	{
-		for (const auto& DefinedProperty : DefinedProperties)
-		{
-			RemapProperty(DefinedProperty.Property, DefinedProperty.Index, *ActorRemapper, DestData);
-		}
-	}*/
 
 	return CurrentSourceText;
 }

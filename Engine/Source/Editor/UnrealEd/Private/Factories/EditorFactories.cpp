@@ -720,7 +720,6 @@ UObject* ULevelFactory::FactoryCreateText
 
 	UPackage* RootMapPackage = Cast<UPackage>(InParent);
 	TMap<FString, UPackage*> MapPackages;
-	TMap<AActor*, AActor*> MapActors;
 	// Assumes data is being imported over top of a new, valid map.
 	FParse::Next( &Buffer );
 	if (GetBEGIN(&Buffer, TEXT("MAP")))
@@ -797,8 +796,8 @@ UObject* ULevelFactory::FactoryCreateText
 	// Maintain a lookup for the new actors, keyed by their source FName.
 	TMap<FName, AActor*> NewActorsFNames;
 
-	// Maintain a lookup from existing to new actors, used when replacing internal references when copy+pasting / duplicating
-	TMap<AActor*, AActor*> ExistingToNewMap;
+	// Maintain a lookup from existing to new objects, typically actors, used when replacing internal references when copy+pasting / duplicating
+	TMap<FSoftObjectPath, UObject*> ExistingToNewMap;
 
 	// Maintain a lookup of the new actors to their parent and socket attachment if provided.
 	struct FAttachmentDetail
@@ -859,7 +858,7 @@ UObject* ULevelFactory::FactoryCreateText
 		else if( GetBEGIN(&Str,TEXT("ACTOR")) )
 		{
 			UClass* TempClass;
-			if( ParseObject<UClass>( Str, TEXT("CLASS="), TempClass, nullptr ) )
+			if( ParseObject<UClass>( Str, TEXT("CLASS="), TempClass, nullptr, EParseObjectLoadingPolicy::FindOrLoad ) )
 			{
 				// Get actor name.
 				FName ActorUniqueName(NAME_None);
@@ -871,6 +870,10 @@ UObject* ULevelFactory::FactoryCreateText
 				// Make sure this name is unique. We need to do this upfront because we also want to potentially create the Associated BP class using the same name.
 				bool bNeedGloballyUniqueName = World->GetCurrentLevel()->IsUsingExternalActors() && CastChecked<AActor>(TempClass->GetDefaultObject())->SupportsExternalPackaging();
 				ActorUniqueName = FActorSpawnUtils::MakeUniqueActorName(World->GetCurrentLevel(), TempClass, FActorSpawnUtils::GetBaseName(ActorUniqueName), bNeedGloballyUniqueName);
+
+				// Get the full ExportPath for this actor (used to redirection if the existing actor cannot be found)
+				FString ExportedActorFullName;
+				FParse::Value(Str, TEXT("ExportPath="), ExportedActorFullName);
 
 				// Get parent name for attachment.
 				FName ActorParentName(NAME_None);
@@ -1067,9 +1070,6 @@ UObject* ULevelFactory::FactoryCreateText
 							// Store the new actor and the text it should be initialized with.
 							NewActorMap.Add( NewActor, *PropText );
 
-							// Store the copy to original actor mapping
-							MapActors.Add(NewActor, Found);
-
 							// Store the new actor against its source actor name (not the one that may have been made unique)
 							if( ActorSourceName!=NAME_None )
 							{
@@ -1077,6 +1077,10 @@ UObject* ULevelFactory::FactoryCreateText
 								if (Found)
 								{
 									ExistingToNewMap.Add(Found, NewActor);
+								}
+								else if (!ExportedActorFullName.IsEmpty())
+								{
+									ExistingToNewMap.Add(ExportedActorFullName, NewActor);
 								}
 							}
 
@@ -1341,7 +1345,7 @@ UObject* ULevelFactory::FactoryCreateText
 	}
 
 	// Pass 2: Sort out any attachment parenting on the new actors now that all actors have the correct properties set
-	for( auto It = MapActors.CreateIterator(); It; ++It )
+	for( auto It = NewActorMap.CreateIterator(); It; ++It )
 	{
 		AActor* const Actor = It.Key();
 
