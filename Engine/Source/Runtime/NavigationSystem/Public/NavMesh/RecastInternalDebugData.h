@@ -3,11 +3,14 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "DebugUtils/DebugDraw.h"
 #include "Math/Color.h"
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 #include "NavMesh/RecastHelpers.h"
+
+#if WITH_RECAST
+
+#include "DebugUtils/DebugDraw.h"
 
 struct FRecastInternalDebugData : public duDebugDraw
 {
@@ -62,4 +65,4 @@ struct FRecastInternalDebugData : public duDebugDraw
 
 	virtual void end() override;
 };
-
+#endif // WITH_RECAST

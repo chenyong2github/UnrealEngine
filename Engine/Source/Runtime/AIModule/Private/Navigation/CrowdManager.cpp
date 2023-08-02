@@ -221,7 +221,9 @@ void UCrowdManager::BeginDestroy()
 	delete TickHelper;
 #endif
 
+#if WITH_RECAST
 	DestroyCrowdManager();
+#endif // WITH_RECAST
 	Super::BeginDestroy();
 }
 

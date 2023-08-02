@@ -426,7 +426,9 @@ struct FRecastNavMeshGenerationProperties
 	uint32 bIsWorldPartitioned : 1;
 	
 	NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties();
+#if WITH_RECAST
 	NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh);
+#endif // WITH_RECAST
 };
 
 UENUM()

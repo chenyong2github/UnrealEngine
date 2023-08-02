@@ -32,7 +32,8 @@ struct dtMeshTile;
 struct dtLink;
 class dtNavMesh;
 
-struct FRecastNeighbour
+#if WITH_RECAST
+struct AIMODULE_API FRecastNeighbour
 {
 	friend FRecastGraphWrapper;
 	friend FRecastGraphAStarFilter;
@@ -65,6 +66,7 @@ struct FRecastAStarResult : public dtQueryResult
 
 	AIMODULE_API dtPolyRef SetPathInfo(const int32 Index, const FRecastAStarSearchNode& SearchNode);
 };
+#endif // WITH_RECAST
 
 USTRUCT()
 struct FRecastGraphWrapper
@@ -74,6 +76,7 @@ struct FRecastGraphWrapper
 public:
 	FRecastGraphWrapper() {}
 
+#if WITH_RECAST
 	/** Initialization of the wrapper from the RecastNavMesh pointer */
 	AIMODULE_API void Initialize(const ARecastNavMesh* InRecastNavMeshActor);
 
@@ -101,18 +104,22 @@ protected:
 	FORCEINLINE const ARecastNavMesh* GetRecastNavMeshActor() const { checkSlow(RecastNavMeshActor);  return RecastNavMeshActor; }
 	FORCEINLINE const dtNavMesh* GetDetourNavMesh() const { checkSlow(DetourNavMesh); return DetourNavMesh; }
 	AIMODULE_API void BindFilter(FRecastGraphAStarFilter& AStarFilter);
+#endif // WITH_RECAST
 
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<const ARecastNavMesh> RecastNavMeshActor = nullptr;
 
+#if WITH_RECAST
 	const dtNavMesh* DetourNavMesh = nullptr;
 
 	dtNavMeshQuery RecastQuery;
 
 	mutable unsigned int CachedNextLink = DT_NULL_LINK;
+#endif // WITH_RECAST
 };
 
+#if WITH_RECAST
 struct FRecastAStarSearchNode : public FGraphAStarDefaultNode<FRecastGraphWrapper>
 {
 	typedef FGraphAStarDefaultNode<FRecastGraphWrapper> Super;
@@ -245,3 +252,4 @@ private:
 	uint32 MaxSearchNodes;
 	FVector::FReal CostLimit;
 };
+#endif // WITH_RECAST

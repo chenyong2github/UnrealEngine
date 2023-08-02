@@ -272,6 +272,7 @@ void FGameplayDebuggerCategory_AI::CollectPathData(AAIController* DebugAI)
 			{
 				LastPathUpdateTime = CurrentPath->GetLastUpdateTime();
 
+#if WITH_RECAST
 				const FNavMeshPath* NavMeshPath = CurrentPath->CastPath<FNavMeshPath>();
 				const ARecastNavMesh* NavData = Cast<const ARecastNavMesh>(CurrentPath->GetNavigationDataUsed());
 				if (NavMeshPath && NavData)
@@ -287,6 +288,7 @@ void FGameplayDebuggerCategory_AI::CollectPathData(AAIController* DebugAI)
 						PathDataPack.PathCorridor.Add(PolyData);
 					}
 				}
+#endif // WITH_RECAST
 
 				for (int32 Idx = 0; Idx < CurrentPath->GetPathPoints().Num(); Idx++)
 				{

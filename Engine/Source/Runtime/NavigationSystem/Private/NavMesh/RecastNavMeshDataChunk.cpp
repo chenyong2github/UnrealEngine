@@ -7,8 +7,11 @@
 #include "NavMesh/PImplRecastNavMesh.h"
 #include "NavMesh/RecastHelpers.h"
 #include "NavMesh/RecastVersion.h"
-#include "Detour/DetourNavMeshBuilder.h"
 #include "NavMesh/RecastNavMeshGenerator.h"
+
+#if WITH_RECAST
+#include "Detour/DetourNavMeshBuilder.h"
+#endif // WITH_RECAST
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RecastNavMeshDataChunk)
 
@@ -71,11 +74,13 @@ namespace UE::NavMesh::Private
 {
 	bool IsUsingActiveTileGeneration(const ARecastNavMesh& NavMesh)
 	{
+#if WITH_RECAST
 		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMesh.GetWorld());
 		if (NavSys)
 		{
 			return NavMesh.IsUsingActiveTilesGeneration(*NavSys);
 		}
+#endif // WITH_RECAST
 		return false;
 	}
 } // namespace UE::NavMesh::Private
@@ -197,43 +202,52 @@ void URecastNavMeshDataChunk::SerializeRecastData(FArchive& Ar, int32 NavMeshVer
 // Deprecated
 TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMeshImpl)
 {
+	TArray<uint32> TileIds;
+#if WITH_RECAST
 	check(NavMeshImpl.NavMeshOwner);
 	const TArray<FNavTileRef> TileRefs = AttachTiles(*NavMeshImpl.NavMeshOwner);
-	TArray<uint32> TileIds;
 	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+#endif // WITH_RECAST
 	return TileIds;
 }
 
 // Deprecated
 TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData)
 {
+	TArray<uint32> TileIds;
+#if WITH_RECAST
 	check(NavMeshImpl.NavMeshOwner);
 	const TArray<FNavTileRef> TileRefs = AttachTiles(*NavMeshImpl.NavMeshOwner, bKeepCopyOfData, bKeepCopyOfCacheData);
-	TArray<uint32> TileIds;
 	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+#endif // WITH_RECAST
 	return TileIds;
 }
 
 // Deprecated
 TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl)
 {
+	TArray<uint32> TileIds;
+#if WITH_RECAST
 	check(NavMeshImpl.NavMeshOwner);
 	const TArray<FNavTileRef> TileRefs = DetachTiles(*NavMeshImpl.NavMeshOwner);
-	TArray<uint32> TileIds;
 	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+#endif // WITH_RECAST
 	return TileIds;
 }
 
 // Deprecated
 TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership)
 {
+	TArray<uint32> TileIds;
+#if WITH_RECAST
 	check(NavMeshImpl.NavMeshOwner);
 	const TArray<FNavTileRef> TileRefs = DetachTiles(*NavMeshImpl.NavMeshOwner, bTakeDataOwnership, bTakeCacheDataOwnership);
-	TArray<uint32> TileIds;
 	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+#endif // WITH_RECAST
 	return TileIds;
 }
 
+#if WITH_RECAST
 TArray<FNavTileRef> URecastNavMeshDataChunk::AttachTiles(ARecastNavMesh& NavMesh)
 {
 	check(NavMesh.GetWorld());
@@ -253,7 +267,6 @@ TArray<FNavTileRef> URecastNavMeshDataChunk::AttachTiles(ARecastNavMesh& NavMesh
 	TArray<FNavTileRef> Result;
 	Result.Reserve(Tiles.Num());
 
-#if WITH_RECAST	
 	dtNavMesh* DetourNavMesh = NavMesh.GetRecastMesh();
 
 	if (DetourNavMesh != nullptr)
@@ -362,7 +375,6 @@ TArray<FNavTileRef> URecastNavMeshDataChunk::AttachTiles(ARecastNavMesh& NavMesh
 			}
 		}
 	}
-#endif// WITH_RECAST
 
 	UE_LOG(LogNavigation, Verbose, TEXT("Attached %d tiles to NavMesh - %s"), Result.Num(), *NavigationDataName.ToString());
 	return Result;
@@ -387,7 +399,6 @@ TArray<FNavTileRef> URecastNavMeshDataChunk::DetachTiles(ARecastNavMesh& NavMesh
 	TArray<FNavTileRef> Result;
 	Result.Reserve(Tiles.Num());
 
-#if WITH_RECAST
 	dtNavMesh* DetourNavMesh = NavMesh.GetRecastMesh();
 
 	if (DetourNavMesh != nullptr)
@@ -474,11 +485,11 @@ TArray<FNavTileRef> URecastNavMeshDataChunk::DetachTiles(ARecastNavMesh& NavMesh
 			TileData.Layer = 0;
 		}
 	}
-#endif// WITH_RECAST
 
 	UE_LOG(LogNavigation, Verbose, TEXT("Detached %d tiles from NavMesh - %s"), Result.Num(), *NavigationDataName.ToString());
 	return Result;
 }
+#endif // WITH_RECAST
 
 void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const FVector::FReal RotationDeg, const FVector2D& RotationCenter)
 {
@@ -543,6 +554,7 @@ void URecastNavMeshDataChunk::GetTiles(const FPImplRecastNavMesh* NavMeshImpl, c
 {
 	Tiles.Empty(TileIndices.Num());
 
+#if WITH_RECAST
 	const dtNavMesh* NavMesh = NavMeshImpl->DetourNavMesh;
 	
 	for (int32 TileIdx : TileIndices)
@@ -581,11 +593,13 @@ void URecastNavMeshDataChunk::GetTiles(const FPImplRecastNavMesh* NavMeshImpl, c
 			Tiles.Add(RecastTileData);
 		}
 	}
+#endif // WITH_RECAST
 }
 
 void URecastNavMeshDataChunk::GetTilesBounds(const FPImplRecastNavMesh& NavMeshImpl, const TArray<int32>& TileIndices, FBox& OutBounds) const
 {
 	OutBounds.Init();
+#if WITH_RECAST
 	const dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
 
 	for (const int32 TileIdx : TileIndices)
@@ -596,4 +610,5 @@ void URecastNavMeshDataChunk::GetTilesBounds(const FPImplRecastNavMesh& NavMeshI
 			OutBounds += Recast2UnrealBox(Tile->header->bmin, Tile->header->bmax);
 		}
 	}
+#endif // WITH_RECAST
 }

@@ -84,6 +84,7 @@ namespace UE::NavMesh::Private
 		return FMath::Clamp(CellSize, ArbitraryMinCellSize, ArbitraryMaxCellSize);
 	}
 
+#if WITH_RECAST
 	FNavTileRef GetTileRefFromPolyRef(const dtNavMesh& DetourMesh, const NavNodeRef PolyRef)
 	{
 		unsigned int Salt = 0;
@@ -93,10 +94,12 @@ namespace UE::NavMesh::Private
 		const dtTileRef TileRef = DetourMesh.encodePolyId(Salt, TileIndex, 0);
 		return FNavTileRef(TileRef);
 	}
+#endif // WITH_RECAST
 } // namespace UE::NavMesh::Private
 
 FDetourTileLayout::FDetourTileLayout(const dtMeshTile& tile)
 {
+#if WITH_RECAST
 	const dtMeshHeader* header = tile.header;
 
 	if (header && (header->version == DT_NAVMESH_VERSION))
@@ -123,6 +126,7 @@ FDetourTileLayout::FDetourTileLayout(const dtMeshTile& tile)
 
 		InitFromSizeInfo(SizeInfo);
 	}
+#endif // WITH_RECAST
 }
 
 FDetourTileLayout::FDetourTileLayout(const FDetourTileSizeInfo& SizeInfo)
@@ -132,6 +136,7 @@ FDetourTileLayout::FDetourTileLayout(const FDetourTileSizeInfo& SizeInfo)
 
 void FDetourTileLayout::InitFromSizeInfo(const FDetourTileSizeInfo& SizeInfo)
 {
+#if WITH_RECAST
 	// Patch header pointers.
 	HeaderSize = dtAlign(sizeof(dtMeshHeader));
 	VertsSize = dtAlign(sizeof(dtReal) * 3 * SizeInfo.VertCount);
@@ -154,6 +159,7 @@ void FDetourTileLayout::InitFromSizeInfo(const FDetourTileSizeInfo& SizeInfo)
 
 	TileSize = HeaderSize + VertsSize + PolysSize + LinksSize + DetailMeshesSize + DetailVertsSize + DetailTrisSize
 		+ BvTreeSize + OffMeshConsSize + OffMeshSegsSize + ClustersSize + PolyClustersSize;
+#endif // WITH_RECAST
 }
 
 
@@ -268,6 +274,13 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 ARecastNavMesh::~ARecastNavMesh()
 {
 }
+
+#if WITH_EDITOR
+bool ARecastNavMesh::CanEditChange(const FProperty* InPropery) const
+{
+	return false;
+}
+#endif // WITH_EDITOR
 
 #else // WITH_RECAST
 
@@ -396,6 +409,8 @@ namespace FNavMeshConfig
 	}
 }
 
+#endif // WITH_RECAST
+
 // Deprecated
 FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties()
 {
@@ -424,6 +439,8 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties()
 	bFixedTilePoolSize = false;
 	bIsWorldPartitioned = false;
 }
+
+#if WITH_RECAST
 
 // Deprecated
 FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh)
@@ -455,6 +472,8 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARe
 	bIsWorldPartitioned = RecastNavMesh.bIsWorldPartitioned;
 }
 
+#endif // WITH_RECAST
+
 FRecastNavMeshTileGenerationDebug::FRecastNavMeshTileGenerationDebug()
 {
 	bEnabled = false;
@@ -476,6 +495,8 @@ FRecastNavMeshTileGenerationDebug::FRecastNavMeshTileGenerationDebug()
 	bTileCachePolyMesh = false;
 	bTileCacheDetailMesh = false;
 }
+
+#if WITH_RECAST
 
 ARecastNavMesh::FNavPolyFlags ARecastNavMesh::NavLinkFlag = ARecastNavMesh::FNavPolyFlags(0);
 
@@ -3783,11 +3804,14 @@ const dtNavMesh* ARecastNavMesh::GetRecastMesh() const
 //----------------------------------------------------------------------//
 bool ARecastNavMesh::K2_ReplaceAreaInTileBounds(FBox Bounds, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool ReplaceLinks)
 {
-	bool bReplaced = ReplaceAreaInTileBounds(Bounds, OldArea, NewArea, ReplaceLinks) > 0;
+	bool bReplaced = false;
+#if WITH_RECAST
+	bReplaced = ReplaceAreaInTileBounds(Bounds, OldArea, NewArea, ReplaceLinks) > 0;
 	if (bReplaced)
 	{
 		RequestDrawingUpdate();
 	}
+#endif // WITH_RECAST
 	return bReplaced;
 }
 

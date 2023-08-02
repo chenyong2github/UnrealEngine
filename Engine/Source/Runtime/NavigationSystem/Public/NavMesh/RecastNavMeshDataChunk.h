@@ -82,6 +82,7 @@ class URecastNavMeshDataChunk : public UNavigationDataChunk
 	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
 	NAVIGATIONSYSTEM_API TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
 
+#if WITH_RECAST
 	/** Attaches tiles to specified navmesh, transferring tile ownership to navmesh */
 	NAVIGATIONSYSTEM_API TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh);
 
@@ -93,6 +94,7 @@ class URecastNavMeshDataChunk : public UNavigationDataChunk
 
 	/** Detaches tiles from specified navmesh */
 	NAVIGATIONSYSTEM_API TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
+#endif // WITH_RECAST
 
 	/** 
 	 * Experimental: Moves tiles data on the xy plane by the offset (in tile coordinates) and rotation (in degree).

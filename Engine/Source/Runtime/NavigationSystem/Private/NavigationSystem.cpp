@@ -25,6 +25,7 @@
 #include "UObject/Package.h"
 #include "Components/PrimitiveComponent.h"
 #include "UObject/UObjectThreadContext.h"
+#include "AI/NavDataGenerator.h"
 
 #if WITH_RECAST
 #include "NavMesh/RecastNavMesh.h"
@@ -397,7 +398,7 @@ FNavRegenTimeSliceManager::FNavRegenTimeSliceManager()
 	, MaxDesiredTileRegenDuration(0.7)
 	, TimeLastCall(-1.f)
 	, NavDataIdx(0)
-#if TIME_SLICE_NAV_REGEN
+#if WITH_RECAST && TIME_SLICE_NAV_REGEN
 	, bDoTimeSlicedUpdate(true)
 #else
 	, bDoTimeSlicedUpdate(false)
@@ -727,8 +728,10 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		SetDefaultWalkableArea(UNavArea_Default::StaticClass());
 		SetDefaultObstacleArea(UNavArea_Obstacle::StaticClass());
 		
+#if WITH_RECAST
 		const FTransform RecastToUnrealTransfrom(Recast2UnrealMatrix());
 		SetCoordTransform(ENavigationCoordSystem::Navigation, ENavigationCoordSystem::Unreal, RecastToUnrealTransfrom);
+#endif // WITH_RECAST
 	}
 }
 
@@ -1193,12 +1196,14 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	{
 		if (NavData)
 		{
+#if WITH_RECAST
 			const ARecastNavMesh* RecastNavMesh = Cast<ARecastNavMesh>(NavData);
 			if (RecastNavMesh && RecastNavMesh->bIsWorldPartitioned && NavData->GetRuntimeGenerationMode() > ERuntimeGenerationType::Static)
 			{
 				DefaultDirtyAreasController.SetUseWorldPartitionedDynamicMode(true);
 				break;
 			}
+#endif // WITH_RECAST
 		}
 	}
 
@@ -2384,11 +2389,13 @@ void UNavigationSystemV1::ApplyWorldOffset(const FVector& InOffset, bool bWorldS
 			if (NavData)
 			{
 				NavData->ConditionalConstructGenerator();
+#if WITH_RECAST
 				ARecastNavMesh* RecastNavMesh = Cast<ARecastNavMesh>(NavData);
 				if (RecastNavMesh)
 				{
 					RecastNavMesh->RequestDrawingUpdate();
 				}
+#endif // WITH_RECAST
 			}
 		}
 	}

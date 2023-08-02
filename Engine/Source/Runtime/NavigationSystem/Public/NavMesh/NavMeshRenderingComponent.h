@@ -202,8 +202,10 @@ protected:
 
 #if UE_ENABLE_DEBUG_DRAWING
   	NAVIGATIONSYSTEM_API virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+#if WITH_RECAST
 	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return NavMeshDebugDrawDelegateManager; }
-#endif
+#endif // WITH_RECAST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 	NAVIGATIONSYSTEM_API virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
 
@@ -219,7 +221,7 @@ protected:
 	FTimerHandle TimerHandle;
 
 protected:
-#if UE_ENABLE_DEBUG_DRAWING
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 	FNavMeshDebugDrawDelegateHelper NavMeshDebugDrawDelegateManager;
 #endif
 };

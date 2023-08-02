@@ -7437,8 +7437,6 @@ protected:
 	}
 } NavigationGeomExec;
 
-#endif // WITH_RECAST
-
 #if RECAST_INTERNAL_DEBUG_DATA
 bool FRecastTileGenerator::IsTileDebugActive() const
 {
@@ -7463,3 +7461,4 @@ bool FRecastTileGenerator::IsTileDebugAllowingGeneration() const
 	}
 }
 #endif //RECAST_INTERNAL_DEBUG_DATA
+#endif // WITH_RECAST

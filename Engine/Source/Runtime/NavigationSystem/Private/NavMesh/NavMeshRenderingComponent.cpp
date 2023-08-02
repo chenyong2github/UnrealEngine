@@ -1809,9 +1809,11 @@ void UNavMeshRenderingComponent::OnUnregister()
 
 void UNavMeshRenderingComponent::GatherData(const ARecastNavMesh& NavMesh, FNavMeshSceneProxyData& OutProxyData) const
 {
+#if WITH_RECAST
 	const int32 DetailFlags = FNavMeshRenderingHelpers::GetDetailFlags(&NavMesh);
 	const TArray<int32> EmptyTileSet;
 	OutProxyData.GatherData(&NavMesh, DetailFlags, EmptyTileSet);
+#endif // WITH_RECAST
 }
 
 #if UE_ENABLE_DEBUG_DRAWING

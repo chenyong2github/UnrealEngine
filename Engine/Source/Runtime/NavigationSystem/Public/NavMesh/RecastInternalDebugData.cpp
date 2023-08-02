@@ -2,10 +2,13 @@
 
 #include "NavMesh/RecastInternalDebugData.h"
 
-#include "DebugUtils/DebugDraw.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
 #include "NavMesh/RecastHelpers.h"
+
+#if WITH_RECAST
+
+#include "DebugUtils/DebugDraw.h"
 
 void FRecastInternalDebugData::vertex(const FVector::FReal x, const FVector::FReal y, const FVector::FReal z, unsigned int color, const FVector::FReal u, const FVector::FReal v)
 {
@@ -57,3 +60,4 @@ void FRecastInternalDebugData::end()
 		}
 	}
 }
+#endif // WITH_RECAST

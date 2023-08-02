@@ -312,7 +312,7 @@ void ANavigationTestingActor::UpdatePathfinding()
 	LastPath.Reset();
 	ShowStepIndex = -1;
 	PathfindingSteps = 0;
-#if WITH_EDITORONLY_DATA
+#if WITH_RECAST && WITH_EDITORONLY_DATA
 	DebugSteps.Reset();
 #endif
 	UpdateNavData();
@@ -380,6 +380,7 @@ FVector ANavigationTestingActor::FindClosestWallLocation() const
 	}
 #endif // WITH_EDITORONLY_DATA
 
+#if WITH_RECAST
 	ARecastNavMesh* AsRecastNavMesh = Cast<ARecastNavMesh>(MyNavData);
 	if (AsRecastNavMesh)
 	{
@@ -387,6 +388,7 @@ FVector ANavigationTestingActor::FindClosestWallLocation() const
 		AsRecastNavMesh->FindDistanceToWall(GetActorLocation(), UNavigationQueryFilter::GetQueryFilter(*MyNavData, this, FilterClass), FLT_MAX, &TmpOutLocation);
 		return TmpOutLocation;
 	}
+#endif // WITH_RECAST
 	
 	return FNavigationSystem::InvalidLocation;
 }
