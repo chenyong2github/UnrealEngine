@@ -9,10 +9,12 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
+
 
 namespace UE
 {
