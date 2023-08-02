@@ -46,6 +46,7 @@
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
+#include "Tracks/MovieSceneObjectPropertyTrack.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Widgets/Input/SComboButton.h"
 #include "MovieSceneSpawnableAnnotation.h"
@@ -401,49 +402,87 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneOb
 {
 	const TMovieSceneExternalValue<UObject*>* ExternalValue = Channel.GetExtendedEditorData();
 	const FMovieSceneObjectPathChannel*       RawChannel    = Channel.Get();
+	UMovieSceneObjectPropertyTrack* ObjectPathTrack = Cast<UMovieSceneObjectPropertyTrack>(Section->GetOuter());
+
 	if (ExternalValue && RawChannel)
 	{
 		TSequencerKeyEditor<FMovieSceneObjectPathChannel, UObject*> KeyEditor(InObjectBindingID, Channel, Section, InSequencer, PropertyBindings, ExternalValue->OnGetExternalValue);
 
-		auto OnSetObjectLambda = [KeyEditor](const FAssetData& Asset) mutable
+		UClass* PropertyClass = ObjectPathTrack ? ObjectPathTrack->PropertyClass : nullptr;
+		const bool bClassPicker = ObjectPathTrack ? ObjectPathTrack->bClassProperty : false;
+		if (bClassPicker)
 		{
-			FScopedTransaction Transaction(LOCTEXT("SetEnumKey", "Set Enum Key Value"));
-			KeyEditor.SetValueWithNotify(Asset.GetAsset(), EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
-		};
+			auto OnSetClassLambda = [KeyEditor](const UClass* Class) mutable
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetObjectPathKey", "Set Object Path Key Value"));
+				KeyEditor.SetValueWithNotify(const_cast<UClass*>(Class), EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
+			};
 
-		auto GetObjectPathLambda = [KeyEditor]() -> FString
-		{
-			UObject* Obj = KeyEditor.GetCurrentValue();
-			return Obj ? Obj->GetPathName() : FString();
-		};
+			auto GetSelectedClassLambda = [KeyEditor]() -> const UClass*
+			{
+				return Cast<UClass>(KeyEditor.GetCurrentValue());
+			};
 
-		TArray<FAssetData> AssetDataArray;
-		if (InSequencer.IsValid())
-		{
-			UMovieSceneSequence* Sequence = InSequencer.Pin()->GetFocusedMovieSceneSequence();
-			AssetDataArray.Add((FAssetData)Sequence);
+			return SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SClassPropertyEntryBox)
+					.MetaClass(PropertyClass)
+					.SelectedClass_Lambda(GetSelectedClassLambda)
+					.OnSetClass_Lambda(OnSetClassLambda)
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(8.0f, 0.0f)
+				[
+					SNew(SSpacer)
+				];
 		}
+		else
+		{
+			auto OnSetObjectLambda = [KeyEditor](const FAssetData& Asset) mutable
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetObjectPathKey", "Set Object Path Key Value"));
+				KeyEditor.SetValueWithNotify(Asset.GetAsset(), EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
+			};
 
-		return SNew(SHorizontalBox)
+			auto GetObjectPathLambda = [KeyEditor]() -> FString
+			{
+				UObject* Obj = KeyEditor.GetCurrentValue();
+				return Obj ? Obj->GetPathName() : FString();
+			};
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SObjectPropertyEntryBox)
-				.DisplayBrowse(true)
-				.DisplayUseSelected(false)
-				.ObjectPath_Lambda(GetObjectPathLambda)
-				.AllowedClass(RawChannel->GetPropertyClass())
-				.OnObjectChanged_Lambda(OnSetObjectLambda)
-				.OwnerAssetDataArray(AssetDataArray)
-			]
+			TArray<FAssetData> AssetDataArray;
+			if (InSequencer.IsValid())
+			{
+				UMovieSceneSequence* Sequence = InSequencer.Pin()->GetFocusedMovieSceneSequence();
+				AssetDataArray.Add((FAssetData)Sequence);
+			}
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(8.0f, 0.0f)
-			[
-				SNew(SSpacer)
-			];
+			return SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SObjectPropertyEntryBox)
+					.DisplayBrowse(true)
+					.DisplayUseSelected(false)
+					.ObjectPath_Lambda(GetObjectPathLambda)
+					.AllowedClass(RawChannel->GetPropertyClass())
+					.OnObjectChanged_Lambda(OnSetObjectLambda)
+					.OwnerAssetDataArray(AssetDataArray)
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(8.0f, 0.0f)
+				[
+					SNew(SSpacer)
+				];
+		}
 	}
 
 	return SNullWidget::NullWidget;

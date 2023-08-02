@@ -50,6 +50,16 @@ void FObjectPropertyTrackEditor::InitializeNewTrack(UMovieSceneObjectPropertyTra
 	{
 		NewTrack->PropertyClass = KeyedProperty->PropertyClass;
 
+		if (KeyedProperty->HasAllPropertyFlags(CPF_UObjectWrapper))
+		{
+			FClassProperty* ClassProperty = CastField<FClassProperty>(KeyedProperty);
+			if (ClassProperty)
+			{
+				NewTrack->PropertyClass = ClassProperty->MetaClass;
+				NewTrack->bClassProperty = true;
+			}
+		}
+
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		TArray< TWeakPtr<IAssetTypeActions> > AssetTypeActions;
 		AssetToolsModule.Get().GetAssetTypeActionsList(AssetTypeActions);

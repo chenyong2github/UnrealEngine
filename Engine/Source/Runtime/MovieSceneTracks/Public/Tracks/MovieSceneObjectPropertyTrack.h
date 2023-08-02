@@ -17,6 +17,11 @@ public:
 	UPROPERTY()
 	TObjectPtr<UClass> PropertyClass;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bClassProperty = false;
+#endif
+
 	UMovieSceneObjectPropertyTrack(const FObjectInitializer& ObjInit);
 
 	/*~ UMovieSceneTrack interface */
