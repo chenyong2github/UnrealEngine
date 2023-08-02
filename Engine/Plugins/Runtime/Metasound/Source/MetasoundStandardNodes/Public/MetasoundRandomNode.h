@@ -3,15 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundFacade.h"
+#include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
-#include "MetasoundTrigger.h"
-#include "Internationalization/Text.h"
-#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
