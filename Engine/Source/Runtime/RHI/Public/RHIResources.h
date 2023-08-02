@@ -240,6 +240,14 @@ struct FClearValueBinding
 		: ColorBinding(NoBinding)
 	{
 		check(ColorBinding == EClearBinding::ENoneBound);
+
+		Value.Color[0] = 0.0f;
+		Value.Color[1] = 0.0f;
+		Value.Color[2] = 0.0f;
+		Value.Color[3] = 0.0f;
+
+		Value.DSValue.Depth = 0.0f;
+		Value.DSValue.Stencil = 0;
 	}
 
 	explicit FClearValueBinding(const FLinearColor& InClearColor)
@@ -1321,6 +1329,25 @@ struct FRHITextureDesc
 	bool operator != (const FRHITextureDesc& Other) const
 	{
 		return !(*this == Other);
+	}
+
+	FRHITextureDesc& operator=(const FRHITextureDesc& Other)
+	{
+		Dimension			= Other.Dimension;
+		Flags				= Other.Flags;
+		Format				= Other.Format;
+		UAVFormat			= Other.UAVFormat;
+		Extent				= Other.Extent;
+		Depth				= Other.Depth;
+		ArraySize			= Other.ArraySize;
+		NumMips				= Other.NumMips;
+		NumSamples			= Other.NumSamples;
+		ClearValue			= Other.ClearValue;
+		ExtData				= Other.ExtData;
+		FastVRAMPercentage	= Other.FastVRAMPercentage;
+		GPUMask				= Other.GPUMask;
+
+		return *this;
 	}
 
 	bool IsTexture2D() const
