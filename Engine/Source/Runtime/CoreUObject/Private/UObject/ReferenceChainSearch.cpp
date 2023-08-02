@@ -257,6 +257,7 @@ namespace UE::ReferenceChainSearch
 			}
 		};
 
+		template<bool bNeedsPropertyReferencer = false>
 		class FCollector final: public FReferenceCollector
 		{
 		protected:
@@ -287,7 +288,7 @@ namespace UE::ReferenceChainSearch
 
 			virtual bool NeedsPropertyReferencer() const
 			{
-				return false;
+				return bNeedsPropertyReferencer;
 			}
 			virtual bool IsIgnoringArchetypeRef() const override
 			{
@@ -400,7 +401,7 @@ namespace UE::ReferenceChainSearch
 
 						UE::GC::FWorkerContext Context;
 						Context.SetInitialObjectsUnpadded(ObjectsToSerialize);
-						CollectReferences<UE::GC::TDefaultCollector<FProcessor>>(Processor, Context);
+						CollectReferences<FCollector<>>(Processor, Context);
 					});
 				return;
 			}
@@ -428,7 +429,7 @@ namespace UE::ReferenceChainSearch
 				UE::GC::FWorkerContext Context;
 				ObjectsToProcess = { Object };
 				Context.SetInitialObjectsUnpadded(ObjectsToProcess);
-				CollectReferences<UE::GC::TDefaultCollector<FProcessor>>(Processor, Context);
+				CollectReferences<FCollector<>>(Processor, Context);
 			}
 		}
 
@@ -441,7 +442,7 @@ namespace UE::ReferenceChainSearch
 			TArray<UObject*> ObjectsToProcess;
 			ObjectsToProcess = { FromObject };
 			Context.SetInitialObjectsUnpadded(ObjectsToProcess);
-			CollectReferences<UE::GC::TDefaultCollector<FProcessor>>(Processor, Context);
+			CollectReferences<FCollector<true /* detailed property info */>>(Processor, Context);
 		}
 	};
 
