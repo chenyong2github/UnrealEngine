@@ -35,6 +35,7 @@ class FShaderPipeline;
 using FShaderMapAssetPaths = TSet<FName>;
 class FIoBuffer;
 class FIoChunkId;
+class IPlugin;
 class UObject;
 
 #if WITH_EDITOR
@@ -210,9 +211,10 @@ struct FShaderCodeLibrary
 	 * At runtime this will open the shader library with this name.
 	 * @param Name is a high level description of the library (usually a project name or "Global")
 	 * @param Directory location of the .ushadercode file
+	 * @param bMonolithicOnly If true, only attempt to open a monolithic library (no chunks)
 	 * @return true if successful
 	 */
-	static RENDERCORE_API bool OpenLibrary(FString const& Name, FString const& Directory);
+	static RENDERCORE_API bool OpenLibrary(FString const& Name, FString const& Directory, bool bMonolithicOnly = false);
 
 	/**
 	 * Close a named library.
@@ -249,6 +251,13 @@ struct FShaderCodeLibrary
 	// Delegate called whenever shader code is requested.
 	static RENDERCORE_API FDelegateHandle RegisterSharedShaderCodeRequestDelegate_Handle(const FSharedShaderCodeRequest::FDelegate& Delegate);
 	static RENDERCORE_API void UnregisterSharedShaderCodeRequestDelegate_Handle(FDelegateHandle Handle);
+
+	// Disables opening the specified plugin's shader library on mount
+	static RENDERCORE_API void DontOpenPluginShaderLibraryOnMount(const FString& PluginName);
+	
+	// Open the plugin's shader library
+	// @param bMonolithicOnly If true, only attempt to open a monolithic library (no chunks)
+	static RENDERCORE_API void OpenPluginShaderLibrary(IPlugin& Plugin, bool bMonolithicOnly = false);
 };
 
 #if WITH_EDITOR

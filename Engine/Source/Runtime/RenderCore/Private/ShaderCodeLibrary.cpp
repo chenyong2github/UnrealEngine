@@ -94,6 +94,8 @@ namespace UE
 			static FDelegateHandle OnPluginMountedDelegateHandle;
 			static FDelegateHandle OnPluginUnmountedDelegateHandle;
 
+			static TSet<FString> PluginsToIgnoreOnMount;
+
 			/** Helper function shared between the cooker and runtime */
 			FString GetShaderLibraryNameForChunk(FString const& BaseName, int32 ChunkId)
 			{
@@ -2391,6 +2393,8 @@ class FShaderLibrariesCollection
 	FShaderCodeStats EditorShaderCodeStats[EShaderPlatform::SP_NumPlatforms];
 	// At cook time, whether the shader archive supports pipelines (only OpenGL should)
 	bool EditorArchivePipelines[EShaderPlatform::SP_NumPlatforms];
+	bool bIsEditorShaderCodeArchiveEmpty = true;
+	bool bIsEditorShaderStableInfoEmpty = true;
 #endif //WITH_EDITOR
 	bool bSupportsPipelines;
 	bool bNativeFormat;
@@ -2472,8 +2476,10 @@ public:
 #endif
 	}
 
-	bool OpenLibrary(FString const& Name, FString const& Directory)
+	bool OpenLibrary(FString const& Name, FString const& Directory, const bool bMonolithicOnly = false)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(OpenShaderLibrary);
+
 		using namespace UE::ShaderLibrary::Private;
 
 		bool bResult = false;
@@ -2514,12 +2520,8 @@ public:
 			{
 				bResult = true;
 				bOpenedAsMonolithic = true;
-
-				// Attempt to open the shared-cooked override code library if there is one.
-				// This is probably not ideal, but it should get shared-cooks working.
-				Library->OpenShaderCode(Directory, Name + TEXT("_SC"));
 			}
-			else // attempt to open a chunked library
+			else if (!bMonolithicOnly) // attempt to open a chunked library
 			{
 				TSet<int32> PrevComponentSet = Library->PresentChunks;
 				{
@@ -2637,20 +2639,26 @@ public:
 		}
 
 #if WITH_EDITOR
-		for (uint32 i = 0; i < EShaderPlatform::SP_NumPlatforms; i++)
+		if (!bIsEditorShaderCodeArchiveEmpty)
 		{
-			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[i];
-			if (CodeArchive)
+			for (uint32 i = 0; i < EShaderPlatform::SP_NumPlatforms; i++)
 			{
-				CodeArchive->OpenLibrary(Name);
+				FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[i];
+				if (CodeArchive)
+				{
+					CodeArchive->OpenLibrary(Name);
+				}
 			}
 		}
-		for (uint32 i = 0; i < EShaderPlatform::SP_NumPlatforms; i++)
+		if (!bIsEditorShaderStableInfoEmpty)
 		{
-			FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[i];
-			if (StableArchive)
+			for (uint32 i = 0; i < EShaderPlatform::SP_NumPlatforms; i++)
 			{
-				StableArchive->OpenLibrary(Name);
+				FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[i];
+				if (StableArchive)
+				{
+					StableArchive->OpenLibrary(Name);
+				}
 			}
 		}
 #endif
@@ -2896,6 +2904,7 @@ public:
 			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[Platform];
 			if (!CodeArchive)
 			{
+				bIsEditorShaderCodeArchiveEmpty = false;
 				CodeArchive = new FEditorShaderCodeArchive(FName(FormatAndPlatformName), Descriptor.bNeedsDeterministicOrder);
 				EditorShaderCodeArchive[Platform] = CodeArchive;
 				EditorArchivePipelines[Platform] = !bNativeFormat;
@@ -2917,6 +2926,7 @@ public:
 			FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[Platform];
 			if (!StableArchive && bUseStableKeys)
 			{
+				bIsEditorShaderStableInfoEmpty = false;
 				StableArchive = new FEditorShaderStableInfo(PossiblyAdjustedFormat);
 				EditorShaderStableInfo[Platform] = StableArchive;
 				ShaderFormatsThatNeedStableKeys[(int)Platform] = true;
@@ -3298,10 +3308,9 @@ FShaderLibrariesCollection* FShaderLibrariesCollection::Impl = nullptr;
 
 static void FShaderCodeLibraryPluginMountedCallback(IPlugin& Plugin)
 {
-	if (Plugin.CanContainContent() && Plugin.IsEnabled())
+	if (UE::ShaderLibrary::Private::PluginsToIgnoreOnMount.Remove(Plugin.GetName()) == 0)
 	{
-		// load any shader libraries that may exist in this plugin
-		FShaderCodeLibrary::OpenLibrary(Plugin.GetName(), Plugin.GetContentDir());
+		FShaderCodeLibrary::OpenPluginShaderLibrary(Plugin);
 	}
 }
 
@@ -3398,7 +3407,7 @@ void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 			auto Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 			ParallelFor(Plugins.Num(), [&](int32 Index)
 			{
-				FShaderCodeLibraryPluginMountedCallback(*Plugins[Index]);
+				FShaderCodeLibrary::OpenPluginShaderLibrary(*Plugins[Index]);
 			});
 		}
 		else
@@ -3442,6 +3451,8 @@ void FShaderCodeLibrary::Shutdown()
 		IPluginManager::Get().OnPluginUnmounted().Remove(UE::ShaderLibrary::Private::OnPluginUnmountedDelegateHandle);
 		UE::ShaderLibrary::Private::OnPluginUnmountedDelegateHandle.Reset();
 	}
+
+	UE::ShaderLibrary::Private::PluginsToIgnoreOnMount.Empty();
 
 	if (FShaderLibrariesCollection::Impl)
 	{
@@ -3617,12 +3628,12 @@ void FShaderCodeLibrary::AddKnownChunkIDs(const int32* IDs, const int32 NumChunk
 	}
 }
 
-bool FShaderCodeLibrary::OpenLibrary(FString const& Name, FString const& Directory)
+bool FShaderCodeLibrary::OpenLibrary(FString const& Name, FString const& Directory, bool bMonolithicOnly)
 {
 	bool bResult = false;
 	if (FShaderLibrariesCollection::Impl)
 	{
-		bResult = FShaderLibrariesCollection::Impl->OpenLibrary(Name, Directory);
+		bResult = FShaderLibrariesCollection::Impl->OpenLibrary(Name, Directory, bMonolithicOnly);
 	}
 	return bResult;
 }
@@ -3870,6 +3881,21 @@ FDelegateHandle FShaderCodeLibrary::RegisterSharedShaderCodeRequestDelegate_Hand
 void FShaderCodeLibrary::UnregisterSharedShaderCodeRequestDelegate_Handle(FDelegateHandle Handle)
 {
 	OnSharedShaderCodeRequest.Remove(Handle);
+}
+
+void FShaderCodeLibrary::DontOpenPluginShaderLibraryOnMount(const FString& PluginName)
+{
+	check(IsInGameThread());
+	UE::ShaderLibrary::Private::PluginsToIgnoreOnMount.Add(PluginName);
+}
+
+void FShaderCodeLibrary::OpenPluginShaderLibrary(IPlugin& Plugin, bool bMonolithicOnly)
+{
+	if (Plugin.CanContainContent() && Plugin.IsEnabled())
+	{
+		// load any shader libraries that may exist in this plugin
+		FShaderCodeLibrary::OpenLibrary(Plugin.GetName(), Plugin.GetContentDir(), bMonolithicOnly);
+	}
 }
 
 // FNamedShaderLibrary methods
