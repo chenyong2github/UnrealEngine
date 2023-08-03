@@ -935,11 +935,9 @@ void UPCGComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+void UPCGComponent::OnUnregister()
 {
 #if WITH_EDITOR
-	// This is inspired by UChildActorComponent::DestroyChildActor()
-	// In the case of level change or exit, the subsystem will be null
 	if (UPCGSubsystem* Subsystem = GetSubsystem())
 	{
 		if (!PCGHelpers::IsRuntimeOrPIE())
@@ -948,7 +946,14 @@ void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 			Subsystem->UnregisterPCGComponent(this);
 		}
 	}
+#endif // WITH_EDITOR
 
+	Super::OnUnregister();
+}
+
+void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+{
+#if WITH_EDITOR
 	// BeginDestroy is not called immediately when a component is destroyed. Therefore callbacks are not cleaned
 	// until GC is ran, and can stack up with BP reconstruction scripts. Force the removal of callbacks here. If the component
 	// is dead, we don't want to react to callbacks anyway.

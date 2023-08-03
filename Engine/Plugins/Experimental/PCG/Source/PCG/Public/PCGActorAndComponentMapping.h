@@ -10,6 +10,7 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Templates/Function.h"
+#include "UObject/ObjectKey.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
@@ -170,23 +171,23 @@ private:
 	FPCGComponentOctreeAndMap NonPartitionedOctree;
 
 	/** Keep a mapping between tracked actors and the components that track them, and the tracking needs to be culled.*/
-	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UPCGComponent>>> CulledTrackedActorsToComponentsMap;
+	TMap<TObjectKey<AActor>, TSet<TObjectPtr<UPCGComponent>>> CulledTrackedActorsToComponentsMap;
 
 	/** Same mapping but for always tracked actors */
-	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UPCGComponent>>> AlwaysTrackedActorsToComponentsMap;
+	TMap<TObjectKey<AActor>, TSet<TObjectPtr<UPCGComponent>>> AlwaysTrackedActorsToComponentsMap;
 
 	/** Keep the list of the keys already tracked, to avoid requerying the actors everytime */
 	TMap<FPCGActorSelectionKey, TSet<TObjectPtr<UPCGComponent>>> KeysToComponentsMap;
 
 	/** Finally keep a mapping between actors and their position to know if an actor move in/out of a component tracking bounds. Only kept for actors that need to be culled. */
-	TMap<TWeakObjectPtr<AActor>, FBox> TrackedActorToPositionMap;
+	TMap<TObjectKey<AActor>, FBox> TrackedActorToPositionMap;
 
 	mutable FRWLock TrackedComponentsLock;
 
-	TSet<TWeakObjectPtr<AActor>> DelayedAddedActors;
+	TSet<TObjectKey<AActor>> DelayedAddedActors;
 
 	/** Keep a mapping between tracked actors and their dependencies. */
-	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>> TrackedActorsToDependenciesMap;
+	TMap<TObjectKey<AActor>, TSet<TObjectPtr<UObject>>> TrackedActorsToDependenciesMap;
 
 	/** Transient list of tags, kept when there is a tag change on a tracked Actor. */
 	TSet<FName> TempTrackedActorTags;

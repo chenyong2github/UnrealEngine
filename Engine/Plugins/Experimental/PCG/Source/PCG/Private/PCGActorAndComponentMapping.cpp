@@ -707,7 +707,7 @@ void UPCGActorAndComponentMapping::UnregisterTracking(UPCGComponent* InComponent
 		return;
 	}
 
-	TSet<TWeakObjectPtr<AActor>> CandidatesForUntrack;
+	TSet<TObjectKey<AActor>> CandidatesForUntrack;
 	TSet<FPCGActorSelectionKey> KeysToRemove;
 
 	auto RemoveFromMap = [InComponent](auto& InMap, auto& InCandidateToRemove)
@@ -732,17 +732,17 @@ void UPCGActorAndComponentMapping::UnregisterTracking(UPCGComponent* InComponent
 	}
 
 	// We also need to untrack actors that doesn't have any component that tracks them.
-	auto ShouldBeRemoved = [](const TWeakObjectPtr<AActor>& InActor, TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UPCGComponent>>>& InMap)
+	auto ShouldBeRemoved = [](const TObjectKey<AActor>& InActor, TMap<TObjectKey<AActor>, TSet<TObjectPtr<UPCGComponent>>>& InMap)
 	{
 		TSet<TObjectPtr<UPCGComponent>>* RegisteredComponents = InMap.Find(InActor);
 		return !RegisteredComponents || RegisteredComponents->IsEmpty();
 	};
 
-	for (TWeakObjectPtr<AActor> Candidate : CandidatesForUntrack)
+	for (TObjectKey<AActor> Candidate : CandidatesForUntrack)
 	{
 		if (ShouldBeRemoved(Candidate, CulledTrackedActorsToComponentsMap) && ShouldBeRemoved(Candidate, AlwaysTrackedActorsToComponentsMap))
 		{
-			UnregisterActor(Candidate.Get());
+			UnregisterActor(Candidate.ResolveObjectPtr());
 		}
 	}
 
@@ -783,9 +783,9 @@ void UPCGActorAndComponentMapping::AddActorsPostInit()
 		return;
 	}
 
-	for (TWeakObjectPtr<AActor>& ActorPtr : DelayedAddedActors)
+	for (TObjectKey<AActor>& ActorPtr : DelayedAddedActors)
 	{
-		OnActorAdded(ActorPtr.Get());
+		OnActorAdded(ActorPtr.ResolveObjectPtr());
 	}
 
 	DelayedAddedActors.Empty();
@@ -1024,11 +1024,11 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 	// If we don't find any actor, try to see if it is a dependency
 	if (!Actor)
 	{
-		for (const TPair<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>>& TrackedActor : TrackedActorsToDependenciesMap)
+		for (const TPair<TObjectKey<AActor>, TSet<TObjectPtr<UObject>>>& TrackedActor : TrackedActorsToDependenciesMap)
 		{
 			if (TrackedActor.Value.Contains(InObject))
 			{
-				if (AActor* ActorToChange = TrackedActor.Key.Get())
+				if (AActor* ActorToChange = TrackedActor.Key.ResolveObjectPtr())
 				{
 					OnActorChanged(ActorToChange, /*bInHasMoved=*/ false);
 					UpdateActorDependencies(ActorToChange);

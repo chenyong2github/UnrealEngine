@@ -91,6 +91,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 
 protected:
 	friend struct FPCGComponentInstanceData;
