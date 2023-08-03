@@ -12,6 +12,8 @@
 #include "NiagaraMetaDataCustomNodeBuilder.h"
 #include "NiagaraParameterCollectionCustomNodeBuilder.h"
 #include "ViewModels/NiagaraParameterCollectionViewModel.h"
+#include "ViewModels/NiagaraScriptInputCollectionViewModel.h"
+#include "ViewModels/NiagaraScriptOutputCollectionViewModel.h"
 #include "ViewModels/NiagaraParameterViewModel.h"
 #include "NiagaraScript.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
