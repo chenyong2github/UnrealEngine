@@ -17,6 +17,9 @@ protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 
+	// Does not support execution currently, testing purposes only.
+	virtual FPCGElementPtr CreateElement() const override { return nullptr; }
+
 public:
 	EPCGDataType PinType;
 };
