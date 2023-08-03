@@ -1230,7 +1230,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				References.Add(ResourcesBuildPhase);
 
 				ProcessFrameworks(ResourcesBuildPhase, Project, ProjectFile, Logger);
-				ProcessScripts(ResourcesBuildPhase, Project);
+				ProcessScripts(ResourcesBuildPhase, Project, ProjectFile);
 				ProcessAssets(ResourcesBuildPhase);
 			}
 
@@ -1271,7 +1271,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// </summary>
 		/// <param name="ResourcesBuildPhase"></param>
 		/// <param name="Project"></param>
-		protected void ProcessScripts(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project)
+		/// <param name="ProjectFile"></param>
+		protected void ProcessScripts(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project, XcodeProjectFile ProjectFile)
 		{
 			List<string> CopyScript = new();
 
@@ -1283,18 +1284,35 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			{
 				"set -eo pipefail",
 
-				"# Copy the executable into .app if needed (-ef checks if two files/paths are equivalent)",
 				"SRC_EXE=\\\"${UE_BINARIES_DIR}/${UE_UBT_BINARY_SUBPATH}\\\"",
 				"DEST_EXE=\\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\"",
+				"DEST_EXE_DIR=`dirname ${DEST_EXE}`",
 				"",
-				"echo ${SRC_EXE} /// ${DEST_EXE}",
-				"if [[ ! ${SRC_EXE} -ef ${DEST_EXE} ]]; then",
-				"  echo Copying executable...",
-				"  mkdir -p `dirname ${DEST_EXE}`",
-				"  ditto \\\"${SRC_EXE}\\\" \\\"${DEST_EXE}\\\"",
-				"fi",
-				""
+				"echo Copying executable and any standalone dylibs into ",
+				"mkdir -p ${DEST_EXE_DIR}",
+				"ditto \\\"${SRC_EXE}\\\" \\\"${DEST_EXE}\\\"",
 			});
+
+			IEnumerable<ModuleRules.RuntimeDependency>? Dylibs;
+			Tuple<ProjectFile, UnrealTargetPlatform> DylibKey = Tuple.Create((ProjectFile)ProjectFile, Platform);
+			if (XcodeProjectFileGenerator.TargetRawDylibs.TryGetValue(DylibKey, out Dylibs))
+			{
+				foreach (ModuleRules.RuntimeDependency Dylib in Dylibs)
+				{
+					// make it absolute if it was relative (to Engine/Source)
+					string FixedSource = Dylib.SourcePath!;
+					if (!FixedSource.StartsWith("/"))
+					{
+						FixedSource = $"${{UE_ENGINE_DIR}}/Source/{FixedSource}";
+					}
+
+					// make it relative to Binaries dir
+					string FixedDest = Dylib.Path.Replace("$(BinaryOutputDir)", "");
+					CopyScript.Add($"ditto \\\"{FixedSource}\\\" \\\"${{DEST_EXE_DIR}}{FixedDest}\\\"");
+				}
+			}
+
+			CopyScript.Add("");
 
 			// Editor just need the above script to copy executable into .app
 			if (Project.UnrealData.TargetRules.Type == TargetType.Editor)
@@ -1355,22 +1373,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					$"echo \\\"Syncing ${{STAGED_DIR}}{SyncSourceSubdir} to ${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncDestSubdir}\\\"",
 					$"rsync -a --delete --exclude=Info.plist --exclude=/Manifest_* --exclude=*.app \\\"${{STAGED_DIR}}{SyncSourceSubdir}/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncDestSubdir}\\\"",
 				});
-
-				// copy any dylibs from the staged stub .app into the real one
-				if (Platform == UnrealTargetPlatform.Mac)
-				{
-					// when doing a Content only project the Binaries are under Engine, not the project
-					string EngineOrProject = (Project.UnrealData.bIsContentOnlyProject || Project.UnrealData.UProjectFileLocation == null) ? "Engine" : Project.UnrealData.ProductName;
-					CopyScript.AddRange(new string[]
-					{
-						// copy from whatever .app is in Binaries/Mac - this is so we can make a Shipping app from a Development staged directory
-						"pushd \\\"${STAGED_DIR}/${UE_STAGED_BINARIES_DIR_BASE}/Binaries/Mac/\\\" > /dev/null",
-						"APPS=($(echo *.app))",
-						"echo Syncing $PWD/${APPS[0]}/${BUNDLE_CONTENTS_FOLDER_PATH} to ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/\\\"",
-						"rsync -a --include='*/' --include='*.dylib' --exclude='*' ${APPS[0]}/${BUNDLE_CONTENTS_FOLDER_PATH}MacOS/\\\" \\\"${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/MacOS\\\"",
-						"popd > /dev/null",
-					});
-				}
 			}
 
 			// run this script every time, but xcode will show a warning if there isn't _some_ output

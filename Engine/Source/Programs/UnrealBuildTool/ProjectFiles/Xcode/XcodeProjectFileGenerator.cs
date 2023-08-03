@@ -72,6 +72,7 @@ namespace UnrealBuildTool
 		public static List<UnrealTargetPlatform?> NullPlatformList = new() { null };
 		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildFramework>> TargetFrameworks = new();
 		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildBundleResource>> TargetBundles = new();
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<ModuleRules.RuntimeDependency>> TargetRawDylibs = new();
 
 		/// <summary>
 		/// Should we generate only a run project (no build/index targets)
@@ -437,6 +438,7 @@ namespace UnrealBuildTool
 			XcodeProjectFileGenerator.RunTargetPlatforms.Clear();
 			XcodeProjectFileGenerator.TargetFrameworks.Clear();
 			XcodeProjectFileGenerator.TargetBundles.Clear();
+			XcodeProjectFileGenerator.TargetRawDylibs.Clear();
 			XcodeProjectFileGenerator.bGenerateRunOnlyProject = false;
 
 			if (ProjectPlatforms.Count > 0)
@@ -542,6 +544,7 @@ namespace UnrealBuildTool
 
 						List<UEBuildFramework> Frameworks = new();
 						List<UEBuildBundleResource> Bundles = new();
+						List<ModuleRules.RuntimeDependency> Dylibs = new();
 						// Generate a compile environment for each module in the binary
 						CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles(Logger);
 						foreach (UEBuildBinary Binary in Target.Binaries)
@@ -551,6 +554,11 @@ namespace UnrealBuildTool
 							{
 								CppCompileEnvironment CompileEnvironment = Module.CreateModuleCompileEnvironment(Target.Rules, BinaryCompileEnvironment, Logger);
 								Frameworks.AddRange(CompileEnvironment.AdditionalFrameworks);
+							}
+							// walk over CPP and External modules looking for dylibs that need to be copied into the .app directly (not in a framework)
+							foreach (UEBuildModule Module in Binary.Modules)
+							{
+								Dylibs.AddRange(Module.Rules.RuntimeDependencies.Inner.Where(x => x.Path.StartsWith("$(BinaryOutputDir)") && Path.GetExtension(x.SourcePath) == ".dylib"));
 							}
 						}
 
@@ -567,6 +575,13 @@ namespace UnrealBuildTool
 							lock (TargetBundles)
 							{
 								TargetBundles.Add(Tuple.Create(TargetProjectFile, Platform), Bundles.Distinct());
+							}
+						}
+						if (Dylibs.Count > 0)
+						{
+							lock (TargetRawDylibs)
+							{
+								TargetRawDylibs.Add(Tuple.Create(TargetProjectFile, Platform), Dylibs);
 							}
 						}
 					}
