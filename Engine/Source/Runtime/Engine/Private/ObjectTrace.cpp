@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectTrace.h"
+#include "Misc/ScopeRWLock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectTrace)
 
@@ -88,22 +89,6 @@ UE_TRACE_EVENT_BEGIN(Object, View)
 UE_TRACE_EVENT_END()
 
 // Object annotations used for tracing
-struct FTracedObjectAnnotation
-{
-	FTracedObjectAnnotation()
-		: bTraced(false)
-	{}
-
-	// Whether this object has been traced this session
-	bool bTraced;
-
-	/** Determine if this annotation is default - required for annotations */
-	FORCEINLINE bool IsDefault() const
-	{
-		return bTraced == false;
-	}
-};
-
 struct FObjectIdAnnotation
 {
 	FObjectIdAnnotation()
@@ -131,7 +116,9 @@ int32 GetTypeHash(const FObjectIdAnnotation& Annotation)
 }
 
 // Object annotations used for tracing
-FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTracedAnnotations;
+// FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTracedAnnotations;
+FRWLock GObjectTracedSetLock;
+TSet<uint64> GObjectTracedSet;
 FUObjectAnnotationSparseSearchable<FObjectIdAnnotation, true> GObjectIdAnnotations;
 
 // Handle used to hook to world tick
@@ -172,7 +159,11 @@ void FObjectTrace::Destroy()
 void FObjectTrace::Reset()
 {
 	GObjectIdAnnotations.RemoveAllAnnotations();
-	GObjectTracedAnnotations.RemoveAllAnnotations();
+	
+	{
+		FRWScopeLock ScopeLock(GObjectTracedSetLock,SLT_Write);
+		GObjectTracedSet.Empty();
+	}
 }
 
 uint64 FObjectTrace::GetObjectId(const UObject* InObject)
@@ -229,8 +220,6 @@ void FObjectTrace::ResetWorldElapsedTime(const UWorld* World)
 	{
 		WorldSubsystem->ElapsedTime = 0;
 	}
-
-	GObjectTracedAnnotations.RemoveAllAnnotations();
 }
 
 double FObjectTrace::GetWorldElapsedTime(const UWorld* World)
@@ -314,25 +303,29 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 	{
 		return;
 	}
+	uint64 ObjectId = GetObjectId(InClass);
 
-	FTracedObjectAnnotation Annotation = GObjectTracedAnnotations.GetAnnotation(InClass);
-	if(Annotation.bTraced)
 	{
-		// Already traced, so skip
-		return;
+		FRWScopeLock ScopeLock(GObjectTracedSetLock, SLT_ReadOnly);
+		if (GObjectTracedSet.Contains(ObjectId))
+		{
+			// Already traced, so skip
+			return;
+		}
+	}
+	{
+		FRWScopeLock ScopeLock(GObjectTracedSetLock, SLT_Write);
+		GObjectTracedSet.Add(ObjectId);
 	}
 
 	OutputClass(InClass->GetSuperClass());
-
-	Annotation.bTraced = true;
-	GObjectTracedAnnotations.AddAnnotation(InClass, MoveTemp(Annotation));
 
 	FString ClassPathName = InClass->GetPathName();
 	TCHAR ClassName[FName::StringBufferSize];
 	uint32 ClassNameLength = InClass->GetFName().ToString(ClassName);
 
 	UE_TRACE_LOG(Object, Class, ObjectChannel)
-		<< Class.Id(GetObjectId(InClass))
+		<< Class.Id(ObjectId)
 		<< Class.SuperId(GetObjectId(InClass->GetSuperClass()))
 		<< Class.Name(ClassName, ClassNameLength)
 		<< Class.Path(*ClassPathName, ClassPathName.Len());
@@ -387,18 +380,22 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 	{
 		return;
 	}
-
-	FTracedObjectAnnotation Annotation = GObjectTracedAnnotations.GetAnnotation(InObject);
-	if(Annotation.bTraced)
+	uint64 ObjectId = GetObjectId(InObject);
+	
 	{
-		// Already traced, so skip
-		return;
+		FRWScopeLock ScopeLock(GObjectTracedSetLock, SLT_ReadOnly);
+		if (GObjectTracedSet.Contains(ObjectId))
+		{
+			// Already traced, so skip
+			return;
+		}
+	}
+	{
+		FRWScopeLock ScopeLock(GObjectTracedSetLock, SLT_Write);
+		GObjectTracedSet.Add(ObjectId);
 	}
 
 	OutputObject(InObject->GetOuter());
-
-	Annotation.bTraced = true;
-	GObjectTracedAnnotations.AddAnnotation(InObject, MoveTemp(Annotation));
 
 	// Trace the object's class first
 	TRACE_CLASS(InObject->GetClass());
@@ -408,7 +405,7 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 	FString ObjectPathName = InObject->GetPathName();
 
 	UE_TRACE_LOG(Object, Object, ObjectChannel)
-		<< Object.Id(GetObjectId(InObject))
+		<< Object.Id(ObjectId)
 		<< Object.ClassId(GetObjectId(InObject->GetClass()))
 		<< Object.OuterId(GetObjectId(InObject->GetOuter()))
 		<< Object.Name(ObjectName, ObjectNameLength)

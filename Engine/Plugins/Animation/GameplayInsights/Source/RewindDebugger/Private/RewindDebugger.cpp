@@ -351,8 +351,8 @@ void FRewindDebugger::RefreshDebugTracks()
     			// remove any existing tracks that don't match the current list of object ids
     			for (int TrackIndex = DebugTracks.Num()-1; TrackIndex>=0; TrackIndex--)
     			{
-    				uint64* FoundId = TargetObjectIds.FindByPredicate([this, TrackIndex](const uint64& TrackId) { return DebugTracks[TrackIndex]->GetObjectId() == TrackId; });
-    				if (!FoundId)
+    				uint64 TrackId = DebugTracks[TrackIndex]->GetObjectId();
+    				if (!TargetObjectIds.Contains(TrackId))
     				{
     					DebugTracks.RemoveAt(TrackIndex);
     				}
@@ -401,6 +401,13 @@ namespace
 	}
 }
 
+void FRewindDebugger::OnConnection()
+{
+	// queue up some operations to happen on the game thread next tick
+	bTraceJustConnected = true;
+	FTraceAuxiliary::OnConnection.RemoveAll(this);
+}
+
 void FRewindDebugger::StartRecording()
 {
 	if (!CanStartRecording())
@@ -425,41 +432,14 @@ void FRewindDebugger::StartRecording()
 	// Clear all buffered data and prevent data from previous recordings from leaking into the new recording
 	FTraceAuxiliary::FOptions Options;
 	Options.bExcludeTail = true;
+
+	FTraceAuxiliary::OnConnection.AddRaw(this, &FRewindDebugger::OnConnection); 
+
 	
 	FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("127.0.0.1"), TEXT(""), &Options, LogRewindDebugger);
-
-	UE::Trace::ToggleChannel(TEXT("Object"), true);
-	UE::Trace::ToggleChannel(TEXT("ObjectProperties"), true);
-	UE::Trace::ToggleChannel(TEXT("Animation"), true);
-	UE::Trace::ToggleChannel(TEXT("Frame"), true);
-	
 	UnrealInsightsModule->StartAnalysisForLastLiveSession();
 
-	// update extensions
-	IterateExtensions([this](IRewindDebuggerExtension* Extension)
-		{
-			Extension->RecordingStarted(this);
-		}
-	);
 
-#if OBJECT_TRACE_ENABLED
-	// trace each play-in-editor world, and all the actors in it.
-	for (TObjectIterator<UWorld> World; World; ++World)
-	{
-		if (World->IsPlayInEditor())
-		{
-			FObjectTrace::ResetWorldElapsedTime(*World);
-			FObjectTrace::SetWorldRecordingIndex(*World, RecordingIndex);
-			
-			TRACE_WORLD(*World);
-				
-			for (TActorIterator<AActor> Iterator(*World); Iterator; ++Iterator)
-			{
-				TRACE_OBJECT_LIFETIME_BEGIN(*Iterator);
-			}
-		}
-	}
-#endif // OBJECT_TRACE_ENABLED
 
 	TargetObjectIds.Empty(2);
 
@@ -817,6 +797,43 @@ const TraceServices::IAnalysisSession* FRewindDebugger::GetAnalysisSession() con
 void FRewindDebugger::Tick(float DeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebugger::Tick);
+
+	if (bTraceJustConnected)
+	{
+		bTraceJustConnected = false;
+		
+		UE::Trace::ToggleChannel(TEXT("Object"), true);
+		UE::Trace::ToggleChannel(TEXT("ObjectProperties"), true);
+		UE::Trace::ToggleChannel(TEXT("Animation"), true);
+		UE::Trace::ToggleChannel(TEXT("Frame"), true);
+
+		// update extensions
+		IterateExtensions([this](IRewindDebuggerExtension* Extension)
+			{
+				Extension->RecordingStarted(this);
+			}
+		);
+
+	#if OBJECT_TRACE_ENABLED
+		// trace each play-in-editor world, and all the actors in it.
+		for (TObjectIterator<UWorld> World; World; ++World)
+		{
+			if (World->IsPlayInEditor())
+			{
+				FObjectTrace::ResetWorldElapsedTime(*World);
+				FObjectTrace::SetWorldRecordingIndex(*World, RecordingIndex);
+				
+				TRACE_WORLD(*World);
+					
+				for (TActorIterator<AActor> Iterator(*World); Iterator; ++Iterator)
+				{
+					TRACE_OBJECT_LIFETIME_BEGIN(*Iterator);
+				}
+			}
+		}
+	#endif // OBJECT_TRACE_ENABLED
+	}
+	
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
 		RefreshDebugTracks();

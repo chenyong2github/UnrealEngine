@@ -45,7 +45,8 @@ public:
 	virtual TSharedPtr<FDebugObjectInfo> GetSelectedComponent() const override;
 	virtual TSharedPtr<RewindDebugger::FRewindDebuggerTrack> GetSelectedTrack() const override;
 	virtual TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() override;
-	
+
+	void OnConnection();
 
 	void GetTargetObjectIds(TArray<uint64>& OutActorIds) const;
 
@@ -150,6 +151,7 @@ private:
 	FOnComponentListChanged ComponentListChangedDelegate;
 	FOnTrackCursor TrackCursorDelegate;
 
+	bool bTraceJustConnected = false;
 	bool bPIEStarted;
 	bool bPIESimulating;
 	
