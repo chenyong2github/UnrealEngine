@@ -17,6 +17,8 @@ struct FTouchInputControl
 	GENERATED_USTRUCT_BODY()
 
 	// basically mirroring SVirtualJoystick::FControlInfo but as an editable class
+	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="Set this to true to treat the joystick as a simple button"))
+	bool bTreatAsButton = false;
 	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="For sticks, this is the Thumb"))
 	TObjectPtr<UTexture2D> Image1;
 	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="For sticks, this is the Background"))
@@ -37,7 +39,8 @@ struct FTouchInputControl
 	FKey AltInputKey;
 
 	FTouchInputControl()
-		: Image1(nullptr)
+		: bTreatAsButton(false)
+		, Image1(nullptr)
 		, Image2(nullptr)
 		, Center(ForceInitToZero)
 		, VisualSize(ForceInitToZero)

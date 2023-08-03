@@ -392,6 +392,9 @@ void SVirtualJoystick::Tick(const FGeometry& AllottedGeometry, const double InCu
 
 		if (Control.CapturedPointerIndex >= 0 || Control.bSendOneMoreEvent)
 		{
+			// cache the key released state so we can send input pressed/released events later
+			bool bButtonPressed = !Control.bSendOneMoreEvent;
+
 			Control.bSendOneMoreEvent = false;
 
 			// Get the corrected thumb offset scale (now allows ellipse instead of assuming square)
@@ -420,12 +423,23 @@ void SVirtualJoystick::Tick(const FGeometry& AllottedGeometry, const double InCu
 			
 			FInputDeviceId PrimaryInputDevice = IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser(FSlateApplicationBase::SlateAppPrimaryPlatformUser);
 
-			auto ApplyInput = [PrimaryInputDevice](const FGamepadKeyNames::Type KeyName, float Delta)
+			auto ApplyInput = [PrimaryInputDevice](const FGamepadKeyNames::Type KeyName, float Delta, bool bTreatAsButton, bool bPressed)
 			{
 				FKey Key(KeyName);
 				if (Key.IsAnalog())
 				{
 					FSlateApplication::Get().OnControllerAnalog(KeyName, FSlateApplicationBase::SlateAppPrimaryPlatformUser, PrimaryInputDevice, Delta);
+				}
+				else if (bTreatAsButton)
+				{
+					if (bPressed)
+					{
+						FSlateApplication::Get().OnControllerButtonPressed(KeyName, FSlateApplicationBase::SlateAppPrimaryPlatformUser, PrimaryInputDevice, false);
+					}
+					else
+					{
+						FSlateApplication::Get().OnControllerButtonReleased(KeyName, FSlateApplicationBase::SlateAppPrimaryPlatformUser, PrimaryInputDevice, false);
+					}
 				}
 				else if (Delta != 0.0f)
 				{
@@ -437,8 +451,13 @@ void SVirtualJoystick::Tick(const FGeometry& AllottedGeometry, const double InCu
 				}
 			};
 
-			ApplyInput(XAxis, NormalizedOffset.X);
-			ApplyInput(YAxis, -NormalizedOffset.Y);
+			ApplyInput(XAxis, NormalizedOffset.X, Control.Info.bTreatAsButton, bButtonPressed);
+
+			// ignore the Y axis if this is a button
+			if (!Control.Info.bTreatAsButton)
+			{
+				ApplyInput(YAxis, -NormalizedOffset.Y, false, bButtonPressed);
+			}
 		}
 		
 

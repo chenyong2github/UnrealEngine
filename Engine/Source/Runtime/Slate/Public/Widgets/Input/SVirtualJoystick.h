@@ -24,6 +24,9 @@ public:
 	{
 		// Set by the game
 
+		/** If true, this joystick will be treated as a simple press-release button */
+		bool bTreatAsButton = false;
+
 		/** The brush to use to draw the background for joysticks, or unclicked for buttons */
 		TSharedPtr< ISlateBrushSource > Image1;
 

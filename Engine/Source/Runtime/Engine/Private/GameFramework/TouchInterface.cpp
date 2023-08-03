@@ -35,6 +35,7 @@ void UTouchInterface::Activate(TSharedPtr<SVirtualJoystick> VirtualJoystick)
 			FTouchInputControl Control = Controls[ControlIndex];
 			SVirtualJoystick::FControlInfo* SlateControl = new(SlateControls)SVirtualJoystick::FControlInfo;
 
+			SlateControl->bTreatAsButton = Control.bTreatAsButton;
 			SlateControl->Image1 = Control.Image1 ? StaticCastSharedRef<ISlateBrushSource>(FDeferredCleanupSlateBrush::CreateBrush(Control.Image1)) : TSharedPtr<ISlateBrushSource>();
 			SlateControl->Image2 = Control.Image2 ? StaticCastSharedRef<ISlateBrushSource>(FDeferredCleanupSlateBrush::CreateBrush(Control.Image2)) : TSharedPtr<ISlateBrushSource>();
 			SlateControl->Center = Control.Center;
