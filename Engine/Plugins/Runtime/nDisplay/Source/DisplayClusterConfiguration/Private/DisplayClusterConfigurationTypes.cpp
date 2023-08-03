@@ -180,13 +180,17 @@ void UDisplayClusterConfigurationViewport::PostLoad()
 
 #if WITH_EDITOR
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (IsValid(RenderSettings.Media.MediaOutput_DEPRECATED))
+		if (!IsValid(RenderSettings.Media.MediaInput.MediaSource) && IsValid(RenderSettings.Media.MediaSource))
 		{
-			RenderSettings.Media.MediaOutputs.Add(
-				{ RenderSettings.Media.MediaOutput_DEPRECATED , RenderSettings.Media.OutputSyncPolicy_DEPRECATED });
+			RenderSettings.Media.MediaInput.MediaSource = RenderSettings.Media.MediaSource;
+			RenderSettings.Media.MediaSource = nullptr;
+		}
 
-			RenderSettings.Media.MediaOutput_DEPRECATED = nullptr;
-			RenderSettings.Media.OutputSyncPolicy_DEPRECATED = nullptr;
+		if (RenderSettings.Media.MediaOutputs.IsEmpty() && IsValid(RenderSettings.Media.MediaOutput))
+		{
+			RenderSettings.Media.MediaOutputs.Add({ RenderSettings.Media.MediaOutput , RenderSettings.Media.OutputSyncPolicy });
+			RenderSettings.Media.MediaOutput = nullptr;
+			RenderSettings.Media.OutputSyncPolicy = nullptr;
 		}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
@@ -289,13 +293,17 @@ void UDisplayClusterConfigurationClusterNode::PostLoad()
 
 #if WITH_EDITOR
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (IsValid(Media.MediaOutput_DEPRECATED))
+		if (!IsValid(Media.MediaInput.MediaSource) && IsValid(Media.MediaSource))
 		{
-			Media.MediaOutputs.Add(
-				{ Media.MediaOutput_DEPRECATED , Media.OutputSyncPolicy_DEPRECATED });
+			Media.MediaInput.MediaSource = Media.MediaSource;
+			Media.MediaSource = nullptr;
+		}
 
-			Media.MediaOutput_DEPRECATED = nullptr;
-			Media.OutputSyncPolicy_DEPRECATED = nullptr;
+		if (Media.MediaOutputs.IsEmpty() && IsValid(Media.MediaOutput))
+		{
+			Media.MediaOutputs.Add({ Media.MediaOutput, Media.OutputSyncPolicy });
+			Media.MediaOutput = nullptr;
+			Media.OutputSyncPolicy = nullptr;
 		}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR

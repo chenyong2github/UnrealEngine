@@ -164,7 +164,7 @@ public:
 
 public:
 	//~ Begin UObject interface
-	void PostLoad() override;
+	virtual void PostLoad() override;
 
 #if WITH_EDITOR
 	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;

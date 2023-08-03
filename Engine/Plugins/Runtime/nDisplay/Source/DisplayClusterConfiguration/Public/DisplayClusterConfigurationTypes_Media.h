@@ -79,21 +79,24 @@ public:
 	/** Returns true if at least one media output assigned */
 	bool IsMediaOutputAssigned() const;
 
-protected:
 #if WITH_EDITORONLY_DATA
 
+protected:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated"))
 	FString MediaSharingNode_DEPRECATED;
 
 public:
+	UE_DEPRECATED(5.3, "This property has been deprecated. Please refer new MediaInput property.")
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated. Please refer new MediaInput property."))
-	TObjectPtr<UMediaSource> MediaSource_DEPRECATED;
+	TObjectPtr<UMediaSource> MediaSource;
 
+	UE_DEPRECATED(5.3, "This property has been deprecated. Please refer new MediaOutputs property.")
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated. Please refer new MediaOutputs property."))
-	TObjectPtr<UMediaOutput> MediaOutput_DEPRECATED;
+	TObjectPtr<UMediaOutput> MediaOutput;
 
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated. Please refer new MediaOutputs property."))
-	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> OutputSyncPolicy_DEPRECATED;
+	UE_DEPRECATED(5.3, "This property has been deprecated.")
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated."))
+	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> OutputSyncPolicy;
 
 #endif // WITH_EDITORONLY_DATA
 };
