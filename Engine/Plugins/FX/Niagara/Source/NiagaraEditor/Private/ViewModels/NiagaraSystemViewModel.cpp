@@ -1362,6 +1362,7 @@ bool FNiagaraSystemViewModel::RenameParameter(const FNiagaraVariable TargetParam
 			System->HandleVariableRenamed(TargetParameter, FNiagaraVariableBase(TargetParameter.GetType(), NewName), true);
 		}
 
+		GetSystemStackViewModel()->RequestRefreshDeferred();
 		return true;
 	}
 
