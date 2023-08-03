@@ -254,6 +254,17 @@ namespace Metasound
 			{
 				IOperator* Operator = OperatorInfo.Operator.Get();
 
+				if (FOperatorInfo* ExistingInfo = InGraphOperatorData.OperatorMap.Find(OperatorID))
+				{
+					// The options here are not good. The prior operator will be 
+					// removed and replaced with this new operator.
+					// Another option would be to leave the existing operator unchanged. 
+					// Neither option is satisfactory.
+					UE_LOG(LogMetaSound, Warning, TEXT("Overriding existing operator with the same operator ID %d. Duplicate operator IDs will lead to undefined behavior. Remove existing operators before adding a new one with the same ID"), OperatorID);
+
+					FRemoveOperator(OperatorID).Transform(InGraphOperatorData);
+				}
+
 				InGraphOperatorData.OperatorOrder.Add(OperatorID);
 				InGraphOperatorData.OperatorMap.Add(OperatorID, MoveTemp(OperatorInfo));
 

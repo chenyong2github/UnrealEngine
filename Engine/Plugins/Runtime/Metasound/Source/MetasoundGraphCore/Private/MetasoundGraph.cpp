@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundGraph.h"
 
+#include "Algo/BinarySearch.h"
+#include "Algo/Transform.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "MetasoundOperatorBuilder.h"
+#include "Templates/SharedPointer.h"
 
 namespace Metasound
 {
@@ -181,6 +186,62 @@ namespace Metasound
 			return NodePtr->Get();
 		}
 		return nullptr;
+	}
+
+	int32 FGraph::FindUnconnectedNodes(TArray<TPair<FGuid, const INode*>>& OutUnconnectedNodes) const
+	{
+		TArray<const INode*> ConnectedNodes;
+
+		auto AddNodeIfUnique = [&](const INode* InNode)
+		{
+			// Find index >= InNode
+			int32 Index = Algo::LowerBound(ConnectedNodes, InNode);
+
+			if (Index < ConnectedNodes.Num())
+			{
+				if (ConnectedNodes[Index] != InNode)
+				{
+					ConnectedNodes.Insert(InNode, Index);
+				}
+			}
+			else
+			{
+				ConnectedNodes.Add(InNode);
+			}
+		};
+
+		// Find nodes with an edge.
+		for (const FDataEdge& Edge : Edges)
+		{
+			AddNodeIfUnique(Edge.From.Node);
+			AddNodeIfUnique(Edge.To.Node);
+		}
+
+		// Find input and output nodes.
+		for (const TPair<FNodeDataVertexKey, FInputDataDestination>& Pair : InputDestinations)
+		{
+			AddNodeIfUnique(Pair.Value.Node);
+		}
+		for (const TPair<FNodeDataVertexKey, FOutputDataSource>& Pair : OutputSources)
+		{
+			AddNodeIfUnique(Pair.Value.Node);
+		}
+
+		// Filter all nodes by the connected nodes to get the unconnected nodes.
+		auto IsNodeUnconnected = [&](const TPair<FGuid, TSharedPtr<const INode>>& InGuidAndNode)
+		{
+			const INode* NodePtr = InGuidAndNode.Value.Get();
+			return (nullptr != NodePtr) && (INDEX_NONE == Algo::BinarySearch(ConnectedNodes, NodePtr));
+		};
+
+		auto RemoveSharedPtr = [&](const TPair<FGuid, TSharedPtr<const INode>>& InGuidAndNode) -> TPair<FGuid, const INode*>
+		{
+			return TPair<FGuid, const INode*>(InGuidAndNode.Key, InGuidAndNode.Value.Get());
+		};
+
+		Algo::TransformIf(Nodes, OutUnconnectedNodes, IsNodeUnconnected, RemoveSharedPtr);
+
+		return OutUnconnectedNodes.Num();
 	}
 
 	bool FGraph::RemoveNode(const FGuid& InNodeID, bool bInRemoveDataEdgesWithNode)

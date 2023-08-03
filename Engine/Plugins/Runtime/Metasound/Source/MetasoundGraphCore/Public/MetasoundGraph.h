@@ -110,6 +110,14 @@ namespace Metasound
 			 */
 			const INode* FindNode(const FGuid& InNodeID) const;
 
+			/** Populates an array with all nodes which exist in the graph but do not have
+			 * any connections.
+			 * 
+			 * @param OutUnconnectedNodes - Array to populate.
+			 * @return Number of unconnected nodes found.
+			 */
+			int32 FindUnconnectedNodes(TArray<TPair<FGuid, const INode*>>& OutUnconnectedNodes) const;
+
 			/** Removes node from graph.
 			 *
 			 * @param InNodeID - ID of node to remove.

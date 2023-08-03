@@ -113,6 +113,7 @@ namespace Metasound
 		private:
 			using FOperatorID = uintptr_t;
 
+			void EnqueueAddOperatorTransform(const INode& InNode);
 			void EnqueueFadeAndRemoveOperatorTransform(const INode& InNode, TArrayView<const FVertexName> InOutputsToFade);
 			void EnqueueRemoveOperatorTransform(const INode& InNode);
 			void EnqueueBeginFadeOperatorTransform(const INode& InNode, EAudioFadeType InFadeType, TArrayView<const FVertexName> InInputsToFade, TArrayView<const FVertexName> InOutputsToFade);

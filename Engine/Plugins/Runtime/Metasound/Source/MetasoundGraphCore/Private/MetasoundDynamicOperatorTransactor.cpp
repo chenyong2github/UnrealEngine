@@ -86,6 +86,22 @@ namespace Metasound
 			TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> Queue = MakeShared<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>>();
 			OperatorInfos.Add(FDynamicOperatorInfo{InOperatorSettings, InEnvironment, Queue});
 
+			// Unconnected nodes are intentionally skipped by the operator builder
+			// in order to reduce perf. In a dynamic operator, these nodes may be
+			// connected in the future. We queue them up to be added here so that
+			// they exist on the dynamic operator in the case they are connected at
+			// a later time.
+			TArray<TPair<FGuid, const INode*>> UnconnectedNodes;
+			if (Graph.FindUnconnectedNodes(UnconnectedNodes) > 0)
+			{
+				for (const TPair<FGuid, const INode*>& GuidAndNode : UnconnectedNodes)
+				{
+					// Only add to this queue because we do not know at what point
+					// the other queues and dynamic operators were created.
+					Queue->Enqueue(CreateAddOperatorTransform(*GuidAndNode.Value, InOperatorSettings, InEnvironment));
+				}
+			}
+
 			return Queue;
 		}
 
@@ -104,12 +120,7 @@ namespace Metasound
 
 			Graph.AddNode(InNodeID, NodePtr);
 
-			auto CreateAddNodeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
-			{
-				return CreateAddOperatorTransform(*NodePtr, InOperatorSettings, InEnvironment);
-			};
-
-			EnqueueTransformOnOperatorQueues(CreateAddNodeTransform);
+			EnqueueAddOperatorTransform(*NodePtr);
 		}
 
 		void FDynamicOperatorTransactor::RemoveNode(const FGuid& InNodeID)
@@ -411,6 +422,16 @@ namespace Metasound
 			}
 		}
 		
+		void FDynamicOperatorTransactor::EnqueueAddOperatorTransform(const INode& InNode)
+		{
+			auto CreateAddNodeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
+			{
+				return CreateAddOperatorTransform(InNode, InOperatorSettings, InEnvironment);
+			};
+
+			EnqueueTransformOnOperatorQueues(CreateAddNodeTransform);
+		}
+
 		void FDynamicOperatorTransactor::EnqueueFadeAndRemoveOperatorTransform(const INode& InNode, TArrayView<const FVertexName> InOutputsToFade)
 		{
 			TArrayView<const FVertexName> InputsToFade; // We do not need to fade any inputs when removing a node.
