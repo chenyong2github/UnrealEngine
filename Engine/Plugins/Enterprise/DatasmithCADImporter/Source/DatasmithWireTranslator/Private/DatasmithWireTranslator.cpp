@@ -2268,7 +2268,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshDescription(TSharedRef<I
 	{
 		boolean bAlOrientation;
 		DagNode.getSurfaceOrientation(bAlOrientation);
-		MeshParameters.bNeedSwapOrientation = (bool)bAlOrientation;
+		MeshParameters.bNeedSwapOrientation = (objectType == kMeshNodeType) ? (bool)bAlOrientation : false; 
 
 		AlLayer* LayerPtr = DagNode.layer();
 		if (AlIsValid(LayerPtr))
