@@ -9,9 +9,43 @@ using System.Threading;
 using System.Text.RegularExpressions;
 using System.Linq;
 using EpicGames.Core;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Gauntlet
 {
+	internal static class MacAppChecker
+	{
+		public static bool IsAppBundleUsable(string AppPath, string ProjectName)
+		{
+			string MacOSDir = Path.Combine(AppPath, "Contents", "MacOS");
+
+			// check both binary AND Engine content. Regular Unreal builds won't have the latter
+			if (Directory.Exists(MacOSDir)
+				&& Directory.Exists(Path.Combine(AppPath, "Contents", "UE")))
+			{
+				// if we don't have a project passed in, we have checked all we can, so we are valid now
+				if (ProjectName == null)
+				{
+					return true;
+				}
+
+				// check there's an executable with the right name 
+				string ShortName = Regex.Replace(ProjectName, "Game", "", RegexOptions.IgnoreCase);
+				FileInfo Executable = new DirectoryInfo(MacOSDir).GetFiles().Where(Fi => Fi.Name.StartsWith(ShortName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+
+				// make sure it was found
+				if (Executable != null)
+				{
+					return true;
+				}
+			}
+
+			// if we got here, we are not usable
+			return false;
+		}
+	}
+
+
 	/// <summary>
 	/// Represents a loose collection of files. For Mac the executable will point to the binary.app bundle and
 	/// not the inner executable file
@@ -23,6 +57,12 @@ namespace Gauntlet
 		public override UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.Mac; } }
 
 		public override string PlatformFolderPrefix { get { return "Mac"; } }
+
+		public override bool ShouldMakeBuildAvailable(string AppPath)
+		{
+			return MacAppChecker.IsAppBundleUsable(AppPath, null);
+		}
+
 	}
 
 	/// <summary>
@@ -95,8 +135,6 @@ namespace Gauntlet
 				DirsToRecurse = DiscoveredDirs.Except(Packages);
 			}
 
-			string ShortName = Regex.Replace(InProjectName, "Game", "", RegexOptions.IgnoreCase);
-
 			// Now 
 			foreach (DirectoryInfo Di in AllPackages)
 			{
@@ -108,31 +146,17 @@ namespace Gauntlet
 
 				if (Config != UnrealTargetConfiguration.Unknown)
 				{
-					string MacOSDir = Path.Combine(Di.FullName, "Contents", "MacOS");
-
-					// check both binary AND Engine content. Regular Unreal builds won't have the latter
-					if (Directory.Exists(MacOSDir)
-						&& Directory.Exists(Path.Combine(Di.FullName, "Contents", "UE")))
+					if (MacAppChecker.IsAppBundleUsable(Di.FullName, InProjectName))
 					{
-						// Check there's an executable
-						FileInfo Executable = new DirectoryInfo(MacOSDir).GetFiles().Where(Fi => Fi.Name.StartsWith(ShortName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+						// We can use the base packaged build class. it has everything we need.
+						MacPackagedBuild Build = new MacPackagedBuild(
+							UnrealTargetPlatform.Mac,
+							Config,
+							Role,
+							Di.FullName,
+							BuildFlags.Packaged | BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable);
 
-						if (Executable == null)
-						{
-							Log.Warning("Found packaged build at {0} with no valid executable");
-						}
-						else
-						{
-							// We can use the base packaged build class. it has everything we need.
-							MacPackagedBuild Build = new MacPackagedBuild(
-								UnrealTargetPlatform.Mac,
-								Config,
-								Role,
-								Di.FullName,
-								BuildFlags.Packaged | BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable);
-
-							Builds.Add(Build);
-						}
+						Builds.Add(Build);
 					}
 				}
 			}
