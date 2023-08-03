@@ -3005,12 +3005,12 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 					}
 
 					CompilerContext.SetCalculatedMetaDataAndFlags(NewFunction, EntryNode, Schema);
-				}
 
-				if (EntryNode->MetaData.HasMetaData(FBlueprintMetadata::MD_FieldNotify) && Ret->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
-				{
-					ensure(!Ret->FieldNotifies.Contains(FFieldNotificationId(NewFunction->GetFName())));
-					Ret->FieldNotifies.Add(FFieldNotificationId(NewFunction->GetFName()));
+					if (EntryNode->MetaData.HasMetaData(FBlueprintMetadata::MD_FieldNotify) && Ret->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+					{
+						ensure(!Ret->FieldNotifies.Contains(FFieldNotificationId(NewFunction->GetFName())));
+						Ret->FieldNotifies.Add(FFieldNotificationId(NewFunction->GetFName()));
+					}
 				}
 
 				if (BP->bIsRegeneratingOnLoad)
