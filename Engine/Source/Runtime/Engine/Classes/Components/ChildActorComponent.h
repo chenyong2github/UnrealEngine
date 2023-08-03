@@ -139,6 +139,13 @@ private:
 	EChildActorComponentTreeViewVisualizationMode EditorTreeViewVisualizationMode;
 #endif
 
+	/**
+	 * Should the spawned actor be marked as transient?
+	 * @note The spawned actor will also be marked transient if this component or its owner actor are transient, regardless of the state of this flag.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category=ChildActorComponent)
+	uint8 bChildActorIsTransient:1;
+
 	/** Flag indicating that when the component is registered that the child actor should be recreated */
 	uint8 bNeedsRecreate:1;
 
