@@ -40,7 +40,7 @@ void UTakeRecorderMicrophoneAudioManager::PostEditChangeProperty(FPropertyChange
 
 void UTakeRecorderMicrophoneAudioManager::EnumerateAudioDevices(bool InForceRefresh)
 {
-	if (!AudioRecorder.IsValid())
+	if (!AudioRecorder.IsValid() || InForceRefresh)
 	{
 		AudioRecorder = CreateAudioRecorderObject();
 	}

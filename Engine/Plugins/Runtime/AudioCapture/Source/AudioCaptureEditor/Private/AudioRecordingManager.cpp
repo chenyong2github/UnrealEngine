@@ -233,7 +233,7 @@ TObjectPtr<USoundWave> FAudioRecordingManager::GetRecordedSoundWave(const FRecor
 		{
 			return RecordedSoundWaves[ChannelIndex];
 		}
-		else if (NumRecordedSamples > 0)
+		else if (NumRecordedSamples > 0 && ChannelIndex < NumInputChannels)
 		{
 			return CreateSoundWaveAsset(InSourceSettings);
 		}

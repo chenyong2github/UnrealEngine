@@ -5,7 +5,8 @@
 #include "DetailWidgetRow.h"
 #include "IPropertyTypeCustomization.h"
 #include "TakeRecorderSourceProperty.h"
-#include "Widgets/Input/SComboBox.h"
+
+#include "SSimpleComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 
 class FAudioInputDevicePropertyCustomization : public IPropertyTypeCustomization
@@ -24,20 +25,26 @@ private:
 	int32 GetChannelCountFromInfoProperty(const TSharedPtr<IPropertyHandle>& InDeviceInfoHandle);
 
 	bool GetIsDefaultFromInfoProperty(const TSharedPtr<IPropertyHandle>& InDeviceInfoHandle);
-	TSharedRef<SWidget> MakeAudioInputSelectorWidget();
+	void BuildAudioInputDeviceList();
+	TSharedRef<SWidget> CreateDeviceListComboButton();
 
+	void RequestsDeviceListRefresh();
+	TSharedRef<SWidget> OnGenerateDeviceMenu();
+	void MenuItemRefreshSelected();
+	void MenuItemDeviceSelected(TSharedPtr<IPropertyHandle> InDeviceInfoHandle);
+
+	void OnDeviceListChanged();
 	void UpdateDeviceCombobxEnabled();
 	void SynchronizeWidgetStates();
 
 	TSharedPtr<IPropertyHandle> UseSystemDefaultHandle;
 	TSharedPtr<IPropertyHandle> InputDeviceHandle;
-	TSharedPtr<IPropertyHandle> DeviceChannelCountHandle;
 	TSharedPtr<IPropertyHandle> BufferSizeHandle;
 	TSharedPtr<IPropertyHandleArray> DeviceInfoArrayHandle;
 
+	TSharedPtr<IPropertyHandle> SelectedAudioInputDevice;
 	TArray<TSharedPtr<IPropertyHandle>> AudioInputDevices;
-	TSharedPtr<SComboBox<TSharedPtr<IPropertyHandle>>> ComboBox;
-	TSharedPtr<STextBlock> ComboBoxTitleBlock;
+	TSharedPtr<SSimpleComboButton> DeviceListComboButton;
 	FString DefaultDeviceId;
 };
 
@@ -46,4 +53,5 @@ class TakeRecorderAudioSettingsUtils
 public:
 
 	static UTakeRecorderAudioInputSettings* GetTakeRecorderAudioInputSettings();
+	static void RefreshAudioInputSettings();
 };

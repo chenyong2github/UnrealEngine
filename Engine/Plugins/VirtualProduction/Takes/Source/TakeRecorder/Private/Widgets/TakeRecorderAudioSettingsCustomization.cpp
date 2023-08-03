@@ -4,8 +4,11 @@
 #include "IDetailChildrenBuilder.h"
 #include "TakeRecorderSettings.h"
 #include "TakeRecorderSourceProperty.h"
+
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SComboBox.h"
+
+#define LOCTEXT_NAMESPACE "FAudioInputDevicePropertyCustomization"
 
 void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
@@ -14,7 +17,7 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 	BufferSizeHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, AudioInputBufferSize));
 	DeviceInfoArrayHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, DeviceInfoArray))->AsArray();
 
-	// Create check box which indicates system default audio device should be used (disables device combobox)
+	// Create check box which indicates system default audio device should be used (disables device combo button)
 	if (UseSystemDefaultHandle.IsValid())
 	{
 		IDetailPropertyRow& UseSystemDefaultRow = ChildBuilder.AddProperty(PropertyHandle);
@@ -37,15 +40,20 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 			{
 				bool bUseSystemDefault = (NewState == ECheckBoxState::Checked);
 				UseSystemDefaultHandle->SetValue(bUseSystemDefault);
-                SynchronizeWidgetStates();
+
+				// Refresh the device list
+				RequestsDeviceListRefresh();
 			})
 		];
 	}
 
-	// Create audio input device combobox
+	// Create audio input device combo button
 	if (InputDeviceHandle.IsValid() && DeviceInfoArrayHandle.IsValid())
 	{
 		IDetailPropertyRow& InputDevicePropertyRow = ChildBuilder.AddProperty(PropertyHandle);
+
+		DeviceInfoArrayHandle->SetOnNumElementsChanged(FSimpleDelegate::CreateSP(this, &FAudioInputDevicePropertyCustomization::OnDeviceListChanged));
+		BuildAudioInputDeviceList();
 
 		InputDevicePropertyRow.CustomWidget()
 		.NameContent()
@@ -54,7 +62,7 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 		]
 		.ValueContent()
 		[
-			MakeAudioInputSelectorWidget()
+			CreateDeviceListComboButton()
 		];
 	}
 
@@ -72,6 +80,8 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 			BufferSizeHandle->CreatePropertyValueWidget()
 		];
 	}
+
+	SynchronizeWidgetStates();
 
 	// Register delegate so UI can update when the audio input device changes
 	// This is needed because the device menu lives in both the project settings window and the take recorder panel
@@ -141,16 +151,16 @@ bool FAudioInputDevicePropertyCustomization::GetIsDefaultFromInfoProperty(const 
 	return bIsDefaultDevice;
 }
 
-TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::MakeAudioInputSelectorWidget()
+void FAudioInputDevicePropertyCustomization::BuildAudioInputDeviceList()
 {
 	FString CurrentDeviceId;
 	InputDeviceHandle->GetValue(CurrentDeviceId);
 
 	bool bHaveCurrentDevice = CurrentDeviceId.Len() != 0;
-	TSharedPtr<IPropertyHandle> SelectedAudioInputDevice;
-
 	uint32 NumDevices;
 	DeviceInfoArrayHandle->GetNumElements(NumDevices);
+
+	AudioInputDevices.Empty();
 
 	for (uint32 DeviceIndex = 0; DeviceIndex < NumDevices; ++DeviceIndex)
 	{
@@ -160,11 +170,11 @@ TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::MakeAudioInputSelect
 			bool bIsDefaultDevice = GetIsDefaultFromInfoProperty(DeviceInfoHandle);
 			FString DeviceId = GetDeviceIdFromInfoProperty(DeviceInfoHandle);
 
-            if (bIsDefaultDevice)
-            {
-                DefaultDeviceId = DeviceId;
-            }
-            
+			if (bIsDefaultDevice)
+			{
+				DefaultDeviceId = DeviceId;
+			}
+
 			if (bIsDefaultDevice && !bHaveCurrentDevice)
 			{
 				CurrentDeviceId = DeviceId;
@@ -182,36 +192,83 @@ TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::MakeAudioInputSelect
 			AudioInputDevices.Add(DeviceInfoHandle);
 		}
 	}
+}
 
-	// Combo box component:
-	TSharedRef<SComboBox<TSharedPtr<IPropertyHandle>>> NewWidget = SNew(SComboBox<TSharedPtr<IPropertyHandle>>)
-	.OptionsSource(&AudioInputDevices)
-	.InitiallySelectedItem(SelectedAudioInputDevice)
-	.OnGenerateWidget_Lambda([](TSharedPtr<IPropertyHandle> InItem)
+void FAudioInputDevicePropertyCustomization::RequestsDeviceListRefresh()
+{
+	TakeRecorderAudioSettingsUtils::RefreshAudioInputSettings();
+
+	BuildAudioInputDeviceList();
+	SynchronizeWidgetStates();
+}
+
+void FAudioInputDevicePropertyCustomization::OnDeviceListChanged()
+{
+	BuildAudioInputDeviceList();
+	SynchronizeWidgetStates();
+}
+
+void FAudioInputDevicePropertyCustomization::MenuItemRefreshSelected()
+{
+	RequestsDeviceListRefresh();
+}
+
+void FAudioInputDevicePropertyCustomization::MenuItemDeviceSelected(TSharedPtr<IPropertyHandle> InDeviceInfoHandle)
+{
+	SelectedAudioInputDevice = InDeviceInfoHandle;
+	InputDeviceHandle->SetValue(GetDeviceIdFromInfoProperty(InDeviceInfoHandle));
+}
+
+TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::OnGenerateDeviceMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("RefreshDeviceList", "Refresh List"),
+		LOCTEXT("RefreshDeviceListToolTip", "Refresh contents of this menu's Audio Input Device List"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FAudioInputDevicePropertyCustomization::MenuItemRefreshSelected)
+		)
+	);
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("AudioInputDeviceMenuSection", "Audio Input Devices"));
 	{
-		return SNew(STextBlock)
-			.Text(FText::AsCultureInvariant(GetDeviceNameFromInfoProperty(InItem)))
-			.Font(FAppStyle::Get().GetFontStyle("SmallFont"));
-	})
-	.OnSelectionChanged_Lambda([this](TSharedPtr<IPropertyHandle> InSelection, ESelectInfo::Type InSelectInfo)
-	{
-		if (InSelection.IsValid() && ComboBoxTitleBlock.IsValid())
+		for (TSharedPtr<IPropertyHandle> DeviceInfoHandle : AudioInputDevices)
 		{
-			InputDeviceHandle->SetValue(GetDeviceIdFromInfoProperty(InSelection));
-			ComboBoxTitleBlock->SetText(FText::AsCultureInvariant(GetDeviceNameFromInfoProperty(InSelection)));
+			FString DeviceName = GetDeviceNameFromInfoProperty(DeviceInfoHandle);
+
+			if (!DeviceName.IsEmpty())
+			{
+				MenuBuilder.AddMenuEntry(
+					FText::FromString(DeviceName),
+					FText(),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &FAudioInputDevicePropertyCustomization::MenuItemDeviceSelected, DeviceInfoHandle)
+					)
+				);
+			}
 		}
-	})
-	[
-		SAssignNew(ComboBoxTitleBlock, STextBlock)
-		.Text_Lambda([SelectedAudioInputDevice]()
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::CreateDeviceListComboButton()
+{
+	TSharedRef<SSimpleComboButton> NewWidget = SNew(SSimpleComboButton)
+		.OnGetMenuContent(this, &FAudioInputDevicePropertyCustomization::OnGenerateDeviceMenu)
+		.ToolTipText(LOCTEXT("AudioInputDeviceMenuToolTip", "Available Audio Input Devices"))
+		.HasDownArrow(true)
+		.UsesSmallText(true)
+		.Text_Lambda([this]()
 		{
 			return FText::AsCultureInvariant(GetDeviceNameFromInfoProperty(SelectedAudioInputDevice));
-		})
-		.Font(FAppStyle::Get().GetFontStyle("SmallFont"))
-	];
+		});
 
-	ComboBox = NewWidget;
-	UpdateDeviceCombobxEnabled();
+	DeviceListComboButton = NewWidget;
 
 	return NewWidget;
 }
@@ -226,12 +283,12 @@ void FAudioInputDevicePropertyCustomization::UpdateDeviceCombobxEnabled()
 	bool bEnableWidget = !bUseSystemDefault;
 
 	// Get the current widget state
-	bool bIsWidgetEnabled = ComboBox->IsEnabled();
+	bool bIsWidgetEnabled = DeviceListComboButton->IsEnabled();
 
 	// If the UI doesn't match the data model, refresh the UI
 	if (bEnableWidget != bIsWidgetEnabled)
 	{
-		ComboBox->SetEnabled(bEnableWidget);
+		DeviceListComboButton->SetEnabled(bEnableWidget);
         
         // If disabling, set the current menu item to default
         if (!bEnableWidget)
@@ -252,11 +309,8 @@ void FAudioInputDevicePropertyCustomization::SynchronizeWidgetStates()
 	FString CurrentDeviceId;
 	InputDeviceHandle->GetValue(CurrentDeviceId);
 
-	// Get current menu selection
-	TSharedPtr<IPropertyHandle> CurrentMenuSelection = ComboBox->GetSelectedItem();
-	
 	// If the UI doesn't match the data model, refresh the UI
-	if (CurrentDeviceId != GetDeviceIdFromInfoProperty(CurrentMenuSelection))
+	if (CurrentDeviceId != GetDeviceIdFromInfoProperty(SelectedAudioInputDevice))
 	{
 		for (uint32 DeviceIndex = 0; DeviceIndex < NumDevices; ++DeviceIndex)
 		{
@@ -267,7 +321,8 @@ void FAudioInputDevicePropertyCustomization::SynchronizeWidgetStates()
 
 				if (DeviceId == CurrentDeviceId)
 				{
-					ComboBox->SetSelectedItem(DeviceInfoHandle);
+					SelectedAudioInputDevice = DeviceInfoHandle;
+					DeviceListComboButton->Invalidate(EInvalidateWidgetReason::Paint);
 					break;
 				}
 			}
@@ -291,3 +346,15 @@ UTakeRecorderAudioInputSettings* TakeRecorderAudioSettingsUtils::GetTakeRecorder
 	}
 	return nullptr;
 }
+
+void TakeRecorderAudioSettingsUtils::RefreshAudioInputSettings()
+{
+	// Enumerate audio devices which will rebuild the device list. Note, this can be expensive depending on the hardware
+	// attached to the machine.
+	if (UTakeRecorderAudioInputSettings* AudioInputSettings = TakeRecorderAudioSettingsUtils::GetTakeRecorderAudioInputSettings())
+	{
+		AudioInputSettings->EnumerateAudioDevices(true);
+	}
+}
+
+#undef LOCTEXT_NAMESPACE // "FAudioInputDevicePropertyCustomization"
