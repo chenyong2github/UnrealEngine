@@ -189,6 +189,12 @@ void FStaticMeshComponentBulkReregisterContext::AddSimpleConstructionScript(USim
 	}
 }
 
+void FStaticMeshComponentBulkReregisterContext::SanitizeMeshComponents()
+{
+	// for contexts in which side effects are less predictable, e.g. in editor:
+	StaticMeshComponents.RemoveAllSwap([](const UPrimitiveComponent* Component) { return !IsValidChecked(Component) || Component->SceneProxy != nullptr; }, false);
+}
+
 void FStaticMeshComponentBulkReregisterContext::AddConstructedComponent(USceneComponent* SceneComp)
 {
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComp);

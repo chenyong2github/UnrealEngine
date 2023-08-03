@@ -827,6 +827,8 @@ public:
 
 	ENGINE_API void AddSimpleConstructionScript(USimpleConstructionScript* SCS);
 
+	/** Removes any static mesh components that have had their proxy created after the context is created*/
+	void SanitizeMeshComponents();
 private:
 	/** Called by USCS_Node (child of USimpleConstructionScript) to track re-created components */
 	ENGINE_API void AddConstructedComponent(USceneComponent* SceneComp);
