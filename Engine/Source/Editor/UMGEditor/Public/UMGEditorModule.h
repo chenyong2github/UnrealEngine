@@ -66,4 +66,15 @@ public:
 
 	/** Remove an instance customization to the widget property view. */
 	virtual TArrayView<const FCustomPropertyTypeLayout> GetAllInstancedCustomPropertyTypeLayout() const = 0;
+
+	/** Arguments for the OnBlueprintCreated callback. */
+	struct FWidgetBlueprintCreatedArgs
+	{
+		UClass* ParentClass = nullptr;
+		UWidgetBlueprint* Blueprint = nullptr;
+	};
+	DECLARE_EVENT_OneParam(IUMGEditorModule, FOnWidgetBlueprintCreated, FWidgetBlueprintCreatedArgs);
+
+	/** Callback when a WidgetBlueprint is created by the factory. */
+	virtual FOnWidgetBlueprintCreated& OnWidgetBlueprintCreated() = 0;
 };

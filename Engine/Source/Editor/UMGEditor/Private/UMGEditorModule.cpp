@@ -318,6 +318,11 @@ public:
 		return CustomPropertyTypeLayout;
 	}
 
+	virtual FOnWidgetBlueprintCreated& OnWidgetBlueprintCreated() override
+	{
+		return BlueprintCreatedEvent;
+	}
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 	{
@@ -400,7 +405,9 @@ private:
 	FOnRegisterTabs RegisterTabsForEditor;
 
 	/** Support layout extensions */
-	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
+	FOnRegisterLayoutExtensions RegisterLayoutExtensions;
+	/** OnWidgetBlueprintCreated event */
+	FOnWidgetBlueprintCreated BlueprintCreatedEvent;
 
 	/** */
 	TArray<FCustomPropertyTypeLayout> CustomPropertyTypeLayout;

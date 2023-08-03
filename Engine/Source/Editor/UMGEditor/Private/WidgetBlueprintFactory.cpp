@@ -8,6 +8,7 @@
 #include "WidgetBlueprint.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleManager.h"
+#include "UMGEditorModule.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "UMGEditorProjectSettings.h"
@@ -192,6 +193,15 @@ UObject* UWidgetBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 				UWidget* Root = NewBP->WidgetTree->ConstructWidget<UWidget>(RootWidgetPanel);
 				NewBP->WidgetTree->RootWidget = Root;
 			}
+		}
+
+		{
+			IUMGEditorModule::FWidgetBlueprintCreatedArgs Args;
+			Args.ParentClass = CurrentParentClass;
+			Args.Blueprint = NewBP;
+
+			IUMGEditorModule& UMGEditor = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
+			UMGEditor.OnWidgetBlueprintCreated().Broadcast(Args);
 		}
 
 		return NewBP;
