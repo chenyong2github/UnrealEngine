@@ -6,146 +6,134 @@
 #include "WheeledVehiclePawn.h"
 #include "TP_VehicleAdvPawn.generated.h"
 
-class UPhysicalMaterial;
 class UCameraComponent;
 class USpringArmComponent;
-class UTextRenderComponent;
-class UInputComponent;
-class UAudioComponent;
+class UInputAction;
+class UChaosWheeledVehicleMovementComponent;
+struct FInputActionValue;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+DECLARE_LOG_CATEGORY_EXTERN(LogTemplateVehicle, Log, All);
 
-UCLASS(config=Game)
+/**
+ *  Vehicle Pawn class
+ *  Handles common functionality for all vehicle types,
+ *  including input handling and camera management.
+ *  
+ *  Specific vehicle configurations are handled in subclasses.
+ */
+UCLASS(abstract)
 class ATP_VehicleAdvPawn : public AWheeledVehiclePawn
 {
 	GENERATED_BODY()
 
-	/** Spring arm that will offset the camera */
-	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* SpringArm;
+	/** Spring Arm for the front camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	USpringArmComponent* FrontSpringArm;
 
-	/** Camera component that will be our viewpoint */
-	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* Camera;
+	/** Front Camera component */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* FrontCamera;
 
-	/** SCene component for the In-Car view origin */
-	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class USceneComponent* InternalCameraBase;
+	/** Spring Arm for the back camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	USpringArmComponent* BackSpringArm;
 
-	/** Camera component for the In-Car view */
-	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* InternalCamera;
+	/** Back Camera component */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* BackCamera;
 
-	/** Text component for the In-Car speed */
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UTextRenderComponent* InCarSpeed;
+	/** Cast pointer to the Chaos Vehicle movement component */
+	TObjectPtr<UChaosWheeledVehicleMovementComponent> ChaosVehicleMovement;
 
-	/** Text component for the In-Car gear */
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UTextRenderComponent* InCarGear;
+protected:
 
-	/** Audio component for the engine sound */
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UAudioComponent* EngineSoundComponent;
+	/** Steering Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* SteeringAction;
+
+	/** Throttle Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* ThrottleAction;
+
+	/** Brake Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* BrakeAction;
+
+	/** Handbrake Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* HandbrakeAction;
+
+	/** Look Around Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* LookAroundAction;
+
+	/** Toggle Camera Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* ToggleCameraAction;
+
+	/** Reset Vehicle Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* ResetVehicleAction;
+
+	/** Keeps track of which camera is active */
+	bool bFrontCameraActive = false;
 
 public:
 	ATP_VehicleAdvPawn();
 
-	/** The current speed as a string eg 10 km/h */
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly)
-	FText SpeedDisplayString;
-
-	/** The current gear as a string (R,N, 1,2 etc) */
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly)
-	FText GearDisplayString;
-
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly)
-	/** The color of the incar gear text in forward gears */
-	FColor	GearDisplayColor;
-
-	/** The color of the incar gear text when in reverse */
-	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly)
-	FColor	GearDisplayReverseColor;
-
-	/** Are we using incar camera */
-	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly)
-	bool bInCarCameraActive;
-
-	/** Are we in reverse gear */
-	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly)
-	bool bInReverseGear;
-
-	/** Initial offset of incar camera */
-	FVector InternalCameraOrigin;
-
 	// Begin Pawn interface
+
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
+
 	// End Pawn interface
 
 	// Begin Actor interface
-	virtual void Tick(float Delta) override;
-protected:
-	virtual void BeginPlay() override;
 
-public:
+	virtual void Tick(float Delta) override;
+
 	// End Actor interface
 
-	/** Handle pressing forwards */
-	void MoveForward(float Val);
+protected:
 
-	/** Setup the strings used on the hud */
-	void SetupInCarHUD();
+	/** Handles steering input */
+	void Steering(const FInputActionValue& Value);
 
-	/** Update the physics material used by the vehicle mesh */
-	void UpdatePhysicsMaterial();
+	/** Handles throttle input */
+	void Throttle(const FInputActionValue& Value);
 
-	/** Handle pressing right */
-	void MoveRight(float Val);
-	/** Handle handbrake pressed */
-	void OnHandbrakePressed();
-	/** Handle handbrake released */
-	void OnHandbrakeReleased();
-	/** Switch between cameras */
-	void OnToggleCamera();
-	/** Handle reset VR device */
-	void OnResetVR();
+	/** Handles brake input */
+	void Brake(const FInputActionValue& Value);
 
-	static const FName LookUpBinding;
-	static const FName LookRightBinding;
-	static const FName EngineAudioRPM;
+	/** Handles brake start/stop inputs */
+	void StartBrake(const FInputActionValue& Value);
+	void StopBrake(const FInputActionValue& Value);
 
-private:
-	/** 
-	 * Activate In-Car camera. Enable camera and sets visibility of incar hud display
-	 *
-	 * @param	bState true will enable in car view and set visibility of various
-	 */
-	void EnableIncarView( const bool bState );
+	/** Handles handbrake start/stop inputs */
+	void StartHandbrake(const FInputActionValue& Value);
+	void StopHandbrake(const FInputActionValue& Value);
 
-	/** Update the gear and speed strings */
-	void UpdateHUDStrings();
+	/** Handles look around input */
+	void LookAround(const FInputActionValue& Value);
 
-	/* Are we on a 'slippery' surface */
-	bool bIsLowFriction;
-	/** Slippery Material instance */
-	UPhysicalMaterial* SlipperyMaterial;
-	/** Non Slippery Material instance */
-	UPhysicalMaterial* NonSlipperyMaterial;
+	/** Handles toggle camera input */
+	void ToggleCamera(const FInputActionValue& Value);
 
+	/** Handles reset vehicle input */
+	void ResetVehicle(const FInputActionValue& Value);
+
+	/** Called when the brake lights are turned on or off */
+	UFUNCTION(BlueprintImplementableEvent, Category="Vehicle")
+	void BrakeLights(bool bBraking);
 
 public:
-	/** Returns SpringArm subobject **/
-	FORCEINLINE USpringArmComponent* GetSpringArm() const { return SpringArm; }
-	/** Returns Camera subobject **/
-	FORCEINLINE UCameraComponent* GetCamera() const { return Camera; }
-	/** Returns InternalCamera subobject **/
-	FORCEINLINE UCameraComponent* GetInternalCamera() const { return InternalCamera; }
-	/** Returns InCarSpeed subobject **/
-	FORCEINLINE UTextRenderComponent* GetInCarSpeed() const { return InCarSpeed; }
-	/** Returns InCarGear subobject **/
-	FORCEINLINE UTextRenderComponent* GetInCarGear() const { return InCarGear; }
-	/** Returns EngineSoundComponent subobject **/
-	FORCEINLINE UAudioComponent* GetEngineSoundComponent() const { return EngineSoundComponent; }
+	/** Returns the front spring arm subobject */
+	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }
+	/** Returns the front camera subobject */
+	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FrontCamera; }
+	/** Returns the back spring arm subobject */
+	FORCEINLINE USpringArmComponent* GetBackSpringArm() const { return BackSpringArm; }
+	/** Returns the back camera subobject */
+	FORCEINLINE UCameraComponent* GetBackCamera() const { return BackCamera; }
+	/** Returns the cast Chaos Vehicle Movement subobject */
+	FORCEINLINE const TObjectPtr<UChaosWheeledVehicleMovementComponent>& GetChaosVehicleMovement() const { return ChaosVehicleMovement; }
 };
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS

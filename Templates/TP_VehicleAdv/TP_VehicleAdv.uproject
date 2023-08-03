@@ -7,20 +7,16 @@
 		{
 			"Name": "TP_VehicleAdv",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine",
+				"UMG"
+			]
 		}
 	],
 	"Plugins": [
 		{
-			"Name": "PhysXVehicles",
-			"Enabled": false
-		},
-		{
 			"Name": "ChaosVehiclesPlugin",
-			"Enabled": true
-		},
-		{
-			"Name": "RawInput",
 			"Enabled": true
 		},
 		{
@@ -29,6 +25,10 @@
 			"TargetAllowList": [
 				"Editor"
 			]
-		}		
+		},
+		{
+			"Name": "RawInput",
+			"Enabled": true
+		}
 	]
 }

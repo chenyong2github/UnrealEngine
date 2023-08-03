@@ -6,8 +6,9 @@
 #include "ChaosVehicleWheel.h"
 #include "TP_VehicleAdvWheelRear.generated.h"
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
+/**
+ *  Base rear wheel definition.
+ */
 UCLASS()
 class UTP_VehicleAdvWheelRear : public UChaosVehicleWheel
 {
@@ -16,7 +17,3 @@ class UTP_VehicleAdvWheelRear : public UChaosVehicleWheel
 public:
 	UTP_VehicleAdvWheelRear();
 };
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-

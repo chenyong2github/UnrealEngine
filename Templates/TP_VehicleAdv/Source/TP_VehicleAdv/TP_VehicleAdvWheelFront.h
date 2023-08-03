@@ -6,8 +6,9 @@
 #include "ChaosVehicleWheel.h"
 #include "TP_VehicleAdvWheelFront.generated.h"
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
+/**
+ *  Base front wheel definition.
+ */
 UCLASS()
 class UTP_VehicleAdvWheelFront : public UChaosVehicleWheel
 {
@@ -16,5 +17,3 @@ class UTP_VehicleAdvWheelFront : public UChaosVehicleWheel
 public:
 	UTP_VehicleAdvWheelFront();
 };
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
