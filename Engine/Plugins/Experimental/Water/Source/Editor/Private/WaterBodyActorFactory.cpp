@@ -146,6 +146,7 @@ void UWaterBodyOceanActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActo
 		{
 			const double ExistingCollisionHeight = OceanComponent->GetCollisionExtents().Z;
 			OceanComponent->SetCollisionExtents(FVector(OwningWaterZone->GetZoneExtent() / 2.0, ExistingCollisionHeight));
+			OceanComponent->FillWaterZoneWithOcean();
 		}
 	}
 }

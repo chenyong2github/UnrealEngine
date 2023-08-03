@@ -492,15 +492,13 @@ void UWaterBodyOceanComponent::OnPostRegisterAllComponents()
 	
 FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	if (AWaterZone* WaterZone = GetWaterZone())
-	{
-		const FVector Min(FVector(-OceanExtents / 2.0, -1.0 * GetChannelDepth()));
-		const FVector Max(FVector(OceanExtents / 2.0, 0.0));
+	const FVector Min(FVector(-OceanExtents / 2.0, -1.0 * GetChannelDepth()));
+	const FVector Max(FVector(OceanExtents / 2.0, 0.0));
 
-		// translate the bounds so they are centered on the SavedZoneLocation.
-		return FBoxSphereBounds(FBox(Min, Max)).TransformBy(LocalToWorld).TransformBy(FTransform(FVector(SavedZoneLocation, 0.)));
-	}
-	return FBoxSphereBounds(EForceInit::ForceInit).TransformBy(LocalToWorld);
+	// translate the bounds so they are centered on the SavedZoneLocation.
+	FVector RelativeTranslation(FVector(SavedZoneLocation, 0.) - GetComponentLocation());
+	RelativeTranslation.Z = 0.;
+	return FBoxSphereBounds(FBox(Min, Max)).TransformBy(FTransform(RelativeTranslation)).TransformBy(LocalToWorld);
 }
 
 #if WITH_EDITOR

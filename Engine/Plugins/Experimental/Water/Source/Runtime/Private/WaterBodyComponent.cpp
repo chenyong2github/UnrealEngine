@@ -387,7 +387,7 @@ void UWaterBodyComponent::UpdateWaterZones(bool bAllowChangesDuringCook /* = fal
 				return;
 			}
 
-			const FBox Bounds3D = Bounds.GetBox();
+			const FBox Bounds3D = CalcBounds(GetComponentToWorld()).GetBox();
 
 			const AActor* ActorOwner = GetTypedOuter<AActor>();
 			const ULevel* PreferredLevel = ActorOwner ? ActorOwner->GetLevel() : nullptr;
