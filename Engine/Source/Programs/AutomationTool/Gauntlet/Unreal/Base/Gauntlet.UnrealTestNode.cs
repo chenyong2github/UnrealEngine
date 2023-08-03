@@ -1464,8 +1464,8 @@ namespace Gauntlet
 			}
 			else
 			{
-				Log.Warning("Could not find Unreal Automated test report at {FilePath}. Reverting to base report.", JsonReportPath);
-				return CreateSimpleReportForHorde(GetTestResult());
+				Log.Warning("Could not find Unreal Automated test report at {FilePath}. No Test report will be generated for Horde.", JsonReportPath);
+				return null;
 			}
 		}
 
