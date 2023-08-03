@@ -1285,8 +1285,10 @@ UE_TRACE_EVENT_END()
 
 UObject* StaticLoadObjectInternal(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, uint32 LoadFlags, UPackageMap* Sandbox, bool bAllowObjectReconciliation, const FLinkerInstancingContext* InstancingContext)
 {
+#if CPUPROFILERTRACE_ENABLED
 	UE_TRACE_LOG_SCOPED_T(Cpu, LoadObject, CpuChannel)
 		<< LoadObject.AssetPath(InName);
+#endif // CPUPROFILERTRACE_ENABLED
 	SCOPED_NAMED_EVENT(LoadObject, FColor::Red);
 	check(InName);
 

@@ -4313,7 +4313,9 @@ void FLinkerLoad::Preload( UObject* Object )
 		if (Object->GetLinker() == this)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerLoad::Preload);
+#if LOADTIMEPROFILERTRACE_ENABLED
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*WriteToString<256>(TEXT("FLinkerLoad::Preload "), Object->GetFName()), AssetLoadTimeChannel);
+#endif // LOADTIMEPROFILERTRACE_ENABLED
 
 			UClass* Cls = Cast<UClass>(Object);
 			checkf(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME, TEXT("Invalid call to FLinkerLoad::Preload while using the EDL. '%d' should have been reported via GetPreloadDependencies instead."), *Object->GetPathName());

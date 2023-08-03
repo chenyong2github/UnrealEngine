@@ -4357,9 +4357,11 @@ int64 FAssetDataGatherer::SaveCacheFileInternal(const FString& CacheFilename, co
 	}
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(TickLock);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
+#if CPUPROFILERTRACE_ENABLED
 	UE_TRACE_LOG_SCOPED_T(Cpu, SaveCacheFile, CpuChannel)
 		<< SaveCacheFile.Path(*CacheFilename)
 		<< SaveCacheFile.Count(AssetsToSave.Num());
+#endif // CPUPROFILERTRACE_ENABLED
 	
 	// Save to a temp file first, then move to the destination to avoid corruption
 	FString CacheFilenameStr(CacheFilename);
