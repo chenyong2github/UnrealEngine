@@ -277,6 +277,15 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	FSdfPath FSdfPath::AppendPath(const UE::FSdfPath& NewRelativeSuffix) const
+	{
+#if USE_USD_SDK
+		return FSdfPath(Impl->PxrSdfPath.Get().AppendPath(NewRelativeSuffix.Impl->PxrSdfPath.Get()));
+#else
+		return FSdfPath();
+#endif // #if USE_USD_SDK
+	}
+
 	FSdfPath FSdfPath::AppendChild( const TCHAR* ChildName ) const
 	{
 #if USE_USD_SDK
@@ -336,6 +345,24 @@ namespace UE
 		return Impl->PxrSdfPath.Get().HasPrefix(Prefix);
 #else
 		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	FSdfPath FSdfPath::MakeAbsolutePath(const UE::FSdfPath& Anchor) const
+	{
+#if USE_USD_SDK
+		return FSdfPath(Impl->PxrSdfPath.Get().MakeAbsolutePath(Anchor.Impl->PxrSdfPath.Get()));
+#else
+		return FSdfPath();
+#endif // #if USE_USD_SDK
+	}
+
+	FSdfPath FSdfPath::MakeRelativePath(const UE::FSdfPath& Anchor) const
+	{
+#if USE_USD_SDK
+		return FSdfPath(Impl->PxrSdfPath.Get().MakeRelativePath(Anchor.Impl->PxrSdfPath.Get()));
+#else
+		return FSdfPath();
 #endif // #if USE_USD_SDK
 	}
 }

@@ -53,6 +53,7 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"UnrealEd",
 					"USDClasses",
+					"USDStage",
 					"USDStageImporter", // For USDOptionsWindow
 					"USDUtilities",
 				}
