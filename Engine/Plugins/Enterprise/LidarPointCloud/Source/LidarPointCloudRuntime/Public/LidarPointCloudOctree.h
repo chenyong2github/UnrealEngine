@@ -289,6 +289,8 @@ private:
 		FSerializeBulkDataElements SerializeElementsCallback;
 		
 		FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree);
+
+		void Serialize(FArchive& Ar, UObject* InOwner);
 	} SavingBulkData;
 #endif
 	

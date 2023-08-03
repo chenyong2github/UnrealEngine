@@ -2765,7 +2765,7 @@ void FLidarPointCloudOctree::Serialize(FArchive& Ar)
 		}
 		else if(Ar.IsSaving())
 		{
-			SavingBulkData.Serialize(Ar, Owner, false, 1, EFileRegionType::None);
+			SavingBulkData.Serialize(Ar, Owner);
 		}
 		else
 #endif
@@ -2874,8 +2874,17 @@ FLidarPointCloudOctree::FLidarPointCloudBulkData::FLidarPointCloudBulkData(FLida
 	
 	SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | BULKDATA_Size64Bit);
 }
-#endif
 
+void FLidarPointCloudOctree::FLidarPointCloudBulkData::Serialize(FArchive& Ar, UObject* InOwner)
+{
+	Lock(LOCK_READ_WRITE);
+	Realloc(1,1);
+	Unlock();
+	SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | BULKDATA_Size64Bit);
+
+	FBulkData::Serialize(Ar, InOwner, false, 1, EFileRegionType::None);
+}
+#endif
 //////////////////////////////////////////////////////////// FLidarPointCloudTraversalOctreeNode
 
 FLidarPointCloudTraversalOctreeNode::FLidarPointCloudTraversalOctreeNode()
