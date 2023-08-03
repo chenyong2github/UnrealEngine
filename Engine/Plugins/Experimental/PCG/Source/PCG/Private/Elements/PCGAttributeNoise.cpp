@@ -297,7 +297,9 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 		else
 		{
 			OutputPoints = &CastChecked<UPCGPointData>(Outputs[CurrentInput].Data)->GetMutablePoints();
-			InputPoints = &CastChecked<const UPCGPointData>(Inputs[CurrentInput].Data)->GetPoints();
+			// Note: for deprecation purposes, we consider that the input here is a spatial data (even though the pin is typed to be a Point Data)
+			// hence the need to call ToPointData, as otherwise a direct case to UPCGPointData would fail.
+			InputPoints = &(CastChecked<const UPCGSpatialData>(Inputs[CurrentInput].Data)->ToPointData(Context))->GetPoints();
 		}
 
 		check(InputPoints && OutputPoints);

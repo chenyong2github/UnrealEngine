@@ -54,6 +54,8 @@ class UPCGSpatialNoiseSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGSpatialNoiseSettings();
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Spatial Noise")); }

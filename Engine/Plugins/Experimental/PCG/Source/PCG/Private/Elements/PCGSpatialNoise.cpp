@@ -21,6 +21,11 @@
 
 #define LOCTEXT_NAMESPACE "PCGSpatialNoise"
 
+UPCGSpatialNoiseSettings::UPCGSpatialNoiseSettings()
+{
+	ValueTarget.SetPointProperty(EPCGPointProperties::Density);
+}
+
 TArray<FPCGPinProperties> UPCGSpatialNoiseSettings::InputPinProperties() const
 {
 	return Super::DefaultPointInputPinProperties();
