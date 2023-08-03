@@ -163,6 +163,9 @@ public:
 	virtual FGuid GetNodeID() const override;
 	virtual UMetasoundEditorGraphMember* GetMember() const override;
 
+	// Can't duplicate, only one node per graph.
+	virtual bool CanDuplicateNode() const override;
+
 	// Disallow deleting outputs as they require being connected to some
 	// part of the graph by the Frontend Graph Builder (which is enforced
 	// even when the Editor Graph Node does not have a visible input by

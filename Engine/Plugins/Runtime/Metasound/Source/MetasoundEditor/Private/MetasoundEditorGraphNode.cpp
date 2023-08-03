@@ -588,6 +588,11 @@ bool UMetasoundEditorGraphMemberNode::ClampFloatLiteral(const UMetasoundEditorGr
 	return bClampedFloatLiteral;
 }
 
+bool UMetasoundEditorGraphOutputNode::CanDuplicateNode() const
+{
+	return false;
+}
+
 void UMetasoundEditorGraphOutputNode::PinDefaultValueChanged(UEdGraphPin* InPin)
 {
 	using namespace Metasound::Editor;
