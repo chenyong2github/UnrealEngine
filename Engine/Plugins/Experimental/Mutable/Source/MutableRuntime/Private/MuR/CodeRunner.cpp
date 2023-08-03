@@ -89,7 +89,6 @@ static FAutoConsoleVariableRef CVarUseProjectionVectorImpl (
 	ECVF_Default);
 }
 
-
 namespace mu
 {
 
@@ -773,7 +772,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_InstanceAddResource(const FScheduledOp& item, const Model* InModel, const Parameters* InParams )
+    void CodeRunner::RunCode_InstanceAddResource(const FScheduledOp& item, const TSharedPtr<const Model>& InModel, const Parameters* InParams )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_InstanceAddResource);
 
@@ -4351,7 +4350,7 @@ namespace mu
 					Ptr<Image> ResultImage = CreateImage(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE, EInitializationType::Black);
 					if (pMesh)
 					{
-						ImageRasterMesh(pMesh.get(), ResultImage.get(), args.blockIndex, CropMin, UncroppedSize);
+						ImageRasterMesh(pMesh.get(), ResultImage.get(), args.LayoutIndex, args.blockId, CropMin, UncroppedSize);
 						Release(pMesh);
 					}
 
@@ -4509,10 +4508,6 @@ namespace mu
 				scratch.vertices.SetNum( pMesh->GetVertexCount() );
 				scratch.culledVertex.SetNum( pMesh->GetVertexCount() );
 
-				// Layout is always 0 because the previous mesh project operations take care of
-				// moving the right layout channel to the 0.
-				int layout = 0;
-
 				ESamplingMethod SamplingMethod = Invoke([&]() -> ESamplingMethod
 				{
 					if (ForcedProjectionMode == 0)
@@ -4560,7 +4555,7 @@ namespace mu
 							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 							SamplingMethod,
 							FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
-							layout, args.blockIndex,
+							args.LayoutIndex, args.blockId,
 							CropMin, UncroppedSize,
 							&scratch, bUseProjectionVectorImpl);
 						break;
@@ -4571,7 +4566,7 @@ namespace mu
 							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 							SamplingMethod,
 							FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
-							layout, args.blockIndex,
+							args.LayoutIndex, args.blockId,
 							CropMin, UncroppedSize,
 							&scratch);
 						break;
@@ -4581,7 +4576,7 @@ namespace mu
 							Source.get(), Mask.get(),
 							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 							FadeStartRad, FadeEndRad,
-							layout,
+							args.LayoutIndex,
 							Projector.projectionAngle,
 							CropMin, UncroppedSize,
 							&scratch);
@@ -5782,11 +5777,12 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode( const FScheduledOp& item, const Parameters* pParams, const Model* pModel, uint32 lodMask)
+    void CodeRunner::RunCode( const FScheduledOp& item, const Parameters* pParams, const TSharedPtr<const Model>& InModel, uint32 lodMask)
     {
 		//UE_LOG( LogMutableCore, Log, TEXT("Running :%5d , %d "), item.At, item.Stage );
 		check( item.Type == FScheduledOp::EType::Full );
 
+		const Model* pModel = InModel.Get();
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 		//UE_LOG(LogMutableCore, Log, TEXT("Running :%5d , %d, of type %d "), item.At, item.Stage, type);
 
@@ -5829,7 +5825,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDMESH:
         case OP_TYPE::IN_ADDIMAGE:
-            RunCode_InstanceAddResource(item, pModel, pParams);
+            RunCode_InstanceAddResource(item, InModel, pParams);
             break;
 
 		default:
@@ -6556,4 +6552,3 @@ namespace mu
 		}
 	}
 }
-

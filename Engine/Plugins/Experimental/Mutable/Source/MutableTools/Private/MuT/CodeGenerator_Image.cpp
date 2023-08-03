@@ -1287,7 +1287,7 @@ namespace mu
 			MeshOptions.bNormalizeUVs = true;		// We need normalized UVs for the projection
 
 			// We may need IDs at this point if there are modifiers for the mesh.
-			// \TODO: Detect this at mesh constant generation and enable there istead of here?
+			// \TODO: Detect this at mesh constant generation and enable there instead of here?
 			MeshOptions.bUniqueVertexIDs = true;
 			
 			FMeshGenerationResult MeshResult;
@@ -1311,7 +1311,8 @@ namespace mu
 				m_pErrorLog->GetPrivate()->Add("Layout or block index error.", ELMT_ERROR, node.m_errorContext);
 			}
 
-            pop->SetChild( pop->op.args.MeshProject.mesh, MeshResult.meshOp );
+
+			Ptr<ASTOp> CurrentMeshToProjectOp = MeshResult.meshOp;
 
             if (projectorResult.type == PROJECTOR_TYPE::WRAPPING)
             {
@@ -1330,8 +1331,8 @@ namespace mu
                         | OP::MeshFormatArgs::BT_FACE
                         | OP::MeshFormatArgs::BT_RESETBUFFERINDICES;
                 fop->Format = cop;
-                fop->Source = pop->children[pop->op.args.MeshProject.mesh].child();
-                pop->SetChild( pop->op.args.MeshProject.mesh, fop );
+                fop->Source = CurrentMeshToProjectOp;
+				CurrentMeshToProjectOp = fop;
             }
             else
             {
@@ -1339,12 +1340,12 @@ namespace mu
                 if ( GeneratedLayoutBlockId>=0 )
                 {
                     Ptr<ASTOpMeshExtractLayoutBlocks> eop = new ASTOpMeshExtractLayoutBlocks();
-                    eop->source = pop->children[pop->op.args.MeshProject.mesh].child();
+                    eop->source = CurrentMeshToProjectOp;
                     eop->layout = node.m_layout;
 
                     eop->blocks.Add(GeneratedLayoutBlockId);
 
-                    pop->SetChild( pop->op.args.MeshProject.mesh, eop );
+					CurrentMeshToProjectOp = eop;
                 }
 
                 // Reformat the mesh to a more efficient format for this operation
@@ -1362,9 +1363,12 @@ namespace mu
 					| OP::MeshFormatArgs::BT_FACE
 					| OP::MeshFormatArgs::BT_RESETBUFFERINDICES;
 				fop->Format = cop;
-                fop->Source = pop->children[pop->op.args.MeshProject.mesh].child();
-                pop->SetChild( pop->op.args.MeshProject.mesh, fop );
+                fop->Source = CurrentMeshToProjectOp;
+				CurrentMeshToProjectOp = fop;
             }
+
+			pop->SetChild(pop->op.args.MeshProject.mesh, CurrentMeshToProjectOp);
+
         }
         else
         {
@@ -1411,8 +1415,8 @@ namespace mu
         // Image size, from the current block being generated
         op->SizeX = Options.RectSize[0];
         op->SizeY = Options.RectSize[1];
-		// \TODO: Review naming of arg
-        op->BlockIndex = GeneratedLayoutBlockId;
+		op->BlockId = GeneratedLayoutBlockId;
+		op->LayoutIndex = node.m_layout;
 
 		op->bIsRGBFadingEnabled = node.bIsRGBFadingEnabled;
 		op->bIsAlphaFadingEnabled = node.bIsAlphaFadingEnabled;
@@ -1453,7 +1457,8 @@ namespace mu
         rasterop->mesh = op->mesh.child();
         rasterop->image = 0;
         rasterop->mask = 0;
-        rasterop->BlockIndex = op->BlockIndex;
+        rasterop->BlockId = op->BlockId;
+		rasterop->LayoutIndex = op->LayoutIndex;
 		rasterop->SizeX = op->SizeX;
 		rasterop->SizeY = op->SizeY;
 		rasterop->UncroppedSizeX = op->UncroppedSizeX;

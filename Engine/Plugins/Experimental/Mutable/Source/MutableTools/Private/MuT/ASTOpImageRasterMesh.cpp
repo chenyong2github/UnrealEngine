@@ -26,7 +26,8 @@ namespace mu
 		, mask(this)
 		, projector(this)
 	{
-		BlockIndex = -1;
+		BlockId = -1;
+		LayoutIndex = -1;
 		SizeX = SizeY = 0;
 		SourceSizeX = SourceSizeY = 0;
 		CropMinX = CropMinY = 0;
@@ -57,7 +58,8 @@ namespace mu
 				angleFadeProperties == Other->angleFadeProperties &&
 				mask == Other->mask &&
 				projector == Other->projector &&
-				BlockIndex == Other->BlockIndex &&
+				BlockId == Other->BlockId &&
+				LayoutIndex == Other->LayoutIndex &&
 				SizeX == Other->SizeX &&
 				SizeY == Other->SizeY &&
 				SourceSizeX == Other->SourceSizeX &&
@@ -84,7 +86,7 @@ namespace mu
 		hash_combine(res, angleFadeProperties.child().get());
 		hash_combine(res, mask.child().get());
 		hash_combine(res, projector.child().get());
-		hash_combine(res, BlockIndex);
+		hash_combine(res, BlockId);
 		return res;
 	}
 
@@ -98,7 +100,8 @@ namespace mu
 		n->angleFadeProperties = mapChild(angleFadeProperties.child());
 		n->mask = mapChild(mask.child());
 		n->projector = mapChild(projector.child());
-		n->BlockIndex = BlockIndex;
+		n->BlockId = BlockId;
+		n->LayoutIndex = LayoutIndex;
 		n->SizeX = SizeX;
 		n->SizeY = SizeY;
 		n->CropMinX = CropMinX;
@@ -135,7 +138,8 @@ namespace mu
 			OP::ImageRasterMeshArgs args;
 			FMemory::Memzero(&args, sizeof(args));
 
-			args.blockIndex = BlockIndex;
+			args.blockId = BlockId;
+			args.LayoutIndex = LayoutIndex;
 			args.sizeX = SizeX;
 			args.sizeY = SizeY;
 			args.SourceSizeX = SourceSizeX;
@@ -247,10 +251,9 @@ namespace mu
 			if (!imageAt)
 			{
 				// We remove the project from the raster children
-				// \todo: maybe this clone is not necessary
-				const ASTOpFixed* typedSource = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
+				const ASTOpFixed* MeshProjectOp = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
 				Ptr<ASTOpImageRasterMesh> nop = mu::Clone<ASTOpImageRasterMesh>(this);
-				nop->mesh = typedSource->children[typedSource->op.args.MeshProject.mesh].child();
+				nop->mesh = MeshProjectOp->children[MeshProjectOp->op.args.MeshProject.mesh].child();
 				at = nop;
 			}
 			break;

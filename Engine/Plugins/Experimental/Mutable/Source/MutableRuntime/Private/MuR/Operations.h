@@ -785,7 +785,7 @@ namespace mu
 			//! like cylindrical projections.
 			ADDRESS projector;
 			
-			int32 blockIndex;
+			int32 blockId;
 			uint16 sizeX, sizeY;
 			uint16 SourceSizeX, SourceSizeY;
 			uint16 CropMinX, CropMinY;
@@ -797,6 +797,8 @@ namespace mu
 			uint8 SamplingMethod : 3;
 			// Currently only 2 min filter methods are contemplated, but reserve 3 bits for future uses. 
 			uint8 MinFilterMethod : 3;
+
+			uint8 LayoutIndex;
         };
 
         struct ImageMakeGrowMapArgs

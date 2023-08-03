@@ -103,12 +103,12 @@ namespace  mu
 
         Ptr<RangeIndex> BuildCurrentOpRangeIndex( const FScheduledOp&, const Parameters*, const Model*, int32 ParameterIndex );
 
-        void RunCode( const FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
+        void RunCode( const FScheduledOp&, const Parameters*, const TSharedPtr<const Model>&, uint32 LodMask);
 
         void RunCode_Conditional(const FScheduledOp&, const Model* );
         void RunCode_Switch(const FScheduledOp&, const Model* );
         void RunCode_Instance(const FScheduledOp&, const Model*, uint32 LodMask );
-        void RunCode_InstanceAddResource(const FScheduledOp&, const Model*, const Parameters* );
+        void RunCode_InstanceAddResource(const FScheduledOp&, const TSharedPtr<const Model>& Model, const Parameters* );
         void RunCode_ConstantResource(const FScheduledOp&, const Model* );
         void RunCode_Mesh(const FScheduledOp&, const Model* );
         void RunCode_Image(const FScheduledOp&, const Parameters*, const Model* );

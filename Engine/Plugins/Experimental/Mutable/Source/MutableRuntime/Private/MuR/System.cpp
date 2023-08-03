@@ -1421,7 +1421,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FResourceID FWorkingMemoryManager::GetResourceKey(const Model* Model, const Parameters* Params, uint32 ParamListIndex, OP::ADDRESS RootAt)
+	FResourceID FWorkingMemoryManager::GetResourceKey(const TSharedPtr<const Model>& Model, const Parameters* Params, uint32 ParamListIndex, OP::ADDRESS RootAt)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(GetResourceKey);
 
@@ -1645,24 +1645,27 @@ namespace mu
 		for (int32 CacheIndex = 0; CacheIndex < GeneratedResources.Num(); ++CacheIndex)
 		{
 			FGeneratedResourceData& Data = GeneratedResources[CacheIndex];
-			if (Data.Model.Pin().Get() == Model
+			bool bSameModel = Data.Model == Model;
+			bool bSameRoot = GetResourceIDRoot(Data.Id) == RootAt;
+			if (bSameModel
 				&&
-				GetResourceIDRoot(Data.Id) == RootAt
-				&&
-				Data.ParameterValuesBlob == NewKey.ParameterValuesBlob)
+				bSameRoot
+				)
 			{
-				Data.LastRequestId = LastResourceResquestId;
-				return Data.Id;
-			}
-			else
-			{
-				if (!Data.Model.Pin().Get() 
-					||
-					OldestRequestId > Data.LastRequestId)
+				bool bSameBlob = Data.ParameterValuesBlob == NewKey.ParameterValuesBlob;
+				if (bSameBlob)
 				{
-					OldestCachePosition = CacheIndex;
-					OldestRequestId = Data.Model.Pin() ? Data.LastRequestId : 0;
+					Data.LastRequestId = LastResourceResquestId;
+					return Data.Id;
 				}
+			}
+			
+			if (!Data.Model.Pin().Get() 
+				||
+				OldestRequestId > Data.LastRequestId)
+			{
+				OldestCachePosition = CacheIndex;
+				OldestRequestId = Data.Model.Pin() ? Data.LastRequestId : 0;
 			}
 		}
 
@@ -1670,6 +1673,7 @@ namespace mu
 		uint32 NewBlobId = ++LastResourceKeyId;
 		NewKey.Id = MakeResourceID( RootAt, NewBlobId);
 		NewKey.LastRequestId = LastResourceResquestId;
+		NewKey.Model = Model;
 
 		if (GeneratedResources.Num() >= MaxGeneratedResourceCacheSize)
 		{

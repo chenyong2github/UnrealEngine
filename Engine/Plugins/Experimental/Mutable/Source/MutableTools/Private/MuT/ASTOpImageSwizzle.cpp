@@ -653,7 +653,8 @@ namespace mu
 							|| Typed->angleFadeProperties.child() != FirstRasterMesh->angleFadeProperties.child()
 							|| Typed->mask.child() != FirstRasterMesh->mask.child()
 							|| Typed->projector.child() != FirstRasterMesh->projector.child()
-							|| Typed->BlockIndex != FirstRasterMesh->BlockIndex
+							|| Typed->BlockId != FirstRasterMesh->BlockId
+							|| Typed->LayoutIndex != FirstRasterMesh->LayoutIndex
 							|| Typed->SizeX != FirstRasterMesh->SizeX
 							|| Typed->SizeY != FirstRasterMesh->SizeY
 							|| Typed->UncroppedSizeX != FirstRasterMesh->UncroppedSizeX

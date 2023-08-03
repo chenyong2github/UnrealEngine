@@ -448,7 +448,7 @@ namespace mu
 				else
 				{
 					// Run immediately
-					RunCode(item, m_pParams, m_pModel.Get(), m_lodMask);
+					RunCode(item, m_pParams, m_pModel, m_lodMask);
 
 					if (ScheduledStagePerOp[item] == item.Stage + 1)
 					{
@@ -2083,7 +2083,7 @@ namespace mu
 		}
 
 		// Process the constant op normally, now that the rom is loaded.
-		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
+		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel, Runner->m_lodMask);
 
 		FWorkingMemoryManager::FModelCacheEntry* ModelCache = Runner->m_pSystem->WorkingMemoryManager.FindModelCache(Runner->m_pModel.Get());
 
@@ -2162,7 +2162,7 @@ namespace mu
 		}
 
 		// Process the constant op normally, now that the data is loaded.
-		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
+		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel, Runner->m_lodMask);
 	}
 
 
@@ -2336,7 +2336,7 @@ namespace mu
 		}
 		
 		// Process the constant op normally, now that the rom is loaded.	
-		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
+		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel, Runner->m_lodMask);
 
 		for (int32 LODIndex = 0; LODIndex < LODIndexCount; ++LODIndex)
 		{

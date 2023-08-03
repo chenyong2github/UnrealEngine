@@ -9,7 +9,6 @@
 #include "MuR/Raster.h"
 #include "MuR/ConvertData.h"
 
-
 namespace mu
 {
 
@@ -23,7 +22,7 @@ namespace mu
 	};
 
 
-	inline void ImageRasterMesh( const Mesh* pMesh, Image* pImage, int block,
+	inline void ImageRasterMesh( const Mesh* pMesh, Image* pImage, int32 LayoutIndex, int32 BlockId,
 		UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageRasterMesh)
@@ -60,8 +59,8 @@ namespace mu
 		}
 
 		// Get the indices
-		int faceCount = pMesh->GetFaceCount();
-		TArray<int> indices;
+		int32 faceCount = pMesh->GetFaceCount();
+		TArray<int32> indices;
 		indices.SetNumZeroed(faceCount * 3);
 
 		UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
@@ -74,9 +73,9 @@ namespace mu
 			++indIt;
 		}
 
-        UntypedMeshBufferIteratorConst bloIt( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, 0 );
+        UntypedMeshBufferIteratorConst bloIt( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, LayoutIndex );
 
-        if ( block<0 || bloIt.GetElementSize()==0 )
+        if (BlockId <0 || bloIt.GetElementSize()==0 )
 		{
 			// Raster all the faces
             WhitePixelProcessor pixelProc;
@@ -102,7 +101,7 @@ namespace mu
 			// Raster only the faces in the selected block
 
 			// Get the block per face
-			TArray<int> blocks;
+			TArray<uint16> blocks;
 			blocks.SetNumZeroed(vertexCount);
 
 			for ( int i=0; i<vertexCount; ++i )
@@ -117,11 +116,11 @@ namespace mu
             WhitePixelProcessor pixelProc;
 			//for (int f = 0; f < faceCount; ++f)
 			const auto& ProcessFace = [
-				vertices, indices, blocks, block, pImage, sizeX, sizeY, pixelProc
+				vertices, indices, blocks, BlockId, pImage, sizeX, sizeY, pixelProc
 			] (int32 f)
 			{
 				// TODO: Select faces outside for loop?
-				if (blocks[indices[f * 3 + 0]] == block)
+				if (blocks[indices[f * 3 + 0]] == BlockId)
 				{
 					Triangle(pImage->GetData(), pImage->GetDataSize(),
 						sizeX, sizeY,

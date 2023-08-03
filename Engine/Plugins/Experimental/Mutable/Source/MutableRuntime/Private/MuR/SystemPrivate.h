@@ -1159,7 +1159,7 @@ namespace mu
 		TMemoryTrackedArray<FGeneratedResourceData> GeneratedResources;
 
 		/** */
-		FResourceID GetResourceKey(const Model* Model, const Parameters* Params, uint32 ParamListIndex, OP::ADDRESS RootAt);
+		FResourceID GetResourceKey(const TSharedPtr<const Model>&, const Parameters*, uint32 ParamListIndex, OP::ADDRESS RootAt);
 
 		//! @}
 
