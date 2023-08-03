@@ -397,16 +397,6 @@ FDisplayClusterConfigurationClusterSync::FDisplayClusterConfigurationClusterSync
 	InputSyncPolicy.Type  = cluster::input_sync::InputSyncPolicyReplicatePrimary;
 }
 
-FDisplayClusterConfigurationNetworkSettings::FDisplayClusterConfigurationNetworkSettings()
-	: ConnectRetriesAmount     (300)   // ...
-	, ConnectRetryDelay        (1000)  // 5 minutes unless all nodes up
-	, GameStartBarrierTimeout  (1000 * 3600 * 5) // 5 hours unless ready to start rendering
-	, FrameStartBarrierTimeout (1000 * 60 * 30)  // 30 minutes for the barrier
-	, FrameEndBarrierTimeout   (1000 * 60 * 30)  // 30 minutes for the barrier
-	, RenderSyncBarrierTimeout (1000 * 60 * 30)  // 30 minutes for the barrier
-{
-}
-
 void UDisplayClusterConfigurationViewport::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
 	// Collect all mesh references from projection policies
