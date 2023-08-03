@@ -3,7 +3,7 @@
 /*=============================================================================
 	DeferredLightPixelShaders.usf:
 =============================================================================*/
-
+ 
 #define SUPPORT_CONTACT_SHADOWS 1
 #define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 
