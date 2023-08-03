@@ -569,7 +569,6 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			else if (IntermediateTarget)
 			{
 				OutputTarget = IntermediateTarget;
-				UpdateTextureReference(OutputTarget);
 			}
 
 			Rotation = Sample->GetScaleRotation();
