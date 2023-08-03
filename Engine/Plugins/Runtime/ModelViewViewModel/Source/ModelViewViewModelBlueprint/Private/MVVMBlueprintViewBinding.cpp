@@ -301,8 +301,6 @@ namespace UE::MVVM::Private
 							NameBuilder << TEXT(", ");
 						}
 
-
-
 						if (Pin.UsedPathAsValue())
 						{
 							AddPath(Pin.GetPath());
@@ -326,7 +324,7 @@ namespace UE::MVVM::Private
 		}
 		else
 		{
-			const FMVVMBlueprintPropertyPath& PropertyPath = bIsSource ? Binding.DestinationPath : Binding.SourcePath;
+			const FMVVMBlueprintPropertyPath& PropertyPath = bIsSource ? Binding.SourcePath : Binding.DestinationPath;
 			AddPath(PropertyPath);
 		}
 

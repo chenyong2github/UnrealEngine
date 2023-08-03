@@ -427,10 +427,6 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 			StringBuilder << TEXT(", FieldId: ");
 			StringBuilder << (SourceFieldId.HasValue() ? SourceFieldId.GetValue().GetName() : FName());
 		}
-		else
-		{
-			ensureMsgf(IsOneTime(), TEXT("The field Id should be valid."));
-		}
 	}
 
 	if (Args.bAddFlags)
