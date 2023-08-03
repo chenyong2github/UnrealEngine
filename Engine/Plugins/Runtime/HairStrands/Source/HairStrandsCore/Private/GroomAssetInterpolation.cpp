@@ -118,6 +118,7 @@ void FHairGroupsLOD::BuildDDCKey(FArchive& Ar)
 		Ar << LOD.ThicknessScale;
 		Ar << LOD.bVisible;
 		Ar << LOD.BindingType;
+		Ar << LOD.GeometryType;
 		Ar << LOD.Simulation;
 		Ar << LOD.GlobalInterpolation;
 	}
