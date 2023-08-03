@@ -66,6 +66,7 @@ public:
 	bool CanChangeConstructionViewModeTo(UE::Chaos::ClothAsset::EClothPatternVertexType NewViewMode) const;
 
 	void ToggleConstructionViewWireframe();
+	bool CanSetConstructionViewWireframeActive() const;
 	bool IsConstructionViewWireframeActive() const
 	{
 		return bConstructionViewWireframe;
@@ -232,6 +233,7 @@ private:
 	FName NodeTypeForPendingToolStart;
 
 	bool bConstructionViewWireframe = false;
+	bool bShouldRestoreConstructionViewWireframe = false;
 
 	// Create dynamic mesh components from the cloth component's rest space info
 	void ReinitializeDynamicMeshComponents();

@@ -27,6 +27,7 @@ private:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual bool CanSetConstructionViewWireframeActive() const { return false; }
 };
 
 UCLASS()

@@ -27,5 +27,8 @@ public:
 
 	/** Returns all Construction View modes that this tool can operate in. The first element should be the preferred mode to switch to if necessary. */
 	virtual void GetSupportedViewModes(TArray<UE::Chaos::ClothAsset::EClothPatternVertexType>& Modes) const = 0;
+
+	/** Returns whether or not view can be set to wireframe when this tool is active.. */
+	virtual bool CanSetConstructionViewWireframeActive() const { return true; }
 };
 

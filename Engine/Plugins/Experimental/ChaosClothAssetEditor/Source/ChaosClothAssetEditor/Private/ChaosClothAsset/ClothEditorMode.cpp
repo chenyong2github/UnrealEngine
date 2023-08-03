@@ -182,6 +182,17 @@ void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UI
 				this->SetConstructionViewMode(SupportedModes[0]);
 			}
 
+			// Check if we need to disable wireframe mode before starting tool.
+			const bool bCanSetWireframeActive = ClothToolBuilder->CanSetConstructionViewWireframeActive();
+			if (!bCanSetWireframeActive)
+			{
+				if (!bShouldRestoreConstructionViewWireframe)
+				{
+					bShouldRestoreConstructionViewWireframe = bConstructionViewWireframe;
+				}
+				bConstructionViewWireframe = false;
+			}
+
 			ActiveToolsContext = ToolsContext;
 			ToolsContext->StartTool(ToolIdentifier);
 		}),
@@ -285,6 +296,12 @@ void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager,
 void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
+
+	if (bShouldRestoreConstructionViewWireframe)
+	{
+		bConstructionViewWireframe = true;
+		bShouldRestoreConstructionViewWireframe = false;
+	}
 
 	if (bShouldRestoreSavedConstructionViewMode)
 	{
@@ -974,6 +991,21 @@ void UChaosClothAssetEditorMode::ToggleConstructionViewWireframe()
 {
 	bConstructionViewWireframe = !bConstructionViewWireframe;
 	ReinitializeDynamicMeshComponents();
+}
+
+bool UChaosClothAssetEditorMode::CanSetConstructionViewWireframeActive() const
+{
+	if (!GetToolManager()->HasActiveTool(EToolSide::Left))
+	{
+		return true;
+	}
+
+	const UInteractiveToolBuilder* const ActiveToolBuilder = GetToolManager()->GetActiveToolBuilder(EToolSide::Left);
+	checkf(ActiveToolBuilder, TEXT("No Active Tool Builder found despite having an Active Tool"));
+
+	const IChaosClothAssetEditorToolBuilder* const ClothToolBuilder = Cast<const IChaosClothAssetEditorToolBuilder>(ActiveToolBuilder);
+	checkf(ClothToolBuilder, TEXT("Cloth Editor has an active Tool Builder that does not implement IChaosClothAssetEditorToolBuilder"));
+	return ClothToolBuilder->CanSetConstructionViewWireframeActive();
 }
 
 void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> InViewportClient)
