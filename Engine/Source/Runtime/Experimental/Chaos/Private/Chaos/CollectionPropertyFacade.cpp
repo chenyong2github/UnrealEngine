@@ -101,10 +101,20 @@ namespace Chaos::Softs
 		UpdateArrays();
 		RebuildKeyIndices();
 	}
-	
+
 	FCollectionPropertyFacade::FCollectionPropertyFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection, ENoInit)
 		: FCollectionPropertyConstFacade(InManagedArrayCollection, NoInit)
 	{
+	}
+
+	void FCollectionPropertyFacade::SetFlags(int32 KeyIndex, ECollectionPropertyFlags Flags)
+	{
+		// Cannot set string dirty without also dirtying the property
+		Flags |= EnumHasAnyFlags(Flags, ECollectionPropertyFlags::StringDirty) ? ECollectionPropertyFlags::Dirty : ECollectionPropertyFlags::None;
+		// Cannot remove the dirty flags
+		Flags |= GetFlagsArray()[KeyIndex] & (ECollectionPropertyFlags::Dirty | ECollectionPropertyFlags::StringDirty);
+
+		SetValue(KeyIndex, GetFlagsArray(), Flags);
 	}
 
 	void FCollectionPropertyFacade::ClearDirtyFlags()
@@ -266,12 +276,16 @@ namespace Chaos::Softs
 				for (int32 InKeyIndex = 0; InKeyIndex < NumInKeys; ++InKeyIndex)
 				{
 					const FString& PropertyName = InPropertyFacade.GetKey(InKeyIndex);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					// TODO: GetFlags needs to return an ECollectionPropertyFlags, not an uint8, but the uint8 getter needs to be deprecated first
+					const ECollectionPropertyFlags PropertyFlags = (ECollectionPropertyFlags)InPropertyFacade.GetFlags(InKeyIndex);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					int32 NewPropertyIndex = GetKeyIndex(PropertyName);
 					if (NewPropertyIndex == INDEX_NONE)
 					{
 						if (bAppendNewProperties)
 						{
-							NewPropertyIndex = AddProperty(PropertyName, (ECollectionPropertyFlags)InPropertyFacade.GetFlags(InKeyIndex));
+							NewPropertyIndex = AddProperty(PropertyName, PropertyFlags);
 						}
 						else
 						{
@@ -284,7 +298,7 @@ namespace Chaos::Softs
 					}
 					else
 					{
-						SetFlags(NewPropertyIndex, InPropertyFacade.GetFlags(InKeyIndex));
+						SetFlags(NewPropertyIndex, PropertyFlags);
 					}
 
 					// Setting as FVector3f since that is the underlying type
