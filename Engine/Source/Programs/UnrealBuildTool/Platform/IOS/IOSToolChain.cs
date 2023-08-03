@@ -791,9 +791,9 @@ namespace UnrealBuildTool
 				Directory.CreateDirectory(DestSubdir);
 			}
 
-			// set up the directories
-			string ZipWorkingDir = String.Format("Payload/{0}.app/", GameName);
-			string ZipSourceDir = String.Format(bUseModernXcode ? "{0}/{1}.app" : "{0}/Payload/{1}.app", BinaryPath, GameName);
+			// set up the directories (modern has .app named with the config names in them, like UnrealGame-IOS-Shipping, which the ExeName will be)
+			string ZipWorkingDir = bUseModernXcode ? $"Payload/{ExeName}.app/" : $"Payload/{GameName}.app/";
+			string ZipSourceDir = bUseModernXcode ? $"{BinaryPath}/{ExeName}.app" : $"{BinaryPath}/Payload/{GameName}.app";
 
 			if (bUseModernXcode)
 			{
