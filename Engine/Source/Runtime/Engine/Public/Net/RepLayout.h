@@ -1492,14 +1492,12 @@ private:
 	 * @param RepChangelistState	The FRepChangelistState that contains the last cached values and changelists.
 	 * @param Data					The newest Property Data available.
 	 * @param RepFlags				Flags that will be used if the object is replicated.
-	 * @param bForceCompare			Compare the property even if the dirty flag is not set.
 	 */
 	ERepLayoutResult CompareProperties(
 		FSendingRepState* RESTRICT RepState,
 		FRepChangelistState* RESTRICT RepChangelistState,
 		const FConstRepObjectDataBuffer Data,
-		const FReplicationFlags& RepFlags,
-		const bool bForceCompare) const;
+		const FReplicationFlags& RepFlags) const;
 
 	/**
 	 * Writes all changed property values from the input owner data to the given buffer.

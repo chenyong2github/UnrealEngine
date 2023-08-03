@@ -3251,9 +3251,7 @@ public:
 		{
 			if ( !RepFlags.bNetOwner )
 			{
-				constexpr bool bIsAutonomousProxy = false; // become simulated
-				constexpr bool bAllowForcePropertyCompare = false;
-				Actor->SetAutonomousProxy(bIsAutonomousProxy, bAllowForcePropertyCompare);
+				Actor->SetAutonomousProxy( false, false );
 			}
 		}
 	}
@@ -3267,9 +3265,7 @@ public:
 
 			if (ActualRemoteRole == ROLE_AutonomousProxy)
 			{
-				constexpr bool bIsAutonomousProxy = true; // return to autonomous
-				constexpr bool bAllowForcePropertyCompare = false;
-				Actor->SetAutonomousProxy(bIsAutonomousProxy, bAllowForcePropertyCompare);
+				Actor->SetAutonomousProxy(true, false);
 			}
 		}
 	}
