@@ -8,6 +8,7 @@
 #include "Elements/PCGCollapseElement.h"
 #include "Elements/PCGExecuteBlueprint.h"
 #include "Elements/PCGFilterByType.h"
+#include "Elements/PCGMakeConcreteElement.h"
 #include "Elements/PCGUserParameterGet.h"
 
 #include "PCGEditorCommon.h"
@@ -118,14 +119,18 @@ const FPinConnectionResponse UPCGEditorGraphSchema::CanCreateConnection(const UE
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypesIncompatible", "Pins are incompatible"));
 	}
 
-	if (InputPin->RequiresPointConversionToConnect(OutputPin))
+	const EPCGTypeConversion RequiredTypeConversion = InputPin->GetRequiredTypeConversion(OutputPin);
+	if (RequiredTypeConversion == EPCGTypeConversion::CollapseToPoint)
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, LOCTEXT("ConnectionConversionToPoint", "Convert to Point"));
 	}
-
-	if (InputPin->RequiresFilterToConnect(OutputPin))
+	else if (RequiredTypeConversion == EPCGTypeConversion::Filter)
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, LOCTEXT("ConnectionUsingFilter", "Filter data to match type"));
+	}
+	else if (RequiredTypeConversion == EPCGTypeConversion::MakeConcrete)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, LOCTEXT("ConnectionUsingMakeConcrete", "Make data concrete"));
 	}
 
 	if (!InputPin->AllowMultipleConnections() && InputPin->EdgeCount() > 0)
@@ -239,14 +244,15 @@ bool UPCGEditorGraphSchema::TryCreateConnectionInternal(UEdGraphPin* InA, UEdGra
 		return bModifiedA || bModifiedB;
 	};
 
-	if (bAddConversionNodeIfNeeded && PCGPinA->RequiresPointConversionToConnect(PCGPinB))
+	const EPCGTypeConversion Conversion = bAddConversionNodeIfNeeded ? PCGPinA->GetRequiredTypeConversion(PCGPinB) : EPCGTypeConversion::NoConversionRequired;
+	if (Conversion == EPCGTypeConversion::CollapseToPoint)
 	{
 		UPCGSettings* NodeSettings = nullptr;
 		UPCGNode* ConversionPCGNode = PCGGraph->AddNodeOfType(UPCGCollapseSettings::StaticClass(), NodeSettings);
 
 		return ConnectViaIntermediate(ConversionPCGNode);
 	}
-	else if (bAddConversionNodeIfNeeded && PCGPinA->RequiresFilterToConnect(PCGPinB))
+	else if (Conversion == EPCGTypeConversion::Filter)
 	{
 		UPCGSettings* NodeSettings = nullptr;
 		UPCGNode* ConversionPCGNode = PCGGraph->AddNodeOfType(UPCGFilterByTypeSettings::StaticClass(), NodeSettings);
@@ -255,6 +261,13 @@ bool UPCGEditorGraphSchema::TryCreateConnectionInternal(UEdGraphPin* InA, UEdGra
 		UPCGFilterByTypeSettings* Settings = CastChecked<UPCGFilterByTypeSettings>(NodeSettings);
 		Settings->TargetType = PCGPinB->Properties.AllowedTypes;
 		ConversionPCGNode->UpdateAfterSettingsChangeDuringCreation();
+
+		return ConnectViaIntermediate(ConversionPCGNode);
+	}
+	else if (Conversion == EPCGTypeConversion::MakeConcrete)
+	{
+		UPCGSettings* NodeSettings = nullptr;
+		UPCGNode* ConversionPCGNode = PCGGraph->AddNodeOfType(UPCGMakeConcreteSettings::StaticClass(), NodeSettings);
 
 		return ConnectViaIntermediate(ConversionPCGNode);
 	}

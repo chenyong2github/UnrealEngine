@@ -330,82 +330,55 @@ bool UPCGPin::CanConnect(const UPCGPin* OtherPin) const
 	return OtherPin && (Edges.IsEmpty() || AllowMultipleConnections());
 }
 
-bool UPCGPin::RequiresPointConversionToConnect(const UPCGPin* OtherPin) const
+EPCGTypeConversion UPCGPin::GetRequiredTypeConversion(const UPCGPin* InOtherPin) const
 {
-	if (!OtherPin)
+	if (!InOtherPin)
 	{
-		return false;
+		return EPCGTypeConversion::Failed;
 	}
 
 	const UPCGPin* UpstreamPin = nullptr;
 	const UPCGPin* DownstreamPin = nullptr;
-	EPCGDataType UpstreamTypes = EPCGDataType::None, DownstreamTypes = EPCGDataType::None;
-	if (!PCGPin::SortPinsAndRetrieveTypes(this, OtherPin, UpstreamPin, DownstreamPin, UpstreamTypes, DownstreamTypes))
+	EPCGDataType UpstreamTypes = EPCGDataType::None;
+	EPCGDataType DownstreamTypes = EPCGDataType::None;
+	if (!PCGPin::SortPinsAndRetrieveTypes(this, InOtherPin, UpstreamPin, DownstreamPin, UpstreamTypes, DownstreamTypes))
 	{
-		return false;
+		return EPCGTypeConversion::Failed;
 	}
 	check(UpstreamPin && DownstreamPin);
 
-	// This conversion requires downstream Point
-	if (DownstreamTypes != EPCGDataType::Point)
-	{
-		return false;
-	}
-
-	// Only collapse from Spatial to Point
-	const bool bUpstreamInSpatial = !(UpstreamTypes & ~EPCGDataType::Spatial);
-	if (!bUpstreamInSpatial)
-	{
-		return false;
-	}
-
-	// Requires conversion if upstream pin is broader than point
-	return !!(UpstreamTypes & (~EPCGDataType::Point));
-}
-
-bool UPCGPin::RequiresFilterToConnect(const UPCGPin* OtherPin) const
-{
-	if (!OtherPin)
-	{
-		return false;
-	}
-
-	const UPCGPin* UpstreamPin = nullptr;
-	const UPCGPin* DownstreamPin = nullptr;
-	EPCGDataType UpstreamTypes = EPCGDataType::None, DownstreamTypes = EPCGDataType::None;
-	if (!PCGPin::SortPinsAndRetrieveTypes(this, OtherPin, UpstreamPin, DownstreamPin, UpstreamTypes, DownstreamTypes))
-	{
-		return false;
-	}
-	check(UpstreamPin && DownstreamPin);
-
-	// Same types - no filter
+	// Types same - trivial early out.
 	if (DownstreamTypes == UpstreamTypes)
 	{
-		return false;
+		return EPCGTypeConversion::NoConversionRequired;
 	}
 
-	// No type - early out
-	if (!DownstreamTypes)
+	// Type missing, or types are the same - trivial early out.
+	if (!DownstreamTypes || !UpstreamTypes)
 	{
-		return false;
+		return EPCGTypeConversion::Failed;
 	}
 
-	// Spatial -> Point - that uses conversion, not filter
+	// Spatial -> Point - "To Point" conversion.
 	const bool bUpstreamInSpatial = !(UpstreamTypes & ~EPCGDataType::Spatial);
 	if (bUpstreamInSpatial && DownstreamTypes == EPCGDataType::Point)
 	{
-		return false;
+		return EPCGTypeConversion::CollapseToPoint;
 	}
 
-	// Upstream type should be Any, Spatial, Concrete
-	if (UpstreamTypes != EPCGDataType::Any
-		&& UpstreamTypes != EPCGDataType::Spatial
-		&& UpstreamTypes != EPCGDataType::Concrete)
+	// Any or Spatial -> Concrete - "Make Concrete" conversion. We decided to support Any as it is a superset of Concrete,
+	// and some pins are Any until they dynamically narrow, and other pins may stay Any but still want to be supported.
+	bool bUpstreamIsSpatialOrAny = (UpstreamTypes == EPCGDataType::Any) || (UpstreamTypes == EPCGDataType::Spatial);
+	if (bUpstreamIsSpatialOrAny && DownstreamTypes == EPCGDataType::Concrete)
 	{
-		return false;
+		return EPCGTypeConversion::MakeConcrete;
 	}
 
-	// Requires conversion if upstream type is broader than downstream type
-	return !!(UpstreamTypes & (~DownstreamTypes));
+	// Requires filter if upstream type is broader than downstream type.
+	if (!!(UpstreamTypes & (~DownstreamTypes)))
+	{
+		return EPCGTypeConversion::Filter;
+	}
+
+	return EPCGTypeConversion::NoConversionRequired;
 }
