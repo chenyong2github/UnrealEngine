@@ -8,6 +8,7 @@
 #include "CineCameraRigRailDetails.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "IPlacementModeModule.h"
 #include "UnrealEdGlobals.h"
 #include "PropertyEditorModule.h"
 #include "PropertyEditorDelegates.h"
@@ -28,6 +29,7 @@ public:
 			GUnrealEd->RegisterComponentVisualizer(CineSplineComponentName, Visualizer);
 			Visualizer->OnRegister();
 			RegisterCustomizations();
+			RegisterPlacementModeItems();
 		}
 	}
 
@@ -53,6 +55,36 @@ private:
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomPropertyTypeLayout(ACineCameraRigRail::StaticClass()->GetFName());
+	}
+	void RegisterPlacementModeItems()
+	{
+		if (const FPlacementCategoryInfo* Info = GetCinematicPlacementCategoryInfo())
+		{
+			IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+				*ACineCameraRigRail::StaticClass(),
+				FAssetData(ACineCameraRigRail::StaticClass())));
+		}
+	}
+
+	const FPlacementCategoryInfo* GetCinematicPlacementCategoryInfo() const
+	{
+		IPlacementModeModule& PlacmentModeModule = IPlacementModeModule::Get();
+
+		if (const FPlacementCategoryInfo* RegisteredInfo = PlacmentModeModule.GetRegisteredPlacementCategory("Cinematic"))
+		{
+			return RegisteredInfo;
+		}
+
+		FPlacementCategoryInfo Info(
+			LOCTEXT("CinematicCategoryName", "Cinematic"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlacementBrowser.Icons.Cinematics"),
+			"Cinematic",
+			TEXT("PMCinematic"),
+			25
+		);
+
+		PlacmentModeModule.RegisterPlacementCategory(Info);
+		return PlacmentModeModule.GetRegisteredPlacementCategory("Cinematic");
 	}
 };
 

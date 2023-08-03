@@ -18,6 +18,7 @@ public class CineCameraRigsEditor : ModuleRules
                 "ComponentVisualizers",
 				"DetailCustomizations",
 				"Engine",
+				"PlacementMode",
 				"SlateCore",
 				"Slate",
 				"UnrealEd",
