@@ -230,7 +230,7 @@ void FPixelStreamingVideoInputBackBufferComposited::CompositeWindows()
 		const FIntRect ViewRect(FIntPoint(0, 0), Extent);
 
 		// Dummy ViewFamily/ViewInfo created to use built in Draw Screen/Texture Pass
-		FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
+		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
 										.SetTime(FGameTime())
 										.SetGammaCorrection(1.0f));
 		FSceneViewInitOptions ViewInitOptions;
