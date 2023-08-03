@@ -75,7 +75,7 @@ namespace AudioModulation
 		void Reset();
 
 		void SetEnabled(FModulatorBusMixSettings&& InSettings);
-		void SetMix(const TArray<FModulatorBusMixStageSettings>& InStages, float InFadeTime);
+		void SetMix(const TArray<FModulatorBusMixStageSettings>& InStages, float InFadeTime, const FString& BusMixName);
 		void SetMixByFilter(const FString& InAddressFilter, uint32 InParamClassId, uint32 InParamId, float InValue, float InFadeTime);
 		void SetStopping();
 

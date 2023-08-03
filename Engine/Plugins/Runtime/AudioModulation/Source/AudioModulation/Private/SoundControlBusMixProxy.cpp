@@ -119,7 +119,7 @@ namespace AudioModulation
 		}
 	}
 
-	void FModulatorBusMixProxy::SetMix(const TArray<FModulatorBusMixStageSettings>& InStages, float InFadeTime)
+	void FModulatorBusMixProxy::SetMix(const TArray<FModulatorBusMixStageSettings>& InStages, float InFadeTime, const FString& BusMixName)
 	{
 		for (const FModulatorBusMixStageSettings& NewStage : InStages)
 		{
@@ -132,6 +132,10 @@ namespace AudioModulation
 
 				// Setting entire mix wipes pre-existing user fade requests
 				StageProxy->Value.SetActiveFade(FSoundModulationMixValue::EActiveFade::Override, InFadeTime);
+			}
+			else
+			{
+				UE_LOG(LogAudioModulation, Warning, TEXT("Bus '%s' Not currently applied to Bus Mix '%s'. Please ensure that all your Mix Profiles have the same Control Buses."), *NewStage.Address, *BusMixName);
 			}
 		}
 	}

@@ -759,11 +759,16 @@ namespace AudioModulation
 			}
 		}
 	
-		RunCommandOnProcessingThread([this, MixId, StageSettings, InFadeTime]()
+		const FString BusMixName = InOutMix.GetName();
+		RunCommandOnProcessingThread([this, MixId, StageSettings, InFadeTime, BusMixName]()
 		{
 			if (FModulatorBusMixProxy* BusMixes = RefProxies.BusMixes.Find(MixId))
 			{
-				BusMixes->SetMix(StageSettings, InFadeTime);
+				BusMixes->SetMix(StageSettings, InFadeTime, BusMixName);
+			}
+			else
+			{
+				UE_LOG(LogAudioModulation, Warning, TEXT("Updating Control Bus Mix failed: Bus Mix '%s' not currently active. Buses without any valid Mix Stages will not activate."), *BusMixName);
 			}
 		});
 	}
