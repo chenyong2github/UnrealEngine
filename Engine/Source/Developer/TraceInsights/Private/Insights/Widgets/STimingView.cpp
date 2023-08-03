@@ -2207,7 +2207,6 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			{
 				RaiseSelectionChanged();
 				bIsSelecting = false;
-				bIsMouseClick = false;
 			}
 			else if (TimeRulerTrack->IsScrubbing())
 			{
