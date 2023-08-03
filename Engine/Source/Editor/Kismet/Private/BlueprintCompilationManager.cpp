@@ -21,6 +21,7 @@
 #include "FindInBlueprintManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "IMessageLogListing.h"
+#include "INotifyFieldValueChanged.h"
 #include "K2Node_CreateDelegate.h"
 #include "K2Node_CustomEvent.h"
 #include "K2Node_FunctionEntry.h"
@@ -3004,6 +3005,12 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 					}
 
 					CompilerContext.SetCalculatedMetaDataAndFlags(NewFunction, EntryNode, Schema);
+				}
+
+				if (EntryNode->MetaData.HasMetaData(FBlueprintMetadata::MD_FieldNotify) && Ret->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+				{
+					ensure(!Ret->FieldNotifies.Contains(FFieldNotificationId(NewFunction->GetFName())));
+					Ret->FieldNotifies.Add(FFieldNotificationId(NewFunction->GetFName()));
 				}
 
 				if (BP->bIsRegeneratingOnLoad)
