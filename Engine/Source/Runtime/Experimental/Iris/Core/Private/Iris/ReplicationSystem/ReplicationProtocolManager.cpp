@@ -14,6 +14,11 @@
 #include "Containers/StringFwd.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 
+#ifndef UE_NET_ENABLE_PROTOCOLMANAGER_LOG
+// Default is to enable protocol logs in non-shipping
+#	define UE_NET_ENABLE_PROTOCOLMANAGER_LOG !(UE_BUILD_SHIPPING)
+#endif
+
 #if UE_NET_ENABLE_PROTOCOLMANAGER_LOG
 #	define UE_LOG_PROTOCOLMANAGER(Log, Format, ...)  UE_LOG(LogIris, Log, Format, ##__VA_ARGS__)
 #else
