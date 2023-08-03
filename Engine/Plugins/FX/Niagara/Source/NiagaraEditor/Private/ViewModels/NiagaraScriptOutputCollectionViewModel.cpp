@@ -132,37 +132,42 @@ void FNiagaraScriptOutputCollectionViewModel::DeleteSelectedParameters()
 	{
 		return;
 	}
+	
+	if(GetSelection().GetSelectedObjects().Num() > 0)
+	{
+		TSet<FNiagaraVariable> VariablesToDelete;
+		for (TSharedRef<INiagaraParameterViewModel> OutputParameter : GetSelection().GetSelectedObjects())
+		{
+			VariablesToDelete.Add(OutputParameter->GetVariable());
+		}
+		GetSelection().ClearSelectedObjects();
+		
+		DeleteParameters(VariablesToDelete.Array());
+	}
+}
 
+void FNiagaraScriptOutputCollectionViewModel::DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete)
+{
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	Graph->FindOutputNodes(OutputNodes);
 	if (OutputNodes.Num() == 0)
 	{
 		return;
 	}
+
+	auto DeletePredicate = [&ParametersToDelete] (FNiagaraVariable& OutputVariable)
+	{ 
+		return ParametersToDelete.Contains(OutputVariable);
+	};
 	
-	if(GetSelection().GetSelectedObjects().Num() > 0)
+	FScopedTransaction ScopedTransaction(LOCTEXT("DeletedSelectedNodes", "Delete selected nodes"));
+	for (UNiagaraNodeOutput* OtherOutputNode : OutputNodes)
 	{
-		TSet<FName> OutputNamesToDelete;
-		for (TSharedRef<INiagaraParameterViewModel> OutputParameter : GetSelection().GetSelectedObjects())
-		{
-			OutputNamesToDelete.Add(OutputParameter->GetName());
-		}
-		GetSelection().ClearSelectedObjects();
-
-		auto DeletePredicate = [&OutputNamesToDelete] (FNiagaraVariable& OutputVariable)
-		{ 
-			return OutputNamesToDelete.Contains(OutputVariable.GetName());
-		};
-
-		FScopedTransaction ScopedTransaction(LOCTEXT("DeletedSelectedNodes", "Delete selected nodes"));
-		for (UNiagaraNodeOutput* OtherOutputNode : OutputNodes)
-		{
-			OtherOutputNode->Modify();
-			OtherOutputNode->Outputs.RemoveAll(DeletePredicate);
-			OtherOutputNode->NotifyOutputVariablesChanged();
-		}
-		OnOutputParametersChangedDelegate.Broadcast();
+		OtherOutputNode->Modify();
+		OtherOutputNode->Outputs.RemoveAll(DeletePredicate);
+		OtherOutputNode->NotifyOutputVariablesChanged();
 	}
+	OnOutputParametersChangedDelegate.Broadcast();
 }
 
 const TArray<TSharedRef<INiagaraParameterViewModel>>& FNiagaraScriptOutputCollectionViewModel::GetParameters()

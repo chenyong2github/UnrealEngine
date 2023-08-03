@@ -417,6 +417,12 @@ TSharedRef<SWidget> SNiagaraParameterCollection::GetAddMenuContent()
 	return AddMenuBuilder.MakeWidget();
 }
 
+FReply SNiagaraParameterCollection::DeleteParameter(TSharedRef<INiagaraParameterViewModel> Item) const
+{
+	Collection->DeleteParameters({FNiagaraVariable(Item->GetType(), Item->GetName())});
+	return FReply::Handled();
+}
+
 TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSharedRef<INiagaraParameterViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	// Name widget
@@ -445,7 +451,7 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 				.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
 				.Text(Item, &INiagaraParameterViewModel::GetNameText)
 				.OnVerifyTextChanged(Item, &INiagaraParameterViewModel::VerifyNodeNameTextChanged)
-				.OnTextCommitted(Item, &INiagaraParameterViewModel::NameTextComitted)
+				.OnTextCommitted(Item, &INiagaraParameterViewModel::NameTextCommitted)
 				.IsSelected(this, &SNiagaraParameterCollection::IsItemSelected, Item)
 				.IsEnabled(TAttribute<bool>(Item, &INiagaraParameterViewModel::IsEditingEnabled))
 			];
@@ -482,7 +488,7 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 	if (Item->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Struct)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-		FNiagaraTypeDefinition ParameterType = *Item->GetType().Get();
+		FNiagaraTypeDefinition ParameterType = Item->GetType();
 		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(ParameterType);
 		TSharedPtr<SNiagaraParameterEditor> ParameterEditor;
 		if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanCreateParameterEditor())
@@ -522,7 +528,7 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 	else if (Item->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::DataInterface)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(*Item->GetType().Get());
+		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(Item->GetType());
 		if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanCreateDataInterfaceEditor())
 		{
 			CustomValueEditor = TypeEditorUtilities->CreateDataInterfaceEditor(Item->GetDefaultValueDataInterface(),
@@ -543,7 +549,7 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 	}
 	else if (Item->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::ObjectAsset)
 	{
-		const FNiagaraTypeDefinition ParameterType = *Item->GetType().Get();
+		const FNiagaraTypeDefinition ParameterType = Item->GetType();
 
 		CustomValueEditor = SNew(SObjectPropertyEntryBox)
 			.AllowedClass(ParameterType.GetClass())
@@ -571,6 +577,15 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 		DetailsWidget = SNullWidget::NullWidget;
 	}
 
+	TSharedRef<SWidget> ParameterDeleteButton = SNew(SButton)
+		.OnClicked_Raw(this, &SNiagaraParameterCollection::DeleteParameter, Item)
+		.Visibility_Raw(this, &SNiagaraParameterCollection::ShowParameterDeleteButton)
+		.Content()
+		[
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush("Icons.Delete"))
+		];
+	
 	if (CustomValueEditor.IsValid())
 	{
 		// Should the value of the parameter be enabled?
@@ -608,6 +623,12 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 					.Padding(FMargin(3, 0, 0, 0))
 					[
 						CustomValueEditor.ToSharedRef()
+					]
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Right)
+					.Padding(4.f)
+					[
+						ParameterDeleteButton
 					]
 #if defined(DEBUG_SORT_ORDER)
 					+SHorizontalBox::Slot()
@@ -661,6 +682,12 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 				.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SNiagaraParameterCollection::ParameterContentColumnWidthChanged))
 				[
 					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Right)
+					.Padding(4.f)
+					[
+						ParameterDeleteButton
+					]
 #if defined(DEBUG_SORT_ORDER)
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
@@ -832,7 +859,11 @@ FReply SNiagaraParameterCollection::OnItemAcceptDrop(FDragDropEvent const& DragD
 	return bWasDropHandled ? FReply::Handled() : FReply::Unhandled();
 }
 
-
+EVisibility SNiagaraParameterCollection::ShowParameterDeleteButton() const
+{
+	// if we can add, we can also remove
+	return Collection->GetAddButtonVisibility();
+}
 
 void SNiagaraParameterCollection::ParameterViewModelTypeChanged()
 {

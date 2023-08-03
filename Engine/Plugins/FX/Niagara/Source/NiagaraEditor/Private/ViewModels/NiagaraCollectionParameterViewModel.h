@@ -18,11 +18,12 @@ public:
 	void Reset();
 
 	//~ INiagaraParameterViewmodel interface.
+	virtual FNiagaraVariable GetVariable() const override;
 	virtual FName GetName() const override;
-	virtual void NameTextComitted(const FText& Name, ETextCommit::Type CommitInfo) override;
+	virtual void NameTextCommitted(const FText& Name, ETextCommit::Type CommitInfo) override;
 	virtual bool VerifyNodeNameTextChanged(const FText& NewText, FText& OutErrorMessage) override;
 	virtual FText GetTypeDisplayName() const override;
-	virtual TSharedPtr<FNiagaraTypeDefinition> GetType() const override;
+	virtual FNiagaraTypeDefinition GetType() const override;
 	virtual void SelectedTypeChanged(TSharedPtr<FNiagaraTypeDefinition> Item, ESelectInfo::Type SelectionType) override;
 	virtual EDefaultValueType GetDefaultValueType() override;
 	virtual TSharedRef<FStructOnScope> GetDefaultValueStruct() override;

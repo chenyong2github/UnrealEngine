@@ -66,6 +66,8 @@ private:
 	/** Gets the content for the add menu. */
 	TSharedRef<SWidget> GetAddMenuContent();
 
+	FReply DeleteParameter(TSharedRef<INiagaraParameterViewModel> Item) const;
+
 	/** Generates a row for the parameter list view. */
 	TSharedRef<ITableRow> OnGenerateRowForParameter(TSharedRef<INiagaraParameterViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -108,6 +110,8 @@ private:
 	void OnItemDragLeave(const FDragDropEvent& DragDropEvent, TSharedRef<INiagaraParameterViewModel> DropItem);
 	TOptional<EItemDropZone> OnItemCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedRef<INiagaraParameterViewModel> DropItem);
 	FReply OnItemAcceptDrop(FDragDropEvent const& DragDropEvent, EItemDropZone DropZone, TSharedRef<INiagaraParameterViewModel> DropItem);
+
+	EVisibility ShowParameterDeleteButton() const;
 
 private:
 	/** The view model for the parameter collection. */

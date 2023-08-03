@@ -31,6 +31,7 @@ public:
 	virtual void AddParameter(TSharedPtr<FNiagaraTypeDefinition> ParameterType) override;
 	virtual void RemoveParameter(FNiagaraVariable& Parameter);
 	virtual void DeleteSelectedParameters() override;
+	virtual void DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete) override;
 	virtual const TArray<TSharedRef<INiagaraParameterViewModel>>& GetParameters() override;
 	virtual EVisibility GetAddButtonVisibility()const override;
 

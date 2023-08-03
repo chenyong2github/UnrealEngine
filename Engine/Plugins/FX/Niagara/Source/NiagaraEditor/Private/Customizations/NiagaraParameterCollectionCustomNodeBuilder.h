@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "DetailLayoutBuilder.h"
+
+#include "IDetailCustomNodeBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "ViewModels/NiagaraParameterCollectionViewModel.h"
-#include "ViewModels/NiagaraScriptInputCollectionViewModel.h"
-#include "ViewModels/NiagaraScriptOutputCollectionViewModel.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/NiagaraParameterViewModel.h"
 #include "NiagaraEditorStyle.h"
 #include "IDetailChildrenBuilder.h"
@@ -19,9 +17,10 @@
 #include "Widgets/Images/SImage.h"
 #include "NiagaraEditorModule.h"
 #include "Modules/ModuleManager.h"
-#include "INiagaraEditorTypeUtilities.h"
 #include "Widgets/Layout/SBox.h"
-#include "NiagaraScript.h"
+#include "Widgets/Input/SButton.h"
+
+#define LOCTEXT_NAMESPACE "FNiagaraParameterCollectionCustomNodeBuilder"
 
 class FNiagaraParameterCollectionCustomNodeBuilder : public IDetailCustomNodeBuilder
 {
@@ -51,7 +50,7 @@ public:
 		static const FName NiagaraCustomNodeBuilder("NiagaraCustomNodeBuilder");
 		return NiagaraCustomNodeBuilder;
 	}
-
+	
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
 	{
 		const TArray<TSharedRef<INiagaraParameterViewModel>>& Parameters = ViewModel->GetParameters();
@@ -69,7 +68,7 @@ public:
 					.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
 					.Text(Parameter, &INiagaraParameterViewModel::GetNameText)
 					.OnVerifyTextChanged(Parameter, &INiagaraParameterViewModel::VerifyNodeNameTextChanged)
-					.OnTextCommitted(Parameter, &INiagaraParameterViewModel::NameTextComitted);
+					.OnTextCommitted(Parameter, &INiagaraParameterViewModel::NameTextCommitted);
 			}
 			else
 			{
@@ -138,7 +137,7 @@ public:
 						.ValueContent()
 						[
 							SNew(SObjectPropertyEntryBox)
-								.AllowedClass(Parameter->GetType()->GetClass())
+								.AllowedClass(Parameter->GetType().GetClass())
 								.ObjectPath_Lambda(
 									[Parameter]() -> FString
 									{
@@ -179,6 +178,7 @@ public:
 					TSharedPtr<SWidget> DefaultNameWidget;
 					TSharedPtr<SWidget> DefaultValueWidget;
 					FDetailWidgetRow& CustomWidget = Row->CustomWidget(true);
+					
 					Row->GetDefaultWidgets(DefaultNameWidget, DefaultValueWidget, CustomWidget);
 					CustomWidget
 						.NameContent()
@@ -198,12 +198,28 @@ public:
 							];
 					}
 
+					CustomWidget.ExtensionContent()
+						[
+							SNew(SButton)
+							.OnClicked_Raw(this, &FNiagaraParameterCollectionCustomNodeBuilder::DeleteParameter, Parameter->GetVariable())
+							.Content()
+							[
+								SNew(SImage)
+								.Image(FAppStyle::GetBrush("Icons.Delete"))
+							]
+						];
 				}
 			}
 		}
 	}
 
 private:
+	FReply DeleteParameter(FNiagaraVariable Parameter)
+	{
+		ViewModel->DeleteParameters({Parameter});
+		return FReply::Handled();
+	}
+	
 	void OnCollectionViewModelChanged()
 	{
 		OnRebuildChildren.ExecuteIfBound();
@@ -214,3 +230,5 @@ private:
 	FSimpleDelegate OnRebuildChildren;
 	bool bAllowMetaData;
 };
+
+#undef LOCTEXT_NAMESPACE

@@ -50,6 +50,12 @@ FNiagaraScriptParameterViewModel::~FNiagaraScriptParameterViewModel()
 	//UE_LOG(LogNiagaraEditor, Log, TEXT("Delete %p Var %s"), this, *DebugName);
 }
 
+FNiagaraVariable FNiagaraScriptParameterViewModel::GetVariable() const
+{
+	check(GraphVariable);
+	return *GraphVariable;
+}
+
 void FNiagaraScriptParameterViewModel::Reset()
 {
 	GraphVariableOwner = nullptr;
@@ -81,7 +87,7 @@ FText FNiagaraScriptParameterViewModel::GetTypeDisplayName() const
 	return FText::Format(LOCTEXT("TypeTextFormat", "Type: {0}"), GraphVariable->GetType().GetNameText());
 }
 
-void FNiagaraScriptParameterViewModel::NameTextComitted(const FText& Name, ETextCommit::Type CommitInfo)
+void FNiagaraScriptParameterViewModel::NameTextCommitted(const FText& Name, ETextCommit::Type CommitInfo)
 {
 	check(GraphVariable);
 	FName NewName = *Name.ToString();
@@ -98,10 +104,10 @@ bool FNiagaraScriptParameterViewModel::VerifyNodeNameTextChanged(const FText& Ne
 	return OwningNode == nullptr || FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*OwningNode, GraphVariable->GetName(), NewText.ToString(), OutErrorMessage);
 }
 
-TSharedPtr<FNiagaraTypeDefinition> FNiagaraScriptParameterViewModel::GetType() const
+FNiagaraTypeDefinition FNiagaraScriptParameterViewModel::GetType() const
 {
 	check(GraphVariable);
-	return MakeShareable(new FNiagaraTypeDefinition(GraphVariable->GetType()));
+	return GraphVariable->GetType();
 }
 
 bool FNiagaraScriptParameterViewModel::CanChangeSortOrder() const

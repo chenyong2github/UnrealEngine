@@ -30,6 +30,7 @@ public:
 	virtual void AddParameter(TSharedPtr<FNiagaraTypeDefinition> ParameterType) override;
 	virtual bool CanDeleteParameters() const override;
 	virtual void DeleteSelectedParameters() override;
+	virtual void DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete) override;
 	virtual const TArray<TSharedRef<INiagaraParameterViewModel>>& GetParameters() override;
 
 	/** Rebuilds the parameter view models. */

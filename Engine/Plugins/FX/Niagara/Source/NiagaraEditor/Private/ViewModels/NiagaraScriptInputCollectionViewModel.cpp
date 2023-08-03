@@ -2,13 +2,11 @@
 
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraScript.h"
-#include "NiagaraEmitter.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraTypes.h"
 #include "NiagaraScriptParameterViewModel.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
-#include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraDataInterface.h"
 
@@ -174,27 +172,31 @@ void FNiagaraScriptInputCollectionViewModel::DeleteSelectedParameters()
 {
 	if (GetSelection().GetSelectedObjects().Num() > 0)
 	{
-		TSet<FName> InputNamesToDelete;
+		TSet<FNiagaraVariable> VariablesToDelete;
 		for (TSharedRef<INiagaraParameterViewModel> InputParameter : GetSelection().GetSelectedObjects())
 		{
-			InputNamesToDelete.Add(InputParameter->GetName());
+			VariablesToDelete.Add(InputParameter->GetVariable());
 		}
 		GetSelection().ClearSelectedObjects();
+		DeleteParameters(VariablesToDelete.Array());		
+	}
+}
 
-		if (Graph.IsValid())
+void FNiagaraScriptInputCollectionViewModel::DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete)
+{
+	if (Graph.IsValid())
+	{
+		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterInputEditor", "DeletedSelectedNodes", "Delete selected nodes"));
+		Graph->Modify();
+
+		TArray<UNiagaraNodeInput*> InputNodes;
+		Graph->GetNodesOfClass(InputNodes);
+		for (UNiagaraNodeInput* InputNode : InputNodes)
 		{
-			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterInputEditor", "DeletedSelectedNodes", "Delete selected nodes"));
-			Graph->Modify();
-
-			TArray<UNiagaraNodeInput*> InputNodes;
-			Graph->GetNodesOfClass(InputNodes);
-			for (UNiagaraNodeInput* InputNode : InputNodes)
+			if (ParametersToDelete.Contains(InputNode->Input))
 			{
-				if (InputNamesToDelete.Contains(InputNode->Input.GetName()))
-				{
-					InputNode->Modify();
-					InputNode->DestroyNode();
-				}
+				InputNode->Modify();
+				InputNode->DestroyNode();
 			}
 		}
 	}
@@ -470,7 +472,7 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterValueChangedInternal(TSh
 			// and the case where we're updating a compiled variable.
 			if (InputNode->Usage == ENiagaraInputNodeUsage::Parameter && InputNode->Input.GetName() == ChangedParameter->GetName())
 			{
-				if (ensureMsgf(InputNode->Input.GetType() == *ChangedParameter->GetType().Get(), TEXT("Can not propagate variable values when the types don't match.")))
+				if (ensureMsgf(InputNode->Input.GetType() == ChangedParameter->GetType(), TEXT("Can not propagate variable values when the types don't match.")))
 				{
 					InputNodesToUpdate.Add(InputNode);
 				}

@@ -27,6 +27,7 @@ public:
 	virtual FText GetDisplayName() const override;
 	virtual void AddParameter(TSharedPtr<FNiagaraTypeDefinition> ParameterType) override;
 	virtual void DeleteSelectedParameters() override;
+	virtual void DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete) override;
 	virtual const TArray<TSharedRef<INiagaraParameterViewModel>>& GetParameters() override;
 
 	/** Rebuilds the parameter view models. */

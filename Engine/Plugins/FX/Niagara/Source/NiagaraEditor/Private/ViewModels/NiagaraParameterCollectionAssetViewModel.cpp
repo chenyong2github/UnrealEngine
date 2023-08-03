@@ -213,20 +213,33 @@ void FNiagaraParameterCollectionAssetViewModel::DeleteSelectedParameters()
 		TSet<FNiagaraVariable> VarsToDelete;
 		for (TSharedRef<INiagaraParameterViewModel> Parameter : GetSelection().GetSelectedObjects())
 		{
-			FNiagaraVariable ToDelete(*Parameter->GetType().Get(), *Collection->ParameterNameFromFriendlyName(Parameter->GetName().ToString()));
-			VarsToDelete.Add(ToDelete);
+			VarsToDelete.Add(Parameter->GetVariable());
 		}
 		GetSelection().ClearSelectedObjects();
 
-		FScopedTransaction ScopedTransaction(LOCTEXT("DeleteNPCParameter", "Delete Parameter"));
-		for (FNiagaraVariable ParamToDelete : VarsToDelete)
-		{
-			Collection->RemoveParameter(ParamToDelete);
-		}
-
-		CollectionChanged(true);
-		RefreshParameterViewModels();
+		DeleteParameters(VarsToDelete.Array());
 	}
+}
+
+void FNiagaraParameterCollectionAssetViewModel::DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete)
+{
+	check(Collection && Instance);
+
+	TSet<FNiagaraVariableBase> ResolvedParametersToDelete;
+	for(const FNiagaraVariableBase& Parameter : ParametersToDelete)
+	{
+		FNiagaraVariableBase ToDelete(Parameter.GetType(), *Collection->ParameterNameFromFriendlyName(Parameter.GetName().ToString()));
+		ResolvedParametersToDelete.Add(ToDelete);
+	}
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("DeleteNPCParameter", "Delete Parameter"));
+	for (FNiagaraVariable ParamToDelete : ResolvedParametersToDelete)
+	{
+		Collection->RemoveParameter(ParamToDelete);
+	}
+
+	CollectionChanged(true);
+	RefreshParameterViewModels();
 }
 
 const TArray<TSharedRef<INiagaraParameterViewModel>>& FNiagaraParameterCollectionAssetViewModel::GetParameters()
@@ -385,7 +398,7 @@ void FNiagaraParameterCollectionAssetViewModel::OnParameterTypeChanged(FNiagaraV
 
 	Collection->GetDefaultInstance()->RemoveParameter(ParameterVariable);
 
-	FNiagaraTypeDefinition Type = *ParameterViewModels[Index]->GetType();
+	FNiagaraTypeDefinition Type = ParameterViewModels[Index]->GetType();
 	Collection->GetParameters()[Index].SetType(Type);
 
 	Collection->GetDefaultInstance()->AddParameter(Collection->GetParameters()[Index]);

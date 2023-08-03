@@ -49,6 +49,8 @@ public:
 	/** Deletes the currently selected parameters. */
 	virtual void DeleteSelectedParameters() = 0;
 
+	virtual void DeleteParameters(TArray<FNiagaraVariable> ParametersToDelete) = 0;
+
 	/** Gets the parameter view models. */
 	virtual const TArray<TSharedRef<INiagaraParameterViewModel>>& GetParameters() = 0;
 

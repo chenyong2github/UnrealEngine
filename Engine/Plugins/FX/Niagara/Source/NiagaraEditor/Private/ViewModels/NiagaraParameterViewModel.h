@@ -33,6 +33,8 @@ public:
 
 public:
 	virtual ~INiagaraParameterViewModel() {}
+
+	virtual FNiagaraVariable GetVariable() const = 0;
 	
 	/** Gets the name of the parameter. */
 	virtual FName GetName() const = 0;
@@ -44,7 +46,7 @@ public:
 	virtual FText GetNameText() const = 0;
 
 	/** Handles a hame text change being comitter from the UI. */
-	virtual void NameTextComitted(const FText& Name, ETextCommit::Type CommitInfo) = 0;
+	virtual void NameTextCommitted(const FText& Name, ETextCommit::Type CommitInfo) = 0;
 
 	/** Handles verification of an in-progress variable name change in the UI.*/
 	virtual bool VerifyNodeNameTextChanged(const FText& NewText, FText& OutErrorMessage) = 0;
@@ -56,7 +58,7 @@ public:
 	virtual bool CanChangeParameterType() const = 0;
 
 	/** Gets the type of the paramter. */
-	virtual TSharedPtr<FNiagaraTypeDefinition> GetType() const = 0;
+	virtual FNiagaraTypeDefinition GetType() const = 0;
 
 	/** Handles the paramter type being changed from the UI. */
 	virtual void SelectedTypeChanged(TSharedPtr<FNiagaraTypeDefinition> Item, ESelectInfo::Type SelectionType) = 0;

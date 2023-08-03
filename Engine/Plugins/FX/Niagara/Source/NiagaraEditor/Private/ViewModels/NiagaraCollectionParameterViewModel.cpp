@@ -38,6 +38,11 @@ void FNiagaraCollectionParameterViewModel::Reset()
 	OnDefaultValueChanged().RemoveAll(this);
 }
 
+FNiagaraVariable FNiagaraCollectionParameterViewModel::GetVariable() const
+{
+	return Parameter;
+}
+
 FName FNiagaraCollectionParameterViewModel::GetName() const
 {
 	if (CollectionInst && CollectionInst->GetParent())
@@ -55,7 +60,7 @@ FText FNiagaraCollectionParameterViewModel::GetTypeDisplayName() const
 	return FText::Format(LOCTEXT("TypeTextFormat", "Type: {0}"), Parameter.GetType().GetNameText());
 }
 
-void FNiagaraCollectionParameterViewModel::NameTextComitted(const FText& Name, ETextCommit::Type CommitInfo)
+void FNiagaraCollectionParameterViewModel::NameTextCommitted(const FText& Name, ETextCommit::Type CommitInfo)
 {
 	FName NewName = *CollectionInst->GetParent()->ParameterNameFromFriendlyName(*Name.ToString());
 
@@ -91,9 +96,9 @@ bool FNiagaraCollectionParameterViewModel::VerifyNodeNameTextChanged(const FText
 	return true;
 }
 
-TSharedPtr<FNiagaraTypeDefinition> FNiagaraCollectionParameterViewModel::GetType() const
+FNiagaraTypeDefinition FNiagaraCollectionParameterViewModel::GetType() const
 {
-	return MakeShareable(new FNiagaraTypeDefinition(Parameter.GetType()));
+	return Parameter.GetType();
 }
 
 bool FNiagaraCollectionParameterViewModel::CanChangeParameterType()const
