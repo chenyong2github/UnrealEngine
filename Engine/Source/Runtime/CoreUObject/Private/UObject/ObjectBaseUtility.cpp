@@ -130,7 +130,7 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 COREUOBJECT_API FName GetClassTraceScope(const UObjectBaseUtility* Object)
 {
 	UClass* Class = Object->GetClass();
-	if (Class->IsNative())
+	if (Class->IsNative() || !IsRunningCommandlet())
 	{
 		return Class->GetFName();
 	}
@@ -145,13 +145,20 @@ COREUOBJECT_API FName GetClassTraceScope(const UObjectBaseUtility* Object)
 #if STATS && CPUPROFILERTRACE_ENABLED
 void FScopeCycleCounterUObject::StartObjectTrace(const UObjectBaseUtility* Object)
 {
+	bool bTraceObjectFName = !IsRunningCommandlet();
+
 #if LOADTIMEPROFILERTRACE_ENABLED
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(AssetLoadTimeChannel))
+	{
+		bTraceObjectFName = true;
+	}
+#endif // LOADTIMEPROFILERTRACE_ENABLED
+
+	if (bTraceObjectFName)
 	{
 		StartTrace(Object->GetFName());
 	}
 	else
-#endif
 	{
 		StartTrace(GetClassTraceScope(Object));
 	}

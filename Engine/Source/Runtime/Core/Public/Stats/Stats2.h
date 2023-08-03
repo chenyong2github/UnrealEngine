@@ -1683,7 +1683,8 @@ public:
 #if CPUPROFILERTRACE_ENABLED
 			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 			{
-				FCpuProfilerTrace::OutputBeginDynamicEvent(InStatId.GetStatDescriptionANSI()); //todo: Could we use FName index as event id?
+				FName StatName = MinimalNameToName(StatMinimalName);
+				FCpuProfilerTrace::OutputBeginDynamicEventWithId(StatName, WCHAR_TO_TCHAR(InStatId.GetStatDescriptionWIDE()));
 				EmittedEvent |= TraceEvent;
 			}
 #endif
