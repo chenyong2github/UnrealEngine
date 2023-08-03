@@ -304,9 +304,9 @@ struct FInertializationPoseDiff
 	{
 	}
 
-	void Reset()
+	void Reset(uint32 NumBonesSlack = 0)
 	{
-		BoneDiffs.Empty();
+		BoneDiffs.Empty(NumBonesSlack);
 		CurveDiffs.Empty();
 		InertializationSpace = EInertializationSpace::Default;
 	}
@@ -371,6 +371,14 @@ private:
 	// List of curves that should not use inertial blending. These curves will instantly change when inertialization begins.
 	UPROPERTY(EditAnywhere, Category = Filter)
 	TArray<FName> FilteredCurves;
+
+	/**
+	 * Enable this to pre-allocate memory for the node rather than to allocate and deallocate memory when blending
+	 * becomes active and inactive. This improves performance, but causes larger memory usage, in particular when you
+	 * have multiple Inertialization nodes in an animation graph that are not all used at once.
+	 */
+	UPROPERTY(EditAnywhere, Category = Memory)
+	bool bPreallocateMemory = false;
 
 public: // FAnimNode_Inertialization
 

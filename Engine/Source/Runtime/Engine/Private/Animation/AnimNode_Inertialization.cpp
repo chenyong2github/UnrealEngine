@@ -149,7 +149,7 @@ void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeC
 	Source.Initialize(Context);
 
 
-	const int32 NumSkeletonBones = Context.AnimInstanceProxy->GetSkeleton()->GetReferenceSkeleton().GetNum();
+	const int32 NumSkeletonBones = bPreallocateMemory ? Context.AnimInstanceProxy->GetSkeleton()->GetReferenceSkeleton().GetNum() : 0;
 
 	PoseSnapshots.Empty(INERTIALIZATION_MAX_POSE_SNAPSHOTS);
 	RequestQueue.Reserve(8);
@@ -161,7 +161,7 @@ void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeC
 
 	Deactivate();
 
-	InertializationPoseDiff.Reset();
+	InertializationPoseDiff.Reset(NumSkeletonBones);
 }
 
 
@@ -542,10 +542,16 @@ void FAnimNode_Inertialization::ApplyInertialization(FPoseContext& Context, cons
 
 void FAnimNode_Inertialization::Deactivate()
 {
+	if (!bPreallocateMemory)
+	{
+		// InertializationPoseDiff::Reset actually empties and frees memory here
+		InertializationPoseDiff.Reset();
+		InertializationDurationPerBone.Empty();
+	}
+
 	InertializationState = EInertializationState::Inactive;
 	InertializationElapsedTime = 0.0f;
 	InertializationDuration = 0.0f;
-	InertializationDurationPerBone.Reset();
 	InertializationMaxDuration = 0.0f;
 	InertializationDeficit = 0.0f;
 }
