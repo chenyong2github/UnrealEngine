@@ -76,5 +76,13 @@ namespace UnrealBuildTool
 				Parser.WriteLine(Line);
 			}
 		}
+
+		protected void FlushToolOutput()
+		{
+			lock (Parser)
+			{
+				Parser.Flush();
+			}
+		}
 	}
 }
