@@ -25,6 +25,11 @@ final class WebRTCClient: NSObject {
         RTCInitializeSSL()
         let videoEncoderFactory = RTCDefaultVideoEncoderFactory()
         let videoDecoderFactory = RTCDefaultVideoDecoderFactory()
+
+        let fieldTrials = ["WebRTC-MaxPacketBufferSize", "8192"]
+        RTCInitFieldTrialDictionary(fieldTrials)
+
+
         return RTCPeerConnectionFactory(encoderFactory: videoEncoderFactory, decoderFactory: videoDecoderFactory)
     }()
     
