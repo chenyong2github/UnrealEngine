@@ -82,6 +82,7 @@ public:
 	bool HasParent(const UPCGMetadata* InTentativeParent) const;
 
 	/** Unparents current metadata by flattening the attributes (values, entries, etc.) */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata|Advanced")
 	void Flatten();
 
 	/** Create new streams */
