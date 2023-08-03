@@ -5089,7 +5089,8 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 	}
 
 	USoundBase* Sound = InNewActiveSound.GetSound();
-	if (Sound == nullptr)
+	// A non-playable sound could be a sound cue with nothing hooked to output.
+	if (Sound == nullptr || !Sound->IsPlayable())
 	{
 		ReportSoundFailedToStart(InNewActiveSound.AudioComponentID, InVirtualLoopToRetrigger);
 		return;
