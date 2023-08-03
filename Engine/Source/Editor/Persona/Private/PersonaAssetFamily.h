@@ -17,6 +17,8 @@ class FPersonaAssetFamily : public IAssetFamily, public TSharedFromThis<FPersona
 {
 public:
 	FPersonaAssetFamily(const UObject* InFromObject);
+	FPersonaAssetFamily(const UObject* InFromObject, const TSharedRef<FPersonaAssetFamily> InFromFamily);
+
 	virtual ~FPersonaAssetFamily() {}
 
 	/** IAssetFamily interface */

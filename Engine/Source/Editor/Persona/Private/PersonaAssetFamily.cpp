@@ -17,6 +17,7 @@ FPersonaAssetFamily::FPersonaAssetFamily(const UObject* InFromObject)
 	, Mesh(nullptr)
 	, AnimBlueprint(nullptr)
 	, AnimationAsset(nullptr)
+	, PhysicsAsset(nullptr)
 {
 	if (InFromObject)
 	{
@@ -42,6 +43,38 @@ FPersonaAssetFamily::FPersonaAssetFamily(const UObject* InFromObject)
 		}
 
 		FindCounterpartAssets(InFromObject, Skeleton, Mesh);
+	}
+}
+
+FPersonaAssetFamily::FPersonaAssetFamily(const UObject* InFromObject, const TSharedRef<FPersonaAssetFamily> InFromFamily)
+	: Skeleton(InFromFamily->Skeleton)
+	, Mesh(InFromFamily->Mesh)
+	, AnimBlueprint(InFromFamily->AnimBlueprint)
+	, AnimationAsset(InFromFamily->AnimationAsset)
+	, PhysicsAsset(InFromFamily->PhysicsAsset)
+{
+	if (InFromObject)
+	{
+		if (InFromObject->IsA<USkeleton>())
+		{
+			Skeleton = CastChecked<USkeleton>(InFromObject);
+		}
+		else if (InFromObject->IsA<UAnimationAsset>())
+		{
+			AnimationAsset = CastChecked<UAnimationAsset>(InFromObject);
+		}
+		else if (InFromObject->IsA<USkeletalMesh>())
+		{
+			Mesh = CastChecked<USkeletalMesh>(InFromObject);
+		}
+		else if (InFromObject->IsA<UAnimBlueprint>())
+		{
+			AnimBlueprint = CastChecked<UAnimBlueprint>(InFromObject);
+		}
+		else if (InFromObject->IsA<UPhysicsAsset>())
+		{
+			PhysicsAsset = CastChecked<UPhysicsAsset>(InFromObject);
+		}
 	}
 }
 

@@ -14,10 +14,22 @@ FPersonaAssetFamilyManager& FPersonaAssetFamilyManager::Get()
 TSharedRef<IAssetFamily> FPersonaAssetFamilyManager::CreatePersonaAssetFamily(const UObject* InAsset)
 {
 	// compact any invalid entries
-	AssetFamilies.RemoveAll([](const TWeakPtr<IAssetFamily>& InAssetFamily) { return !InAssetFamily.IsValid(); });
+	AssetFamilies.RemoveAll([](const TWeakPtr<FPersonaAssetFamily>& InAssetFamily) { return !InAssetFamily.IsValid(); });
+
+	// look for an existing matching asset family
+	TWeakPtr<FPersonaAssetFamily>* ExistingAssetFamily = nullptr;
+	FAssetData AssetData(InAsset);
+	for (TWeakPtr<FPersonaAssetFamily>& AssetFamily : AssetFamilies)
+	{
+		if (AssetFamily.Pin()->IsAssetCompatible(AssetData))
+		{
+			ExistingAssetFamily = &AssetFamily;
+			break;
+		}
+	}
 
 	// Create new asset family
-	TSharedRef<FPersonaAssetFamily> NewAssetFamily = MakeShared<FPersonaAssetFamily>(InAsset);
+	TSharedRef<FPersonaAssetFamily> NewAssetFamily = ExistingAssetFamily != nullptr ? MakeShared<FPersonaAssetFamily>(InAsset, ExistingAssetFamily->Pin().ToSharedRef()) : MakeShared<FPersonaAssetFamily>(InAsset);
 	NewAssetFamily->Initialize();
 	AssetFamilies.Add(NewAssetFamily);
 	return NewAssetFamily;
@@ -26,10 +38,10 @@ TSharedRef<IAssetFamily> FPersonaAssetFamilyManager::CreatePersonaAssetFamily(co
 void FPersonaAssetFamilyManager::BroadcastAssetFamilyChange()
 {
 	// Create copy as delegate can modify the AssetFamilies array
-	TArray<TWeakPtr<IAssetFamily>> AssetFamiliesCopy = AssetFamilies;
-	for (TWeakPtr<IAssetFamily>& AssetFamily : AssetFamiliesCopy)
+	TArray<TWeakPtr<FPersonaAssetFamily>> AssetFamiliesCopy = AssetFamilies;
+	for (TWeakPtr<FPersonaAssetFamily>& AssetFamily : AssetFamiliesCopy)
 	{
-		if (TSharedPtr<IAssetFamily> PinnedAssetFamily = AssetFamily.Pin())
+		if (TSharedPtr<FPersonaAssetFamily> PinnedAssetFamily = AssetFamily.Pin())
 		{
 			PinnedAssetFamily->GetOnAssetFamilyChanged().Broadcast();
 		}
@@ -38,9 +50,9 @@ void FPersonaAssetFamilyManager::BroadcastAssetFamilyChange()
 
 void FPersonaAssetFamilyManager::RecordAssetOpened(const FAssetData& InAssetData) const
 {
-	for (const TWeakPtr<IAssetFamily>& AssetFamily : AssetFamilies)
+	for (const TWeakPtr<FPersonaAssetFamily>& AssetFamily : AssetFamilies)
 	{
-		if (TSharedPtr<IAssetFamily> PinnedAssetFamily = AssetFamily.Pin())
+		if (TSharedPtr<FPersonaAssetFamily> PinnedAssetFamily = AssetFamily.Pin())
 		{
 			if(PinnedAssetFamily->IsAssetCompatible(InAssetData))
 			{

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 class IAssetFamily;
+class FPersonaAssetFamily;
 struct FAssetData;
 
 /** Central registry of persona asset families */
@@ -29,5 +30,5 @@ private:
 
 private:
 	/** All current asset families */
-	TArray<TWeakPtr<IAssetFamily>> AssetFamilies;
+	TArray<TWeakPtr<FPersonaAssetFamily>> AssetFamilies;
 };
