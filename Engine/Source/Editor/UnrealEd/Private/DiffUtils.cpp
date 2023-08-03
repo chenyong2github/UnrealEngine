@@ -437,7 +437,14 @@ const UObject* DiffUtils::GetCDO(const UBlueprint* ForBlueprint)
 	return ForBlueprint->GeneratedClass->ClassDefaultObject;
 }
 
-void DiffUtils::CompareUnrelatedStructs(const UStruct* StructA, const void* A, const UStruct* StructB, const void* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties)
+void DiffUtils::CompareUnrelatedStructs(const UStruct* StructA, const void* A, const UStruct* StructB, const void* B,
+	TArray<FSingleObjectDiffEntry>& OutDifferingProperties)
+{
+	CompareUnrelatedStructs(StructA, A, nullptr, StructB, B, nullptr, OutDifferingProperties);
+}
+
+void DiffUtils::CompareUnrelatedStructs(const UStruct* StructA, const void* A, const UObject* OwningOuterA, const UStruct* StructB, const void* B,
+                                        const UObject* OwningOuterB, TArray<FSingleObjectDiffEntry>& OutDifferingProperties)
 {
 	FPropertySoftPathSet PropertiesInA = UEDiffUtils_Private::GetPropertyNameSet(StructA);
 	FPropertySoftPathSet PropertiesInB = UEDiffUtils_Private::GetPropertyNameSet(StructB);
@@ -467,7 +474,7 @@ void DiffUtils::CompareUnrelatedStructs(const UStruct* StructA, const void* A, c
 
 			check(AProp != FResolvedProperty() && BProp != FResolvedProperty());
 			TArray<FPropertySoftPath> DifferingSubProperties;
-			if (!DiffUtils::Identical(AProp, BProp, PropertyName, DifferingSubProperties))
+			if (!DiffUtils::Identical(AProp, BProp, OwningOuterA, OwningOuterB, PropertyName, DifferingSubProperties))
 			{
 				for (int DifferingIndex = 0; DifferingIndex < DifferingSubProperties.Num(); DifferingIndex++)
 				{
@@ -482,7 +489,7 @@ void DiffUtils::CompareUnrelatedObjects(const UObject* A, const UObject* B, TArr
 {
 	if (A && B)
 	{
-		return CompareUnrelatedStructs(A->GetClass(), A, B->GetClass(), B, OutDifferingProperties);
+		return CompareUnrelatedStructs(A->GetClass(), A, A->GetPackage(), B->GetClass(), B, B->GetPackage(), OutDifferingProperties);
 	}
 }
 
@@ -582,7 +589,10 @@ static void AdvanceMapIterator( FScriptMapHelper& MapHelper, int32& Index)
 	while(Index < MapHelper.GetMaxIndex() && !MapHelper.IsValidIndex(Index));
 }
 
-static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProperty, const void* AValue, const void* BValue, const FPropertySoftPath& RootPath, TArray<FPropertySoftPath>& DifferingSubProperties, bool bStaticArrayHandled = false)
+
+static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProperty, const void* AValue, const void* BValue,
+	const UObject* OwningOuterA, const UObject* OwningOuterB, const FPropertySoftPath& RootPath,
+	TArray<FPropertySoftPath>& DifferingSubProperties, bool bStaticArrayHandled = false)
 {
 	if(AProperty == nullptr || BProperty == nullptr || AProperty->ArrayDim != BProperty->ArrayDim || AProperty->GetClass() != BProperty->GetClass())
 	{
@@ -600,7 +610,8 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 			const void* CurAValue = reinterpret_cast<const void*>(reinterpret_cast<const uint8*>(AValue) + Offset);
 			const void* CurBValue = reinterpret_cast<const void*>(reinterpret_cast<const uint8*>(BValue) + Offset);
 
-			IdenticalHelper(AProperty, BProperty, CurAValue, CurBValue, FPropertySoftPath(RootPath, I), DifferingSubProperties, true);
+			IdenticalHelper(AProperty, BProperty, CurAValue, CurBValue, OwningOuterA, OwningOuterB,
+				FPropertySoftPath(RootPath, I), DifferingSubProperties, true);
 		}
 
 		return;
@@ -630,7 +641,10 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 				for (TFieldIterator<FProperty> PropertyIt(APropAsStruct->Struct); PropertyIt; ++PropertyIt)
 				{
 					const FProperty* StructProp = *PropertyIt;
-					IdenticalHelper(StructProp, StructProp, StructProp->ContainerPtrToValuePtr<void>(AValue, 0), StructProp->ContainerPtrToValuePtr<void>(BValue, 0), FPropertySoftPath(RootPath, StructProp), DifferingSubProperties);
+					const void* SubValueA = StructProp->ContainerPtrToValuePtr<void>(AValue, 0);
+					const void* SubValueB = StructProp->ContainerPtrToValuePtr<void>(BValue, 0);
+					IdenticalHelper(StructProp, StructProp, SubValueA, SubValueB,
+						OwningOuterA, OwningOuterB, FPropertySoftPath(RootPath, StructProp), DifferingSubProperties);
 				}
 			}
 		}
@@ -650,7 +664,10 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 			// note any differences in contained types:
 			for (int32 ArrayIndex = 0; ArrayIndex < ArrayHelperA.Num() && ArrayIndex < ArrayHelperB.Num(); ArrayIndex++)
 			{
-				IdenticalHelper(APropAsArray->Inner, APropAsArray->Inner, ArrayHelperA.GetRawPtr(ArrayIndex), ArrayHelperB.GetRawPtr(ArrayIndex), FPropertySoftPath(RootPath, ArrayIndex), DifferingSubProperties);
+				const void* SubValueA = ArrayHelperA.GetRawPtr(ArrayIndex);
+				const void* SubValueB = ArrayHelperB.GetRawPtr(ArrayIndex);
+				IdenticalHelper(APropAsArray->Inner, BPropAsArray->Inner, SubValueA, SubValueB,
+					OwningOuterA, OwningOuterB, FPropertySoftPath(RootPath, ArrayIndex), DifferingSubProperties);
 			}
 
 			// note any size difference:
@@ -691,7 +708,10 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 
 			for (int32 VirtualIndex = 0; VirtualIndex < SetSizeA && VirtualIndex < SetSizeB; ++VirtualIndex)
 			{
-				IdenticalHelper(APropAsSet->ElementProp, APropAsSet->ElementProp, SetHelperA.GetElementPtr(SetIndexA), SetHelperB.GetElementPtr(SetIndexB), FPropertySoftPath(RootPath, VirtualIndex), DifferingSubProperties);
+				const void* SubValueA = SetHelperA.GetElementPtr(SetIndexA);
+				const void* SubValueB = SetHelperB.GetElementPtr(SetIndexB);
+				IdenticalHelper(APropAsSet->ElementProp, BPropAsSet->ElementProp, SubValueA, SubValueB,
+					OwningOuterA, OwningOuterB, FPropertySoftPath(RootPath, VirtualIndex), DifferingSubProperties);
 
 				// advance iterators in step:
 				AdvanceSetIterator(SetHelperA, SetIndexA);
@@ -729,8 +749,10 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 			
 			for (int32 VirtualIndex = 0; VirtualIndex < MapSizeA && VirtualIndex < MapSizeB; ++VirtualIndex)
 			{
-				IdenticalHelper(APropAsMap->KeyProp, APropAsMap->KeyProp, MapHelperA.GetKeyPtr(MapIndexA), MapHelperB.GetKeyPtr(MapIndexB), FPropertySoftPath(RootPath, VirtualIndex), DifferingSubProperties);
-				IdenticalHelper(APropAsMap->ValueProp, APropAsMap->ValueProp, MapHelperA.GetValuePtr(MapIndexA), MapHelperB.GetValuePtr(MapIndexB), FPropertySoftPath(RootPath, VirtualIndex), DifferingSubProperties);
+				IdenticalHelper(APropAsMap->KeyProp, APropAsMap->KeyProp, MapHelperA.GetKeyPtr(MapIndexA), MapHelperB.GetKeyPtr(MapIndexB),
+					OwningOuterA, OwningOuterB, FPropertySoftPath(RootPath, VirtualIndex), DifferingSubProperties);
+				IdenticalHelper(APropAsMap->ValueProp, APropAsMap->ValueProp, MapHelperA.GetValuePtr(MapIndexA), MapHelperB.GetValuePtr(MapIndexB),
+					OwningOuterA, OwningOuterB, FPropertySoftPath(RootPath, VirtualIndex), DifferingSubProperties);
 
 				AdvanceMapIterator(MapHelperA, MapIndexA);
 				AdvanceMapIterator(MapHelperB, MapIndexB);
@@ -754,8 +776,8 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 		const UObject* A = *((const UObject* const*)AValue);
 		const UObject* B = *((const UObject* const*)BValue);
 
-		// dig into the objects if they are in the same package as our initial object:
-		if(BPropAsObject->HasAnyPropertyFlags(CPF_InstancedReference) && APropAsObject->HasAnyPropertyFlags(CPF_InstancedReference) && A && B && A->GetClass() == B->GetClass())
+		// dig into the objects if they are in the same package as our initial object
+		if (A && B && A->GetClass() == B->GetClass() && OwningOuterA && OwningOuterB && A->IsIn(OwningOuterA) && B->IsIn(OwningOuterB))
 		{
 			const UClass* AClass = A->GetClass(); // BClass and AClass are identical!
 
@@ -766,13 +788,20 @@ static void IdenticalHelper(const FProperty* AProperty, const FProperty* BProper
 				for (TFieldIterator<FProperty> PropertyIt(AClass); PropertyIt; ++PropertyIt)
 				{
 					const FProperty* ClassProp = *PropertyIt;
-					IdenticalHelper(ClassProp, ClassProp, ClassProp->ContainerPtrToValuePtr<void>(A, 0), ClassProp->ContainerPtrToValuePtr<void>(B, 0), FPropertySoftPath(RootPath, ClassProp), DifferingSubProperties);
+					const void* SubValueA = ClassProp->ContainerPtrToValuePtr<void>(A, 0);
+					const void* SubValueB = ClassProp->ContainerPtrToValuePtr<void>(B, 0);
+					IdenticalHelper(ClassProp, ClassProp, SubValueA, SubValueB,
+						OwningOuterA, OwningOuterB, FPropertySoftPath(RootPath, ClassProp), DifferingSubProperties);
 				}
 			}
-			else if (A->GetFName() != B->GetFName())
+			else
 			{
-				// If the names don't match, report that as a difference as the object was likely changed
-				DifferingSubProperties.Push(RootPath);
+				const FString PathA = A->GetPathName(OwningOuterA);
+				const FString PathB = B->GetPathName(OwningOuterB);
+				if (PathA != PathB)
+				{
+					DifferingSubProperties.Push(RootPath);
+				}
 			}
 		}
 		else
@@ -810,7 +839,36 @@ bool DiffUtils::Identical(const FResolvedProperty& AProp, const FResolvedPropert
 	// Instead let's write a new function, specific to DiffUtils, that handles the sub properties
 	// NOTE: For Static Arrays, AValue and BValue were, and are, only references to the value at index 0.  So changes to values past index 0 didn't show up before and
 	// won't show up now.  Changes to index 0 will show up as a change to the entire array.
-	IdenticalHelper(AProp.Property, BProp.Property, AValue, BValue, RootPath, DifferingProperties);
+	IdenticalHelper(AProp.Property, BProp.Property, AValue, BValue, nullptr, nullptr, RootPath, DifferingProperties);
+	
+	return DifferingProperties.Num() == 0;
+}
+
+bool DiffUtils::Identical(const FResolvedProperty& AProp, const FResolvedProperty& BProp, const UObject* OwningOuterA,
+	const UObject* OwningOuterB)
+{
+	TArray<FPropertySoftPath> DifferingProperties;
+	return Identical(AProp, BProp, OwningOuterA, OwningOuterB, {}, DifferingProperties);
+}
+
+bool DiffUtils::Identical(const FResolvedProperty& AProp, const FResolvedProperty& BProp, const UObject* OwningOuterA,
+	const UObject* OwningOuterB, const FPropertySoftPath& RootPath, TArray<FPropertySoftPath>& DifferingProperties)
+{
+	if( AProp.Property == nullptr && BProp.Property == nullptr )
+	{
+		return true;
+	}
+	else if( AProp.Property == nullptr || BProp.Property == nullptr )
+	{
+		return false;
+	}
+
+	const void* AValue = AProp.Property->ContainerPtrToValuePtr<void>(AProp.Object);
+	const void* BValue = BProp.Property->ContainerPtrToValuePtr<void>(BProp.Object);
+
+	// note that we're not directly calling FProperty::Identical because sub-object properties should be weakly compared based on
+	// their paths instead of their pointers or data
+	IdenticalHelper(AProp.Property, BProp.Property, AValue, BValue, OwningOuterA, OwningOuterB, RootPath, DifferingProperties);
 	
 	return DifferingProperties.Num() == 0;
 }

@@ -146,7 +146,12 @@ void FMyBlueprintDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDi
 				if (OldVarIndex != INDEX_NONE && NewVarIndex != INDEX_NONE)
 				{
 					TArray<FSingleObjectDiffEntry> DifferingProperties;
-					DiffUtils::CompareUnrelatedStructs(FBPVariableDescription::StaticStruct(), &OldBlueprint->NewVariables[OldVarIndex], FBPVariableDescription::StaticStruct(), &NewBlueprint->NewVariables[NewVarIndex], DifferingProperties);
+					static const UStruct* Struct = FBPVariableDescription::StaticStruct();
+					const void* OldVal = &OldBlueprint->NewVariables[OldVarIndex];
+					const void* NewVal = &NewBlueprint->NewVariables[NewVarIndex];
+					const UPackage* OldPackage = OldBlueprint->GetPackage();
+					const UPackage* NewPackage = NewBlueprint->GetPackage();
+					DiffUtils::CompareUnrelatedStructs(Struct, OldVal, OldPackage, Struct, NewVal, NewPackage, DifferingProperties);
 					for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
 					{
 						TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(

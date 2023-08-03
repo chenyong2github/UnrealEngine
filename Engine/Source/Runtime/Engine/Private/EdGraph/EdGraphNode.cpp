@@ -316,8 +316,7 @@ void UEdGraphNode::DiffProperties(UStruct* StructA, UStruct* StructB, uint8* Dat
 			continue;
 		}
 
-		TArray<FPropertySoftPath> DifferingSubProperties;
-		if (!DiffUtils::Identical(FResolvedProperty(DataA, Prop), FResolvedProperty(DataB, PropB), {}, DifferingSubProperties))
+		if (!DiffUtils::Identical(FResolvedProperty(DataA, Prop), FResolvedProperty(DataB, PropB), StructA, StructB))
 		{
 			// Only bother setting up the display data if we're storing the result
 			if (Results.CanStoreResults())

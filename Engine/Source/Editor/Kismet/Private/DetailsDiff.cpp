@@ -140,10 +140,12 @@ void FDetailsDiff::DiffAgainst(const FDetailsDiff& Newer, TArray< FSingleObjectD
 		check(NewSelectedObjects.Num() == 1);
 		FResolvedProperty OldProperty = CommonProperty.Resolve(OldSelectedObjects[0].Get());
 		FResolvedProperty NewProperty = CommonProperty.Resolve(NewSelectedObjects[0].Get());
+		const UPackage* OldPackage = OldSelectedObjects[0]->GetPackage();
+		const UPackage* NewPackage = NewSelectedObjects[0]->GetPackage();
 
 		TArray<FPropertySoftPath> DifferingSubProperties;
 
-		if (!DiffUtils::Identical(OldProperty, NewProperty, CommonProperty, DifferingSubProperties))
+		if (!DiffUtils::Identical(OldProperty, NewProperty, OldPackage, NewPackage, CommonProperty, DifferingSubProperties))
 		{
 			for (const FPropertySoftPath& DifferingSubProperty : DifferingSubProperties)
 			{

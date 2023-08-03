@@ -68,8 +68,7 @@ bool TreeDiffSpecification::AreValuesEqual<TWeakPtr<FDetailTreeNode>>(const TWea
 
 			// use DiffUtils::Identical instead of FProperty::Identical so that sub-object pointers are considered identical
 			// if they're isomorphic rather than only if they have the same pointer values
-			TArray<FPropertySoftPath> Differing;
-			if(!DiffUtils::Identical(ResolvedA, ResolvedB, {}, Differing))
+			if(!DiffUtils::Identical(ResolvedA, ResolvedB, OwningObjectA->GetPackage(), OwningObjectB->GetPackage()))
 			{
 				return false;
 			}
