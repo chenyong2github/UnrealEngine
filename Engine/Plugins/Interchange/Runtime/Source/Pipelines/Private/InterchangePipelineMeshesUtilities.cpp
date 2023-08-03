@@ -219,7 +219,10 @@ bool FInterchangePipelineMeshesUtilitiesContext::IsStaticMeshGeometry(const FInt
 	{
 		return false;
 	}
-
+	if (MeshGeometry.MeshNode->IsMorphTarget())
+	{
+		return false;
+	}
 	return !IsSkeletalMeshGeometry(MeshGeometry);
 }
 
@@ -231,6 +234,11 @@ bool FInterchangePipelineMeshesUtilitiesContext::IsSkeletalMeshGeometry(const FI
 	}
 
 	if (bQueryGeometryOnlyIfNoInstance && MeshGeometry.ReferencingMeshInstanceUids.Num() > 0)
+	{
+		return false;
+	}
+
+	if (MeshGeometry.MeshNode->IsMorphTarget())
 	{
 		return false;
 	}
