@@ -31,19 +31,21 @@ static FString FormatDataDomain(
 			{
 				return TEXT("Parameter");
 			}
-			else
+			TArray<FString> Names;
+			for (FName DomainLevelName: InDataDomain.DimensionNames)
 			{
-				TArray<FString> Names;
-				for (FName DomainLevelName: InDataDomain.DimensionNames)
-				{
-					Names.Add(DomainLevelName.ToString());
-				}
-				return FString::Join(Names, *FString(UTF8TEXT(" › ")));
+				Names.Add(DomainLevelName.ToString());
 			}
+			FString DomainName = FString::Join(Names, *FString(UTF8TEXT(" › ")));
+			if (InDataDomain.Multiplier > 1)
+			{
+				DomainName += FString::Printf(TEXT(" x %d"), InDataDomain.Multiplier);
+			}
+			return DomainName;
 		}
 		
 	case EOptimusDataDomainType::Expression:
-		return InDataDomain.Expression.TrimStartAndEnd();
+		return FString::Printf(TEXT("<%s>"), *InDataDomain.Expression.TrimStartAndEnd());
 	}
 	
 	checkNoEntry();
@@ -475,6 +477,9 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 	
+	const UOptimusNodePin *OutputPin = Direction == EOptimusNodePinDirection::Output ? this : InOtherPin;
+	const UOptimusNodePin* InputPin = Direction == EOptimusNodePinDirection::Input ? this : InOtherPin;
+
 	// Check for incompatible types.
 	if (!((DataType->ShaderValueType.IsValid() && InOtherPin->DataType->ShaderValueType.IsValid() &&
 		  DataType->ShaderValueType == InOtherPin->DataType->ShaderValueType) ||
@@ -484,14 +489,13 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 
 		if (OutReason)
 		{
-			*OutReason = TEXT("Incompatible pin types.");
+			*OutReason = FString::Printf(TEXT("Incompatible pin types (%s vs %s)."),
+				*OutputPin->GetDataType()->DisplayName.ToString(),
+				*InputPin->GetDataType()->DisplayName.ToString());
 		}
 		return false;
 	}
 
-
-	const UOptimusNodePin *OutputPin = Direction == EOptimusNodePinDirection::Output ? this : InOtherPin;
-	const UOptimusNodePin* InputPin = Direction == EOptimusNodePinDirection::Input ? this : InOtherPin;
 
 	// We don't allow resource -> value connections. All other combos are legit. 
 	// Value -> Resource just means the resource gets filled with the value.
