@@ -7,6 +7,14 @@
 #include "Streaming/DynamicTextureInstanceManager.h"
 #include "Components/PrimitiveComponent.h"
 
+// TODO: Remove this cvar and old code path once effectiveness and correctness is verified
+static int32 GStreamingDeferredRemoveDyanmicInstances = 1;
+static FAutoConsoleVariableRef CVarStreamingDeferredRemoveDynamicInstances(
+	TEXT("r.Streaming.DeferredRemoveDynamicInstances"),
+	GStreamingDeferredRemoveDyanmicInstances,
+	TEXT("Whether to defer removing components from the dynamic instance manager to avoid stalling the game thread on component deregistration."),
+	ECVF_Default);
+
 void FDynamicRenderAssetInstanceManager::FTasks::SyncResults()
 {
 	// Update the bounds first as we want the async view to be fully up-to-date.
@@ -17,8 +25,32 @@ void FDynamicRenderAssetInstanceManager::FTasks::SyncResults()
 	CreateViewTask->TrySync();
 }
 
-FDynamicRenderAssetInstanceManager::FDynamicRenderAssetInstanceManager()
-	: StateSync(true)
+void FDynamicRenderAssetInstanceManager::FTasks::SyncRefreshFullTask()
+{
+	RefreshFullTask->TryWork(false);
+	RefreshFullTask->TrySync();
+}
+
+template <typename TTasks>
+void FRenderAssetDynamicInstanceStateTaskSync<TTasks>::Sync()
+{
+	check(IsInGameThread());
+
+	Super::Tasks.SyncResults();
+	FRemovedRenderAssetArray RemovedRenderAssets;
+	Super::State->FlushPendingRemoveComponents(RemovedRenderAssets);
+	OnSyncDoneDelegate.Execute(RemovedRenderAssets);
+}
+
+template <typename TTasks>
+FRenderAssetInstanceState* FRenderAssetDynamicInstanceStateTaskSync<TTasks>::SyncAndGetState()
+{
+	Sync();
+	return Super::State.GetReference();
+}
+
+FDynamicRenderAssetInstanceManager::FDynamicRenderAssetInstanceManager(FOnSyncDoneDelegate&& InOnSyncDoneDelegate)
+	: StateSync(FRenderAssetDynamicInstanceStateTaskSync<FTasks>::FOnSyncDone::CreateLambda(MoveTemp(InOnSyncDoneDelegate)))
 	, DirtyIndex(0)
 	, PendingDefragSrcBoundIndex(INDEX_NONE)
 	, PendingDefragDstBoundIndex(INDEX_NONE)
@@ -26,6 +58,11 @@ FDynamicRenderAssetInstanceManager::FDynamicRenderAssetInstanceManager()
 	FTasks& Tasks = StateSync.GetTasks();
 	Tasks.RefreshFullTask = new FRefreshFullTask(RenderAssetInstanceTask::FRefreshFull::FOnWorkDone::CreateLambda([this](int32 InBeginIndex, int32 InEndIndex, const TArray<int32>& SkippedIndices, int32 FirstFreeBound, int32 LastUsedBound){ this->OnRefreshVisibilityDone(InBeginIndex, InEndIndex, SkippedIndices, FirstFreeBound, LastUsedBound); }));
 	Tasks.CreateViewTask = new FCreateViewTask(RenderAssetInstanceTask::FCreateViewWithUninitializedBounds::FOnWorkDone::CreateLambda([this](FRenderAssetInstanceView* InView){ this->OnCreateViewDone(InView); }));
+}
+
+FDynamicRenderAssetInstanceManager::~FDynamicRenderAssetInstanceManager()
+{
+	StateSync.Sync();
 }
 
 bool FDynamicRenderAssetInstanceManager::IsReferenced(const UPrimitiveComponent* Component) const
@@ -88,6 +125,11 @@ void FDynamicRenderAssetInstanceManager::IncrementalUpdate(FRemovedRenderAssetAr
 	Refresh(Percentage);
 }
 
+void FDynamicRenderAssetInstanceManager::GetReferencedComponents(TArray<const UPrimitiveComponent *>& Components)
+{
+	StateSync.SyncAndGetState()->GetReferencedComponents(Components);
+}
+
 void FDynamicRenderAssetInstanceManager::OnCreateViewDone(FRenderAssetInstanceView* InView)
 {
 	// Don't call get state here to prevent recursion as this is a task callback.
@@ -142,7 +184,17 @@ void FDynamicRenderAssetInstanceManager::OnPreGarbageCollect(FRemovedRenderAsset
 
 			if (StateSync.GetState()->HasComponentReferences(Primitive))
 			{
-				StateSync.SyncAndGetState()->RemoveComponent(Primitive, &RemovedRenderAssets);
+				if (GStreamingDeferredRemoveDyanmicInstances != 0)
+				{
+					// Prevent the refresh full task from dereferencing possibly soon to be GCed components
+					StateSync.GetTasks().SyncRefreshFullTask();
+					// Only clear references to avoid a sync with the create async view task
+					StateSync.GetStateUnsafe()->RemoveComponentReferences(Primitive);
+				}
+				else
+				{
+					StateSync.SyncAndGetState()->RemoveComponent(Primitive, &RemovedRenderAssets);
+				}
 			}
 			Primitive->bAttachedToStreamingManagerAsDynamic = false;
 		}
@@ -214,7 +266,15 @@ void FDynamicRenderAssetInstanceManager::Remove(const UPrimitiveComponent* Compo
 		// If the component is used, stop any task possibly indirecting it, and clear references.
 		if (StateSync.GetState()->HasComponentReferences(Component))
 		{
-			StateSync.SyncAndGetState()->RemoveComponent(Component, RemovedRenderAssets);
+			if (GStreamingDeferredRemoveDyanmicInstances != 0)
+			{
+				// Only clear references to avoid syncing with refresh full and create async view tasks
+				StateSync.GetStateUnsafe()->RemoveComponentReferences(Component);
+			}
+			else
+			{
+				StateSync.SyncAndGetState()->RemoveComponent(Component, RemovedRenderAssets);
+			}
 		}
 		Component->bAttachedToStreamingManagerAsDynamic = false;
 	}

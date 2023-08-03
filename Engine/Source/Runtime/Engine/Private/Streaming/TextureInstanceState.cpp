@@ -12,9 +12,7 @@
 #include "Streaming/TextureInstanceView.h"
 
 FRenderAssetInstanceState::FRenderAssetInstanceState(bool bForDynamicInstances)
-#if DO_CHECK
 	: bIsDynamicInstanceState(bForDynamicInstances)
-#endif
 {
 }
 
@@ -83,7 +81,7 @@ void FRenderAssetInstanceState::RemoveBounds(int32 BoundsIndex)
 		return;
 	}
 
-	// If note all indices were freed
+	// If not all indices were freed
 	if (1 + FreeBoundIndices.Num() != Bounds4.Num() * 4)
 	{
 		FreeBoundIndices.Push(BoundsIndex);
@@ -98,7 +96,7 @@ void FRenderAssetInstanceState::RemoveBounds(int32 BoundsIndex)
 	}
 }
 
-void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponent, const UStreamableRenderAsset* InAsset, int InBoundsIndex, float InTexelFactor, bool InForceLoad, int32*& ComponentLink, int32 IterationCount_DebuggingOnly)
+void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponent, const UStreamableRenderAsset* InAsset, int InBoundsIndex, float InTexelFactor, bool InForceLoad, int32*& ComponentLink)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRenderAssetInstanceState::AddElement);
 	check(InComponent && InAsset);
@@ -117,8 +115,6 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 		ElementIndex = Elements.Num();
 		Elements.AddElement(FElement());
 	}
-
-	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
 
 	FElement& Element = Elements[ElementIndex];
 
@@ -177,10 +173,8 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 	}
 }
 
-void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset, int32 IterationCount_DebuggingOnly)
+void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset)
 {
-	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
-
 	FElement& Element = Elements[ElementIndex];
 	NextComponentLink = Element.NextComponentLink; 
 	BoundsIndex = Element.BoundsIndex; 
@@ -252,7 +246,6 @@ FORCEINLINE bool operator<(const FBoxSphereBounds& Lhs, const FBoxSphereBounds& 
 
 void FRenderAssetInstanceState::AddRenderAssetElements(const UPrimitiveComponent* Component, const TArrayView<FStreamingRenderAssetPrimitiveInfo>& RenderAssetInstanceInfos, int32 BoundsIndex, int32*& ComponentLink)
 {
-	int32 IterationCount_DebuggingOnly = 0;
 	// Loop for each render asset - texel factor group (a group being of same texel factor sign)
 	for (int32 InfoIndex = 0; InfoIndex < RenderAssetInstanceInfos.Num();)
 	{
@@ -293,7 +286,7 @@ void FRenderAssetInstanceState::AddRenderAssetElements(const UPrimitiveComponent
 				}
 			}
 		}
-		AddElement(Component, Info.RenderAsset, BoundsIndex, MergedTexelFactor, Component->bForceMipStreaming, ComponentLink, IterationCount_DebuggingOnly++);
+		AddElement(Component, Info.RenderAsset, BoundsIndex, MergedTexelFactor, Component->bForceMipStreaming, ComponentLink);
 
 		InfoIndex += NumOfMergedElements;
 	}
@@ -455,39 +448,44 @@ EAddComponentResult FRenderAssetInstanceState::AddComponentIgnoreBounds(const UP
 }
 
 
-void FRenderAssetInstanceState::RemoveComponent(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedTextures)
+void FRenderAssetInstanceState::RemoveComponentByHandle(FRemovedComponentHandle ElementIndex, FRemovedRenderAssetArray* RemovedRenderAssets)
 {
-	TArray<int32, TInlineAllocator<12> > RemovedBoundsIndices;
-	int32 ElementIndex = INDEX_NONE;
+	TArray<int32, TInlineAllocator<12>> RemovedBoundsIndices;
 
-	ComponentMap.RemoveAndCopyValue(Component, ElementIndex);
-	int32 IterationCount_DebuggingOnly = 0;
 	while (ElementIndex != INDEX_NONE)
 	{
 		int32 BoundsIndex = INDEX_NONE;
-		const UStreamableRenderAsset* Texture = nullptr;
+		const UStreamableRenderAsset* Asset = nullptr;
 
-		RemoveElement(ElementIndex, ElementIndex, BoundsIndex, Texture, IterationCount_DebuggingOnly++);
+		RemoveElement(ElementIndex, ElementIndex, BoundsIndex, Asset);
 
 		if (BoundsIndex != INDEX_NONE)
 		{
 			RemovedBoundsIndices.AddUnique(BoundsIndex);
 		}
 
-		if (Texture && RemovedTextures)
+		if (Asset && RemovedRenderAssets)
 		{
-			RemovedTextures->AddUnique(Texture);
+			RemovedRenderAssets->AddUnique(Asset);
 		}
 	};
 
-	for (int32 I = 0; I < RemovedBoundsIndices.Num(); ++I)
+	for (int32 Index = 0; Index < RemovedBoundsIndices.Num(); ++Index)
 	{
-		RemoveBounds(RemovedBoundsIndices[I]);
+		RemoveBounds(RemovedBoundsIndices[Index]);
 	}
 }
 
+void FRenderAssetInstanceState::RemoveComponent(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedRenderAssets)
+{
+	int32 ElementIndex = INDEX_NONE;
+	ComponentMap.RemoveAndCopyValue(Component, ElementIndex);
+
+	RemoveComponentByHandle(ElementIndex, RemovedRenderAssets);
+}
+
 bool FRenderAssetInstanceState::RemoveComponentReferences(const UPrimitiveComponent* Component) 
-{ 
+{
 	// Because the async streaming task could be running, we can't change the async view state. 
 	// We limit ourself to clearing the component ptr to avoid invalid access when updating visibility.
 
@@ -495,6 +493,11 @@ bool FRenderAssetInstanceState::RemoveComponentReferences(const UPrimitiveCompon
 	if (ComponentLink)
 	{
 		int32 ElementIndex = *ComponentLink;
+		if (bIsDynamicInstanceState)
+		{
+			PendingRemoveComponents.Add(ElementIndex);
+		}
+
 		while (ElementIndex != INDEX_NONE)
 		{
 			FElement& Element = Elements[ElementIndex];
@@ -514,6 +517,16 @@ bool FRenderAssetInstanceState::RemoveComponentReferences(const UPrimitiveCompon
 	{
 		return false;
 	}
+}
+
+void FRenderAssetInstanceState::FlushPendingRemoveComponents(FRemovedRenderAssetArray& RemovedRenderAssets)
+{
+	for (int32 Index = 0; Index < PendingRemoveComponents.Num(); ++Index)
+	{
+		const FRemovedComponentHandle HeadElementIndex = PendingRemoveComponents[Index];
+		RemoveComponentByHandle(HeadElementIndex, &RemovedRenderAssets);
+	}
+	PendingRemoveComponents.Reset();
 }
 
 void FRenderAssetInstanceState::GetReferencedComponents(TArray<const UPrimitiveComponent*>& Components) const
@@ -783,6 +796,12 @@ bool FRenderAssetInstanceState::MoveBound(int32 SrcBoundIndex, int32 DstBoundInd
 
 void FRenderAssetInstanceState::TrimBounds()
 {
+	// Cannot trim if there are pending removes. Corresponding Bounds4Components entries are nullptrs but not actually free.
+	if (PendingRemoveComponents.Num() > 0)
+	{
+		return;
+	}
+
 	const int32 DefragThreshold = 8; // Must be a multiple of 4
 	check(NumBounds4() * 4 == NumBounds());
 

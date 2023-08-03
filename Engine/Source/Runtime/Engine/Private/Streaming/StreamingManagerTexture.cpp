@@ -102,6 +102,7 @@ FORCEINLINE float ClampMeshToCameraDistanceSquared(float MeshToCameraDistanceSqu
 FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 :	CurrentUpdateStreamingRenderAssetIndex(0)
 ,	AsyncWork( nullptr )
+,	DynamicComponentManager([this](const FRemovedRenderAssetArray& RemovedRenderAssets) { SetRenderAssetsRemovedTimestamp(RemovedRenderAssets); })
 ,	CurrentPendingMipCopyRequestIdx(0)
 ,	LevelRenderAssetManagersLock(nullptr)
 ,	ProcessingStage( 0 )

@@ -183,6 +183,14 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 
 	void AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& InOutRenderedTextureStats) override;
 
+	/**
+	 * Mark the textures/meshes with a timestamp. They're about to lose their location-based heuristic and we don't want them to
+	 * start using LastRenderTime heuristic for a few seconds until they are garbage collected!
+	 *
+	 * @param RemovedRenderAssets	List of removed textures or meshes.
+	 */
+	void SetRenderAssetsRemovedTimestamp(const FRemovedRenderAssetArray& RemovedRenderAssets);
+
 private:
 //BEGIN: Thread-safe functions and data
 		friend class FRenderAssetStreamingMipCalcTask;
@@ -268,14 +276,6 @@ private:
 		/** Index of the StreamingTexture that will be updated next by UpdateStreamingRenderAssets(). */
 		int32 CurrentUpdateStreamingRenderAssetIndex;
 //END: Thread-safe functions and data
-
-	/**
-	 * Mark the textures/meshes with a timestamp. They're about to lose their location-based heuristic and we don't want them to
-	 * start using LastRenderTime heuristic for a few seconds until they are garbage collected!
-	 *
-	 * @param RemovedRenderAssets	List of removed textures or meshes.
-	 */
-	void	SetRenderAssetsRemovedTimestamp(const FRemovedRenderAssetArray& RemovedRenderAssets);
 
 	void	SetLastUpdateTime();
 	void	UpdateStats();

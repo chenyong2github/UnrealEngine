@@ -36,8 +36,17 @@ public:
 	EAddComponentResult AddComponentIgnoreBounds(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext);
 
 	FORCEINLINE bool HasComponentReferences(const UPrimitiveComponent* Component) const { return ComponentMap.Contains(Component); }
-	void RemoveComponent(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedTextures);
+
+	// Clears all internal references to the component and remove any associated record (e.g. FElements, Bounds). If RemovedRenderAssets is not null,
+	// render assets with all components removed will be added to the array.
+	void RemoveComponent(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedRenderAssets);
+
+	// Clears all internal references to the component. Dynamic instance state will also add an entry to the pending remove list which will be used
+	// to remove the associated records (e.g. FElements, Bounds) when FlushPendingRemoveComponents is called.
 	bool RemoveComponentReferences(const UPrimitiveComponent* Component);
+
+	// Remove any record associated with pending remove components. Returns an array of render assets with all components removed.
+	void FlushPendingRemoveComponents(FRemovedRenderAssetArray& RemovedRenderAssets);
 
 	void GetReferencedComponents(TArray<const UPrimitiveComponent*>& Components) const;
 
@@ -61,10 +70,13 @@ public:
 	FORCEINLINE bool HasComponent(int32 BoundIndex) const { return Bounds4Components[BoundIndex] != nullptr; }
 
 private:
+	typedef int32 FRemovedComponentHandle;
 
-	void AddElement(const UPrimitiveComponent* Component, const UStreamableRenderAsset* Asset, int BoundsIndex, float TexelFactor, bool bForceLoad, int32*& ComponentLink, int32 IterationCount_DebuggingOnly);
+	void RemoveComponentByHandle(FRemovedComponentHandle ElementIndex, FRemovedRenderAssetArray* RemovedRenderAssets);
+
+	void AddElement(const UPrimitiveComponent* Component, const UStreamableRenderAsset* Asset, int BoundsIndex, float TexelFactor, bool bForceLoad, int32*& ComponentLink);
 	// Returns the next elements using the same component.
-	void RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset, int32 IterationCount_DebuggingOnly);
+	void RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset);
 
 	int32 AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* Component, float LastRenderTime, const FVector4& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq);
 	FORCEINLINE int32 AddBounds(const UPrimitiveComponent* Component);
@@ -73,6 +85,8 @@ private:
 	void AddRenderAssetElements(const UPrimitiveComponent* Component, const TArrayView<FStreamingRenderAssetPrimitiveInfo>& RenderAssetInstanceInfos, int32 BoundsIndex, int32*& ComponentLink);
 
 private:
+
+	const bool bIsDynamicInstanceState;
 
 	/** 
 	 * Components related to each of the Bounds4 elements. This is stored in another array to allow 
@@ -90,11 +104,10 @@ private:
 	 */
 	TArray<int32>  BoundsToUnpack;
 
-	TMap<const UPrimitiveComponent*, int32> ComponentMap;
+	/** Head element indices of removed components. Used to defer removal of associated FElements and Bounds. */
+	TArray<FRemovedComponentHandle> PendingRemoveComponents;
 
-#if DO_CHECK
-	bool bIsDynamicInstanceState;
-#endif
+	TMap<const UPrimitiveComponent*, int32> ComponentMap;
 
 	friend class FRenderAssetLinkIterator;
 	friend class FRenderAssetIterator;
@@ -105,7 +118,9 @@ class FRenderAssetInstanceStateTaskSync
 {
 public:
 
-	FRenderAssetInstanceStateTaskSync(bool bForDynamicInstances) : State(new FRenderAssetInstanceState(bForDynamicInstances)) {}
+	FRenderAssetInstanceStateTaskSync()
+		: FRenderAssetInstanceStateTaskSync(false)
+	{}
 
 	FORCEINLINE void Sync()
 	{
@@ -133,8 +148,32 @@ public:
 	TTasks& GetTasks() { return Tasks; }
 	const TTasks& GetTasks() const { return Tasks; }
 
-private:
+protected:
+	FRenderAssetInstanceStateTaskSync(bool bForDynamicInstances)
+		: State(new FRenderAssetInstanceState(bForDynamicInstances))
+	{}
 
 	TRefCountPtr<FRenderAssetInstanceState> State;
 	TTasks Tasks;
+};
+
+template <typename TTasks>
+class FRenderAssetDynamicInstanceStateTaskSync : public FRenderAssetInstanceStateTaskSync<TTasks>
+{
+public:
+	using Super = FRenderAssetInstanceStateTaskSync<TTasks>;
+
+	DECLARE_DELEGATE_OneParam(FOnSyncDone, const FRemovedRenderAssetArray&);
+
+	FRenderAssetDynamicInstanceStateTaskSync(FOnSyncDone&& InOnSyncDoneDelegate)
+		: Super(true)
+		, OnSyncDoneDelegate(InOnSyncDoneDelegate)
+	{}
+
+	void Sync();
+
+	FRenderAssetInstanceState* SyncAndGetState();
+
+private:
+	FOnSyncDone OnSyncDoneDelegate;
 };
