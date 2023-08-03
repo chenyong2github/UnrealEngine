@@ -21,7 +21,7 @@
 
 #include "Misc/Paths.h"
 #include "EditorAssetLibrary.h"
-
+#include "ObjectTools.h"
 
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
@@ -214,7 +214,25 @@ const FToolTargetTypeRequirements& UGenerateStaticMeshLODAssetToolBuilder::GetTa
 bool UGenerateStaticMeshLODAssetToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	// hack to make multi-tool look like single-tool
-	return (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1);
+	const int NumTargets = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements());
+	if (NumTargets == 1)
+	{
+		// Ensure that the StaticMesh asset is still valid.
+		// [TODO] Remove this check once we properly handle a failed DuplicateAsset in UGenerateStaticMeshLODProcess::WriteDerivedStaticMeshAsset
+		bool bValidTarget = false;
+		SceneState.TargetManager->EnumerateSelectedAndTargetableComponents(SceneState, GetTargetRequirements(),
+			[&bValidTarget](UActorComponent* Component)
+			{
+				const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+				UStaticMesh* StaticMesh = StaticMeshComponent ? StaticMeshComponent->GetStaticMesh() : nullptr;
+				if (IsValid(StaticMesh))
+				{
+					bValidTarget = ObjectTools::IsObjectBrowsable(StaticMesh);
+				}
+			});
+		return bValidTarget;
+	}
+	return false;
 }
 
 UMultiSelectionMeshEditingTool* UGenerateStaticMeshLODAssetToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const

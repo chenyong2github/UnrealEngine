@@ -1624,6 +1624,14 @@ void UGenerateStaticMeshLODProcess::WriteDerivedStaticMeshAsset()
 		GeneratedStaticMesh = Cast<UStaticMesh>(DupeAsset);
 	}
 
+	// DuplicateAsset can fail in the event of a dead package from an Asset Reload.
+	// This edge case is currently prevented by the GenerateStaticMeshLODAssetToolBuilder.
+	// [TODO] Handle a failed DuplicateAsset case by creating a new StaticMesh asset.
+	if (!ensure(GeneratedStaticMesh))
+	{
+		return;
+	}
+
 	// make sure transactional flag is on
 	GeneratedStaticMesh->SetFlags(RF_Transactional);
 	GeneratedStaticMesh->Modify();
