@@ -22,6 +22,9 @@ UCineSplineComponent::UCineSplineComponent(const FObjectInitializer& ObjectIniti
 	Data.FocusDistance = Defaults.DefaultFocusDistance;
 
 	AddSplineDataAtPosition(1.0f, Data);
+
+	Data.Location.X = 100.0;
+	AddSplineDataAtPosition(2.0f, Data);
 }
 
 
