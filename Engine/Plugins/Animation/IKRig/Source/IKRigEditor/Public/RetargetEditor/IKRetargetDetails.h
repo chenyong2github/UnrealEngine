@@ -64,6 +64,7 @@ public:
 		ESlateTransformComponent::Type Component,
 		ESlateRotationRepresentation::Type Representation,
 		ESlateTransformSubComponent::Type SubComponent);
+	
 	/** Method to react to changes of numeric values in the widget */
 	static void OnMultiNumericValueCommitted(
 		ESlateTransformComponent::Type Component,
@@ -91,7 +92,8 @@ private:
 		ESlateTransformComponent::Type Component,
 		ESlateRotationRepresentation::Type Representation,
 		ESlateTransformSubComponent::Type SubComponent,
-		FVector::FReal Value);
+		FVector::FReal Value,
+		bool bShouldTransact);
 
 	void CommitValueAsBoneSpace(
 		UIKRetargeterController* AssetController,
@@ -102,7 +104,8 @@ private:
 		ESlateTransformComponent::Type Component,
 		ESlateRotationRepresentation::Type Representation,
 		ESlateTransformSubComponent::Type SubComponent,
-		FVector::FReal Value);
+		FVector::FReal Value,
+		bool bShouldTransact);
 
 	static TOptional<FVector::FReal> CleanRealValue(TOptional<FVector::FReal> InValue);
 	
