@@ -78,34 +78,34 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetInputNode( int i, NodePtr pNode )
+	void NodeImageProject::SetInputNode( int i, Ptr<Node> InNode)
 	{
 		check( i>=0 && i<GetInputCount() );
 
 		switch (i)
 		{
 		case 0:
-			m_pD->m_pMesh = dynamic_cast<NodeMesh*>(pNode.get());
+			m_pD->m_pMesh = dynamic_cast<NodeMesh*>(InNode.get());
 			break;
 
 		case 1:
-			m_pD->m_pProjector = dynamic_cast<NodeProjector*>(pNode.get());
+			m_pD->m_pProjector = dynamic_cast<NodeProjector*>(InNode.get());
 			break;
 
 		case 2:
-			m_pD->m_pAngleFadeStart = dynamic_cast<NodeScalar*>(pNode.get());
+			m_pD->m_pAngleFadeStart = dynamic_cast<NodeScalar*>(InNode.get());
 			break;
 
 		case 3:
-			m_pD->m_pAngleFadeEnd = dynamic_cast<NodeScalar*>(pNode.get());
+			m_pD->m_pAngleFadeEnd = dynamic_cast<NodeScalar*>(InNode.get());
 			break;
 
 		case 4:
-			m_pD->m_pMask = dynamic_cast<NodeImage*>(pNode.get());
+			m_pD->m_pMask = dynamic_cast<NodeImage*>(InNode.get());
 			break;
 
 		default:
-			m_pD->m_pImage = dynamic_cast<NodeImage*>(pNode.get());
+			m_pD->m_pImage = dynamic_cast<NodeImage*>(InNode.get());
 			break;
 		}
 	}
@@ -114,30 +114,16 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	// Own Interface
 	//---------------------------------------------------------------------------------------------
-	NodeMeshPtr NodeImageProject::GetMesh() const
+	void NodeImageProject::SetMesh( Ptr<NodeMesh> InNode)
 	{
-		return m_pD->m_pMesh.get();
+		m_pD->m_pMesh = InNode;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetMesh( NodeMeshPtr pNode )
+	void NodeImageProject::SetProjector( Ptr<NodeProjector> InNode)
 	{
-		m_pD->m_pMesh = pNode;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	NodeProjectorPtr NodeImageProject::GetProjector() const
-	{
-		return m_pD->m_pProjector.get();
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetProjector( NodeProjectorPtr pNode )
-	{
-		m_pD->m_pProjector = pNode;
+		m_pD->m_pProjector = InNode;
 	}
 
 
@@ -150,16 +136,23 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetAngleFadeStart(NodeScalarPtr pNode)
+	void NodeImageProject::SetEnableSeamCorrection(bool bEnabled)
 	{
-		m_pD->m_pAngleFadeStart = pNode;
+		m_pD->bEnableTextureSeamCorrection = bEnabled;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetAngleFadeEnd( NodeScalarPtr pNode )
+	void NodeImageProject::SetAngleFadeStart(Ptr<NodeScalar> InNode)
 	{
-		m_pD->m_pAngleFadeEnd = pNode;
+		m_pD->m_pAngleFadeStart = InNode;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void NodeImageProject::SetAngleFadeEnd( Ptr<NodeScalar> InNode)
+	{
+		m_pD->m_pAngleFadeEnd = InNode;
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -175,59 +168,32 @@ namespace mu
 	}
 
 
+
 	//---------------------------------------------------------------------------------------------
-	NodeImagePtr NodeImageProject::GetTargetMask() const
+	void NodeImageProject::SetTargetMask( Ptr<NodeImage> InNode)
 	{
-		return m_pD->m_pMask;
+		m_pD->m_pMask = InNode;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetTargetMask( NodeImagePtr pNode )
+	void NodeImageProject::SetImage( Ptr<NodeImage> InNode )
 	{
-		m_pD->m_pMask = pNode;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	NodeImagePtr NodeImageProject::GetImage() const
-	{
-		return m_pD->m_pImage;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetImage( NodeImagePtr pNode )
-	{
-		m_pD->m_pImage = pNode;
+		m_pD->m_pImage = InNode;
 	}
 
 
     //---------------------------------------------------------------------------------------------
-    uint8_t NodeImageProject::GetLayout() const
+    void NodeImageProject::SetLayout( uint8 LayoutIndex )
     {
-        return m_pD->m_layout;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void NodeImageProject::SetLayout( uint8_t l )
-    {
-        m_pD->m_layout = l;
+        m_pD->m_layout = LayoutIndex;
     }
 
 
 	//---------------------------------------------------------------------------------------------
-	const FUintVector2& NodeImageProject::GetImageSize() const
+	void NodeImageProject::SetImageSize(const FUintVector2& Size)
 	{
-		return m_pD->m_imageSize;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetImageSize(const FUintVector2& size)
-	{
-		m_pD->m_imageSize = size;
+		m_pD->m_imageSize = Size;
 	}
 
 }

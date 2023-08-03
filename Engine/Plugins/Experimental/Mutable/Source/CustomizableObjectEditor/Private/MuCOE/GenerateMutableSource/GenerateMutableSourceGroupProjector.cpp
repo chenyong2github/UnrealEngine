@@ -49,7 +49,7 @@ mu::NodeImagePtr GenerateMutableGroupProjection(const int32 NodeLOD, const int32
 
 	check(TypedNodeMat || TypedNodeExt);
 	
-	TArray<mu::NodeImageProjectPtr> ImageNodes;
+	TArray<mu::Ptr<mu::NodeImageProject>> ImageNodes;
 	TArray<FGroupProjectorTempData> ImageNodes_ProjectorTempData;
 
 	int32 TextureSize = 512;
@@ -106,7 +106,7 @@ mu::NodeImagePtr GenerateMutableGroupProjection(const int32 NodeLOD, const int32
 				continue;
 			}
 			
-			mu::NodeImageProjectPtr ImageNode = new mu::NodeImageProject();
+			mu::Ptr<mu::NodeImageProject> ImageNode = new mu::NodeImageProject();
 			bIsGroupProjectorImage = true;
 			ImageNode->SetLayout(ProjectorTempData.CustomizableObjectNodeGroupProjectorParameter->UVLayout);
 

@@ -24,23 +24,24 @@ namespace mu
 
 		static NODE_TYPE s_type;
 
-		NodeProjectorPtr m_pProjector;
-		NodeMeshPtr m_pMesh;
-		NodeScalarPtr m_pAngleFadeStart;
-		NodeScalarPtr m_pAngleFadeEnd;
-		NodeImagePtr m_pImage;
-		NodeImagePtr m_pMask;
+		Ptr<NodeProjector> m_pProjector;
+		Ptr<NodeMesh> m_pMesh;
+		Ptr<NodeScalar> m_pAngleFadeStart;
+		Ptr<NodeScalar> m_pAngleFadeEnd;
+		Ptr<NodeImage> m_pImage;
+		Ptr<NodeImage> m_pMask;
 		FUintVector2 m_imageSize;
 		uint8 m_layout = 0;
 		bool bIsRGBFadingEnabled = true;
 		bool bIsAlphaFadingEnabled = true;
+		bool bEnableTextureSeamCorrection = true;
 		ESamplingMethod SamplingMethod = ESamplingMethod::Point;
 		EMinFilterMethod MinFilterMethod = EMinFilterMethod::None;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32 ver = 4;
+            uint32 ver = 5;
 			arch << ver;
 
 			arch << m_pProjector;
@@ -53,6 +54,7 @@ namespace mu
 			arch << m_imageSize;
 			arch << bIsRGBFadingEnabled;
 			arch << bIsAlphaFadingEnabled;
+			arch << bEnableTextureSeamCorrection;
 			arch << SamplingMethod;
 			arch << MinFilterMethod;
 		}
@@ -62,7 +64,7 @@ namespace mu
 		{
             uint32 ver;
 			arch >> ver;
-            check(ver>=2 && ver<=4);
+            check(ver>=2 && ver<=5);
 
 			arch >> m_pProjector;
 			arch >> m_pMesh;
@@ -76,6 +78,11 @@ namespace mu
 			{
 				arch >> bIsRGBFadingEnabled;
 				arch >> bIsAlphaFadingEnabled;
+			}
+
+			if (ver >= 5)
+			{
+				arch >> bEnableTextureSeamCorrection;
 			}
 
 			if (ver >= 4)

@@ -561,7 +561,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 	else if (const UCustomizableObjectNodeTextureProject* TypedNodeProject = Cast<UCustomizableObjectNodeTextureProject>(Node))
 	{
-		mu::NodeImageProjectPtr ImageNode = new mu::NodeImageProject();
+		mu::Ptr<mu::NodeImageProject> ImageNode = new mu::NodeImageProject();
 		Result = ImageNode;
 
 		if (!FollowInputPin(*TypedNodeProject->MeshPin()))
@@ -592,6 +592,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 		ImageNode->SetImageSize(TextureSize);
 
+		ImageNode->SetEnableSeamCorrection(TypedNodeProject->bEnableTextureSeamCorrection);
 		ImageNode->SetAngleFadeChannels(TypedNodeProject->bEnableAngleFadeOutForRGB, TypedNodeProject->bEnableAngleFadeOutForAlpha);
 		ImageNode->SetSamplingMethod(Invoke(
 			[](ETextureProjectSamplingMethod Method) -> mu::ESamplingMethod 

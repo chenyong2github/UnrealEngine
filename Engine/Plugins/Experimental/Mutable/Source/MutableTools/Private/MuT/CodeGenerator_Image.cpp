@@ -1248,10 +1248,10 @@ namespace mu
 
         // Mesh project operation
         //------------------------------
-        Ptr<ASTOpFixed> pop = new ASTOpFixed();
-        pop->op.type = OP_TYPE::ME_PROJECT;
+        Ptr<ASTOpFixed> ProjectOp = new ASTOpFixed();
+		ProjectOp->op.type = OP_TYPE::ME_PROJECT;
 
-        Ptr<ASTOp> lastMeshOp = pop;
+        Ptr<ASTOp> LastMeshOp = ProjectOp;
 
         // Projector
         FProjectorGenerationResult projectorResult;
@@ -1266,7 +1266,7 @@ namespace mu
             GenerateMissingProjectorCode( projectorResult, node.m_errorContext );
         }
 
-        pop->SetChild( pop->op.args.MeshProject.projector, projectorResult.op );
+		ProjectOp->SetChild(ProjectOp->op.args.MeshProject.projector, projectorResult.op );
 
 		int32 LayoutBlockIndex = -1;
 		if (Options.LayoutToApply)
@@ -1296,7 +1296,7 @@ namespace mu
 			// Match the block id of the block we are generating with the id that resulted in the generated mesh
 			GeneratedLayoutBlockId = -1;
 			
-			mu::LayoutPtrConst Layout = MeshResult.GeneratedLayouts.IsValidIndex(node.m_layout) ? MeshResult.GeneratedLayouts[node.m_layout] : nullptr;
+			Ptr<const Layout> Layout = MeshResult.GeneratedLayouts.IsValidIndex(node.m_layout) ? MeshResult.GeneratedLayouts[node.m_layout] : nullptr;
 			if (Layout && Layout->m_blocks.IsValidIndex(LayoutBlockIndex))
 			{
 				GeneratedLayoutBlockId = Layout->m_blocks[LayoutBlockIndex].m_id;
@@ -1325,14 +1325,14 @@ namespace mu
 
                 cop->SetValue(FormatMeshResult, m_compilerOptions->OptimisationOptions.bUseDiskCache);
 
-                Ptr<ASTOpMeshFormat> fop = new ASTOpMeshFormat();
-                fop->Buffers = OP::MeshFormatArgs::BT_VERTEX
+                Ptr<ASTOpMeshFormat> FormatOp = new ASTOpMeshFormat();
+				FormatOp->Buffers = OP::MeshFormatArgs::BT_VERTEX
                         | OP::MeshFormatArgs::BT_INDEX
                         | OP::MeshFormatArgs::BT_FACE
                         | OP::MeshFormatArgs::BT_RESETBUFFERINDICES;
-                fop->Format = cop;
-                fop->Source = CurrentMeshToProjectOp;
-				CurrentMeshToProjectOp = fop;
+				FormatOp->Format = cop;
+				FormatOp->Source = CurrentMeshToProjectOp;
+				CurrentMeshToProjectOp = FormatOp;
             }
             else
             {
@@ -1357,36 +1357,36 @@ namespace mu
 
                 cop->SetValue(FormatMeshResult, m_compilerOptions->OptimisationOptions.bUseDiskCache);
 
-                Ptr<ASTOpMeshFormat> fop = new ASTOpMeshFormat();
-                fop->Buffers = OP::MeshFormatArgs::BT_VERTEX
+                Ptr<ASTOpMeshFormat> FormatOp = new ASTOpMeshFormat();
+				FormatOp->Buffers = OP::MeshFormatArgs::BT_VERTEX
 					| OP::MeshFormatArgs::BT_INDEX
 					| OP::MeshFormatArgs::BT_FACE
 					| OP::MeshFormatArgs::BT_RESETBUFFERINDICES;
-				fop->Format = cop;
-                fop->Source = CurrentMeshToProjectOp;
-				CurrentMeshToProjectOp = fop;
+				FormatOp->Format = cop;
+				FormatOp->Source = CurrentMeshToProjectOp;
+				CurrentMeshToProjectOp = FormatOp;
             }
 
-			pop->SetChild(pop->op.args.MeshProject.mesh, CurrentMeshToProjectOp);
+			ProjectOp->SetChild(ProjectOp->op.args.MeshProject.mesh, CurrentMeshToProjectOp);
 
         }
         else
         {
             // This argument is required
-            Ptr<const Mesh> pMesh = new Mesh();
+            Ptr<const Mesh> TempMesh = new Mesh();
             Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
             cop->type = OP_TYPE::ME_CONSTANT;
-            cop->SetValue( pMesh, m_compilerOptions->OptimisationOptions.bUseDiskCache );
-            pop->SetChild( pop->op.args.MeshProject.mesh, cop );
+            cop->SetValue(TempMesh, m_compilerOptions->OptimisationOptions.bUseDiskCache );
+			ProjectOp->SetChild(ProjectOp->op.args.MeshProject.mesh, cop );
             m_pErrorLog->GetPrivate()->Add( "Projector mesh not set.", ELMT_ERROR, node.m_errorContext );
         }
 
 
         // Image raster operation
         //------------------------------
-        Ptr<ASTOpImageRasterMesh> op = new ASTOpImageRasterMesh();
-        op->mesh = lastMeshOp;
-        op->projector = projectorResult.op;
+        Ptr<ASTOpImageRasterMesh> ImageRasterOp = new ASTOpImageRasterMesh();
+		ImageRasterOp->mesh = LastMeshOp;
+		ImageRasterOp->projector = projectorResult.op;
 
         // Image
         if ( node.m_pImage )
@@ -1400,36 +1400,36 @@ namespace mu
 
 			FImageGenerationResult ImageResult;
 			GenerateImage(NewOptions, ImageResult, node.m_pImage);
-			op->image = ImageResult.op;
+			ImageRasterOp->image = ImageResult.op;
 
 			FImageDesc desc = CalculateImageDesc(*node.m_pImage->GetBasePrivate());
-			op->SourceSizeX = desc.m_size[0];
-			op->SourceSizeY = desc.m_size[1];
+			ImageRasterOp->SourceSizeX = desc.m_size[0];
+			ImageRasterOp->SourceSizeY = desc.m_size[1];
         }
         else
         {
             // This argument is required
-            op->image = GenerateMissingImageCode(TEXT("Projector image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
+			ImageRasterOp->image = GenerateMissingImageCode(TEXT("Projector image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
         // Image size, from the current block being generated
-        op->SizeX = Options.RectSize[0];
-        op->SizeY = Options.RectSize[1];
-		op->BlockId = GeneratedLayoutBlockId;
-		op->LayoutIndex = node.m_layout;
+		ImageRasterOp->SizeX = Options.RectSize[0];
+		ImageRasterOp->SizeY = Options.RectSize[1];
+		ImageRasterOp->BlockId = GeneratedLayoutBlockId;
+		ImageRasterOp->LayoutIndex = node.m_layout;
 
-		op->bIsRGBFadingEnabled = node.bIsRGBFadingEnabled;
-		op->bIsAlphaFadingEnabled = node.bIsAlphaFadingEnabled;
-		op->SamplingMethod = node.SamplingMethod;
-		op->MinFilterMethod = node.MinFilterMethod;
+		ImageRasterOp->bIsRGBFadingEnabled = node.bIsRGBFadingEnabled;
+		ImageRasterOp->bIsAlphaFadingEnabled = node.bIsAlphaFadingEnabled;
+		ImageRasterOp->SamplingMethod = node.SamplingMethod;
+		ImageRasterOp->MinFilterMethod = node.MinFilterMethod;
 
 		// Fading angles are optional, and stored in a colour. If one exists, we generate both.
 		if (node.m_pAngleFadeStart || node.m_pAngleFadeEnd)
 		{
-			NodeScalarConstantPtr pDefaultFade = new NodeScalarConstant();
+			Ptr<NodeScalarConstant> pDefaultFade = new NodeScalarConstant();
 			pDefaultFade->SetValue(180.0f);
 
-			NodeColourFromScalarsPtr pPropsNode = new NodeColourFromScalars();
+			Ptr<NodeColourFromScalars> pPropsNode = new NodeColourFromScalars();
 
 			if (node.m_pAngleFadeStart) pPropsNode->SetX(node.m_pAngleFadeStart);
 			else pPropsNode->SetX(pDefaultFade);
@@ -1437,7 +1437,7 @@ namespace mu
 			if (node.m_pAngleFadeEnd) pPropsNode->SetY(node.m_pAngleFadeEnd);
 			else pPropsNode->SetY(pDefaultFade);
 
-			op->angleFadeProperties = Generate(pPropsNode);
+			ImageRasterOp->angleFadeProperties = Generate(pPropsNode);
 		}
 
         // Target mask
@@ -1448,45 +1448,52 @@ namespace mu
 			Ptr<ASTOp> mask = MaskResult.op;
 
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
-            op->mask = GenerateImageSize( mask, Options.RectSize);
+			ImageRasterOp->mask = GenerateImageSize( mask, Options.RectSize);
         }
 
         // Seam correction operations
         //------------------------------
-        Ptr<ASTOpImageRasterMesh> rasterop = new ASTOpImageRasterMesh();
-        rasterop->mesh = op->mesh.child();
-        rasterop->image = 0;
-        rasterop->mask = 0;
-        rasterop->BlockId = op->BlockId;
-		rasterop->LayoutIndex = op->LayoutIndex;
-		rasterop->SizeX = op->SizeX;
-		rasterop->SizeY = op->SizeY;
-		rasterop->UncroppedSizeX = op->UncroppedSizeX;
-		rasterop->UncroppedSizeY = op->UncroppedSizeY;
-		rasterop->CropMinX = op->CropMinX;
-		rasterop->CropMinY = op->CropMinY;
-		rasterop->SamplingMethod = ESamplingMethod::Point;
-		rasterop->MinFilterMethod = EMinFilterMethod::None;
-
-        Ptr<ASTOpImageMakeGrowMap> MakeGrowMapOp = new ASTOpImageMakeGrowMap();
-		MakeGrowMapOp->Mask = rasterop;
-		MakeGrowMapOp->Border = MUTABLE_GROW_BORDER_VALUE;
-		
-		// If we want to be able to generate progressive mips efficiently, we need mipmaps for the "displacement map".
-		if (m_compilerOptions->OptimisationOptions.bEnableProgressiveImages)
+		if (node.bEnableTextureSeamCorrection)
 		{
-			Ptr<ASTOpImageMipmap> MipMask = new ASTOpImageMipmap;
-			MipMask->Source = MakeGrowMapOp->Mask.child();
-			MipMask->bPreventSplitTail = true;
-			MakeGrowMapOp->Mask = MipMask;
+			Ptr<ASTOpImageRasterMesh> MaskRasterOp = new ASTOpImageRasterMesh();
+			MaskRasterOp->mesh = ImageRasterOp->mesh.child();
+			MaskRasterOp->image = 0;
+			MaskRasterOp->mask = 0;
+			MaskRasterOp->BlockId = ImageRasterOp->BlockId;
+			MaskRasterOp->LayoutIndex = ImageRasterOp->LayoutIndex;
+			MaskRasterOp->SizeX = ImageRasterOp->SizeX;
+			MaskRasterOp->SizeY = ImageRasterOp->SizeY;
+			MaskRasterOp->UncroppedSizeX = ImageRasterOp->UncroppedSizeX;
+			MaskRasterOp->UncroppedSizeY = ImageRasterOp->UncroppedSizeY;
+			MaskRasterOp->CropMinX = ImageRasterOp->CropMinX;
+			MaskRasterOp->CropMinY = ImageRasterOp->CropMinY;
+			MaskRasterOp->SamplingMethod = ESamplingMethod::Point;
+			MaskRasterOp->MinFilterMethod = EMinFilterMethod::None;
+
+			Ptr<ASTOpImageMakeGrowMap> MakeGrowMapOp = new ASTOpImageMakeGrowMap();
+			MakeGrowMapOp->Mask = MaskRasterOp;
+			MakeGrowMapOp->Border = MUTABLE_GROW_BORDER_VALUE;
+
+			// If we want to be able to generate progressive mips efficiently, we need mipmaps for the "displacement map".
+			if (m_compilerOptions->OptimisationOptions.bEnableProgressiveImages)
+			{
+				Ptr<ASTOpImageMipmap> MipMask = new ASTOpImageMipmap;
+				MipMask->Source = MakeGrowMapOp->Mask.child();
+				MipMask->bPreventSplitTail = true;
+				MakeGrowMapOp->Mask = MipMask;
+			}
+
+			Ptr<ASTOpFixed> DisplaceOp = new ASTOpFixed();
+			DisplaceOp->op.type = OP_TYPE::IM_DISPLACE;
+			DisplaceOp->SetChild(DisplaceOp->op.args.ImageDisplace.displacementMap, MakeGrowMapOp);
+			DisplaceOp->SetChild(DisplaceOp->op.args.ImageDisplace.source, ImageRasterOp);
+
+			Result.op = DisplaceOp;
 		}
-
-        Ptr<ASTOpFixed> disop = new ASTOpFixed();
-        disop->op.type = OP_TYPE::IM_DISPLACE;
-        disop->SetChild(disop->op.args.ImageDisplace.displacementMap, MakeGrowMapOp);
-        disop->SetChild(disop->op.args.ImageDisplace.source, op );
-
-        Result.op = disop;
+		else
+		{
+			Result.op = ImageRasterOp;
+		}		
     }
 
 

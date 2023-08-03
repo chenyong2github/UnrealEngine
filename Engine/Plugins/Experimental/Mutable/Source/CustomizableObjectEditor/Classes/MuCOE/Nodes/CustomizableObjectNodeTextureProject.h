@@ -41,7 +41,13 @@ public:
 	// Layout to use for the generated images.
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	uint8 Layout = 0;
-	
+
+	/** When this is enable, additional operations will happen to correct projections that go over a texture UV seam to prevent interpolation artifacts. 
+	* This is not necessary if the projection is guaranteed to not go over a seam.
+	*/
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	bool bEnableTextureSeamCorrection = true;
+
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bEnableAngleFadeOutForRGB = true;
 

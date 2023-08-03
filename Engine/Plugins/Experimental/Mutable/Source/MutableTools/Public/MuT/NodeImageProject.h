@@ -15,25 +15,10 @@ namespace mu
 
 	// Forward definitions
 	class NodeScalar;
-	typedef Ptr<NodeScalar> NodeScalarPtr;
-	typedef Ptr<const NodeScalar> NodeScalarPtrConst;
-
 	class NodeColour;
-	typedef Ptr<NodeColour> NodeColourPtr;
-	typedef Ptr<const NodeColour> NodeColourPtrConst;
-
 	class NodeMesh;
-	typedef Ptr<NodeMesh> NodeMeshPtr;
-	typedef Ptr<const NodeMesh> NodeMeshPtrConst;
-
 	class NodeProjector;
-	typedef Ptr<NodeProjector> NodeProjectorPtr;
-	typedef Ptr<const NodeProjector> NodeProjectorPtrConst;
-
 	class NodeImageProject;
-	typedef Ptr<NodeImageProject> NodeImageProjectPtr;
-	typedef Ptr<const NodeImageProject> NodeImageProjectPtrConst;
-
 	class InputArchive;
 	class OutputArchive;
 
@@ -51,7 +36,7 @@ namespace mu
 
 		void SerialiseWrapper(OutputArchive& arch) const override;
 		static void Serialise( const NodeImageProject* pNode, OutputArchive& arch );
-		static NodeImageProjectPtr StaticUnserialise( InputArchive& arch );
+		static Ptr<NodeImageProject> StaticUnserialise( InputArchive& arch );
 
 
 		//-----------------------------------------------------------------------------------------
@@ -63,23 +48,23 @@ namespace mu
 
         virtual int GetInputCount() const override;
         virtual Node* GetInputNode( int i ) const override;
-        void SetInputNode( int i, NodePtr pNode ) override;
+        void SetInputNode( int i, Ptr<Node> pNode ) override;
 
 		//-----------------------------------------------------------------------------------------
 		// Own Interface
 		//-----------------------------------------------------------------------------------------
 
 		//! Get the node generating the mesh to be used for the projection.
-		NodeMeshPtr GetMesh() const;
-		void SetMesh( NodeMeshPtr );
+		void SetMesh( Ptr<NodeMesh> );
 
 		//! Get the node generating the projector to be used for the projection.
-		NodeProjectorPtr GetProjector() const;
-		void SetProjector( NodeProjectorPtr );
+		void SetProjector( Ptr<NodeProjector> );
 
 		//! Get the node generating a mask to filter out the projected images. It is optional.
-		NodeImagePtr GetTargetMask() const;
-		void SetTargetMask( NodeImagePtr );
+		void SetTargetMask( Ptr<NodeImage> );
+
+		/** Eanble or disable the additional operations to correct texture UV seam artifact correction. Default is enabled.*/
+		void SetEnableSeamCorrection(bool bEnabled);
 
 		//! Set the angle-based fading behaviour for this projector. It must be set separately for 
 		//! RGB and Alpha channels of the images to project. By default it is enabled for all channels.
@@ -88,10 +73,10 @@ namespace mu
 		void SetAngleFadeChannels( bool bFadeRGB, bool bFadeA );
 
         //! Set the node generating the fading start angle. Only relevant if fading is enabled with 
-		void SetAngleFadeStart( NodeScalarPtr );
+		void SetAngleFadeStart( Ptr<NodeScalar> );
 
 		//! Set the node generating the fading end angle
-		void SetAngleFadeEnd( NodeScalarPtr );
+		void SetAngleFadeEnd( Ptr<NodeScalar> );
 
 		//! Set sampling method.
 		void SetSamplingMethod(ESamplingMethod SamplingMethod);
@@ -100,16 +85,13 @@ namespace mu
 		void SetMinFilterMethod(EMinFilterMethod MinFilterMethod);
 
         //! Get the node generating the image to project.
-        NodeImagePtr GetImage() const;
-        void SetImage( NodeImagePtr );
+        void SetImage( Ptr<NodeImage> );
 
         //! UV layout of the mesh to use for the generated image. Defaults to 0.
-        uint8_t GetLayout() const;
-        void SetLayout( uint8_t  );
+        void SetLayout( uint8  );
 
 		//! Set the size of the image to generate with the projection. If set to 0 (default) a size
 		//! that matches how this node is used will try to be guessed. 
-		const FUintVector2& GetImageSize() const;
 		void SetImageSize( const FUintVector2& size );
 
 		//-----------------------------------------------------------------------------------------
