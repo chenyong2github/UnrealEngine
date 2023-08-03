@@ -61,7 +61,15 @@ public:
 	/** The Outer to use for objects owned by always-loaded Extension Data constants. */
 	UObject* GetOuterForAlwaysLoadedObjects();
 
-private:
+	/**
+	* Adds a node to the Generation Context list of generated nodes. This function is meant to be called
+	* from classes that implement ICustomizableObjectExtensionNode::GenerateMutableNode for any generated nodes
+	* so they are registered against the Mutable compiler
+	*/
+	void AddGeneratedNode(const class UCustomizableObjectNode* InNode);
+
+	/** Adds a compiler log message to be displayed at the end of the compilation process */
+	void CompilerLog(const FText& InLogText, const class UCustomizableObjectNode* InNode);
+
 	FMutableGraphGenerationContext& GenerationContext;
 };
-

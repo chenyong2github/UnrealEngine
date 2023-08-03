@@ -247,6 +247,7 @@ namespace mu
             case DT_IMAGE:      StoreImage( cat, LoadImage(rat) ); break;
             case DT_LAYOUT:     StoreLayout( cat, LoadLayout(rat) ); break;
             case DT_INSTANCE:   StoreInstance( cat, LoadInstance(rat) ); break;
+			case DT_EXTENSION_DATA: StoreExtensionData( cat, LoadExtensionData(rat) ); break;
             default:
                 // Not implemented
                 check( false );
@@ -302,6 +303,7 @@ namespace mu
 				case DT_IMAGE:      StoreImage(item, nullptr); break;
 				case DT_LAYOUT:     StoreLayout(item, nullptr); break;
 				case DT_INSTANCE:   StoreInstance(item, nullptr); break;
+				case DT_EXTENSION_DATA: StoreExtensionData(item, new ExtensionData); break;
 				default:
 					// Not implemented
 					check(false);
@@ -359,6 +361,7 @@ namespace mu
             case DT_IMAGE:      StoreImage( cat, LoadImage(rat) ); break;
             case DT_LAYOUT:     StoreLayout( cat, LoadLayout(rat) ); break;
             case DT_INSTANCE:   StoreInstance( cat, LoadInstance(rat) ); break;
+			case DT_EXTENSION_DATA: StoreExtensionData( cat, LoadExtensionData(rat) ); break;
             default:
                 // Not implemented
                 check( false );
@@ -5804,6 +5807,7 @@ namespace mu
         case OP_TYPE::ME_CONDITIONAL:
         case OP_TYPE::LA_CONDITIONAL:
         case OP_TYPE::IN_CONDITIONAL:
+		case OP_TYPE::ED_CONDITIONAL:
             RunCode_Conditional(item, pModel);
             break;
 
@@ -5820,6 +5824,7 @@ namespace mu
         case OP_TYPE::ME_SWITCH:
         case OP_TYPE::LA_SWITCH:
         case OP_TYPE::IN_SWITCH:
+		case OP_TYPE::ED_SWITCH:
             RunCode_Switch(item, pModel);
             break;
 

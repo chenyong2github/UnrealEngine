@@ -75,6 +75,7 @@ namespace mu
 		case OP_TYPE::ME_SWITCH:
 		case OP_TYPE::LA_SWITCH:
 		case OP_TYPE::IN_SWITCH:
+		case OP_TYPE::ED_SWITCH:
 			break;
 		default:
 			// Unexpected type

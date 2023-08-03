@@ -234,6 +234,7 @@ namespace mu
 		TEXT("ME_CONDITIONAL   "),
 		TEXT("LA_CONDITIONAL   "),
 		TEXT("IN_CONDITIONAL   "),
+		TEXT("ED_CONDITIONAL   "),
 		
 		TEXT("NU_SWITCH        "),
 		TEXT("SC_SWITCH        "),
@@ -242,6 +243,7 @@ namespace mu
 		TEXT("ME_SWITCH        "),
 		TEXT("LA_SWITCH        "),
 		TEXT("IN_SWITCH        "),
+		TEXT("ED_SWITCH        "),
 
 		TEXT("BO_LESS          "),
 		TEXT("BO_EQUAL_SC_CONST"),

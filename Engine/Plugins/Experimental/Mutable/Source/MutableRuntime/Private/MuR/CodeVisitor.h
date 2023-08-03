@@ -449,6 +449,7 @@ class Parameters;
             case OP_TYPE::ME_CONDITIONAL:
             case OP_TYPE::LA_CONDITIONAL:
             case OP_TYPE::IN_CONDITIONAL:
+			case OP_TYPE::ED_CONDITIONAL:
             {
                 auto args = program.GetOpArgs<OP::ConditionalArgs>(at);
 
@@ -482,6 +483,7 @@ class Parameters;
             case OP_TYPE::ME_SWITCH:
             case OP_TYPE::LA_SWITCH:
             case OP_TYPE::IN_SWITCH:
+			case OP_TYPE::ED_SWITCH:
             {
                 recurse = false;
 

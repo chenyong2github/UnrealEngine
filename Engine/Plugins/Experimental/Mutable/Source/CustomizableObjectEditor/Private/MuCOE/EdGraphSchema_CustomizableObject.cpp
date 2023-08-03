@@ -586,9 +586,9 @@ void UEdGraphSchema_CustomizableObject::GetGraphContextActions(FGraphContextMenu
 	for (TObjectIterator<UCustomizableObjectNode> It(RF_NoFlags); It; ++It)
 	{
 		const UCustomizableObjectNode* Node = *It;
-		if (!Node->HasAllFlags(RF_ClassDefaultObject))
+		if (!Node->HasAllFlags(RF_ClassDefaultObject) || Node->GetClass()->HasAnyClassFlags(CLASS_Abstract))
 		{
-			// Only interested in CDOs
+			// Only interested in non-abstract CDOs
 			continue;
 		}
 

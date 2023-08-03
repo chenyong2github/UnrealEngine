@@ -1463,6 +1463,7 @@ void SMutableCodeViewer::GenerateElementRecursive(const int32& InStateIndex, mu:
 	case mu::OP_TYPE::SC_SWITCH:
 	case mu::OP_TYPE::NU_SWITCH:
 	case mu::OP_TYPE::IN_SWITCH:
+	case mu::OP_TYPE::ED_SWITCH:
 	{
 		const uint8* OpData = InProgram.GetOpArgsPointer(InParentAddress);
 

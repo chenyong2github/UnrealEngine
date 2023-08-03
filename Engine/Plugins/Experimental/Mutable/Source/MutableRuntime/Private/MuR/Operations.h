@@ -62,6 +62,7 @@ namespace mu
         ME_CONDITIONAL,
         LA_CONDITIONAL,
         IN_CONDITIONAL,
+		ED_CONDITIONAL,
 
         //! Select one of several values depending on an int input
         NU_SWITCH,
@@ -71,6 +72,7 @@ namespace mu
         ME_SWITCH,
         LA_SWITCH,
         IN_SWITCH,
+		ED_SWITCH,
 
         //-----------------------------------------------------------------------------------------
         // Boolean operations
@@ -1255,6 +1257,8 @@ namespace mu
         case DT_COLOUR: return OP_TYPE::CO_SWITCH;
         case DT_SCALAR: return OP_TYPE::SC_SWITCH;
         case DT_INT: return OP_TYPE::NU_SWITCH;
+		case DT_EXTENSION_DATA: return OP_TYPE::ED_SWITCH;
+
         default:
 			check(false);
 			break;

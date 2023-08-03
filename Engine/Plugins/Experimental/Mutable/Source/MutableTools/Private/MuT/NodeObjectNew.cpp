@@ -63,7 +63,17 @@ namespace mu
 		else
 		{
 			i -= (int)m_pD->m_lods.Num();
-			pResult = m_pD->m_children[i].get();
+			
+			if ( i<(int) m_pD->m_children.Num() )
+			{
+				pResult = m_pD->m_children[i].get();
+			}
+			else
+			{
+				i -= (int)m_pD->m_children.Num();
+
+				pResult = m_pD->m_extensionDataNodes[i].Node.get();
+			}
 		}
 
 		return pResult;
@@ -82,7 +92,15 @@ namespace mu
 		else
 		{
 			i -= (int)m_pD->m_lods.Num();
-			m_pD->m_children[i] = dynamic_cast<NodeObject*>( pNode.get() );
+
+			if (i < (int) m_pD->m_children.Num())
+			{
+				m_pD->m_children[i] = dynamic_cast<NodeObject*>( pNode.get() );
+			}
+			else
+			{
+				checkf(false, TEXT("Trying to set an input node for an extension input data. Please use AddExtensionDataNode for this"));
+			}
 		}
 	}
 

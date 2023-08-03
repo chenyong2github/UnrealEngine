@@ -114,6 +114,7 @@ namespace mu
 		{   0,   0,   0,   0 },	// ME_CONDITIONAL
 		{   0,   0,   0,   0 },	// LA_CONDITIONAL
 		{   0,   0,   0,   0 },	// IN_CONDITIONAL
+		{   0,   0,   0,   0 },	// ED_CONDITIONAL
 		    
 		{   0,   0,   0,   0 },	// NU_SWITCH
 		{   0,   0,   0,   0 },	// SC_SWITCH
@@ -122,6 +123,7 @@ namespace mu
 		{   0,   0,   0,   0 },	// ME_SWITCH
 		{   0,   0,   0,   0 },	// LA_SWITCH
 		{   0,   0,   0,   0 },	// IN_SWITCH
+		{   0,   0,   0,   0 },	// ED_SWITCH
 		    
 		{   0,   0,   0,   0 },	// BO_LESS
 		{   0,   0,   0,   0 },	// BO_EQUAL_SC_CONST

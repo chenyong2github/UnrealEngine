@@ -82,6 +82,7 @@ namespace mu
 		case OP_TYPE::ME_CONDITIONAL:
 		case OP_TYPE::LA_CONDITIONAL:
 		case OP_TYPE::IN_CONDITIONAL:
+		case OP_TYPE::ED_CONDITIONAL:
 			break;
 		default:
 			// Unexpected type

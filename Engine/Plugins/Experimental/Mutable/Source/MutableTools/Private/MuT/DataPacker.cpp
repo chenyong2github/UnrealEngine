@@ -173,6 +173,7 @@ namespace mu
                 case OP_TYPE::ME_CONDITIONAL:
                 case OP_TYPE::LA_CONDITIONAL:
                 case OP_TYPE::IN_CONDITIONAL:
+				case OP_TYPE::ED_CONDITIONAL:
                 {
 					OP::ConditionalArgs args = program.GetOpArgs<OP::ConditionalArgs>(at);
 
@@ -203,6 +204,7 @@ namespace mu
                 case OP_TYPE::IM_SWITCH:
                 case OP_TYPE::ME_SWITCH:
                 case OP_TYPE::LA_SWITCH:
+				case OP_TYPE::ED_SWITCH:
                 {
 					const uint8_t* data = program.GetOpArgsPointer(at);
 					

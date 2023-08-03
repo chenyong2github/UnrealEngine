@@ -5,6 +5,8 @@
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeExtensionDataConstant.h"
+#include "MuT/NodeExtensionDataSwitch.h"
+#include "MuT/NodeExtensionDataVariation.h"
 
 namespace mu
 {
@@ -43,7 +45,8 @@ namespace mu
 		switch (EType(Id))
 		{
 			case EType::Constant:		return NodeExtensionDataConstant::StaticUnserialise(Archive); break;
-			
+			case EType::Switch:			return NodeExtensionDataSwitch::StaticUnserialise(Archive); break;
+			case EType::Variation:		return NodeExtensionDataVariation::StaticUnserialise(Archive); break;
 			default: check(false);
 		}
 

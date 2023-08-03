@@ -26,7 +26,8 @@ public:
 	enum class EType : uint8
 	{
 		Constant = 0,
-
+		Switch,
+		Variation,
 		None
 	};
 
