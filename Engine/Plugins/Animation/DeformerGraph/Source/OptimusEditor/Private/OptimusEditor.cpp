@@ -47,6 +47,7 @@
 #include "OptimusShaderText.h"
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
+#include "OptimusEditorStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -783,8 +784,8 @@ void FOptimusEditor::RegisterToolbar()
 		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
 			Commands.Compile,
 			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Blueprint.CompileStatus.Background")));
+			TAttribute<FText>(this, &FOptimusEditor::GetCompileStatusTooltip),
+			TAttribute<FSlateIcon>(this, &FOptimusEditor::GetCompileStatusIcon)));
 	}
 
 }
@@ -1198,6 +1199,46 @@ void FOptimusEditor::OnDataTypeChanged()
 	if (PropertyDetailsWidget)
 	{
 		PropertyDetailsWidget->ForceRefresh();
+	}
+}
+
+FSlateIcon FOptimusEditor::GetCompileStatusIcon() const
+{
+	static const FName CompileStatusBackground("Toolbar.CompileStatus.Background");
+	static const FName CompileStatusModified("Toolbar.CompileStatus.Overlay.Modified");
+	static const FName CompileStatusHasError("Toolbar.CompileStatus.Overlay.Error");
+	static const FName CompileStatusCompiled("Toolbar.CompileStatus.Overlay.Good");
+	static const FName CompileStatusCompiledWithWarnings("Toolbar.CompileStatus.Overlay.Warning");
+
+	const FName StyleSetName = FOptimusEditorStyle::Get().GetStyleSetName();
+
+	switch (DeformerObject->GetStatus())
+	{
+	default:
+	case EOptimusDeformerStatus::Modified:
+		return FSlateIcon(StyleSetName, CompileStatusBackground, NAME_None, CompileStatusModified);
+	case EOptimusDeformerStatus::HasErrors:
+		return FSlateIcon(StyleSetName, CompileStatusBackground, NAME_None, CompileStatusHasError);
+	case EOptimusDeformerStatus::Compiled:
+		return FSlateIcon(StyleSetName, CompileStatusBackground, NAME_None, CompileStatusCompiled);
+	case EOptimusDeformerStatus::CompiledWithWarnings:
+		return FSlateIcon(StyleSetName, CompileStatusBackground, NAME_None, CompileStatusCompiledWithWarnings);
+	}
+}
+
+FText FOptimusEditor::GetCompileStatusTooltip() const
+{
+	switch (DeformerObject->GetStatus())
+	{
+	default:
+	case EOptimusDeformerStatus::Modified:
+		return LOCTEXT("GraphStatusTooltip_Modified", "Deformer graph has been modified and needs to be recompiled in order to update the deformation result.");
+	case EOptimusDeformerStatus::HasErrors:
+		return LOCTEXT("GraphStatusTooltip_HasErrors", "Deformer graph has errors which need to be fixed.");
+	case EOptimusDeformerStatus::Compiled:
+		return LOCTEXT("GraphStatusTooltip_Compiled", "Deformer graph is compiled and corresponds to the deformation result.");
+	case EOptimusDeformerStatus::CompiledWithWarnings:
+		return LOCTEXT("GraphStatusTooltip_CompiledWithWarnings", "Deformer graph is compiled with warnings, these warnings will likely not affect the deformation result but should be fixed regardless.");
 	}
 }
 

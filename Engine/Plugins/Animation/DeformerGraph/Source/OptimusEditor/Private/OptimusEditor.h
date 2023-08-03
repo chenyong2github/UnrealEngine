@@ -225,6 +225,10 @@ private:
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	void OnDataTypeChanged();
+
+
+	FSlateIcon GetCompileStatusIcon() const;
+	FText GetCompileStatusTooltip() const;
 	
 private:
 	// Persona toolkit for the skelmesh preview

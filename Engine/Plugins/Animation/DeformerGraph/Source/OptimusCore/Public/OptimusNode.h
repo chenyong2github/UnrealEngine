@@ -180,6 +180,9 @@ public:
 	//== UObject overrides
 	void Serialize(FArchive& Ar) override;
 	void PostLoad() override;
+#if WITH_EDITOR
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	
 protected:
 	friend class UOptimusNodeGraph;

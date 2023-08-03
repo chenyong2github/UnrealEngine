@@ -131,8 +131,14 @@ FString UOptimusNode_CustomComputeKernel::GetShaderText() const
 
 void UOptimusNode_CustomComputeKernel::SetShaderText(const FString& NewText) 
 {
+	PreEditChange(nullptr);
+
 	Modify();
 	ShaderSource.ShaderText = NewText;
+
+	FPropertyChangedEvent PropertyChangedEvent(FindFProperty<FProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, ShaderSource)),
+		EPropertyChangeType::ValueSet);
+	PostEditChangeProperty(PropertyChangedEvent);
 }
 
 #endif // WITH_EDITOR

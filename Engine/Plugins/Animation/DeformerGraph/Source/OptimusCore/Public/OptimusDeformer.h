@@ -38,6 +38,16 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, FOptimu
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOptimusConstantValueUpdate, FString const&, TArray<uint8> const&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusSetAllInstancesCanbeActive, bool);
 
+UENUM()
+enum class EOptimusDeformerStatus : int32
+{
+	Compiled,					// Compiled, no warnings, no errors
+	CompiledWithWarnings,		// Compiled, has warnings
+	Modified,					// Graph has been modified, needs recompilation
+	HasErrors					// Graph produced errors at the last compile
+};
+
+
 USTRUCT()
 struct FOptimusComputeGraphInfo
 {
@@ -114,7 +124,14 @@ class OPTIMUSCORE_API UOptimusDeformer :
 public:
 	UOptimusDeformer();
 
+	/** Get the action stack for this deformer graph */
 	UOptimusActionStack *GetActionStack();
+
+	/** Returns the current compilation/error status of the deformer */
+	EOptimusDeformerStatus GetStatus() const
+	{
+		return Status;
+	}
 
 	/** Returns the global delegate used to notify on global operations (e.g. graph, variable,
 	 *  resource lifecycle events).
@@ -257,6 +274,9 @@ public:
 	FOptimusGraphCompileMessageDelegate& GetCompileMessageDelegate() { return CompileMessageDelegate; }
 
 	void SetAllInstancesCanbeActive(bool bInCanBeActive) const;
+
+	// Mark the deformer as modified.
+	void MarkModified();
 	
 	/// UObject overrides
 	void Serialize(FArchive& Ar) override;
@@ -434,6 +454,7 @@ protected:
 		const UOptimusComponentSource *InComponentSource
 		);
 
+	void SetStatusFromDiagnostic(EOptimusDiagnosticLevel InDiagnosticLevel);
 	
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject) const;
 
@@ -464,9 +485,12 @@ private:
 		);
 
 	void OnDataTypeChanged(FName InTypeName);
-	
+
 	UPROPERTY(transient)
 	TObjectPtr<UOptimusActionStack> ActionStack = nullptr;
+
+	UPROPERTY()
+	EOptimusDeformerStatus Status = EOptimusDeformerStatus::Modified;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UOptimusNodeGraph>> Graphs;

@@ -385,6 +385,21 @@ void UOptimusNode::PostLoad()
 	}
 }
 
+#if WITH_EDITOR
+void UOptimusNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (const UOptimusNodeGraph *Graph = GetOwningGraph())
+	{
+		if (UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Graph->GetCollectionRoot()))
+		{
+			Deformer->MarkModified();
+		}
+	}
+	
+}
+#endif
 
 void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 {

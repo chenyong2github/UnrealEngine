@@ -1587,6 +1587,23 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNode* InOutputNode, cons
 
 void UOptimusNodeGraph::Notify(EOptimusGraphNotifyType InNotifyType, UObject* InSubject) const
 {
+	if (InNotifyType == EOptimusGraphNotifyType::NodeDiagnosticLevelChanged)
+	{
+		if (UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(GetCollectionRoot()))
+		{
+			Deformer->SetStatusFromDiagnostic(Cast<UOptimusNode>(InSubject)->GetDiagnosticLevel());
+		}
+	}
+	else if (InNotifyType != EOptimusGraphNotifyType::NodePositionChanged &&
+			 InNotifyType != EOptimusGraphNotifyType::PinExpansionChanged
+		)
+	{
+		if (UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(GetCollectionRoot()))
+		{
+			Deformer->MarkModified();
+		}
+	}
+	
 	GraphNotifyDelegate.Broadcast(InNotifyType, const_cast<UOptimusNodeGraph*>(this), InSubject);
 }
 

@@ -6,6 +6,10 @@
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/StyleColors.h"
+
+
+#define CORE_IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush(RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
 
 FOptimusEditorStyle::FOptimusEditorStyle() :
@@ -18,7 +22,8 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 	static const FSlateColor DefaultForeground(FLinearColor(0.72f, 0.72f, 0.72f, 1.f));
 
-	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Animation/DeformerGraph/Resources"));
+	FSlateStyleSet::SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
+	FSlateStyleSet::SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Animation/DeformerGraph/Resources"));
 
 	// Asset icons
 	{
@@ -71,6 +76,19 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 		SearchBoxStyle.SetLeftAlignSearchResultButtons(false);
 		Set("TextEditor.SearchBoxStyle", SearchBoxStyle);
 
+	}
+
+	// Toolbar icons
+	{
+		Set("Toolbar.CompileStatus.Background", new CORE_IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Background", IconSize20x20));
+	}
+	
+	// Compile status icons.
+	{
+		Set("Toolbar.CompileStatus.Overlay.Modified", new CORE_IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Unknown_Badge", IconSize20x20, FStyleColors::AccentYellow));
+		Set("Toolbar.CompileStatus.Overlay.Warning", new CORE_IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Warning_Badge", IconSize20x20, FStyleColors::Warning));
+		Set("Toolbar.CompileStatus.Overlay.Good", new CORE_IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Good_Badge", IconSize20x20, FStyleColors::AccentGreen));
+		Set("Toolbar.CompileStatus.Overlay.Error", new CORE_IMAGE_BRUSH_SVG("Starship/Blueprints/CompileStatus_Fail_Badge", IconSize20x20, FStyleColors::Error));
 	}
 
 	// Graph type icons
@@ -145,3 +163,5 @@ FOptimusEditorStyle& FOptimusEditorStyle::Get()
 	static FOptimusEditorStyle Instance;
 	return Instance;
 }
+
+#undef CORE_IMAGE_BRUSH_SVG

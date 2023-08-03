@@ -73,7 +73,9 @@ UOptimusDeformer::UOptimusDeformer()
 	Variables = CreateDefaultSubobject<UOptimusVariableContainer>(TEXT("@Variables"));
 	Resources = CreateDefaultSubobject<UOptimusResourceContainer>(TEXT("@Resources"));
 
+#if WITH_EDITOR
 	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().AddUObject(this, &UOptimusDeformer::OnDataTypeChanged);
+#endif
 }
 
 
@@ -1294,6 +1296,18 @@ bool UOptimusDeformer::SetComponentBindingSourceDirect(
 	return true;
 }
 
+void UOptimusDeformer::SetStatusFromDiagnostic(EOptimusDiagnosticLevel InDiagnosticLevel)
+{
+	if (InDiagnosticLevel == EOptimusDiagnosticLevel::Error)
+	{
+		Status = EOptimusDeformerStatus::HasErrors;
+	}
+	else if (InDiagnosticLevel == EOptimusDiagnosticLevel::Warning && Status == EOptimusDeformerStatus::Compiled)
+	{
+		Status = EOptimusDeformerStatus::CompiledWithWarnings;
+	}
+}
+
 
 UOptimusComponentSourceBinding* UOptimusDeformer::ResolveComponentBinding(
 	FName InBindingName
@@ -1387,6 +1401,9 @@ bool UOptimusDeformer::Compile()
 		CompileBeginDelegate.Broadcast(this);
 		CompileMessageDelegate.Broadcast(Diagnostic);
 		CompileEndDelegate.Broadcast(this);
+
+		Status = EOptimusDeformerStatus::HasErrors;
+		
 		return false;
 	}
 
@@ -1397,8 +1414,9 @@ bool UOptimusDeformer::Compile()
 	// Wait for rendering to be done.
 	FlushRenderingCommands();
 
-	bool bCompilationFailed = false;
-	auto ErrorReporter = [this, &bCompilationFailed](
+	Status = EOptimusDeformerStatus::Compiled;
+
+	auto ErrorReporter = [this](
 		EOptimusDiagnosticLevel InDiagnosticLevel, 
 		FText InMessage,
 		const UObject* InObject)
@@ -1408,7 +1426,8 @@ bool UOptimusDeformer::Compile()
 		Diagnostic.Message = InMessage;
 		Diagnostic.Object = InObject;
 		CompileMessageDelegate.Broadcast(Diagnostic);
-		bCompilationFailed = true;
+
+		SetStatusFromDiagnostic(InDiagnosticLevel);
 	};
 
 	for (const UOptimusNodeGraph* Graph: Graphs)
@@ -1425,7 +1444,7 @@ bool UOptimusDeformer::Compile()
 	
 	CompileEndDelegate.Broadcast(this);
 
-	if (bCompilationFailed)
+	if (Status == EOptimusDeformerStatus::HasErrors)
 	{
 		ComputeGraphs.Reset();
 		return false;
@@ -2105,7 +2124,18 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 		break;
 	}
 
+	const_cast<UOptimusDeformer*>(this)->MarkModified();
+	
 	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
+}
+
+
+void UOptimusDeformer::MarkModified()
+{
+	if (Status != EOptimusDeformerStatus::HasErrors)
+	{
+		Status = EOptimusDeformerStatus::Modified;
+	}
 }
 
 void UOptimusDeformer::SetAllInstancesCanbeActive(bool bInCanBeActive) const
@@ -2237,6 +2267,13 @@ void UOptimusDeformer::PostLoad()
 	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::KernelDataInterface)
 	{
 		PostLoadRemoveDeprecatedExecutionNodes();
+	}
+
+	// If the graph was saved at any previous version, and was clean, mark the status now as modified.
+	if (Status == EOptimusDeformerStatus::Compiled &&
+		GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::LatestVersion)
+	{
+		Status = EOptimusDeformerStatus::Modified;
 	}
 }
 
@@ -2519,10 +2556,13 @@ void UOptimusDeformer::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 	}
 }
 
-
 #if WITH_EDITOR
+
 void UOptimusDeformer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	MarkModified();
 }
 #endif
 
