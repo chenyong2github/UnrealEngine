@@ -42,10 +42,10 @@ public:
 	int32 GutterSize = 4;
 
 	// texel types
-	const int8 EmptyTexel = 0;
-	const int8 InteriorTexel = 1;
-	//const int8 BorderTexel = 2;
-	const int8 GutterTexel = 3;
+	static constexpr int8 EmptyTexel = 0;
+	static constexpr int8 InteriorTexel = 1;
+	static constexpr int8 BorderTexel = 2;
+	static constexpr int8 GutterTexel = 3;
 
 	/**
 	 * Classification of each sample in Tile.
@@ -77,8 +77,16 @@ public:
 	 */
 	TArray64<int32> TexelQueryUVChart;
 
-	/** Set of Gutter Texels. Pair is <LinearIndexOfGutterTexel, LinearIndexOfNearestInteriorTexel>, so
-	    Gutter can be filled by directly copying from source to target. */
+	/**
+	 * Set of Border Texels, Pair is <LinearIndexOfBorderTexel, LinearIndexOfNearestInteriorTexel>, so
+	 * Border can be filled by directly copying from source to target. 
+	 */
+	TArray64<TTuple<int64, int64>> BorderTexels;
+	
+	/**
+	 * Set of Gutter Texels. Pair is <LinearIndexOfGutterTexel, LinearIndexOfNearestInteriorTexel>, so
+	 * Gutter can be filled by directly copying from source to target.
+	 */
 	TArray64<TTuple<int64, int64>> GutterTexels;
 
 	using FGridSampler = TGridSampler<double>;
