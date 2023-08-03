@@ -948,11 +948,17 @@ void FLevelSequenceEditorToolkit::HandleTrackMenuExtensionAddTrack(FMenuBuilder&
 			{
 				if (Component)
 				{
-					bool bValidComponent = Component && !Component->IsVisualizationComponent();
+					bool bValidComponent = !Component->IsVisualizationComponent();
 
 					if (GlobalClassFilter.IsValid())
 					{
 						bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass(), ClassFilterFuncs);
+						
+						// Allow listing component if their parent class is allowed
+						while (!bValidComponent && Component->GetClass()->GetSuperClass())
+						{
+							bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass()->GetSuperClass(), ClassFilterFuncs);
+						}
 					}
 
 					if (bValidComponent)
