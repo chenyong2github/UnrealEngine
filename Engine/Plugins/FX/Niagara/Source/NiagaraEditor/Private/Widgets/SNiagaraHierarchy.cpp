@@ -127,7 +127,7 @@ bool SNiagaraHierarchyCategory::OnVerifyCategoryRename(const FText& NewName, FTe
 
 		if(CategoryNames.Contains(NewName.ToString()))
 		{
-			OutTooltip = LOCTEXT("HierarchyCategoryCantRename_DuplicateOnLayer", "Another category of the same name already exists on the same hierarchy level!");
+			OutTooltip = LOCTEXT("HierarchyCategoryCantRename_DuplicateOnLayer", "Another category of the same name already exists!");
 			return false;
 		}
 	}
