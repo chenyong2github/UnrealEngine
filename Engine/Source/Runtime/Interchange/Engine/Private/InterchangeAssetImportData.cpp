@@ -101,37 +101,6 @@ void UInterchangeAssetImportData::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FInterchangeCustomVersion::GUID);
 	int32 CustomVersion = Ar.CustomVer(FInterchangeCustomVersion::GUID);
 
-	if (Ar.IsSaving())
-	{
-		if (UInterchangeManager::IsInterchangeImportEnabled())
-		{
-			//serialize
-			if (TransientNodeContainer)
-			{
-				FLargeMemoryWriter NodeContainerAr;
-				TransientNodeContainer->SerializeNodeContainerData(NodeContainerAr);
-				CachedNodeContainer = TArray64<uint8>(NodeContainerAr.GetData(), NodeContainerAr.TotalSize());
-			}
-			else
-			{
-				CachedNodeContainer.Reset();
-			}
-
-			CachedPipelines.Reset(TransientPipelines.Num());
-			for (TObjectPtr<UObject>& PipelineObjectPtr : TransientPipelines)
-			{
-				UObject* PipelineObject = PipelineObjectPtr.Get();
-				if (PipelineObject)
-				{
-					FString PipelineJSON = SerializePipeline(PipelineObject);
-
-					FString PipelineFullName = PipelineObject->GetClass()->GetFullName();
-					CachedPipelines.Emplace(PipelineFullName, PipelineJSON);
-				}
-			}
-		}
-	}
-
 	if (CustomVersion >= FInterchangeCustomVersion::SerializedInterchangeObjectStoring)
 	{
 		Ar << CachedNodeContainer;
@@ -149,7 +118,19 @@ UInterchangeBaseNodeContainer* UInterchangeAssetImportData::GetNodeContainer() c
 
 void UInterchangeAssetImportData::SetNodeContainer(UInterchangeBaseNodeContainer* InNodeContainer) const
 {
-	TransientNodeContainer = InNodeContainer; 
+	TransientNodeContainer = InNodeContainer;
+
+	//Serialize cache
+	if (TransientNodeContainer)
+	{
+		FLargeMemoryWriter NodeContainerAr;
+		TransientNodeContainer->SerializeNodeContainerData(NodeContainerAr);
+		CachedNodeContainer = TArray64<uint8>(NodeContainerAr.GetData(), NodeContainerAr.TotalSize());
+	}
+	else
+	{
+		CachedNodeContainer.Reset();
+	}
 }
 
 
@@ -160,6 +141,20 @@ void UInterchangeAssetImportData::SetPipelines(const TArray<UObject*>& InPipelin
 	for (UObject* Pipeline : InPipelines)
 	{
 		TransientPipelines.Add(Pipeline);
+	}
+
+	//Serialize cache
+	CachedPipelines.Reset(TransientPipelines.Num());
+	for (TObjectPtr<UObject>& PipelineObjectPtr : TransientPipelines)
+	{
+		UObject* PipelineObject = PipelineObjectPtr.Get();
+		if (PipelineObject)
+		{
+			FString PipelineJSON = SerializePipeline(PipelineObject);
+
+			FString PipelineFullName = PipelineObject->GetClass()->GetFullName();
+			CachedPipelines.Emplace(PipelineFullName, PipelineJSON);
+		}
 	}
 }
 

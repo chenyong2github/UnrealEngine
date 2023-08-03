@@ -157,6 +157,6 @@ private:
 	void ProcessContainerCache() const;
 	void ProcessPipelinesCache() const;
 	void ProcessDeprecatedData() const;
-	TArray64<uint8> CachedNodeContainer;
-	TArray<TPair<FString, FString>> CachedPipelines; //Class, Data(serialized JSON) pair
+	mutable TArray64<uint8> CachedNodeContainer;
+	mutable TArray<TPair<FString, FString>> CachedPipelines; //Class, Data(serialized JSON) pair
 };
