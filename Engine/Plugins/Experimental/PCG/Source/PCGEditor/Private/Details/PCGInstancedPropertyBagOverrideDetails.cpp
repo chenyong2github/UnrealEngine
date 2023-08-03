@@ -103,6 +103,13 @@ EVisibility FPCGOverrideInstancedPropertyBagDataDetails::IsResetVisible(TSharedP
 
 FReply FPCGOverrideInstancedPropertyBagDataDetails::OnResetToDefaultValue(TSharedPtr<IPropertyHandle> InPropertyHandle) const
 {
+	if (!InPropertyHandle.IsValid() || !InPropertyHandle->GetProperty())
+	{
+		return FReply::Handled();
+	}
+
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("OnResetToDefaultValue", "Reset Override for {0}"), FText::FromName(InPropertyHandle->GetProperty()->GetFName())));
+
 	if (Owner.IsValid())
 	{
 		Owner->ResetPropertyToDefault(InPropertyHandle->GetProperty());
