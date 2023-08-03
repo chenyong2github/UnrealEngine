@@ -68,6 +68,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static FVector GetVREditorLaserHoverLocation();
 
+	/** Get the location of the left interactor, in world space */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static FVector GetLeftInteractorLocation();
+
 	/** Trigger an UnrealEd Undo */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static bool EditorUndo();
