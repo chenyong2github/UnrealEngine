@@ -22,23 +22,62 @@ class UHeterogeneousVolumeComponent : public UMeshComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Volume)
 	FIntVector VolumeResolution;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Volume)
-	float Framerate;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (EditCondition = "bPlaying == false"))
+	float Frame;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Volume)
-	uint32 bAnimate : 1;
+	UPROPERTY(EditAnywhere, Category = Animation)
+	float FrameRate;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	UPROPERTY(EditAnywhere, Category = Animation)
+	float StartFrame;
+
+	UPROPERTY(EditAnywhere, Category = Animation)
+	float EndFrame;
+
+	UPROPERTY(EditAnywhere, Category = Animation)
+	uint32 bPlaying : 1;
+
+	UPROPERTY(EditAnywhere, Category = Animation)
+	uint32 bLooping : 1;
+
+	UPROPERTY(EditAnywhere, Category = SparseVolumeTextureStreamin, AdvancedDisplay)
+	uint32 MipLevel = 0;
+
+	UPROPERTY(EditAnywhere, Category = SparseVolumeTextureStreaming)
+	uint32 bIssueBlockingRequests : 1;
+
+	UPROPERTY(EditAnywhere, Category = Lighting)
 	float StepFactor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	UPROPERTY(EditAnywhere, Category = Lighting)
 	float ShadowStepFactor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	UPROPERTY(EditAnywhere, Category = Lighting)
 	float LightingDownsampleFactor;
-	
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> MaterialInstanceDynamic;
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void SetFrame(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void SetFrameRate(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void SetStartFrame(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void SetEndFrame(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void SetPlaying(bool NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void SetLooping(bool NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	ENGINE_API void Play();
 
 	~UHeterogeneousVolumeComponent() {}
 
@@ -62,7 +101,10 @@ public:
 	//~ End UPrimitiveComponent Interface.
 
 private:
-	float Time;
+	const USparseVolumeTexture* PreviousSVT;
+
+	const USparseVolumeTexture* GetSparseVolumeTexture() const;
+	void OnSparseVolumeTextureChanged(const USparseVolumeTexture* SparseVolumeTexture);
 };
 
 /**
