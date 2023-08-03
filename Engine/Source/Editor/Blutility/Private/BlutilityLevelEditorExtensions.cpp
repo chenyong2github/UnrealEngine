@@ -3,21 +3,23 @@
 #include "BlutilityLevelEditorExtensions.h"
 
 #include "ActorActionUtility.h"
+#include "Algo/AnyOf.h"
 #include "AssetRegistry/AssetData.h"
 #include "BlutilityMenuExtensions.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "CoreTypes.h"
-#include "EditorUtilityAssetPrototype.h"
 #include "Delegates/Delegate.h"
+#include "EditorUtilityAssetPrototype.h"
 #include "EditorUtilityBlueprint.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "GameFramework/Actor.h"
 #include "HAL/PlatformCrt.h"
+#include "IAssetTools.h"
 #include "LevelEditor.h"
-#include "Algo/AnyOf.h"
 #include "Logging/MessageLog.h"
+#include "Misc/NamePermissionList.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
@@ -73,10 +75,14 @@ public:
 				}
 				else
                 {
-					EditorErrors.NewPage(LOCTEXT("ScriptedActions", "Scripted Actions"));
-					TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
-                    ErrorMessage->AddToken(FAssetNameToken::Create(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString(),FText::FromString(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString())));
-                    ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("NeedsToBeUpdated", "needs to be re-saved and possibly upgraded.")));
+					const FAssetData& BlutilityAssetData =  ActionUtilityPrototype->GetUtilityBlueprintAsset();
+					if (IAssetTools::Get().GetAssetClassPathPermissionList(EAssetClassAction::ViewAsset)->PassesFilter(BlutilityAssetData.AssetClassPath.ToString()))
+					{
+						EditorErrors.NewPage(LOCTEXT("ScriptedActions", "Scripted Actions"));
+						TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
+						ErrorMessage->AddToken(FAssetNameToken::Create(BlutilityAssetData.GetObjectPathString(), FText::FromString(BlutilityAssetData.GetObjectPathString())));
+						ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("NeedsToBeUpdated", "needs to be re-saved and possibly upgraded.")));
+					}
                 }
 			};
 
