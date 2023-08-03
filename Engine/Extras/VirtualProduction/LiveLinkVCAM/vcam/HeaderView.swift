@@ -12,6 +12,7 @@ import QuickLayout
 @objc protocol HeaderViewDelegate {
     func headerViewLogButtonTapped(_ headerView : HeaderView)
     func headerViewExitButtonTapped(_ headerView : HeaderView)
+    func headerViewStatsButtonTapped(_ headerView : HeaderView)
 }
 
 class HeaderView : UIView {
@@ -123,6 +124,7 @@ class HeaderView : UIView {
             btn.addTarget(self, action: #selector(exitTapped), for: .touchUpInside)
         }
 
+        // Show logs button
         if showButtons {
             
             let btn = UIButton(type: .custom)
@@ -138,6 +140,23 @@ class HeaderView : UIView {
             btn.layoutToSuperview(.left, offset: 50)
             
             btn.addTarget(self, action: #selector(logTapped), for: .touchUpInside)
+        }
+        
+        // Show stats button
+        if showButtons {
+            let btn = UIButton(type: .custom)
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(btn)
+            
+            btn.imageView?.contentMode = .scaleAspectFit
+            btn.tintColor = UIColor.white
+            btn.setImage(UIImage(systemName: "chart.xyaxis.line"), for: .normal)
+
+            btn.set(.width, .height, of: 30)
+            btn.layoutToSuperview(.centerY)
+            btn.layoutToSuperview(.left, offset: 100)
+            
+            btn.addTarget(self, action: #selector(statsTapped), for: .touchUpInside)
         }
         
         if showButtons {
@@ -195,6 +214,12 @@ class HeaderView : UIView {
     @objc func logTapped(_ sender : Any) {
         if let d = self.delegate {
             d.headerViewLogButtonTapped(self)
+        }
+    }
+    
+    @objc func statsTapped(_ sender : Any) {
+        if let d = self.delegate {
+            d.headerViewStatsButtonTapped(self)
         }
     }
 

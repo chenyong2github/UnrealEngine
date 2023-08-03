@@ -41,6 +41,7 @@ class VideoViewController : BaseViewController {
     var forceDisconnectTimer : Timer?
     
     var statsTimer : Timer?
+    var showStats : Bool = false
     
     var gameControllerSnapshot : GCController?
     weak var gameController : GCController? {
@@ -255,6 +256,7 @@ class VideoViewController : BaseViewController {
              
                 str += "\(fps) fps"
             }
+            
         }
 
         self.headerView.stats = str
@@ -444,6 +446,11 @@ class VideoViewController : BaseViewController {
 }
 
 extension VideoViewController : HeaderViewDelegate {
+
+    func headerViewStatsButtonTapped(_ headerView: HeaderView) {
+        self.showStats = !self.showStats
+        streamingConnection?.showStats(self.showStats)
+    }
     
     func headerViewExitButtonTapped(_ headerView : HeaderView) {
      
@@ -459,6 +466,7 @@ extension VideoViewController : HeaderViewDelegate {
      
         performSegue(withIdentifier: "showLog", sender: headerView)
     }
+    
 }
 
 

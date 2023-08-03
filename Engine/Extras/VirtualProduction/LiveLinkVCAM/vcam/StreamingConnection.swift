@@ -119,6 +119,10 @@ class StreamingConnection : NSObject {
         self.subjectName = subjectName
     }
     
+    func showStats(_ shouldShow : Bool) {
+        // Do nothing, derived classes will implement functionality
+    }
+    
     func shutdown() {
         assertionFailure("not implemented")
     }

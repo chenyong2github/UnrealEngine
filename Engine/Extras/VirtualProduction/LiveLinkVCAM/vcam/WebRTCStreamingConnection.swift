@@ -18,6 +18,7 @@ class WebRTCStreamingConnection : StreamingConnection {
     private var touchControls: TouchControls?
     private var keyboardControls: KeyboardControls?
     private var webRTCView : WebRTCView?
+    private var webRTCStatsView : WebRTCStatsView?
     private var rtcVideoTrack : RTCVideoTrack?
     
     private var signalingConnected = false
@@ -25,9 +26,9 @@ class WebRTCStreamingConnection : StreamingConnection {
     private var hasLocalSdp = false
     private var remoteCandidateCount = 0
     private var localCandidateCount = 0
+    
+    private var webRTCStats : WebRTCStats?
     private var _statsTimer : Timer?
-    private var _lastBytesReceived : Int?
-    private var _lastBytesReceivedTimestamp : CFTimeInterval?
     
     private var reconnectAttempt : Int = 0
     private var maxReconnectAttempts : Int = 3
@@ -67,8 +68,22 @@ class WebRTCStreamingConnection : StreamingConnection {
                 rtcView.delegate = self
                 rtcView.layoutToSuperview(.top, .bottom, .left, .right)
                 self.webRTCView = rtcView
-                
                 self.attachVideoTrack()
+                
+                // Attach stats view here
+                let rtcStatsView = WebRTCStatsView(frame: CGRect(x: 0, y: 0, width: rv.frame.size.width, height: rv.frame.size.height));
+                rv.addSubview(rtcStatsView)
+                NSLayoutConstraint.activate([
+                    rtcStatsView.topAnchor.constraint(equalTo: rv.topAnchor),
+                    rtcStatsView.leadingAnchor.constraint(equalTo: rv.leadingAnchor),
+                    rtcStatsView.trailingAnchor.constraint(equalTo: rv.trailingAnchor),
+                    rtcStatsView.bottomAnchor.constraint(equalTo: rv.bottomAnchor)
+                ]);
+                // start with stats hidden
+                rtcStatsView.isHidden = true
+                self.webRTCStatsView = rtcStatsView;
+                self.webRTCStats = WebRTCStats(statsView: rtcStatsView)
+                
             }
         }
     }
@@ -79,6 +94,8 @@ class WebRTCStreamingConnection : StreamingConnection {
         self.webRTCClient = WebRTCClient()
         self.webRTCClient?.speakerOff()
         self.webRTCClient?.delegate = self
+        
+        self.stats = StreamingConnectionStats()
 
         _statsTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { timer in
             
@@ -86,38 +103,11 @@ class WebRTCStreamingConnection : StreamingConnection {
                 
                 webRTC.stats({ report in
                     
-                    for (key,value) in report.statistics {
-                        if key.starts(with: "RTCIceCandidatePair_") {
-                            //Log.info("\(value.values)")
-                            let timestamp = value.timestamp_us
-                            if let bytesReceived = value.values["bytesReceived"] as? Int {
-                                
-                                if bytesReceived > 0 {
-
-                                    var bytesPerSecond : Int?
-                                    if let previousTimestamp = self._lastBytesReceivedTimestamp,
-                                       let previousBytesReceived = self._lastBytesReceived {
-
-                                        bytesPerSecond = Int(Double(bytesReceived - previousBytesReceived) / ((timestamp - previousTimestamp) / 1000000.0))
-                                    }
-
-                                    self._lastBytesReceivedTimestamp = timestamp
-                                    self._lastBytesReceived = bytesReceived
-                                    
-                                    if let bps = bytesPerSecond {
-                                        self.stats = StreamingConnectionStats()
-                                        self.stats?.bytesPerSecond = bps
-                                    }
-                                }
-                            }
-                            
-                            break
-                        }
-                    }
+                    self.webRTCStats?.processStatsReport(report: report)
+                    self.stats?.framesPerSecond = Float(self.webRTCStats?.lastFPS ?? 0)
+                    self.stats?.bytesPerSecond = Int(self.webRTCStats?.lastBitrate ?? 0)
                 })
             } else {
-                self._lastBytesReceived = nil
-                self._lastBytesReceivedTimestamp = nil
                 self.stats = nil
             }
         })
@@ -128,6 +118,10 @@ class WebRTCStreamingConnection : StreamingConnection {
         Log.info("Destroyed WebRTCStreamingConnection")
 
         webRTCClient = nil
+    }
+    
+    override func showStats(_ shouldShow : Bool) {
+        self.webRTCStatsView?.isHidden = shouldShow == false
     }
 
     override func shutdown() {
@@ -445,11 +439,7 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
             } else {
                 // We've exhausted our reconnect attempts, return to main menu
                 self.reconnectAttempt = 0
-                self.delegate?.streamingConnection(self, exitWithError:
-                                                    NSError(domain: "",
-                                                            code: 1,
-                                                            userInfo: [NSLocalizedDescriptionKey:
-                                                                        String(format: NSLocalizedString("error-unablereconnect", value:"Unable to reconnect to %s after %d attempts.", comment: "Error message : %s is replace with a string and %d with a number"), subscribedStreamer, maxReconnectAttempts)]))
+                self.delegate?.streamingConnection(self, exitWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to reconnect to \(subscribedStreamer) after \(maxReconnectAttempts) attempts"]))
             }
             
         } else {
