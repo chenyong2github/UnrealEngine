@@ -118,7 +118,8 @@ pushd build-clang
 		-DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON \
 		-DCMAKE_INSTALL_PREFIX=${InstallClangDir} \
 		-DLLVM_INCLUDE_BENCHMARKS=OFF \
-		-DLLVM_TARGETS_TO_BUILD="AArch64;X86"
+		-DLLVM_TARGETS_TO_BUILD="AArch64;X86" \
+		-DCLANG_REPOSITORY_STRING="github.com/llvm/llvm-project"
 
 	make -j$CORES && make install
 popd
@@ -255,8 +256,17 @@ pushd ${OutputDirLinux}
 	cp /src/build/*.src.tar.gz build/src
 	cp /src/*.{config,sh,nsi,bat} build/scripts
 
-	echo tar czfhv /src/build/${ToolChainVersionName}.tar.gz --hard-dereference *
-	tar czfhv /src/build/${ToolChainVersionName}.tar.gz --hard-dereference *
+	# copy the toolchain in the directory named its version as per convention
+	mkdir ${OutputDirLinux}/${ToolChainVersionName}
+	cp -r x86_64-unknown-linux-gnu ${OutputDirLinux}/${ToolChainVersionName}
+	cp -r build ${OutputDirLinux}/${ToolChainVersionName}
+	cp -r aarch64-unknown-linux-gnueabi ${OutputDirLinux}/${ToolChainVersionName}
+	cp -r ToolchainVersion.txt ${OutputDirLinux}/${ToolChainVersionName}
+
+	# delete libraries in x86_64's lib folder or bundled binares with crash
+	find ${OutputDirLinux}/${ToolChainVersionName}/x86_64-unknown-linux-gnu/lib/ -maxdepth 1 -type f -delete
+
+	tar czfhv native-linux-${ToolChainVersionName}.tar.gz --hard-dereference ${ToolChainVersionName}
 popd
 
 # Pack Windows files
@@ -271,5 +281,4 @@ pushd ${OutputDirWindows}
 	zip -r /src/build/${ToolChainVersionName}-windows.zip *
 popd
 
-echo "Remember to repack Linux tarball - it needs DSOs from under /lib directory deleted or clang won't run! Compare with previous toolchains! ([RCL] FIXME: 2023-06-28 fix the script to do this)"
 echo done.
