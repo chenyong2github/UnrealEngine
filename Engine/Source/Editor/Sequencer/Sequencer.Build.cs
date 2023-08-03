@@ -46,6 +46,7 @@ public class Sequencer : ModuleRules
 				"SerializedRecorderInterface",
 				"ToolMenus",
 				"ToolWidgets",
+				"TypedElementFramework",
 				}
 			);
 
