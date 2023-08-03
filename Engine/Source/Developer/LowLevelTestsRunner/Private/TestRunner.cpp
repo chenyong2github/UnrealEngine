@@ -92,38 +92,9 @@ FTestRunner::FTestRunner()
 void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 {
 	bool bExtraArg = false;
-	bool FirstItemIsUproject = false;
-
-
-	// If program is launched from UnrealVS the project directoy is passed in as the first arugment without a -.
-	// We will need to parse that out and treat it as our project directory. Programs may have project directories diffrent
-	// from their binaries directory.
-	if (Args.Num() > 2)
-	{
-		FAnsiStringView FirstArg = Args[1];
-		FirstItemIsUproject = !FirstArg.StartsWith(ANSITEXTVIEW("-")) && FirstArg.EndsWith(ANSITEXTVIEW(".uproject"));
-	}
-
-	bool bFirstItemIsUproject = false;
-	bool bFirstArugumentIsProjectName = false;
-	bool bFirstArgument = false;
-
-	if (Args.Num() > 2)
-	{
-		FAnsiStringView FirstArg = Args[1];
-		// If program is launched from UnrealVS the project directoy is passed in as the first arugment without a -.
-		// We will need to parse that out and treat it as our project directory. Programs may have project directories diffrent
-		// from their binaries directory.
-		bFirstItemIsUproject = !FirstArg.StartsWith(ANSITEXTVIEW("-")) && FirstArg.EndsWith(ANSITEXTVIEW(".uproject"));
-
-		//If a program is launched from the staged directory the first argument may be the program name
-		bFirstArugumentIsProjectName = !FirstArg.StartsWith(ANSITEXTVIEW("-")) && FirstArg.Compare(GInternalProjectName) == 0;
-	}
 
 	for (FAnsiStringView Arg : Args)
 	{
-		// Track args[1] as the first argument, as args[0] is always the program name.
-		bFirstArgument = Arg == Args[1];
 		if (bExtraArg)
 		{
 			if (const int32 SpaceIndex = String::FindFirstChar(Arg, ' '); SpaceIndex != INDEX_NONE)
@@ -144,32 +115,7 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			bExtraArg = true;
 		}
-		else if (bFirstArgument && bFirstArugumentIsProjectName)
-		{
-			// Do nothing
-		}
-		else if ((bFirstArgument && bFirstItemIsUproject) || Arg.StartsWith(ANSITEXTVIEW("--projectdir=")))
-		{
-			FStringBuilderBase Builder;
-			FString ProjectDirOverride;
-			if (bFirstArgument && bFirstItemIsUproject) {
-				Builder.Append(Arg);
-				ProjectDirOverride = FPaths::GetPath(*Builder);
-			}
-			else
-			{
-				Builder.Append(Arg.RightChop(13));
-				ProjectDirOverride = *Builder;
-			}
 
-			if (!ProjectDirOverride.EndsWith(TEXT("/")))
-			{
-				ProjectDirOverride += TEXT("/");
-			}
-
-			FPaths::NormalizeFilename(ProjectDirOverride);
-			FGenericPlatformMisc::SetOverrideProjectDir(ProjectDirOverride);
-		}
 		else if (Arg.StartsWith(ANSITEXTVIEW("--sleep=")))
 		{
 			LexFromString(SleepOnInitSeconds, WriteToString<16>(Arg.RightChop(8)).ToView());
@@ -212,7 +158,7 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		}
 		else if (Arg == ANSITEXTVIEW("--no-wait"))
 		{
-			bWaitForInputToTerminate = true;
+			bWaitForInputToTerminate = false;
 		}
 		else if (Arg == ANSITEXTVIEW("--attach-to-debugger"))
 		{
@@ -230,10 +176,7 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			CatchArgs.Add(Arg.GetData());
 		}
-
-		bFirstArgument = false;
 	}
-
 	// Break in the debugger on failed assertions when attached.
 	CatchArgs.Add("--break");
 }
