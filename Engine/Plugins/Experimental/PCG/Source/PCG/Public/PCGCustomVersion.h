@@ -53,6 +53,9 @@ struct PCG_API FPCGCustomVersion
 		// Update AddAttribute with selectors
 		UpdateAddAttributeWithSelectors = 14,
 
+		// Update TransferAttribute with selectors
+		UpdateTransferAttributeWithSelectors = 15,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -23,9 +23,6 @@ namespace PCGAttributeTransferConstants
 *  - For Spatial data, number of entries in the metadata should be the same between source and target.
 *  - For Point data, number of points should be the same between source and target.
 * 
-* The output will be the target data with the updated metadata.
-* If the TargetAttributeName is None, it will use SourceAttributeName instead.
-* 
 * To do the same but with a Source param data, use CreateAttribute.
 */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -34,6 +31,10 @@ class PCG_API UPCGAttributeTransferSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
@@ -41,6 +42,7 @@ public:
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 	virtual FText GetNodeTooltipText() const override;
 	virtual bool HasDynamicPins() const override { return true; }
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) override;
 #endif
 	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const override;
 	virtual FName AdditionalTaskName() const override;
@@ -53,18 +55,22 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FName SourceAttributeName;
+	FPCGAttributePropertyInputSelector SourceAttributeProperty;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FName TargetAttributeName;
-};
+	FPCGAttributePropertyOutputSelector TargetAttributeProperty;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName SourceAttributeName_DEPRECATED;
+
+	UPROPERTY()
+	FName TargetAttributeName_DEPRECATED;
+#endif
+};
 
 class FPCGAttributeTransferElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-
-	UPCGSpatialData* TransferSpatialToSpatial(FPCGContext* Context, const UPCGSpatialData* SourceData, const UPCGSpatialData* TargetData) const;
-	UPCGPointData* TransferPointToPoint(FPCGContext* Context, const UPCGPointData* SourceData, const UPCGPointData* TargetData) const;
 };
