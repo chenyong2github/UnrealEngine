@@ -264,8 +264,9 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
+		protected override void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
+			base.GetLinkArguments_Global(LinkEnvironment, Arguments);
 			// Pass through architecture and OS info		
 			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architectures));
 			Arguments.Add(String.Format("-isysroot \"{0}\"", SDKPath));
@@ -316,8 +317,6 @@ namespace UnrealBuildTool
 
 			// Needed to make sure install_name_tool will be able to update paths in Mach-O headers
 			Arguments.Add("-headerpad_max_install_names");
-
-			Arguments.Add("-lc++");
 		}
 
 		void GetArchiveArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)

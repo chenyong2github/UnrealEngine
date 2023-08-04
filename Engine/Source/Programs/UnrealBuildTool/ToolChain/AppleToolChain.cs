@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -546,6 +547,27 @@ namespace UnrealBuildTool
 			}
 
 			return OutputFiles;
+		}
+
+		protected virtual void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
+		{
+			// Temp solution for UE-191350
+
+			// This Regex will extract a 2-4 segment version code from string containing a 2-5 segment code 
+			// ie: if given string: "Apple clang version 14.0.0 (clang-1400.0.17.3.1)"
+			//     it'll extract: "1400.0.17.3"  (note the dropped 5th segment)
+			Match M = Regex.Match(Info.ClangVersionString, @"(\(clang-(?<ver>\d+.\d+(.(\d+))?(.(\d+))?)(.(\d+))?\))");
+			if (M.Success)
+			{
+				string LibString = M.Groups["ver"].ToString();
+				Version? LibVersion = new Version(LibString);
+				// The Apple's new linker in Xcode 15 beta 5 (clang version 1500.0.38.1) has issues with some templated classes and dynamic linking.
+				// Fall back to using the classic.
+				if (LibVersion.CompareTo(new Version(1500, 0, 38, 1)) >= 0)
+				{
+					Arguments.Add(" -ld_classic");
+				}
+			}
 		}
 
 		#region Stub Xcode Projects

@@ -359,8 +359,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
+		protected override void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
+			base.GetLinkArguments_Global(LinkEnvironment, Arguments);
 			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architectures));
 
 			bool bIsDevice = LinkEnvironment.Architecture != UnrealArch.IOSSimulator && LinkEnvironment.Architecture != UnrealArch.TVOSSimulator;
