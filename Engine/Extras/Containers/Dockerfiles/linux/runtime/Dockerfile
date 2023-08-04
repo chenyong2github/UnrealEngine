@@ -1,1 +1,1 @@
-FROM adamrehn/ue4-runtime:18.04-vulkan-noaudio
+FROM adamrehn/ue4-runtime:20.04-vulkan-noaudio
