@@ -1522,17 +1522,26 @@ namespace mu
 			}
 
 			case OP_TYPE::IM_PIXELFORMAT:
-			{
+			{				
 				// \todo: only if shrinking?
-				Ptr<ASTOpImagePixelFormat> NewOp = mu::Clone<ASTOpImagePixelFormat>(sourceAt);
-				Ptr<ASTOp> BaseAt = NewOp->Source.child();
+				
+				// Only sink the resize if we know that the pixelformat source image is uncompressed.
+				Ptr<ASTOpImagePixelFormat> SourceTyped = dynamic_cast<ASTOpImagePixelFormat*>(sourceAt.get());
+				FImageDesc PixelFormatSourceDesc = SourceTyped ->Source->GetImageDesc();
+				if (PixelFormatSourceDesc.m_format!=EImageFormat::IF_NONE
+					&&
+					!mu::IsCompressedFormat(PixelFormatSourceDesc.m_format) )
+				{
+					Ptr<ASTOpImagePixelFormat> NewOp = mu::Clone<ASTOpImagePixelFormat>(sourceAt);
+					Ptr<ASTOp> BaseAt = NewOp->Source.child();
 
-				Ptr<ASTOpFixed> NewBase = mu::Clone<ASTOpFixed>(this);
-				NewBase->SetChild(NewBase->op.args.ImageResize.source, BaseAt);
+					Ptr<ASTOpFixed> NewBase = mu::Clone<ASTOpFixed>(this);
+					NewBase->SetChild(NewBase->op.args.ImageResize.source, BaseAt);
 
-				NewOp->Source = NewBase;
+					NewOp->Source = NewBase;
 
-				at = NewOp;
+					at = NewOp;
+				}
 				break;
 			}
 

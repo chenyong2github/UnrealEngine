@@ -100,11 +100,29 @@ namespace mu
 	}
 
 
-	mu::Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const FModelOptimizationOptions& options, FOptimizeSinkContext& context) const
+	Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSemantic(const FModelOptimizationOptions& options, int32 Pass) const
 	{
-		mu::Ptr<ASTOp> at;
+		mu::Ptr<ASTOp> NewOp;
 
-		mu::Ptr<ASTOp> sourceAt = Source.child();
+		// Skip this operation if the source op format is already the one we want.
+		if (Source)
+		{
+			FImageDesc SourceDesc = Source->GetImageDesc();
+			if (SourceDesc.m_format==Format)
+			{
+				NewOp = Source.child();
+			}
+		}
+
+		return NewOp;
+	}
+
+
+	Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const FModelOptimizationOptions& options, FOptimizeSinkContext& context) const
+	{
+		Ptr<ASTOp> at;
+
+		Ptr<ASTOp> sourceAt = Source.child();
 
 		EImageFormat format = Format;
 		bool bIsCompressedFormat = IsCompressedFormat(Format);

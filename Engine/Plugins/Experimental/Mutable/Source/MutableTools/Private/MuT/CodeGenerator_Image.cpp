@@ -1057,8 +1057,12 @@ namespace mu
         if ( node.m_pBase )
         {
 			FImageGenerationOptions NewOptions = Options;
-			NewOptions.RectSize[0] = FMath::RoundToInt32(NewOptions.RectSize[0] / node.m_sizeX);
-			NewOptions.RectSize[1] = FMath::RoundToInt32(NewOptions.RectSize[1] / node.m_sizeY);
+			
+			if (node.m_relative)
+			{
+				NewOptions.RectSize[0] = FMath::RoundToInt32(NewOptions.RectSize[0] / node.m_sizeX);
+				NewOptions.RectSize[1] = FMath::RoundToInt32(NewOptions.RectSize[1] / node.m_sizeY);
+			}
 
 			FImageGenerationResult BaseResult;
 			GenerateImage(NewOptions, BaseResult, node.m_pBase);
@@ -1396,7 +1400,6 @@ namespace mu
 			NewOptions.ImageLayoutStrategy = CompilerOptions::TextureLayoutStrategy::None;
 			NewOptions.LayoutToApply = nullptr;
 			NewOptions.LayoutBlockId = -1;
-			NewOptions.RectSize = {};
 
 			FImageGenerationResult ImageResult;
 			GenerateImage(NewOptions, ImageResult, node.m_pImage);
