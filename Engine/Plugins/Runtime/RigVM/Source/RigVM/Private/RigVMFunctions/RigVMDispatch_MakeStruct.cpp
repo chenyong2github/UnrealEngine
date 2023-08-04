@@ -11,19 +11,15 @@
 const FName FRigVMDispatch_MakeStruct::ElementsName = TEXT("Elements");
 const FName FRigVMDispatch_MakeStruct::StructName = TEXT("Struct");
 
-const TArray<FRigVMTemplateArgument>& FRigVMDispatch_MakeStruct::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_MakeStruct::GetArguments() const
 {
-	static TArray<FRigVMTemplateArgument> Arguments;
-	if (Arguments.IsEmpty())
-	{
-		const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
-			FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue
-		};
-		
-		Arguments.Emplace(ElementsName, ERigVMPinDirection::Input, Categories);
-		Arguments.Emplace(StructName, ERigVMPinDirection::Output, Categories);
-	}
-	return Arguments;
+	const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+		FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue
+	};
+	return {
+		{ElementsName, ERigVMPinDirection::Input, Categories},
+		{StructName, ERigVMPinDirection::Output, Categories}
+	};
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_MakeStruct::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -88,19 +84,15 @@ void FRigVMDispatch_MakeStruct::Execute(FRigVMExtendedExecuteContext& InContext,
 	URigVMMemoryStorage::CopyProperty(TargetProperty, TargetMemory, SourceProperty, SourceMemory);
 }
 
-const TArray<FRigVMTemplateArgument>& FRigVMDispatch_BreakStruct::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_BreakStruct::GetArguments() const
 {
-	static TArray<FRigVMTemplateArgument> Arguments;
-	if (Arguments.IsEmpty())
-	{
-		const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
-			FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue
-		};
-		
-		Arguments.Emplace(StructName, ERigVMPinDirection::Input, Categories);
-		Arguments.Emplace(ElementsName, ERigVMPinDirection::Output, Categories);
-	}
-	return Arguments;
+	const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+		FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue
+	};
+	return {
+		{StructName, ERigVMPinDirection::Input, Categories},
+		{ElementsName, ERigVMPinDirection::Output, Categories}
+	};
 }
 
 #if WITH_EDITOR

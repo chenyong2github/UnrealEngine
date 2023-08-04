@@ -23,28 +23,26 @@ FName FRigVMDispatch_SelectInt32::GetArgumentNameForOperandIndex(int32 InOperand
 }
 
 
-const TArray<FRigVMTemplateArgument>& FRigVMDispatch_SelectInt32::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_SelectInt32::GetArguments() const
 {
-	static TArray<FRigVMTemplateArgument> Arguments;
-	if (Arguments.IsEmpty())
-	{
-		static const TArray<FRigVMTemplateArgument::ETypeCategory> ArrayCategories = {
-			FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue,
-			FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue
-		};
-		static const TArray<FRigVMTemplateArgument::ETypeCategory> SingleCategories = {
-			FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
-			FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
-		};
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ArrayCategories = {
+		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue,
+		FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue
+	};
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> SingleCategories = {
+		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
+		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
+	};
 	
-		Arguments.Emplace(IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
-		Arguments.Emplace(ValuesName, ERigVMPinDirection::Input, ArrayCategories);
-		Arguments.Emplace(ResultName, ERigVMPinDirection::Output, SingleCategories);
-	}
-	return Arguments;
+	return {
+		FRigVMTemplateArgument(IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32),
+		FRigVMTemplateArgument(ValuesName, ERigVMPinDirection::Input, ArrayCategories),
+		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, SingleCategories)
+	};
 }
 
-FRigVMTemplateTypeMap FRigVMDispatch_SelectInt32::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigVMDispatch_SelectInt32::OnNewArgumentType(const FName& InArgumentName,
+	TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
 	Types.Add(IndexName, RigVMTypeUtils::TypeIndex::Int32);

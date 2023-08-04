@@ -23,34 +23,28 @@ FName FRigVMDispatch_If::GetArgumentNameForOperandIndex(int32 InOperandIndex, in
 	return ArgumentNames[InOperandIndex];
 }
 
-const TArray<FRigVMTemplateArgument>& FRigVMDispatch_If::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_If::GetArguments() const
 {
-	static TArray<FRigVMTemplateArgument> Arguments;
-	if (Arguments.IsEmpty())
-	{
-		static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
-			FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
-			FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
-		};
-
-		Arguments.Emplace(ConditionName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool);
-		Arguments.Emplace(TrueName, ERigVMPinDirection::Input, ValueCategories);
-		Arguments.Emplace(FalseName, ERigVMPinDirection::Input, ValueCategories);
-		Arguments.Emplace(ResultName, ERigVMPinDirection::Output, ValueCategories);
-	}
-	return Arguments;
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
+		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
+		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
+	};
+	return {
+		FRigVMTemplateArgument(ConditionName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool),
+		FRigVMTemplateArgument(TrueName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(FalseName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, ValueCategories)
+	};
 }
 
-FRigVMTemplateTypeMap FRigVMDispatch_If::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigVMDispatch_If::OnNewArgumentType(const FName& InArgumentName,
+	TRigVMTypeIndex InTypeIndex) const
 {
-	static FRigVMTemplateTypeMap Types;
-	if (Types.IsEmpty())
-	{
-		Types.Add(ConditionName, RigVMTypeUtils::TypeIndex::Bool);
-		Types.Add(TrueName, InTypeIndex);
-		Types.Add(FalseName, InTypeIndex);
-		Types.Add(ResultName, InTypeIndex);
-	}
+	FRigVMTemplateTypeMap Types;
+	Types.Add(ConditionName, RigVMTypeUtils::TypeIndex::Bool);
+	Types.Add(TrueName, InTypeIndex);
+	Types.Add(FalseName, InTypeIndex);
+	Types.Add(ResultName, InTypeIndex);
 	return Types;
 }
 

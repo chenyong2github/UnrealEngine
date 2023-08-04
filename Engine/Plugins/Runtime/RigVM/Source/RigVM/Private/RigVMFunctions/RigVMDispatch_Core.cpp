@@ -23,24 +23,21 @@ FName FRigVMDispatch_CoreEquals::GetArgumentNameForOperandIndex(int32 InOperandI
 	return ArgumentNames[InOperandIndex];
 }
 
-const TArray<FRigVMTemplateArgument>& FRigVMDispatch_CoreEquals::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_CoreEquals::GetArguments() const
 {
-	static TArray<FRigVMTemplateArgument> Arguments;
-	if (Arguments.IsEmpty())
-	{
-		static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
-			FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
-			FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
-		};
-		
-		Arguments.Emplace(AName, ERigVMPinDirection::Input, ValueCategories);
-		Arguments.Emplace(BName, ERigVMPinDirection::Input, ValueCategories);
-		Arguments.Emplace(ResultName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool);
-	}
-	return Arguments;
+	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
+		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
+		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
+	};
+	return {
+		FRigVMTemplateArgument(AName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(BName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool)
+	};
 }
 
-FRigVMTemplateTypeMap FRigVMDispatch_CoreEquals::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigVMDispatch_CoreEquals::OnNewArgumentType(const FName& InArgumentName,
+	TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
 	Types.Add(AName, InTypeIndex);

@@ -65,7 +65,7 @@ FString FRigDispatch_MetadataBase::GetNodeTitle(const FRigVMTemplateTypeMap& InT
 
 #endif
 
-const TArray<FRigVMTemplateArgument>& FRigDispatch_MetadataBase::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigDispatch_MetadataBase::GetArguments() const
 {
 	if(Arguments.IsEmpty())
 	{
@@ -155,7 +155,7 @@ const TArray<TRigVMTypeIndex>& FRigDispatch_MetadataBase::GetValueTypes() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TArray<FRigVMTemplateArgument>& FRigDispatch_GetMetadata::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigDispatch_GetMetadata::GetArguments() const
 {
 	if(ValueArgIndex == INDEX_NONE)
 	{
@@ -272,7 +272,7 @@ FRigVMFunctionPtr FRigDispatch_GetMetadata::GetDispatchFunctionImpl(const FRigVM
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TArray<FRigVMTemplateArgument>& FRigDispatch_SetMetadata::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigDispatch_SetMetadata::GetArguments() const
 {
 	if(ValueArgIndex == INDEX_NONE)
 	{

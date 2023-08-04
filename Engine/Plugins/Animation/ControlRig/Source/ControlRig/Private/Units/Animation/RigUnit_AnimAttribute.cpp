@@ -321,7 +321,7 @@ FString FRigDispatch_AnimAttributeBase::GetNodeTitle(const FRigVMTemplateTypeMap
 }
 #endif
 
-const TArray<FRigVMTemplateArgument>& FRigDispatch_AnimAttributeBase::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigDispatch_AnimAttributeBase::GetArguments() const
 {
 	if (Arguments.IsEmpty())
 	{
@@ -372,7 +372,7 @@ FText FRigDispatch_AnimAttributeBase::GetArgumentTooltip(const FName& InArgument
 
 
 
-const TArray<FRigVMTemplateArgument>& FRigDispatch_GetAnimAttribute::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigDispatch_GetAnimAttribute::GetArguments() const
 {
 	if (ValueArgIndex == INDEX_NONE)
 	{
@@ -387,10 +387,12 @@ const TArray<FRigVMTemplateArgument>& FRigDispatch_GetAnimAttribute::GetArgument
 		FoundArgIndex = Arguments.Emplace(FoundArgName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool);
 	}
 
+	
 	return Arguments;
 }
 
-FRigVMTemplateTypeMap FRigDispatch_GetAnimAttribute::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigDispatch_GetAnimAttribute::OnNewArgumentType(const FName& InArgumentName,
+	TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
 
@@ -453,7 +455,7 @@ FRigVMFunctionPtr FRigDispatch_GetAnimAttribute::GetDispatchFunctionImpl(const F
 	return nullptr;
 }
 
-const TArray<FRigVMTemplateArgument>& FRigDispatch_SetAnimAttribute::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigDispatch_SetAnimAttribute::GetArguments() const
 {
 	if (ValueArgIndex == INDEX_NONE)
 	{
@@ -474,7 +476,8 @@ TArray<FRigVMExecuteArgument> FRigDispatch_SetAnimAttribute::GetExecuteArguments
 	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
 }
 
-FRigVMTemplateTypeMap FRigDispatch_SetAnimAttribute::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigDispatch_SetAnimAttribute::OnNewArgumentType(const FName& InArgumentName,
+                                                                       TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
 
