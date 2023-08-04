@@ -1739,7 +1739,7 @@ void FBlueprintCompileReinstancer::MoveDependentSkelToReinst(UClass* const Owner
 		UObject* OldCDO = CurClass->ClassDefaultObject;
 		const FName ReinstanceName = MakeUniqueObjectName(GetTransientPackage(), CurClass->GetClass(), *(FString(TEXT("REINST_")) + *CurClass->GetName()));
 
-		if (!IsValid(CurClass))
+		if (!IsValid(CurClass) || CurClass->HasAnyClassFlags(CLASS_NewerVersionExists))
 		{
 			if (UClass* const* NewSuper = NewSkeletonToOldSkeleton.Find(CurClass->GetSuperClass()))
 			{
@@ -1751,8 +1751,8 @@ void FBlueprintCompileReinstancer::MoveDependentSkelToReinst(UClass* const Owner
 		UClass* ReinstClass = CastChecked<UClass>(StaticDuplicateObject(CurClass, GetTransientPackage(), ReinstanceName, ~RF_Transactional));
 		
 		ReinstClass->RemoveFromRoot();
-		CurClass->ClassFlags |= CLASS_NewerVersionExists;
-		CurClass->ClassFlags &= ~CLASS_NewerVersionExists;
+		ReinstClass->ClassFlags |= CLASS_NewerVersionExists;
+
 		GIsDuplicatingClassForReinstancing = false;
 
 		UClass** OverridenParent = NewSkeletonToOldSkeleton.Find(ReinstClass->GetSuperClass());
