@@ -37,6 +37,19 @@ USoundSubmixBase::USoundSubmixBase(const FObjectInitializer& ObjectInitializer)
 #endif // WITH_EDITORONLY_DATA
 {}
 
+static float GetMinVolumeParameter()
+{
+	if (Audio::IsModulationParameterRegistered("Volume"))
+	{
+		const Audio::FModulationParameter& VolumeParam = Audio::GetModulationParameter(TEXT("Volume"));
+		return VolumeParam.MinValue;
+	}
+	else
+	{
+		return -60.0f;
+	}
+}
+
 USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bMuteWhenBackgrounded(0)
@@ -49,7 +62,9 @@ USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 {
 	OutputVolumeModulation.Value = 0.f;
 	WetLevelModulation.Value = 0.f;
-	DryLevelModulation.Value = -96.f;
+
+	DryLevelModulation.Value = GetMinVolumeParameter();
+
 }
 
 void USoundSubmix::Serialize(FArchive& Ar)
@@ -67,7 +82,7 @@ void USoundSubmix::Serialize(FArchive& Ar)
 		{
 			if (OutputVolume <= LinearNeg96dB)
 			{
-				OutputVolumeModulation.Value = -96.f;
+				OutputVolumeModulation.Value = GetMinVolumeParameter();
 			}
 			else
 			{
@@ -80,7 +95,7 @@ void USoundSubmix::Serialize(FArchive& Ar)
 		{
 			if (WetLevel <= LinearNeg96dB)
 			{
-				WetLevelModulation.Value = -96.f;
+				WetLevelModulation.Value = GetMinVolumeParameter();
 			}
 			else
 			{
@@ -93,7 +108,7 @@ void USoundSubmix::Serialize(FArchive& Ar)
 		{
 			if (DryLevel <= LinearNeg96dB)
 			{
-				DryLevelModulation.Value = -96.f;
+				DryLevelModulation.Value = GetMinVolumeParameter();
 			}
 			else
 			{
