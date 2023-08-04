@@ -19531,6 +19531,69 @@ FRigVMClientPatchResult URigVMController::PatchInvalidLinksOnWildcards()
 	return Result;
 }
 
+FRigVMClientPatchResult URigVMController::PatchFunctionsWithInvalidReturnPaths()
+{
+	FRigVMClientPatchResult Result;
+
+	if (URigVMGraph* Graph = GetGraph())
+	{
+		if (!Graph->GetOuter()->IsA<URigVMCollapseNode>())
+		{
+			Result.bSucceeded = false;
+			return Result;
+		}
+
+		URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode();
+		if (!ReturnNode || !ReturnNode->IsMutable())
+		{
+			return Result;
+		}
+
+		URigVMPin* ReturnExecutePin = *ReturnNode->GetPins().FindByPredicate([](const URigVMPin* Pin)
+		{
+			return Pin->IsExecuteContext();
+		});
+
+		if (!ReturnExecutePin->IsLinked())
+		{
+			return Result;
+		}
+
+		URigVMPin* ExecuteSourcePin = ReturnExecutePin->GetLinkedSourcePins()[0];
+		while(ExecuteSourcePin && !ExecuteSourcePin->GetNode()->IsA<URigVMFunctionEntryNode>())
+		{
+			URigVMPin* ExecuteTargetPin = ExecuteSourcePin;
+			if (ExecuteSourcePin->GetNode()->IsControlFlowNode())
+			{
+				if (ExecuteSourcePin->GetFName() != FRigVMStruct::ControlFlowCompletedName)
+				{
+					URigVMPin* CompletedPin = ExecuteSourcePin->GetNode()->FindPin(FRigVMStruct::ControlFlowCompletedName.ToString());
+					AddLink(CompletedPin, ReturnExecutePin);
+					ExecuteSourcePin = CompletedPin;
+					Result.bChangedContent = true;
+				}
+			}
+
+			if (ExecuteSourcePin->GetDirection() == ERigVMPinDirection::Output)
+			{
+				ExecuteTargetPin = *ExecuteSourcePin->GetNode()->GetPins().FindByPredicate([](URigVMPin* Pin)
+				{
+					return Pin->IsExecuteContext() && (Pin->GetDirection() == ERigVMPinDirection::Input || Pin->GetDirection() == ERigVMPinDirection::IO);
+				});
+			}
+
+			const TArray<URigVMPin*>& SourcePins = ExecuteTargetPin->GetLinkedSourcePins();
+			if (SourcePins.IsEmpty())
+			{
+				break;
+			}
+			ExecuteSourcePin = SourcePins[0];
+		}
+	}
+	
+	return Result;
+}
+
 void URigVMController::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)
 {
 	if (const URigVMGraph* Graph = GetGraph())

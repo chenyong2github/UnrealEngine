@@ -1302,6 +1302,7 @@ protected:
 	FRigVMClientPatchResult PatchArrayNodesOnLoad();
 	FRigVMClientPatchResult PatchReduceArrayFloatDoubleConvertsionsOnLoad();
 	FRigVMClientPatchResult PatchInvalidLinksOnWildcards();
+	FRigVMClientPatchResult PatchFunctionsWithInvalidReturnPaths();
 
 	// work to do after a duplication of the host asset
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
