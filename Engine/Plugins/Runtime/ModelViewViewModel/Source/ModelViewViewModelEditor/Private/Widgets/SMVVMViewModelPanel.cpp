@@ -430,6 +430,7 @@ TSharedRef<SWidget> SMVVMViewModelPanel::HandleGenerateContainer(UE::PropertyVie
 				{
 					TSharedRef<SInlineEditableTextBlock> EditableTextBlock = SNew(SInlineEditableTextBlock)
 						.Text(ViewModelContext->GetDisplayName())
+						.IsReadOnly(this, &SMVVMViewModelPanel::HandleCanRename, VMGuid)
 						.OnVerifyTextChanged(this, &SMVVMViewModelPanel::HandleVerifyNameTextChanged, VMGuid)
 						.OnTextCommitted(this, &SMVVMViewModelPanel::HandleNameTextCommited, VMGuid);
 					EditableTextBlocks.Add(VMGuid, EditableTextBlock);
@@ -475,6 +476,15 @@ TSharedRef<SWidget> SMVVMViewModelPanel::HandleGenerateContainer(UE::PropertyVie
 }
 
 
+bool SMVVMViewModelPanel::HandleCanRename(FGuid ViewModelGuid) const
+{
+	const UMVVMBlueprintView* BlueprintView = WeakBlueprintView.Get();
+	const FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView ? BlueprintView->FindViewModel(ViewModelGuid) : nullptr;
+	TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin();
+	return ViewModelContext && ViewModelContext->bCanRename && BlueprintEditor && BlueprintEditor->InEditingMode();
+}
+
+
 bool SMVVMViewModelPanel::HandleVerifyNameTextChanged(const FText& InText, FText& OutErrorMessage, FGuid ViewModelGuid)
 {
 	return RenameViewModelProperty(ViewModelGuid, InText, false, OutErrorMessage);
@@ -489,6 +499,7 @@ void SMVVMViewModelPanel::HandleNameTextCommited(const FText& InText, ETextCommi
 		RenameViewModelProperty(ViewModelGuid, InText, true, OutErrorMessage);
 	}
 }
+
 
 FReply SMVVMViewModelPanel::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TArrayView<const FFieldVariant> Fields) const
 {
@@ -522,6 +533,7 @@ FReply SMVVMViewModelPanel::HandleDragDetected(const FGeometry& MyGeometry, cons
 	}
 	return FReply::Unhandled();
 }
+
 
 void SMVVMViewModelPanel::CreateCommandList()
 {
@@ -587,7 +599,8 @@ void SMVVMViewModelPanel::HandleDeleteViewModel()
 		{
 			if (FGuid* VMGuidPtr = PropertyViewerHandles.Find(SelectedItem.Handle))
 			{
-				if (const FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView->FindViewModel(*VMGuidPtr))
+				const FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView->FindViewModel(*VMGuidPtr);
+				if (ViewModelContext && ViewModelContext->bCanRemove)
 				{
 					FGuid BindingId = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->GetFirstBindingThatUsesViewModel(WidgetBP, *VMGuidPtr);
 					if (BindingId.IsValid())
@@ -608,9 +621,17 @@ void SMVVMViewModelPanel::HandleDeleteViewModel()
 
 bool SMVVMViewModelPanel::HandleCanDeleteViewModel() const
 {
-	if (TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin())
+	TArray<UE::PropertyViewer::SPropertyViewer::FSelectedItem> Items = ViewModelTreeView->GetSelectedItems();
+	if (Items.Num() == 1 && Items[0].bIsContainerSelected)
 	{
-		return BlueprintEditor->InEditingMode();
+		const FGuid* VMGuidPtr = PropertyViewerHandles.Find(Items[0].Handle);
+		const UMVVMBlueprintView* BlueprintView = WeakBlueprintView.Get();
+		const FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView && VMGuidPtr ? BlueprintView->FindViewModel(*VMGuidPtr) : nullptr;
+		TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin();
+		if (ViewModelContext && ViewModelContext->bCanRemove && BlueprintEditor)
+		{
+			return BlueprintEditor->InEditingMode() && ViewModelContext->bCanRemove;
+		}
 	}
 	return false;
 }
@@ -621,7 +642,8 @@ void SMVVMViewModelPanel::HandleRenameViewModel()
 	TArray<UE::PropertyViewer::SPropertyViewer::FSelectedItem> Items = ViewModelTreeView->GetSelectedItems();
 	if (Items.Num() == 1 && Items[0].bIsContainerSelected)
 	{
-		if (const FGuid* VMGuidPtr = PropertyViewerHandles.Find(Items[0].Handle))
+		const FGuid* VMGuidPtr = PropertyViewerHandles.Find(Items[0].Handle);
+		if (VMGuidPtr && HandleCanRename(*VMGuidPtr))
 		{
 			if (TSharedPtr<SInlineEditableTextBlock>* TextBlockPtr = EditableTextBlocks.Find(*VMGuidPtr))
 			{
@@ -634,9 +656,11 @@ void SMVVMViewModelPanel::HandleRenameViewModel()
 
 bool SMVVMViewModelPanel::HandleCanRenameViewModel() const
 {
-	if (TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin())
+	TArray<UE::PropertyViewer::SPropertyViewer::FSelectedItem> Items = ViewModelTreeView->GetSelectedItems();
+	if (Items.Num() == 1 && Items[0].bIsContainerSelected)
 	{
-		return BlueprintEditor->InEditingMode();
+		const FGuid* VMGuidPtr = PropertyViewerHandles.Find(Items[0].Handle);
+		return VMGuidPtr && HandleCanRename(*VMGuidPtr);
 	}
 	return false;
 }
@@ -752,13 +776,16 @@ bool SMVVMViewModelPanel::RenameViewModelProperty(FGuid ViewModelGuid, const FTe
 			{
 				if (const FMVVMBlueprintViewModelContext* ViewModelContext = View->FindViewModel(ViewModelGuid))
 				{
-					if (bCommit)
+					if (ViewModelContext->bCanRename)
 					{
-						return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->RenameViewModel(WidgetBP, ViewModelContext->GetViewModelName(), *NewNameString, OutErrorMessage);
-					}
-					else
-					{
-						return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->VerifyViewModelRename(WidgetBP, ViewModelContext->GetViewModelName(), *NewNameString, OutErrorMessage);
+						if (bCommit)
+						{
+							return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->RenameViewModel(WidgetBP, ViewModelContext->GetViewModelName(), *NewNameString, OutErrorMessage);
+						}
+						else
+						{
+							return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->VerifyViewModelRename(WidgetBP, ViewModelContext->GetViewModelName(), *NewNameString, OutErrorMessage);
+						}
 					}
 				}
 			}

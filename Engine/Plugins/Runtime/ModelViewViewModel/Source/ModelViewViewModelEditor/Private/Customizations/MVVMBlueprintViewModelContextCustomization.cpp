@@ -8,6 +8,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyAccessEditor.h"
 #include "IPropertyTypeCustomization.h"
+#include "MVVMBlueprintView.h"
 #include "MVVMDeveloperProjectSettings.h"
 #include "MVVMEditorSubsystem.h"
 #include "PropertyHandle.h"
@@ -184,6 +185,21 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 		}
 	}
 
+	bool bCanEdit = false;
+	bool bCanRename = false;
+	{
+
+		TSharedPtr<FWidgetBlueprintEditor> Editor = WidgetBlueprintEditor.Pin();
+		const UWidgetBlueprint* WidgetBP = Editor ? Editor->GetWidgetBlueprintObj() : nullptr;
+		const UMVVMBlueprintView* BlueprintView = WidgetBP ? GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->GetView(WidgetBP) : nullptr;
+		const FMVVMBlueprintViewModelContext* ViewModel = BlueprintView ? BlueprintView->FindViewModel(ViewModelContextId) : nullptr;
+		if (ViewModel)
+		{
+			bCanEdit = ViewModel->bCanEdit;
+			bCanRename = ViewModel->bCanRename;
+		}
+	}
+
 	if (NotifyFieldValueClassHandle)
 	{
 		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
@@ -219,9 +235,10 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 							.OnTextCommitted(this, &FBlueprintViewModelContextDetailCustomization::HandleNameTextCommitted)
 							.OnVerifyTextChanged(this, &FBlueprintViewModelContextDetailCustomization::HandleNameVerifyTextChanged)
 							.SelectAllTextOnCommit(true)
-							.IsEnabled(ViewModelContextId.IsValid())
+							.IsEnabled(bCanRename && ViewModelContextId.IsValid())
 						]
-					];
+					]
+					.IsEnabled(bCanRename);
 				}
 			}
 			else if (PropertyName == Name_ViewModelPropertyPath)
@@ -276,18 +293,21 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 							.Text(this, &FBlueprintViewModelContextDetailCustomization::GetCreationTypeValue)
 							.ToolTipText(this, &FBlueprintViewModelContextDetailCustomization::GetExecutionTypeValueToolTip)
 						]
-					];
+					]
+					.IsEnabled(bCanEdit);
 			}
 			else if (PropertyName == Name_CreateSetterFunction)
 			{
 				if (GetDefault<UMVVMDeveloperProjectSettings>()->bAllowGeneratedViewModelSetter)
 				{
-					ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+					ChildBuilder.AddProperty(ChildHandle.ToSharedRef())
+						.IsEnabled(bCanEdit);
 				}
 			}
 			else
 			{
-				ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+				ChildBuilder.AddProperty(ChildHandle.ToSharedRef())
+					.IsEnabled(bCanEdit);;
 			}
 		}
 	}

@@ -133,6 +133,10 @@ FName UMVVMEditorSubsystem::AddViewModel(UWidgetBlueprint* WidgetBlueprint, cons
 		if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 		{
 			FString ClassName = ViewModelClass->ClassGeneratedBy != nullptr ? ViewModelClass->ClassGeneratedBy->GetName() : ViewModelClass->GetAuthoredName();
+			if (Cast<UBlueprintGeneratedClass>(ViewModelClass) && ClassName.EndsWith(TEXT("_C")))
+			{
+				ClassName.RemoveAt(ClassName.Len() - 2, 2);
+			}
 			FString ViewModelName = ClassName;
 			FKismetNameValidator NameValidator(WidgetBlueprint);
 
@@ -168,7 +172,10 @@ void UMVVMEditorSubsystem::RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, FN
 	{
 		if (const FMVVMBlueprintViewModelContext* ViewModelContext = View->FindViewModel(ViewModel))
 		{
-			View->RemoveViewModel(ViewModelContext->GetViewModelId());
+			if (ViewModelContext->bCanRemove)
+			{
+				View->RemoveViewModel(ViewModelContext->GetViewModelId());
+			}
 		}
 	}
 }
@@ -205,9 +212,14 @@ bool UMVVMEditorSubsystem::RenameViewModel(UWidgetBlueprint* WidgetBlueprint, FN
 		return false;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("RenameViewModel", "Rename Viewmodel"));
-	View->Modify();
-	return View->RenameViewModel(ViewModel, NewViewModel);
+	const FMVVMBlueprintViewModelContext* ViewModelContext = View->FindViewModel(ViewModel);
+	if (ViewModelContext && ViewModelContext->bCanRename)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("RenameViewModel", "Rename Viewmodel"));
+		View->Modify();
+		return View->RenameViewModel(ViewModel, NewViewModel);
+	}
+	return false;
 }
 
 FMVVMBlueprintViewBinding& UMVVMEditorSubsystem::AddBinding(UWidgetBlueprint* WidgetBlueprint)
