@@ -247,12 +247,6 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 
 	checkSlow(ActiveObject != nullptr);
 
-	// Ignore script exceptions for preview actors
-	if(FActorEditorUtils::IsAPreviewOrInactiveActor(Cast<const AActor>(ActiveObject)))
-	{
-		return;
-	}
-	
 	UClass* ClassContainingCode = FindClassForNode(ActiveObject, StackFrame.Node);
 	UBlueprint* BlueprintObj = (ClassContainingCode ? Cast<UBlueprint>(ClassContainingCode->ClassGeneratedBy) : nullptr);
 	if (BlueprintObj)
@@ -260,6 +254,19 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 		const FBlueprintExceptionInfo* ExceptionInfo = &Info;
 		bool bResetObjectBeingDebuggedWhenFinished = false;
 		UObject* ObjectBeingDebugged = BlueprintObj->GetObjectBeingDebugged();
+
+		auto IsAPreviewOrInactiveObject = [](const UObject* InObject)
+		{
+			UWorld* World = InObject ? InObject->GetWorld() : nullptr;
+			return World && (World->WorldType == EWorldType::EditorPreview || World->WorldType == EWorldType::Inactive);
+		};
+
+		// Ignore script exceptions for preview objects that are not already being debugged
+		if (IsAPreviewOrInactiveObject(ActiveObject) && ObjectBeingDebugged != ActiveObject)
+		{
+			return;
+		}
+
 		UObject* SavedObjectBeingDebugged = ObjectBeingDebugged;
 		UWorld* WorldBeingDebugged = BlueprintObj->GetWorldBeingDebugged();
 		const FString& PathToDebug = BlueprintObj->GetObjectPathToDebug();

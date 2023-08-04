@@ -1626,7 +1626,7 @@ void FAssetThumbnailPool::RefreshThumbnailsFor( const FSoftObjectPath& ObjectPat
 	{
 		if ( ThumbIt.Key().ObjectPath == ObjectPath )
 		{
-			ThumbnailsToRenderStack.Push( ThumbIt.Value() );
+			ThumbnailsToRenderStack.AddUnique( ThumbIt.Value() );
 		}
 	}
 }

@@ -339,6 +339,8 @@ FAnimationBlueprintEditor::~FAnimationBlueprintEditor()
 	// as that function executes a callback that the EditorModeManager is registered to.
 	FEditorModeTools& ModeTools = GetEditorModeManager();
 	((FAssetEditorModeManager&)ModeTools).SetPreviewScene(nullptr);
+
+	FBlueprintCoreDelegates::OnScriptException.Remove(ScriptExceptionHandle);
 }
 
 void FAnimationBlueprintEditor::HandleUpdateSettings(const UAnimationBlueprintEditorSettings* AnimationBlueprintEditorSettings, EPropertyChangeType::Type ChangeType)
@@ -554,6 +556,8 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 		UAnimationBlueprintEditorSettings::FOnUpdateSettingsMulticaster::FDelegate::CreateSP(this, &FAnimationBlueprintEditor::HandleUpdateSettings));
 
 	PersonaToolkit->GetPreviewScene()->SetAllowMeshHitProxies(false);
+
+	ScriptExceptionHandle = FBlueprintCoreDelegates::OnScriptException.AddSP(this, &FAnimationBlueprintEditor::HandleScriptException);
 }
 
 void FAnimationBlueprintEditor::BindCommands()
@@ -1913,6 +1917,12 @@ void FAnimationBlueprintEditor::OnBlueprintPostCompile(UBlueprint* InBlueprint)
 		// We dont cache this persistently, only during a pre/post compile bracket
 		DebuggedMeshComponent = nullptr;
 	}
+
+	// Make sure we re-enable ticking when we recompile (e.g. to fix an infinite loop that paused us)
+	if (USkeletalMeshComponent* SkeletalMeshComponent = GetPreviewScene()->GetPreviewMeshComponent())
+	{
+		SkeletalMeshComponent->SetComponentTickEnabled(true);
+	}
 }
 
 void FAnimationBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled /*= false*/)
@@ -2572,6 +2582,47 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 		],
 		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetCompilationStateVisibility))
 	);
+
+	auto GetInfiniteLoopVisibility = [this]()
+	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent = GetPreviewScene()->GetPreviewMeshComponent())
+		{
+			return SkeletalMeshComponent->IsComponentTickEnabled() ? EVisibility::Collapsed : EVisibility::Visible;
+		}
+		return EVisibility::Collapsed;
+	};
+
+	InPersonaViewport->AddNotification(EMessageSeverity::Error,
+		false,
+		SNew(SHorizontalBox)
+		.Visibility_Lambda(GetInfiniteLoopVisibility)
+		+SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.Padding(4.0f, 4.0f)
+		[
+			SNew(SHorizontalBox)
+			.ToolTipText_Lambda(GetCompilationStateText)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
+				.Text(FEditorFontGlyphs::Exclamation_Triangle)
+			]
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InfiniteLoopDetected", "Infinite Loop Detected"))
+				.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+			]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetInfiniteLoopVisibility))
+	);
 }
 
 void FAnimationBlueprintEditor::LoadEditorSettings()
@@ -2606,6 +2657,26 @@ void FAnimationBlueprintEditor::HandlePreviewAnimBlueprintCompiled(UBlueprint* I
 void FAnimationBlueprintEditor::HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser)
 {
 	SequenceBrowser = InSequenceBrowser;
+}
+
+void FAnimationBlueprintEditor::HandleScriptException(const UObject* InObject, const FFrame& InFrame, const FBlueprintExceptionInfo& InInfo)
+{
+	// If the object is an anim instance in our preview world and is infinitely looping, disable ticking (renabled on recompilation)
+	if (InInfo.GetType() == EBlueprintExceptionType::InfiniteLoop)
+	{
+		if (InObject && InObject->IsA<UAnimInstance>())
+		{
+			UWorld* ObjectWorld = InObject->GetWorld();
+			TSharedRef<IPersonaPreviewScene> ThisPreviewScene = GetPreviewScene();
+			if (ObjectWorld == ThisPreviewScene->GetWorld())
+			{
+				if (USkeletalMeshComponent* SkeletalMeshComponent = ThisPreviewScene->GetPreviewMeshComponent())
+				{
+					SkeletalMeshComponent->SetComponentTickEnabled(false);
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

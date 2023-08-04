@@ -43,6 +43,8 @@ class UObject;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 struct FToolMenuContext;
+struct FFrame;
+struct FBlueprintExceptionInfo;
 
 struct FAnimationBlueprintEditorModes
 {
@@ -358,6 +360,9 @@ private:
 
 	void HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser);
 
+	/** Hook the BP exception handler to deal with infinite loops (more) gracefully */
+	void HandleScriptException(const UObject* InObject, const FFrame& InFrame, const FBlueprintExceptionInfo& InInfo);
+
 	void HandleUpdateSettings(const UAnimationBlueprintEditorSettings* AnimationBlueprintEditorSettings, EPropertyChangeType::Type ChangeType);
 
 	/** Chooses a suitable pose watch color automatically - i.e. one that isn't already in use (if possible) */
@@ -422,4 +427,7 @@ private:
 
 	/** Delegate handle registered for when settings change */
 	FDelegateHandle AnimationBlueprintEditorSettingsChangedHandle;
+
+	/** Delegate handle registered to handle infinite loop exceptions */
+	FDelegateHandle ScriptExceptionHandle;
 };
