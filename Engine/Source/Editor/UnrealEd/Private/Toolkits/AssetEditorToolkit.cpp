@@ -588,6 +588,12 @@ void FAssetEditorToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) const
 
 void FAssetEditorToolkit::AddEditingObject(UObject* Object)
 {
+	// Don't allow adding the same object twice (or notify asset opened twice)
+	if(EditingObjects.Contains(Object))
+	{
+		return;
+	}
+	
 	EditingObjects.Add(Object);
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetOpened( Object, this );
 }
