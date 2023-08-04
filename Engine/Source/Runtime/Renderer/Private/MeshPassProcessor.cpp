@@ -909,70 +909,17 @@ void FGraphicsMinimalPipelineStateInitializer::SetupBoundShaderState(FRHIVertexD
 #endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 }
 
-void FGraphicsMinimalPipelineStateInitializer::ComputePrecachePSOHash()
+void FGraphicsMinimalPipelineStateInitializer::ComputeStatePrecachePSOHash()
 {
-	struct FHashKey
+	if(StatePrecachePSOHash == 0)
 	{
-		uint32 VertexDeclaration;
-		uint32 VertexShader;
-		uint32 PixelShader;
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		uint32 GeometryShader;
-#endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-		uint32 MeshShader;
-#endif // PLATFORM_SUPPORTS_MESH_SHADERS
-		uint32 BlendState;
-		uint32 RasterizerState;
-		uint32 DepthStencilState;
-		uint32 ImmutableSamplerState;
-
-		uint32 MultiViewCount : 8;
-		uint32 DrawShadingRate : 8;
-		uint32 PrimitiveType : 8;
-		uint32 bDepthBounds : 1;
-		uint32 bHasFragmentDensityAttachment : 1;
-		uint32 Unused : 6;
-	} HashKey;
-
-	FMemory::Memzero(&HashKey, sizeof(FHashKey));
-
-	HashKey.VertexDeclaration = BoundShaderState.VertexDeclarationRHI ? BoundShaderState.VertexDeclarationRHI->GetPrecachePSOHash() : 0;
-	HashKey.VertexShader = BoundShaderState.VertexShaderResource.IsValid() ? GetTypeHash(BoundShaderState.VertexShaderResource->GetShaderHash(BoundShaderState.VertexShaderIndex)) : 0;
-	HashKey.PixelShader = BoundShaderState.PixelShaderResource.IsValid() ? GetTypeHash(BoundShaderState.PixelShaderResource->GetShaderHash(BoundShaderState.PixelShaderIndex)) : 0;
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	HashKey.GeometryShader = BoundShaderState.GeometryShaderResource.IsValid() ? GetTypeHash(BoundShaderState.GeometryShaderResource->GetShaderHash(BoundShaderState.GeometryShaderIndex)) : 0;
-#endif
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	HashKey.MeshShader = BoundShaderState.MeshShaderResource.IsValid() ? GetTypeHash(BoundShaderState.MeshShaderResource->GetShaderHash(BoundShaderState.MeshShaderIndex)) : 0;
-#endif
-
-	FBlendStateInitializerRHI BlendStateInitializerRHI;
-	if (BlendState && BlendState->GetInitializer(BlendStateInitializerRHI))
-	{
-		HashKey.BlendState = GetTypeHash(BlendStateInitializerRHI);
+		StatePrecachePSOHash = AsGraphicsPipelineStateInitializer().StatePrecachePSOHash;
+		check(StatePrecachePSOHash);
 	}
-	FRasterizerStateInitializerRHI RasterizerStateInitializerRHI;
-	if (RasterizerState && RasterizerState->GetInitializer(RasterizerStateInitializerRHI))
+	else
 	{
-		HashKey.RasterizerState = GetTypeHash(RasterizerStateInitializerRHI);
+		checkSlow(StatePrecachePSOHash == AsGraphicsPipelineStateInitializer().StatePrecachePSOHash);
 	}
-	FDepthStencilStateInitializerRHI DepthStencilStateInitializerRHI;
-	if (DepthStencilState && DepthStencilState->GetInitializer(DepthStencilStateInitializerRHI))
-	{
-		HashKey.DepthStencilState = GetTypeHash(DepthStencilStateInitializerRHI);
-	}
-
-	// Ignore immutable samplers for now
-	//HashKey.ImmutableSamplerState = GetTypeHash(ImmutableSamplerState);
-	
-	HashKey.MultiViewCount = MultiViewCount;
-	HashKey.DrawShadingRate = DrawShadingRate;
-	HashKey.PrimitiveType = PrimitiveType;
-	HashKey.bDepthBounds = bDepthBounds;
-	HashKey.bHasFragmentDensityAttachment = bHasFragmentDensityAttachment;
-
-	PrecachePSOHash = CityHash64((const char*)&HashKey, sizeof(FHashKey));
 }
 
 #if RHI_RAYTRACING
@@ -2312,7 +2259,8 @@ FGraphicsMinimalPipelineStateInitializer PSOCollectorStats::GetShadersOnlyInitia
 	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer;
 	ShadersOnlyInitializer.BoundShaderState = Initializer.BoundShaderState;
 	ShadersOnlyInitializer.BoundShaderState.VertexDeclarationRHI = nullptr;
-	ShadersOnlyInitializer.ComputePrecachePSOHash();
+	ShadersOnlyInitializer.ComputeStatePrecachePSOHash();
+
 	return ShadersOnlyInitializer;
 }
 
@@ -2328,14 +2276,14 @@ FGraphicsMinimalPipelineStateInitializer PSOCollectorStats::PatchMinimalPipeline
 	//PatchedInitializer.UniqueEntry = false;
 
 	// Recompute the hash when disabling certain states for checks.
-	//PatchedInitializer.ComputePrecachePSOHash();
+	PatchedInitializer.ComputeStatePrecachePSOHash();
 
 	return PatchedInitializer;
 }
 
 uint64 PSOCollectorStats::GetPSOPrecacheHash(const FGraphicsMinimalPipelineStateInitializer& GraphicsPSOInitializer)
 {
-	return GraphicsPSOInitializer.PrecachePSOHash;
+	return GraphicsPSOInitializer.StatePrecachePSOHash;
 }
 
 #endif // PSO_PRECACHING_VALIDATE

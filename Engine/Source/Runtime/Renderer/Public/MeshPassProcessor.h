@@ -315,18 +315,19 @@ public:
 		, bDepthBounds(InMinimalState.bDepthBounds)
 		, DrawShadingRate(InMinimalState.DrawShadingRate)
 		, PrimitiveType(InMinimalState.PrimitiveType)
-		, PrecachePSOHash(InMinimalState.PrecachePSOHash)
+		, StatePrecachePSOHash(InMinimalState.StatePrecachePSOHash)
 		, PSOPrecacheState(InMinimalState.PSOPrecacheState)
 	{
 	}
 
 	RENDERER_API void SetupBoundShaderState(FRHIVertexDeclaration* VertexDeclaration, const FMeshProcessorShaders& Shaders);
-	RENDERER_API void ComputePrecachePSOHash();
+
+ 	RENDERER_API void ComputeStatePrecachePSOHash();
 
 	FGraphicsPipelineStateInitializer AsGraphicsPipelineStateInitializer() const
 	{	
-		return FGraphicsPipelineStateInitializer
-		(	BoundShaderState.AsBoundShaderState()
+		FGraphicsPipelineStateInitializer result(
+			BoundShaderState.AsBoundShaderState()
 			, BlendState
 			, RasterizerState
 			, DepthStencilState
@@ -351,8 +352,15 @@ public:
 			, MultiViewCount
 			, bHasFragmentDensityAttachment
 			, DrawShadingRate
-			, PrecachePSOHash
 		);
+
+		if (PipelineStateCache::IsPSOPrecachingEnabled() )
+		{
+			checkSlow(StatePrecachePSOHash == 0 || RHIComputeStatePrecachePSOHash(result) == StatePrecachePSOHash);
+			result.StatePrecachePSOHash = StatePrecachePSOHash == 0 ? RHIComputeStatePrecachePSOHash(result) : StatePrecachePSOHash;			
+		}
+
+		return result;
 	}
 
 	inline bool operator==(const FGraphicsMinimalPipelineStateInitializer& rhs) const
@@ -491,7 +499,7 @@ public:
 	EPrimitiveType					PrimitiveType;
 		
 	// Data hash of the minimal PSO which is used to optimize the computation of the full PSO
-	uint64							PrecachePSOHash = 0;
+	uint64							StatePrecachePSOHash = 0;
 	// The PSO precache state - updated at draw time and can be used to skip draw when still precaching
 	mutable EPSOPrecacheResult		PSOPrecacheState = EPSOPrecacheResult::Unknown;
 };

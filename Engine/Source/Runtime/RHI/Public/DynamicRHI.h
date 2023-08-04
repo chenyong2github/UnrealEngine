@@ -678,6 +678,9 @@ public:
 	{
 	}
 	
+	// Compute the hash of the state components of the PSO initializer for PSO Precaching (only hash data relevant for the RHI specific PSO)
+	RHI_API virtual uint64 RHIComputeStatePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer);
+
 	// Compute the hash of the PSO initializer for PSO Precaching (only hash data relevant for the RHI specific PSO)
 	RHI_API virtual uint64 RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer);
 
@@ -1460,6 +1463,11 @@ FORCEINLINE IRHITransientResourceAllocator* RHICreateTransientResourceAllocator(
 FORCEINLINE void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
 {
 	GDynamicRHI->RHIGetDisplaysInformation(OutDisplayInformation);
+}
+
+FORCEINLINE uint64 RHIComputeStatePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)
+{
+	return GDynamicRHI->RHIComputeStatePrecachePSOHash(Initializer);
 }
 
 FORCEINLINE uint64 RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)

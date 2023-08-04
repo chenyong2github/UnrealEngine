@@ -106,7 +106,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	// PSO Precache hash only needed when PSO precaching is enabled
 	if (PipelineStateCache::IsPSOPrecachingEnabled())
 	{
-		PipelineState.ComputePrecachePSOHash();
+		PipelineState.ComputeStatePrecachePSOHash();
 	}
 
 	check(VertexFactory && VertexFactory->IsInitialized());
@@ -116,9 +116,9 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	if (PSOCollectorStats::IsMinimalPSOValidationEnabled())
 	{
 		FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(PipelineState);
-		PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().CheckStateInCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
+		PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().CheckStateInCacheByHash(ShadersOnlyInitializer.StatePrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
 		FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(PipelineState);
-		PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().CheckStateInCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
+		PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().CheckStateInCacheByHash(PatchedMinimalInitializer.StatePrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
 	}
 #endif // PSO_PRECACHING_VALIDATE
 
@@ -284,10 +284,12 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	MinimalPipelineStateInitializer.DepthStencilState = DrawRenderState.GetDepthStencilState();
 	MinimalPipelineStateInitializer.DrawShadingRate = GetShadingRateFromMaterial(MaterialResource.GetShadingRate());
 
-	MinimalPipelineStateInitializer.ComputePrecachePSOHash();
+	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
+	FGraphicsPipelineStateInitializer PipelineStateInitializer = MinimalPipelineStateInitializer.AsGraphicsPipelineStateInitializer(); 
 #if PSO_PRECACHING_VALIDATE
 	if (PSOCollectorStats::IsMinimalPSOValidationEnabled())
 	{
+		MinimalPipelineStateInitializer.StatePrecachePSOHash = PipelineStateInitializer.StatePrecachePSOHash;
 		FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
 		PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
 		FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
@@ -295,8 +297,6 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	}
 #endif // PSO_PRECACHING_VALIDATE
 
-	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
-	FGraphicsPipelineStateInitializer PipelineStateInitializer = MinimalPipelineStateInitializer.AsGraphicsPipelineStateInitializer();
 	ApplyTargetsInfo(PipelineStateInitializer, RenderTargetsInfo);
 	PipelineStateInitializer.SubpassHint = SubpassHint;
 	PipelineStateInitializer.SubpassIndex = SubpassIndex;

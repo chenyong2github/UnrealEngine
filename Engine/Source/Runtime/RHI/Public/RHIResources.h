@@ -3745,8 +3745,7 @@ public:
 		bool						bInDepthBounds,
 		uint8						InMultiViewCount,
 		bool						bInHasFragmentDensityAttachment,
-		EVRSShadingRate				InShadingRate,
-		uint64						InStatePrecachePSOHash)
+		EVRSShadingRate				InShadingRate)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
 		, RasterizerState(InRasterizerState)
@@ -3772,7 +3771,7 @@ public:
 		, bHasFragmentDensityAttachment(bInHasFragmentDensityAttachment)
 		, ShadingRate(InShadingRate)
 		, Flags(InFlags)
-		, StatePrecachePSOHash(InStatePrecachePSOHash)
+		, StatePrecachePSOHash(0)
 	{
 	}
 
