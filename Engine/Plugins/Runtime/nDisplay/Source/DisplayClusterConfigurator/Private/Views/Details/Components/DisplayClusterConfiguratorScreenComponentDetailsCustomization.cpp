@@ -154,8 +154,10 @@ void FDisplayClusterConfiguratorScreenDetailsCustomization::GetAspectRatioAndSet
 	if (UDisplayClusterScreenComponent* Archetype = Cast<UDisplayClusterScreenComponent>(ScreenComponentPtr->GetArchetype()))
 	{
 		// Set the DEFAULT value here, that way user can always reset to default for the current preset.
-		Archetype->Modify();
-		Archetype->SetScreenSize(Preset.Size);
+		if (Archetype->GetScreenSize() != Preset.Size)
+		{
+			Archetype->SetScreenSize(Preset.Size);
+		}
 	}
 
 	if (OutAspectRatio)
