@@ -344,7 +344,7 @@ AssetEditorViewportFactoryFunction FChaosClothAssetEditorToolkit::GetViewportDel
 	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
 		return SAssignNew(RestSpaceViewportWidget, SChaosClothAssetEditorRestSpaceViewport, InArgs)
-			.EditorViewportClient(ViewportClient);
+			.RestSpaceViewportClient(StaticCastSharedPtr<FChaosClothEditorRestSpaceViewportClient>(ViewportClient));
 	};
 
 	return TempViewportDelegate;

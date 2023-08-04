@@ -2,6 +2,7 @@
 
 #include "ChaosClothAsset/SClothEditorRestSpaceViewportToolBar.h"
 #include "ChaosClothAsset/SClothEditorRestSpaceViewport.h"
+#include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "EditorViewportCommands.h"
 #include "Styling/AppStyle.h"
@@ -13,11 +14,14 @@
 #include "EditorModeManager.h"
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "ToolMenus.h"
+#include "Widgets/Input/SSpinBox.h"
 
 #define LOCTEXT_NAMESPACE "SChaosClothAssetEditorRestSpaceViewportToolBar"
 
 void SChaosClothAssetEditorRestSpaceViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<SChaosClothAssetEditorRestSpaceViewport> InChaosClothAssetEditorViewport)
 {
+	RestSpaceViewportClient = InArgs._RestSpaceViewportClient;
+
 	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments(), InChaosClothAssetEditorViewport);
 
 	ChaosClothAssetEditorRestSpaceViewportPtr = InChaosClothAssetEditorViewport;
@@ -60,13 +64,85 @@ void SChaosClothAssetEditorRestSpaceViewportToolBar::Construct(const FArguments&
 		];
 }
 
+TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateClothRestSpaceViewportOptionsMenu()
+{
+	GetInfoProvider().OnFloatingButtonClicked();
+	TSharedRef<SEditorViewport> ViewportRef = GetInfoProvider().GetViewportWidget();
+
+	const bool bIsPerspective = GetViewportClient().GetViewportType() == LVT_Perspective;
+	const bool bInShouldCloseWindowAfterMenuSelection = true;
+
+	FMenuBuilder OptionsMenuBuilder(bInShouldCloseWindowAfterMenuSelection, ViewportRef->GetCommandList());
+	{
+		OptionsMenuBuilder.BeginSection("ClothEditorViewportOptions", LOCTEXT("OptionsMenuHeader", "Viewport Options"));
+		{
+			if (bIsPerspective)
+			{
+				OptionsMenuBuilder.AddWidget(GenerateFOVMenu(), LOCTEXT("FOVAngle", "Field of View (H)"));
+			}
+			OptionsMenuBuilder.AddWidget(GenerateLightMenu(), LOCTEXT("LightIntensity", "Render Light Intensity"));
+		}
+		OptionsMenuBuilder.EndSection();
+
+		ExtendOptionsMenu(OptionsMenuBuilder);
+	}
+
+	return OptionsMenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateLightMenu()
+{
+	constexpr float IntensityMin = 0.f;
+	constexpr float IntensityMax = 20.f;
+	
+	return 
+		SNew(SBox)
+		.HAlign(HAlign_Right)
+		[
+			SNew(SBox)
+			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+			.WidthOverride(100.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SSpinBox<float>)
+					.Style(&FAppStyle::Get(), "Menu.SpinBox")
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.MinValue(IntensityMin)
+					.MaxValue(IntensityMax)
+					.Value(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GetCameraPointLightIntensity)
+					.OnValueChanged(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::CameraPointLightIntensityChanged)
+					.IsEnabled(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::IsRenderModeEnabled)
+				]
+			]
+		];
+}
+
+
+float SChaosClothAssetEditorRestSpaceViewportToolBar::GetCameraPointLightIntensity() const
+{
+	return RestSpaceViewportClient->GetCameraPointLightIntensity();
+}
+
+void SChaosClothAssetEditorRestSpaceViewportToolBar::CameraPointLightIntensityChanged(float NewValue)
+{
+	RestSpaceViewportClient->SetCameraPointLightIntensity(NewValue);
+}
+
+bool SChaosClothAssetEditorRestSpaceViewportToolBar::IsRenderModeEnabled() const
+{
+	return RestSpaceViewportClient->GetConstructionViewMode() == UE::Chaos::ClothAsset::EClothPatternVertexType::Render;
+}
+
 TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeOptionsMenu()
 {
 	return SNew(SEditorViewportToolbarMenu)
 		.ParentToolBar(SharedThis(this))
 		.Cursor(EMouseCursor::Default)
 		.Image("EditorViewportToolBar.OptionsDropdown")
-		.OnGetMenuContent(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateClothViewportOptionsMenu);
+		.OnGetMenuContent(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateClothRestSpaceViewportOptionsMenu);
 }
 
 TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders)

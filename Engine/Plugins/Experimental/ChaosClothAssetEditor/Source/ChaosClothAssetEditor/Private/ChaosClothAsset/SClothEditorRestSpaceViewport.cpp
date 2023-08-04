@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/SClothEditorRestSpaceViewport.h"
+#include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
 #include "SViewportToolBar.h"
 #include "ChaosClothAsset/SClothEditorRestSpaceViewportToolBar.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
@@ -11,8 +12,10 @@
 
 void SChaosClothAssetEditorRestSpaceViewport::Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs)
 {
+	RestSpaceViewportClient = InArgs._RestSpaceViewportClient;
+
 	SAssetEditorViewport::FArguments ParentArgs;
-	ParentArgs._EditorViewportClient = InArgs._EditorViewportClient;
+	ParentArgs._EditorViewportClient = InArgs._RestSpaceViewportClient;
 	if (InArgs._ViewportSize.IsSet())
 	{
 		ParentArgs._ViewportSize = InArgs._ViewportSize;
@@ -153,7 +156,8 @@ void SChaosClothAssetEditorRestSpaceViewport::BindCommands()
 TSharedPtr<SWidget> SChaosClothAssetEditorRestSpaceViewport::MakeViewportToolbar()
 {
 	return SNew(SChaosClothAssetEditorRestSpaceViewportToolBar, SharedThis(this))
-		.CommandList(CommandList);
+		.CommandList(CommandList)
+		.RestSpaceViewportClient(RestSpaceViewportClient);
 }
 
 

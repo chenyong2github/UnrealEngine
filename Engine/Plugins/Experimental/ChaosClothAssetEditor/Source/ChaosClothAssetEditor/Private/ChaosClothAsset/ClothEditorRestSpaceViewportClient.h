@@ -34,9 +34,13 @@ public:
 	virtual bool ShouldOrbitCamera() const override;
 
 	void SetConstructionViewMode(EClothPatternVertexType InViewMode);
+	EClothPatternVertexType GetConstructionViewMode() const;
 
 	void SetEditorViewportWidget(TWeakPtr<SEditorViewport> InEditorViewportWidget);
 	void SetToolCommandList(TWeakPtr<FUICommandList> ToolCommandList);
+
+	float GetCameraPointLightIntensity() const;
+	void SetCameraPointLightIntensity(float Intensity);
 
 private:
 

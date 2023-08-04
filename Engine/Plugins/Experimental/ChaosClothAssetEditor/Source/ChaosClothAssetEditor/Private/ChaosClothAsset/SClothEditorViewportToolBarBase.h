@@ -9,8 +9,6 @@ class CHAOSCLOTHASSETEDITOR_API SChaosClothAssetEditorViewportToolBarBase : publ
 {
 protected:
 	TSharedRef<SWidget> GenerateClothViewportOptionsMenu() const;
-
-private:
 	TSharedRef<SWidget> GenerateFOVMenu() const;
 	float OnGetFOVValue() const;
 };

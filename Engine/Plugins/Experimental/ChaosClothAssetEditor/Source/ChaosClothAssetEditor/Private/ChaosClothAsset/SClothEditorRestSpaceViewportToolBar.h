@@ -7,6 +7,7 @@
 class FExtender;
 class FUICommandList;
 class SChaosClothAssetEditorRestSpaceViewport;
+namespace UE::Chaos::ClothAsset { class FChaosClothEditorRestSpaceViewportClient; }
 
 /**
  * Toolbar that shows up at the top of the rest space viewport
@@ -17,11 +18,20 @@ public:
 	SLATE_BEGIN_ARGS(SChaosClothAssetEditorRestSpaceViewportToolBar) {}
 		SLATE_ARGUMENT(TSharedPtr<FUICommandList>, CommandList)
 		SLATE_ARGUMENT(TSharedPtr<FExtender>, Extenders)
+		SLATE_ARGUMENT(TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient>, RestSpaceViewportClient)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<class SChaosClothAssetEditorRestSpaceViewport> InChaosClothAssetEditorViewport);
 
 private:
+
+	float GetCameraPointLightIntensity() const;
+	void CameraPointLightIntensityChanged(float NewValue);
+	bool IsRenderModeEnabled() const;
+
+	TSharedRef<SWidget> GenerateLightMenu();
+	TSharedRef<SWidget> GenerateClothRestSpaceViewportOptionsMenu();
+
 	TSharedRef<SWidget> MakeOptionsMenu();
 	TSharedRef<SWidget> MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders);
 	TSharedRef<SWidget> MakeToolBar(const TSharedPtr<FExtender> InExtenders);
@@ -34,6 +44,9 @@ private:
 
 	/** The viewport that we are in */
 	TWeakPtr<class SChaosClothAssetEditorRestSpaceViewport> ChaosClothAssetEditorRestSpaceViewportPtr;
+
+	/** Client associated with the viewport we are in */
+	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> RestSpaceViewportClient;
 
 	TSharedPtr<FUICommandList> CommandList;
 };

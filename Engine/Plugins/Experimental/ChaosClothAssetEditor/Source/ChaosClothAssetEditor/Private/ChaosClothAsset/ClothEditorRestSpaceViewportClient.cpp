@@ -59,7 +59,7 @@ FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClie
 	CameraPointLight = NewObject<UPointLightComponent>();
 	CameraPointLight->bUseInverseSquaredFalloff = false;
 	CameraPointLight->LightFalloffExponent = 2.0f;
-	CameraPointLight->SetIntensity(3.0f);		// TODO: Hook this up to a slider in the UI?
+	CameraPointLight->SetIntensity(3.0f);
 	CameraPointLight->SetCastShadows(false);
 	PreviewScene->AddComponent(CameraPointLight, FTransform());
 }
@@ -97,6 +97,12 @@ void FChaosClothEditorRestSpaceViewportClient::SetConstructionViewMode(EClothPat
 
 	ModeTools->GetInteractiveToolsContext()->InputRouter->DeregisterSource(this);
 	ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
+}
+
+
+EClothPatternVertexType FChaosClothEditorRestSpaceViewportClient::GetConstructionViewMode() const
+{
+	return ConstructionViewMode;
 }
 
 const UInputBehaviorSet* FChaosClothEditorRestSpaceViewportClient::GetInputBehaviors() const
@@ -170,4 +176,16 @@ void FChaosClothEditorRestSpaceViewportClient::SetToolCommandList(TWeakPtr<FUICo
 {
 	ToolCommandList = InToolCommandList;
 }
+
+float FChaosClothEditorRestSpaceViewportClient::GetCameraPointLightIntensity() const
+{
+	return CameraPointLight->Intensity;
+}
+
+void FChaosClothEditorRestSpaceViewportClient::SetCameraPointLightIntensity(float Intensity)
+{
+	CameraPointLight->SetIntensity(Intensity);
+}
+
+
 } // namespace UE::Chaos::ClothAsset
