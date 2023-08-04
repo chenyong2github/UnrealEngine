@@ -107,8 +107,6 @@ static FAutoConsoleVariableRef CVarDormancyHysteresis(
 	TEXT("When > 0, represents the time we'll wait before letting a channel become fully dormant (in seconds). This can prevent churn when objects are going in and out of dormant more frequently than normal.")
 );
 
-extern bool GUseDetailedScopeCounters;
-
 namespace UE::Net
 {
 	extern int32 FilterGuidRemapping;

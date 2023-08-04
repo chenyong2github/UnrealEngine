@@ -11,7 +11,7 @@
 #include "Net/Core/NetHandle/NetHandleManager.h"
 #include "Net/Serialization/FastArraySerializer.h"
 
-extern bool GUseDetailedScopeCounters;
+bool GUseDetailedScopeCounters=true;
 static FAutoConsoleVariableRef CVarNetEnableDetailedScopeCounters(
 	TEXT("net.EnableDetailedScopeCounters"),
 	GUseDetailedScopeCounters,

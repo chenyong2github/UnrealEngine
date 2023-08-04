@@ -2,4 +2,5 @@
 
 #pragma once
 
-static bool GUseDetailedScopeCounters = true;
+
+extern NETCORE_API bool GUseDetailedScopeCounters;

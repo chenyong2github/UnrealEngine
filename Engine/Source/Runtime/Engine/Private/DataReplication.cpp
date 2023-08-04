@@ -84,8 +84,6 @@ FAutoConsoleVariableRef CVarPushModelSkipUndirtiedFastArrays(
 
 extern int32 GNumSkippedObjectEmptyUpdates;
 
-extern bool GUseDetailedScopeCounters;
-
 class FNetSerializeCB : public INetSerializeCB
 {
 private:

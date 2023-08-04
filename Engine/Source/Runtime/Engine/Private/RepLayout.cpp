@@ -116,8 +116,6 @@ namespace UE::Net::Private
 extern int32 GNumSharedSerializationHit;
 extern int32 GNumSharedSerializationMiss;
 
-extern bool GUseDetailedScopeCounters;
-
 /** 
 * Helper method to allow us to instrument FBitArchive using FNetTraceCollector
 * The rationale behind this variant being declared here is that it makes ugly assumption about FBitArchive when being used to collect stats either is a BitWriter or a BitReader
