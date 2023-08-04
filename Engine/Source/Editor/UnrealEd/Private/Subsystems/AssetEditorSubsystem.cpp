@@ -189,8 +189,8 @@ void UAssetEditorSubsystem::CullRecentAssetEditorsMap()
 	{
 		for (TMap<FString, FString>::TIterator It(RecentAssetToAssetEditorMap); It; ++It)
 		{
-			// Remove any entries that are not in the mru list
-			if(RecentAssetsList->FindMRUItemIdx(It->Key) == INDEX_NONE)
+			// Remove any entries that are not in the mru list or if the package isn't valid anymore
+			if(!FPackageName::IsValidLongPackageName(It->Key) || RecentAssetsList->FindMRUItemIdx(It->Key) == INDEX_NONE)
 			{
 				It.RemoveCurrent();
 			}
