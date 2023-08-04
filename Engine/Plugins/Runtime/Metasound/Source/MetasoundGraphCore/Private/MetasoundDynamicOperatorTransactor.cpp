@@ -207,16 +207,16 @@ namespace Metasound
 				return;
 			}
 
-			// Store literal node associated with the target of the literal value.
-			LiteralNodeMap.Add(FLiteralNodeID{InToNodeID, InToVertex}, MoveTemp(InReplacementLiteralNode));
 			/* remove edge from internal graph. */
 			bool bSuccess = Graph.RemoveDataEdge(*FromNode, InFromVertex, *ToNode, InToVertex);
 			if (!bSuccess)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove edge from %s:%s to %s:%s on internal graph."), *InFromNodeID.ToString(), *InFromVertex.ToString(), *InToNodeID.ToString(), *InToVertex.ToString());
-				// No need to early exit here because edge likely did not exist.
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to remove edge from %s:%s to %s:%s on internal graph."), *InFromNodeID.ToString(), *InFromVertex.ToString(), *InToNodeID.ToString(), *InToVertex.ToString());
+				return;
 			}
 
+			// Store literal node associated with the target of the literal value.
+			LiteralNodeMap.Add(FLiteralNodeID{ InToNodeID, InToVertex }, MoveTemp(InReplacementLiteralNode));
 			bSuccess = Graph.AddDataEdge(*ReplacementLiteralNode, DynamicOperatorTransactorPrivate::LiteralNodeOutputVertexName, *ToNode, InToVertex);
 			if (!bSuccess)
 			{
@@ -269,7 +269,7 @@ namespace Metasound
 
 			AddDataEdgeInternal(*LiteralNode, DynamicOperatorTransactorPrivate::LiteralNodeOutputVertexName, InNodeID, *Node, InVertex);
 
-			// Add literal node before calling "AddDataEdgeInternal" so that AddDataEdgeInternal can check if there is an existing literal node.
+			// Add literal node after calling "AddDataEdgeInternal" so that AddDataEdgeInternal can check if there is a prior existing literal node.
 			LiteralNodeMap.Add(FLiteralNodeID{InNodeID, InVertex}, MoveTemp(InLiteralNode));
 		}
 

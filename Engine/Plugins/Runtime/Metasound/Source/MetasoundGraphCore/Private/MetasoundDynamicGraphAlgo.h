@@ -87,6 +87,21 @@ namespace Metasound
 			TArray<FResetEntry> ResetTable;
 		};
 
+		/** Update the runtime table entries.
+		 * 
+		 * This updates the function tables in the FDynamicGraphOperatorData for a given operator. For an operator to exist in the function tables
+		 * it must provide a function to be called from GetExecutionFunction(), GetPostExecutionFunction() and/or GetResetFunction() and the operator's ID
+		 * must also be present in the FDynamicGraphOperatorData's operator order array.  If either of these are not true, then the operator will 
+		 * not have an entry in a specific execution table. 
+		 * 
+		 * Note: This function does not update the order of the entry in the execution table. 
+		 * 
+		 * @param InOperatorID - ID of operator to update.
+		 * @param InOperator - Pointer to operator.
+		 * @param InOutGraphOperatorData - Structure containing the operator order and runtime tables.
+		 */
+		void UpdateGraphRuntimeTableEntries(const FOperatorID& InOperatorID, IOperator* InOperator, FDynamicGraphOperatorData& InOutGraphOperatorData);
+
 		/** Propagate FVertexInterfaceData updates through the operators in the Dynamic Graph Operator Data. 
 		 *
 		 * A change to an operator's input may result in a change to the operator's output. The updates to the

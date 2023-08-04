@@ -226,15 +226,26 @@ namespace Metasound
 		{
 		}
 
-		EDynamicOperatorTransformQueueAction FSetOperatorOrder::Transform(FDynamicGraphOperatorData& InGraphOperatorData)
+		EDynamicOperatorTransformQueueAction FSetOperatorOrder::Transform(FDynamicGraphOperatorData& InOutGraphOperatorData)
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::DynamicOperator::SetOperatorOrder)
 
 			using namespace DynamicOperatorPrivate;
 
-			FTableSorter::SortTable(Order, InGraphOperatorData.ExecuteTable);
-			FTableSorter::SortTable(Order, InGraphOperatorData.PostExecuteTable);
-			FTableSorter::SortTable(Order, InGraphOperatorData.ResetTable);
+			InOutGraphOperatorData.OperatorOrder = Order;
+
+			// Update the entry into the various runtime tables dependent upon when the operator exists
+			// in the operator order array.
+			for (const TPair<FOperatorID, FOperatorInfo>& OpIDAndInfo : InOutGraphOperatorData.OperatorMap)
+			{
+				IOperator* Operator = OpIDAndInfo.Value.Operator.Get();
+				UpdateGraphRuntimeTableEntries(OpIDAndInfo.Key, Operator, InOutGraphOperatorData);
+			}
+
+			// Sort operator tables to be in the correct order.
+			FTableSorter::SortTable(Order, InOutGraphOperatorData.ExecuteTable);
+			FTableSorter::SortTable(Order, InOutGraphOperatorData.PostExecuteTable);
+			FTableSorter::SortTable(Order, InOutGraphOperatorData.ResetTable);
 
 			return EDynamicOperatorTransformQueueAction::Continue;
 		}

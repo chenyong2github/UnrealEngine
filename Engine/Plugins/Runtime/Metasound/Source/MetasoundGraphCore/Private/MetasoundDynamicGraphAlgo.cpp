@@ -17,20 +17,21 @@ namespace Metasound
 		namespace DynamicGraphAlgoPrivate
 		{
 			template<typename EntryType, typename FunctionType>
-			void UpdateTableEntry(const TArray<FOperatorID>& InOperatorOrder, const FOperatorID& InOperatorID, IOperator& InOperator, TArray<EntryType>& InOutTable, FunctionType InFunction)
+			void UpdateTableEntry(const TArray<FOperatorID>& InOperatorOrder, const FOperatorID& InOperatorID, IOperator* InOperator, TArray<EntryType>& InOutTable, FunctionType InFunction)
 			{
 				using namespace DirectedGraphAlgo;
 
 				int32 EntryIndex = InOutTable.IndexOfByPredicate([&](const EntryType& InEntry) { return InEntry.OperatorID == InOperatorID; });
 
-				bool bEntryShouldExist = (nullptr != InFunction);
+				int32 OperatorIndex = InOperatorOrder.Find(InOperatorID);
+				bool bEntryShouldExist = (nullptr != InOperator) && (nullptr != InFunction) && (INDEX_NONE != OperatorIndex); // Remove operators if they have no function for this table, or if they or not in the operator execution order. 
 				bool bEntryCurrentlyExists = (EntryIndex != INDEX_NONE);
 
 				if (bEntryCurrentlyExists && bEntryShouldExist)
 				{
 					// Update the existing entry
 					InOutTable[EntryIndex].Function = InFunction;
-					InOutTable[EntryIndex].Operator = &InOperator;
+					InOutTable[EntryIndex].Operator = InOperator;
 				}
 				else if (bEntryCurrentlyExists)
 				{
@@ -39,14 +40,8 @@ namespace Metasound
 				}
 				else if (bEntryShouldExist)
 				{
+					check(InOperator);
 					// Add new entry
-					int32 OperatorIndex = InOperatorOrder.Find(InOperatorID);
-					if (INDEX_NONE == OperatorIndex)
-					{
-						UE_LOG(LogMetaSound, Error, TEXT("Failed to update operator stack. OperatorID not found in operator order array."));
-						return;
-					}
-
 					int32 PreceedingOperatorIndex = OperatorIndex - 1;
 					int32 InsertLocation = 0; // Default to inserting at the beginning
 					while (PreceedingOperatorIndex >= 0)
@@ -62,17 +57,20 @@ namespace Metasound
 						}
 					}
 
-					InOutTable.Insert(EntryType{InOperatorID, InOperator, InFunction}, InsertLocation);
+					InOutTable.Insert(EntryType{InOperatorID, *InOperator, InFunction}, InsertLocation);
 				}
 			}
 
-			void UpdateGraphRuntimeTables(const FOperatorID& InOperatorID, IOperator& InOperator, FDynamicGraphOperatorData& InOutGraphOperatorData)
-			{
-				UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.ExecuteTable, InOperator.GetExecuteFunction());
-				UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.PostExecuteTable, InOperator.GetPostExecuteFunction());
-				UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.ResetTable, InOperator.GetResetFunction());
-			}
 		} // namespace DynamicGraphAlgoPrivate
+
+		void UpdateGraphRuntimeTableEntries(const FOperatorID& InOperatorID, IOperator* InOperator, FDynamicGraphOperatorData& InOutGraphOperatorData)
+		{
+			using namespace DynamicGraphAlgoPrivate;
+
+			UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.ExecuteTable, InOperator ? InOperator->GetExecuteFunction() : nullptr);
+			UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.PostExecuteTable, InOperator ? InOperator->GetPostExecuteFunction() : nullptr);
+			UpdateTableEntry(InOutGraphOperatorData.OperatorOrder, InOperatorID, InOperator, InOutGraphOperatorData.ResetTable, InOperator ? InOperator->GetResetFunction() : nullptr);
+		}
 
 		// Apply updates to data references through all the operators by following connections described in the FOperatorInfo map.
 		void PropagateBindUpdate(FOperatorID InInitialOperatorID, const FVertexName& InVertexName, const FAnyDataReference& InNewReference, FDynamicGraphOperatorData& InOutGraphOperatorData)
@@ -110,7 +108,7 @@ namespace Metasound
 					Operator.BindOutputs(OpInfo->VertexData.GetOutputs());
 
 					// Update execute/postexecute/reset tables in case those have changed after rebinding.
-					UpdateGraphRuntimeTables(Current.OperatorID, Operator, InOutGraphOperatorData);
+					UpdateGraphRuntimeTableEntries(Current.OperatorID, &Operator, InOutGraphOperatorData);
 
 					// See if binding altered the outputs. 
 					OutputUpdates.Reset();
@@ -258,7 +256,7 @@ namespace Metasound
 			InOperatorInfo.Operator->BindOutputs(InOperatorInfo.VertexData.GetOutputs());
 
 			// Update any execution tables that need updating after wrapping
-			UpdateGraphRuntimeTables(InOperatorID, *(InOperatorInfo.Operator), InOutGraphOperatorData);
+			UpdateGraphRuntimeTableEntries(InOperatorID, InOperatorInfo.Operator.Get(), InOutGraphOperatorData);
 
 			// Determine if there have been changes to `OutputVertexData`. 
 			TSortedVertexNameMap<FAnyDataReference> OutputsToUpdate;
