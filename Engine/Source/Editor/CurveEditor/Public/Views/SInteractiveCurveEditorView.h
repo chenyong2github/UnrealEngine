@@ -217,4 +217,10 @@ private:
 
 	/** Cached location of the mouse relative to this widget each tick. This is so that command bindings related to the mouse cursor can create them at the right time. */
 	FVector2D CachedMousePosition;
+
+	/** Cached curve caption, used to determine when to refresh the retainer */
+	mutable FText CachedCurveCaption;
+
+	/** Cached curve caption color, used to determine when to refresh the retainer */
+	mutable FSlateColor CachedCurveCaptionColor;
 };

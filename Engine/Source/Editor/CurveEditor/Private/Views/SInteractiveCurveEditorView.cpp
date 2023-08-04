@@ -152,6 +152,8 @@ void SInteractiveCurveEditorView::Construct(const FArguments& InArgs, TWeakPtr<F
 
 FText SInteractiveCurveEditorView::GetCurveCaption() const
 {
+	FText CurveCaption;
+
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor && CurveInfoByID.Num() == 1)
 	{
@@ -159,16 +161,25 @@ FText SInteractiveCurveEditorView::GetCurveCaption() const
 		{
 			if (const FCurveModel* Curve = CurveEditor->FindCurve(Pair.Key))
 			{
-				return Curve->GetLongDisplayName();
+				CurveCaption = Curve->GetLongDisplayName();
+				break;
 			}
 		}
 	}
 
-	return FText::GetEmpty();
+	if (!CurveCaption.IdenticalTo(CachedCurveCaption))
+	{
+		CachedCurveCaption = CurveCaption;
+		const_cast<SInteractiveCurveEditorView*>(this)->RefreshRetainer();
+	}
+
+	return CurveCaption;
 }
 
 FSlateColor SInteractiveCurveEditorView::GetCurveCaptionColor() const
 {
+	FSlateColor CurveCaptionColor = BackgroundTint.CopyWithNewOpacity(1.f);
+
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor && CurveInfoByID.Num() == 1)
 	{
@@ -176,12 +187,19 @@ FSlateColor SInteractiveCurveEditorView::GetCurveCaptionColor() const
 		{
 			if (const FCurveModel* Curve = CurveEditor->FindCurve(Pair.Key))
 			{
-				return Curve->GetColor();
+				CurveCaptionColor = Curve->GetColor();
+				break;
 			}
 		}
 	}
 
-	return BackgroundTint.CopyWithNewOpacity(1.f);
+	if (CurveCaptionColor != CachedCurveCaptionColor)
+	{
+		CachedCurveCaptionColor = CurveCaptionColor;
+		const_cast<SInteractiveCurveEditorView*>(this)->RefreshRetainer();
+	}
+
+	return CurveCaptionColor;
 }
 
 void SInteractiveCurveEditorView::GetGridLinesX(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
