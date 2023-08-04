@@ -204,12 +204,15 @@ TArray<FRigVMExecuteArgument> FRigVMDispatch_ArrayBaseMutable::GetExecuteArgumen
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayMake::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayMake::GetArguments() const
 {
-	return {
-		CreateArgument(ValuesName, ERigVMPinDirection::Input),
-		CreateArgument(ArrayName, ERigVMPinDirection::Output)
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ValuesName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Output));
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayMake::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -313,11 +316,14 @@ FName FRigVMDispatch_ArrayReset::GetArgumentNameForOperandIndex(int32 InOperandI
 	return ArrayName;
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayReset::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayReset::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::IO)
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::IO));
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayReset::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -365,12 +371,15 @@ FName FRigVMDispatch_ArrayGetNum::GetArgumentNameForOperandIndex(int32 InOperand
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayGetNum::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayGetNum::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::Input),
-		CreateArgument(NumName, ERigVMPinDirection::Output)
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(NumName, ERigVMPinDirection::Output));
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayGetNum::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -424,12 +433,15 @@ FName FRigVMDispatch_ArraySetNum::GetArgumentNameForOperandIndex(int32 InOperand
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArraySetNum::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArraySetNum::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::IO),
-		CreateArgument(NumName, ERigVMPinDirection::Input)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::IO));
+		Arguments.Emplace(CreateArgument(NumName, ERigVMPinDirection::Input));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArraySetNum::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -487,13 +499,16 @@ FName FRigVMDispatch_ArrayGetAtIndex::GetArgumentNameForOperandIndex(int32 InOpe
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayGetAtIndex::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayGetAtIndex::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::Input),
-		CreateArgument(IndexName, ERigVMPinDirection::Input),
-		CreateArgument(ElementName, ERigVMPinDirection::Output)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(IndexName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(ElementName, ERigVMPinDirection::Output));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayGetAtIndex::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -569,13 +584,16 @@ FName FRigVMDispatch_ArraySetAtIndex::GetArgumentNameForOperandIndex(int32 InOpe
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArraySetAtIndex::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArraySetAtIndex::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::IO),
-		CreateArgument(IndexName, ERigVMPinDirection::Input),
-		CreateArgument(ElementName, ERigVMPinDirection::Input)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::IO));
+		Arguments.Emplace(CreateArgument(IndexName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(ElementName, ERigVMPinDirection::Input));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArraySetAtIndex::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -651,13 +669,16 @@ FName FRigVMDispatch_ArrayAdd::GetArgumentNameForOperandIndex(int32 InOperandInd
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayAdd::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayAdd::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::IO),
-		CreateArgument(ElementName, ERigVMPinDirection::Input),
-		CreateArgument(IndexName, ERigVMPinDirection::Output)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::IO));
+		Arguments.Emplace(CreateArgument(ElementName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(IndexName, ERigVMPinDirection::Output));
+	}
+	return Arguments;
 }
 
 void FRigVMDispatch_ArrayAdd::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
@@ -768,12 +789,15 @@ FName FRigVMDispatch_ArrayRemove::GetArgumentNameForOperandIndex(int32 InOperand
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayRemove::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayRemove::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::IO),
-		CreateArgument(IndexName, ERigVMPinDirection::Input)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::IO));
+		Arguments.Emplace(CreateArgument(IndexName, ERigVMPinDirection::Input));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayRemove::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -864,14 +888,17 @@ FName FRigVMDispatch_ArrayFind::GetArgumentNameForOperandIndex(int32 InOperandIn
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayFind::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayFind::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::Input),
-		CreateArgument(ElementName, ERigVMPinDirection::Input),
-		CreateArgument(IndexName, ERigVMPinDirection::Output),
-		CreateArgument(SuccessName, ERigVMPinDirection::Output)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(ElementName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(IndexName, ERigVMPinDirection::Output));
+		Arguments.Emplace(CreateArgument(SuccessName, ERigVMPinDirection::Output));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayFind::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -973,12 +1000,15 @@ FName FRigVMDispatch_ArrayAppend::GetArgumentNameForOperandIndex(int32 InOperand
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayAppend::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayAppend::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::IO),
-		CreateArgument(OtherName, ERigVMPinDirection::Input)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::IO));
+		Arguments.Emplace(CreateArgument(OtherName, ERigVMPinDirection::Input));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayAppend::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -1052,12 +1082,15 @@ FName FRigVMDispatch_ArrayClone::GetArgumentNameForOperandIndex(int32 InOperandI
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayClone::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayClone::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::Input),
-		CreateArgument(CloneName, ERigVMPinDirection::Output)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(CloneName, ERigVMPinDirection::Output));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayClone::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -1232,13 +1265,16 @@ FName FRigVMDispatch_ArrayDifference::GetArgumentNameForOperandIndex(int32 InOpe
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayDifference::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayDifference::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::Input),
-		CreateArgument(OtherName, ERigVMPinDirection::Input),
-		CreateArgument(ResultName, ERigVMPinDirection::Output)
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(OtherName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(ResultName, ERigVMPinDirection::Output));
+	}
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_ArrayDifference::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -1400,16 +1436,19 @@ FName FRigVMDispatch_ArrayIterator::GetArgumentNameForOperandIndex(int32 InOpera
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_ArrayIterator::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_ArrayIterator::GetArguments() const
 {
-	return {
-		CreateArgument(ArrayName, ERigVMPinDirection::Input),
-		CreateArgument(ElementName, ERigVMPinDirection::Output),
-		CreateArgument(IndexName, ERigVMPinDirection::Output),
-		CreateArgument(CountName, ERigVMPinDirection::Output),
-		CreateArgument(RatioName, ERigVMPinDirection::Output),
-		{FRigVMStruct::ControlFlowBlockToRunName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::FName}
-	};
+	static TArray<FRigVMTemplateArgument> Arguments;
+	if (Arguments.IsEmpty())
+	{
+		Arguments.Emplace(CreateArgument(ArrayName, ERigVMPinDirection::Input));
+		Arguments.Emplace(CreateArgument(ElementName, ERigVMPinDirection::Output));
+		Arguments.Emplace(CreateArgument(IndexName, ERigVMPinDirection::Output));
+		Arguments.Emplace(CreateArgument(CountName, ERigVMPinDirection::Output));
+		Arguments.Emplace(CreateArgument(RatioName, ERigVMPinDirection::Output));
+		Arguments.Emplace(FRigVMStruct::ControlFlowBlockToRunName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::FName);
+	}
+	return Arguments;
 }
 
 TArray<FRigVMExecuteArgument> FRigVMDispatch_ArrayIterator::GetExecuteArguments_Impl(
@@ -1432,8 +1471,7 @@ const bool FRigVMDispatch_ArrayIterator::IsControlFlowBlockSliced(const FName& I
 	return InBlockName == ExecuteName;
 }
 
-FRigVMTemplateTypeMap FRigVMDispatch_ArrayIterator::OnNewArgumentType(const FName& InArgumentName,
-	TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigVMDispatch_ArrayIterator::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
 {
 	check(InArgumentName == ArrayName || InArgumentName == ElementName);
 

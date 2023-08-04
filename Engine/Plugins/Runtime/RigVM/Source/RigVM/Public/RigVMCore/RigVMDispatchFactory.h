@@ -135,7 +135,11 @@ public:
 	virtual void RegisterDependencyTypes() const {}
 
 	// returns the arguments of the template
-	virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
+	virtual const TArray<FRigVMTemplateArgument>& GetArguments() const
+	{
+		static TArray<FRigVMTemplateArgument> Arguments;
+		return Arguments;
+	}
 
 	// returns the execute arguments of the template
 	RIGVM_API TArray<FRigVMExecuteArgument> GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
