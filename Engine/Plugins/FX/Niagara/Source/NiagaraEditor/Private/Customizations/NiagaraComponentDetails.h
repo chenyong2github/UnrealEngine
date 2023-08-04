@@ -55,7 +55,7 @@ private:
 	IDetailLayoutBuilder* Builder = nullptr;
 
 	TArray<FNiagaraSimCacheCapture> ComponentCaptures;
-	TArray<UNiagaraSimCache*> CapturedCaches;
+	TArray<TWeakObjectPtr<UNiagaraSimCache>> CapturedCaches;
 };
 
 class FNiagaraSystemUserParameterDetails : public IDetailCustomization
