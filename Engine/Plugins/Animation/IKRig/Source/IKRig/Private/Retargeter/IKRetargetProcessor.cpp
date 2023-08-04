@@ -2300,6 +2300,10 @@ void UIKRetargetProcessor::ApplyNewRetargetPose(
 	// re-initialize the bone chains using the newly generated retarget pose
 	const UIKRigDefinition* SourceIKRig = RetargeterAsset->GetSourceIKRig();
 	const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig();
+	if (!(SourceIKRig && TargetIKRig))
+	{
+		return;
+	}
 	for (FRetargetChainPairFK& FKChainPair : ChainPairsFK)
 	{
 		const FBoneChain* SourceBoneChain = SourceIKRig->GetRetargetChainByName(FKChainPair.SourceBoneChainName);
