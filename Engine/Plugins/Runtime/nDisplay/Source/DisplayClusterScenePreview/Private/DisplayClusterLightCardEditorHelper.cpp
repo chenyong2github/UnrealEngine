@@ -240,12 +240,8 @@ void FDisplayClusterLightCardEditorHelper::SetLevelInstanceRootActor(ADisplayClu
 
 const UTexture2D* FDisplayClusterLightCardEditorHelper::GetNormalMapTexture(bool bShowNorthMap)
 {
-	if (ADisplayClusterRootActor* RootActor = UpdateRootActor())
-	{
-		UTexture2D* NormalMapTexture = bShowNorthMap ? RootActor->GetStageGeometryComponent()->GetNorthGeometryMapTexture() : RootActor->GetStageGeometryComponent()->GetSouthGeometryMapTexture();
-		return NormalMapTexture;
-	}
-
+	// TODO: Exposure to the raw stage geometry normal maps was removed since they are generally undecipherable, and an upcoming task (UE-153862) will add a
+	// way to visualize the normal maps in a way that is far more user friendly
 	return nullptr;
 }
 

@@ -113,6 +113,7 @@ public:
 	 *
 	 * @param bShowNorthMap If true, return the texture for the north normal map. Otherwise, return the texture for the south normal map.
 	 */
+	UE_DEPRECATED(5.3, "The raw stage geoemetry normal maps are no longer exposed by the stage geometry component")
 	DISPLAYCLUSTERSCENEPREVIEW_API const UTexture2D* GetNormalMapTexture(bool bShowNorthMap);
 
 	/**

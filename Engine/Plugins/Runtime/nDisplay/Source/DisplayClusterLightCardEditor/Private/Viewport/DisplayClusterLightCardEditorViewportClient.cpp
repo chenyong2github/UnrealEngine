@@ -73,13 +73,6 @@ static TAutoConsoleVariable<bool> CVarICVFXPanelAutoPan(
 	true,
 	TEXT("When true, the stage view will automatically tilt and pan on supported map projections as you drag objects near the edges of the screen."));
 
-int32 GICVFXPanelDisplayNormalMapVisualization = 0;
-static FAutoConsoleVariableRef CVarICVFXPanelDisplayNormalMapVisualization(
-	TEXT("nDisplay.panel.DisplayNormalMapVisualization"),
-	GICVFXPanelDisplayNormalMapVisualization,
-	TEXT("Displays the normal map visualization of the stage's geometry map, which is used to determine physical stage geometry"),
-	ECVF_RenderThreadSafe
-);
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterLightCardEditorViewportClient
 
@@ -380,20 +373,6 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 	if (View)
 	{
 		DrawCanvas(*Viewport, *View, *Canvas);
-	}
-
-	if (bDisplayNormalMapVisualization || GICVFXPanelDisplayNormalMapVisualization)
-	{
-		auto DrawNormalMap = [Canvas, this](bool bShowNorthMap, FVector2D Position)
-		{
-			if (const UTexture* NormalMapTexture = ProjectionHelper->GetNormalMapTexture(bShowNorthMap))
-			{
-				Canvas->DrawTile(Position.X, Position.Y, 512, 512, 0, 0, 1, 1, FLinearColor::White, NormalMapTexture->GetResource());
-			}
-		};
-
-		DrawNormalMap(true, FVector2D(0.0f, 0.0f));
-		DrawNormalMap(false, FVector2D(0.0f, 512.0f));
 	}
 
 	// Remove temporary debug lines.

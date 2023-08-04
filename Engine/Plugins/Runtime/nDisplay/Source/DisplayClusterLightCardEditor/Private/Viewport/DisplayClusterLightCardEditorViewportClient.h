@@ -398,9 +398,6 @@ private:
 	/** The increment to change the FOV by when using the scroll wheel */
 	float FOVScrollIncrement = 5.0f;
 
-	/** Indicates if the normal map should be displayed to the screen */
-	bool bDisplayNormalMapVisualization = false;
-
 	/** Current input mode */
 	EInputMode InputMode = EInputMode::Idle;
 

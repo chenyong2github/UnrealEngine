@@ -23,10 +23,6 @@ struct FDisplayClusterStageGeometryMap
 	UPROPERTY()
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
-	/** A displayable texture of the geometry map */
-	UPROPERTY()
-	TObjectPtr<UTexture2D> Texture;
-
 	/** The raw texture data of the geometry map, which stores the normal vector in the RGB components and the depth in the A component */
 	TArray<FFloat16Color> GeometryData;
 
@@ -52,11 +48,6 @@ public:
 
 	//~ Begin UObject interface
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-#if WITH_EDITOR
-	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut) override { return true; }
-	virtual TSharedPtr<SWidget> GetCustomEditorPreviewWidget() override;
-#endif
 	//~ End UObject interface
 
 	/**
@@ -87,18 +78,9 @@ public:
 	 */
 	bool MorphProceduralMesh(UProceduralMeshComponent* InProceduralMeshComponent);
 
-	/** Gets the geometry map texture for the northern hemisphere of the stage */
-	UTexture2D* GetNorthGeometryMapTexture() const { return NorthGeometryMap.Texture; }
-
-	/** Gets the geometry map texture for the southern hemisphere of the stage */
-	UTexture2D* GetSouthGeometryMapTexture() const { return SouthGeometryMap.Texture; }
-
 private:
 	/** Creates a new render target that can be used to render the stage's geometry map */
 	UTextureRenderTarget2D* CreateRenderTarget();
-
-	/** Creates a new texture that can be used to display the stage's geometry map */
-	UTexture2D* CreateTexture2D();
 
 	/** Redraws the stage's geometry map */
 	void RedrawGeometryMap();

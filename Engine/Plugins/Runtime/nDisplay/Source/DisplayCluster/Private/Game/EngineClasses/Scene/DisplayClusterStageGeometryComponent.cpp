@@ -10,8 +10,6 @@
 #include "TextureResource.h"
 #include "Components/DisplayClusterScreenComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Brushes/SlateImageBrush.h"
-#include "Widgets/Images/SImage.h"
 
 const uint32 UDisplayClusterStageGeometryComponent::GeometryMapSize = 512;
 const float UDisplayClusterStageGeometryComponent::GeometryMapFOV = 2.0f * FMath::RadiansToDegrees(FMath::Atan(0.55 * PI));
@@ -33,65 +31,6 @@ void UDisplayClusterStageGeometryComponent::TickComponent(float DeltaTime, ELeve
 		RedrawGeometryMap();
 	}
 }
-
-#if WITH_EDITOR
-namespace UE::DisplayClusterStageGeometryComponent
-{
-	class STextureImage : public SCompoundWidget
-	{
-	public:
-		SLATE_BEGIN_ARGS(STextureImage) {}
-			SLATE_ARGUMENT(UTexture2D*, Texture)
-		SLATE_END_ARGS()
-
-		void Construct(const FArguments& InArgs)
-		{
-			if (InArgs._Texture)
-			{
-				FTextureResource* Resource = InArgs._Texture->GetResource();
-				if (Resource)
-				{
-					FVector2D Size(Resource->GetSizeX(), Resource->GetSizeY());
-					TextureBrush = MakeShared<FSlateImageBrush>(InArgs._Texture,
-						Size,
-						FSlateColor(FLinearColor(1, 1, 1, 1)),
-						ESlateBrushTileType::NoTile,
-						ESlateBrushImageType::Linear);
-				}
-			}
-
-			if (!TextureBrush.IsValid())
-			{
-				TextureBrush = MakeShared<FSlateBrush>();
-			}
-
-			ChildSlot
-			[
-				SNew(SImage)
-				.Image(TextureBrush.Get())
-			];
-		}
-
-	private:
-		TSharedPtr<FSlateBrush> TextureBrush;
-	};
-}
-
-TSharedPtr<SWidget> UDisplayClusterStageGeometryComponent::GetCustomEditorPreviewWidget()
-{
-	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		[
-			SNew(UE::DisplayClusterStageGeometryComponent::STextureImage)
-			.Texture(NorthGeometryMap.Texture)
-		]
-		+ SVerticalBox::Slot()
-		[
-			SNew(UE::DisplayClusterStageGeometryComponent::STextureImage)
-			.Texture(SouthGeometryMap.Texture)
-		];
-}
-#endif
 
 void UDisplayClusterStageGeometryComponent::Invalidate(bool bForceImmediateRedraw)
 {
@@ -202,27 +141,12 @@ UTextureRenderTarget2D* UDisplayClusterStageGeometryComponent::CreateRenderTarge
 	return RenderTarget;
 }
 
-UTexture2D* UDisplayClusterStageGeometryComponent::CreateTexture2D()
-{
-#if WITH_EDITOR
-	UTexture2D* Texture2D = NewObject<UTexture2D>(this);
-	Texture2D->Source.Init(GeometryMapSize, GeometryMapSize, 1, 1, TSF_BGRA8);
-
-	return Texture2D;
-#else
-	return nullptr;
-#endif
-}
-
 void UDisplayClusterStageGeometryComponent::RedrawGeometryMap()
 {
 	if (!bGeometryMapLoaded)
 	{
 		NorthGeometryMap.RenderTarget = CreateRenderTarget();
-		NorthGeometryMap.Texture = CreateTexture2D();
-
 		SouthGeometryMap.RenderTarget = CreateRenderTarget();
-		SouthGeometryMap.Texture = CreateTexture2D();
 
 		bGeometryMapLoaded = true;
 	}
@@ -311,26 +235,6 @@ void UDisplayClusterStageGeometryComponent::GenerateGeometryMap(bool bIsNorthMap
 			Canvas.Flush_GameThread();
 
 			TexResource->ReadFloat16Pixels(GeometryMap.GeometryData);
-
-#if WITH_EDITOR
-			if (GeometryMap.Texture)
-			{
-				uint8* MipData = GeometryMap.Texture->Source.LockMip(0);
-				for (int32 Index = 0; Index < GeometryMap.GeometryData.Num(); ++Index)
-				{
-					uint8* DestPtr = &MipData[Index * sizeof(FColor)];
-					const FColor SourceColor = GeometryMap.GeometryData[Index].GetFloats().ToFColor(false);
-
-					*DestPtr++ = SourceColor.B;
-					*DestPtr++ = SourceColor.G;
-					*DestPtr++ = SourceColor.R;
-					*DestPtr++ = 0xFF;
-				}
-				GeometryMap.Texture->Source.UnlockMip(0);
-
-				GeometryMap.Texture->PostEditChange();
-			}
-#endif
 		}
 	}
 }
