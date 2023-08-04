@@ -10,6 +10,7 @@
 #include "ChaosClothAsset/ClothPatternVertexType.h"
 
 class UInputBehaviorSet;
+class UPointLightComponent;
 
 namespace UE::Chaos::ClothAsset
 {
@@ -38,6 +39,10 @@ public:
 	void SetToolCommandList(TWeakPtr<FUICommandList> ToolCommandList);
 
 private:
+
+	virtual void Tick(float DeltaSeconds) override;
+
+	TObjectPtr<UPointLightComponent> CameraPointLight;
 
 	EClothPatternVertexType ConstructionViewMode = EClothPatternVertexType::Sim2D;
 

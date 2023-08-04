@@ -200,9 +200,8 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 			.ToolkitCommandList(GetToolkitCommands().ToSharedPtr());
 	};
 
-	FPreviewScene::ConstructionValues SceneArgs;
-	ObjectScene = MakeUnique<FPreviewScene>(SceneArgs);
-
+	// Construction view scene
+	ObjectScene = MakeUnique<FPreviewScene>(FPreviewScene::ConstructionValues().SetSkyBrightness(0.0f).SetLightBrightness(0.0f));
 }
 
 FChaosClothAssetEditorToolkit::~FChaosClothAssetEditorToolkit()

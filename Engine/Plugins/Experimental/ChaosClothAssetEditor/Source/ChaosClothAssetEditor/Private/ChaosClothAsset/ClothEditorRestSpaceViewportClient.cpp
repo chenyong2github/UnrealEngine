@@ -13,6 +13,8 @@
 #include "Components/DynamicMeshComponent.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SceneView.h"
+#include "PreviewScene.h"
+#include "Components/PointLightComponent.h"
 
 namespace UE::Chaos::ClothAsset
 {
@@ -51,8 +53,15 @@ FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClie
 	BehaviorSet->Add(ZoomBehavior);
 	BehaviorsFor2DMode.Add(ZoomBehavior);
 
-	EngineShowFlags.SetSelectionOutline(true);
+	EngineShowFlags.SetSelectionOutline(false);
 	ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
+
+	CameraPointLight = NewObject<UPointLightComponent>();
+	CameraPointLight->bUseInverseSquaredFalloff = false;
+	CameraPointLight->LightFalloffExponent = 2.0f;
+	CameraPointLight->SetIntensity(3.0f);		// TODO: Hook this up to a slider in the UI?
+	CameraPointLight->SetCastShadows(false);
+	PreviewScene->AddComponent(CameraPointLight, FTransform());
 }
 
 void FChaosClothEditorRestSpaceViewportClient::SetConstructionViewMode(EClothPatternVertexType InViewMode)
@@ -114,6 +123,15 @@ bool FChaosClothEditorRestSpaceViewportClient::ShouldOrbitCamera() const
 		return FEditorViewportClient::ShouldOrbitCamera();
 	}
 }
+
+void FChaosClothEditorRestSpaceViewportClient::Tick(float DeltaSeconds)
+{
+	FViewportCameraTransform ViewTransform = GetViewTransform();
+	CameraPointLight->SetRelativeLocation(ViewTransform.GetLocation());
+
+	FEditorViewportClient::Tick(DeltaSeconds);
+}
+
 
 bool FChaosClothEditorRestSpaceViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
