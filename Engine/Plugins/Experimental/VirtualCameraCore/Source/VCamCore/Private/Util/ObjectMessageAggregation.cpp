@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 
 #if WITH_EDITOR
+#include "CoreGlobals.h"
 #include "Editor.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "UObject/UObjectAnnotation.h"
@@ -52,7 +53,15 @@ namespace UE::VCamCore
 	void AddAggregatedNotification(UObject& ContextObject, FAggregatedNotification Notification)
 	{
 		UE_LOG(LogVCamCore, Warning, TEXT("%s: %s - %s"), *ContextObject.GetPathName(), *Notification.Title.ToString(), *Notification.Subtext.ToString());
+		
 #if WITH_EDITOR
+		// Happens e.g. with -game command line.
+		// In this case FSlateNotificationManager::AddNotification is pointless. Moreover, GEditor is needed for setting the next tick timer.
+		if (!GIsEditor || !GEditor)
+		{
+			return;
+		}
+		
 		struct FNotificationAnnotation
 		{
 			TArray<FAggregatedNotification, TInlineAllocator<4>> Notifications;
@@ -62,13 +71,7 @@ namespace UE::VCamCore
 			bool IsDefault() const { return !TimerHandle.IsValid(); }
 		};
 		static FUObjectAnnotationSparse<FNotificationAnnotation, true> Annotations;
-
-		UWorld* World = ContextObject.GetWorld();
-		if (!ensure(World))
-		{
-			return;
-		}
-
+		
 		FNotificationAnnotation Annotation = Annotations.GetAndRemoveAnnotation(&ContextObject);
 		Annotation.Notifications.Emplace(MoveTemp(Notification));
 		if (!Annotation.TimerHandle.IsValid())
