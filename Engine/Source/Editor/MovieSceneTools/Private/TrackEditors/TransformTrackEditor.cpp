@@ -171,7 +171,10 @@ TSharedRef<ISequencerSection> F3DTransformTrackEditor::MakeSectionInterface(UMov
 	UMovieScene3DTransformSection* Section = Cast<UMovieScene3DTransformSection>(&SectionObject);
 	if (Section)
 	{
-		Section->ConstraintChannelAdded().AddRaw(this, &F3DTransformTrackEditor::HandleOnConstraintAdded);
+		if (!Section->ConstraintChannelAdded().IsBoundToObject(this))
+		{
+			Section->ConstraintChannelAdded().AddRaw(this, &F3DTransformTrackEditor::HandleOnConstraintAdded);
+		}
 	}
 	//if there are channels already we need to act like they were added
 	TArray<FConstraintAndActiveChannel>& Channels = Section->GetConstraintsChannels();
@@ -1685,6 +1688,8 @@ void F3DTransformTrackEditor::ClearOutConstraintDelegates()
 			{
 				CRSection->OnConstraintRemovedHandle.Reset();
 			}
+
+			CRSection->ConstraintChannelAdded().RemoveAll(this);
 		}
 	}
 	SectionsToClear.Reset();
