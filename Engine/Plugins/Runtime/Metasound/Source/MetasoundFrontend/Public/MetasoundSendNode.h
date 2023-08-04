@@ -109,27 +109,11 @@ namespace Metasound
 				{
 					using namespace SendVertexNames; 
 					InOutVertexData.BindReadVertex<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), SendAddress);
-					InOutVertexData.BindReadVertex<TDataType>(GetSendInputName(), TDataReadReference<TDataType>(InputData));
+					InOutVertexData.BindReadVertex<TDataType>(GetSendInputName(), InputData);
 				}
 
 				virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 				{
-				}
-
-				virtual FDataReferenceCollection GetInputs() const override
-				{
-					// This should never be called. Bind(...) is called instead. This method
-					// exists as a stop-gap until the API can be deprecated and removed.
-					checkNoEntry();
-					return {};
-				}
-
-				virtual FDataReferenceCollection GetOutputs() const override
-				{
-					// This should never be called. Bind(...) is called instead. This method
-					// exists as a stop-gap until the API can be deprecated and removed.
-					checkNoEntry();
-					return {};
 				}
 
 				void Execute()
@@ -214,27 +198,11 @@ namespace Metasound
 
 			TSendNode(const FNodeInitData& InInitData)
 				: FNode(InInitData.InstanceName, InInitData.InstanceID, GetNodeInfo())
-				, Interface(DeclareVertexInterface())
 				, Factory(MakeOperatorFactoryRef<FSendOperatorFactory>())
 			{
 			}
 
 			virtual ~TSendNode() = default;
-
-			virtual const FVertexInterface& GetVertexInterface() const override
-			{
-				return Interface;
-			}
-
-			virtual bool SetVertexInterface(const FVertexInterface& InInterface) override
-			{
-				return Interface == InInterface;
-			}
-
-			virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override
-			{
-				return Interface == InInterface;
-			}
 
 			virtual FOperatorFactorySharedRef GetDefaultOperatorFactory() const override
 			{
@@ -242,7 +210,6 @@ namespace Metasound
 			}
 
 		private:
-			FVertexInterface Interface;
 			FOperatorFactorySharedRef Factory;
 	};
 }
