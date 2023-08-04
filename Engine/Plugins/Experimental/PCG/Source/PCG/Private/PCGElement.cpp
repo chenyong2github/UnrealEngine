@@ -5,9 +5,11 @@
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGGraph.h"
+#include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGDebugElement.h"
 #include "Elements/PCGSelfPruning.h"
+#include "Grid/PCGPartitionActor.h"
 
 #include "HAL/IConsoleManager.h"
 #include "Utils/PCGExtraCapture.h"
@@ -330,22 +332,62 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 #if WITH_EDITOR
 void IPCGElement::DebugDisplay(FPCGContext* Context) const
 {
+	// Check Debug flag.
 	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
-	if (SettingsInterface && SettingsInterface->bDebug)
+	if (!SettingsInterface || !SettingsInterface->bDebug)
 	{
-		FPCGDataCollection ElementInputs = Context->InputData;
-		FPCGDataCollection ElementOutputs = Context->OutputData;
-
-		Context->InputData = ElementOutputs;
-		Context->OutputData = FPCGDataCollection();
-
-		PCGDebugElement::ExecuteDebugDisplay(Context);
-
-		Context->InputData = ElementInputs;
-		Context->OutputData = ElementOutputs;
+		return;
 	}
-}
 
+	// If graph is being inspected, only display Debug if the component is being inspected, or in the HiGen case also display if
+	// this component is a parent of an inspected component (because this data is available to child components).
+
+	// If the graph is not being inspected, or the current component is being inspected, then we know we should display
+	// debug, if not then we do further checks.
+	UPCGGraph* Graph = Context->SourceComponent.Get() ? Context->SourceComponent->GetGraph() : nullptr;
+	if (Graph && Graph->IsInspecting() && !Context->SourceComponent->IsInspecting() && Graph->DebugFlagAppliesToIndividualComponents())
+	{
+		// If we're no doing HiGen, or if the current component is not a local component (and therefore will not have children),
+		// then do not display debug.
+		if (!Graph->IsHierarchicalGenerationEnabled())
+		{
+			return;
+		}
+
+		// If a child of this component is being inspected (a local component on smaller grid and overlapping) then we still show debug,
+		// because this data is available to that child for use.
+		if (UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(Context->SourceComponent->GetWorld()))
+		{
+			const uint32 ThisGenerationGridSize = Context->SourceComponent->GetGenerationGridSize();
+
+			bool bFoundInspectedChildComponent = false;
+			Subsystem->ForAllOverlappingComponentsInHierarchy(Context->SourceComponent.Get(), [ThisGenerationGridSize, &bFoundInspectedChildComponent](UPCGComponent* InLocalComponent)
+			{
+				if (InLocalComponent->GetGenerationGridSize() < ThisGenerationGridSize && InLocalComponent->IsInspecting())
+				{
+					bFoundInspectedChildComponent = true;
+				}
+			});
+
+			// If no inspected child component then don't display debug.
+			if (!bFoundInspectedChildComponent)
+			{
+				return;
+			}
+		}
+	}
+
+	FPCGDataCollection ElementInputs = Context->InputData;
+	FPCGDataCollection ElementOutputs = Context->OutputData;
+
+	Context->InputData = ElementOutputs;
+	Context->OutputData = FPCGDataCollection();
+
+	PCGDebugElement::ExecuteDebugDisplay(Context);
+
+	Context->InputData = ElementInputs;
+	Context->OutputData = ElementOutputs;
+}
 #endif // WITH_EDITOR
 
 void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const

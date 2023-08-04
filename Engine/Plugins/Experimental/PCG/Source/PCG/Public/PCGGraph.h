@@ -222,6 +222,11 @@ public:
 
 	const TArray<TObjectPtr<UObject>>& GetExtraEditorNodes() const { return ExtraEditorNodes; }
 	void SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
+
+	bool IsInspecting() const;
+	void EnableInspection();
+	void DisableInspection();
+	bool DebugFlagAppliesToIndividualComponents() const { return bDebugFlagAppliesToIndividualComponents; }
 #endif
 
 #if WITH_EDITOR
@@ -277,6 +282,14 @@ protected:
 	mutable TMap<const UPCGNode*, uint32> NodeToGridSize;
 	mutable FRWLock NodeToGridSizeLock;
 
+#if WITH_EDITORONLY_DATA
+	/** When true the Debug flag in the graph editor will display debug information contextually for the selected debug object. Otherwise
+	* debug information is displayed for all components using a graph (requires regenerate).
+	*/
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bDebugFlagAppliesToIndividualComponents = true;
+#endif // WITH_EDITORONLY_DATA
+
 public:
 	virtual const FInstancedPropertyBag* GetUserParametersStruct() const override { return &UserParameters; }
 
@@ -294,6 +307,7 @@ private:
 	bool bIsNotifying = false;
 	bool bUserPausedNotificationsInGraphEditor = false;
 	int32 NumberOfUserParametersPreEdit = 0;
+	int32 InspectionCounter = 0;
 #endif // WITH_EDITOR
 };
 

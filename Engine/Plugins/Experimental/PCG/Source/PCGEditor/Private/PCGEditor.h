@@ -275,6 +275,9 @@ private:
 
 	void OnGraphGridSizesChanged(UPCGGraphInterface* InGraph);
 
+	/** Trigger any generation required to ensure debug display is up to date. */
+	void UpdateDebugAfterComponentSelection(UPCGComponent* InOldComponent, UPCGComponent* InNewComponent, bool bNewComponentStartedInspecting);
+
 	/** Helper to get to the subsystem. */
 	static class UPCGSubsystem* GetSubsystem();
 

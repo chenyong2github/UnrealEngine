@@ -13,6 +13,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
+#include "Algo/AnyOf.h"
 #include "Rendering/SlateRenderer.h"
 #include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
@@ -181,26 +182,35 @@ UPCGEditorGraph* FPCGEditor::GetPCGEditorGraph()
 
 void FPCGEditor::SetComponentAndStackBeingInspected(UPCGComponent* InPCGComponent, const FPCGStack& InPCGStack)
 {
-	if (PCGComponentBeingInspected != InPCGComponent)
+	UPCGComponent* OldComponent = PCGComponentBeingInspected.Get();
+	UPCGComponent* NewComponent = InPCGComponent;
+
+	if (OldComponent != NewComponent)
 	{
-		if (PCGComponentBeingInspected.IsValid())
+		if (OldComponent)
 		{
-			PCGComponentBeingInspected->DisableInspection();
-		}
-
-		PCGComponentBeingInspected = InPCGComponent;
-		OnInspectedComponentChangedDelegate.Broadcast(PCGComponentBeingInspected.Get());
-
-		if (PCGComponentBeingInspected.IsValid())
-		{
-			if (!PCGComponentBeingInspected->IsInspecting())
+			OldComponent->DisableInspection();
+			if (PCGGraphBeingEdited)
 			{
-				// We need to force generation so that we create debug data
-				PCGComponentBeingInspected->GenerateLocal(/*bForce=*/true);
+				PCGGraphBeingEdited->DisableInspection();
 			}
-			
-			PCGComponentBeingInspected->EnableInspection();
 		}
+
+		const bool bNewComponentStartedInspecting = NewComponent && !NewComponent->IsInspecting();
+
+		PCGComponentBeingInspected = NewComponent;
+		OnInspectedComponentChangedDelegate.Broadcast(NewComponent);
+
+		if (NewComponent)
+		{
+			PCGComponentBeingInspected->EnableInspection();
+			if (PCGGraphBeingEdited)
+			{
+				PCGGraphBeingEdited->EnableInspection();
+			}
+		}
+
+		UpdateDebugAfterComponentSelection(OldComponent, NewComponent, bNewComponentStartedInspecting);
 
 		check(PCGEditorGraph);
 		for (UEdGraphNode* Node : PCGEditorGraph->Nodes)
@@ -219,10 +229,61 @@ void FPCGEditor::SetComponentAndStackBeingInspected(UPCGComponent* InPCGComponen
 		}
 	}
 
-	if(InPCGStack != StackBeingInspected)
+	if (InPCGStack != StackBeingInspected)
 	{
 		StackBeingInspected = InPCGStack;
 		OnInspectedStackChangedDelegate.Broadcast(StackBeingInspected);
+	}
+}
+
+void FPCGEditor::UpdateDebugAfterComponentSelection(UPCGComponent* InOldComponent, UPCGComponent* InNewComponent, bool bInNewComponentStartedInspecting)
+{
+	if (!ensure(PCGGraphBeingEdited))
+	{
+		return;
+	}
+
+	// If individual component debugging is disabled, just generate the new component if required.
+	if (!PCGGraphBeingEdited->DebugFlagAppliesToIndividualComponents())
+	{
+		if (InNewComponent && bInNewComponentStartedInspecting)
+		{
+			InNewComponent->GenerateLocal(/*bForce=*/true);
+		}
+
+		return;
+	}
+
+	// Trigger necessary generation(s) for per-component debugging.
+	if (!InOldComponent)
+	{
+		if (InNewComponent && bInNewComponentStartedInspecting)
+		{
+			// Transition from 'null' to 'any component not already inspecting' - generate to create debug/inspection info.
+			// If we have null selected, all components are displaying debug. Go to Original component so that all refresh.
+			InNewComponent->GetOriginalComponent()->GenerateLocal(/*bForce=*/true);
+		}
+	}
+	else
+	{
+		const bool bDebugFlagSetOnAnyNode = Algo::AnyOf(PCGGraphBeingEdited->GetNodes(), [](const UPCGNode* InNode)
+		{
+			return InNode && InNode->GetSettings() && InNode->GetSettings()->bDebug;
+		});
+
+		// Regenerate to clear debug info if switching components, or if changing from a component to null.
+		if (InNewComponent || bDebugFlagSetOnAnyNode)
+		{
+			// Use original component - debug can be displayed both by the local component and parent local components.
+			InOldComponent->GetOriginalComponent()->GenerateLocal(/*bForce=*/true);
+		}
+
+		// Debug new component if it wasn't already
+		if (InNewComponent && bInNewComponentStartedInspecting)
+		{
+			// Use original component - debug can be displayed both by the local component and parent local components.
+			InNewComponent->GetOriginalComponent()->GenerateLocal(/*bForce=*/true);
+		}
 	}
 }
 

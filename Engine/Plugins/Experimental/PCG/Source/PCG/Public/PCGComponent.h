@@ -106,6 +106,9 @@ public:
 	UPCGData* GetLandscapeHeightPCGData();
 	UPCGData* GetOriginalActorPCGData();
 
+	/** If this is a local component returns self, otherwise returns the original component. */
+	UPCGComponent* GetOriginalComponent();
+
 	bool CanPartition() const;
 
 	UPCGGraph* GetGraph() const;

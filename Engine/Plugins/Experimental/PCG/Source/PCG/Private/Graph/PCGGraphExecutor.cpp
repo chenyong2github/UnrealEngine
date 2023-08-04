@@ -1571,32 +1571,20 @@ namespace PCGGraphExecutor
 				return false;
 			}
 
-			APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(InContext->SourceComponent->GetOwner());
-			UPCGComponent* OriginalComponent = PartitionActor ? PartitionActor->GetOriginalComponent(InContext->SourceComponent.Get()) : nullptr;
-
 			UPCGComponent* ComponentWithData = nullptr;
 			bool bComponentWithDataIsOriginalComponent = false;
 			if (FromGridSize == PCGHiGenGrid::UnboundedGridSize())
 			{
-				// Unbounded means not generated on grid, instead use the original component volume
-				ComponentWithData = OriginalComponent;
+				ComponentWithData = InContext->SourceComponent->GetOriginalComponent();
 				bComponentWithDataIsOriginalComponent = true;
 			}
-			else if (OriginalComponent)
+			else
 			{
-				// Now iterate through local components and find a component from the correct from-grid, and overlapping this component.
-				// Would be more efficient if we had a spatial index. The current component octree seems to only store original components.
-				Subsystem->ForAllRegisteredLocalComponents(OriginalComponent, [FromGridSize, &ComponentWithData, InContext](UPCGComponent* InLocalComponent)
+				Subsystem->ForAllOverlappingComponentsInHierarchy(InContext->SourceComponent.Get(), [FromGridSize, &ComponentWithData](UPCGComponent* InLocalComponent)
 				{
 					if (InLocalComponent->GetGenerationGridSize() == FromGridSize)
 					{
-						const FBox OtherBounds = InLocalComponent->GetGridBounds();
-						const FBox ThisBounds = InContext->SourceComponent->GetGridBounds();
-						const FBox Overlap = OtherBounds.Overlap(ThisBounds);
-						if (Overlap.GetVolume() > 0)
-						{
-							ComponentWithData = InLocalComponent;
-						}
+						ComponentWithData = InLocalComponent;
 					}
 				});
 			}

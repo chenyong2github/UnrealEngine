@@ -147,6 +147,9 @@ public:
 	/* Call the InFunc function to all local component registered to the original component. Thread safe*/
 	void ForAllRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<void(UPCGComponent*)>& InFunc) const;
 
+	/** Traverses the hierarchy associated with the given component and calls InFunc for each overlapping component. */
+	void ForAllOverlappingComponentsInHierarchy(UPCGComponent* InComponent, const TFunction<void(UPCGComponent*)>& InFunc) const;
+
 	/** True if graph cache debugging is enabled. */
 	bool IsGraphCacheDebuggingEnabled() const;
 

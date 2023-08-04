@@ -323,7 +323,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 			Dependencies.Add(OriginalComponentTask);
 		}
 
-		auto LocalGenerateTask = [OriginalComponent = PCGComponent, &Dependencies](UPCGComponent* LocalComponent)
+		auto LocalGenerateTask = [OriginalComponent = PCGComponent, &Dependencies, bSave](UPCGComponent* LocalComponent)
 		{
 			// If the local component is currently generating, it's probably because it was requested by a refresh.
 			// Wait after this one instead
@@ -342,7 +342,8 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 				LocalComponent->CleanupLocalImmediate(true);
 			}
 
-			return LocalComponent->GenerateInternal(/*bForce=*/ false, EPCGComponentGenerationTrigger::GenerateOnDemand, Dependencies);
+			// TODO If i don't forward the force flag, then nothing gets scheduled. Also why is it called bSave?
+			return LocalComponent->GenerateInternal(/*bForce=*/bSave, EPCGComponentGenerationTrigger::GenerateOnDemand, Dependencies);
 		};
 
 		AllTasks.Append(ActorAndComponentMapping.DispatchToRegisteredLocalComponents(PCGComponent, LocalGenerateTask));
@@ -585,6 +586,22 @@ void UPCGSubsystem::ForAllRegisteredLocalComponents(UPCGComponent* OriginalCompo
 	};
 
 	ActorAndComponentMapping.DispatchToRegisteredLocalComponents(OriginalComponent, WrapperFunc);
+}
+
+void UPCGSubsystem::ForAllOverlappingComponentsInHierarchy(UPCGComponent* InComponent, const TFunction<void(UPCGComponent*)>& InFunc) const
+{
+	UPCGComponent* OriginalComponent = InComponent->GetOriginalComponent();
+
+	ForAllRegisteredLocalComponents(OriginalComponent, [InComponent, &InFunc](UPCGComponent* InLocalComponent)
+	{
+		const FBox OtherBounds = InLocalComponent->GetGridBounds();
+		const FBox ThisBounds = InComponent->GetGridBounds();
+		const FBox Overlap = OtherBounds.Overlap(ThisBounds);
+		if (Overlap.GetVolume() > 0)
+		{
+			InFunc(InLocalComponent);
+		}
+	});
 }
 
 bool UPCGSubsystem::IsGraphCacheDebuggingEnabled() const

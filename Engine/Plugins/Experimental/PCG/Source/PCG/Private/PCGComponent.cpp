@@ -1695,6 +1695,17 @@ UPCGData* UPCGComponent::GetOriginalActorPCGData()
 	return nullptr;
 }
 
+UPCGComponent* UPCGComponent::GetOriginalComponent()
+{
+	if (!IsLocalComponent())
+	{
+		return this;
+	}
+
+	APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(GetOwner());
+	return ensure(PartitionActor) ? PartitionActor->GetOriginalComponent(this) : this;
+}
+
 UPCGData* UPCGComponent::CreateActorPCGData()
 {
 	return CreateActorPCGData(GetOwner(), bParseActorComponents);
