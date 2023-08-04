@@ -163,7 +163,11 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect
 #if PLATFORM_MAC
 			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Managed;
 #else
-			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Shared;
+#if WITH_IOS_SIMULATOR
+			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Private; 
+#else
+			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Shared; 
+#endif
 #endif
 			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Surface->GetDesc().Format].PlatformFormat;
 			mtlpp::TextureDescriptor Desc;

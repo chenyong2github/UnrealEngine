@@ -462,7 +462,7 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	}
 
 #if !UE_BUILD_SHIPPING
-#if WITH_SIMULATOR
+#if WITH_IOS_SIMULATOR
 	// use 2 on the simulator so that Option-Click will bring up console (option-click is for doing pinch gestures, which we don't care about, atm)
 	if( NumActiveTouches >= 2 )
 #else

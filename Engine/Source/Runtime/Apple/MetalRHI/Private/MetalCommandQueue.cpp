@@ -377,7 +377,11 @@ mtlpp::ResourceOptions FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::R
 #if PLATFORM_IOS // Swizzle Managed to Shared for iOS - we can do this as they are equivalent, unlike Shared -> Managed on Mac.
 	if ((Options & (1 /*mtlpp::StorageMode::Managed*/ << mtlpp::ResourceStorageModeShift)))
 	{
+#if WITH_IOS_SIMULATOR
+		NewOptions |= mtlpp::ResourceOptions::StorageModePrivate;
+#else
 		NewOptions |= mtlpp::ResourceOptions::StorageModeShared;
+#endif
 	}
 #endif
 	return (mtlpp::ResourceOptions)NewOptions;

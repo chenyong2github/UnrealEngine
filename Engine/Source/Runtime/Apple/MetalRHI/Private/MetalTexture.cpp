@@ -24,7 +24,7 @@ FAutoConsoleVariableRef CVarMetalMaxOutstandingAsyncTexUploads(
 															   ECVF_ReadOnly|ECVF_RenderThreadSafe
 															   );
 
-int32 GMetalForceIOSTexturesShared = 1;
+int32 GMetalForceIOSTexturesShared = !WITH_IOS_SIMULATOR;
 FAutoConsoleVariableRef CVarMetalForceIOSTexturesShared(
 														TEXT("rhi.Metal.ForceIOSTexturesShared"),
 														GMetalForceIOSTexturesShared,
@@ -194,7 +194,11 @@ mtlpp::PixelFormat UEToMetalFormat(EPixelFormat UEFormat, bool bSRGB)
 			switch (MTLFormat)
 			{
 			default: break;
+#if WITH_IOS_SIMULATOR
+			case mtlpp::PixelFormat::R8Unorm        : MTLFormat = mtlpp::PixelFormat::R8Unorm    		  ; break;
+#else
 			case mtlpp::PixelFormat::R8Unorm        : MTLFormat = mtlpp::PixelFormat::R8Unorm_sRGB        ; break;
+#endif
 			case mtlpp::PixelFormat::PVRTC_RGBA_2BPP: MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB; break;
 			case mtlpp::PixelFormat::PVRTC_RGBA_4BPP: MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB; break;
 			case mtlpp::PixelFormat::ASTC_4x4_LDR   : MTLFormat = mtlpp::PixelFormat::ASTC_4x4_sRGB       ; break;
@@ -362,7 +366,11 @@ FMetalTextureCreateDesc::FMetalTextureCreateDesc(FRHITextureCreateDesc const& In
 	{
 		Desc.SetUsage(ConvertFlagsToUsage(InDesc.Flags));
 		
+#if WITH_IOS_SIMULATOR
+		const bool bAppleGPU = false;
+#else
 		const bool bAppleGPU = [GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1];
+#endif
 
 		if (EnumHasAnyFlags(InDesc.Flags, TexCreate_CPUReadback) && !EnumHasAnyFlags(InDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_FastVRAM))
 		{

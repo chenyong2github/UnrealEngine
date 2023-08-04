@@ -99,6 +99,7 @@ namespace RuntimeVirtualTexture
 		{
 		case SP_METAL:
 		case SP_METAL_MRT:
+		case SP_METAL_SIM:
 		case SP_METAL_TVOS:
 		case SP_METAL_MRT_TVOS:
 		case SP_VULKAN_ES3_1_ANDROID:

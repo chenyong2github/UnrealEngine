@@ -1149,11 +1149,11 @@ namespace UnrealBuildTool
 
 			if (Target.Architecture == UnrealArch.IOSSimulator || Target.Architecture == UnrealArch.TVOSSimulator)
 			{
-				CompileEnvironment.Definitions.Add("WITH_SIMULATOR=1");
+				CompileEnvironment.Definitions.Add("WITH_IOS_SIMULATOR=1");
 			}
 			else
 			{
-				CompileEnvironment.Definitions.Add("WITH_SIMULATOR=0");
+				CompileEnvironment.Definitions.Add("WITH_IOS_SIMULATOR=0");
 			}
 
 			if (ProjectSettings.bEnableAdvertisingIdentifier)

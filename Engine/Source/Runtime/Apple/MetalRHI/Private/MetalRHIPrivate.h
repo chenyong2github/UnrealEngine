@@ -59,8 +59,15 @@ const uint32 MetalBufferBytesSize = BufferOffsetAlignment * 32;
 const uint32 MaxMetalStreams = 31;
 #else
 #define BUFFER_MANAGED_MEM 0
+
+#if WITH_IOS_SIMULATOR
+#define BUFFER_STORAGE_MODE mtlpp::StorageMode::Private
+#define BUFFER_RESOURCE_STORAGE_MANAGED mtlpp::ResourceOptions::StorageModePrivate
+#else
 #define BUFFER_STORAGE_MODE mtlpp::StorageMode::Shared
 #define BUFFER_RESOURCE_STORAGE_MANAGED mtlpp::ResourceOptions::StorageModeShared
+#endif
+
 #define BUFFER_DYNAMIC_REALLOC BUF_AnyDynamic
 // How many possible vertex streams are allowed
 const uint32 MaxMetalStreams = 30;
