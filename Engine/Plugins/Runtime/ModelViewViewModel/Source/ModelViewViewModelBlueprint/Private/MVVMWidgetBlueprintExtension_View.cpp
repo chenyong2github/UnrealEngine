@@ -139,8 +139,8 @@ void UMVVMWidgetBlueprintExtension_View::HandleFinishCompilingClass(UWidgetBluep
 		if (bCompiled && UE::MVVM::Private::GAllowViewClass)
 		{
 			check(ViewExtension);
-			// Does it have any bindings or any sources
-			if (ViewExtension->GetViewModelCreators().Num() > 0 || const_cast<const UMVVMViewClass*>(ViewExtension)->GetCompiledBindings().Num() > 0)
+			// Does it have any bindings
+			if (const_cast<const UMVVMViewClass*>(ViewExtension)->GetCompiledBindings().Num() > 0)
 			{
 				// Test if parent also has a view
 				if (Class->GetExtension<UMVVMViewClass>(true))

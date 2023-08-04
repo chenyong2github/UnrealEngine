@@ -169,9 +169,11 @@ private:
 		int32 BindingIndex = INDEX_NONE;
 		int32 UserWidgetPropertyContextIndex = INDEX_NONE;
 		int32 SourceCreatorContextIndex = INDEX_NONE;
+		int32 ComplexConversionFunctionContextIndex = INDEX_NONE;
 		bool bSourceIsUserWidget = false;
 		bool bFieldIdNeeded = false;
 		bool bIsForwardBinding = false;
+		bool bNeedsValidSource = true;	// if false, the binding is a onetime or executed manually (onclick event).
 
 		FCompiledBindingLibraryCompiler::FFieldIdHandle FieldIdHandle;
 		FCompiledBinding CompiledBinding;
@@ -180,14 +182,25 @@ private:
 	TArray<FCompilerBinding> CompilerBindings;
 
 	/**
+	 * Binding that do not requires a source to execute.
+	 * They could be a OneTime ComplexConversionFunction or an event (onclick).
+	 */
+	struct FSimpleBindingContext
+	{
+		int32 BindingIndex = INDEX_NONE;
+		bool bIsForwardBinding = false;
+
+		int32 ComplexConversionFunctionContextIndex = INDEX_NONE;
+	};
+	TArray<FSimpleBindingContext> SimpleBindingContexts;
+
+	/**
 	 * Source path of a binding that contains a FieldId that we can register/bind to
 	 */
 	struct FBindingSourceContext
 	{
 		int32 BindingIndex = INDEX_NONE;
 		bool bIsForwardBinding = false;
-		// Complex binding do not need to add the PropertyPath to the binding info.
-		bool bIsComplexBinding = false;
 
 		const UClass* SourceClass = nullptr;
 		// The property that are registering to.
@@ -198,6 +211,8 @@ private:
 		// or Field.SubProperty.SubProperty
 		TArray<UE::MVVM::FMVVMConstFieldVariant> PropertyPath;
 
+		// Complex binding do not need to add the PropertyPath to the binding info.
+		int32 ComplexConversionFunctionContextIndex = INDEX_NONE;
 		// The source if it's a property
 		int32 UserWidgetPropertyContextIndex = INDEX_NONE;
 		// The source if it's a property
@@ -221,6 +236,25 @@ private:
 
 	};
 	TArray<FBindingDestinationContext> BindingDestinationContexts;
+
+	/**
+	 * Complex Conversion function shared data
+	 */
+	struct FComplexConversionFunctionContext
+	{
+		int32 BindingIndex = INDEX_NONE;
+		bool bIsForwardBinding = false;
+
+		// More than one binding can use the same conversion function.
+		// Only one should execute the binding at initialization.
+		bool bExecAtInitGenerated = false;
+		// More than one binding can use the same conversion function.
+		// At least one must have a valid source to trigger the binding.
+		//If not, then it should be a FSimpleBindingContext
+		bool bHasValidFieldId = false;
+		bool bNeedsValidSource = true;
+	};
+	TArray<FComplexConversionFunctionContext> ComplexConversionFunctionContexts;
 
 	TMap<FName, UWidget*> WidgetNameToWidgetPointerMap;
 	FWidgetBlueprintCompilerContext& WidgetBlueprintCompilerContext;
