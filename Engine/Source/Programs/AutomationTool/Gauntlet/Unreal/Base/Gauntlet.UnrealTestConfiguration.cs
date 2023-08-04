@@ -363,9 +363,9 @@ namespace Gauntlet
 	/// <summary>
 	/// This class represents a process-role in a test and defines the type, command line,
 	/// and controllers that are needed.
-	/// 
+	///
 	/// TODO - can this be removed and UnrealSessionRole used directly?
-	/// 
+	///
 	/// </summary>
 	public class UnrealTestRole
 	{
@@ -383,6 +383,7 @@ namespace Gauntlet
 			ExplicitClientCommandLine = string.Empty;
 			Controllers = new List<string>();
 			FilesToCopy = new List<UnrealFileToCopy>();
+			RoleConfigurations = new List<IUnrealRoleConfiguration>();
 			AdditionalArtifactDirectories = new List<EIntendedBaseCopyDirectory>();
 			RoleType = ERoleModifier.None;
 			InstallOnly = false;
@@ -438,7 +439,6 @@ namespace Gauntlet
 			}
 		}
 
-
 		/// <summary>
 		/// Dictionary of commandline arguments that are turned into a commandline at the end.
 		/// For flags, leave the value set to null. Created and then passed through to the Session Role's Commandline Object
@@ -450,6 +450,11 @@ namespace Gauntlet
 		/// Controllers for this role
 		/// </summary>
 		public List<string> Controllers { get; set; }
+
+		/// <summary>
+		/// Collection of modular configurations applied to this role
+		/// </summary>
+		public List<IUnrealRoleConfiguration> RoleConfigurations { get; set; }
 
 		/// <summary>
 		/// Explicit command line for this role. If this is set no other

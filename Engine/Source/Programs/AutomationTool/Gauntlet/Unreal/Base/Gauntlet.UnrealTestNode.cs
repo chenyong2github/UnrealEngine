@@ -614,6 +614,18 @@ namespace Gauntlet
 					// important, use the type from the ContextRolke because Server may have been mapped to EditorServer etc
 					UnrealTargetPlatform SessionPlatform = TestRole.PlatformOverride ?? RoleContext.Platform;
 
+					// Apply all role configurations
+					foreach(IUnrealRoleConfiguration RoleConfiguration in TestRole.RoleConfigurations)
+					{
+						RoleConfiguration.ApplyConfigToRole(TestRole);
+					}
+
+					// Verify all role configurations
+					foreach (IUnrealRoleConfiguration RoleConfiguration in TestRole.RoleConfigurations)
+					{
+						RoleConfiguration.VerifyRoleConfig(TestRole);
+					}
+
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
 					SessionRole.InstallOnly = TestRole.InstallOnly;
 					SessionRole.DeferredLaunch = TestRole.DeferredLaunch;
