@@ -63,7 +63,7 @@ namespace LyraTest
 			int WorkingCL = -1;
 			if (CommandUtils.P4Enabled)
 			{
-				WorkingCL = CommandUtils.P4.CreateChange(CommandUtils.P4Env.Client, String.Format("Updated " + CollectionName + " collection using CL {0}", P4Env.Changelist));
+				WorkingCL = CommandUtils.P4.CreateChange(CommandUtils.P4Env.Client, String.Format("Updated " + CollectionName + " collection using CL {0}\n#skipci", P4Env.Changelist));
 			}
 
 			var CollectionFilenameLocal = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, GameProjectDirectory, "Content", "Collections", CollectionName + ".collection");
