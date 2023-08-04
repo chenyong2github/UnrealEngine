@@ -1049,6 +1049,10 @@ void FControlRigEditor::SaveAsset_Execute()
 		const UControlRig* CDO = ControlRig->GetClass()->GetDefaultObject<UControlRig>();
 		CDO->DynamicHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
 	}
+
+	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
+	ActionDatabase.ClearAssetActions(UControlRigBlueprint::StaticClass());
+	ActionDatabase.RefreshClassActions(UControlRigBlueprint::StaticClass());
 }
 
 void FControlRigEditor::SaveAssetAs_Execute()
@@ -1062,6 +1066,10 @@ void FControlRigEditor::SaveAssetAs_Execute()
 		const UControlRig* CDO = ControlRig->GetClass()->GetDefaultObject<UControlRig>();
 		CDO->DynamicHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
 	}
+
+	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
+	ActionDatabase.ClearAssetActions(UControlRigBlueprint::StaticClass());
+	ActionDatabase.RefreshClassActions(UControlRigBlueprint::StaticClass());
 }
 
 FName FControlRigEditor::GetToolkitFName() const
