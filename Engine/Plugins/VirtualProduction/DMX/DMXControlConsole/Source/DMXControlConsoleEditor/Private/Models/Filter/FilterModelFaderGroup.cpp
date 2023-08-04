@@ -9,6 +9,7 @@
 #include "DMXControlConsoleFaderGroup.h"
 #include "FilterModel.h"
 #include "FilterModelFader.h"
+#include "Library/DMXEntityFixturePatch.h"
 
 
 namespace UE::DMXControlConsoleEditor::FilterModel::Private
@@ -54,17 +55,84 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		}
 	}
 
+	bool FFilterModelFaderGroup::MatchesGlobalFilterUniverses(const FGlobalFilter& GlobalFilter) const
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get();
+		if (!FaderGroup || GlobalFilter.Universes.IsEmpty())
+		{
+			return false;
+		}
+
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		if (!FixturePatch)
+		{
+			return false;
+		}
+
+		const int32* MatchingUniversePtr = Algo::FindByPredicate(GlobalFilter.Universes, [FixturePatch](const int32 Universe)
+				{
+					return FixturePatch->GetUniverseID() == Universe;
+				});
+
+		return MatchingUniversePtr != nullptr;
+	}
+
+	bool FFilterModelFaderGroup::MatchesGlobalFilterAbsoluteAddress(const FGlobalFilter& GlobalFilter) const
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get();
+		if (!FaderGroup || !GlobalFilter.AbsoluteAddress.IsSet())
+		{
+			return false;
+		}
+
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		if (!FixturePatch)
+		{
+			return false;
+		}
+
+		return GlobalFilter.AbsoluteAddress.IsSet() && GlobalFilter.AbsoluteAddress == FixturePatch->GetStartingChannel();
+	}
+
 	bool FFilterModelFaderGroup::MatchesGlobalFilterNames(const FGlobalFilter& GlobalFilter) const
 	{
-		if (UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get())
+		if (const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get())
 		{
 			const FString* MatchingStringPtr = Algo::FindByPredicate(GlobalFilter.Names, [FaderGroup](const FString& Name)
 				{
 					return FaderGroup->GetFaderGroupName().Contains(Name);
 				});
-			
+
 			return MatchingStringPtr != nullptr;
 		}
+		return false;
+	}
+
+	bool FFilterModelFaderGroup::MatchesGlobalFilterFixtureIDs(const FGlobalFilter& GlobalFilter) const
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get();
+		if (!FaderGroup )
+		{
+			return false;
+		}
+
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		if (!FixturePatch)
+		{
+			return false;
+		}
+
+		int32 FixtureID;
+		if (FixturePatch->FindFixtureID(FixtureID))
+		{
+			const int32* MatchingIDPtr = Algo::FindByPredicate(GlobalFilter.FixtureIDs, [FixtureID](const int32 InFixtureID)
+				{
+					return FixtureID == InFixtureID;
+				});
+
+			return MatchingIDPtr != nullptr;
+		}
+
 		return false;
 	}
 
@@ -87,6 +155,25 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 			return;
 		}
 
+		// If no global filter, only apply fader group filter
+		if (GlobalFilter.String.IsEmpty())
+		{
+			FaderGroup->SetIsMatchingFilter(true);
+			for (const TSharedRef<FFilterModelFader>& FaderModel : FaderModels)
+			{
+				UDMXControlConsoleFaderBase* Fader = FaderModel->GetFader();
+				if (!Fader)
+				{
+					continue;
+				}
+
+				const bool bMatchesFaderGroupFilter = FaderModel->MatchesFaderGroupFilter(FaderGroupFilter);
+				Fader->SetIsMatchingFilter(bMatchesFaderGroupFilter);
+			}
+
+			return;
+		}
+
 		// Reset visibility
 		FaderGroup->SetIsMatchingFilter(false);
 		const TArray<UDMXControlConsoleFaderBase*> Faders = FaderGroup->GetAllFaders();
@@ -97,26 +184,49 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 
 		// Apply filter
 		const bool bRequiresMatchingFaderGroupName = NameFilterMode == ENameFilterMode::MatchFaderGroupNames || NameFilterMode == ENameFilterMode::MatchFaderAndFaderGroupNames;
-		if (bRequiresMatchingFaderGroupName && !IsMatchingGlobalFilterNames(GlobalFilter))
+		if (bRequiresMatchingFaderGroupName)
 		{
-			return;
-		}
-		else if (bRequiresMatchingFaderGroupName && FaderModels.IsEmpty())
-		{
+			if (!IsMatchingGlobalFilterUniverses(GlobalFilter) &&
+				!IsMatchingGlobalFilterAbsoluteAddress(GlobalFilter) &&
+				!IsMatchingGlobalFilterNames(GlobalFilter) &&
+				!IsMatchingGlobalFilterFixtureIDs(GlobalFilter))
+			{
+				return;
+			}
+
 			FaderGroup->SetIsMatchingFilter(true);
 		}
 
 		for (const TSharedRef<FFilterModelFader>& FaderModel : FaderModels)
 		{
 			UDMXControlConsoleFaderBase* Fader = FaderModel->GetFader();
-			if (!Fader || !FaderModel->MatchesGlobalFilter(GlobalFilter, NameFilterMode))
+			if (!Fader)
 			{
 				continue;
 			}
 
-			FaderGroup->SetIsMatchingFilter(true);
-			if (FaderModel->MatchesFaderGroupFilter(FaderGroupFilter))
+			const bool bMatchesFilters = [NameFilterMode, GlobalFilter, FaderModel, this]() 
+				{
+					if (NameFilterMode == ENameFilterMode::MatchFaderGroupNames)
+					{
+						// True if matches global filter and fader group filter
+						return
+							FaderModel->MatchesGlobalFilter(GlobalFilter, NameFilterMode) &&
+							FaderModel->MatchesFaderGroupFilter(FaderGroupFilter);
+					}
+					else
+					{
+						// True if matches global filter or fader group filter (or both)
+						return
+							FaderModel->MatchesGlobalFilter(GlobalFilter, NameFilterMode) ||
+							(FaderModel->MatchesFaderGroupFilter(FaderGroupFilter) &&
+								!FaderGroupFilter.Names.IsEmpty());
+					}
+				}();
+
+			if (bMatchesFilters)
 			{
+				FaderGroup->SetIsMatchingFilter(true);
 				Fader->SetIsMatchingFilter(true);
 			}
 		}
@@ -133,17 +243,86 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 			});
 	}
 
+	bool FFilterModelFaderGroup::IsMatchingGlobalFilterUniverses(const FGlobalFilter& GlobalFilter) const
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get();
+		if (!FaderGroup || GlobalFilter.Universes.IsEmpty())
+		{
+			return false;
+		}
+
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		if (!FixturePatch)
+		{
+			return false;
+		}
+
+		const bool bMatchesFaderGroupUniverse =
+			Algo::FindByPredicate(GlobalFilter.Universes, [FixturePatch](const int32 Universe)
+				{
+					return FixturePatch->GetUniverseID() == Universe;
+				}) != nullptr;
+
+		return bMatchesFaderGroupUniverse;
+	}
+
+	bool FFilterModelFaderGroup::IsMatchingGlobalFilterAbsoluteAddress(const FGlobalFilter& GlobalFilter) const
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get();
+		if (!FaderGroup || !GlobalFilter.AbsoluteAddress.IsSet())
+		{
+			return false;
+		}
+
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		if (!FixturePatch)
+		{
+			return false;
+		}
+
+		const bool bMatchesFaderGroupAbsoluteAddress = GlobalFilter.AbsoluteAddress == FixturePatch->GetStartingChannel();
+		return bMatchesFaderGroupAbsoluteAddress;
+	}
+
 	bool FFilterModelFaderGroup::IsMatchingGlobalFilterNames(const FGlobalFilter& GlobalFilter) const
 	{
-		if (UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get())
+		if (const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get())
 		{
 			const bool bMatchesFaderGroupName =
-				GlobalFilter.Names.IsEmpty() ||
 				Algo::FindByPredicate(GlobalFilter.Names, [FaderGroup](const FString& Name)
 					{
 						return FaderGroup->GetFaderGroupName().Contains(Name);
 					}) != nullptr;
 			return bMatchesFaderGroupName;
+		}
+
+		return false;
+	}
+
+	bool FFilterModelFaderGroup::IsMatchingGlobalFilterFixtureIDs(const FGlobalFilter& GlobalFilter) const
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroup = WeakFaderGroup.Get();
+		if (!FaderGroup || GlobalFilter.FixtureIDs.IsEmpty())
+		{
+			return false;
+		}
+
+		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+		if (!FixturePatch)
+		{
+			return false;
+		}
+
+		int32 FixtureID;
+		if (FixturePatch->FindFixtureID(FixtureID))
+		{
+			const bool bMatchesFaderGroupFixtureIDs =
+				Algo::FindByPredicate(GlobalFilter.FixtureIDs, [FixtureID](const int32 InFixtureID)
+					{
+						return FixtureID == InFixtureID;
+					}) != nullptr;
+
+			return bMatchesFaderGroupFixtureIDs;
 		}
 
 		return false;

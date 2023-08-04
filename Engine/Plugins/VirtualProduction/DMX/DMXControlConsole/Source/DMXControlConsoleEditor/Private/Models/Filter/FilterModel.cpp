@@ -75,16 +75,8 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 			AbsoluteAddress = Address;
 		}
 
-		// Parse names. Ignore universes, digits.
-		FString StringNoDigits;
-		for (const TCHAR& Char : StringWithoutUniverses.GetCharArray())
-		{
-			if (!FChar::IsDigit(Char))
-			{
-				StringNoDigits += Char;
-			}
-		}
-		Names = ParseStringIntoArray(StringNoDigits);
+		// Parse names. Ignore universes.
+		Names = ParseStringIntoArray(StringWithoutUniverses);
 	}
 
 	void FGlobalFilter::Reset()
@@ -216,7 +208,12 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		bool bHasFadersMatchingGlobalFilterNames = false;
 		for (const TSharedRef<FFilterModelFaderGroup>& FaderGroupModel : FaderGroupModels)
 		{
-			bGroupMatchesGlobalFilterNames |= FaderGroupModel->MatchesGlobalFilterNames(GlobalFilter);
+			bGroupMatchesGlobalFilterNames |= 
+				FaderGroupModel->MatchesGlobalFilterUniverses(GlobalFilter) ||
+				FaderGroupModel->MatchesGlobalFilterAbsoluteAddress(GlobalFilter) ||
+				FaderGroupModel->MatchesGlobalFilterNames(GlobalFilter) ||
+				FaderGroupModel->MatchesGlobalFilterFixtureIDs(GlobalFilter);
+
 			bHasFadersMatchingGlobalFilterNames |= FaderGroupModel->HasFadersMatchingGlobalFilterNames(GlobalFilter);
 
 			if (bGroupMatchesGlobalFilterNames && bHasFadersMatchingGlobalFilterNames)

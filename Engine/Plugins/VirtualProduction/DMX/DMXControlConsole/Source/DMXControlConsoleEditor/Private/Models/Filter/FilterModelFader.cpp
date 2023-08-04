@@ -47,7 +47,6 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		auto MatchesUniverseLambda = [GlobalFilter, Fader, this]()
 		{
 			return
-				GlobalFilter.Universes.IsEmpty() ||
 				Algo::FindByPredicate(GlobalFilter.Universes, [Fader](int32 Universe)
 					{
 						return Universe == Fader->GetUniverseID();
@@ -58,7 +57,6 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		auto MatchesFixtureIDLambda = [FixturePatch, GlobalFilter, Fader, this]()
 		{
 			return
-				GlobalFilter.FixtureIDs.IsEmpty() ||
 				Algo::FindByPredicate(GlobalFilter.FixtureIDs, [Fader, FixturePatch](int32 FixtureID)
 					{
 						int32 FixturePatchFixtureID;
@@ -70,14 +68,25 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 					}) != nullptr;
 		};
 
-		auto MatchesAddressLambda = [FixturePatch, GlobalFilter, Fader, this]()
+		auto MatchesAddressLambda = [FixturePatch, GlobalFilter]()
 		{
 			return
-				!GlobalFilter.AbsoluteAddress.IsSet() ||
-				GlobalFilter.AbsoluteAddress == Fader->GetStartingAddress();
+				FixturePatch &&
+				GlobalFilter.AbsoluteAddress.IsSet() &&
+				GlobalFilter.AbsoluteAddress == FixturePatch->GetStartingChannel();
 		};
 
-		auto MatchesNameLambda = [GlobalFilter, NameFilterMode, Fader, this]()
+		const FString& FaderGroupName = Fader->GetOwnerFaderGroupChecked().GetFaderGroupName();
+		auto MatchesFaderGroupNameLambda = [FaderGroupName, GlobalFilter]()
+		{
+			return
+				Algo::FindByPredicate(GlobalFilter.Names, [FaderGroupName](const FString& Name)
+					{
+						return FaderGroupName.Contains(Name);
+					}) != nullptr;
+		};
+
+		auto MatchesFaderNameLambda = [GlobalFilter, NameFilterMode, Fader, this]()
 		{
 			if (NameFilterMode == ENameFilterMode::MatchFaderNames || NameFilterMode == ENameFilterMode::MatchFaderAndFaderGroupNames)
 			{
@@ -89,11 +98,28 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 			}
 		};
 
-		return
-			MatchesUniverseLambda() &&
-			MatchesFixtureIDLambda() &&
-			MatchesAddressLambda() &&
-			MatchesNameLambda();
+		// True if owner Fader Group matches filter
+		const bool bFaderGroupMatchesFilter =
+			MatchesUniverseLambda() ||
+			MatchesAddressLambda() ||
+			MatchesFixtureIDLambda() ||
+			MatchesFaderGroupNameLambda();
+
+		switch (NameFilterMode)
+		{
+		case ENameFilterMode::MatchFaderGroupNames:
+			return bFaderGroupMatchesFilter;
+			break;
+		case ENameFilterMode::MatchFaderNames:
+			return MatchesFaderNameLambda();
+			break;
+		case ENameFilterMode::MatchFaderAndFaderGroupNames:
+			return MatchesFaderNameLambda() && bFaderGroupMatchesFilter;
+			break;
+		default:
+			return true;
+			break;
+		}
 	}
 
 	bool FFilterModelFader::MatchesFaderGroupFilter(const FFaderGroupFilter& FaderGroupFilter)
