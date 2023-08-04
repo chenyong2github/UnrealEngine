@@ -2,6 +2,7 @@
 
 #include "SDMXControlConsoleEditorLayoutPicker.h"
 
+#include "DMXControlConsoleEditorSelection.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
 #include "Layouts/DMXControlConsoleEditorGlobalLayoutDefault.h"
@@ -226,8 +227,14 @@ void SDMXControlConsoleEditorLayoutPicker::OnDefaultLayoutChecked(ECheckBoxState
 	UDMXControlConsoleEditorModel* EditorModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorModel->GetEditorConsoleLayouts())
 	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorModel->GetSelectionHandler();
+		SelectionHandler->ClearSelection();
+
 		UDMXControlConsoleEditorGlobalLayoutDefault* DefaultLayout = EditorConsoleLayouts->GetDefaultLayout();
-		EditorModel->SelectLayout(DefaultLayout);
+
+		const FScopedTransaction SetActiveDefaultLayoutTransaction(LOCTEXT("SetActiveDefaultLayoutTransaction", "Change Layout"));
+		EditorConsoleLayouts->Modify();
+		EditorConsoleLayouts->SetActiveLayout(DefaultLayout);
 	}
 }
 
@@ -240,9 +247,12 @@ void SDMXControlConsoleEditorLayoutPicker::OnUserLayoutChecked(ECheckBoxState Ch
 		return;
 	}
 
+	const FScopedTransaction AddFirstUserLayoutTransaction(LOCTEXT("AddFirstUserLayoutTransaction", "Add New Layout"));
+	EditorConsoleLayouts->Modify();
+
 	if (LastSelectedItem.IsValid())
 	{
-		EditorModel->SelectLayout(LastSelectedItem.Get());
+		EditorConsoleLayouts->SetActiveLayout(LastSelectedItem.Get());
 		LayoutNameText = FText::FromString(LastSelectedItem->GetLayoutName());
 	}
 	else
@@ -251,10 +261,7 @@ void SDMXControlConsoleEditorLayoutPicker::OnUserLayoutChecked(ECheckBoxState Ch
 		UDMXControlConsoleEditorGlobalLayoutUser* NewSelectedLayout = nullptr;
 		if (UserLayouts.IsEmpty())
 		{
-			const FScopedTransaction AddFirstUserLayoutTransaction(LOCTEXT("AddFirstUserLayoutTransaction", "Add New Layout"));
-			EditorConsoleLayouts->PreEditChange(nullptr);
 			NewSelectedLayout = EditorConsoleLayouts->AddUserLayout("");
-			EditorConsoleLayouts->PostEditChange();
 		}
 		else
 		{
@@ -263,7 +270,7 @@ void SDMXControlConsoleEditorLayoutPicker::OnUserLayoutChecked(ECheckBoxState Ch
 
 		if (NewSelectedLayout)
 		{
-			EditorModel->SelectLayout(NewSelectedLayout);
+			EditorConsoleLayouts->SetActiveLayout(NewSelectedLayout);
 
 			UpdateComboBoxSource();
 			UserLayoutsComboBox->SetSelectedItem(NewSelectedLayout);
@@ -271,6 +278,9 @@ void SDMXControlConsoleEditorLayoutPicker::OnUserLayoutChecked(ECheckBoxState Ch
 			LayoutNameText = FText::FromString(NewSelectedLayout->GetLayoutName());
 		}
 	}
+
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorModel->GetSelectionHandler();
+	SelectionHandler->ClearSelection();
 }
 
 ECheckBoxState SDMXControlConsoleEditorLayoutPicker::IsActiveLayoutClass(UClass* InLayoutClass) const
@@ -304,10 +314,20 @@ void SDMXControlConsoleEditorLayoutPicker::UpdateComboBoxSource()
 
 void SDMXControlConsoleEditorLayoutPicker::OnComboBoxSelectionChanged(const TWeakObjectPtr<UDMXControlConsoleEditorGlobalLayoutUser> InLayout, ESelectInfo::Type SelectInfo)
 {
-	if (InLayout.IsValid() && UserLayoutsComboBox.IsValid())
+	if (!InLayout.IsValid() || !UserLayoutsComboBox.IsValid())
 	{
-		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-		EditorConsoleModel->SelectLayout(InLayout.Get());
+		return;
+	}
+
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts())
+	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+		SelectionHandler->ClearSelection();
+
+		const FScopedTransaction UserLayoutSelectionChangedTransaction(LOCTEXT("UserLayoutSelectionChangedTransaction", "Change Layout"));
+		EditorConsoleLayouts->Modify();
+		EditorConsoleLayouts->SetActiveLayout(InLayout.Get());
 
 		UserLayoutsComboBox->SetSelectedItem(InLayout);
 		LastSelectedItem = InLayout;
@@ -352,13 +372,15 @@ FReply SDMXControlConsoleEditorLayoutPicker::OnAddLayoutClicked()
 		const FScopedTransaction AddUserLayoutTransaction(LOCTEXT("AddUserLayoutTransaction", "Add New Layout"));
 		EditorConsoleLayouts->PreEditChange(nullptr);
 		UDMXControlConsoleEditorGlobalLayoutUser* NewUserLayout = EditorConsoleLayouts->AddUserLayout(NewLayoutName);
+		EditorConsoleLayouts->SetActiveLayout(NewUserLayout);
 		EditorConsoleLayouts->PostEditChange();
-
-		EditorModel->SelectLayout(NewUserLayout);
 
 		UpdateComboBoxSource();
 		UserLayoutsComboBox->SetSelectedItem(NewUserLayout);
 		LastSelectedItem = NewUserLayout;
+
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorModel->GetSelectionHandler();
+		SelectionHandler->ClearSelection();
 	}
 
 	return FReply::Handled();
@@ -390,15 +412,14 @@ FReply SDMXControlConsoleEditorLayoutPicker::OnDeleteLayoutClicked()
 		const int32 LayoutIndex = UserLayouts.IndexOfByKey(LastSelectedItem);
 
 		const FScopedTransaction DeleteUserLayoutTransaction(LOCTEXT("DeleteUserLayoutTransaction", "Delete Layout"));
-		EditorConsoleLayouts->PreEditChange(nullptr);
+		EditorConsoleLayouts->Modify();
 		EditorConsoleLayouts->DeleteUserLayout(LastSelectedItem.Get());
-		EditorConsoleLayouts->PostEditChange();
 
 		if (LayoutIndex > 0)
 		{
 			// Select the previous User Layout in the array
 			UDMXControlConsoleEditorGlobalLayoutUser* LayoutToSelect = UserLayouts[LayoutIndex - 1];
-			EditorModel->SelectLayout(LayoutToSelect);
+			EditorConsoleLayouts->SetActiveLayout(LayoutToSelect);
 
 			UpdateComboBoxSource();
 			UserLayoutsComboBox->SetSelectedItem(LayoutToSelect);
@@ -409,12 +430,15 @@ FReply SDMXControlConsoleEditorLayoutPicker::OnDeleteLayoutClicked()
 		{
 			// If there are no more User Layouts switch to Default Layout
 			UDMXControlConsoleEditorGlobalLayoutDefault* DefaultLayout = EditorConsoleLayouts->GetDefaultLayout();
-			EditorModel->SelectLayout(DefaultLayout);
+			EditorConsoleLayouts->SetActiveLayout(DefaultLayout);
 
 			UserLayoutsComboBox->ClearSelection();
 			LastSelectedItem = nullptr;
 			LayoutNameText = FText::GetEmpty();
 		}
+
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorModel->GetSelectionHandler();
+		SelectionHandler->ClearSelection();
 	}
 
 	return FReply::Handled();

@@ -6,7 +6,7 @@
 #include "TimerManager.h"
 
 
-namespace UE::DMXControlConsoleEditor::Layout
+namespace UE::DMXControlConsoleEditor::Layout::Private
 { 
 	void SDMXControlConsoleEditorLayout::RequestRefresh()
 	{

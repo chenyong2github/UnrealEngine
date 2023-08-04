@@ -65,9 +65,16 @@ void UDMXControlConsoleEditorLayouts::ClearUserLayouts()
 
 void UDMXControlConsoleEditorLayouts::SetActiveLayout(UDMXControlConsoleEditorGlobalLayoutBase* InLayout)
 {
-	if (InLayout)
+	if (InLayout && InLayout != ActiveLayout)
 	{
 		ActiveLayout = InLayout;
+		if (UDMXControlConsoleEditorGlobalLayoutUser* ActiveUserLayout = Cast<UDMXControlConsoleEditorGlobalLayoutUser>(InLayout))
+		{
+			ActiveUserLayout->SetIsActive(true);
+		}
+
+		OnActiveLayoutChanged.Broadcast();
+		OnLayoutModeChanged.Broadcast();
 	}
 }
 
@@ -80,34 +87,12 @@ void UDMXControlConsoleEditorLayouts::UpdateDefaultLayout(const UDMXControlConso
 	}
 }
 
-void UDMXControlConsoleEditorLayouts::SubscribeToFixturePatchDelegates()
+void UDMXControlConsoleEditorLayouts::BeginDestroy()
 {
-	if (!DefaultLayout)
-	{
-		return;
-	}
+	Super::BeginDestroy();
 
-	if (!UDMXLibrary::GetOnEntitiesRemoved().IsBoundToObject(DefaultLayout))
+	if (DefaultLayout && DefaultLayout->IsRegistered())
 	{
-		UDMXLibrary::GetOnEntitiesRemoved().AddUObject(DefaultLayout, &UDMXControlConsoleEditorGlobalLayoutDefault::OnFixturePatchRemovedFromLibrary);
-	}
-
-	const UDMXControlConsoleEditorModel* EditorModel = GetDefault<UDMXControlConsoleEditorModel>();
-	UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData();
-	if (EditorConsoleData && !EditorConsoleData->GetOnFaderGroupAdded().IsBoundToObject(DefaultLayout))
-	{
-		EditorConsoleData->GetOnFaderGroupAdded().AddUObject(DefaultLayout, &UDMXControlConsoleEditorGlobalLayoutDefault::OnFaderGroupAddedToData, EditorConsoleData);
-	}
-}
-
-void UDMXControlConsoleEditorLayouts::UnsubscribeFromFixturePatchDelegates()
-{
-	UDMXLibrary::GetOnEntitiesRemoved().RemoveAll(DefaultLayout);
-	
-	const UDMXControlConsoleEditorModel* EditorModel = GetDefault<UDMXControlConsoleEditorModel>();
-	UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData();
-	if (EditorConsoleData)
-	{
-		EditorConsoleData->GetOnFaderGroupAdded().RemoveAll(DefaultLayout);
+		DefaultLayout->Unregister();
 	}
 }

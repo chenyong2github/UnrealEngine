@@ -29,6 +29,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "TimerManager.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -60,9 +61,13 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	EditorConsoleModel.GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleLoaded);
 	EditorConsoleModel.GetOnConsoleSaved().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleSaved);
-	EditorConsoleModel.GetOnLayoutChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
-	EditorConsoleModel.GetOnLayoutModeChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
 	EditorConsoleModel.GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleRefreshed);
+
+	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel.GetEditorConsoleLayouts())
+	{
+		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+		EditorConsoleLayouts->GetOnLayoutModeChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+	}
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
@@ -271,6 +276,7 @@ FReply SDMXControlConsoleEditorView::OnMouseButtonDown(const FGeometry& MyGeomet
 void SDMXControlConsoleEditorView::PostUndo(bool bSuccess)
 {
 	UpdateFixturePatchVerticalBox();
+	UpdateLayout();
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	EditorConsoleModel.RequestRefresh();
 }
@@ -278,6 +284,7 @@ void SDMXControlConsoleEditorView::PostUndo(bool bSuccess)
 void SDMXControlConsoleEditorView::PostRedo(bool bSuccess)
 {
 	UpdateFixturePatchVerticalBox();
+	UpdateLayout();
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	EditorConsoleModel.RequestRefresh();
 }
@@ -809,28 +816,40 @@ void SDMXControlConsoleEditorView::UpdateLayout()
 	}
 
 	using namespace UE::DMXControlConsoleEditor::Layout::Private;
-	const EDMXControlConsoleLayoutMode LayoutMode = CurrentLayout->LayoutMode;
+	const EDMXControlConsoleLayoutMode LayoutMode = CurrentLayout->GetLayoutMode();
+
+	TSharedPtr<SDMXControlConsoleEditorLayout> NewLayoutWidget;
 	switch (LayoutMode)
 	{
 	case EDMXControlConsoleLayoutMode::Horizontal:
-		Layout = SNew(SDMXControlConsoleEditorHorizontalLayout);
+	{
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorHorizontalLayout);
 		break;
+	}
 	case EDMXControlConsoleLayoutMode::Vertical:
-		Layout = SNew(SDMXControlConsoleEditorVerticalLayout);
+	{
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorVerticalLayout);
 		break;
+	}
 	case EDMXControlConsoleLayoutMode::Grid:
-		Layout = SNew(SDMXControlConsoleEditorGridLayout);
+	{
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorGridLayout);
 		break;
+	}
 	default:
-		Layout = SNew(SDMXControlConsoleEditorGridLayout);
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorGridLayout);
 		break;
 	}
 
-	LayoutBox->ClearChildren();
-	LayoutBox->AddSlot()
-		[
-			Layout.ToSharedRef()
-		];
+	if (NewLayoutWidget.IsValid() && !IsCurrentLayoutWidgetType(NewLayoutWidget->GetType()))
+	{
+		Layout = NewLayoutWidget;
+		LayoutBox->ClearChildren();
+		LayoutBox->AddSlot()
+			[
+				Layout.ToSharedRef()
+			];
+	}
 }
 
 void SDMXControlConsoleEditorView::UpdateFixturePatchVerticalBox()
@@ -889,8 +908,19 @@ void SDMXControlConsoleEditorView::OnFadersViewModeSelected(const EDMXControlCon
 
 void SDMXControlConsoleEditorView::OnLayoutModeSelected(const EDMXControlConsoleLayoutMode LayoutMode) const
 {
-	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
-	EditorConsoleModel.SelectLayoutMode(LayoutMode);
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetControlConsoleLayouts();
+	if (!EditorConsoleLayouts)
+	{
+		return;
+	}
+
+	if (UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout())
+	{
+		const FScopedTransaction LayouModeSelectedTransaction(LOCTEXT("LayouModeSelectedTransaction", "Change Layout Mode"));
+		CurrentLayout->PreEditChange(UDMXControlConsoleEditorGlobalLayoutBase::StaticClass()->FindPropertyByName(UDMXControlConsoleEditorGlobalLayoutBase::GetLayoutModePropertyName()));
+		CurrentLayout->SetLayoutMode(LayoutMode);
+		CurrentLayout->PostEditChange();
+	}
 }
 
 bool SDMXControlConsoleEditorView::IsCurrentLayoutMode(const EDMXControlConsoleLayoutMode LayoutMode) const
@@ -902,7 +932,18 @@ bool SDMXControlConsoleEditorView::IsCurrentLayoutMode(const EDMXControlConsoleL
 	}
 
 	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
-	return CurrentLayout && CurrentLayout->LayoutMode == LayoutMode;
+	return CurrentLayout && CurrentLayout->GetLayoutMode() == LayoutMode;
+}
+
+bool SDMXControlConsoleEditorView::IsCurrentLayoutWidgetType(const FName& InWidgetTypeName) const
+{
+	if (Layout.IsValid())
+	{
+		const FName& WidgetTypeName = Layout->GetType();
+		return WidgetTypeName == InWidgetTypeName;
+	}
+
+	return false;
 }
 
 void SDMXControlConsoleEditorView::OnSelectAll(bool bOnlyMatchingFilter) const
@@ -954,6 +995,12 @@ void SDMXControlConsoleEditorView::OnConsoleLoaded()
 	RequestUpdateDetailsViews();
 	UpdateFixturePatchVerticalBox();
 	UpdateLayout();
+	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetControlConsoleLayouts())
+	{
+		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+		EditorConsoleLayouts->GetOnLayoutModeChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+	}
+
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXControlConsoleEditorView::RestoreGlobalFilter));
 
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());

@@ -60,10 +60,8 @@ public:
 	/** Gets an array of all Fader Groups in this layout */
 	TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> GetAllFaderGroups() const;
 
-#if WITH_EDITOR
 	/** Gets an array of all active Fader Groups in this layout */
-	TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> GetAllActiveFaderGroups() const;
-#endif // WITH_EDITOR 
+	TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> GetAllActiveFaderGroups() const; 
 
 	/** Gets the Fader Group at given row/column index, if valid */
 	UDMXControlConsoleFaderGroup* GetFaderGroupAt(const int32 RowIndex, const int32 ColumnIndex) const;
@@ -73,6 +71,12 @@ public:
 
 	/** Gets column index for the given Fader Group, if valid */
 	int32 GetFaderGroupColumnIndex(const UDMXControlConsoleFaderGroup* FaderGroup) const;
+
+	/** Gets current layout mode */
+	EDMXControlConsoleLayoutMode GetLayoutMode() const { return LayoutMode; }
+
+	/** Sets current layout mode */
+	void SetLayoutMode(const EDMXControlConsoleLayoutMode NewLayoutMode);
 
 	/** True if the layout contains the given Fader Group */
 	bool ContainsFaderGroup(const UDMXControlConsoleFaderGroup* FaderGroup) const;
@@ -91,13 +95,16 @@ public:
 
 	/** Clears all empty Layout Rows in the layout */
 	void ClearEmptyLayoutRows();
-	
-	UPROPERTY()
-	/** Current layout sorting method for this layout */
-	EDMXControlConsoleLayoutMode LayoutMode = EDMXControlConsoleLayoutMode::Grid;
 
+	// Property Name getters
+	FORCEINLINE static FName GetLayoutModePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleEditorGlobalLayoutBase, LayoutMode); }
+	
 private:
 	/** Reference to Layout Rows array */
 	UPROPERTY()
 	TArray<TObjectPtr<UDMXControlConsoleEditorGlobalLayoutRow>> LayoutRows;
+
+	/** Current layout sorting method for this layout */
+	UPROPERTY()
+	EDMXControlConsoleLayoutMode LayoutMode = EDMXControlConsoleLayoutMode::Grid;
 };

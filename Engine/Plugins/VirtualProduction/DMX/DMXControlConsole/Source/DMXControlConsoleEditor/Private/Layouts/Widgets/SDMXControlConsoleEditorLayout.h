@@ -6,7 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 
-namespace UE::DMXControlConsoleEditor::Layout
+namespace UE::DMXControlConsoleEditor::Layout::Private
 { 
 	/** Base widget for Control Console layout */
 	class DMXCONTROLCONSOLEEDITOR_API SDMXControlConsoleEditorLayout

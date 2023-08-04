@@ -39,13 +39,18 @@ void SDMXControlConsoleReadOnlyFixturePatchList::Construct(const FArguments& InA
 		.IsRowVisibile(InArgs._IsRowVisibile));
 
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	EditorConsoleModel->GetOnLayoutChanged().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
+	EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
 	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
 
 	if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 	{
 		EditorConsoleData->GetOnFaderGroupAdded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
 		EditorConsoleData->GetOnFaderGroupRemoved().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
+	}
+
+	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts())
+	{
+		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
 	}
 
 	SyncSelection();

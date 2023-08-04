@@ -19,6 +19,9 @@ class UDMXControlConsoleEditorLayouts
 {
 	GENERATED_BODY()
 
+	// Allow a UDMXControlConsoleEditorGlobalLayoutBase to read Editor Layouts data
+	friend UDMXControlConsoleEditorGlobalLayoutBase;
+
 public:
 	/** Constructor */
 	UDMXControlConsoleEditorLayouts();
@@ -50,13 +53,24 @@ public:
 	/** Updates the default Layout to the given Control Console Data */
 	void UpdateDefaultLayout(const UDMXControlConsoleData* ControlConsoleData);
 
-	/** Subscribes this Layout to Fixture Patch delegates */
-	void SubscribeToFixturePatchDelegates();
+	/** Called after the Active Layout has been changed */
+	FSimpleMulticastDelegate& GetOnActiveLayoutChanged() { return OnActiveLayoutChanged; }
 
-	/** Subscribes this Layout from Fixture Patch delegates */
-	void UnsubscribeFromFixturePatchDelegates();
+	/** Called after the Active Layouts's layout mode has been changed */
+	FSimpleMulticastDelegate& GetOnLayoutModeChanged() { return OnLayoutModeChanged; }
+
+protected:
+	//~ Begin UObject interface
+	virtual void BeginDestroy() override;
+	//~ End UObject interface
 
 private:
+	/** Called after the Active Layout has been changed */
+	FSimpleMulticastDelegate OnActiveLayoutChanged;
+
+	/** Called after the Active Layouts's layout mode has been changed */
+	FSimpleMulticastDelegate OnLayoutModeChanged;
+
 	/** Reference to Default Layout */
 	UPROPERTY()
 	TObjectPtr<UDMXControlConsoleEditorGlobalLayoutDefault> DefaultLayout;

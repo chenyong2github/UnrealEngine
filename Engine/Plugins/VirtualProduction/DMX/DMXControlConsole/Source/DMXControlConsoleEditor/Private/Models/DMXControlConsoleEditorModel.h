@@ -107,12 +107,6 @@ public:
 	/** Resets DMX Control Console */
 	void ClearAll();
 
-	/** Selects the active Layout for the Control Console */
-	void SelectLayout(UDMXControlConsoleEditorGlobalLayoutBase* NewLayout);
-
-	/** Selects the Layout Mode for the active Layout */
-	void SelectLayoutMode(EDMXControlConsoleLayoutMode NewLayoutMode);
-
 	/** Scrolls the given FaderGroup into view */
 	void ScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup) const;
 
@@ -162,12 +156,6 @@ public:
 	/** Gets a reference to OnFadersViewModeChanged delegate */
 	FSimpleMulticastDelegate& GetOnFadersViewModeChanged() { return OnFadersViewModeChanged; }
 
-	/** Gets a reference to OnLayoutChanged delegate */
-	FSimpleMulticastDelegate& GetOnLayoutChanged() { return OnLayoutChanged; }
-
-	/** Gets a reference to OnLayoutModeChanged delegate */
-	FSimpleMulticastDelegate& GetOnLayoutModeChanged() { return OnLayoutModeChanged; }
-
 	/** Gets a reference to OnScrollFaderGroupIntoView delegate */
 	FDMXControlConsoleFaderGroupDelegate& GetOnScrollFaderGroupIntoView() { return OnScrollFaderGroupIntoView; }
 
@@ -185,7 +173,13 @@ private:
 	void ForceRefresh();
 
 	/** Initializes current Control Console's Editor Layouts, if not valid */
-	void InitializeControlConsoleEditorLayouts();
+	void InitializeEditorLayouts();
+
+	/** Registers current Editor Layouts to DMX Library delegates */
+	void RegisterEditorLayouts();
+
+	/** Unregisters current Editor Layouts from DMX Library delegates */
+	void UnregisterEditorlayouts();
 
 	/** Saves the current editor console to config */
 	void SaveConsoleToConfig();
@@ -222,12 +216,6 @@ private:
 
 	/** Called when the Faders view mode is changed */
 	FSimpleMulticastDelegate OnFadersViewModeChanged;
-
-	/** Called when the Layout is changed */
-	FSimpleMulticastDelegate OnLayoutChanged;
-
-	/** Called when the Layout mode is changed */
-	FSimpleMulticastDelegate OnLayoutModeChanged;
 
 	/** Called when a Fader Group needs to be scrolled into view */
 	FDMXControlConsoleFaderGroupDelegate OnScrollFaderGroupIntoView;

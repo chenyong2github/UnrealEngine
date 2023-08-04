@@ -7,6 +7,7 @@
 #include "DMXControlConsoleEditorGlobalLayoutRow.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "Layouts/DMXControlConsoleEditorLayouts.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorGlobalLayoutBase"
@@ -172,6 +173,23 @@ int32 UDMXControlConsoleEditorGlobalLayoutBase::GetFaderGroupColumnIndex(const U
 	}
 
 	return INDEX_NONE;
+}
+
+void UDMXControlConsoleEditorGlobalLayoutBase::SetLayoutMode(const EDMXControlConsoleLayoutMode NewLayoutMode)
+{
+	if (LayoutMode == NewLayoutMode)
+	{
+		return;
+	}
+
+	const UDMXControlConsoleEditorLayouts* OwnerEditorLayouts = Cast<UDMXControlConsoleEditorLayouts>(GetOuter());
+	if(!ensureMsgf(OwnerEditorLayouts, TEXT("Invalid outer for '%s', cannot set layout mode correctly."), *GetName()))
+	{
+		return;
+	}
+
+	LayoutMode = NewLayoutMode;
+	OwnerEditorLayouts->OnLayoutModeChanged.Broadcast();
 }
 
 bool UDMXControlConsoleEditorGlobalLayoutBase::ContainsFaderGroup(const UDMXControlConsoleFaderGroup* FaderGroup) const

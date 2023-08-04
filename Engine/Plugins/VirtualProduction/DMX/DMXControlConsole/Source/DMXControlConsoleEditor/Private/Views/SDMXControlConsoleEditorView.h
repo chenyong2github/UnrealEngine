@@ -22,7 +22,7 @@ class UDMXControlConsoleData;
 class UDMXControlConsoleEditorLayouts;
 class UDMXControlConsoleEditorModel;
 
-namespace UE::DMXControlConsoleEditor::Layout { class SDMXControlConsoleEditorLayout; }
+namespace UE::DMXControlConsoleEditor::Layout::Private { class SDMXControlConsoleEditorLayout; }
 
 
 /** Widget for the DMX Control Console */
@@ -119,6 +119,9 @@ private:
 	/** True if the current layout mode matches the given one */
 	bool IsCurrentLayoutMode(const EDMXControlConsoleLayoutMode LayoutMode) const;
 
+	/** True if the current layout widget's type name matches the given one */
+	bool IsCurrentLayoutWidgetType(const FName& InWidgetTypeName) const;
+
 	/** Called when a Selection option is selected */
 	void OnSelectAll(bool bOnlyMatchingFilter = false) const;
 
@@ -153,7 +156,7 @@ private:
 	EVisibility GetDetailViewsSectionVisibility() const;
 
 	/** Reference to Control Console current layout widget */
-	TSharedPtr<UE::DMXControlConsoleEditor::Layout::SDMXControlConsoleEditorLayout> Layout;
+	TSharedPtr<UE::DMXControlConsoleEditor::Layout::Private::SDMXControlConsoleEditorLayout> Layout;
 
 	/** Reference to layout container box */
 	TSharedPtr<SHorizontalBox> LayoutBox;

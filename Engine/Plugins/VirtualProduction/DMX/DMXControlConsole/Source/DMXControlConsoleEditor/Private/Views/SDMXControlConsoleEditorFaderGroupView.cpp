@@ -181,7 +181,7 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroup() const
 	return
 		IsValid(CurrentLayout) &&
 		CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass() &&
-		CurrentLayout->LayoutMode != EDMXControlConsoleLayoutMode::Vertical &&
+		CurrentLayout->GetLayoutMode() != EDMXControlConsoleLayoutMode::Vertical &&
 		ControlConsoleData->FilterString.IsEmpty();
 }
 
@@ -209,11 +209,11 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroupRow() const
 
 	bool bCanAdd =
 		CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass() &&
-		CurrentLayout->LayoutMode != EDMXControlConsoleLayoutMode::Horizontal &&
+		CurrentLayout->GetLayoutMode() != EDMXControlConsoleLayoutMode::Horizontal &&
 		ControlConsoleData->FilterString.IsEmpty();
 
 	// True if grid layout mode and this is the first active fader group in the row
-	if (CurrentLayout->LayoutMode == EDMXControlConsoleLayoutMode::Grid)
+	if (CurrentLayout->GetLayoutMode() == EDMXControlConsoleLayoutMode::Grid)
 	{
 		bCanAdd &= 
 			FaderGroup->IsActive() &&
@@ -590,7 +590,7 @@ void SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupRow() const
 
 	// Add Fader Group next if vertical sorting
 	UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = ControlConsoleLayouts->GetActiveLayout();
-	if (CurrentLayout->LayoutMode == EDMXControlConsoleLayoutMode::Vertical)
+	if (CurrentLayout->GetLayoutMode() == EDMXControlConsoleLayoutMode::Vertical)
 	{
 		OnAddFaderGroup();
 		return;

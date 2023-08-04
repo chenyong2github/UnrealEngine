@@ -565,7 +565,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	}
 
 	// Generate on last row if vertical sorting
-	if (CurrentLayout->LayoutMode == EDMXControlConsoleLayoutMode::Vertical)
+	if (CurrentLayout->GetLayoutMode() == EDMXControlConsoleLayoutMode::Vertical)
 	{
 		OnGenerateFromFixturePatchOnLastRow();
 		return;
@@ -898,7 +898,7 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddNext() const
 		const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
 		bCanExecute &=
 			IsValid(CurrentLayout) &&
-			CurrentLayout->LayoutMode != EDMXControlConsoleLayoutMode::Vertical &&
+			CurrentLayout->GetLayoutMode() != EDMXControlConsoleLayoutMode::Vertical &&
 			!CurrentLayout->GetAllFaderGroups().IsEmpty() &&
 			EditorConsoleData->FilterString.IsEmpty();
 	}
@@ -921,7 +921,7 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddRow() const
 		const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
 		bCanExecute &=
 			IsValid(CurrentLayout) &&
-			CurrentLayout->LayoutMode != EDMXControlConsoleLayoutMode::Horizontal &&
+			CurrentLayout->GetLayoutMode() != EDMXControlConsoleLayoutMode::Horizontal &&
 			EditorConsoleData->FilterString.IsEmpty();
 	}
 

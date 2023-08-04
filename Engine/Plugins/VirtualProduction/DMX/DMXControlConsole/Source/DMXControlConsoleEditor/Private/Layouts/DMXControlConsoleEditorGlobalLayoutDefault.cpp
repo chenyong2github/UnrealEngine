@@ -2,12 +2,56 @@
 
 #include "DMXControlConsoleEditorGlobalLayoutDefault.h"
 
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "Library/DMXEntity.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXLibrary.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorGlobalLayoutDefault"
+
+void UDMXControlConsoleEditorGlobalLayoutDefault::Register()
+{
+	if (!ensureMsgf(!bIsRegistered, TEXT("Layout already registered to dmx library delegates.")))
+	{
+		return;
+	}
+
+	if (!UDMXLibrary::GetOnEntitiesRemoved().IsBoundToObject(this))
+	{
+		UDMXLibrary::GetOnEntitiesRemoved().AddUObject(this, &UDMXControlConsoleEditorGlobalLayoutDefault::OnFixturePatchRemovedFromLibrary);
+	}
+
+	const UDMXControlConsoleEditorModel* EditorModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData();
+	if (EditorConsoleData && !EditorConsoleData->GetOnFaderGroupAdded().IsBoundToObject(this))
+	{
+		EditorConsoleData->GetOnFaderGroupAdded().AddUObject(this, &UDMXControlConsoleEditorGlobalLayoutDefault::OnFaderGroupAddedToData, EditorConsoleData);
+	}
+
+	bIsRegistered = true;
+}
+
+void UDMXControlConsoleEditorGlobalLayoutDefault::Unregister()
+{
+	if (!ensureMsgf(bIsRegistered, TEXT("Layout already unregistered from dmx library delegates.")))
+	{
+		return;
+	}
+
+	UDMXLibrary::GetOnEntitiesRemoved().RemoveAll(this);
+
+	const UDMXControlConsoleEditorModel* EditorModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData();
+	if (EditorConsoleData)
+	{
+		EditorConsoleData->GetOnFaderGroupAdded().RemoveAll(this);
+	}
+
+	bIsRegistered = false;
+}
 
 void UDMXControlConsoleEditorGlobalLayoutDefault::GenerateLayoutByControlConsoleData(const UDMXControlConsoleData* ControlConsoleData)
 {
@@ -15,6 +59,13 @@ void UDMXControlConsoleEditorGlobalLayoutDefault::GenerateLayoutByControlConsole
 
 	// Default Layout can't contain not patched Fader Groups
 	CleanLayoutFromUnpatchedFaderGroups();
+}
+
+void UDMXControlConsoleEditorGlobalLayoutDefault::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	ensureMsgf(!bIsRegistered, TEXT("Layout still registered to dmx library delegates before being destroyed."));
 }
 
 void UDMXControlConsoleEditorGlobalLayoutDefault::OnFixturePatchRemovedFromLibrary(UDMXLibrary* Library, TArray<UDMXEntity*> Entities)
