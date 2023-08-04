@@ -206,6 +206,7 @@ void UClothTransferSkinWeightsTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		TransferSkinWeightsNode->SkeletalMesh = ToolProperties->SourceMesh;
 		TransferSkinWeightsNode->Transform = TransformFromProperties();
+		TransferSkinWeightsNode->Invalidate();
 	}
 
 	if (SourceMeshTransformProxy)
