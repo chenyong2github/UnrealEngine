@@ -2914,12 +2914,12 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		if (HoveredEvent)
 		{
 			double RangeStart = HoveredEvent->GetStartTime();
-			double RangeDuration = HoveredEvent->GetDuration();
+			double RangeDuration = Viewport.RestrictEndTime(HoveredEvent->GetEndTime()) - RangeStart;
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContextMenu_SelectEventTimeRange", "Select Time Range of Event"),
 				FText(),
-				FSlateIcon(),
+				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SelectEventRange"),
 				FUIAction(FExecuteAction::CreateLambda([this, RangeStart, RangeDuration]()
 					{
 						SelectTimeInterval(RangeStart, RangeDuration);

@@ -2,6 +2,8 @@
 
 #include "RegionsTimingTrack.h"
 
+#include "HAL/PlatformApplicationMisc.h"
+
 #include "TimingViewDrawHelper.h"
 #include "Common/ProviderLock.h"
 #include "Insights/InsightsManager.h"
@@ -435,6 +437,24 @@ bool FTimingRegionsTrack::HasCustomFilter() const
 {
 	return FilterConfigurator.IsValid() && !FilterConfigurator->IsEmpty();
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+void FTimingRegionsTrack::OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const
+{
+	if (InSelectedEvent.CheckTrack(this) && InSelectedEvent.Is<FTimingEvent>())
+	{
+		const FTimingEvent& TrackEvent = InSelectedEvent.As<FTimingEvent>();
+
+		// The pointer should be safe to access because it is stored in the Session string store.
+		FString EventName(reinterpret_cast<const TCHAR*>(TrackEvent.GetType()));
+		FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, TrackEvent.GetDuration());
+
+		FPlatformApplicationMisc::ClipboardCopy(*EventName);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights
 
