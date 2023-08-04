@@ -50,6 +50,7 @@
 #include "UObject/FastReferenceCollector.h"
 
 DEFINE_LOG_CATEGORY(LogGarbage);
+CSV_DEFINE_CATEGORY(GC, true);
 
 #define PERF_DETAILED_PER_CLASS_GC_STATS				(LOOKING_FOR_PERF_ISSUES || 0) 
 
@@ -4535,6 +4536,8 @@ FORCEINLINE void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFul
 	}
 
 	GTimingInfo.LastGCDuration = FPlatformTime::Seconds() - StartTime;
+
+	CSV_CUSTOM_STAT(GC, Count, 1, ECsvCustomStatOp::Accumulate);
 }
 
 /** 
