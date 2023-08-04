@@ -37,6 +37,7 @@
 #include "BoneContainer.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "SMLDeformerInputWidget.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModel"
@@ -511,6 +512,28 @@ namespace UE::MLDeformer
 		}
 	}
 
+	void FMLDeformerEditorModel::ChangeSkeletalMeshOnComponent(USkeletalMeshComponent* SkelMeshComponent, USkeletalMesh* Mesh)
+	{
+		if (Mesh != SkelMeshComponent->GetSkeletalMeshAsset())
+		{
+			// Inform the skeletal mesh component about changes to the mesh.
+			SkelMeshComponent->SetSkeletalMesh(Mesh);
+			FPropertyChangedEvent SkelMeshChangedEvent(USkeletalMeshComponent::StaticClass()->FindPropertyByName(TEXT("SkeletalMeshAsset")));
+			SkelMeshComponent->PostEditChangeProperty(SkelMeshChangedEvent);
+
+			if (Mesh)
+			{
+				// Force all materials in the Skeletal Mesh Component to be the ones coming from the Mesh to avoid issues with material slots not updating.
+				const TArray<FSkeletalMaterial>& Materials = Mesh->GetMaterials();
+				for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
+				{
+					SkelMeshComponent->SetMaterial(MaterialIndex, Materials[MaterialIndex].MaterialInterface);
+				}
+				SkelMeshComponent->MarkRenderStateDirty();
+			}
+		}
+	}
+
 	void FMLDeformerEditorModel::OnInputAssetsChanged()
 	{
 		// Force the training sequence to use Step interpolation and sample raw animation data.
@@ -529,7 +552,7 @@ namespace UE::MLDeformer
 		UDebugSkelMeshComponent* SkeletalMeshComponent = TrainBaseActor ? TrainBaseActor->GetSkeletalMeshComponent() : nullptr;
 		if (SkeletalMeshComponent)
 		{
-			SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
+			ChangeSkeletalMeshOnComponent(SkeletalMeshComponent, Model->GetSkeletalMesh());
 			if (GetEditor()->GetPersonaToolkitPointer())
 			{
 				GetEditor()->GetPersonaToolkit()->GetPreviewScene()->SetPreviewMesh(Model->GetSkeletalMesh());
@@ -551,7 +574,7 @@ namespace UE::MLDeformer
 		SkeletalMeshComponent = TestBaseActor ? TestBaseActor->GetSkeletalMeshComponent() : nullptr;
 		if (SkeletalMeshComponent)
 		{
-			SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
+			ChangeSkeletalMeshOnComponent(SkeletalMeshComponent, Model->GetSkeletalMesh());
 			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 			const float CurrentPlayTime = SkeletalMeshComponent->GetPosition();
 			SkeletalMeshComponent->SetAnimation(TestAnimSequence);
@@ -565,7 +588,7 @@ namespace UE::MLDeformer
 		SkeletalMeshComponent = TestMLActor ? TestMLActor->GetSkeletalMeshComponent() : nullptr;
 		if (SkeletalMeshComponent)
 		{
-			SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
+			ChangeSkeletalMeshOnComponent(SkeletalMeshComponent, Model->GetSkeletalMesh());
 			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 			const float CurrentPlayTime = SkeletalMeshComponent->GetPosition();
 			SkeletalMeshComponent->SetAnimation(TestAnimSequence);

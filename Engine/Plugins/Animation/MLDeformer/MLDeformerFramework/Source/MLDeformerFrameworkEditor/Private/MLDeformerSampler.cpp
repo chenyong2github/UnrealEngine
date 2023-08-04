@@ -252,7 +252,7 @@ namespace UE::MLDeformer
 			SkeletalMeshComponent->RegisterComponent();
 			SkelMeshActor->SetRootComponent(SkeletalMeshComponent);
 		}
-		SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+		FMLDeformerEditorModel::ChangeSkeletalMeshOnComponent(SkeletalMeshComponent, SkeletalMesh);
 		SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		SkeletalMeshComponent->SetAnimation(TrainingAnimSequence);
 		SkeletalMeshComponent->SetPosition(0.0f);

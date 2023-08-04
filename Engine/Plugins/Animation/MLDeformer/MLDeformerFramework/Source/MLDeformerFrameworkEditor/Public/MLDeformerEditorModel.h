@@ -92,6 +92,19 @@ namespace UE::MLDeformer
 		virtual FString GetReferencerName() const override { return TEXT("FMLDeformerEditorModel"); }
 		// ~END FGCObject overrides.
 
+		/**
+		 * Change the skeletal mesh on a specific skeletal mesh component.
+		 * This internally will not only call SkelMeshComponent->SetSkeletalMesh(Mesh), but also will reassign the materials.
+		 * The reason for this is because if there are material instances set already, the skeletal mesh component will not override them to preserve changes done by the user.
+		 * This helper function will force these to be updated as well. This was needed in case of Metahumans.
+		 * Metahumans use a PostProcessAnimBP with a ControlRig node in it, which drives material curves.
+		 * In order to drive this, material instances are needed instead of regular materials. But as mentioned before, when switching the mesh the 
+		 * code internally will not override the material instances. So we simply have to force this manually, hence this function.
+		 * @param SkelMeshComponent The skeletal mesh component to change the mesh for.
+		 * @param Mesh The new mesh to use.
+		 */
+		static void ChangeSkeletalMeshOnComponent(USkeletalMeshComponent* SkelMeshComponent, USkeletalMesh* Mesh);
+
 		// Required overrides.
 		/**
 		 * Get the number of training frames.
