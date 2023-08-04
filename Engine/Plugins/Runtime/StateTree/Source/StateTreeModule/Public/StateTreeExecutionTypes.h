@@ -25,6 +25,8 @@ enum class EStateTreeUpdatePhase : uint8
 	TransitionConditions	UMETA(DisplayName = "Transition conditions"),
 	StateSelection			UMETA(DisplayName = "Try Enter"),
 	EnterConditions			UMETA(DisplayName = "Enter conditions"),
+	EnterStates				UMETA(DisplayName = "Enter States"),
+	ExitStates				UMETA(DisplayName = "Exit States"),
 };
 
 
@@ -364,6 +366,61 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 
 	UPROPERTY(EditDefaultsOnly, Category = Default)
 	uint8 NumStates = 0;
+};
+
+
+UENUM()
+enum class EStateTreeTransitionSourceType : uint8
+{
+	Unset,
+	Asset,
+	ExternalRequest,
+	Internal
+};
+
+/**
+ * Describes the origin of an applied transition.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeTransitionSource
+{
+	GENERATED_BODY()
+
+	FStateTreeTransitionSource() = default;
+
+	explicit FStateTreeTransitionSource(const EStateTreeTransitionSourceType SourceType, const FStateTreeIndex16 TransitionIndex, const FStateTreeStateHandle TargetState, const EStateTreeTransitionPriority Priority)
+	: SourceType(SourceType)
+	, TransitionIndex(TransitionIndex)
+	, TargetState(TargetState)
+	, Priority(Priority)
+	{
+	}
+
+	explicit FStateTreeTransitionSource(const FStateTreeIndex16 TransitionIndex, const FStateTreeStateHandle TargetState, const EStateTreeTransitionPriority Priority)
+	: FStateTreeTransitionSource(EStateTreeTransitionSourceType::Asset, TransitionIndex, TargetState, Priority)
+	{
+	}
+
+	explicit FStateTreeTransitionSource(const EStateTreeTransitionSourceType SourceType, const FStateTreeStateHandle TargetState, const EStateTreeTransitionPriority Priority)
+	: FStateTreeTransitionSource(SourceType, FStateTreeIndex16::Invalid, TargetState, Priority)
+	{
+	}
+
+	void Reset()
+	{
+		*this = {};
+	}
+
+	EStateTreeTransitionSourceType SourceType = EStateTreeTransitionSourceType::Unset;
+
+	/* Index of the transition if from predefined asset transitions, invalid otherwise */
+	FStateTreeIndex16 TransitionIndex;
+
+	/** Transition target state */
+	FStateTreeStateHandle TargetState = FStateTreeStateHandle::Invalid;
+	
+	/** Priority of the transition that caused the state change. */
+	EStateTreeTransitionPriority Priority = EStateTreeTransitionPriority::None;
 };
 
 

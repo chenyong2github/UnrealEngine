@@ -39,6 +39,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, PhaseEvent)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
 	UE_TRACE_EVENT_FIELD(uint16, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, StateIndex)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END()
 
@@ -72,7 +73,10 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, TransitionEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
+	UE_TRACE_EVENT_FIELD(uint8, SourceType)
 	UE_TRACE_EVENT_FIELD(uint16, TransitionIndex)
+	UE_TRACE_EVENT_FIELD(uint16, TargetStateIndex)
+	UE_TRACE_EVENT_FIELD(uint8, Priority)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END()
 
@@ -106,9 +110,14 @@ double GRecordingWorldTime = -1;
 /** Struct to keep track if a given phase was traced or not. */
 struct FPhaseTraceStatusPair
 {
-	explicit FPhaseTraceStatusPair(const EStateTreeUpdatePhase Phase) : Phase(Phase) {}
+	explicit FPhaseTraceStatusPair(const EStateTreeUpdatePhase Phase, const FStateTreeStateHandle StateHandle)
+	: Phase(Phase)
+	, StateHandle(StateHandle)
+	{
+	}
 
 	EStateTreeUpdatePhase Phase = EStateTreeUpdatePhase::Unset;
+	FStateTreeStateHandle StateHandle = FStateTreeStateHandle::Invalid; 
 	bool bTraced = false;
 };
 
@@ -248,6 +257,7 @@ struct FBufferedDataList
 							<< PhaseEvent.InstanceId(InstanceId.Id)
 							<< PhaseEvent.InstanceSerial(InstanceId.SerialNumber)
 							<< PhaseEvent.Phase(static_cast<std::underlying_type_t<EStateTreeUpdatePhase>>(StackEntry.Phase))
+							<< PhaseEvent.StateIndex(StackEntry.StateHandle.Index)
 							<< PhaseEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceEventType>>(EStateTreeTraceEventType::Push));
 			
 						StackEntry.bTraced = true;
@@ -270,7 +280,7 @@ thread_local FBufferedDataList GBufferedEvents;
  * Pushed or pops an entry on the Phase stack for a given Instance.
  * Will send the Pop events for phases popped if their associated Push events were sent.
  */
-void ProcessPhaseScopeEvent(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const EStateTreeTraceEventType EventType)
+void ProcessPhaseScopeEvent(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const EStateTreeTraceEventType EventType, const FStateTreeStateHandle StateHandle)
 {
 	TArray<FPhaseStack>& PhaseStacks = GBufferedEvents.PhaseStacks;
 	int32 ExistingStackIndex = PhaseStacks.IndexOfByPredicate([InstanceId](const FPhaseStack& PhaseStack){ return PhaseStack.InstanceId == InstanceId; });
@@ -283,7 +293,7 @@ void ProcessPhaseScopeEvent(const FStateTreeInstanceDebugId InstanceId, const ES
 		}
 		FPhaseStack& PhaseStack = PhaseStacks[ExistingStackIndex];
 		PhaseStack.InstanceId = InstanceId;
-		PhaseStack.Stack.Push(FPhaseTraceStatusPair(Phase));
+		PhaseStack.Stack.Push(FPhaseTraceStatusPair(Phase, StateHandle));
 	}
 	else if (ensureMsgf(ExistingStackIndex != INDEX_NONE, TEXT("Not expected to pop phases for an instance that never pushed a phase.")))
 	{
@@ -309,6 +319,7 @@ void ProcessPhaseScopeEvent(const FStateTreeInstanceDebugId InstanceId, const ES
 				<< PhaseEvent.InstanceId(InstanceId.Id)
 				<< PhaseEvent.InstanceSerial(InstanceId.SerialNumber)
 				<< PhaseEvent.Phase(static_cast<std::underlying_type_t<EStateTreeUpdatePhase>>(Phase))
+				<< PhaseEvent.StateIndex(StateHandle.Index)
 				<< PhaseEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceEventType>>(EStateTreeTraceEventType::Pop));
 			}
 		}
@@ -326,13 +337,21 @@ void TraceBufferedEvents(const FStateTreeInstanceDebugId InstanceId)
 
 void SerializeDataViewToArchive(FBufferArchive Ar, const FStateTreeDataView DataView)
 {
+	constexpr uint32 PortFlags = 
+		PPF_PropertyWindow // limit to properties visible in Editor 
+		| PPF_ExportsNotFullyQualified
+		| PPF_Delimited // property data should be wrapped in quotes
+		| PPF_ExternalEditor // uses authored names instead of internal names and default values are always written out
+		| PPF_SimpleObjectText // object property values should be exported without the package or class information
+		| PPF_ForDiff; // do not emit object path
+
 	if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(DataView.GetStruct()))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UE::StateTree::ExportStructAsText)
 		FString StructPath = ScriptStruct->GetPathName();
 		FString TextValue;
 
-		ScriptStruct->ExportText(TextValue, DataView.GetMemory(), DataView.GetMemory(), /*OwnerObject*/nullptr, PPF_None, /*ExportRootScope*/nullptr);
+		ScriptStruct->ExportText(TextValue, DataView.GetMemory(), DataView.GetMemory(), /*OwnerObject*/nullptr, PortFlags | PPF_SeparateDefine, /*ExportRootScope*/nullptr);
 
 		Ar << StructPath;
 		Ar << TextValue;
@@ -346,7 +365,7 @@ void SerializeDataViewToArchive(FBufferArchive Ar, const FStateTreeDataView Data
 
 		// Not using on scope FExportObjectInnerContext since it is very costly to build.
 		// Passing a null context will make the export use an already built thread local context.
-		UExporter::ExportToOutputDevice(nullptr, Object, /*Exporter*/nullptr, OutputDevice, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, Object->GetOuter());
+		UExporter::ExportToOutputDevice(nullptr, Object, /*Exporter*/nullptr, OutputDevice, TEXT("copy"), 0, PortFlags, false, Object->GetOuter());
 
 		Ar << StructPath;
 		Ar << OutputDevice;
@@ -491,7 +510,7 @@ void OutputTaskEventTrace(
 
 void OutputTransitionEventTrace(
 	const FStateTreeInstanceDebugId InstanceId,
-	const FStateTreeIndex16 TransitionIdx,
+	const FStateTreeTransitionSource Source,
 	const EStateTreeTraceEventType EventType
 	)
 {
@@ -504,7 +523,10 @@ void OutputTransitionEventTrace(
 	<< TransitionEvent.Cycle(FPlatformTime::Cycles64())
 	<< TransitionEvent.InstanceId(InstanceId.Id)
 	<< TransitionEvent.InstanceSerial(InstanceId.SerialNumber)
-	<< TransitionEvent.TransitionIndex(TransitionIdx.Get())
+	<< TransitionEvent.SourceType(static_cast<std::underlying_type_t<EStateTreeTransitionSourceType>>(Source.SourceType))
+	<< TransitionEvent.TransitionIndex(Source.TransitionIndex.Get())
+	<< TransitionEvent.TargetStateIndex(Source.TargetState.Index)
+	<< TransitionEvent.Priority(static_cast<std::underlying_type_t<EStateTreeTransitionPriority>>(Source.Priority))
 	<< TransitionEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceEventType>>(EventType));
 }
 

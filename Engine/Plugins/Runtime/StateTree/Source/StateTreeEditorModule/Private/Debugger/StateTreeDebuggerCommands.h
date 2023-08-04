@@ -25,7 +25,7 @@ public:
 	TSharedPtr<FUICommandInfo> PreviousFrameWithEvents;
 	TSharedPtr<FUICommandInfo> NextFrameWithEvents;
 	TSharedPtr<FUICommandInfo> NextFrameWithStateChange;
-	TSharedPtr<FUICommandInfo> ToggleAnalysis;
+	TSharedPtr<FUICommandInfo> ResumeDebuggerAnalysis;
 	TSharedPtr<FUICommandInfo> ResetTracks;
 };
 

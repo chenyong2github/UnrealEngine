@@ -110,6 +110,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	void ClearBreakpoint(FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType);
 	void ClearAllBreakpoints();
 	int32 NumBreakpoints() const { return Breakpoints.Num(); }
+	bool HasHitBreakpoint() const { return HitBreakpoint.IsSet(); }
 
 	static FText DescribeTrace(const FTraceDescriptor& TraceDescriptor);
 	static FText DescribeInstance(const UE::StateTreeDebugger::FInstanceDescriptor& StateTreeInstanceDesc);
@@ -168,7 +169,11 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	 */
 	bool RequestSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
 	void PauseSessionAnalysis()  { bSessionAnalysisPaused = true; }
-	void ResumeSessionAnalysis() { bSessionAnalysisPaused = false; }
+	void ResumeSessionAnalysis()
+	{
+		bSessionAnalysisPaused = false;
+		HitBreakpoint.Reset();
+	}
 	void StopSessionAnalysis();
 	FTraceDescriptor GetSelectedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
 	FText GetSelectedTraceDescription() const;

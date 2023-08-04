@@ -32,8 +32,8 @@ void FStateTreeDebuggerCommands::RegisterCommands()
 	UI_COMMAND(PreviousFrameWithEvents, "Previous Frame", "Step one frame back", EUserInterfaceActionType::Button, FInputChord(EKeys::Left));
 	UI_COMMAND(NextFrameWithEvents, "Next Frame", "Step one frame forward", EUserInterfaceActionType::Button, FInputChord(EKeys::Right));
 	UI_COMMAND(NextFrameWithStateChange, "Next State Change", "Jump to next state changed frame", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Right));
-	UI_COMMAND(ToggleAnalysis, "Toggle Analysis",  "Pause or resume processing events from the selected trace.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ResetTracks, "Reset Tracks",  "Clear current tracks and associated events.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ResumeDebuggerAnalysis, "Resume Analysis", "Resume trace analysis.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ResetTracks, "Reset Tracks", "Clear current tracks and associated events.", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -442,8 +442,8 @@ protected:
 	/** Next transition, used by RequestTransition(). */
 	FStateTreeTransitionResult NextTransition;
 
-	/** Index of the state transition that caused the state change. Will be invalid for framework transitions and external requests. */
-	FStateTreeIndex16 NextTransitionIndex = FStateTreeIndex16::Invalid;
+	/** Structure describing the origin of the state transition that caused the state change. */
+	FStateTreeTransitionSource NextTransitionSource;
 
 	/** Current state we're processing, or invalid if not applicable. */
 	FStateTreeStateHandle CurrentlyProcessedState;

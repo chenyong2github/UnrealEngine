@@ -90,7 +90,8 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 		{
 			const FStateTreeTracePhaseEvent Event(WorldTime,
 				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
-				EventData.GetValue<EStateTreeTraceEventType>("EventType"));
+				EventData.GetValue<EStateTreeTraceEventType>("EventType"),
+				FStateTreeStateHandle(EventData.GetValue<uint16>("StateIndex")));
 
 			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
 				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
@@ -158,7 +159,12 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 	case RouteId_Transition:
 		{
 			const FStateTreeTraceTransitionEvent Event(WorldTime,
-				FStateTreeIndex16(EventData.GetValue<uint16>("TransitionIndex")),
+				FStateTreeTransitionSource(
+					EventData.GetValue<EStateTreeTransitionSourceType>("SourceType"),
+					FStateTreeIndex16(EventData.GetValue<uint16>("TransitionIndex")),
+					FStateTreeStateHandle(EventData.GetValue<uint16>("TargetStateIndex")),
+					EventData.GetValue<EStateTreeTransitionPriority>("Priority")
+					),
 				EventData.GetValue<EStateTreeTraceEventType>("EventType"));
 			
 			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),

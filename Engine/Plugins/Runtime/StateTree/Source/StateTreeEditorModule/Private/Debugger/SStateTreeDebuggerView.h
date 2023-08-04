@@ -5,7 +5,6 @@
 
 #if WITH_STATETREE_DEBUGGER
 
-#include "InstancedStruct.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -16,7 +15,6 @@ namespace RewindDebugger
 namespace UE::StateTreeDebugger
 {
 	struct FFrameSpan;
-	struct FEventTreeElement;
 }
 
 enum class EStateTreeBreakpointType : uint8;
@@ -25,6 +23,7 @@ struct FSlateIcon;
 struct FStateTreeDebugger;
 struct FStateTreeInstanceDebugId;
 struct FStateTreeDebuggerBreakpoint;
+struct FStateTreeDebuggerEventTreeElement;
 class FStateTreeEditor;
 class FStateTreeViewModel;
 class FUICommandList;
@@ -81,9 +80,8 @@ private:
 	bool CanStopRecording() const { return IsRecording(); }	
 	void StopRecording();
 
-	bool CanToggleDebuggerAnalysis() const;
-	void ToggleDebuggerAnalysis() const;
-	FSlateIcon GetDebuggerAnalysisIcon() const;
+	bool CanResumeDebuggerAnalysis() const;
+	void ResumeDebuggerAnalysis() const;
 
 	bool CanResetTracks() const;
 	void ResetTracks();
@@ -113,8 +111,10 @@ private:
 	/** Callback used to reflect debugger scrub state in the UI. */
 	void OnDebuggerScrubStateChanged(const UE::StateTreeDebugger::FScrubState& ScrubState);
 
+	static void GenerateElementsForProperties(const FStateTreeTraceEventVariantType& Event, const TSharedRef<FStateTreeDebuggerEventTreeElement>& ParentElement);
+
 	/** Recursively sets tree items as expanded. */
-	void ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Items);
+	void ExpandAll(const TArray<TSharedPtr<FStateTreeDebuggerEventTreeElement>>& Items);
 
 	TSharedPtr<FStateTreeDebugger> Debugger;
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
@@ -145,25 +145,16 @@ private:
 	TSharedPtr<SSplitter> TreeViewsSplitter;
 
 	/** All trace events received for a given instance. */
-	TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>> EventsTreeElements;
+	TArray<TSharedPtr<FStateTreeDebuggerEventTreeElement>> EventsTreeElements;
 	
 	/** Tree view displaying the frame events of the instance associated to the selected track. */
-	TSharedPtr<STreeView<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>> EventsTreeView;
-
-	/** Widget holding the event details when available (i.e. property details of the associated struct or object). */
-	TSharedPtr<SBorder> PropertiesBorder;
+	TSharedPtr<STreeView<TSharedPtr<FStateTreeDebuggerEventTreeElement>>> EventsTreeView;
 
 	/** Attribute provided by the debugger scrub position to control cursor and timelines positions. */
 	TAttribute<double> ScrubTimeAttribute;
 
 	/** Range controlled by the timeline widgets and used to adjust cursor position and track content. */
 	TRange<double> ViewRange = TRange<double>(0, 10);
-
-	/** Struct created from the event data when statetree node was holding a struct. */
-	FInstancedStruct SelectedNodeDataStruct;
-
-	/** Object created from the event data when statetree node was holding an object. */
-	TWeakObjectPtr<> SelectedNodeDataObject;
 
 	/** In case tracks are not reset when a new analysis session is started we keep track of the longest duration to adjust our clamp range. */
 	double MaxTrackRecordingDuration = 0;

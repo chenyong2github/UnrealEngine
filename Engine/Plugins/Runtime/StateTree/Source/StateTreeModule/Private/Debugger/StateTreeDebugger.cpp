@@ -116,6 +116,7 @@ void FStateTreeDebugger::StopSessionAnalysis()
 	}
 
 	bSessionAnalysisPaused = false;
+	HitBreakpoint.Reset();
 }
 
 void FStateTreeDebugger::SyncToCurrentSessionDuration()
@@ -766,8 +767,6 @@ void FStateTreeDebugger::SendNotifications()
 		}
 
 		OnBreakpointHit.ExecuteIfBound(HitBreakpoint.InstanceId, Breakpoints[HitBreakpoint.Index]);
-
-		HitBreakpoint.Reset();
 
 		PauseSessionAnalysis();
 	}

@@ -20,13 +20,18 @@
 
 	#define STATETREE_TRACE_SCOPED_PHASE(Phase) \
 		FStateTreeInstanceDebugId ID_NAME = GetInstanceDebugId(); \
-		TRACE_STATETREE_PHASE_EVENT(ID_NAME, Phase, EStateTreeTraceEventType::Push) \
-		ON_SCOPE_EXIT { TRACE_STATETREE_PHASE_EVENT(ID_NAME, Phase, EStateTreeTraceEventType::Pop) }
+		TRACE_STATETREE_PHASE_EVENT(ID_NAME, Phase, EStateTreeTraceEventType::Push, FStateTreeStateHandle::Invalid) \
+		ON_SCOPE_EXIT { TRACE_STATETREE_PHASE_EVENT(ID_NAME, Phase, EStateTreeTraceEventType::Pop, FStateTreeStateHandle::Invalid) }
 
-	#define STATETREE_TRACE_SCOPED_STATE_SELECTION(StateHandle, SelectionBehavior) \
+	#define STATETREE_TRACE_SCOPED_STATE(StateHandle) \
 		FStateTreeInstanceDebugId ID_NAME = GetInstanceDebugId(); \
-		TRACE_STATETREE_STATE_EVENT(ID_NAME, StateHandle, EStateTreeTraceEventType::Push, SelectionBehavior) \
-		ON_SCOPE_EXIT { TRACE_STATETREE_STATE_EVENT(ID_NAME, StateHandle, EStateTreeTraceEventType::Pop, SelectionBehavior); };
+		TRACE_STATETREE_PHASE_EVENT(ID_NAME, EStateTreeUpdatePhase::Unset, EStateTreeTraceEventType::Push, StateHandle) \
+		ON_SCOPE_EXIT { TRACE_STATETREE_PHASE_EVENT(ID_NAME, EStateTreeUpdatePhase::Unset, EStateTreeTraceEventType::Pop, StateHandle) }
+
+	#define STATETREE_TRACE_SCOPED_STATE_PHASE(StateHandle, Phase) \
+		FStateTreeInstanceDebugId ID_NAME = GetInstanceDebugId(); \
+		TRACE_STATETREE_PHASE_EVENT(ID_NAME, Phase, EStateTreeTraceEventType::Push, StateHandle) \
+		ON_SCOPE_EXIT { TRACE_STATETREE_PHASE_EVENT(ID_NAME, Phase, EStateTreeTraceEventType::Pop, StateHandle) }
 
 	#define STATETREE_TRACE_INSTANCE_EVENT(EventType)						TRACE_STATETREE_INSTANCE_EVENT(GetInstanceDebugId(), GetStateTree(), *GetInstanceDescription(), EventType);
 	#define STATETREE_TRACE_ACTIVE_STATES_EVENT(ActiveStates)				TRACE_STATETREE_ACTIVE_STATES_EVENT(GetInstanceDebugId(), ActiveStates);
@@ -34,18 +39,18 @@
 	#define STATETREE_TRACE_STATE_EVENT(StateHandle, EventType)				TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), StateHandle, EventType, EStateTreeStateSelectionBehavior::None);
 	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status)	TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), FStateTreeIndex16(Index), DataView, EventType, Status);
 	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataViews, EventType)	TRACE_STATETREE_CONDITION_EVENT(GetInstanceDebugId(), FStateTreeIndex16(Index), DataView, EventType);	
-	#define STATETREE_TRACE_TRANSITION_EVENT(Index, EventType)				TRACE_STATETREE_TRANSITION_EVENT(GetInstanceDebugId(), FStateTreeIndex16(Index), EventType);
+	#define STATETREE_TRACE_TRANSITION_EVENT(Source, EventType)				TRACE_STATETREE_TRANSITION_EVENT(GetInstanceDebugId(), Source, EventType);
 #else
 	#define STATETREE_TRACE_SCOPED_PHASE(Phase)
-	#define STATETREE_TRACE_SCOPED_STATE_SELECTION(StateHandle, SelectionBehavior)
+	#define STATETREE_TRACE_SCOPED_STATE(StateHandle)
+	#define STATETREE_TRACE_SCOPED_STATE_PHASE(StateHandle, Phase)
 	#define STATETREE_TRACE_INSTANCE_EVENT(EventType)
 	#define STATETREE_TRACE_ACTIVE_STATES_EVENT(ActiveStates)
 	#define STATETREE_TRACE_LOG_EVENT(Format, ...)
 	#define STATETREE_TRACE_STATE_EVENT(StateHandle, EventType)
-	#define STATETREE_TRACE_STATE_SELECTION_EVENT(StateHandle, EventType, SelectionBehavior)
 	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status)
 	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataView, EventType)
-	#define STATETREE_TRACE_TRANSITION_EVENT(Index, EventType)
+	#define STATETREE_TRACE_TRANSITION_EVENT(Source, EventType)
 #endif // WITH_STATETREE_DEBUGGER
 
 namespace UE::StateTree
@@ -269,6 +274,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 			// Need to reacquire the exec state as EnterState may alter the allocation. 
 			Exec = &GetExecState();
 			Exec->LastTickStatus = LastTickStatus;
+			STATETREE_TRACE_ACTIVE_STATES_EVENT(Exec->ActiveStates);
 
 			// Report state completed immediately.
 			if (Exec->LastTickStatus != EStateTreeRunStatus::Running)
@@ -419,8 +425,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 		if (TriggerTransitions())
 		{
 			STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::ApplyTransitions);
-			STATETREE_TRACE_TRANSITION_EVENT(NextTransitionIndex, EStateTreeTraceEventType::OnTransition);
-			NextTransitionIndex = FStateTreeIndex16::Invalid;
+			STATETREE_TRACE_TRANSITION_EVENT(NextTransitionSource, EStateTreeTraceEventType::OnTransition);
+			NextTransitionSource.Reset();
 
 			// We have committed to state change, consume events that were accumulated during the tick above.
 			EventQueue.Reset();
@@ -452,6 +458,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 			// Need to reacquire the exec state as EnterState may alter the allocation. 
 			Exec = &GetExecState();
 			Exec->LastTickStatus = LastTickStatus;
+			STATETREE_TRACE_ACTIVE_STATES_EVENT(Exec->ActiveStates);
 
 			// Consider events so far processed. Events sent during EnterState went into EventQueue, and are processed in next iteration.
 			EventsToProcess.Reset();
@@ -558,7 +565,10 @@ void FStateTreeExecutionContext::RequestTransition(const FStateTreeTransitionReq
 
 	if (bAllowDirectTransitions)
 	{
-		RequestTransition(Request.TargetState, Request.Priority);		
+		if (RequestTransition(Request.TargetState, Request.Priority))
+		{
+			NextTransitionSource = FStateTreeTransitionSource(EStateTreeTransitionSourceType::ExternalRequest, Request.TargetState, Request.Priority);
+		}
 	}
 	else
 	{
@@ -745,6 +755,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 	}
 	
 	STATETREE_LOG(Log, TEXT("Enter state '%s' (%d)"), *DebugGetStatePath(Transition.NextActiveStates), Exec.StateChangeCount);
+	STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::EnterStates);
 
 	for (int32 Index = 0; Index < Transition.NextActiveStates.Num() && Result != EStateTreeRunStatus::Failed; Index++)
 	{
@@ -780,7 +791,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 
 		if (bIsEnteringState)
 		{
-			STATETREE_TRACE_STATE_EVENT(CurrentHandle, EStateTreeTraceEventType::OnEnter);
+			STATETREE_TRACE_STATE_EVENT(CurrentHandle, EStateTreeTraceEventType::OnEntering);
 			STATETREE_LOG(Log, TEXT("%*sState '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""),
 				*DebugGetStatePath(Transition.NextActiveStates, Index),
 				*UEnum::GetDisplayValueAsText(CurrentTransition.ChangeType).ToString());
@@ -820,7 +831,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 					Status = Task.EnterState(*this, CurrentTransition);
 				}
 
-				STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnEnter, Status);
+				STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnEntered, Status);
 
 				if (Status != EStateTreeRunStatus::Running)
 				{
@@ -840,9 +851,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 				}
 			}
 		}
+
+		if (bIsEnteringState)
+		{
+			STATETREE_TRACE_STATE_EVENT(CurrentHandle, EStateTreeTraceEventType::OnEntered);
+		}
 	}
 
-	STATETREE_TRACE_ACTIVE_STATES_EVENT(Exec.ActiveStates);
 	return Result;
 }
 
@@ -919,6 +934,7 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 
 	// Call in reverse order.
 	STATETREE_LOG(Log, TEXT("Exit state '%s' (%d)"), *DebugGetStatePath(Transition.CurrentActiveStates), Exec.StateChangeCount);
+	STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::ExitStates);
 
 	FStateTreeTransitionResult CurrentTransition = Transition;
 
@@ -938,7 +954,7 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 		CurrentTransition.ChangeType = ExitedStateChangeType[Index];
 
 		STATETREE_LOG(Log, TEXT("%*sState '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.CurrentActiveStates, ExitedStateActiveIndex[Index]), *UEnum::GetDisplayValueAsText(CurrentTransition.ChangeType).ToString());
-		STATETREE_TRACE_STATE_EVENT(CurrentHandle, EStateTreeTraceEventType::OnExit);
+		STATETREE_TRACE_STATE_EVENT(CurrentHandle, EStateTreeTraceEventType::OnExiting);
 
 		// Tasks
 		for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
@@ -968,10 +984,12 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 						CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_ExitState);
 						Task.ExitState(*this, CurrentTransition);
 					}
-					STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnExit, Transition.CurrentRunStatus);
+					STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnExited, Transition.CurrentRunStatus);
 				}
 			}
 		}
+
+		STATETREE_TRACE_STATE_EVENT(CurrentHandle, EStateTreeTraceEventType::OnExited);
 	}
 }
 
@@ -1089,7 +1107,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, TaskDataView);
 			}
 
-			STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView, EStateTreeTraceEventType::OnTickingTask, EStateTreeRunStatus::Running);
+			//STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView, EStateTreeTraceEventType::OnTickingTask, EStateTreeRunStatus::Running);
 			EStateTreeRunStatus TaskResult = EStateTreeRunStatus::Unset;
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
@@ -1176,7 +1194,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FS
 			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_TreeStart);
 			const EStateTreeRunStatus TaskStatus = Task.EnterState(*this, Transition); 
 
-			STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnEnter, TaskStatus);
+			STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnEntered, TaskStatus);
 
 			if (TaskStatus != EStateTreeRunStatus::Running)
 			{
@@ -1253,7 +1271,7 @@ void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const EStateTreeRu
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_TreeStop);
 				Task.ExitState(*this, Transition);
 			}
-			STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnExit, Transition.CurrentRunStatus);
+			STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceEventType::OnExited, Transition.CurrentRunStatus);
 		}
 	}
 
@@ -1302,7 +1320,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 		const FCompactStateTreeState& State = StateTree.States[CurrentHandle.Index];
 
 		FCurrentlyProcessedStateScope StateScope(*this, CurrentHandle);
-		
+		STATETREE_TRACE_SCOPED_STATE(CurrentHandle);
+
 		STATETREE_CLOG(State.TasksNum > 0, VeryVerbose, TEXT("%*sState '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index));
 
 		if (State.Type == EStateTreeStateType::Linked)
@@ -1344,7 +1363,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, TaskDataView);
 			}
 
-			STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView, EStateTreeTraceEventType::OnTickingTask, EStateTreeRunStatus::Running);
+			//STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView, EStateTreeTraceEventType::OnTickingTask, EStateTreeRunStatus::Running);
 			EStateTreeRunStatus TaskResult = EStateTreeRunStatus::Unset;
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
@@ -1571,7 +1590,10 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 	//
 	for (const FStateTreeTransitionRequest& Request : InstanceData.GetTransitionRequests())
 	{
-		RequestTransition(Request.TargetState, Request.Priority);
+		if (RequestTransition(Request.TargetState, Request.Priority))
+		{
+			NextTransitionSource = FStateTreeTransitionSource(EStateTreeTransitionSourceType::ExternalRequest, Request.TargetState, Request.Priority);
+		}
 	}
 	InstanceData.ResetTransitionRequests();
 	
@@ -1635,6 +1657,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 			ensureMsgf(State.bEnabled, TEXT("Should never try to transition to a disabled state. This indicates an unhandled case."));
 
 			FCurrentlyProcessedStateScope StateScope(*this, StateHandle);
+			STATETREE_TRACE_SCOPED_STATE(StateHandle);
 
 			if (State.bHasTransitionTasks)
 			{
@@ -1703,7 +1726,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 						// Trigger Delayed Transition when the delay has passed.
 						if (RequestTransition(Transition.State, Transition.Priority))
 						{
-							NextTransitionIndex = FStateTreeIndex16(TransitionIndex);
+							NextTransitionSource = FStateTreeTransitionSource(FStateTreeIndex16(TransitionIndex), Transition.State, Transition.Priority);
 						}
 						continue;
 					}
@@ -1716,7 +1739,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 				bool bPassed = false; 
 				if (bShouldTrigger)
 				{
-					STATETREE_TRACE_TRANSITION_EVENT(TransitionIndex, EStateTreeTraceEventType::OnEvaluating);
+					STATETREE_TRACE_TRANSITION_EVENT(FStateTreeTransitionSource(FStateTreeIndex16(TransitionIndex), Transition.State, Transition.Priority), EStateTreeTraceEventType::OnEvaluating);
 					STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::TransitionConditions);
 					bPassed = TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum);
 				}
@@ -1753,7 +1776,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 
 					if (RequestTransition(Transition.State, Transition.Priority))
 					{
-						NextTransitionIndex = FStateTreeIndex16(TransitionIndex);
+						NextTransitionSource = FStateTreeTransitionSource(FStateTreeIndex16(TransitionIndex), Transition.State, Transition.Priority);
 					}
 				}
 			}
@@ -1802,7 +1825,8 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 			const FCompactStateTreeState& State = StateTree.States[StateHandle.Index];
 
 			FCurrentlyProcessedStateScope StateScope(*this, StateHandle);
-			
+			STATETREE_TRACE_SCOPED_STATE_PHASE(StateHandle, EStateTreeUpdatePhase::TriggerTransitions);
+
 			for (uint8 i = 0; i < State.TransitionsNum; i++)
 			{
 				// All transition conditions must pass
@@ -1819,7 +1843,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 				{
 					bool bPassed = false;
 					{
-						STATETREE_TRACE_TRANSITION_EVENT(TransitionIndex, EStateTreeTraceEventType::OnEvaluating);
+						STATETREE_TRACE_TRANSITION_EVENT(FStateTreeTransitionSource(FStateTreeIndex16(TransitionIndex), Transition.State, Transition.Priority), EStateTreeTraceEventType::OnEvaluating);
 						STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::TransitionConditions);
 						bPassed = TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum);
 					}
@@ -1830,7 +1854,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 						// No priority on completion transitions, use the priority to signal that state is selected.
 						if (RequestTransition(Transition.State, EStateTreeTransitionPriority::Normal))
 						{
-							NextTransitionIndex = FStateTreeIndex16(TransitionIndex);
+							NextTransitionSource = FStateTreeTransitionSource(FStateTreeIndex16(TransitionIndex), Transition.State, Transition.Priority);
 							break;
 						}
 					}
@@ -1846,8 +1870,12 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 		if (NextTransition.Priority == EStateTreeTransitionPriority::None)
 		{
 			STATETREE_LOG(Verbose, TEXT("Could not trigger completion transition, jump back to start."));
+			STATETREE_TRACE_LOG_EVENT(TEXT("Could not trigger completion transition, jump back to start."));
 			FCurrentlyProcessedStateScope StateScope(*this, FStateTreeStateHandle::Root);
-			RequestTransition(FStateTreeStateHandle::Root, EStateTreeTransitionPriority::Normal);
+			if (RequestTransition(FStateTreeStateHandle::Root, EStateTreeTransitionPriority::Normal))
+			{
+				NextTransitionSource = FStateTreeTransitionSource(EStateTreeTransitionSourceType::Internal, FStateTreeStateHandle::Root, EStateTreeTransitionPriority::Normal);
+			}
 		}
 	}
 
@@ -2007,9 +2035,7 @@ bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle
 		return false;
 	}
 
-	// Push State before the scoped phase so the debugger can create the hierarchy parent using the state description.
-	STATETREE_TRACE_SCOPED_STATE_SELECTION(NextState, State.SelectionBehavior);
-	STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::StateSelection);
+	STATETREE_TRACE_SCOPED_STATE_PHASE(NextState, EStateTreeUpdatePhase::StateSelection);
 	
 	// Check that the state can be entered
 	bool bEnterConditionsPassed = false;
@@ -2097,7 +2123,7 @@ bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle
 				bool bTransitionConditionsPassed = false;
 				if (bShouldTrigger)
 				{
-					STATETREE_TRACE_TRANSITION_EVENT(TransitionIndex, EStateTreeTraceEventType::OnEvaluating);
+					STATETREE_TRACE_TRANSITION_EVENT(FStateTreeTransitionSource(FStateTreeIndex16(TransitionIndex), Transition.State, Transition.Priority), EStateTreeTraceEventType::OnEvaluating);
 					STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::TransitionConditions);
 					bTransitionConditionsPassed = bShouldTrigger && TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum);
 				}

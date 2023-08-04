@@ -286,7 +286,7 @@ bool FStateTreeDebuggerBreakpoint::IsMatchingEvent(const FStateTreeTraceEventVar
 		else if (const FStateTreeTransitionIndex* TransitionIndex = ElementIdentifier.TryGet<FStateTreeTransitionIndex>())
 		{
 			const FStateTreeTraceTransitionEvent* TransitionEvent = Event.TryGet<FStateTreeTraceTransitionEvent>();
-			bIsMatching = TransitionEvent != nullptr && TransitionEvent->TransitionIndex == TransitionIndex->Index;
+			bIsMatching = TransitionEvent != nullptr && TransitionEvent->TransitionSource.TransitionIndex == TransitionIndex->Index;
 		}
 	}
 	return bIsMatching;
@@ -297,9 +297,9 @@ EStateTreeTraceEventType FStateTreeDebuggerBreakpoint::GetMatchingEventType(cons
 	switch (BreakpointType)
 	{
 	case EStateTreeBreakpointType::OnEnter:
-		return EStateTreeTraceEventType::OnEnter;
+		return EStateTreeTraceEventType::OnEntering;
 	case EStateTreeBreakpointType::OnExit:
-		return EStateTreeTraceEventType::OnExit;
+		return EStateTreeTraceEventType::OnExiting;
 	case EStateTreeBreakpointType::OnTransition:
 		return EStateTreeTraceEventType::OnTransition;
 	default:
