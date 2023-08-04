@@ -131,7 +131,7 @@ void UInterchangeAssetImportData::SetPipelines(const TArray<UObject*>& InPipelin
 
 	for (UObject* Pipeline : InPipelines)
 	{
-		if (ensure(Pipeline))
+		if (Pipeline)
 		{
 			TransientPipelines.Add(Pipeline);
 		}
