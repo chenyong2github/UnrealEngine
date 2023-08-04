@@ -6,7 +6,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "SelectionToWeightMapNode.generated.h"
 
-/** Convert an integer index selection to a vertex weight map where the map value is one for vertices in the selection set, and zero otherwise */
+/** Convert an integer index selection to a vertex weight map where different map values can be set for selected and unselected vertices. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetSelectionToWeightMapNode : public FDataflowNode
 {
@@ -15,12 +15,24 @@ struct FChaosClothAssetSelectionToWeightMapNode : public FDataflowNode
 
 public:
 
-	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DataflowPassthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
-	/** The name of the selection to convert and also the name of the weight map attribute that will be added to the collection */
-	UPROPERTY(Meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Name"))
-	FString Name;
+	/** The name of the selection to convert. */
+	UPROPERTY(Meta = (DataflowInput))
+	FString SelectionName;
+
+	/** The name of the weight map attribute that will be added to the collection */
+	UPROPERTY(EditAnywhere, Category = "Selection To Weight Map", Meta = (DataflowOutput))
+	FString WeightMapName;
+
+	/** The value unselected vertices receive. */
+	UPROPERTY(EditAnywhere, Category = "Selection To Weight Map", Meta = (ClampMin = "0", ClampMax = "1"))
+	float UnselectedValue = 0.f;
+
+	/** The value selected vertices receive. */
+	UPROPERTY(EditAnywhere, Category = "Selection To Weight Map", Meta = (ClampMin = "0", ClampMax = "1"))
+	float SelectedValue = 1.f;
 
 	FChaosClothAssetSelectionToWeightMapNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
