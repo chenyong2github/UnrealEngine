@@ -4,6 +4,7 @@
 
 #include "Dataflow/DataflowTerminalNode.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "ChaosClothAsset/ClothLodTransitionDataCache.h"
 #include "TerminalNode.generated.h"
 
 /** Cloth terminal node to generate a cloth asset from a cloth collection. */
@@ -52,4 +53,7 @@ private:
 	//~ End FDataflowNode interface
 
 	TArray<const FManagedArrayCollection*> GetCollectionLods() const;
+
+	UPROPERTY()
+	mutable TArray<FChaosClothAssetLodTransitionDataCache> LODTransitionDataCache;
 };

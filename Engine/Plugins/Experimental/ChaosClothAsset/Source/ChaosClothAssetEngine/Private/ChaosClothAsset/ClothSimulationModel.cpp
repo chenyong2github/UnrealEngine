@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
+#include "ChaosClothAsset/ClothLodTransitionDataCache.h"
 #include "Utils/ClothingMeshUtils.h"
 #include "ReferenceSkeleton.h"
 
@@ -105,6 +106,26 @@ namespace UE::Chaos::ClothAsset
 		}
 		return ReferenceBoneIndex;
 	}
+
+	FMD5Hash CalculateTransitionDataHash(const FChaosClothSimulationLodModel& CurrModel)
+	{
+		FMD5 MD5;
+		const TArray<FVector3f>& Positions = CurrModel.Positions;
+		const int32 NumPositions = Positions.Num();
+		MD5.Update(reinterpret_cast<const uint8*>(&NumPositions), sizeof(NumPositions));
+		MD5.Update(reinterpret_cast<const uint8*>(Positions.GetData()),
+			NumPositions * sizeof(FVector3f));
+
+		const TArray<uint32>& Indices = CurrModel.Indices;
+		const int32 NumIndices = Indices.Num();
+		MD5.Update(reinterpret_cast<const uint8*>(&NumIndices), sizeof(NumIndices));
+		MD5.Update(reinterpret_cast<const uint8*>(Indices.GetData()), NumIndices * sizeof(uint32));
+
+		FMD5Hash MD5Hash;
+		MD5Hash.Set(MD5);
+
+		return MD5Hash;
+	}
 }  // End namespace UE::Chaos::ClothAsset
 
 bool FChaosClothSimulationLodModel::Serialize(FArchive& Ar)
@@ -126,10 +147,11 @@ bool FChaosClothSimulationLodModel::Serialize(FArchive& Ar)
 	return true;
 }
 
-FChaosClothSimulationModel::FChaosClothSimulationModel(const TArray<TSharedRef<const FManagedArrayCollection>>& ClothCollections, const FReferenceSkeleton& ReferenceSkeleton)
+FChaosClothSimulationModel::FChaosClothSimulationModel(const TArray<TSharedRef<const FManagedArrayCollection>>& ClothCollections, 
+	const FReferenceSkeleton& ReferenceSkeleton,
+	TArray<FChaosClothAssetLodTransitionDataCache>* InOutTransitionCache)
 {
 	using namespace UE::Chaos::ClothAsset;
-
 
 	// Initialize LOD models
 	const int32 NumLods = ClothCollections.Num();
@@ -198,40 +220,7 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TArray<TSharedRef<c
 	// Initialize Reference bone index
 	ReferenceBoneIndex = CalculateReferenceBoneIndex(ClothSimulationLodModels, ReferenceSkeleton, UsedBoneIndices);
 
-	// Compute LOD Transition data
-	
-	// Parameters for GenerateMeshToMeshVertData
-	const FPointWeightMap* const MaxDistances = nullptr;  // No need to update the vertex contribution on the transition maps
-	constexpr bool bUseSmoothTransitions = false;         // Smooth transitions are only used at rendering for now and not during LOD transitions
-	constexpr bool bUseMultipleInfluences = false;        // Multiple influences must not be used for LOD transitions
-	constexpr float SkinningKernelRadius = 0.f;           // KernelRadius is only required when using multiple influences
-
-	for (int32 LODIndex = 0; LODIndex < NumLods; ++LODIndex)
-	{
-		const int32 PrevLODIndex = LODIndex - 1;
-		const int32 NextLODIndex = LODIndex + 1;
-
-		FChaosClothSimulationLodModel& CurrModel = ClothSimulationLodModels[LODIndex];
-		const ClothingMeshUtils::ClothMeshDesc CurrentMeshDesc(CurrModel.Positions, CurrModel.Indices);
-
-		if (ClothSimulationLodModels.IsValidIndex(PrevLODIndex))
-		{
-			const FChaosClothSimulationLodModel& PrevModel = ClothSimulationLodModels[PrevLODIndex];
-			const ClothingMeshUtils::ClothMeshDesc PrevMeshDesc(PrevModel.Positions, PrevModel.Indices);
-
-			ClothingMeshUtils::GenerateMeshToMeshVertData(CurrModel.LODTransitionUpData, CurrentMeshDesc, PrevMeshDesc,
-				MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, SkinningKernelRadius);
-		}
-
-		if (ClothSimulationLodModels.IsValidIndex(NextLODIndex))
-		{
-			const FChaosClothSimulationLodModel& NextModel = ClothSimulationLodModels[NextLODIndex];
-			const ClothingMeshUtils::ClothMeshDesc NextMeshDesc(NextModel.Positions, NextModel.Indices);
-
-			ClothingMeshUtils::GenerateMeshToMeshVertData(CurrModel.LODTransitionDownData, CurrentMeshDesc, NextMeshDesc,
-				MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, SkinningKernelRadius);
-		}
-	}
+	CalculateLODTransitionUpDownData(InOutTransitionCache);
 }
 
 TArray<TConstArrayView<TTuple<int32, int32, float>>> FChaosClothSimulationModel::GetTethers(int32 LODIndex) const
@@ -249,4 +238,79 @@ TArray<TConstArrayView<TTuple<int32, int32, float>>> FChaosClothSimulationModel:
 		}
 	}
 	return Tethers;
+}
+
+void FChaosClothSimulationModel::CalculateLODTransitionUpDownData(TArray<FChaosClothAssetLodTransitionDataCache>* InOutTransitionCache)
+{
+	// Parameters for GenerateMeshToMeshVertData
+	const FPointWeightMap* const MaxDistances = nullptr;  // No need to update the vertex contribution on the transition maps
+	constexpr bool bUseSmoothTransitions = false;         // Smooth transitions are only used at rendering for now and not during LOD transitions
+	constexpr bool bUseMultipleInfluences = false;        // Multiple influences must not be used for LOD transitions
+	constexpr float SkinningKernelRadius = 0.f;           // KernelRadius is only required when using multiple influences
+
+	// Update cache hashes.
+	TArray<bool> TransitionCacheHashValid;
+	TransitionCacheHashValid.SetNumZeroed(ClothSimulationLodModels.Num());
+	if (InOutTransitionCache)
+	{
+		InOutTransitionCache->SetNum(ClothSimulationLodModels.Num());
+
+		for (int32 LODIndex = 0; LODIndex < ClothSimulationLodModels.Num(); ++LODIndex)
+		{
+			const FMD5Hash CurrCacheHash = UE::Chaos::ClothAsset::CalculateTransitionDataHash(ClothSimulationLodModels[LODIndex]);
+			TransitionCacheHashValid[LODIndex] = (CurrCacheHash == (*InOutTransitionCache)[LODIndex].ModelHash);
+			(*InOutTransitionCache)[LODIndex].ModelHash = CurrCacheHash;
+		}
+	}
+
+	for (int32 LODIndex = 0; LODIndex < ClothSimulationLodModels.Num(); ++LODIndex)
+	{
+		const int32 PrevLODIndex = LODIndex - 1;
+		const int32 NextLODIndex = LODIndex + 1;
+				
+		FChaosClothSimulationLodModel& CurrModel = ClothSimulationLodModels[LODIndex];
+		const ClothingMeshUtils::ClothMeshDesc CurrentMeshDesc(CurrModel.Positions, CurrModel.Indices);
+
+		if (ClothSimulationLodModels.IsValidIndex(PrevLODIndex))
+		{
+			if (TransitionCacheHashValid[LODIndex] && TransitionCacheHashValid[PrevLODIndex])
+			{
+				CurrModel.LODTransitionUpData = (*InOutTransitionCache)[LODIndex].LODTransitionUpData;
+			}
+			else
+			{
+				const FChaosClothSimulationLodModel& PrevModel = ClothSimulationLodModels[PrevLODIndex];
+				const ClothingMeshUtils::ClothMeshDesc PrevMeshDesc(PrevModel.Positions, PrevModel.Indices);
+
+				ClothingMeshUtils::GenerateMeshToMeshVertData(CurrModel.LODTransitionUpData, CurrentMeshDesc, PrevMeshDesc,
+					MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, SkinningKernelRadius);
+
+				if (InOutTransitionCache)
+				{
+					(*InOutTransitionCache)[LODIndex].LODTransitionUpData = CurrModel.LODTransitionUpData;
+				}
+			}
+		}
+
+		if (ClothSimulationLodModels.IsValidIndex(NextLODIndex))
+		{
+			if (TransitionCacheHashValid[LODIndex] && TransitionCacheHashValid[NextLODIndex])
+			{
+				CurrModel.LODTransitionDownData = (*InOutTransitionCache)[LODIndex].LODTransitionDownData;
+			}
+			else
+			{
+				const FChaosClothSimulationLodModel& NextModel = ClothSimulationLodModels[NextLODIndex];
+				const ClothingMeshUtils::ClothMeshDesc NextMeshDesc(NextModel.Positions, NextModel.Indices);
+
+				ClothingMeshUtils::GenerateMeshToMeshVertData(CurrModel.LODTransitionDownData, CurrentMeshDesc, NextMeshDesc,
+					MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, SkinningKernelRadius);
+
+				if (InOutTransitionCache)
+				{
+					(*InOutTransitionCache)[LODIndex].LODTransitionDownData = CurrModel.LODTransitionDownData;
+				}
+			}
+		}
+	}
 }

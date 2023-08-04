@@ -12,6 +12,7 @@ class FSkeletalMeshModel;
 struct FChaosClothSimulationModel;
 struct FSkeletalMeshLODInfo;
 struct FManagedArrayCollection;
+struct FChaosClothAssetLodTransitionDataCache;
 class FSkinnedAssetCompilationContext;
 class UDataflow;
 
@@ -109,7 +110,7 @@ public:
 	TSharedPtr<const FChaosClothSimulationModel> GetClothSimulationModel() const { return ClothSimulationModel; }
 
 	/** Build this asset static render and simulation data. This needs to be done every time the asset has changed. */
-	void Build();
+	void Build(TArray<FChaosClothAssetLodTransitionDataCache>* InOutTransitionCache = nullptr);
 
 	/**
 	 * Copy the draped simulation mesh patterns into the render mesh data.
@@ -188,7 +189,7 @@ private:
 #endif
 
 	/** Build the clothing simulation meshes from the Cloth Collection. */
-	void BuildClothSimulationModel();
+	void BuildClothSimulationModel(TArray<FChaosClothAssetLodTransitionDataCache>* InOutTransitionCache = nullptr);
 
 	/** Initialize all render resources. */
 	void InitResources();

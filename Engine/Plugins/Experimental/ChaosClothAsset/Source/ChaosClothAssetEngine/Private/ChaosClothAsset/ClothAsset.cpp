@@ -419,7 +419,7 @@ void UChaosClothAsset::UpdateSkeleton(bool bRebuildClothSimulationModel)
 	}
 }
 
-void UChaosClothAsset::Build()
+void UChaosClothAsset::Build(TArray<FChaosClothAssetLodTransitionDataCache>* InOutTransitionCache)
 {
 	using namespace UE::Chaos::ClothAsset;
 
@@ -449,7 +449,7 @@ void UChaosClothAsset::Build()
 	LODInfo.AddDefaulted(NumLods);  // TODO: Expose some properties to fill up the LOD infos
 
 	// Build simulation model
-	BuildClothSimulationModel();
+	BuildClothSimulationModel(InOutTransitionCache);
 
 	// Rebuild LOD Model
 #if WITH_EDITORONLY_DATA
@@ -543,9 +543,10 @@ void UChaosClothAsset::BuildMeshModel()
 }
 #endif  // #if WITH_EDITORONLY_DATA
 
-void UChaosClothAsset::BuildClothSimulationModel()
+void UChaosClothAsset::BuildClothSimulationModel(TArray<FChaosClothAssetLodTransitionDataCache>* InOutTransitionCache)
 {
-	ClothSimulationModel = MakeShared<FChaosClothSimulationModel>(const_cast<const UChaosClothAsset*>(this)->GetClothCollections(), GetRefSkeleton());
+	ClothSimulationModel = MakeShared<FChaosClothSimulationModel>(const_cast<const UChaosClothAsset*>(this)->GetClothCollections(), 
+		GetRefSkeleton(), InOutTransitionCache);
 }
 
 const FMeshUVChannelInfo* UChaosClothAsset::GetUVChannelData(int32 MaterialIndex) const
@@ -729,7 +730,7 @@ void UChaosClothAsset::UpdateSkeletonFromCollection(bool bRebuildModels)
 
 	if (!InSkeleton)
 	{
-		SetSkeleton(nullptr, true);
+		SetSkeleton(nullptr, bRebuildModels);
 	}
 	else
 	{
