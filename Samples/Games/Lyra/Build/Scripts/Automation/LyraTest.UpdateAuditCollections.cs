@@ -63,7 +63,7 @@ namespace LyraTest
 			int WorkingCL = -1;
 			if (CommandUtils.P4Enabled)
 			{
-				WorkingCL = CommandUtils.P4.CreateChange(CommandUtils.P4Env.Client, String.Format("Updated " + CollectionName + " collection using CL {0}\n#skipci", P4Env.Changelist));
+				WorkingCL = CommandUtils.P4.CreateChange(CommandUtils.P4Env.Client, String.Format("Updated " + CollectionName + " collection using CL {0}\n#skipci\n#okforgithub public", P4Env.Changelist));
 			}
 
 			var CollectionFilenameLocal = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, GameProjectDirectory, "Content", "Collections", CollectionName + ".collection");
@@ -73,16 +73,17 @@ namespace LyraTest
 				return;
 			}
 
+			bool bNeedsAdd = false;
 			if (WorkingCL > 0)
 			{
-				var CollectionFilenameP4 = CommandUtils.CombinePaths(PathSeparator.Slash, CommandUtils.P4Env.Branch, GameProjectDirectory, "Content", "Collections", CollectionName + ".collection");
+				
 				if (!CommandUtils.FileExists_NoExceptions(CollectionFilenameLocal))
 				{
-					CommandUtils.P4.Add(WorkingCL, CollectionFilenameP4);
+					bNeedsAdd = true;
 				}
 				else
 				{
-					CommandUtils.P4.Edit(WorkingCL, CollectionFilenameP4);
+					CommandUtils.P4.Edit(WorkingCL, CollectionFilenameLocal);
 				}
 			}
 
@@ -201,6 +202,10 @@ namespace LyraTest
 				if (CollectionFile != null)
 				{
 					CollectionFile.Close();
+					if (bNeedsAdd)
+					{
+						CommandUtils.P4.Add(WorkingCL, CollectionFilenameLocal);
+					}
 				}
 			}
 
