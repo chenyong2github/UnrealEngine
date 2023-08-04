@@ -1708,7 +1708,7 @@ private:
 	{
 		// This method should only be called on Objects that are networked, and those should
 		// always have this implemented (by UHT).
-		check(false);
+		checkf(false, TEXT("REPLICATED_BASE_CLASS macro is not implemented in %s. Something went very wrong."), *GetFullName());
 	}
 
 public:
