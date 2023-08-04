@@ -2,5 +2,6 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 
 extern NETCORE_API bool GUseDetailedScopeCounters;
