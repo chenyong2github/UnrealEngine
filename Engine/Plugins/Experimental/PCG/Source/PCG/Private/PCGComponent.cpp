@@ -45,6 +45,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGComponent)
 
 #if WITH_EDITOR
+#include "EditorActorFolders.h"
 #include "ScopedTransaction.h"
 #endif
 
@@ -610,6 +611,33 @@ AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
 		}
 	}
 
+#if WITH_EDITOR
+	// If there is an associated generated folder from this actor, rename it according to the stamp name
+	if (World && NewActor)
+	{
+		FString GeneratedFolderPath;
+		PCGHelpers::GetGeneratedActorsFolderPath(GetOwner(), GeneratedFolderPath);
+		
+		FString GeneratedStampFolder;
+		PCGHelpers::GetGeneratedActorsFolderPath(NewActor, GeneratedStampFolder);
+
+		if (!GeneratedFolderPath.IsEmpty() && !GeneratedStampFolder.IsEmpty())
+		{
+			FFolder GeneratedFolder(FFolder::GetWorldRootFolder(World).GetRootObject(), *GeneratedFolderPath);
+			FFolder StampFolder(FFolder::GetWorldRootFolder(World).GetRootObject(), *GeneratedStampFolder);
+
+			const bool bGeneratedFolderExists = GeneratedFolder.IsValid() && FActorFolders::Get().ContainsFolder(*World, GeneratedFolder);
+			const bool bStampFolderExists = FActorFolders::Get().ContainsFolder(*World, StampFolder);
+
+			// TODO: improve behavior when target stamp folder would exist
+			if (bGeneratedFolderExists && !bStampFolderExists)
+			{
+				FActorFolders::Get().RenameFolderInWorld(*World, GeneratedFolder, StampFolder);
+			}
+		}
+	}
+#endif
+
 	return NewActor;
 }
 
@@ -839,8 +867,65 @@ FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray
 			UPCGActorHelpers::DeleteActors(World, Context->ActorsToDelete.Array());
 		}
 
-		if (ThisComponentWeakPtr.Get())
+		if (UPCGComponent* ThisComponent = ThisComponentWeakPtr.Get())
 		{
+#if WITH_EDITOR
+			if (UWorld* ThisWorld = ThisComponent->GetWorld())
+			{
+				// Look for a nested generated results subfolder and remove it if it exists
+				FString FolderPath;
+				PCGHelpers::GetGeneratedActorsFolderPath(ThisComponent->GetOwner(), FolderPath);
+
+				if (!FolderPath.IsEmpty())
+				{
+					FFolder GeneratedFolder(FFolder::GetWorldRootFolder(ThisWorld).GetRootObject(), *FolderPath);
+
+					const bool bFolderExists = GeneratedFolder.IsValid() && FActorFolders::Get().ContainsFolder(*ThisWorld, GeneratedFolder);
+					bool bFoundActors = false;
+
+					if (bFolderExists)
+					{
+						TArray<FName> Paths = { *FolderPath };
+						FActorFolders::ForEachActorInFolders(*ThisWorld, Paths, [&bFoundActors](AActor* InActor)
+						{
+							if (InActor)
+							{
+								bFoundActors = true;
+								return false;
+							}
+							else
+							{
+								return true;
+							}
+						});
+					}
+
+					if (bFolderExists && !bFoundActors)
+					{
+						// Delete all subfolders
+						TArray<FFolder> SubfoldersToDelete;
+						FActorFolders::Get().ForEachFolder(*ThisWorld, [&GeneratedFolder, &SubfoldersToDelete](const FFolder& InFolder)
+						{
+							if (InFolder.IsChildOf(GeneratedFolder))
+							{
+								SubfoldersToDelete.Add(InFolder);
+							}
+
+							return true;
+						});
+
+						for (const FFolder& FolderToDelete : SubfoldersToDelete)
+						{
+							FActorFolders::Get().DeleteFolder(*ThisWorld, FolderToDelete);
+						}
+
+						// Finally, delete folder
+						FActorFolders::Get().DeleteFolder(*ThisWorld, GeneratedFolder);
+					}
+				}
+			}
+#endif
+
 			PCGGeneratedResourcesLogging::LogCreateCleanupTaskFinished(ThisComponentWeakPtr->GeneratedResources);
 		}
 

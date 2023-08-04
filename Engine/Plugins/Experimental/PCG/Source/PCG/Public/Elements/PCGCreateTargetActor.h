@@ -54,16 +54,23 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings, meta = (OnlyPlaceable, DisallowCreateNew))
 	TSubclassOf<AActor> TemplateActorClass = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = Settings, meta = (ShowInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = Settings, meta = (ShowInnerProperties, EditCondition = "bAllowTemplateActorEditing", EditConditionHides))
 	TObjectPtr<AActor> TemplateActor;
 
-	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	// TODO: make this InlineEditConditionToggle, not done because property changed event does not propagate correctly so we can't track accurately the need to create the target actor
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bAllowTemplateActorEditing = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGAttachOptions AttachOptions = EPCGAttachOptions::Attached;
+
+	UPROPERTY(meta = (PCG_Overridable))
 	TSoftObjectPtr<AActor> RootActor;
 
-	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(meta = (PCG_Overridable))
 	FString ActorLabel;
 
-	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(meta = (PCG_Overridable))
 	FTransform ActorPivot;
 };
 

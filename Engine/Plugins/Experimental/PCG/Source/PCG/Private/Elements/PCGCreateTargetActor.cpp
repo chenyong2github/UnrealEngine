@@ -99,6 +99,10 @@ void UPCGCreateTargetActor::PostEditChangeProperty(FPropertyChangedEvent& Proper
 			SetupBlueprintEvent();
 			RefreshTemplateActor();
 		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGCreateTargetActor, bAllowTemplateActorEditing))
+		{
+			RefreshTemplateActor();
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -129,23 +133,46 @@ void UPCGCreateTargetActor::OnBlueprintChanged(UBlueprint* InBlueprint)
 
 void UPCGCreateTargetActor::RefreshTemplateActor()
 {
-	if (TemplateActorClass)
+	// Implementation note: this is similar to the child actor component implementation
+	if (TemplateActorClass && bAllowTemplateActorEditing)
 	{
-		AActor* NewTemplateActor = NewObject<AActor>(this, TemplateActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public);
+		const bool bCreateNewTemplateActor = (!TemplateActor || TemplateActor->GetClass() != TemplateActorClass);
 
-		if (TemplateActor)
+		if (bCreateNewTemplateActor)
 		{
-			UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
-			Options.bNotifyObjectReplacement = true;
-			UEngine::CopyPropertiesForUnrelatedObjects(TemplateActor, NewTemplateActor, Options);
+			AActor* NewTemplateActor = NewObject<AActor>(GetTransientPackage(), TemplateActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public);
 
-			TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			if (TemplateActor)
+			{
+				UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+				Options.bNotifyObjectReplacement = true;
+				UEngine::CopyPropertiesForUnrelatedObjects(TemplateActor, NewTemplateActor, Options);
+
+				TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+
+				TMap<UObject*, UObject*> OldToNew;
+				OldToNew.Emplace(TemplateActor, NewTemplateActor);
+				GEngine->NotifyToolsOfObjectReplacement(OldToNew);
+
+				TemplateActor->MarkAsGarbage();
+			}
+
+			TemplateActor = NewTemplateActor;
+
+			// Record initial object state in case we're in a transaction context.
+			TemplateActor->Modify();
+
+			// Outer to this object
+			TemplateActor->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
-
-		TemplateActor = NewTemplateActor;
 	}
 	else
 	{
+		if (TemplateActor)
+		{
+			TemplateActor->MarkAsGarbage();
+		}
+
 		TemplateActor = nullptr;
 	}
 }
@@ -155,6 +182,12 @@ void UPCGCreateTargetActor::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
+	// Since the template actor editing is set to false by default, this needs to be corrected on post-load for proper deprecation
+	if (TemplateActor)
+	{
+		bAllowTemplateActorEditing = true;
+	}
+
 	SetupBlueprintEvent();
 
 	if (TemplateActorClass)
@@ -183,14 +216,14 @@ bool FPCGCreateTargetActorElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	// Early out if the template actor isn't valid
-	if (!Settings->TemplateActorClass || Settings->TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
+	if (!Settings->TemplateActorClass || Settings->TemplateActorClass->HasAnyClassFlags(CLASS_Abstract) || !Settings->TemplateActorClass->GetDefaultObject()->IsA<AActor>())
 	{
 		const FText ClassName = Settings->TemplateActorClass ? FText::FromString(Settings->TemplateActorClass->GetFName().ToString()) : FText::FromName(NAME_None);
 		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InvalidTemplateActorClass", "Invalid template actor class '{0}'"), ClassName));
 		return true;
 	}
 
-	if (!ensure(Settings->TemplateActor && Settings->TemplateActor->IsA(Settings->TemplateActorClass)))
+	if (!ensure(!Settings->TemplateActor || Settings->TemplateActor->IsA(Settings->TemplateActorClass)))
 	{
 		return true;
 	}
@@ -203,7 +236,7 @@ bool FPCGCreateTargetActorElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	const bool bHasAuthority = !Context->SourceComponent.IsValid() || (Context->SourceComponent->GetOwner() && Context->SourceComponent->GetOwner()->HasAuthority());
-	const bool bSpawnedActorRequiresAuthority = Settings->TemplateActor->GetIsReplicated();
+	const bool bSpawnedActorRequiresAuthority = CastChecked<AActor>(Settings->TemplateActorClass->GetDefaultObject())->GetIsReplicated();
 
 	if (!bHasAuthority && bSpawnedActorRequiresAuthority)
 	{
@@ -214,7 +247,6 @@ bool FPCGCreateTargetActorElement::ExecuteInternal(FPCGContext* Context) const
 	AActor* TemplateActor = Settings->TemplateActor.Get();
 
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = TargetActor;
 	SpawnParams.Template = TemplateActor;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
@@ -229,13 +261,16 @@ bool FPCGCreateTargetActorElement::ExecuteInternal(FPCGContext* Context) const
 		Transform = Settings->ActorPivot;
 	}
 
-	AActor* GeneratedActor = UPCGActorHelpers::SpawnDefaultActor(TargetActor->GetWorld(), Settings->TemplateActorClass, Transform, SpawnParams, TargetActor);
+	AActor* GeneratedActor = UPCGActorHelpers::SpawnDefaultActor(TargetActor->GetWorld(), Settings->TemplateActorClass, Transform, SpawnParams);
 
 	if (!GeneratedActor)
 	{
 		PCGE_LOG(Error, GraphAndLog, LOCTEXT("ActorSpawnFailed", "Failed to spawn actor"));
 		return true;
 	}
+
+	// Always attach if root actor is provided
+	PCGHelpers::AttachToParent(GeneratedActor, TargetActor, Settings->RootActor.Get() ? EPCGAttachOptions::Attached : Settings->AttachOptions);
 
 #if WITH_EDITOR
 	if (Settings->ActorLabel != FString())

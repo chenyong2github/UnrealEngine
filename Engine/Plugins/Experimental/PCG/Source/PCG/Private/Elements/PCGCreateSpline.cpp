@@ -139,7 +139,6 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 		else if(Settings->Mode == EPCGCreateSplineMode::CreateNewActor)
 		{
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.Owner = TargetActor;
 			if (PCGHelpers::IsRuntimeOrPIE())
 			{
 				SpawnParams.ObjectFlags |= RF_Transient;
@@ -161,8 +160,7 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 
 			SplineActor->Tags = TargetActor->Tags;
 			SplineActor->Tags.AddUnique(PCGHelpers::DefaultPCGActorTag);
-			SplineActor->AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
-
+			PCGHelpers::AttachToParent(SplineActor, TargetActor, Settings->AttachOptions);
 			SplineData->TargetActor = SplineActor;
 
 			ManagedActors->GeneratedActors.Add(SplineActor);

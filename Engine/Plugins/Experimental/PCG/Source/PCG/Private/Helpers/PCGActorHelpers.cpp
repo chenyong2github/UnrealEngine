@@ -295,7 +295,6 @@ AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> A
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = MakeUniqueObjectName(World->GetCurrentLevel(), ActorClass, BaseName);
-	SpawnParams.Owner = Parent;
 
 	if (PCGHelpers::IsRuntimeOrPIE())
 	{

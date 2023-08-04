@@ -833,7 +833,6 @@ void FPCGSpawnActorElement::SpawnActors(FPCGSubgraphContext* Context, AActor* Ta
 	PCGSpawnActorHelpers::FActorOverrides ActorOverrides(Settings->ActorOverrides, TemplateActor, PointData);
 
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = TargetActor;
 	SpawnParams.Template = TemplateActor;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
@@ -910,6 +909,12 @@ void FPCGSpawnActorElement::SpawnActors(FPCGSubgraphContext* Context, AActor* Ta
 		UPCGManagedActors* ManagedActors = NewObject<UPCGManagedActors>(Context->SourceComponent.Get());
 		ManagedActors->SetCrc(InputDependenciesCrc);
 
+		// If generated actors are not directly attached, place them in a subfolder for tidiness.
+		FString GeneratedActorsFolderPath;
+#if WITH_EDITOR
+		PCGHelpers::GetGeneratedActorsFolderPath(TargetActor, GeneratedActorsFolderPath);
+#endif
+
 		for (int32 i = 0; i < Points.Num(); ++i)
 		{
 			const FPCGPoint& Point = Points[i];
@@ -927,7 +932,7 @@ void FPCGSpawnActorElement::SpawnActors(FPCGSubgraphContext* Context, AActor* Ta
 			// HACK: until UE-62747 is fixed, we have to force set the scale after spawning the actor
 			GeneratedActor->SetActorRelativeScale3D(Point.Transform.GetScale3D());
 			GeneratedActor->Tags.Append(NewActorTags);
-			GeneratedActor->AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
+			PCGHelpers::AttachToParent(GeneratedActor, TargetActor, Settings->AttachOptions, GeneratedActorsFolderPath);
 
 			for (UFunction* PostSpawnFunction : PostSpawnFunctions)
 			{

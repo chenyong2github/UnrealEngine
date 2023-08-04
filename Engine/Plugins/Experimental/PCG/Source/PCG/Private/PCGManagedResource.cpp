@@ -127,9 +127,14 @@ bool UPCGManagedActors::MoveResourceToNewActor(AActor* NewActor)
 			continue;
 		}
 
-		Actor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		Actor->SetOwner(nullptr);
-		Actor->AttachToActor(NewActor, FAttachmentTransformRules::KeepWorldTransform);
+		const bool bWasAttached = (Actor->GetAttachParentActor() != nullptr);
+
+		if (bWasAttached)
+		{
+			Actor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			Actor->SetOwner(nullptr);
+			Actor->AttachToActor(NewActor, FAttachmentTransformRules::KeepWorldTransform);
+		}
 	}
 
 	GeneratedActors.Empty();

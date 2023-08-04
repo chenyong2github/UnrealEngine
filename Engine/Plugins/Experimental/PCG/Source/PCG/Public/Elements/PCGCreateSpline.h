@@ -62,8 +62,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bLinear && bApplyCustomTangents"))
 	FName LeaveTangentAttribute;
 
-	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(meta = (PCG_Overridable))
 	TSoftObjectPtr<AActor> TargetActor;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Mode==EPCGCreateSplineMode::CreateNewActor", EditConditionHides))
+	EPCGAttachOptions AttachOptions = EPCGAttachOptions::Attached;
 };
 
 class FPCGCreateSplineElement : public FSimplePCGElement

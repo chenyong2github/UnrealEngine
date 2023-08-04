@@ -178,3 +178,11 @@ namespace PCGHiGenGrid
 	PCG_API uint32 UninitializedGridSize();
 	PCG_API uint32 UnboundedGridSize();
 }
+
+UENUM()
+enum class EPCGAttachOptions : uint32
+{
+	NotAttached UMETA(Tooltip="Actor will not be attached to the target actor nor placed in an actor folder"),
+	Attached UMETA(Tooltip="Actor will be attached to the target actor in the given node"),
+	InFolder UMETA(Tooltip="Actor will be placed in an actor folder containing the name of the target actor.")
+};

@@ -439,4 +439,53 @@ namespace PCGHelpers
 			return false;
 		}
 	}
+
+#if WITH_EDITOR
+	void GetGeneratedActorsFolderPath(const AActor* InTargetActor, FString& OutFolderPath)
+	{
+		if (!InTargetActor)
+		{
+			return;
+		}
+
+		// Reserves reasonable max string length on stack, overflows to heap if exceeded.
+		TStringBuilderWithBuffer<TCHAR, 1024> GeneratedActorsFolder;
+
+		FName TargetActorFolder = InTargetActor->GetFolderPath();
+		if (TargetActorFolder != NAME_None)
+		{
+			GeneratedActorsFolder << TargetActorFolder.ToString() << "/";
+		}
+
+		GeneratedActorsFolder << InTargetActor->GetActorLabel() << "_Generated";
+		OutFolderPath = GeneratedActorsFolder;
+	}
+#endif
+
+	void AttachToParent(AActor* InActorToAttach, AActor* InParent, EPCGAttachOptions AttachOptions, const FString& InGeneratedPath)
+	{
+		if (!InParent)
+		{
+			return;
+		}
+
+		if (AttachOptions == EPCGAttachOptions::Attached)
+		{
+			InActorToAttach->AttachToActor(InParent, FAttachmentTransformRules::KeepWorldTransform);
+		}
+#if WITH_EDITOR
+		else if(AttachOptions == EPCGAttachOptions::InFolder)
+		{
+			FString DefaultFolderPath;
+
+			if (InGeneratedPath.IsEmpty())
+			{
+				GetGeneratedActorsFolderPath(InParent, DefaultFolderPath);
+			}
+
+			const FString& FolderPath = (InGeneratedPath.IsEmpty() ? DefaultFolderPath : InGeneratedPath);
+			InActorToAttach->SetFolderPath(*FolderPath);
+		}
+#endif
+	}
 }
