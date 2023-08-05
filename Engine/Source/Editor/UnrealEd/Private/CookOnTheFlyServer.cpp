@@ -2621,6 +2621,11 @@ void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::
 
 		// Suppress the message in cases that cause large spam like NotInCurrentPlugin for DLC cooks.
 		bPrintDiagnostic &= (Reason != ESuppressCookReason::NotInCurrentPlugin);
+		if (bPrintDiagnostic && IsCookingDLC() && Reason == ESuppressCookReason::AlreadyCooked && LogCook.GetVerbosity() < ELogVerbosity::Verbose)
+		{
+			bPrintDiagnostic = false;
+		}
+
 		if (bPrintDiagnostic)
 		{
 			TStringBuilder<256> PackageNameStr(InPlace, PackageData.GetPackageName());
