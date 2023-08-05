@@ -227,6 +227,7 @@ static bool AddLODFromMeshDescription(
 	}
 	
 	InSkeletalMesh->SaveLODImportedData(LODIndex, SkeletalMeshImportGeometry);
+	InSkeletalMesh->SetLODImportedDataVersions(LODIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
 	
 	return true;
 }
