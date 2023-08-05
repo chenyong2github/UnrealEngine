@@ -119,6 +119,10 @@ public:
 	/** For the binding list widget, allow the user to edit the binding in the detail view. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	bool bShowDetailViewOptionInBindingPanel = true;
+	
+	/** For the binding list widget and the viewmodel panel, allow the user to edit the view settings in the detail view. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	bool bShowViewSettings = true;
 
 	/** When a conversion function requires a wrapper graph, add and save the generated graph to the blueprint. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")

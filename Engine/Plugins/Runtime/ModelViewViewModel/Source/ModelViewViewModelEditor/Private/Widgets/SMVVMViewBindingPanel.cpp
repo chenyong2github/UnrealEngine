@@ -463,14 +463,17 @@ void SBindingsPanel::RegisterSettingsMenu()
 		{
 			if (const UWidgetBlueprintToolMenuContext* Context = InSection.FindContext<UWidgetBlueprintToolMenuContext>())
 			{
-				InSection.AddMenuEntry(
-					"ViewSettings"
-					, LOCTEXT("ViewSettings", "View Settings")
-					, LOCTEXT("ViewSettingsTooltip", "View Settings")
-					, FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon")
-					, FUIAction(FExecuteAction::CreateStatic(UE::MVVM::Private::SetSelectObjectsToViewSettings, Context->WidgetBlueprintEditor))
-					, EUserInterfaceActionType::Button
-				);
+				if (GetDefault<UMVVMDeveloperProjectSettings>()->bShowViewSettings)
+				{
+					InSection.AddMenuEntry(
+						"ViewSettings"
+						, LOCTEXT("ViewSettings", "View Settings")
+						, LOCTEXT("ViewSettingsTooltip", "View Settings")
+						, FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon")
+						, FUIAction(FExecuteAction::CreateStatic(UE::MVVM::Private::SetSelectObjectsToViewSettings, Context->WidgetBlueprintEditor))
+						, EUserInterfaceActionType::Button
+					);
+				}
 			}
 		}));
 }

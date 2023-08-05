@@ -6,6 +6,7 @@
 #include "Dialogs/Dialogs.h"
 #include "IStructureDetailsView.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMEditorSubsystem.h"
 #include "PropertyEditorModule.h"
 #include "ToolMenus.h"
@@ -103,14 +104,17 @@ void SMVVMViewModelPanel::RegisterMenu()
 			{
 				if (const UWidgetBlueprintToolMenuContext* Context = InSection.FindContext<UWidgetBlueprintToolMenuContext>())
 				{
-					InSection.AddMenuEntry(
-						"ViewSettings"
-						, LOCTEXT("ViewSettings", "View Settings")
-						, LOCTEXT("ViewSettingsTooltip", "View Settings")
-						, FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon")
-						, FUIAction(FExecuteAction::CreateStatic(UE::MVVM::Private::SetSelectObjectsToView, Context->WidgetBlueprintEditor))
-						, EUserInterfaceActionType::Button
-					);
+					if (GetDefault<UMVVMDeveloperProjectSettings>()->bShowViewSettings)
+					{
+						InSection.AddMenuEntry(
+							"ViewSettings"
+							, LOCTEXT("ViewSettings", "View Settings")
+							, LOCTEXT("ViewSettingsTooltip", "View Settings")
+							, FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon")
+							, FUIAction(FExecuteAction::CreateStatic(UE::MVVM::Private::SetSelectObjectsToView, Context->WidgetBlueprintEditor))
+							, EUserInterfaceActionType::Button
+						);
+					}
 				}
 			}));
 	}
