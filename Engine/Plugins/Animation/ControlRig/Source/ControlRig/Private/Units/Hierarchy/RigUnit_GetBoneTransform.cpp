@@ -13,6 +13,16 @@ FRigUnit_GetBoneTransform_Execute()
 	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
+		// KIARAN AUG - 2023 (HACK)
+		// This restores the original behavior of this node where it returns the InitialTransform during the first
+		// call to Execute() so that downstream nodes (like TransformConstraint) work correctly. This behavior was lost
+		// when 23407131 removed the Context.Init pass which called into FRigUnit_GetInitialBoneTransform
+		if (bFirstUpdate)
+		{
+			FRigUnit_GetInitialBoneTransform::StaticExecute(ExecuteContext, Bone, Space, Transform, CachedBone);
+			bFirstUpdate = false;
+			return;
+		}
 		if (!CachedBone.UpdateCache(FRigElementKey(Bone, ERigElementType::Bone), Hierarchy))
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
