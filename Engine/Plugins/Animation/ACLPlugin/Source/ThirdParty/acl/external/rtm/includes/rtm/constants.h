@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "rtm/version.h"
 #include "rtm/impl/compiler_utils.h"
 
 RTM_IMPL_FILE_PRAGMA_PUSH
@@ -96,9 +95,6 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 
 namespace rtm
 {
-
-	RTM_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace constants
 	{
 		//////////////////////////////////////////////////////////////////////////
@@ -131,8 +127,6 @@ namespace rtm
 		// 180 / PI
 		RTM_DEFINE_FLOAT_CONSTANT(one_eighty_div_pi, 57.295779513082320876798154814105)
 	}
-
-	RTM_IMPL_VERSION_NAMESPACE_END
 }
 
 RTM_IMPL_FILE_PRAGMA_POP

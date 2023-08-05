@@ -24,15 +24,12 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 
 ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	//////////////////////////////////////////////////////////////////////////
 	// This class is meant to encapsulate a simple error message and easily
 	// coerce with 'bool' in order to simplify and clean up error handling.
@@ -54,8 +51,6 @@ namespace acl
 	private:
 		const char*		m_error;
 	};
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 // Copyright 2021 Nicholas Frechette. All Rights Reserved.
-
 #include "EditorDatabaseMonitor.h"
 
 #if WITH_EDITORONLY_DATA
-
-#include "AnimationCompressionLibraryDatabase.h"
-
 #include "Containers/Ticker.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 

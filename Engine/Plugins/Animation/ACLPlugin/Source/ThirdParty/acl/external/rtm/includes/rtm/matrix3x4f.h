@@ -30,7 +30,6 @@
 #include "rtm/matrix3x3f.h"
 #include "rtm/quatf.h"
 #include "rtm/vector4f.h"
-#include "rtm/version.h"
 #include "rtm/impl/compiler_utils.h"
 #include "rtm/impl/matrix_common.h"
 #include "rtm/impl/matrix_affine_common.h"
@@ -39,8 +38,6 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 
 namespace rtm
 {
-	RTM_IMPL_VERSION_NAMESPACE_BEGIN
-
 	//////////////////////////////////////////////////////////////////////////
 	// Converts a rotation 3x3 matrix into a 3x4 affine matrix.
 	//////////////////////////////////////////////////////////////////////////
@@ -462,8 +459,6 @@ namespace rtm
 		result.w_axis = input.w_axis;
 		return result;
 	}
-
-	RTM_IMPL_VERSION_NAMESPACE_END
 }
 
 RTM_IMPL_FILE_PRAGMA_POP

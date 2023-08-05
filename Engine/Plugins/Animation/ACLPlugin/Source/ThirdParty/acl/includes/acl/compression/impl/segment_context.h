@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/error.h"
 #include "acl/core/hash.h"
 #include "acl/core/iallocator.h"
@@ -40,8 +39,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		struct clip_context;
@@ -84,18 +81,13 @@ namespace acl
 			clip_context* clip								= nullptr;
 			transform_streams* bone_streams					= nullptr;
 			transform_range* ranges							= nullptr;
+			frame_contributing_error* contributing_error	= nullptr;	// Optional if we request it in the compression settings
 
-			// Optional if we request it in the compression settings
-			// Sorted by stripping order within this segment
-			keyframe_stripping_metadata_t* contributing_error	= nullptr;
-
-			uint32_t num_samples_allocated					= 0;
 			uint32_t num_samples							= 0;
 			uint32_t num_bones								= 0;
 
 			uint32_t clip_sample_offset						= 0;
 			uint32_t segment_index							= 0;
-			uint32_t hard_keyframes							= 0;		// Bit set of which keyframes are hard and retained when keyframe stripping is used
 
 			bool are_rotations_normalized					= false;
 			bool are_translations_normalized				= false;
@@ -120,11 +112,9 @@ namespace acl
 		{
 			deallocate_type_array(allocator, segment.bone_streams, segment.num_bones);
 			deallocate_type_array(allocator, segment.ranges, segment.num_bones);
-			deallocate_type_array(allocator, segment.contributing_error, segment.num_samples_allocated);
+			deallocate_type_array(allocator, segment.contributing_error, segment.num_samples);
 		}
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

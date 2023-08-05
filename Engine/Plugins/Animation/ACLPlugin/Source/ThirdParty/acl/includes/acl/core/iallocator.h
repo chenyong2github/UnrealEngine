@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/error.h"
 #include "acl/core/memory_utils.h"
 #include "acl/core/impl/compiler_utils.h"
@@ -37,8 +36,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	////////////////////////////////////////////////////////////////////////////////
 	// A simple memory allocator interface.
 	//
@@ -141,8 +138,6 @@ namespace acl
 
 		allocator.deallocate(elements, sizeof(allocated_type) * num_elements);
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

@@ -27,7 +27,6 @@
 #include "rtm/math.h"
 #include "rtm/vector4f.h"
 #include "rtm/vector4d.h"
-#include "rtm/version.h"
 #include "rtm/quatf.h"
 #include "rtm/quatd.h"
 #include "rtm/type_traits.h"
@@ -37,8 +36,6 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 
 namespace rtm
 {
-	RTM_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace rtm_impl
 	{
 		//////////////////////////////////////////////////////////////////////////
@@ -343,8 +340,6 @@ namespace rtm
 	{
 		return rtm_impl::matrix_from_scale_helper<double>{ scale };
 	}
-
-	RTM_IMPL_VERSION_NAMESPACE_END
 }
 
 RTM_IMPL_FILE_PRAGMA_POP

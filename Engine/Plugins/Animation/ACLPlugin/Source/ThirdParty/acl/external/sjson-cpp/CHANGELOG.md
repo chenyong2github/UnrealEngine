@@ -1,15 +1,5 @@
 # Significant changes per release
 
-## 0.8.3
-
-*  Force macro expansion in version namespace identifier
-
-## 0.8.2
-
-*  Add versioned namespace to allow multiple versions to coexist within a binary
-*  Add OS X/Linux ARM development support
-*  Other minor changes
-
 ## 0.8.1
 
 *  Minor static analysis fixes

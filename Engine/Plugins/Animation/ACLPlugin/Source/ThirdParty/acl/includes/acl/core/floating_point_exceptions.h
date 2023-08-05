@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 
 #include <rtm/math.h>
@@ -33,8 +32,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	//////////////////////////////////////////////////////////////////////////
 	// Stores the floating point environment information.
 	//////////////////////////////////////////////////////////////////////////
@@ -150,8 +147,6 @@ namespace acl
 
 		fp_environment env;
 	};
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

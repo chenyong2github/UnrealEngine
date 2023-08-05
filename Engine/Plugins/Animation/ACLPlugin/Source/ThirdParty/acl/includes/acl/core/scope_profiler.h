@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 
 #include <chrono>
@@ -34,8 +33,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	////////////////////////////////////////////////////////////////////////////////
 	// A scope activated profiler.
 	////////////////////////////////////////////////////////////////////////////////
@@ -93,8 +90,6 @@ namespace acl
 		if (m_start_time == m_end_time)
 			m_end_time = std::chrono::high_resolution_clock::now();
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

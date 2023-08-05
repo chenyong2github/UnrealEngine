@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/compressed_tracks.h"
 #include "acl/core/compressed_tracks_version.h"
 #include "acl/core/interpolation_utils.h"
@@ -50,8 +49,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		union persistent_universal_decompression_context
@@ -64,30 +61,8 @@ namespace acl
 			persistent_universal_decompression_context() noexcept {}
 			const compressed_tracks* get_compressed_tracks() const { return scalar.tracks; }
 			compressed_tracks_version16 get_version() const { return scalar.tracks->get_version(); }
-			sample_looping_policy get_looping_policy() const
-			{
-				const track_type8 track_type = scalar.tracks->get_track_type();
-				switch (track_type)
-				{
-				case track_type8::float1f:
-				case track_type8::float2f:
-				case track_type8::float3f:
-				case track_type8::float4f:
-				case track_type8::vector4f:
-					return static_cast<sample_looping_policy>(scalar.looping_policy);
-				case track_type8::qvvf:
-					return static_cast<sample_looping_policy>(transform.looping_policy);
-				default:
-					ACL_ASSERT(false, "Invalid track type");
-					return sample_looping_policy::non_looping;
-				}
-			}
 			bool is_initialized() const { return scalar.is_initialized(); }
-			void reset()
-			{
-				// Just reset the tracks pointer, this will mark us as no longer initialized indicating everything is stale
-				scalar.tracks = nullptr;
-			}
+			void reset() { scalar.tracks = nullptr; }
 		};
 
 		template<class decompression_settings_type, class database_settings_type>
@@ -110,30 +85,10 @@ namespace acl
 			}
 		}
 
-		template<class decompression_settings_type, class database_settings_type>
-		inline bool relocated_v0(persistent_universal_decompression_context& context, const compressed_tracks& tracks, const database_context<database_settings_type>* database)
-		{
-			const track_type8 track_type = tracks.get_track_type();
-			switch (track_type)
-			{
-			case track_type8::float1f:
-			case track_type8::float2f:
-			case track_type8::float3f:
-			case track_type8::float4f:
-			case track_type8::vector4f:
-				return relocated_v0<decompression_settings_type>(context.scalar, tracks, database);
-			case track_type8::qvvf:
-				return relocated_v0<decompression_settings_type>(context.transform, tracks, database);
-			default:
-				ACL_ASSERT(false, "Invalid track type");
-				return false;
-			}
-		}
-
-		inline bool is_bound_to_v0(const persistent_universal_decompression_context& context, const compressed_tracks& tracks)
+		inline bool is_dirty_v0(const persistent_universal_decompression_context& context, const compressed_tracks& tracks)
 		{
 			if (!context.is_initialized())
-				return false;	// Not bound to anything when not initialized
+				return true;	// Always dirty if we are not initialized
 
 			const track_type8 track_type = context.scalar.tracks->get_track_type();
 			switch (track_type)
@@ -143,53 +98,12 @@ namespace acl
 			case track_type8::float3f:
 			case track_type8::float4f:
 			case track_type8::vector4f:
-				return is_bound_to_v0(context.scalar, tracks);
+				return is_dirty_v0(context.scalar, tracks);
 			case track_type8::qvvf:
-				return is_bound_to_v0(context.transform, tracks);
+				return is_dirty_v0(context.transform, tracks);
 			default:
 				ACL_ASSERT(false, "Invalid track type");
-				return false;
-			}
-		}
-
-		inline bool is_bound_to(const persistent_universal_decompression_context& context, const compressed_database& database)
-		{
-			const track_type8 track_type = context.scalar.tracks->get_track_type();
-			switch (track_type)
-			{
-			case track_type8::float1f:
-			case track_type8::float2f:
-			case track_type8::float3f:
-			case track_type8::float4f:
-			case track_type8::vector4f:
-				return is_bound_to_v0(context.scalar, database);
-			case track_type8::qvvf:
-				return is_bound_to_v0(context.transform, database);
-			default:
-				ACL_ASSERT(false, "Invalid track type");
-				return false;
-			}
-		}
-
-		template<class decompression_settings_type>
-		inline void set_looping_policy_v0(const persistent_universal_decompression_context& context, sample_looping_policy policy)
-		{
-			const track_type8 track_type = context.scalar.tracks->get_track_type();
-			switch (track_type)
-			{
-			case track_type8::float1f:
-			case track_type8::float2f:
-			case track_type8::float3f:
-			case track_type8::float4f:
-			case track_type8::vector4f:
-				set_looping_policy_v0<decompression_settings_type>(context.scalar, policy);
-				break;
-			case track_type8::qvvf:
-				set_looping_policy_v0<decompression_settings_type>(context.transform, policy);
-				break;
-			default:
-				ACL_ASSERT(false, "Invalid track type");
-				break;
+				return true;
 			}
 		}
 
@@ -265,8 +179,6 @@ namespace acl
 			}
 		}
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 #if defined(RTM_COMPILER_MSVC)

@@ -25,7 +25,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "rtm/version.h"
 #include "rtm/impl/compiler_utils.h"
 
 RTM_IMPL_FILE_PRAGMA_PUSH
@@ -73,8 +72,6 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 
 	namespace rtm
 	{
-		RTM_IMPL_VERSION_NAMESPACE_BEGIN
-
 		namespace rtm_impl
 		{
 			RTM_DISABLE_SECURITY_COOKIE_CHECK inline void on_assert_abort(const char* expression, int line, const char* file, const char* format, ...)
@@ -94,11 +91,9 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 				std::abort();
 			}
 		}
-
-		RTM_IMPL_VERSION_NAMESPACE_END
 	}
 
-	#define RTM_ASSERT(expression, format, ...) do { if (!(expression)) RTM_IMPL_NAMESPACE::rtm_impl::on_assert_abort(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while(false)
+	#define RTM_ASSERT(expression, format, ...) do { if (!(expression)) rtm::rtm_impl::on_assert_abort(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while(false)
 	#define RTM_HAS_ASSERT_CHECKS
 	#define RTM_NO_EXCEPT noexcept
 
@@ -111,8 +106,6 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 
 	namespace rtm
 	{
-		RTM_IMPL_VERSION_NAMESPACE_BEGIN
-
 		class runtime_assert final : public std::runtime_error
 		{
 			using std::runtime_error::runtime_error;	// Inherit constructors
@@ -126,7 +119,7 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 				(void)line;
 				(void)file;
 
-				constexpr int buffer_size = 1 * 1024;
+				constexpr int buffer_size = 64 * 1024;
 				char buffer[buffer_size];
 
 				va_list args;
@@ -142,11 +135,9 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 					throw runtime_assert("Failed to format assert message!\n");
 			}
 		}
-
-		RTM_IMPL_VERSION_NAMESPACE_END
 	}
 
-	#define RTM_ASSERT(expression, format, ...) do { if (!(expression)) RTM_IMPL_NAMESPACE::rtm_impl::on_assert_throw(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while(false)
+	#define RTM_ASSERT(expression, format, ...) do { if (!(expression)) rtm::rtm_impl::on_assert_throw(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while(false)
 	#define RTM_HAS_ASSERT_CHECKS
 	#define RTM_NO_EXCEPT
 

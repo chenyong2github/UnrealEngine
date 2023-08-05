@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 
 #include <cstdint>
@@ -33,8 +32,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	//////////////////////////////////////////////////////////////////////////
 	// Enum for versions used by 'compressed_tracks'.
 	// These values are used by serialization, do not change them once assigned.
@@ -69,9 +66,6 @@ namespace acl
 		//v01_03_00 = 5,			// ACL v1.3.0
 		//v01_99_99	= 6,			// ACL v2.0.0-wip
 		v02_00_00	= 7,			// ACL v2.0.0
-		v02_01_99	= 8,			// ACL v2.1.0-wip
-		v02_01_99_1	= 9,			// ACL v2.1.0-wip (removed constant thresholds in track desc, increased bit rates, remapped raw num bits to 31 in compressed tracks)
-		v02_01_99_2 = 10,			// ACL v2.1.0-wip (converted error contribution metadata)
 
 		//////////////////////////////////////////////////////////////////////////
 		// First version marker, this is equal to the first version supported: ACL 2.0.0
@@ -81,10 +75,8 @@ namespace acl
 
 		//////////////////////////////////////////////////////////////////////////
 		// Always assigned to the latest version supported.
-		latest		= v02_01_99_2,
+		latest		= v02_00_00,
 	};
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

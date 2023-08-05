@@ -24,11 +24,10 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/core/iallocator.h"
 #include "acl/core/track_formats.h"
-#include "acl/core/impl/variable_bit_rates.h"
+#include "acl/core/variable_bit_rates.h"
 #include "acl/compression/impl/sample_streams.h"
 #include "acl/compression/impl/track_stream.h"
 
@@ -45,8 +44,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		class track_bit_rate_database;
@@ -69,7 +66,7 @@ namespace acl
 			}
 
 			void bind(track_bit_rate_database& database);
-			void build(uint32_t track_index, const transform_bit_rates* bit_rates, const transform_streams* bone_streams);
+			void build(uint32_t track_index, const BoneBitRate* bit_rates, const transform_streams* bone_streams);
 
 		private:
 			hierarchical_track_query(const hierarchical_track_query&) = delete;
@@ -85,7 +82,7 @@ namespace acl
 			iallocator&						m_allocator;
 			track_bit_rate_database*		m_database;
 			uint32_t						m_track_index;
-			const transform_bit_rates*				m_bit_rates;
+			const BoneBitRate*				m_bit_rates;
 			transform_indices*				m_indices;
 			uint32_t						m_num_transforms;
 
@@ -105,10 +102,10 @@ namespace acl
 			{}
 
 			inline uint32_t get_track_index() const { return m_track_index; }
-			inline const transform_bit_rates& get_bit_rates() const { return m_bit_rates; }
+			inline const BoneBitRate& get_bit_rates() const { return m_bit_rates; }
 
 			void bind(track_bit_rate_database& database);
-			void build(uint32_t track_index, const transform_bit_rates& bit_rates);
+			void build(uint32_t track_index, const BoneBitRate& bit_rates);
 
 		private:
 			single_track_query(const single_track_query&) = delete;
@@ -116,7 +113,7 @@ namespace acl
 
 			track_bit_rate_database*		m_database;
 			uint32_t						m_track_index;
-			transform_bit_rates						m_bit_rates;
+			BoneBitRate						m_bit_rates;
 
 			uint32_t						m_rotation_cache_index;
 			uint32_t						m_translation_cache_index;
@@ -142,7 +139,7 @@ namespace acl
 			}
 
 			void bind(track_bit_rate_database& database);
-			void build(const transform_bit_rates* bit_rates);
+			void build(const BoneBitRate* bit_rates);
 
 		private:
 			every_track_query(const every_track_query&) = delete;
@@ -157,7 +154,7 @@ namespace acl
 
 			iallocator&						m_allocator;
 			track_bit_rate_database*		m_database;
-			const transform_bit_rates*				m_bit_rates;
+			const BoneBitRate*				m_bit_rates;
 			transform_indices*				m_indices;
 			uint32_t						m_num_transforms;
 
@@ -171,7 +168,7 @@ namespace acl
 			uint8_t bit_rates[4];
 
 			bit_rates_union() : value(0xFFFFFFFFU) {}
-			explicit bit_rates_union(const transform_bit_rates& input) : bit_rates{ input.rotation, input.translation, input.scale, 0 } {}
+			explicit bit_rates_union(const BoneBitRate& input) : bit_rates{ input.rotation, input.translation, input.scale, 0 } {}
 
 			inline bool operator==(bit_rates_union other) const { return value == other.value; }
 			inline bool operator!=(bit_rates_union other) const { return value != other.value; }
@@ -199,7 +196,7 @@ namespace acl
 			track_bit_rate_database(const track_bit_rate_database&) = delete;
 			track_bit_rate_database& operator=(const track_bit_rate_database&) = delete;
 
-			void find_cache_entries(uint32_t track_index, const transform_bit_rates& bit_rates, uint32_t& out_rotation_cache_index, uint32_t& out_translation_cache_index, uint32_t& out_scale_cache_index);
+			void find_cache_entries(uint32_t track_index, const BoneBitRate& bit_rates, uint32_t& out_rotation_cache_index, uint32_t& out_translation_cache_index, uint32_t& out_scale_cache_index);
 
 			RTM_FORCE_INLINE rtm::quatf RTM_SIMD_CALL sample_rotation(const sample_context& context, uint32_t rotation_cache_index);
 			RTM_FORCE_INLINE rtm::vector4f RTM_SIMD_CALL sample_translation(const sample_context& context, uint32_t translation_cache_index);
@@ -232,7 +229,9 @@ namespace acl
 				static int32_t find_bit_rate_index(const bit_rates_union& bit_rates, uint32_t search_bit_rate);
 			};
 
-			iallocator&					m_allocator;
+			rtm::vector4f		m_default_scale;
+
+			iallocator&			m_allocator;
 			const transform_streams*	m_mutable_bone_streams;
 			const transform_streams*	m_raw_bone_streams;
 
@@ -281,7 +280,7 @@ namespace acl
 			m_num_transforms = database.m_num_transforms;
 		}
 
-		inline void hierarchical_track_query::build(uint32_t track_index, const transform_bit_rates* bit_rates, const transform_streams* bone_streams)
+		inline void hierarchical_track_query::build(uint32_t track_index, const BoneBitRate* bit_rates, const transform_streams* bone_streams)
 		{
 			ACL_ASSERT(m_database != nullptr, "Query not bound to a database");
 			ACL_ASSERT(track_index < m_num_transforms, "Invalid track index");
@@ -292,7 +291,7 @@ namespace acl
 			uint32_t current_track_index = track_index;
 			while (current_track_index != k_invalid_track_index)
 			{
-				const transform_bit_rates& current_bit_rates = bit_rates[current_track_index];
+				const BoneBitRate& current_bit_rates = bit_rates[current_track_index];
 				transform_indices& indices = m_indices[current_track_index];
 
 				m_database->find_cache_entries(current_track_index, current_bit_rates, indices.rotation_cache_index, indices.translation_cache_index, indices.scale_cache_index);
@@ -308,7 +307,7 @@ namespace acl
 			m_database = &database;
 		}
 
-		inline void single_track_query::build(uint32_t track_index, const transform_bit_rates& bit_rates)
+		inline void single_track_query::build(uint32_t track_index, const BoneBitRate& bit_rates)
 		{
 			ACL_ASSERT(m_database != nullptr, "Query not bound to a database");
 
@@ -327,7 +326,7 @@ namespace acl
 			m_num_transforms = database.m_num_transforms;
 		}
 
-		inline void every_track_query::build(const transform_bit_rates* bit_rates)
+		inline void every_track_query::build(const BoneBitRate* bit_rates)
 		{
 			ACL_ASSERT(m_database != nullptr, "Query not bound to a database");
 
@@ -335,7 +334,7 @@ namespace acl
 
 			for (uint32_t transform_index = 0; transform_index < m_num_transforms; ++transform_index)
 			{
-				const transform_bit_rates& current_bit_rates = bit_rates[transform_index];
+				const BoneBitRate& current_bit_rates = bit_rates[transform_index];
 				transform_indices& indices = m_indices[transform_index];
 
 				m_database->find_cache_entries(transform_index, current_bit_rates, indices.rotation_cache_index, indices.translation_cache_index, indices.scale_cache_index);
@@ -364,6 +363,7 @@ namespace acl
 
 			const bool has_scale = raw_bone_steams->segment->clip->has_scale;
 			m_has_scale = has_scale;
+			m_default_scale = get_default_scale(bone_streams->segment->clip->additive_format);
 
 			const uint32_t num_tracks_per_transform = has_scale ? 3 : 2;
 			const uint32_t num_entries_per_transform = num_tracks_per_transform * k_num_bit_rates_cached_per_track;
@@ -425,7 +425,7 @@ namespace acl
 #endif
 		}
 
-		inline void track_bit_rate_database::find_cache_entries(uint32_t track_index, const transform_bit_rates& bit_rates, uint32_t& out_rotation_cache_index, uint32_t& out_translation_cache_index, uint32_t& out_scale_cache_index)
+		inline void track_bit_rate_database::find_cache_entries(uint32_t track_index, const BoneBitRate& bit_rates, uint32_t& out_rotation_cache_index, uint32_t& out_translation_cache_index, uint32_t& out_scale_cache_index)
 		{
 			// Memory layout:
 			//    track 0
@@ -642,7 +642,7 @@ namespace acl
 
 			rtm::quatf rotation;
 			if (bone_stream.is_rotation_default)
-				rotation = bone_stream.default_value.rotation;
+				rotation = rtm::quat_identity();
 			else if (bone_stream.is_rotation_constant)
 			{
 				uint32_t* validity_bitset = m_track_entry_bitsets + (m_bitset_desc.get_size() * rotation_cache_index_);
@@ -722,7 +722,7 @@ namespace acl
 
 			rtm::vector4f translation;
 			if (bone_stream.is_translation_default)
-				translation = bone_stream.default_value.translation;
+				translation = rtm::vector_zero();
 			else if (bone_stream.is_translation_constant)
 			{
 				uint32_t* validity_bitset = m_track_entry_bitsets + (m_bitset_desc.get_size() * translation_cache_index_);
@@ -795,7 +795,7 @@ namespace acl
 
 			rtm::vector4f scale;
 			if (bone_stream.is_scale_default)
-				scale = bone_stream.default_value.scale;
+				scale = m_default_scale;
 			else if (bone_stream.is_scale_constant)
 			{
 				uint32_t* validity_bitset = m_track_entry_bitsets + (m_bitset_desc.get_size() * scale_cache_index_);
@@ -955,8 +955,6 @@ namespace acl
 			return cache_size;
 		}
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

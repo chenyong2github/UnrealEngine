@@ -24,9 +24,8 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(ACL_USE_SJSON)
+#if defined(SJSON_CPP_WRITER)
 
-#include "acl/version.h"
 #include "acl/compression/compression_settings.h"
 #include "acl/compression/track_array.h"
 #include "acl/core/impl/compiler_utils.h"
@@ -37,8 +36,6 @@
 #include <rtm/quatd.h>
 #include <rtm/vector4d.h>
 
-#include <sjson/writer.h>
-
 #include <cstdint>
 #include <cinttypes>
 #include <cstdio>
@@ -47,8 +44,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		inline const char* format_hex_float(float value, char* buffer, size_t buffer_size)
@@ -121,25 +116,9 @@ namespace acl
 			writer["output_index"] = desc.output_index;
 			writer["parent_index"] = desc.parent_index;
 			writer["shell_distance"] = format_hex_float(desc.shell_distance, buffer, sizeof(buffer));
-			writer["bind_rotation"] = [&](sjson::ArrayWriter& rotation_writer)
-			{
-				rotation_writer.push(acl_impl::format_hex_float(rtm::quat_get_x(desc.default_value.rotation), buffer, sizeof(buffer)));
-				rotation_writer.push(acl_impl::format_hex_float(rtm::quat_get_y(desc.default_value.rotation), buffer, sizeof(buffer)));
-				rotation_writer.push(acl_impl::format_hex_float(rtm::quat_get_z(desc.default_value.rotation), buffer, sizeof(buffer)));
-				rotation_writer.push(acl_impl::format_hex_float(rtm::quat_get_w(desc.default_value.rotation), buffer, sizeof(buffer)));
-			};
-			writer["bind_translation"] = [&](sjson::ArrayWriter& translation_writer)
-			{
-				translation_writer.push(acl_impl::format_hex_float(rtm::vector_get_x(desc.default_value.translation), buffer, sizeof(buffer)));
-				translation_writer.push(acl_impl::format_hex_float(rtm::vector_get_y(desc.default_value.translation), buffer, sizeof(buffer)));
-				translation_writer.push(acl_impl::format_hex_float(rtm::vector_get_z(desc.default_value.translation), buffer, sizeof(buffer)));
-			};
-			writer["bind_scale"] = [&](sjson::ArrayWriter& scale_writer)
-			{
-				scale_writer.push(acl_impl::format_hex_float(rtm::vector_get_x(desc.default_value.scale), buffer, sizeof(buffer)));
-				scale_writer.push(acl_impl::format_hex_float(rtm::vector_get_y(desc.default_value.scale), buffer, sizeof(buffer)));
-				scale_writer.push(acl_impl::format_hex_float(rtm::vector_get_z(desc.default_value.scale), buffer, sizeof(buffer)));
-			};
+			writer["constant_rotation_threshold_angle"] = format_hex_float(desc.constant_rotation_threshold_angle, buffer, sizeof(buffer));
+			writer["constant_translation_threshold"] = format_hex_float(desc.constant_translation_threshold, buffer, sizeof(buffer));
+			writer["constant_scale_threshold"] = format_hex_float(desc.constant_scale_threshold, buffer, sizeof(buffer));
 		}
 
 		inline void write_sjson_tracks(const track_array& track_list, sjson::Writer& writer)
@@ -348,7 +327,7 @@ namespace acl
 			std::FILE* file = nullptr;
 
 #ifdef _WIN32
-			char path[1 * 1024] = { 0 };
+			char path[64 * 1024] = { 0 };
 			snprintf(path, get_array_size(path), "\\\\?\\%s", acl_filename);
 			fopen_s(&file, path, "w");
 #else
@@ -388,10 +367,8 @@ namespace acl
 	{
 		return acl_impl::write_track_list(track_list, &settings, acl_filename);
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP
 
-#endif	// #if defined(ACL_USE_SJSON)
+#endif	// #if defined(SJSON_CPP_WRITER)

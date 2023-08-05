@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/decompression/impl/scalar_track_decompression.h"
 #include "acl/decompression/impl/transform_track_decompression.h"
@@ -34,8 +33,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		//////////////////////////////////////////////////////////////////////////
@@ -61,8 +58,6 @@ namespace acl
 			using type = persistent_universal_decompression_context;
 		};
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

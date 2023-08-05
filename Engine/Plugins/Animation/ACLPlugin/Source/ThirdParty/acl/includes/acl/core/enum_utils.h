@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 
 #include <type_traits>
@@ -79,8 +78,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	////////////////////////////////////////////////////////////////////////////////
 	// Returns true if any of the requested flags are set.
 	template<typename enum_type>
@@ -98,8 +95,6 @@ namespace acl
 		using IntegralType = typename std::underlying_type<enum_type>::type;
 		return static_cast<IntegralType>(flags & flags_to_test) == static_cast<IntegralType>(flags_to_test);
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

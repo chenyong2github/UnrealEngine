@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/bitset.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/core/iallocator.h"
@@ -37,8 +36,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		inline bool is_scalarf_track_constant(const track& track_, const track_range& range)
@@ -76,8 +73,6 @@ namespace acl
 			}
 		}
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

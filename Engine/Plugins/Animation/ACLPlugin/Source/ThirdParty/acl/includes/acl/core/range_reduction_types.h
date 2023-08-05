@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/core/enum_utils.h"
 
@@ -34,8 +33,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	////////////////////////////////////////////////////////////////////////////////
 	// Various constants for range reduction.
 	constexpr uint8_t k_segment_range_reduction_num_bits_per_component = 8;
@@ -90,8 +87,6 @@ namespace acl
 		else
 			return "<Invalid>";
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

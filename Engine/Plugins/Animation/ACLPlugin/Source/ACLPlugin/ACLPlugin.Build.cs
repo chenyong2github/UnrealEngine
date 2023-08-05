@@ -27,6 +27,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.Add("DesktopPlatform");
 				PrivateDependencyModuleNames.Add("UnrealEd");
+
+				PublicIncludePaths.Add(Path.Combine(ACLSDKDir, "acl/external/sjson-cpp/includes"));
 			}
 
 			if (Target.Platform == UnrealTargetPlatform.Linux)

@@ -24,12 +24,11 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/core/iallocator.h"
 #include "acl/core/bitset.h"
 #include "acl/core/track_desc.h"
-#include "acl/core/impl/variable_bit_rates.h"
+#include "acl/core/variable_bit_rates.h"
 #include "acl/compression/track_array.h"
 #include "acl/compression/impl/track_range.h"
 
@@ -41,8 +40,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	namespace acl_impl
 	{
 		struct scalar_bit_rate
@@ -83,8 +80,6 @@ namespace acl
 			float sample_rate;
 			float duration;
 
-			sample_looping_policy looping_policy;
-
 			track_list_context()
 				: allocator(nullptr)
 				, reference_list(nullptr)
@@ -98,7 +93,6 @@ namespace acl
 				, num_samples(0)
 				, sample_rate(0.0F)
 				, duration(0.0F)
-				, looping_policy(sample_looping_policy::non_looping)
 			{}
 
 			~track_list_context()
@@ -260,16 +254,13 @@ namespace acl
 			context.num_output_tracks = 0;
 			context.num_samples = track_list.get_num_samples_per_track();
 			context.sample_rate = track_list.get_sample_rate();
-			context.duration = track_list.get_finite_duration();
-			context.looping_policy = track_list.get_looping_policy();
+			context.duration = track_list.get_duration();
 
 			context.track_output_indices = create_output_track_mapping(allocator, track_list, context.num_output_tracks);
 
 			return are_samples_valid;
 		}
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

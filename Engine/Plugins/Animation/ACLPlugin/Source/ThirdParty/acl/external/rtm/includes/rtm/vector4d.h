@@ -27,7 +27,6 @@
 
 #include "rtm/math.h"
 #include "rtm/scalard.h"
-#include "rtm/version.h"
 #include "rtm/impl/compiler_utils.h"
 #include "rtm/impl/memory_utils.h"
 #include "rtm/impl/vector_common.h"
@@ -36,8 +35,6 @@ RTM_IMPL_FILE_PRAGMA_PUSH
 
 namespace rtm
 {
-	RTM_IMPL_VERSION_NAMESPACE_BEGIN
-
 	//////////////////////////////////////////////////////////////////////////
 	// Setters, getters, and casts
 	//////////////////////////////////////////////////////////////////////////
@@ -1387,7 +1384,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all 4 components are less than, otherwise false: all(lhs.xyzw < rhs.xyzw)
+	// Returns true if all 4 components are less than, otherwise false: all(lhs < rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_less_than(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1401,7 +1398,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xy] components are less than, otherwise false: all(lhs.xy < rhs.xy)
+	// Returns true if all [xy] components are less than, otherwise false: all(lhs < rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_less_than2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1414,7 +1411,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyz] components are less than, otherwise false: all(lhs.xyz < rhs.xyz)
+	// Returns true if all [xyz] components are less than, otherwise false: all(lhs < rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_less_than3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1428,7 +1425,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any 4 components are less than, otherwise false: any(lhs.xyzw < rhs.xyzw)
+	// Returns true if any 4 components are less than, otherwise false: any(lhs < rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_less_than(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1442,7 +1439,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xy] components are less than, otherwise false: any(lhs.xy < rhs.xy)
+	// Returns true if any [xy] components are less than, otherwise false: any(lhs < rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_less_than2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1455,7 +1452,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyz] components are less than, otherwise false: any(lhs.xyz < rhs.xyz)
+	// Returns true if any [xyz] components are less than, otherwise false: any(lhs < rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_less_than3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1469,7 +1466,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all 4 components are less equal, otherwise false: all(lhs.xyzw <= rhs.xyzw)
+	// Returns true if all 4 components are less equal, otherwise false: all(lhs <= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_less_equal(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1483,7 +1480,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xy] components are less equal, otherwise false: all(lhs.xy <= rhs.xy)
+	// Returns true if all [xy] components are less equal, otherwise false: all(lhs <= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_less_equal2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1496,7 +1493,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyz] components are less equal, otherwise false: all(lhs.xyz <= rhs.xyz)
+	// Returns true if all [xyz] components are less equal, otherwise false: all(lhs <= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_less_equal3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1510,7 +1507,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any 4 components are less equal, otherwise false: any(lhs.xyzw <= rhs.xyzw)
+	// Returns true if any 4 components are less equal, otherwise false: any(lhs <= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_less_equal(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1524,7 +1521,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xy] components are less equal, otherwise false: any(lhs.xy <= rhs.xy)
+	// Returns true if any [xy] components are less equal, otherwise false: any(lhs <= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_less_equal2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1537,7 +1534,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyz] components are less equal, otherwise false: any(lhs.xyz <= rhs.xyz)
+	// Returns true if any [xyz] components are less equal, otherwise false: any(lhs <= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_less_equal3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1551,7 +1548,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all 4 components are greater than, otherwise false: all(lhs.xyzw > rhs.xyzw)
+	// Returns true if all 4 components are greater than, otherwise false: all(lhs > rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_greater_than(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1565,7 +1562,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xy] components are greater than, otherwise false: all(lhs.xy > rhs.xy)
+	// Returns true if all [xy] components are greater than, otherwise false: all(lhs > rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_greater_than2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1578,7 +1575,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyz] components are greater than, otherwise false: all(lhs.xyz > rhs.xyz)
+	// Returns true if all [xyz] components are greater than, otherwise false: all(lhs > rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_greater_than3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1592,7 +1589,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any 4 components are greater than, otherwise false: any(lhs.xyzw > rhs.xyzw)
+	// Returns true if any 4 components are greater than, otherwise false: any(lhs > rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_greater_than(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1606,7 +1603,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xy] components are greater than, otherwise false: any(lhs.xy > rhs.xy)
+	// Returns true if any [xy] components are greater than, otherwise false: any(lhs > rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_greater_than2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1619,7 +1616,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyz] components are greater than, otherwise false: any(lhs.xyz > rhs.xyz)
+	// Returns true if any [xyz] components are greater than, otherwise false: any(lhs > rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_greater_than3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1633,7 +1630,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all 4 components are greater equal, otherwise false: all(lhs.xyzw >= rhs.xyzw)
+	// Returns true if all 4 components are greater equal, otherwise false: all(lhs >= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_greater_equal(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1647,7 +1644,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xy] components are greater equal, otherwise false: all(lhs.xy >= rhs.xy)
+	// Returns true if all [xy] components are greater equal, otherwise false: all(lhs >= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_greater_equal2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1660,7 +1657,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyz] components are greater equal, otherwise false: all(lhs.xyz >= rhs.xyz)
+	// Returns true if all [xyz] components are greater equal, otherwise false: all(lhs >= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_greater_equal3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1674,7 +1671,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any 4 components are greater equal, otherwise false: any(lhs.xyzw >= rhs.xyzw)
+	// Returns true if any 4 components are greater equal, otherwise false: any(lhs >= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_greater_equal(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1688,7 +1685,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xy] components are greater equal, otherwise false: any(lhs.xy >= rhs.xy)
+	// Returns true if any [xy] components are greater equal, otherwise false: any(lhs >= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_greater_equal2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1701,7 +1698,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyz] components are greater equal, otherwise false: any(lhs.xyz >= rhs.xyz)
+	// Returns true if any [xyz] components are greater equal, otherwise false: any(lhs >= rhs)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_greater_equal3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
 	{
@@ -1715,89 +1712,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyzw] components are equal, otherwise false: all(lhs.xyzw == rhs.xyzw)
-	//////////////////////////////////////////////////////////////////////////
-	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_equal(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
-	{
-#if defined(RTM_SSE2_INTRINSICS)
-		__m128d xy_eq_pd = _mm_cmpeq_pd(lhs.xy, rhs.xy);
-		__m128d zw_eq_pd = _mm_cmpeq_pd(lhs.zw, rhs.zw);
-		return (_mm_movemask_pd(xy_eq_pd) & _mm_movemask_pd(zw_eq_pd)) == 3;
-#else
-		return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w == rhs.w;
-#endif
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xy] components are equal, otherwise false: all(lhs.xy == rhs.xy)
-	//////////////////////////////////////////////////////////////////////////
-	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_equal2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
-	{
-#if defined(RTM_SSE2_INTRINSICS)
-		__m128d xy_eq_pd = _mm_cmpeq_pd(lhs.xy, rhs.xy);
-		return _mm_movemask_pd(xy_eq_pd) == 3;
-#else
-		return lhs.x == rhs.x && lhs.y == rhs.y;
-#endif
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyz] components are equal, otherwise false: all(lhs.xyz == rhs.xyz)
-	//////////////////////////////////////////////////////////////////////////
-	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_equal3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
-	{
-#if defined(RTM_SSE2_INTRINSICS)
-		__m128d xy_eq_pd = _mm_cmpeq_pd(lhs.xy, rhs.xy);
-		__m128d zw_eq_pd = _mm_cmpeq_pd(lhs.zw, rhs.zw);
-		return _mm_movemask_pd(xy_eq_pd) == 3 && (_mm_movemask_pd(zw_eq_pd) & 1) != 0;
-#else
-		return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
-#endif
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyzw] components are equal, otherwise false: any(lhs.xyzw == rhs.xyzw)
-	//////////////////////////////////////////////////////////////////////////
-	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_equal(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
-	{
-#if defined(RTM_SSE2_INTRINSICS)
-		__m128d xy_eq_pd = _mm_cmpeq_pd(lhs.xy, rhs.xy);
-		__m128d zw_eq_pd = _mm_cmpeq_pd(lhs.zw, rhs.zw);
-		return (_mm_movemask_pd(xy_eq_pd) | _mm_movemask_pd(zw_eq_pd)) != 0;
-#else
-		return lhs.x == rhs.x || lhs.y == rhs.y || lhs.z == rhs.z || lhs.w == rhs.w;
-#endif
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xy] components are equal, otherwise false: any(lhs.xy == rhs.xy)
-	//////////////////////////////////////////////////////////////////////////
-	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_equal2(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
-	{
-#if defined(RTM_SSE2_INTRINSICS)
-		__m128d xy_eq_pd = _mm_cmpeq_pd(lhs.xy, rhs.xy);
-		return _mm_movemask_pd(xy_eq_pd) != 0;
-#else
-		return lhs.x == rhs.x || lhs.y == rhs.y;
-#endif
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyz] components are equal, otherwise false: any(lhs.xyz == rhs.xyz)
-	//////////////////////////////////////////////////////////////////////////
-	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_equal3(const vector4d& lhs, const vector4d& rhs) RTM_NO_EXCEPT
-	{
-#if defined(RTM_SSE2_INTRINSICS)
-		__m128d xy_eq_pd = _mm_cmpeq_pd(lhs.xy, rhs.xy);
-		__m128d zw_eq_pd = _mm_cmpeq_pd(lhs.zw, rhs.zw);
-		return _mm_movemask_pd(xy_eq_pd) != 0 || (_mm_movemask_pd(zw_eq_pd) & 1) != 0;
-#else
-		return lhs.x == rhs.x || lhs.y == rhs.y || lhs.z == rhs.z;
-#endif
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all 4 components are near equal, otherwise false: all(abs(lhs - rhs).xyzw <= threshold)
+	// Returns true if all 4 components are near equal, otherwise false: all(abs(lhs - rhs) <= threshold)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_near_equal(const vector4d& lhs, const vector4d& rhs, double threshold = 0.00001) RTM_NO_EXCEPT
 	{
@@ -1805,7 +1720,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xy] components are near equal, otherwise false: all(abs(lhs - rhs).xy <= threshold)
+	// Returns true if all [xy] components are near equal, otherwise false: all(abs(lhs - rhs) <= threshold)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_near_equal2(const vector4d& lhs, const vector4d& rhs, double threshold = 0.00001) RTM_NO_EXCEPT
 	{
@@ -1813,7 +1728,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if all [xyz] components are near equal, otherwise false: all(abs(lhs - rhs).xyz <= threshold)
+	// Returns true if all [xyz] components are near equal, otherwise false: all(abs(lhs - rhs) <= threshold)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_all_near_equal3(const vector4d& lhs, const vector4d& rhs, double threshold = 0.00001) RTM_NO_EXCEPT
 	{
@@ -1821,7 +1736,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any 4 components are near equal, otherwise false: any(abs(lhs - rhs).xyzw <= threshold)
+	// Returns true if any 4 components are near equal, otherwise false: any(abs(lhs - rhs) <= threshold)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_near_equal(const vector4d& lhs, const vector4d& rhs, double threshold = 0.00001) RTM_NO_EXCEPT
 	{
@@ -1829,7 +1744,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xy] components are near equal, otherwise false: any(abs(lhs - rhs).xy <= threshold)
+	// Returns true if any [xy] components are near equal, otherwise false: any(abs(lhs - rhs) <= threshold)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_near_equal2(const vector4d& lhs, const vector4d& rhs, double threshold = 0.00001) RTM_NO_EXCEPT
 	{
@@ -1837,7 +1752,7 @@ namespace rtm
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// Returns true if any [xyz] components are near equal, otherwise false: any(abs(lhs - rhs).xyz <= threshold)
+	// Returns true if any [xyz] components are near equal, otherwise false: any(abs(lhs - rhs) <= threshold)
 	//////////////////////////////////////////////////////////////////////////
 	RTM_DISABLE_SECURITY_COOKIE_CHECK RTM_FORCE_INLINE bool vector_any_near_equal3(const vector4d& lhs, const vector4d& rhs, double threshold = 0.00001) RTM_NO_EXCEPT
 	{
@@ -1990,7 +1905,7 @@ namespace rtm
 		const uint64_t* input0_ = reinterpret_cast<const uint64_t*>(&input0);
 		const uint64_t* input1_ = reinterpret_cast<const uint64_t*>(&input1);
 
-		vector4d result = input0;
+		vector4d result;
 		uint64_t* result_ = reinterpret_cast<uint64_t*>(&result);
 
 		result_[0] = input0_[0] & input1_[0];
@@ -2015,7 +1930,7 @@ namespace rtm
 		const uint64_t* input0_ = reinterpret_cast<const uint64_t*>(&input0);
 		const uint64_t* input1_ = reinterpret_cast<const uint64_t*>(&input1);
 
-		vector4d result = input0;
+		vector4d result;
 		uint64_t* result_ = reinterpret_cast<uint64_t*>(&result);
 
 		result_[0] = input0_[0] | input1_[0];
@@ -2040,7 +1955,7 @@ namespace rtm
 		const uint64_t* input0_ = reinterpret_cast<const uint64_t*>(&input0);
 		const uint64_t* input1_ = reinterpret_cast<const uint64_t*>(&input1);
 
-		vector4d result = input0;
+		vector4d result;
 		uint64_t* result_ = reinterpret_cast<uint64_t*>(&result);
 
 		result_[0] = input0_[0] ^ input1_[0];
@@ -2092,7 +2007,7 @@ namespace rtm
 		double z_sign = vector_get_z(control_sign);
 		double w_sign = vector_get_w(control_sign);
 
-		return vector_set(rtm_impl::copysign(x, x_sign), rtm_impl::copysign(y, y_sign), rtm_impl::copysign(z, z_sign), rtm_impl::copysign(w, w_sign));
+		return vector_set(std::copysign(x, x_sign), std::copysign(y, y_sign), std::copysign(z, z_sign), std::copysign(w, w_sign));
 #endif
 	}
 
@@ -2341,8 +2256,6 @@ namespace rtm
 		scalard w_ = scalar_atan2(scalard(vector_get_w(y)), scalard(vector_get_w(x)));
 		return vector_set(x_, y_, z_, w_);
 	}
-
-	RTM_IMPL_VERSION_NAMESPACE_END
 }
 
 RTM_IMPL_FILE_PRAGMA_POP

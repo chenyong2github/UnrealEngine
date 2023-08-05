@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/core/iallocator.h"
 #include "acl/core/error.h"
@@ -35,8 +34,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	//////////////////////////////////////////////////////////////////////////
 	// A basic string class that uses our custom allocator.
 	// It is used exclusively for debug purposes.
@@ -142,14 +139,12 @@ namespace acl
 
 		const char* c_str() const noexcept { return m_c_str != nullptr ? m_c_str : ""; }
 		size_t size() const noexcept { return m_c_str != nullptr ? std::strlen(m_c_str) : 0; }
-		bool empty() const noexcept { return m_c_str != nullptr ? (m_c_str[0] == '\0') : true; }
+		bool empty() const noexcept { return m_c_str != nullptr ? (std::strlen(m_c_str) == 0) : true; }
 
 	private:
 		iallocator* m_allocator;
 		char* m_c_str;
 	};
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

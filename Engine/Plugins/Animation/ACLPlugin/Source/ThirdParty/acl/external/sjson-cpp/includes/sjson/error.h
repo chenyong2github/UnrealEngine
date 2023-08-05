@@ -61,16 +61,12 @@
 
 #if defined(SJSON_CPP_ON_ASSERT_ABORT)
 
-	#include "sjson/version.h"
-
 	#include <cstdio>
 	#include <cstdarg>
 	#include <cstdlib>
 
 	namespace sjson
 	{
-		SJSON_CPP_IMPL_VERSION_NAMESPACE_BEGIN
-
 		namespace error_impl
 		{
 			inline void on_assert_abort(const char* expression, int line, const char* file, const char* format, ...)
@@ -90,16 +86,12 @@
 				std::abort();
 			}
 		}
-
-		SJSON_CPP_IMPL_VERSION_NAMESPACE_END
 	}
 
-	#define SJSON_CPP_ASSERT(expression, format, ...) do { if (!(expression)) SJSON_CPP_IMPL_NAMESPACE::error_impl::on_assert_abort(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while (false)
+	#define SJSON_CPP_ASSERT(expression, format, ...) do { if (!(expression)) sjson::error_impl::on_assert_abort(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while (false)
 	#define SJSON_CPP_HAS_ASSERT_CHECKS
 
 #elif defined(SJSON_CPP_ON_ASSERT_THROW)
-
-	#include "sjson/version.h"
 
 	#include <cstdio>
 	#include <cstdarg>
@@ -108,8 +100,6 @@
 
 	namespace sjson
 	{
-		SJSON_CPP_IMPL_VERSION_NAMESPACE_BEGIN
-
 		class runtime_assert final : public std::runtime_error
 		{
 			using std::runtime_error::runtime_error;	// Inherit constructors
@@ -139,11 +129,9 @@
 					throw runtime_assert("Failed to format assert message!\n");
 			}
 		}
-
-		SJSON_CPP_IMPL_VERSION_NAMESPACE_END
 	}
 
-	#define SJSON_CPP_ASSERT(expression, format, ...) do { if (!(expression)) SJSON_CPP_IMPL_NAMESPACE::error_impl::on_assert_throw(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while(false)
+	#define SJSON_CPP_ASSERT(expression, format, ...) do { if (!(expression)) sjson::error_impl::on_assert_throw(#expression, __LINE__, __FILE__, (format), ## __VA_ARGS__); } while(false)
 	#define SJSON_CPP_HAS_ASSERT_CHECKS
 
 #elif defined(SJSON_CPP_ON_ASSERT_CUSTOM)

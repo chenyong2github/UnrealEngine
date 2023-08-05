@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/error.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/decompression/database/database_streamer.h"
@@ -35,8 +34,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	////////////////////////////////////////////////////////////////////////////////
 	// Implements a null streamer where we simply use the provided bulk data buffer and
 	// perform no operations on it as everything is already streamed in.
@@ -98,8 +95,6 @@ namespace acl
 
 		streaming_request m_request;	// Everything is synchronous, we only need one request
 	};
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

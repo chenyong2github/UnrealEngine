@@ -24,12 +24,9 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(ACL_USE_SJSON)
+#if defined(SJSON_CPP_PARSER)
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
-
-#include <sjson/parser_error.h>
 
 #include <cstdint>
 
@@ -37,8 +34,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	struct clip_reader_error : sjson::ParserError
 	{
 		enum : uint32_t
@@ -87,10 +82,8 @@ namespace acl
 			}
 		}
 	};
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP
 
-#endif	// #if defined(ACL_USE_SJSON)
+#endif	// #if defined(SJSON_CPP_PARSER)

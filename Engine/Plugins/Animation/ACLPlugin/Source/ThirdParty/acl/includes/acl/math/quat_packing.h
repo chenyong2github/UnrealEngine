@@ -24,7 +24,6 @@
 // SOFTWARE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "acl/version.h"
 #include "acl/core/impl/compiler_utils.h"
 #include "acl/core/error.h"
 #include "acl/core/memory_utils.h"
@@ -43,8 +42,6 @@ ACL_IMPL_FILE_PRAGMA_PUSH
 
 namespace acl
 {
-	ACL_IMPL_VERSION_NAMESPACE_BEGIN
-
 	inline void RTM_SIMD_CALL pack_quat_128(rtm::quatf_arg0 rotation, uint8_t* out_rotation_data)
 	{
 		pack_vector4_128(rtm::quat_to_vector(rotation), out_rotation_data);
@@ -103,8 +100,6 @@ namespace acl
 	{
 		return format == rotation_format8::quatf_full ? (sizeof(float) * 8) : (sizeof(float) * 6);
 	}
-
-	ACL_IMPL_VERSION_NAMESPACE_END
 }
 
 ACL_IMPL_FILE_PRAGMA_POP

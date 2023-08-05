@@ -229,13 +229,12 @@ struct UE4CurveDecompressionSettings final : public acl::decompression_settings
 struct UE4CurveWriter final : public acl::track_writer
 {
 	TArray<float, FAnimStackAllocator>& Buffer;
-
-	explicit UE4CurveWriter(TArray<float, FAnimStackAllocator>& Buffer_)
+	UE4CurveWriter(TArray<float, FAnimStackAllocator>& Buffer_)
 		: Buffer(Buffer_)
 	{
 	}
 
-	FORCEINLINE_DEBUGGABLE void RTM_SIMD_CALL write_float1(uint32_t TrackIndex, rtm::scalarf_arg0 Value)
+	void write_float1(uint32_t TrackIndex, rtm::scalarf_arg0 Value)
 	{
 		Buffer[TrackIndex] = rtm::scalar_cast(Value);
 	}
@@ -286,7 +285,7 @@ struct UE4ScalarCurveWriter final : public acl::track_writer
 	{
 	}
 
-	FORCEINLINE_DEBUGGABLE void RTM_SIMD_CALL write_float1(uint32_t /*TrackIndex*/, rtm::scalarf_arg0 Value)
+	void write_float1(uint32_t /*TrackIndex*/, rtm::scalarf_arg0 Value)
 	{
 		SampleValue = rtm::scalar_cast(Value);
 	}
@@ -329,3 +328,4 @@ float UAnimCurveCompressionCodec_ACL::DecompressCurve(const FCompressedAnimSeque
 
 	return TrackWriter.SampleValue;
 }
+
