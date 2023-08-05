@@ -76,20 +76,12 @@ struct FMediaSectionPreRollExecutionToken
 
 		FMovieSceneMediaData& SectionData = PersistentData.GetSectionData<FMovieSceneMediaData>();
 		UMediaPlayer* MediaPlayer = SectionData.GetMediaPlayer();
-		UObject* PlayerProxy = SectionData.GetPlayerProxy();
+		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(SectionData.GetPlayerProxy());
 		UMediaSource* MediaSource = GetMediaSource(Player, Operand.SequenceID);
 
 		if (MediaPlayer == nullptr || MediaSource == nullptr)
 		{
 			return;
-		}
-
-		// Do we have a player proxy?
-		IMediaPlayerProxyInterface* PlayerProxyInterface = nullptr;
-		if (PlayerProxy != nullptr)
-		{
-			PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
-				(PlayerProxy);
 		}
 
 		// open the media source if necessary
@@ -136,26 +128,21 @@ struct FMediaSectionExecutionToken
 		}
 
 		// Do we have a player proxy?
-		IMediaPlayerProxyInterface* PlayerProxyInterface = nullptr;
-		if (PlayerProxy != nullptr)
+		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+		if (PlayerProxyInterface != nullptr)
 		{
-			PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
-				(PlayerProxy);
-			if (PlayerProxyInterface != nullptr)
+			PlayerProxyInterface->ProxySetTextureBlend(SectionData.GetProxyLayerIndex(), SectionData.GetProxyTextureIndex(), ProxyTextureBlend);
+			// Can we control the player?
+			if (PlayerProxyInterface->IsExternalControlAllowed() == false)
 			{
-				PlayerProxyInterface->ProxySetTextureBlend(SectionData.GetProxyLayerIndex(), SectionData.GetProxyTextureIndex(), ProxyTextureBlend);
-				// Can we control the player?
-				if (PlayerProxyInterface->IsExternalControlAllowed() == false)
-				{
-					return;
-				}
+				return;
+			}
 
-				if (SectionData.bIsAspectRatioSet == false)
+			if (SectionData.bIsAspectRatioSet == false)
+			{
+				if (PlayerProxyInterface->ProxySetAspectRatio(MediaPlayer))
 				{
-					if (PlayerProxyInterface->ProxySetAspectRatio(MediaPlayer))
-					{
-						SectionData.bIsAspectRatioSet = true;
-					}
+					SectionData.bIsAspectRatioSet = true;
 				}
 			}
 		}
@@ -170,8 +157,15 @@ struct FMediaSectionExecutionToken
 			return;
 		}
 
+		bool bCacheSettingsChanged = false;
+		FMediaSourceCacheSettings CurrentCacheSettings;
+		if (PlayerProxyInterface != nullptr && MediaSource->GetCacheSettings(CurrentCacheSettings))
+		{
+			bCacheSettingsChanged = (CurrentCacheSettings != PlayerProxyInterface->GetCacheSettings());
+		}
+
 		// open the media source if necessary
-		if (MediaPlayer->GetUrl().IsEmpty())
+		if (MediaPlayer->GetUrl().IsEmpty() || bCacheSettingsChanged)
 		{
 			if (PlayerProxyInterface != nullptr)
 			{

@@ -49,6 +49,17 @@ struct FMediaSourceCacheSettings
 	 */
 	UPROPERTY(EditAnywhere, Category = "Media Cache")
 	float TimeToLookAhead = 0.2f;
+
+
+	inline bool operator==(const FMediaSourceCacheSettings& Other) const
+	{
+		return (Other.bOverride == bOverride) && FMath::IsNearlyEqual(Other.TimeToLookAhead, TimeToLookAhead);
+	}
+
+	inline bool operator!=(const FMediaSourceCacheSettings& Other) const
+	{
+		return !(*this == Other);
+	}
 };
 
 /**
@@ -91,6 +102,13 @@ public:
 	 */
 	MEDIAASSETS_API void SetCacheSettings(const FMediaSourceCacheSettings& Settings);
 
+	/**
+	 * Get the media source cache settings, if present.
+	 * 
+	 * @param OutSettings Cache settings
+	 * @return true if the cache settings are present, false otherwise.
+	 */
+	MEDIAASSETS_API bool GetCacheSettings(FMediaSourceCacheSettings& OutSettings) const;
 
 #if WITH_EDITOR
 

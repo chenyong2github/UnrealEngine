@@ -16,10 +16,30 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MediaSource)
 
+static const FLazyName ImgMediaSmartCacheEnabledName(TEXT("ImgMediaSmartCacheEnabled"));
+static const FLazyName ImgMediaSmartCacheTimeToLookAheadName(TEXT("ImgMediaSmartCacheTimeToLookAhead"));
+
 void UMediaSource::SetCacheSettings(const FMediaSourceCacheSettings& Settings)
 {
-	SetMediaOptionBool(TEXT("ImgMediaSmartCacheEnabled"), Settings.bOverride);
-	SetMediaOptionFloat(TEXT("ImgMediaSmartCacheTimeToLookAhead"), Settings.TimeToLookAhead);
+	SetMediaOptionBool(ImgMediaSmartCacheEnabledName, Settings.bOverride);
+	SetMediaOptionFloat(ImgMediaSmartCacheTimeToLookAheadName, Settings.TimeToLookAhead);
+}
+
+bool UMediaSource::GetCacheSettings(FMediaSourceCacheSettings& OutSettings) const
+{
+	if (!HasMediaOption(ImgMediaSmartCacheEnabledName))
+	{
+		return false;
+	}
+
+	if (!HasMediaOption(ImgMediaSmartCacheTimeToLookAheadName))
+	{
+		return false;
+	}
+
+	OutSettings.bOverride = GetMediaOption(ImgMediaSmartCacheEnabledName, false);
+	OutSettings.TimeToLookAhead = GetMediaOption(ImgMediaSmartCacheTimeToLookAheadName, 0.0f);
+	return true;
 }
 
 #if WITH_EDITOR
