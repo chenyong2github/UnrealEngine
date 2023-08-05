@@ -23,6 +23,11 @@ enum class EPCGWorldQueryFilterByTag
 	ExcludeTagged
 };
 
+namespace PCGWorldRayHitConstants
+{
+	const FName PhysicalMaterialReferenceAttribute = TEXT("PhysicalMaterial");
+}
+
 USTRUCT(BlueprintType)
 struct FPCGWorldCommonQueryParams
 {
@@ -50,6 +55,9 @@ struct FPCGWorldCommonQueryParams
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Filtering", meta = (PCG_Overridable))
 	bool bIgnoreLandscapeHits = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
+	bool bGetReferenceToActorHit = false;
 
 	// Not exposed, will be filled in when initializing this
 	UPROPERTY()
@@ -131,6 +139,9 @@ struct FPCGWorldRayHitQueryParams : public FPCGWorldCommonQueryParams
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
 	bool bApplyMetadataFromLandscape = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
+	bool bGetReferenceToPhysicalMaterial = false;
 };
 
 /** Executes collision queries against world collision. */

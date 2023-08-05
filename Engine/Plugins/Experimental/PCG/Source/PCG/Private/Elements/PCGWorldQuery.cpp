@@ -4,9 +4,13 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
+#include "PCGSubsystem.h"
+#include "Data/PCGPointData.h"
+#include "Grid/PCGLandscapeCache.h"
 #include "Helpers/PCGHelpers.h"
 
 #include "GameFramework/Actor.h"
+#include "LandscapeProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGWorldQuery)
 
@@ -128,6 +132,74 @@ bool FPCGWorldRayHitQueryElement::ExecuteInternal(FPCGContext* Context) const
 	Data->QueryParams = QueryParams;
 	Data->QueryParams.Initialize();
 	Data->OriginatingComponent = Context->SourceComponent;
+
+	if (Data->QueryParams.bGetReferenceToActorHit && Data->Metadata)
+	{
+		Data->Metadata->FindOrCreateAttribute(PCGPointDataConstants::ActorReferenceAttribute, FString(), /*bAllowInterpolation=*/false, /*bOverrideParent=*/false);
+	}
+	else
+	{
+		Data->QueryParams.bGetReferenceToActorHit = false;
+	}
+
+	if (Data->QueryParams.bGetReferenceToPhysicalMaterial && Data->Metadata)
+	{
+		Data->Metadata->FindOrCreateAttribute(PCGWorldRayHitConstants::PhysicalMaterialReferenceAttribute, FString(), /*bAllowInterpolation=*/false, /*bOverrideParent=*/false);
+	}
+	else
+	{
+		Data->QueryParams.bGetReferenceToPhysicalMaterial = false;
+	}
+
+	bool bHasLandscapeMetadata = false;
+	if (QueryParams.bApplyMetadataFromLandscape && Data->Metadata)
+	{
+		UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World);
+		UPCGLandscapeCache* LandscapeCache = PCGSubsystem ? PCGSubsystem->GetLandscapeCache() : nullptr;
+
+		if (LandscapeCache)
+		{
+			TFunction<bool(const AActor*)> BoundsCheck = [](const AActor*) -> bool { return true; };
+			TFunction<bool(const AActor*)> SelfIgnoreCheck = [](const AActor*) -> bool { return true; };
+
+			FPCGActorSelectorSettings ActorSelector;
+			ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;
+			ActorSelector.ActorSelection = EPCGActorSelection::ByClass;
+			ActorSelector.ActorSelectionClass = ALandscapeProxy::StaticClass();
+			ActorSelector.bSelectMultiple = true;
+
+			if (Data->Bounds.IsValid)
+			{
+				BoundsCheck = [Data, Component=Context->SourceComponent.Get()](const AActor* OtherActor) -> bool
+				{
+					const FBox OtherActorBounds = OtherActor ? PCGHelpers::GetGridBounds(OtherActor, Component) : FBox(EForceInit::ForceInit);
+					return OtherActorBounds.Intersect(Data->Bounds);
+				};
+			}
+	
+			TArray<AActor*> LandscapeActors = PCGActorSelector::FindActors(ActorSelector, Context->SourceComponent.Get(), BoundsCheck, SelfIgnoreCheck);
+			for (AActor* Landscape : LandscapeActors)
+			{
+				if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Landscape))
+				{
+					const TArray<FName> Layers = LandscapeCache->GetLayerNames(LandscapeProxy);
+					for (FName Layer : Layers)
+					{
+						if (!Data->Metadata->HasAttribute(Layer))
+						{
+							Data->Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
+							bHasLandscapeMetadata = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!bHasLandscapeMetadata)
+	{
+		Data->QueryParams.bApplyMetadataFromLandscape = false;
+	}
 
 	FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
 	Output.Data = Data;
