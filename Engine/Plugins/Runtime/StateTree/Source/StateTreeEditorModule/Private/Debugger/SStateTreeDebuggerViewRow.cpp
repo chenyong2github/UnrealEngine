@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #if WITH_STATETREE_DEBUGGER
 
 #include "Debugger/SStateTreeDebuggerViewRow.h"
