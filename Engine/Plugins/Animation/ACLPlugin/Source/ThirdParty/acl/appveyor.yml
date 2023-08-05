@@ -1,4 +1,4 @@
-version: 2.0.1.{build}
+version: 2.0.99.{build}
 
 environment:
   PYTHON: "C:\\Python36-x64\\python.exe"
@@ -9,7 +9,6 @@ environment:
 image:
   - Visual Studio 2015
   - Visual Studio 2017
-  - Visual Studio 2019
 
 configuration:
   - Debug
@@ -28,12 +27,10 @@ matrix:
       toolchain: clang
     - image: Visual Studio 2017
       toolchain: clang
-    - image: Visual Studio 2019
-      platform: arm64
-      toolchain: clang
-    - image: Previous Visual Studio 2019
-      platform: arm64
-      toolchain: clang
+
+init:
+# Only run latest compiler on push, run everything on pull request
+- ps: if (!$env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_WORKER_IMAGE -ne "Visual Studio 2019") {Exit-AppveyorBuild}
 
 install:
 - cmd: >-

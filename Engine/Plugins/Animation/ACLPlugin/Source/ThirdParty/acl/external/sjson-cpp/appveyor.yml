@@ -1,4 +1,4 @@
-version: 0.8.1.{build}
+version: 0.8.3.{build}
 
 environment:
   PYTHON: "C:\\Python36-x64\\python.exe"
@@ -34,6 +34,11 @@ matrix:
     - image: Previous Visual Studio 2019
       platform: arm64
       toolchain: clang
+
+
+init:
+# Only run latest compiler on push, run everything on pull request
+- ps: if (!$env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_WORKER_IMAGE -ne "Visual Studio 2019") {Exit-AppveyorBuild}
 
 install:
 - cmd: >-
