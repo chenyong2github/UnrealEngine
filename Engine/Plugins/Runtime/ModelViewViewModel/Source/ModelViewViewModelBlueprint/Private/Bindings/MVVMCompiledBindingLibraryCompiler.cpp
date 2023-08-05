@@ -474,11 +474,6 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 		}
 	}
 
-	if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsConversionFunctionAllowed(Function))
-	{
-		return MakeError(LOCTEXT("ConversionFunctionNotAllow", "The conversion function is not allowed."));
-	}
-
 	TArray<int32> RawFieldIndexes;
 	RawFieldIndexes.Add(Impl->AddUniqueField(FMVVMConstFieldVariant(Function)));
 	const int32 FoundFieldPath = Impl->FieldPaths.IndexOfByPredicate([&RawFieldIndexes](const Private::FRawFieldPath& Other)

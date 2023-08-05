@@ -1382,6 +1382,26 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				bIsBindingsValid = false;
 				return MakeError();
 			}
+
+			TVariant<const UFunction*, TSubclassOf<UK2Node>> FunctionOrWrapperFunction = ViewConversionFunction->GetConversionFunction(Class);
+			if (FunctionOrWrapperFunction.IsType<const UFunction*>())
+			{
+				if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsConversionFunctionAllowed(FunctionOrWrapperFunction.Get<const UFunction*>()))
+				{
+					AddMessageForBinding(Binding, BlueprintView, FText::Format(LOCTEXT("ConversionFunctionNotAllow", "The conversion function {0} is not allowed."),
+						FText::FromName(FunctionOrWrapperFunction.Get<const UFunction*>()->GetFName())),
+						EBindingMessageType::Error
+					);
+					bIsBindingsValid = false;
+					return MakeError();
+				}
+			}
+			else
+			{
+				AddMessageForBinding(Binding, BlueprintView, LOCTEXT("ConversionFunctionNodeNotAllow", "The conversion function node is not allowed."), EBindingMessageType::Error);
+				bIsBindingsValid = false;
+				return MakeError();
+			}
 		}
 		return MakeValue(ConversionFunction);
 	};
