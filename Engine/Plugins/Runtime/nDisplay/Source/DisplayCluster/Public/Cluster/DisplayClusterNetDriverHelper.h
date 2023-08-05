@@ -20,6 +20,12 @@ struct DISPLAYCLUSTER_API FDisplayClusterNetDriverHelper
 	GENERATED_BODY()
 
 public:
+	/** Returns number of nodes in current cluster */
+	int32 GetNumberOfClusterNodes() const;
+
+	/** Returns primary node IP address of current cluster */
+	FString GetPrimaryNodeAddress();
+
 	/** Creates and stores nDisplay cluster events client using cluster id and primary node parameters
 	 *  @param СlusterId unique identifier of cluster
 	 *  @param ClientAddress primary node IP address
@@ -40,7 +46,7 @@ public:
 	/** Checks if URL has all required arguments for DisplayClusterNetDriver
 	 *  @param URL Url to check
 	 */
-	static bool GetRequiredArguments(const FURL& URL, const TCHAR*& OutClusterId, const TCHAR*& OutPrimaryNodeId, const TCHAR*& OutPrimaryNodePort);
+	static bool GetRequiredArguments(const FURL& URL, const TCHAR*& OutClusterId, const TCHAR*& OutPrimaryNodeId, const TCHAR*& OutPrimaryNodePort, const TCHAR*& OutClusterNodesNum);
 
 	/** Sends command to nDisplay cluster specified by id
 	 *  @param СlusterId identifier of cluster

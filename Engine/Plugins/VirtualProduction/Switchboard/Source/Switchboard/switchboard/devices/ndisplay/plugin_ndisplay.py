@@ -711,6 +711,12 @@ class DevicenDisplay(DeviceUnreal):
         if self.nodeconfig and 'port_ce_binary' in self.nodeconfig:
             primary_node_binary_event_port = self.nodeconfig['port_ce_binary']
 
+        cluster_nodes_count = 0
+        for device in self.active_unreal_devices:
+            is_device_connected = device.status == DeviceStatus.CLOSED or device.status == DeviceStatus.OPEN
+            if device.device_type == "nDisplay" and is_device_connected:
+                cluster_nodes_count = cluster_nodes_count + 1
+
         def get_common_args():
             """ 
             get common args for client and server 
@@ -718,7 +724,8 @@ class DevicenDisplay(DeviceUnreal):
             return '?'.join([
                     f'ClusterId={os.getpid()}',
                     f'PrimaryNodeId={primary_device_name}',
-                    f'PrimaryNodePort={primary_node_binary_event_port}'
+                    f'PrimaryNodePort={primary_node_binary_event_port}',
+                    f'ClusterNodesCount={cluster_nodes_count}'
                 ])
 
         def get_client_args(server_address):

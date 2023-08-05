@@ -38,6 +38,9 @@ public:
 	/** Cluster unique identifier, HashString from node config file path */
 	uint32 ClusterId;
 
+	/** Cluster nodes number */
+	uint32 ClusterNodesNum;
+
 	/** Cluster node port for binary cluster events */
 	uint16 NodePort;
 

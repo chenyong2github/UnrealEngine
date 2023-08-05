@@ -33,6 +33,7 @@ UDisplayClusterNetConnection::UDisplayClusterNetConnection(const FObjectInitiali
 	Super(ObjectInitializer),
 	ClientId(0),
 	ClusterId(0),
+	ClusterNodesNum(0),
 	NodePort(0),
 	bNodeIsPrimary(false),
 	bIsClusterConnection(false),
@@ -66,8 +67,9 @@ void UDisplayClusterNetConnection::SetClientLoginState(const EClientLoginState::
 		const TCHAR* ClusterIdString = nullptr;
 		const TCHAR* PrimaryNodeId = nullptr;
 		const TCHAR* PrimaryNodePortString = nullptr;
+		const TCHAR* ClusterNodesNumString = nullptr;
 
-		if (!FDisplayClusterNetDriverHelper::GetRequiredArguments(ClientURL, ClusterIdString, PrimaryNodeId, PrimaryNodePortString))
+		if (!FDisplayClusterNetDriverHelper::GetRequiredArguments(ClientURL, ClusterIdString, PrimaryNodeId, PrimaryNodePortString, ClusterNodesNumString))
 		{
 			UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Cluster connection Join has failed: URI arguments are invalid"));
 			return;
@@ -78,6 +80,8 @@ void UDisplayClusterNetConnection::SetClientLoginState(const EClientLoginState::
 
 		NodeAddress = GetRemoteAddr()->ToString(false);
 		NodePort = FCString::Atoi(PrimaryNodePortString);
+
+		ClusterNodesNum = FCString::Atoi(ClusterNodesNumString);
 
 		bIsClusterConnection = true;
 
@@ -115,14 +119,14 @@ void UDisplayClusterNetConnection::ReceivedPacket(FBitReader& Reader, bool bIsRe
 		Super::ReceivedPacket(Reader, bIsReinjectedPacket, false);
 		InPackets.Add(InPacketId, Reader);
 
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Packet %i received and accumulated"), InPacketId);
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Packet %i received and accumulated"), InPacketId);
 	}
 	else
 	{
 		// This is server or client that is not ready to replication
 		Super::ReceivedPacket(Reader, bIsReinjectedPacket, bDispatchPacket);
 
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Packet %i received and processed"), InPacketId);
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Packet %i received and processed"), InPacketId);
 	}
 }
 
@@ -138,7 +142,7 @@ void UDisplayClusterNetConnection::ProcessPacket(int32 PacketId)
 
 	if (!InPackets.Contains(PacketId))
 	{
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Packet %i skipped!"), PacketId);
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Packet %i skipped!"), PacketId);
 
 		return;
 	}
@@ -153,7 +157,7 @@ void UDisplayClusterNetConnection::ProcessPacket(int32 PacketId)
 			break;
 		}
 
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Packet %i processed"), CurrentPacketId);
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Packet %i processed"), CurrentPacketId);
 
 		bool bSkipAck = false;
 		bool bHasBunchErrors = false;

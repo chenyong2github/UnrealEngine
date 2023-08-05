@@ -39,6 +39,7 @@
 
 UDisplayClusterNetDriver::UDisplayClusterNetDriver(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
+	bClusterHasConnected(false),
 	bLastBunchWasAcked(false),
 	bConnectionViewersAreReady(false)
 {
@@ -90,8 +91,9 @@ bool UDisplayClusterNetDriver::InitListen(FNetworkNotify* InNotify, FURL& Listen
 		const TCHAR* ClusterIdString = nullptr;
 		const TCHAR* NodeId = nullptr;
 		const TCHAR* NodePortString = nullptr;
+		const TCHAR* ClusterNodesNumString = nullptr;
 
-		if (!FDisplayClusterNetDriverHelper::GetRequiredArguments(ListenURL, ClusterIdString, NodeId, NodePortString))
+		if (!FDisplayClusterNetDriverHelper::GetRequiredArguments(ListenURL, ClusterIdString, NodeId, NodePortString, ClusterNodesNumString))
 		{
 			UE_LOG(LogDisplayClusterNetDriver, Warning, TEXT("InitListen:: Can't get required URL arguments"));
 
@@ -123,52 +125,56 @@ void UDisplayClusterNetDriver::TickDispatch(float DeltaTime)
 		return;
 	}
 
-	// Check nodes that are ready for synchronous packets processing
-	for (UDisplayClusterNetConnection* NodeConnectionIt : NodeConnections)
+	// Register binary client when ALL nodes connected
+	if (!bClusterHasConnected)
 	{
-		// NodeConnection is already in sync mode - skip
-		if (NodeConnectionIt->bSynchronousMode)
-		{
-			continue;
-		}
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Primary Node connecitons = [%u]"), PrimaryNodeConnections.Num());
 
-		// NodeConnection has not joined server - skip
-		if ((NodeConnectionIt->ClientLoginState != EClientLoginState::Type::ReceivedJoin) || (NodeConnectionIt->OwningActor == nullptr))
+		for (UDisplayClusterNetConnection* PrimaryNodeConnectionIt : PrimaryNodeConnections)
 		{
-			continue;
-		}
-		
-		// Event listener for cluster is not registered - skip
-		if (!ClusterNetworkDriverHelper->HasClient(NodeConnectionIt->ClusterId))
-		{
-			continue;
-		}
+			TArray<UDisplayClusterNetConnection*>* ClusterNodeConnectionsFound = ClusterConnections.Find(PrimaryNodeConnectionIt->ClusterId);
 
-		// Notify primary node that current node connection is ready
-		FDisplayClusterClusterEventBinary NetworkDriverSyncEvent;
-		GenerateClusterCommandsEvent(NetworkDriverSyncEvent, NodeSyncEvent);
-
-		const bool bEventWasSent = ClusterNetworkDriverHelper->SendCommandToCluster(NodeConnectionIt->ClusterId, NetworkDriverSyncEvent);
-
-		// If event was sent to primary cluster node
-		if (bEventWasSent)
-		{
-			// Mark all node connections related to current ClusterId as ready
-			for (UDisplayClusterNetConnection* ClusterNodeConnectionIt : NodeConnections)
+			if (ClusterNodeConnectionsFound == nullptr)
 			{
-				if (NodeConnectionIt->bSynchronousMode)
-				{
-					continue;
-				}
-
-				if (ClusterNodeConnectionIt->ClusterId == NodeConnectionIt->ClusterId)
-				{
-					NodeConnectionIt->bSynchronousMode = true;
-					SyncConnections.Add(NodeConnectionIt);
-				}
+				continue;
 			}
 
-			UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Setting synchronous mode in cluster [%u]"), NodeConnectionIt->ClusterId);
+			TArray<UDisplayClusterNetConnection*>& ClusterNodeConnections = *ClusterNodeConnectionsFound;
+
+			if (PrimaryNodeConnectionIt->ClusterNodesNum != ClusterNodeConnections.Num())
+			{
+				UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("PrimaryNodeConnectionIt->ClusterNodesNum = [%u], ClusterNodeConnections.Num() = [%u]"), PrimaryNodeConnectionIt->ClusterNodesNum, ClusterNodeConnections.Num());
+				continue;
+			}
+
+			if (ClusterNetworkDriverHelper->RegisterClusterEventsBinaryClient(PrimaryNodeConnectionIt->ClusterId, PrimaryNodeConnectionIt->NodeAddress, PrimaryNodeConnectionIt->NodePort))
+			{
+				UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Registered primary node for cluster [%u] node [%s]"), PrimaryNodeConnectionIt->ClusterId, *PrimaryNodeConnectionIt->NodeName);
+			}
+
+			// Notify primary node that current node connection is ready
+			FDisplayClusterClusterEventBinary NetworkDriverSyncEvent;
+			GenerateClusterCommandsEvent(NetworkDriverSyncEvent, NodeSyncEvent);
+
+			// send command 
+			const bool bEventWasSent = ClusterNetworkDriverHelper->SendCommandToCluster(PrimaryNodeConnectionIt->ClusterId, NetworkDriverSyncEvent);
+
+			// If event was sent to primary cluster node
+			if (bEventWasSent)
+			{
+				bClusterHasConnected = true;
+				// Mark all node connections related to current ClusterId as ready
+				for (UDisplayClusterNetConnection* ClusterNodeConnectionIt : NodeConnections)
+				{
+					if (ClusterNodeConnectionIt->ClusterId == PrimaryNodeConnectionIt->ClusterId)
+					{
+						ClusterNodeConnectionIt->bSynchronousMode = true;
+						SyncConnections.Add(ClusterNodeConnectionIt);
+					}
+				}
+
+				UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Setting synchronous mode in cluster [%u]"), PrimaryNodeConnectionIt->ClusterId);
+			}
 		}
 	}
 }
@@ -180,12 +186,10 @@ void UDisplayClusterNetDriver::AddNodeConnection(UDisplayClusterNetConnection* N
 	if (NetConnection->bNodeIsPrimary)
 	{
 		PrimaryNodeConnections.Add(NetConnection);
-
-		if (ClusterNetworkDriverHelper->RegisterClusterEventsBinaryClient(NetConnection->ClusterId, NetConnection->NodeAddress, NetConnection->NodePort))
-		{
-			UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Registered primary node for cluster [%u] node [%s]"), NetConnection->ClusterId, *NetConnection->NodeName);
-		}
 	}
+
+	TArray<UDisplayClusterNetConnection*>& Connections = ClusterConnections.FindOrAdd(NetConnection->ClusterId);
+	Connections.Add(NetConnection);
 }
 
 void UDisplayClusterNetDriver::RemoveNodeConnection(UDisplayClusterNetConnection* NetConnection)
@@ -194,14 +198,32 @@ void UDisplayClusterNetDriver::RemoveNodeConnection(UDisplayClusterNetConnection
 	{
 		if (ClusterNetworkDriverHelper->RemoveClusterEventsBinaryClient(NetConnection->ClusterId))
 		{
-			UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Removed primary node for cluster [%u] node [%s]"), NetConnection->ClusterId, *NetConnection->NodeName);
+			UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Removed primary node for cluster [%u] node [%s]"), NetConnection->ClusterId, *NetConnection->NodeName);
 		}
 
 		PrimaryNodeConnections.Remove(NetConnection);
 	}
 
-	SyncConnections.Remove(NetConnection);
-	NodeConnections.Remove(NetConnection);
+
+	TArray<UDisplayClusterNetConnection*>* Connections = ClusterConnections.Find(NetConnection->ClusterId);
+
+	if (Connections != nullptr)
+	{
+		for (UDisplayClusterNetConnection* NodeConnectionIt : *Connections)
+		{
+			SyncConnections.Remove(NodeConnectionIt);
+			NodeConnections.Remove(NodeConnectionIt);
+		}
+		Connections->Remove(NetConnection);
+	}
+
+	// Reset packet queues
+	if (SyncConnections.IsEmpty())
+	{
+		LastAckedPacket.Reset();
+		OutPacketsQueues.Reset();
+		bClusterHasConnected = false;
+	}
 }
 
 void UDisplayClusterNetDriver::HandleEvent(FDisplayClusterClusterEventBinary const& InEvent)
@@ -227,13 +249,13 @@ void UDisplayClusterNetDriver::HandleEvent(FDisplayClusterClusterEventBinary con
 
 	if (InEvent.EventId == NodeSyncEvent)
 	{
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("[StartSynchronousMode] command received"));
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("[StartSynchronousMode] command received"));
 
 		// Client received command to start synchrosonus packets processing
 		ClusterServerConnection->bSynchronousMode = true;
 		ClusterServerConnection->ClientId = TextKeyUtil::HashString(ClusterServerConnection->Challenge);
 
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Client node self-introducing: %u"), ClusterServerConnection->ClientId);
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Client node self-introducing: %u"), ClusterServerConnection->ClientId);
 	}
 
 	if (InEvent.EventId == PacketSyncEvent)
@@ -324,7 +346,7 @@ void UDisplayClusterNetDriver::TickFlush(float DeltaSeconds)
 		// Driver waits until last sent bunch of any sync connection will be acked
 		bLastBunchWasAcked |= (LastOutPacketId - ConnectionAckId > 1);
 
-		UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Client %u; Packet %i sent, %i acked"), SyncConnectionIt->ClientId, ConnectionAckId, LastAckedPacketIdRef);
+		UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Client %u; Packet %i sent, %i acked"), SyncConnectionIt->ClientId, ConnectionAckId, LastAckedPacketIdRef);
 	}
 
 	// Find slice of packets which are ready for processing on clients
@@ -375,12 +397,15 @@ void UDisplayClusterNetDriver::TickFlush(float DeltaSeconds)
 
 			// Slice queue by removing all packets which are behind ReadyForProcessingPacket
 			TDeque<int32>& ConnectionPacketQueue = OutPacketsQueues[UniqueID];
-			for (int j = 0; j < PacketIdx; j++)
+			if (!ConnectionPacketQueue.IsEmpty())
 			{
-				ConnectionPacketQueue.PopFirst();
+				for (int j = 0; j < PacketIdx; j++)
+				{
+					ConnectionPacketQueue.PopFirst();
+				}
 			}
 
-			UE_LOG(LogDisplayClusterNetDriver, Verbose, TEXT("Client %u; [ProcessPacket %i] command sent"), SyncConnection->ClientId, ReadyForProcessingPacket);
+			UE_LOG(LogDisplayClusterNetDriver, VeryVerbose, TEXT("Client %u; [ProcessPacket %i] command sent"), SyncConnection->ClientId, ReadyForProcessingPacket);
 		}
 
 		// Generate cluster event

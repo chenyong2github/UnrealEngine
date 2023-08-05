@@ -99,6 +99,9 @@ protected:
 	// nDisplay Primary node connections
 	TSet<UDisplayClusterNetConnection*> PrimaryNodeConnections;
 
+	// nDisplay Node connections which corresponds to specific cluster
+	TMap<uint32, TArray<UDisplayClusterNetConnection*>> ClusterConnections;
+
 	// nDisplay node connections that participate in synchronous replication
 	TSet<UDisplayClusterNetConnection*> SyncConnections;
 
@@ -113,6 +116,9 @@ protected:
 
 	// Binary event listener
 	FOnClusterEventBinaryListener EventBinaryListener;
+
+	// True if cluster has connected
+	bool bClusterHasConnected;
 
 	// Used to control state of acked packets queue
 	bool bLastBunchWasAcked;
