@@ -43,11 +43,7 @@ void FGameplayAbilityActorInfo::InitFromActor(AActor *InOwnerActor, AActor *InAv
 		if (APawn * Pawn = Cast<APawn>(TestActor))
 		{
 			PlayerController = Cast<APlayerController>(Pawn->GetController());
-
-			if (PlayerController.IsValid())
-			{
-				break;
-			}
+			break;
 		}
 
 		TestActor = TestActor->GetOwner();
