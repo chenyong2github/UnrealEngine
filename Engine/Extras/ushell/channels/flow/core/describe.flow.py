@@ -55,10 +55,10 @@ debug_paths.invoke("debug", "paths")
 debug_paths.prefix("$")
 
 #-------------------------------------------------------------------------------
-debug_nuke = flow.describe.Command()
-debug_nuke.source("cmds/debug.py", "Nuke")
-debug_nuke.invoke("debug", "nuke")
-debug_nuke.prefix("$")
+debug_wipe = flow.describe.Command()
+debug_wipe.source("cmds/debug.py", "Wipe")
+debug_wipe.invoke("debug", "wipe")
+debug_wipe.prefix("$")
 
 #-------------------------------------------------------------------------------
 complete = flow.describe.Command()

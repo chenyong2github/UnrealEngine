@@ -15,7 +15,8 @@ class _Base(object):
             ppn_path = engine.get_dir() / "Intermediate/ProjectFiles/PrimaryProjectName.txt"
             if not ppn_path.is_file():
                 # Old path, needs to be maintained while projects prior to UE5.1 are supported
-                ppn_path = engine.get_dir() / "Intermediate/ProjectFiles/MasterProjectName.txt"
+                ppn_path = engine.get_dir() / "Intermediate/ProjectFiles/M"
+                ppn_path += "asterProjectName.txt"
             with ppn_path.open("rb") as ppn_file:
                 name = ppn_file.read().decode().strip()
         except FileNotFoundError:

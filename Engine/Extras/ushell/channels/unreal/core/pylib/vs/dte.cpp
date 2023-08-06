@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #define _HAS_EXCEPTIONS 0
 #define PY_SSIZE_T_CLEAN
 

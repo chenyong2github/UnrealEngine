@@ -68,7 +68,7 @@ class Invalidate(flow.cmd.Cmd):
                 manifest_path.unlink(missing_ok=True)
 
 #-------------------------------------------------------------------------------
-class Nuke(flow.cmd.Cmd):
+class Wipe(flow.cmd.Cmd):
     """ Wipes everything. """
 
     def main(self):
