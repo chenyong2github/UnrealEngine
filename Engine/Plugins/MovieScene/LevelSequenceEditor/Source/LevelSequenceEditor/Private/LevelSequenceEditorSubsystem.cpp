@@ -1841,9 +1841,11 @@ void ULevelSequenceEditorSubsystem::GetRebindComponentNames(TArray<FName>& OutCo
 				bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass(), ClassFilterFuncs);
 
 				// Allow listing component if their parent class is allowed
-				while (!bValidComponent && Component->GetClass()->GetSuperClass())
+				UClass* ComponentSuperClass = Component->GetClass()->GetSuperClass();
+				while (!bValidComponent && ComponentSuperClass)
 				{
-					bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass()->GetSuperClass(), ClassFilterFuncs);
+					bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, ComponentSuperClass, ClassFilterFuncs);
+					ComponentSuperClass = ComponentSuperClass->GetSuperClass();
 				}
 			}
 
