@@ -120,6 +120,10 @@ struct FPreAnimatedConstraintTraits : FBoundObjectPreAnimatedStateTraits
 	{
 		if (USceneComponent* SceneComponent = OldValue.SceneComponent.Get())
 		{
+			if (OldValue.Section.IsValid() == false)
+			{
+				return;
+			}
 			if (FConstraintAndActiveChannel* ConstraintAndActiveChannel = OldValue.Section->GetConstraintChannel(OldValue.ConstraintName))
 			{				
 				if (ConstraintAndActiveChannel->Constraint.IsPending())
