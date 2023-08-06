@@ -303,7 +303,7 @@ class Change(flow.cmd.Cmd):
                     with dest_path.open("wb") as out:
                         out.write(data)
 
-    def _get_nyckels(self):
+    def _get_nyckels(self, primary_dir):
         pass
         """
         context = unreal.Context(primary_dir)
