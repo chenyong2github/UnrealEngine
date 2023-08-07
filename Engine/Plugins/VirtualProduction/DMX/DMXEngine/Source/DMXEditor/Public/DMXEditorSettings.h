@@ -57,7 +57,7 @@ struct FDMXMVRFixturePatcherSettings
 	bool bMonitorEnabled = false;
 
 	UPROPERTY()
-	EDMXFixturePatcherNameDisplayMode FixturePatchNameDisplayMode;
+	EDMXFixturePatcherNameDisplayMode FixturePatchNameDisplayMode = EDMXFixturePatcherNameDisplayMode::FixturePatchName;
 };
 
 
