@@ -89,6 +89,9 @@ struct FPCGGraphCache
 #endif
 
 private:
+	// Grow cache entry capacity, preserving current entries.
+	void GrowCache_Unsafe();
+
 	/** For each data element in collection, keep records of memory usage and instance count. */
 	void AddDataToAccountedMemory(const FPCGDataCollection& InCollection);
 
