@@ -38,28 +38,7 @@ namespace PCGSubsystemConsole
 		TEXT("Clears the PCG results cache."),
 		FConsoleCommandDelegate::CreateLambda([]()
 			{
-				UWorld* World = nullptr;
-
-#if WITH_EDITOR
-				if (GEditor)
-				{
-					if (GEditor->PlayWorld)
-					{
-						World = GEditor->PlayWorld;
-					}
-					else
-					{
-						World = GEditor->GetEditorWorldContext().World();
-					}
-				}
-				else
-#endif
-				if (GEngine)
-				{
-					World = GEngine->GetCurrentPlayWorld();
-				}
-
-				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World))
+				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetSubsystemForCurrentWorld())
 				{
 					PCGSubsystem->FlushCache();
 				}
@@ -71,8 +50,7 @@ namespace PCGSubsystemConsole
 		TEXT("Builds the landscape cache in the current world."),
 		FConsoleCommandDelegate::CreateLambda([]()
 			{
-				UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : (GEngine ? GEngine->GetCurrentPlayWorld() : nullptr));
-				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(World))
+				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetSubsystemForCurrentWorld())
 				{
 					PCGSubsystem->BuildLandscapeCache();
 				}
@@ -83,10 +61,9 @@ namespace PCGSubsystemConsole
 		TEXT("Clear the landscape cache in the current world."),
 		FConsoleCommandDelegate::CreateLambda([]()
 			{
-				UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : (GEngine ? GEngine->GetCurrentPlayWorld() : nullptr));
-				if(World && World->GetSubsystem<UPCGSubsystem>())
+				if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetSubsystemForCurrentWorld())
 				{
-					World->GetSubsystem<UPCGSubsystem>()->ClearLandscapeCache();
+					PCGSubsystem->ClearLandscapeCache();
 				}
 			}));
 
@@ -114,6 +91,32 @@ UPCGSubsystem::UPCGSubsystem()
 		ActorAndComponentMapping.RegisterTrackingCallbacks();
 	}
 #endif // WITH_EDITOR
+}
+
+UPCGSubsystem* UPCGSubsystem::GetSubsystemForCurrentWorld()
+{
+	UWorld* World = nullptr;
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		if (GEditor->PlayWorld)
+		{
+			World = GEditor->PlayWorld;
+		}
+		else
+		{
+			World = GEditor->GetEditorWorldContext().World();
+		}
+	}
+	else
+#endif
+	if (GEngine)
+	{
+		World = GEngine->GetCurrentPlayWorld();
+	}
+
+	return UPCGSubsystem::GetInstance(World);
 }
 
 void UPCGSubsystem::Deinitialize()

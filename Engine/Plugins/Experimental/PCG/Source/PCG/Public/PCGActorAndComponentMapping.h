@@ -70,13 +70,13 @@ public:
 	void UnregisterPartitionActor(APCGPartitionActor* InActor);
 
 	/** Return a copy of all the registered partitioned components. Thread safe */
-	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredPartitionedComponents() const;
+	TSet<UPCGComponent*> GetAllRegisteredPartitionedComponents() const;
 
 	/** Return a copy of all the registered non-partitioned components. Thread safe */
-	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredNonPartitionedComponents() const;
+	TSet<UPCGComponent*> GetAllRegisteredNonPartitionedComponents() const;
 
 	/** Return a copy of all the registered components. Thread safe */
-	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredComponents() const;
+	TSet<UPCGComponent*> GetAllRegisteredComponents() const;
 
 private:
 	// This class is only meant to be used as part of the PCG Subsytem and owned by it.
@@ -159,11 +159,11 @@ private:
 	mutable FRWLock PartitionActorsMapLock;
 
 	/** Mapping between original components and its overlapping partition actors. */
-	TMap<TObjectPtr<const UPCGComponent>, TSet<TObjectPtr<APCGPartitionActor>>> ComponentToPartitionActorsMap;
+	TMap<const UPCGComponent*, TSet<TObjectPtr<APCGPartitionActor>>> ComponentToPartitionActorsMap;
 	mutable FRWLock ComponentToPartitionActorsMapLock;
 
 	/** Components to be unregister at the next frame. cf. UnregisterComponent for a better understanding on why it is needed. */
-	TSet<TObjectPtr<UPCGComponent>> DelayedComponentToUnregister;
+	TSet<UPCGComponent*> DelayedComponentToUnregister;
 	mutable FCriticalSection DelayedComponentToUnregisterLock;
 
 	// Tracking actors
@@ -171,13 +171,13 @@ private:
 	FPCGComponentOctreeAndMap NonPartitionedOctree;
 
 	/** Keep a mapping between tracked actors and the components that track them, and the tracking needs to be culled.*/
-	TMap<TObjectKey<AActor>, TSet<TObjectPtr<UPCGComponent>>> CulledTrackedActorsToComponentsMap;
+	TMap<TObjectKey<AActor>, TSet<UPCGComponent*>> CulledTrackedActorsToComponentsMap;
 
 	/** Same mapping but for always tracked actors */
-	TMap<TObjectKey<AActor>, TSet<TObjectPtr<UPCGComponent>>> AlwaysTrackedActorsToComponentsMap;
+	TMap<TObjectKey<AActor>, TSet<UPCGComponent*>> AlwaysTrackedActorsToComponentsMap;
 
 	/** Keep the list of the keys already tracked, to avoid requerying the actors everytime */
-	TMap<FPCGActorSelectionKey, TSet<TObjectPtr<UPCGComponent>>> KeysToComponentsMap;
+	TMap<FPCGActorSelectionKey, TSet<UPCGComponent*>> KeysToComponentsMap;
 
 	/** Finally keep a mapping between actors and their position to know if an actor move in/out of a component tracking bounds. Only kept for actors that need to be culled. */
 	TMap<TObjectKey<AActor>, FBox> TrackedActorToPositionMap;

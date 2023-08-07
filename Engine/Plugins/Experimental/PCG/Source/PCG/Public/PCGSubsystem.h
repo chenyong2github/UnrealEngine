@@ -45,6 +45,9 @@ public:
 
 	UPCGSubsystem();
 
+	/** To be used when a PCG component can not have a world anymore, to unregister itself. */
+	static UPCGSubsystem* GetSubsystemForCurrentWorld();
+
 	//~ Begin USubsystem Interface.
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface
@@ -139,7 +142,7 @@ public:
 	/** Unregister a Partition actor, will be removed from the map and remove itself to all intersecting volumes. Thread safe */
 	void UnregisterPartitionActor(APCGPartitionActor* InActor) { ActorAndComponentMapping.UnregisterPartitionActor(InActor); }
 
-	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredPartitionedComponents() const { return ActorAndComponentMapping.GetAllRegisteredPartitionedComponents(); }
+	TSet<UPCGComponent*> GetAllRegisteredPartitionedComponents() const { return ActorAndComponentMapping.GetAllRegisteredPartitionedComponents(); }
 
 	/** Flushes the graph cache completely, use only for debugging */
 	void FlushCache();

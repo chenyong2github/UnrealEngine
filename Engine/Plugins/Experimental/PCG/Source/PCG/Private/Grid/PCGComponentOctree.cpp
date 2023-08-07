@@ -167,11 +167,11 @@ bool FPCGComponentOctreeAndMap::RemoveComponent(UPCGComponent* InComponent)
 	return true;
 }
 
-TSet<TObjectPtr<UPCGComponent>> FPCGComponentOctreeAndMap::GetAllComponents() const
+TSet<UPCGComponent*> FPCGComponentOctreeAndMap::GetAllComponents() const
 {
 	FReadScopeLock ReadLock(Lock);
 
-	TSet<TObjectPtr<UPCGComponent>> Components;
+	TSet<UPCGComponent*> Components;
 	ComponentToIdMap.GetKeys(Components);
 
 	return Components;

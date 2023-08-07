@@ -61,7 +61,7 @@ struct PCG_API FPCGComponentRefSemantics
 };
 
 using FPCGComponentOctree = TOctree2<FPCGComponentRef, FPCGComponentRefSemantics> ;
-using FPCGComponentToIdMap = TMap<TObjectPtr<UPCGComponent>, FPCGComponentOctreeIDSharedRef>;
+using FPCGComponentToIdMap = TMap<UPCGComponent*, FPCGComponentOctreeIDSharedRef>;
 
 class FPCGComponentOctreeAndMap
 {
@@ -71,7 +71,7 @@ public:
 
 	void Reset(const FVector& InOrigin, FVector::FReal InExtent);
 
-	TSet<TObjectPtr<UPCGComponent>> GetAllComponents() const;
+	TSet<UPCGComponent*> GetAllComponents() const;
 
 	template<typename IterateBoundsFunc>
 	inline void FindElementsWithBoundsTest(const FBoxCenterAndExtent& BoxBounds, const IterateBoundsFunc& Func) const

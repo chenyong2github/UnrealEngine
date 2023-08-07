@@ -54,7 +54,7 @@ UPCGActorAndComponentMapping::UPCGActorAndComponentMapping(UPCGSubsystem* InPCGS
 
 void UPCGActorAndComponentMapping::Tick()
 {
-	TSet<TObjectPtr<UPCGComponent>> ComponentToUnregister;
+	TSet<UPCGComponent*> ComponentToUnregister;
 	{
 		FScopeLock Lock(&DelayedComponentToUnregisterLock);
 		ComponentToUnregister = MoveTemp(DelayedComponentToUnregister);
@@ -296,14 +296,20 @@ void UPCGActorAndComponentMapping::UnregisterPCGComponent(UPCGComponent* InCompo
 			DelayedComponentToUnregister.Add(InComponent);
 			return;
 		}
+
+#if WITH_EDITOR
+		UnregisterTracking(InComponent);
+#endif // WITH_EDITOR
 	}
 
 	UnregisterPartitionedPCGComponent(InComponent);
 	UnregisterNonPartitionedPCGComponent(InComponent);
 
-#if WITH_EDITOR
-	UnregisterTracking(InComponent);
-#endif // WITH_EDITOR
+	FScopeLock Lock(&DelayedComponentToUnregisterLock);
+	if (DelayedComponentToUnregister.Contains(InComponent))
+	{
+		DelayedComponentToUnregister.Remove(InComponent);
+	}
 }
 
 void UPCGActorAndComponentMapping::UnregisterPartitionedPCGComponent(UPCGComponent* InComponent)
@@ -552,19 +558,19 @@ void UPCGActorAndComponentMapping::DeleteMappingPCGComponentPartitionActor(UPCGC
 	}
 }
 
-TSet<TObjectPtr<UPCGComponent>> UPCGActorAndComponentMapping::GetAllRegisteredPartitionedComponents() const
+TSet<UPCGComponent*> UPCGActorAndComponentMapping::GetAllRegisteredPartitionedComponents() const
 {
 	return PartitionedOctree.GetAllComponents();
 }
 
-TSet<TObjectPtr<UPCGComponent>> UPCGActorAndComponentMapping::GetAllRegisteredNonPartitionedComponents() const
+TSet<UPCGComponent*> UPCGActorAndComponentMapping::GetAllRegisteredNonPartitionedComponents() const
 {
 	return NonPartitionedOctree.GetAllComponents();
 }
 
-TSet<TObjectPtr<UPCGComponent>> UPCGActorAndComponentMapping::GetAllRegisteredComponents() const
+TSet<UPCGComponent*> UPCGActorAndComponentMapping::GetAllRegisteredComponents() const
 {
-	TSet<TObjectPtr<UPCGComponent>> Res = GetAllRegisteredPartitionedComponents();
+	TSet<UPCGComponent*> Res = GetAllRegisteredPartitionedComponents();
 	Res.Append(GetAllRegisteredNonPartitionedComponents());
 	return Res;
 }
@@ -588,7 +594,7 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 
 	// Components owner needs to be always tracked
 	RegisterActor(ComponentOwner);
-	TSet<TObjectPtr<UPCGComponent>>& AllComponents = AlwaysTrackedActorsToComponentsMap.FindOrAdd(ComponentOwner);
+	TSet<UPCGComponent*>& AllComponents = AlwaysTrackedActorsToComponentsMap.FindOrAdd(ComponentOwner);
 	AllComponents.Add(InComponent);
 
 	UWorld* World = PCGSubsystem->GetWorld();
@@ -732,9 +738,9 @@ void UPCGActorAndComponentMapping::UnregisterTracking(UPCGComponent* InComponent
 	}
 
 	// We also need to untrack actors that doesn't have any component that tracks them.
-	auto ShouldBeRemoved = [](const TObjectKey<AActor>& InActor, TMap<TObjectKey<AActor>, TSet<TObjectPtr<UPCGComponent>>>& InMap)
+	auto ShouldBeRemoved = [](const TObjectKey<AActor>& InActor, TMap<TObjectKey<AActor>, TSet<UPCGComponent*>>& InMap)
 	{
-		TSet<TObjectPtr<UPCGComponent>>* RegisteredComponents = InMap.Find(InActor);
+		TSet<UPCGComponent*>* RegisteredComponents = InMap.Find(InActor);
 		return !RegisteredComponents || RegisteredComponents->IsEmpty();
 	};
 
@@ -835,13 +841,22 @@ bool UPCGActorAndComponentMapping::AddOrUpdateTrackedActor(AActor* InActor)
 	}
 
 	// Gather all components, and check if they want to track this one
-	TSet<TObjectPtr<UPCGComponent>> AllComponents = GetAllRegisteredComponents();
+	TSet<UPCGComponent*> AllComponents = GetAllRegisteredComponents();
 
-	TSet<TObjectPtr<UPCGComponent>>* CulledTrackedComponents = nullptr;
-	TSet<TObjectPtr<UPCGComponent>>* AlwaysTrackedComponents = nullptr;
+	TSet<UPCGComponent*>* CulledTrackedComponents = nullptr;
+	TSet<UPCGComponent*>* AlwaysTrackedComponents = nullptr;
 	
 	for (UPCGComponent* PCGComponent : AllComponents)
 	{
+		// Making sure that they are not currently waiting to die
+		{
+			FScopeLock Lock(&DelayedComponentToUnregisterLock);
+			if (DelayedComponentToUnregister.Contains(PCGComponent))
+			{
+				continue;
+			}
+		}
+
 		bool bTrackingIsCulled = false;
 		if (PCGComponent && PCGComponent->IsActorTracked(InActor, bTrackingIsCulled))
 		{
@@ -873,10 +888,16 @@ bool UPCGActorAndComponentMapping::AddOrUpdateTrackedActor(AActor* InActor)
 		RegisterActor(InActor);
 		return true;
 	}
+	else if (CulledTrackedActorsToComponentsMap.Contains(InActor) || AlwaysTrackedActorsToComponentsMap.Contains(InActor))
+	{
+		// Do some cleanup if the actor was tracked. 
+		// We will force the refresh here, so return false to make sure we don't refresh it twice.
+		OnActorDeleted(InActor);
+		return false;
+	}
 	else
 	{
-		// Do some cleanup. We will force the refresh here, so return false to make sure we don't refresh it twice.
-		OnActorDeleted(InActor);
+		// If it is not tracked, and should not be tracked, just do nothing.
 		return false;
 	}
 }
@@ -1073,7 +1094,7 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 	// Check if we have a change of tag too
 	TSet<FName> RemovedTags = TempTrackedActorTags.Difference(TSet<FName>(InActor->Tags));
 
-	if (TSet<TObjectPtr<UPCGComponent>>* CulledTrackedComponents = CulledTrackedActorsToComponentsMap.Find(InActor))
+	if (TSet<UPCGComponent*>* CulledTrackedComponents = CulledTrackedActorsToComponentsMap.Find(InActor))
 	{
 		// Not const, since it will be updated with old actor bounds
 		FBox ActorBounds = PCGActorAndComponentMapping::GetActorBounds(InActor);
@@ -1160,7 +1181,7 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 	}
 
 	// Finally, dirty all components that always track this actor that are not yet notified.
-	if (TSet<TObjectPtr<UPCGComponent>>* AlwaysTrackedComponents = AlwaysTrackedActorsToComponentsMap.Find(InActor))
+	if (TSet<UPCGComponent*>* AlwaysTrackedComponents = AlwaysTrackedActorsToComponentsMap.Find(InActor))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorChanged::AlwaysTrackedUpdate);
 

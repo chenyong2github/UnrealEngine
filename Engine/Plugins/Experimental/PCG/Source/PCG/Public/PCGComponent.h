@@ -67,6 +67,7 @@ UCLASS(BlueprintType, ClassGroup = (Procedural), meta = (BlueprintSpawnableCompo
 class PCG_API UPCGComponent : public UActorComponent
 {
 	UPCGComponent(const FObjectInitializer& InObjectInitializer);
+	~UPCGComponent();
 
 	GENERATED_BODY()
 

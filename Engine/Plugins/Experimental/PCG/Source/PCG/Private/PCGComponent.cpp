@@ -70,6 +70,18 @@ UPCGComponent::UPCGComponent(const FObjectInitializer& InObjectInitializer)
 #endif // WITH_EDITOR
 }
 
+UPCGComponent::~UPCGComponent()
+{
+#if WITH_EDITOR
+	// For the special case where a component is part of a reconstruction script (from a BP),
+	// but gets destroyed immediately, we need to force the unregistering. 
+	if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetSubsystemForCurrentWorld())
+	{
+		PCGSubsystem->UnregisterPCGComponent(this, /*bForce=*/true);
+	}
+#endif // WITH_EDITOR
+}
+
 bool UPCGComponent::CanPartition() const
 {
 	// Support/Force partitioning on non-PCG partition actors in WP worlds.
@@ -946,7 +958,7 @@ void UPCGComponent::CleanupUnusedManagedResources()
 		check(!GeneratedResourcesInaccessible);
 		for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 		{
-			UPCGManagedResource* Resource = GeneratedResources[ResourceIndex];
+			UPCGManagedResource* Resource = GetValid(GeneratedResources[ResourceIndex]);
 
 			PCGGeneratedResourcesLogging::LogCleanupUnusedManagedResourcesResource(Resource);
 
