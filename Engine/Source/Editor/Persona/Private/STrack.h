@@ -35,6 +35,7 @@ class FUICommandList;
 class FWidgetStyle;
 class SWidget;
 class UObject;
+class UAnimSequenceBase;
 struct FPointerEvent;
 struct FSlateBrush;
 

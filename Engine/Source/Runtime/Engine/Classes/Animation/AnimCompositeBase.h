@@ -10,16 +10,20 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimSequenceBase.h"
+#include "HAL/IConsoleManager.h"
 #include "AnimCompositeBase.generated.h"
 
 class UAnimCompositeBase;
 class UAnimSequence;
 struct FCompactPose;
 
+#if WITH_EDITOR
 namespace UE { namespace Anim
 {
 	extern TAutoConsoleVariable<bool> CVarOutputMontageFrameRateWarning;
 }}
+
+#endif // WITH_EDITOR
 
 /** Struct defining a RootMotionExtractionStep.
  * When extracting RootMotion we can encounter looping animations (wrap around), or different animations.

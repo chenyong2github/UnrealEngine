@@ -17,16 +17,18 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompositeBase)
 
+#if WITH_EDITOR
 namespace UE
 {
 	namespace Anim
 	{		
 		TAutoConsoleVariable<bool> CVarOutputMontageFrameRateWarning(
 			TEXT("a.OutputMontageFrameRateWarning"),
-			true,
+			false,
 			TEXT("If true will warn the user about Animation Montages/Composites composed of incompatible animation assets (incompatible frame-rates)."));
 	}
 }
+#endif if WITH_EDITOR
 
 ///////////////////////////////////////////////////////
 // FAnimSegment

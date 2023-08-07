@@ -45,6 +45,7 @@
 #include "UnrealWidget.h"
 #include "Engine/PoseWatchRenderData.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Animation/AnimCompositeBase.h"
 
 namespace {
 	static const float AnimationEditorViewport_RotateSpeed = 0.02f;
