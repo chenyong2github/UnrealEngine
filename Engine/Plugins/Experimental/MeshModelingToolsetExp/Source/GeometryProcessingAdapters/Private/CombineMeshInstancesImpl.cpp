@@ -3406,7 +3406,7 @@ void BuildCombinedMesh(
 				for (int32 tid : TempAppendMesh.TriangleIndicesItr())
 				{
 					int32 SourceMaterialID = (AppendMaterialAttrib != nullptr) ? AppendMaterialAttrib->GetValue(tid) : 0;
-					UMaterialInterface* UseMaterial = Instance.Materials[SourceMaterialID];
+					UMaterialInterface* UseMaterial = Instance.Materials.IsValidIndex(SourceMaterialID) ? Instance.Materials[SourceMaterialID] : nullptr;
 					const int32* FoundMaterialIndex = Assembly.MaterialMap.Find(UseMaterial);
 					int32 AssignMaterialIndex = (FoundMaterialIndex != nullptr) ? *FoundMaterialIndex : 0;
 
