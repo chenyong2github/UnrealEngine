@@ -358,7 +358,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 			// If no field accessor, copy over the attribute
 			if (InputSource.GetExtraNames().IsEmpty())
 			{
-				const FPCGMetadataAttributeBase* SourceAttribute = Metadata->GetConstAttribute(SourceParamAttributeName);
+				const FPCGMetadataAttributeBase* SourceAttribute = SourceParamData->Metadata->GetConstAttribute(SourceParamAttributeName);
 				Attribute = Metadata->CopyAttribute(SourceAttribute, OutputAttributeName, /*bKeepParent=*/false, /*bCopyEntries=*/bShouldAddNewEntry, /*bCopyValues=*/bShouldAddNewEntry);
 			}
 			else // Create a new attribute of the accessed field's type manually
