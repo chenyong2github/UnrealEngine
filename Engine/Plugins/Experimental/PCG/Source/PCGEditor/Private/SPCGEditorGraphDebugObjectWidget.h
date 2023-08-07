@@ -42,6 +42,10 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FPCGEditor> InPCGEditor);
 
+	void RefreshDebugObjects();
+
+	void OnLevelActorDeleted(const AActor* InActor);
+
 private:
 	void OnComboBoxOpening();
 	void OnSelectionChanged(TSharedPtr<FPCGEditorGraphDebugObjectInstance> NewSelection, ESelectInfo::Type SelectInfo) const;

@@ -42,6 +42,7 @@
 #include "EditorAssetLibrary.h"
 #include "GraphEditorActions.h"
 #include "IDetailsView.h"
+#include "LevelEditor.h"
 #include "PropertyEditorModule.h"
 #include "SNodePanel.h"
 #include "ScopedTransaction.h"
@@ -108,6 +109,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	GraphEditorWidget = CreateGraphEditorWidget();
 	PaletteWidget = CreatePaletteWidget();
 	DebugObjectWidget = CreateDebugObjectWidget();
+	DebugObjectTreeWidget = CreateDebugObjectTreeWidget();
 	FindWidget = CreateFindWidget();
 	AttributesWidget = CreateAttributesWidget();
 	DeterminismWidget = CreateDeterminismWidget();
@@ -173,6 +175,14 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	const FName PCGGraphEditorAppName = FName(TEXT("PCGEditorApp"));
 
 	InitAssetEditor(InMode, InToolkitHost, PCGGraphEditorAppName, StandaloneDefaultLayout, /*bCreateDefaultStandaloneMenu=*/ true, /*bCreateDefaultToolbar=*/ true, InPCGGraph);
+
+	// Hook to map change / delete actor to refresh debug object selection list, to help prevent it going stale.
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditor.OnMapChanged().AddRaw(this, &FPCGEditor::OnMapChanged);
+	if (GEngine)
+	{
+		GEngine->OnLevelActorDeleted().AddRaw(this, &FPCGEditor::OnLevelActorDeleted);
+	}
 }
 
 UPCGEditorGraph* FPCGEditor::GetPCGEditorGraph()
@@ -470,7 +480,10 @@ void FPCGEditor::RegisterToolbar() const
 			const UPCGEditorMenuContext* Context = InSection.FindContext<UPCGEditorMenuContext>();
 			if (Context && Context->PCGEditor.IsValid())
 			{
-				InSection.AddEntry(FToolMenuEntry::InitWidget("SelectedDebugObjectWidget", SNew(SPCGEditorGraphDebugObjectWidget, Context->PCGEditor.Pin()), FText::GetEmpty()));	
+				InSection.AddEntry(FToolMenuEntry::InitWidget(
+					"SelectedDebugObjectWidget",
+					Context->PCGEditor.Pin()->DebugObjectWidget.ToSharedRef(),
+					FText::GetEmpty()));
 			}
 		}));
 
@@ -2186,6 +2199,15 @@ void FPCGEditor::OnClose()
 		PCGEditorGraph->OnClose();
 	}
 
+	if (FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+	{
+		LevelEditor->OnMapChanged().RemoveAll(this);
+	}
+	if (GEngine)
+	{
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
+	}
+
 	// Extra nodes are replicated on editor close, to be saved in the underlying PCGGraph
 	ReplicateExtraNodes();
 
@@ -2216,7 +2238,12 @@ TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
 	return SNew(SPCGEditorGraphNodePalette);
 }
 
-TSharedRef<SPCGEditorGraphDebugObjectTree> FPCGEditor::CreateDebugObjectWidget()
+TSharedRef<SPCGEditorGraphDebugObjectWidget> FPCGEditor::CreateDebugObjectWidget()
+{
+	return SNew(SPCGEditorGraphDebugObjectWidget, SharedThis(this));
+}
+
+TSharedRef<SPCGEditorGraphDebugObjectTree> FPCGEditor::CreateDebugObjectTreeWidget()
 {
 	return SNew(SPCGEditorGraphDebugObjectTree, SharedThis(this));
 }
@@ -2420,6 +2447,35 @@ UPCGSubsystem* FPCGEditor::GetSubsystem()
 	return UPCGSubsystem::GetInstance(World);
 }
 
+void FPCGEditor::OnMapChanged(UWorld* InWorld, EMapChangeType InMapChangedType)
+{
+	if (InMapChangedType != EMapChangeType::SaveMap)
+	{
+		if (DebugObjectTreeWidget.IsValid())
+		{
+			DebugObjectTreeWidget->RequestRefresh();
+		}
+		if (DebugObjectWidget.IsValid())
+		{
+			DebugObjectWidget->RefreshDebugObjects();
+		}
+	}
+}
+
+void FPCGEditor::OnLevelActorDeleted(AActor* InActor)
+{
+	if (DebugObjectTreeWidget.IsValid())
+	{
+		DebugObjectTreeWidget->RequestRefresh();
+	}
+
+	// Forward call as this makes an effort to retain the selection if the selected component has not been deleted.
+	if (DebugObjectWidget.IsValid())
+	{
+		DebugObjectWidget->OnLevelActorDeleted(InActor);
+	}
+}
+
 TSharedRef<SDockTab> FPCGEditor::SpawnTab_GraphEditor(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
@@ -2456,7 +2512,7 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_DebugObject(const FSpawnTabArgs& Args)
 		.Label(LOCTEXT("PCGDebugObjectTitle", "Debug Object"))
 		.TabColorScale(GetTabColorScale())
 		[
-			DebugObjectWidget.ToSharedRef()
+			DebugObjectTreeWidget.ToSharedRef()
 		];
 }
 

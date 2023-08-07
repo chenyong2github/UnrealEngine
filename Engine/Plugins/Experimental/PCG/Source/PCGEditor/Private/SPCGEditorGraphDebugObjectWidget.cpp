@@ -97,7 +97,7 @@ void SPCGEditorGraphDebugObjectWidget::Construct(const FArguments& InArgs, TShar
 	];
 }
 
-void SPCGEditorGraphDebugObjectWidget::OnComboBoxOpening()
+void SPCGEditorGraphDebugObjectWidget::RefreshDebugObjects()
 {
 	DebugObjects.Empty();
 	DebugObjectsComboBox->RefreshOptions();
@@ -164,6 +164,11 @@ void SPCGEditorGraphDebugObjectWidget::OnComboBoxOpening()
 			}
 		}
 	}
+}
+
+void SPCGEditorGraphDebugObjectWidget::OnComboBoxOpening()
+{
+	RefreshDebugObjects();
 }
 
 void SPCGEditorGraphDebugObjectWidget::OnSelectionChanged(TSharedPtr<FPCGEditorGraphDebugObjectInstance> NewSelection, ESelectInfo::Type SelectInfo) const
@@ -322,6 +327,61 @@ bool SPCGEditorGraphDebugObjectWidget::IsSetDebugObjectFromSelectionButtonEnable
 	}
 
 	return false;
+}
+
+void SPCGEditorGraphDebugObjectWidget::OnLevelActorDeleted(const AActor* InActor)
+{
+	// Iterate over all PCG components on the deleted actor and remove them from the debug objects list. If
+	// the currently-selected debug object is deleted, reset the selection to item 0.
+	if (!ensure(InActor))
+	{
+		return;
+	}
+
+	TInlineComponentArray<const UPCGComponent*, 2> PCGComponents;
+	InActor->GetComponents(PCGComponents);
+	if (PCGComponents.IsEmpty())
+	{
+		return;
+	}
+
+	const TSharedPtr<FPCGEditorGraphDebugObjectInstance> SelectedItem = DebugObjectsComboBox->GetSelectedItem();
+
+	bool bDebugObjectWasRemoved = false;
+	bool bSelectedDebugObjectWasRemoved = false;
+	for (const UPCGComponent* DeletedComponent : PCGComponents)
+	{
+		if (!DeletedComponent)
+		{
+			continue;
+		}
+
+		if (SelectedItem && SelectedItem->GetPCGComponent().Get() == DeletedComponent)
+		{
+			bSelectedDebugObjectWasRemoved = true;
+		}
+
+		// First item is always "No debug object selected" item, so decrement down to index 1.
+		for (int i = DebugObjects.Num() - 1; i >= 1; --i)
+		{
+			const UPCGComponent* DebugObjectComponent = DebugObjects[i]->GetPCGComponent().Get();
+			if (DebugObjectComponent == DeletedComponent)
+			{
+				DebugObjects.RemoveAt(i);
+				bDebugObjectWasRemoved = true;
+			}
+		}
+	}
+
+	if (bSelectedDebugObjectWasRemoved && ensure(DebugObjects.Num() > 0))
+	{
+		DebugObjectsComboBox->SetSelectedItem(DebugObjects[0]);
+	}
+
+	if (bDebugObjectWasRemoved)
+	{
+		DebugObjectsComboBox->RefreshOptions();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -17,6 +17,7 @@ class FUICommandList;
 class IDetailsView;
 class SGraphEditor;
 class SPCGEditorGraphAttributeListView;
+class SPCGEditorGraphDebugObjectWidget;
 class SPCGEditorGraphDebugObjectTree;
 class SPCGEditorGraphDeterminismListView;
 class SPCGEditorGraphFind;
@@ -226,8 +227,11 @@ private:
 	/** Create new palette widget */
 	TSharedRef<SPCGEditorGraphNodePalette> CreatePaletteWidget();
 
+	/** Create debug object combo box */
+	TSharedRef<SPCGEditorGraphDebugObjectWidget> CreateDebugObjectWidget();
+
 	/** Create new debug object tree widget */
-	TSharedRef<SPCGEditorGraphDebugObjectTree> CreateDebugObjectWidget();
+	TSharedRef<SPCGEditorGraphDebugObjectTree> CreateDebugObjectTreeWidget();
 
 	/** Create new find widget */
 	TSharedRef<SPCGEditorGraphFind> CreateFindWidget();
@@ -281,6 +285,9 @@ private:
 	/** Helper to get to the subsystem. */
 	static class UPCGSubsystem* GetSubsystem();
 
+	void OnMapChanged(UWorld* InWorld, EMapChangeType InMapChangedType);
+	void OnLevelActorDeleted(AActor* InActor);
+
 	TSharedRef<SDockTab> SpawnTab_GraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
@@ -294,7 +301,8 @@ private:
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<SPCGEditorGraphNodePalette> PaletteWidget;
-	TSharedPtr<SPCGEditorGraphDebugObjectTree> DebugObjectWidget;
+	TSharedPtr<SPCGEditorGraphDebugObjectWidget> DebugObjectWidget;
+	TSharedPtr<SPCGEditorGraphDebugObjectTree> DebugObjectTreeWidget;
 	TSharedPtr<SPCGEditorGraphFind> FindWidget;
 	TSharedPtr<SPCGEditorGraphAttributeListView> AttributesWidget;
 	TSharedPtr<SPCGEditorGraphDeterminismListView> DeterminismWidget;
