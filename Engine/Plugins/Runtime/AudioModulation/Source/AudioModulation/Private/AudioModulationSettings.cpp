@@ -37,7 +37,40 @@ void UAudioModulationSettings::RegisterParameters() const
 		}
 		else
 		{
-			UE_LOG(LogAudioModulation, Error, TEXT("Failed to load parameter at '%s': Missing asset or invalid type."), *Path.GetAssetName());
+			const FString& ParamName = Path.GetAssetName();
+			UE_LOG(LogAudioModulation, Error, TEXT("Failed to load parameter at '%s': Missing asset or invalid type."), *ParamName);
+
+			// Create a parameter procedurally instead. These parameters are all required by Audio Mixer Sources.
+			if (ParamName == "HPFCutoffFrequency")
+			{
+				Audio::FModulationParameter NewParam = USoundModulationParameterHPFFrequency::CreateDefaultParameter();
+				NewParam.ParameterName = "HPFCutoffFrequency";
+				Audio::RegisterModulationParameter(NewParam.ParameterName, MoveTemp(NewParam));
+				UE_LOG(LogAudioModulation, Error, TEXT("Created temporary HPFCutoffFrequency parameter to use instead."));
+			}
+			else if (ParamName == "LPFCutoffFrequency")
+			{
+				Audio::FModulationParameter NewParam = USoundModulationParameterLPFFrequency::CreateDefaultParameter();
+				NewParam.ParameterName = "LPFCutoffFrequency";
+				Audio::RegisterModulationParameter(NewParam.ParameterName, MoveTemp(NewParam));
+				UE_LOG(LogAudioModulation, Error, TEXT("Created temporary LPFCutoffFrequency parameter to use instead."));
+			}
+			else if (ParamName == "Pitch")
+			{
+				// The Pitch parameter is a specialized Bipolar parameter, so we have to give it extra data and change the unit display name
+				Audio::FModulationParameter NewParam = USoundModulationParameterBipolar::CreateDefaultParameter(24.0f);
+				NewParam.ParameterName = "Pitch";
+				Audio::RegisterModulationParameter(NewParam.ParameterName, MoveTemp(NewParam));
+				UE_LOG(LogAudioModulation, Error, TEXT("Created temporary Pitch parameter to use instead."));
+			}
+			else if (ParamName == "Volume")
+			{
+				// TODO: Similar to pitch, send -60 dB to the function
+				Audio::FModulationParameter NewParam = USoundModulationParameterVolume::CreateDefaultParameter(-60.0f);
+				NewParam.ParameterName = "Volume";
+				Audio::RegisterModulationParameter(NewParam.ParameterName, MoveTemp(NewParam));
+				UE_LOG(LogAudioModulation, Error, TEXT("Created temporary Volume parameter to use instead."));
+			}
 		}
 	}
 }

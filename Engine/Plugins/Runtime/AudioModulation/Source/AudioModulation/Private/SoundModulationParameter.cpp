@@ -105,6 +105,15 @@ Audio::FModulationMixFunction USoundModulationParameterHPFFrequency::GetMixFunct
 	};
 }
 
+Audio::FModulationParameter USoundModulationParameterHPFFrequency::CreateDefaultParameter()
+{
+	UClass* ThisClass = USoundModulationParameterHPFFrequency::StaticClass();
+	check(ThisClass);
+	USoundModulationParameterHPFFrequency* ClassDefault = ThisClass->GetDefaultObject<USoundModulationParameterHPFFrequency>();
+	check(ClassDefault);
+	return ClassDefault->CreateParameter();
+}
+
 USoundModulationParameterHPFFrequency::USoundModulationParameterHPFFrequency(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -121,6 +130,15 @@ Audio::FModulationMixFunction USoundModulationParameterLPFFrequency::GetMixFunct
 	{
 		InOutValueA = FMath::Min(InOutValueA, InValueB);
 	};
+}
+
+Audio::FModulationParameter USoundModulationParameterLPFFrequency::CreateDefaultParameter()
+{
+	UClass* ThisClass = USoundModulationParameterLPFFrequency::StaticClass();
+	check(ThisClass);
+	USoundModulationParameterLPFFrequency* ClassDefault = ThisClass->GetDefaultObject<USoundModulationParameterLPFFrequency>();
+	check(ClassDefault);
+	return ClassDefault->CreateParameter();
 }
 
 bool USoundModulationParameterScaled::RequiresUnitConversion() const
@@ -204,6 +222,25 @@ float USoundModulationParameterBipolar::GetUnitMin() const
 	return UnitRange * -0.5f;
 }
 
+Audio::FModulationParameter USoundModulationParameterBipolar::CreateDefaultParameter(float UnitRange)
+{
+	UClass* ThisClass = USoundModulationParameterBipolar::StaticClass();
+	check(ThisClass);
+	USoundModulationParameterBipolar* ClassDefault = ThisClass->GetDefaultObject<USoundModulationParameterBipolar>();
+	check(ClassDefault);
+	
+	// Cache the default value for Bipolar Range because we need to change it
+	const float DefaultRange = ClassDefault->UnitRange;
+	ClassDefault->UnitRange = UnitRange;
+	
+	Audio::FModulationParameter DefaultParam = ClassDefault->CreateParameter();
+	
+	// Set the default back to what it was before
+	ClassDefault->UnitRange = DefaultRange;
+
+	return DefaultParam;
+}
+
 bool USoundModulationParameterVolume::RequiresUnitConversion() const
 {
 	return true;
@@ -237,6 +274,25 @@ float USoundModulationParameterVolume::GetUnitMin() const
 float USoundModulationParameterVolume::GetUnitMax() const
 {
 	return 0.0f;
+}
+
+Audio::FModulationParameter USoundModulationParameterVolume::CreateDefaultParameter(float MinUnitVolume)
+{
+	UClass* ThisClass = USoundModulationParameterVolume::StaticClass();
+	check(ThisClass);
+	USoundModulationParameterVolume* ClassDefault = ThisClass->GetDefaultObject<USoundModulationParameterVolume>();
+	check(ClassDefault);
+
+	// Cache the default value for Bipolar Range because we need to change it
+	const float DefaultMinVolume = ClassDefault->MinVolume;
+	ClassDefault->MinVolume = MinUnitVolume;
+
+	Audio::FModulationParameter NewParam = ClassDefault->CreateParameter();
+
+	// Set the default back to what it was before
+	ClassDefault->MinVolume = DefaultMinVolume;
+
+	return NewParam;
 }
 
 namespace AudioModulation
