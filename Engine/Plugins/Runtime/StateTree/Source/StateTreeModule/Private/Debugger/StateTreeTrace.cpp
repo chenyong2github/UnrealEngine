@@ -69,6 +69,15 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, TaskEvent)
 	UE_TRACE_EVENT_FIELD(uint8, Status)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(StateTreeDebugger, EvaluatorEvent)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
+	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
+	UE_TRACE_EVENT_FIELD(uint16, NodeIndex)
+	UE_TRACE_EVENT_FIELD(uint8[], DataView)
+	UE_TRACE_EVENT_FIELD(uint8, EventType)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(StateTreeDebugger, TransitionEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
@@ -506,6 +515,26 @@ void OutputTaskEventTrace(
 		<< TaskEvent.DataView(Archive.GetData(), Archive.Num())
 		<< TaskEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceEventType>>(EventType))
 		<< TaskEvent.Status(static_cast<std::underlying_type_t<EStateTreeRunStatus>>(Status));
+}
+
+void OutputEvaluatorEventTrace(
+	const FStateTreeInstanceDebugId InstanceId,
+	const FStateTreeIndex16 EvaluatorIdx,
+	const FStateTreeDataView DataView,
+	const EStateTreeTraceEventType EventType)
+{
+	FBufferArchive Archive;
+	SerializeDataViewToArchive(Archive, DataView);
+
+	TraceBufferedEvents(InstanceId);
+
+	UE_TRACE_LOG(StateTreeDebugger, EvaluatorEvent, StateTreeDebugChannel)
+		<< EvaluatorEvent.Cycle(FPlatformTime::Cycles64())
+		<< EvaluatorEvent.InstanceId(InstanceId.Id)
+		<< EvaluatorEvent.InstanceSerial(InstanceId.SerialNumber)
+		<< EvaluatorEvent.NodeIndex(EvaluatorIdx.Get())
+		<< EvaluatorEvent.DataView(Archive.GetData(), Archive.Num())
+		<< EvaluatorEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceEventType>>(EventType));
 }
 
 void OutputTransitionEventTrace(

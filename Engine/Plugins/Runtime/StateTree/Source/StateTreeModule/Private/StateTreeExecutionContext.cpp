@@ -38,6 +38,7 @@
 	#define STATETREE_TRACE_LOG_EVENT(Format, ...)							TRACE_STATETREE_LOG_EVENT(GetInstanceDebugId(), Format, ##__VA_ARGS__)
 	#define STATETREE_TRACE_STATE_EVENT(StateHandle, EventType)				TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), StateHandle, EventType, EStateTreeStateSelectionBehavior::None);
 	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status)	TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), FStateTreeIndex16(Index), DataView, EventType, Status);
+	#define STATETREE_TRACE_EVALUATOR_EVENT(Index, DataView, EventType)		TRACE_STATETREE_EVALUATOR_EVENT(GetInstanceDebugId(), FStateTreeIndex16(Index), DataView, EventType);
 	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataViews, EventType)	TRACE_STATETREE_CONDITION_EVENT(GetInstanceDebugId(), FStateTreeIndex16(Index), DataView, EventType);	
 	#define STATETREE_TRACE_TRANSITION_EVENT(Source, EventType)				TRACE_STATETREE_TRANSITION_EVENT(GetInstanceDebugId(), Source, EventType);
 #else
@@ -49,6 +50,7 @@
 	#define STATETREE_TRACE_LOG_EVENT(Format, ...)
 	#define STATETREE_TRACE_STATE_EVENT(StateHandle, EventType)
 	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status)
+	#define STATETREE_TRACE_EVALUATOR_EVENT(Index, DataView, EventType)
 	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataView, EventType)
 	#define STATETREE_TRACE_TRANSITION_EVENT(Source, EventType)
 #endif // WITH_STATETREE_DEBUGGER
@@ -1067,6 +1069,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_Tick);
 			Eval.Tick(*this, DeltaTime);
+
+			STATETREE_TRACE_EVALUATOR_EVENT(EvalIndex, DataViews[Eval.DataViewIndex.Get()], EStateTreeTraceEventType::OnTicked);
 		}
 	}
 
@@ -1117,7 +1121,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 			}
 
 			STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView,
-				TaskResult != EStateTreeRunStatus::Running ? EStateTreeTraceEventType::OnTaskCompleted : EStateTreeTraceEventType::OnTaskTicked,
+				TaskResult != EStateTreeRunStatus::Running ? EStateTreeTraceEventType::OnTaskCompleted : EStateTreeTraceEventType::OnTicked,
 				TaskResult);
 
 			// If a global task succeeds or fails, it will stop the whole tree.
@@ -1164,6 +1168,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FS
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_TreeStart);
 			Eval.TreeStart(*this);
+
+			STATETREE_TRACE_EVALUATOR_EVENT(EvalIndex, DataViews[Eval.DataViewIndex.Get()], EStateTreeTraceEventType::OnTreeStarted);
 		}
 	}
 
@@ -1282,6 +1288,8 @@ void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const EStateTreeRu
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_TreeStop);
 			Eval.TreeStop(*this);
+
+			STATETREE_TRACE_EVALUATOR_EVENT(EvalIndex, DataViews[Eval.DataViewIndex.Get()], EStateTreeTraceEventType::OnTreeStopped);
 		}
 	}
 }
@@ -1373,7 +1381,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 			}
 
 			STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView,
-				TaskResult != EStateTreeRunStatus::Running ? EStateTreeTraceEventType::OnTaskCompleted : EStateTreeTraceEventType::OnTaskTicked,
+				TaskResult != EStateTreeRunStatus::Running ? EStateTreeTraceEventType::OnTaskCompleted : EStateTreeTraceEventType::OnTicked,
 				TaskResult);
 			
 			// TODO: Add more control over which states can control the failed/succeeded result.

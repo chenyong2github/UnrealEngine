@@ -235,8 +235,28 @@ FString FStateTreeTraceTaskEvent::GetValueString(const UStateTree& StateTree) co
 
 FString FStateTreeTraceTaskEvent::GetTypeString(const UStateTree& StateTree) const
 {
+	return FStateTreeTraceNodeEvent::GetTypeString(StateTree);
+}
+
+
+//----------------------------------------------------------------------//
+// FStateTreeTraceEvaluatorEvent
+//----------------------------------------------------------------------//
+FString FStateTreeTraceEvaluatorEvent::ToFullString(const UStateTree& StateTree) const
+{
+	return FStateTreeTraceNodeEvent::ToFullString(StateTree);
+}
+
+FString FStateTreeTraceEvaluatorEvent::GetValueString(const UStateTree& StateTree) const
+{
 	const FConstStructView NodeView = Index.IsValid() ? StateTree.GetNode(Index.Get()) : FConstStructView();
-	return FString::Printf(TEXT("%s"), NodeView.IsValid() ? *NodeView.GetScriptStruct()->GetName() : TEXT("Invalid Node"));
+	const FStateTreeNodeBase* Node = NodeView.GetPtr<const FStateTreeNodeBase>();
+	return FString::Printf(TEXT("%s"), Node != nullptr ? *Node->Name.ToString() : *LexToString(Index.Get()));
+}
+
+FString FStateTreeTraceEvaluatorEvent::GetTypeString(const UStateTree& StateTree) const
+{
+	return FStateTreeTraceNodeEvent::GetTypeString(StateTree);
 }
 
 

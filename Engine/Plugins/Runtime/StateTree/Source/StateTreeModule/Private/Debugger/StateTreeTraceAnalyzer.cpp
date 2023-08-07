@@ -25,6 +25,7 @@ void FStateTreeTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_LogMessage, "StateTreeDebugger", "LogEvent");
 	Builder.RouteEvent(RouteId_State, "StateTreeDebugger", "StateEvent");
 	Builder.RouteEvent(RouteId_Task, "StateTreeDebugger", "TaskEvent");
+	Builder.RouteEvent(RouteId_Evaluator, "StateTreeDebugger", "EvaluatorEvent");
 	Builder.RouteEvent(RouteId_Transition, "StateTreeDebugger", "TransitionEvent");
 	Builder.RouteEvent(RouteId_Condition, "StateTreeDebugger", "ConditionEvent");
 	Builder.RouteEvent(RouteId_ActiveStates, "StateTreeDebugger", "ActiveStatesEvent");
@@ -137,6 +138,23 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
 				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
 				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceTaskEvent>(), Event));
+			break;
+		}
+	case RouteId_Evaluator:
+		{
+			FString TypePath, DataAsText;
+			FMemoryReaderView Archive(EventData.GetArrayView<uint8>("DataView"));
+			Archive << TypePath;
+			Archive << DataAsText;
+
+			const FStateTreeTraceEvaluatorEvent Event(WorldTime,
+				FStateTreeIndex16(EventData.GetValue<uint16>("NodeIndex")),
+				EventData.GetValue<EStateTreeTraceEventType>("EventType"),
+				TypePath, DataAsText);
+
+			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
+				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceEvaluatorEvent>(), Event));
 			break;
 		}
 	case RouteId_Condition:

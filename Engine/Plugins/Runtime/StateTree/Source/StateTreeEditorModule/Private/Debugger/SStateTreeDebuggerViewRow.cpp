@@ -102,7 +102,7 @@ TSharedPtr<SWidget> SStateTreeDebuggerViewRow::GenerateEventWidget() const
 		{
 		case EStateTreeTraceEventType::OnEntered:
 		case EStateTreeTraceEventType::OnTaskCompleted:
-		case EStateTreeTraceEventType::OnTaskTicked:
+		case EStateTreeTraceEventType::OnTicked:
 			switch (TaskEvent->Status)
 			{
 			case EStateTreeRunStatus::Failed:		Image = StyleSet.GetBrush("StateTreeEditor.Debugger.Task.Failed");		break;
@@ -168,6 +168,7 @@ FText SStateTreeDebuggerViewRow::GetEventDescription() const
 			// Some types have some custom representations so we want to use a more minimal description.
 			if (Item->Event.IsType<FStateTreeTraceStateEvent>()
 				|| Item->Event.IsType<FStateTreeTraceTaskEvent>()
+				|| Item->Event.IsType<FStateTreeTraceEvaluatorEvent>()
 				|| Item->Event.IsType<FStateTreeTracePropertyEvent>()
 				|| Item->Event.IsType<FStateTreeTraceConditionEvent>()
 				|| Item->Event.IsType<FStateTreeTraceLogEvent>())

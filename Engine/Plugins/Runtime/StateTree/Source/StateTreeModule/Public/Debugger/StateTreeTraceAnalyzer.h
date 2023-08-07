@@ -27,6 +27,7 @@ private:
 		RouteId_LogMessage,
 		RouteId_State,
 		RouteId_Task,
+		RouteId_Evaluator,
 		RouteId_Transition,
 		RouteId_Condition,
 		RouteId_ActiveStates
