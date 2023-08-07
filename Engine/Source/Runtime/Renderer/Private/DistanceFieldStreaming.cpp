@@ -353,7 +353,7 @@ public:
 		const uint32 BrickDataNumBytesPerElement = GPixelFormats[DistanceField::DistanceFieldFormat].BlockBytes;
 
 		if (BrickUploadDataBuffer.NumBytes < NumBrickDataElements * BrickDataNumBytesPerElement 
-			|| (BrickUploadDataBuffer.NumBytes > NumBrickDataElements * BrickDataNumBytesPerElement && BrickUploadDataBuffer.NumBytes > 32 * 1024 * 1024))
+			|| BrickUploadDataBuffer.NumBytes > 2 * NumBrickDataElements * BrickDataNumBytesPerElement)
 		{
 			BrickUploadDataBuffer.Initialize(RHICmdList, TEXT("DistanceFields.BrickUploadDataBuffer"), BrickDataNumBytesPerElement, NumBrickDataElements, DistanceField::DistanceFieldFormat, BUF_Volatile);
 		}
