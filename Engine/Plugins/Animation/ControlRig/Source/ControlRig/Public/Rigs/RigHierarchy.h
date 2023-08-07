@@ -4385,6 +4385,7 @@ private:
 
 	void QueueNotification(ERigHierarchyNotification InNotification, const FRigBaseElement* InElement);
 	void SendQueuedNotifications();
+	void Reset_Impl(bool bResetElements);
 	
 	friend class URigHierarchyController;
 	friend class UControlRig;
