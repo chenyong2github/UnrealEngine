@@ -521,29 +521,6 @@ void FUVEditorToolkit::PostInitAssetEditor()
 			
 			TSharedRef<SVerticalBox> Container = SNew(SVerticalBox);
 
-			FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>());
-			MenuBuilder.BeginSection("Section_Gizmo", LOCTEXT("Section_Gizmo", "Gizmo"));
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("GizmoTransformPanelSubMenu", "Gizmo Transform Panel"), LOCTEXT("GizmoTransformPanelSubMenu_ToolTip", "Configure the Gizmo Transform Panel."),
-				FNewMenuDelegate::CreateLambda([UVModeToolkit](FMenuBuilder& SubMenuBuilder) {
-					UVModeToolkit->MakeGizmoNumericalUISubMenu(SubMenuBuilder);
-				}));
-
-			MenuBuilder.EndSection();
-
-
-			Container->AddSlot()
-			.AutoHeight()
-			.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
-			[
-				SNew(SBox)
-				.MinDesiredWidth(500)
-				[
-					MenuBuilder.MakeWidget()
-				]
-			];
-
 			Container->AddSlot()
 				.AutoHeight()
 				.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
@@ -602,6 +579,33 @@ void FUVEditorToolkit::PostInitAssetEditor()
 					UVModeToolkit->CreateDistortionVisualsSettingsWidget()
 				]
 				];
+
+			// TODO: We're moving this to the bottom because there's currently a bug with menu handling where mousing
+			// over this entry will break other menus in the overall display menu. 
+			// The bug causes premature menu closure, preventing settings from being applied to properties.
+
+			FMenuBuilder MenuBuilder(true, TSharedPtr<FUICommandList>(), TSharedPtr<FExtender>(), true);
+			MenuBuilder.BeginSection("Section_Gizmo", LOCTEXT("Section_Gizmo", "Gizmo"));
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("GizmoTransformPanelSubMenu", "Gizmo Transform Panel"), LOCTEXT("GizmoTransformPanelSubMenu_ToolTip", "Configure the Gizmo Transform Panel."),
+				FNewMenuDelegate::CreateLambda([UVModeToolkit](FMenuBuilder& SubMenuBuilder) {
+					UVModeToolkit->MakeGizmoNumericalUISubMenu(SubMenuBuilder);
+				}));
+
+			MenuBuilder.EndSection();
+
+
+			Container->AddSlot()
+			.AutoHeight()
+			.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+			[
+				SNew(SBox)
+				.MinDesiredWidth(500)
+				[
+					MenuBuilder.MakeWidget()
+				]
+			];
 
 			TSharedRef<SWidget> Widget = SNew(SBorder)
 				.HAlign(HAlign_Fill)
