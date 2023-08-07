@@ -49,6 +49,12 @@
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorView"
 
+namespace UE::Private::DMXControlConsoleEditorView
+{
+	static const FSlateIcon SendDMXIcon = FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), ("DMXControlConsole.PlayDMX"));
+	static const FSlateIcon StopSendingDMXIcon = FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), ("DMXControlConsole.StopPlayingDMX"));
+};
+
 SDMXControlConsoleEditorView::~SDMXControlConsoleEditorView()
 {
 	FGlobalTabmanager::Get()->OnActiveTabChanged_Unsubscribe(OnActiveTabChangedDelegateHandle);
@@ -315,20 +321,10 @@ void SDMXControlConsoleEditorView::RegisterCommands()
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().SendDMX,
-		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SendDMX),
-		FCanExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanSendDMX),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanSendDMX)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().StopDMX,
-		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::StopDMX),
-		FCanExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanStopDMX),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanStopDMX)
+		FDMXControlConsoleEditorCommands::Get().ToggleSendDMX,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ToggleSendDMX),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::IsSendingDMX)
 	);
 
 	CommandList->MapAction
@@ -397,21 +393,12 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	ToolbarBuilder.BeginSection("SendDMX");
 	{
 		ToolbarBuilder.AddToolBarButton(
-			FDMXControlConsoleEditorCommands::Get().SendDMX,
+			FDMXControlConsoleEditorCommands::Get().ToggleSendDMX,
 			NAME_None,
+			TAttribute<FText>::CreateSP(this, &SDMXControlConsoleEditorView::GetSendDMXButtonText),
 			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.PlayDMX"),
+			TAttribute<FSlateIcon>(this, &SDMXControlConsoleEditorView::GetSendDMXButtonIcon),
 			FName(TEXT("Send DMX"))
-		);
-
-		ToolbarBuilder.AddToolBarButton(
-			FDMXControlConsoleEditorCommands::Get().StopDMX,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
-			FName(TEXT("Stop Sending DMX"))
 		);
 	}
 	ToolbarBuilder.EndSection();
@@ -850,6 +837,11 @@ void SDMXControlConsoleEditorView::UpdateLayout()
 				Layout.ToSharedRef()
 			];
 	}
+
+	if (Layout.IsValid())
+	{
+		Layout->RequestRefresh();
+	}
 }
 
 void SDMXControlConsoleEditorView::UpdateFixturePatchVerticalBox()
@@ -1070,6 +1062,29 @@ bool SDMXControlConsoleEditorView::IsWidgetInTab(TSharedPtr<SDockTab> InDockTab,
 	}
 
 	return false;
+}
+
+FText SDMXControlConsoleEditorView::GetSendDMXButtonText() const
+{
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	if (const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
+	{
+		return ControlConsoleData->IsSendingDMX() ? FText::FromString(TEXT("Stop sending DMX")) : FText::FromString(TEXT("Send DMX"));
+	}
+
+	return FText::GetEmpty();
+}
+
+FSlateIcon SDMXControlConsoleEditorView::GetSendDMXButtonIcon() const
+{
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	if (const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
+	{
+		using namespace UE::Private::DMXControlConsoleEditorView;
+		return ControlConsoleData->IsSendingDMX() ? StopSendingDMXIcon : SendDMXIcon;
+	}
+
+	return FSlateIcon();
 }
 
 EVisibility SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility() const

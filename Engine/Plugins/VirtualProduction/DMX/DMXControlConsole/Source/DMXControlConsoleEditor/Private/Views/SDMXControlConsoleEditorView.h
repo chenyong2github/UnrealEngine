@@ -10,6 +10,7 @@
 enum class ECheckBoxState : uint8;
 enum class EDMXControlConsoleEditorViewMode : uint8;
 enum class EDMXControlConsoleLayoutMode : uint8;
+struct FSlateIcon;
 class FUICommandList;
 class IDetailsView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
@@ -151,6 +152,12 @@ private:
 
 	/** Searches this widget's parents to see if it's a child of InDockTab */
 	bool IsWidgetInTab(TSharedPtr<SDockTab> InDockTab, TSharedPtr<SWidget> InWidget) const;
+
+	/** Gets the text for the send dmx button */
+	FText GetSendDMXButtonText() const;
+
+	/** Gets the icon for the send dmx button */
+	FSlateIcon GetSendDMXButtonIcon() const;
 
 	/** Gets Details Views section visibility */
 	EVisibility GetDetailViewsSectionVisibility() const;

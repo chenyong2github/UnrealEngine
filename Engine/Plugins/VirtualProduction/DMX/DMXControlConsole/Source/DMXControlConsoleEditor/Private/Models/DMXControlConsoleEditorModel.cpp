@@ -71,21 +71,21 @@ void UDMXControlConsoleEditorModel::ToggleAutoSelectFilteredElements()
 	SaveConfig();
 }
 
-void UDMXControlConsoleEditorModel::SendDMX()
+void UDMXControlConsoleEditorModel::ToggleSendDMX()
 {
 	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
-	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't send DMX correctly.")))
+	if (!ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't send DMX correctly.")))
 	{
-		EditorConsoleData->StartSendingDMX();
+		return;
 	}
-}
 
-void UDMXControlConsoleEditorModel::StopDMX()
-{
-	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
-	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't stop DMX correctly.")))
+	if (EditorConsoleData->IsSendingDMX())
 	{
 		EditorConsoleData->StopSendingDMX();
+	}
+	else
+	{
+		EditorConsoleData->StartSendingDMX();
 	}
 }
 

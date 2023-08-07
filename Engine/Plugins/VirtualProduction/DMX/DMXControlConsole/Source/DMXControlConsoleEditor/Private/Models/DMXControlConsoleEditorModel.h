@@ -86,20 +86,11 @@ public:
 	/** Toggles auto-selection state for filtered Elements. */
 	void ToggleAutoSelectFilteredElements();
 
-	/** Sends DMX on the Control Console */
-	void SendDMX();
-
-	/** Stops sending DMX data from the Control Console */
-	void StopDMX();
+	/** Toggles sending DMX state in the Control Console */
+	void ToggleSendDMX();
 
 	/** Gets wheter the Control Console is sending DMX data or not */
 	bool IsSendingDMX() const;
-
-	/** True if DMX data sending can be played */
-	bool CanSendDMX() const { return !IsSendingDMX(); }
-
-	/** True if DMX data sending can be stopped */
-	bool CanStopDMX() const { return IsSendingDMX(); };
 
 	/** Removes all selected elements from DMX Control Console */
 	void RemoveAllSelectedElements();
