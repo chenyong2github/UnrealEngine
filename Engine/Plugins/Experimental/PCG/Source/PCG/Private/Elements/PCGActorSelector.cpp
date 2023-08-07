@@ -244,7 +244,14 @@ TArray<FPCGActorSelectionKey> FPCGActorSelectionKey::GenerateAllKeysForActor(con
 	}
 
 	Result.Reserve(InActor->Tags.Num() + 1);
-	Result.Emplace(InActor->GetClass());
+	// Register keys all the way up the chain
+	UClass* CurrentClass = InActor->GetClass();
+	while (CurrentClass && CurrentClass != AActor::StaticClass())
+	{
+		Result.Emplace(CurrentClass);
+		CurrentClass = CurrentClass->GetSuperClass();
+	}
+
 	for (FName Tag : InActor->Tags)
 	{
 		Result.Emplace(Tag);

@@ -131,8 +131,11 @@ private:
 	void TeardownLandscapeCallbacks();
 	void OnLandscapeChanged(ALandscapeProxy* InLandscape, const FLandscapeProxyComponentDataChangedParams& InChangeParams);
 	void OnLandscapeMoved(AActor* InActor);
+	void OnLandscapeAdded(AActor* Actor);
+	void OnLandscapeDeleted(AActor* Actor);
 	void CacheLayerNames(ALandscapeProxy* InLandscape);
 	void CacheLayerNames();
+	void RemoveComponentFromCache(const ALandscapeProxy* LandscapeProxy);
 #endif
 
 	TMap<TPair<FGuid, FIntPoint>, FPCGLandscapeCacheEntry*> CachedData;

@@ -1633,6 +1633,20 @@ bool UPCGComponent::IsActorTracked(AActor* InActor, bool& bOutIsCulled) const
 		return false;
 	}
 
+	// We should always track the owner of the component, without culling
+	if (GetOwner() == InActor)
+	{
+		bOutIsCulled = false;
+		return true;
+	}
+
+	// If we track the landscape using legacy methods and it is a landscape, it should be tracked as culled
+	if (InActor->IsA<ALandscapeProxy>() && ShouldTrackLandscape())
+	{
+		bOutIsCulled = true;
+		return true;
+	}
+
 	bool bFound = false;
 
 	for (const FPCGActorSelectionKey& Key : FPCGActorSelectionKey::GenerateAllKeysForActor(InActor))

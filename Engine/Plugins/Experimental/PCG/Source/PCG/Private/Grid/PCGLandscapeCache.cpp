@@ -53,6 +53,12 @@ namespace PCGLandscapeCache
 
 		return Result;
 	}
+
+	FIntPoint GetCoordinates(const ULandscapeComponent* LandscapeComponent)
+	{
+		check(LandscapeComponent && LandscapeComponent->ComponentSizeQuads != 0);
+		return FIntPoint(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
+	}
 }
 
 #if WITH_EDITOR
@@ -582,8 +588,7 @@ void UPCGLandscapeCache::PrimeCache()
 						continue;
 					}
 
-					FIntPoint Coordinate(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
-					TPair<FGuid, FIntPoint> ComponentKey(LandscapeGuid, Coordinate);
+					TPair<FGuid, FIntPoint> ComponentKey(LandscapeGuid, PCGLandscapeCache::GetCoordinates(LandscapeComponent));
 
 					if (!CachedData.Contains(ComponentKey))
 					{
@@ -757,10 +762,12 @@ void UPCGLandscapeCache::SetupLandscapeCallbacks()
 		Landscape->OnComponentDataChanged.AddUObject(this, &UPCGLandscapeCache::OnLandscapeChanged);
 	}
 
-	// Also track when the landscape is moved
+	// Also track when the landscape is moved, added, or deleted
 	if (GEngine)
 	{
 		GEngine->OnActorMoved().AddUObject(this, &UPCGLandscapeCache::OnLandscapeMoved);
+		GEngine->OnLevelActorAdded().AddUObject(this, &UPCGLandscapeCache::OnLandscapeAdded);
+		GEngine->OnLevelActorDeleted().AddUObject(this, &UPCGLandscapeCache::OnLandscapeDeleted);
 	}
 }
 
@@ -777,6 +784,8 @@ void UPCGLandscapeCache::TeardownLandscapeCallbacks()
 	if (GEngine)
 	{
 		GEngine->OnActorMoved().RemoveAll(this);
+		GEngine->OnLevelActorAdded().RemoveAll(this);
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
 	}
 }
 
@@ -794,8 +803,7 @@ void UPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* InLandscape, const 
 	{
 		if (LandscapeComponent)
 		{
-			FIntPoint Coordinate(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
-			TPair<FGuid, FIntPoint> ComponentKey(InLandscape->GetOriginalLandscapeGuid(), Coordinate);
+			const TPair<FGuid, FIntPoint> ComponentKey(InLandscape->GetOriginalLandscapeGuid(), PCGLandscapeCache::GetCoordinates(LandscapeComponent));
 
 			FPCGLandscapeCacheEntry* EntryToDelete = nullptr;
 
@@ -822,24 +830,39 @@ void UPCGLandscapeCache::OnLandscapeMoved(AActor* InActor)
 	CacheLock.WriteLock();
 
 	// Just remove these from the cache, they'll be added back on demand
-	Landscape->ForEachComponent<ULandscapeComponent>(/*bIncludeFromChildActors=*/false, [this, Landscape](const ULandscapeComponent* LandscapeComponent)
-	{
-		if (LandscapeComponent)
-		{
-			FIntPoint Coordinate(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
-			TPair<FGuid, FIntPoint> ComponentKey(Landscape->GetOriginalLandscapeGuid(), Coordinate);
-
-			if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
-			{
-				delete* FoundEntry;
-				CachedData.Remove(ComponentKey);
-			}
-		}
-	});
+	RemoveComponentFromCache(Landscape);
 
 	CacheLayerNames(Landscape);
 
 	CacheLock.WriteUnlock();
+}
+
+void UPCGLandscapeCache::OnLandscapeDeleted(AActor* Actor)
+{
+	ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Actor);
+	if (!LandscapeProxy || !Landscapes.Contains(LandscapeProxy))
+	{
+		return;
+	}
+
+	CacheLock.WriteLock();
+
+	RemoveComponentFromCache(LandscapeProxy);
+
+	Landscapes.Remove(LandscapeProxy);
+	LandscapeProxy->OnComponentDataChanged.RemoveAll(this);
+
+	CacheLock.WriteUnlock();
+}
+
+void UPCGLandscapeCache::OnLandscapeAdded(AActor* Actor)
+{
+	if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Actor))
+	{
+		Landscapes.Add(LandscapeProxy);
+		LandscapeProxy->OnComponentDataChanged.AddUObject(this, &UPCGLandscapeCache::OnLandscapeChanged);
+		// Note: Landscape Proxies have no components at this stage, so they will need to be added on demand
+	}
 }
 
 void UPCGLandscapeCache::CacheLayerNames()
@@ -853,6 +876,25 @@ void UPCGLandscapeCache::CacheLayerNames()
 			CacheLayerNames(Landscape.Get());
 		}
 	}
+}
+
+void UPCGLandscapeCache::RemoveComponentFromCache(const ALandscapeProxy* LandscapeProxy)
+{
+	check(LandscapeProxy);
+
+	LandscapeProxy->ForEachComponent<ULandscapeComponent>(/*bIncludeFromChildActors=*/false, [this, LandscapeProxy](const ULandscapeComponent* LandscapeComponent)
+	{
+		if (LandscapeComponent)
+		{
+			const TPair<FGuid, FIntPoint> ComponentKey(LandscapeProxy->GetOriginalLandscapeGuid(), PCGLandscapeCache::GetCoordinates(LandscapeComponent));
+
+			if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
+			{
+				CachedData.Remove(ComponentKey);
+				delete* FoundEntry;
+			}
+		}
+	});
 }
 
 void UPCGLandscapeCache::CacheLayerNames(ALandscapeProxy* InLandscape)
