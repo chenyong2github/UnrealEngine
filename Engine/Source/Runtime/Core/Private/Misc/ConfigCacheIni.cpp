@@ -694,7 +694,7 @@ static void WarnAboutKeyRemap(const FString& OldValue, const FString& NewValue, 
 	Arguments.Add(TEXT("NewValue"), FText::FromString(NewValue));
 	Arguments.Add(TEXT("Section"), FText::FromString(Section));
 	Arguments.Add(TEXT("File"), FText::FromString(File));
-	FText Msg = FText::Format(LOCTEXT("DeprecatedConfig", "Found a deprecated ini section name in {File}. Search for [{OldValue}] and replace with [{NewValue}]"), Arguments);
+	FText Msg = FText::Format(LOCTEXT("DeprecatedConfig", "Found a deprecated ini key name in {File}. Search for [{OldValue}] and replace with [{NewValue}]"), Arguments);
 	
 	FString Key = OldValue+Section;
 	if (!IsInGameThread())
@@ -3741,23 +3741,28 @@ static void InitializeConfigRemap()
 	// read in the single remap file
 	FConfigFile RemapFile;
 	FConfigContext Context = FConfigContext::ReadSingleIntoLocalFile(RemapFile);
-	Context.Load(*FPaths::Combine(FPaths::EngineDir(), TEXT("Config/ConfigRedirects.ini")));
 	
-	for (const TPair<FString, FConfigSection>& Section : RemapFile)
+	// read in engine and project ini files (these are not hierarchical, so it has to be done in two passes)
+	for (int Pass = 0; Pass < 2; Pass++)
 	{
-		if (Section.Key == TEXT("SectionNameRemap"))
+		Context.Load(*FPaths::Combine(Pass == 0 ? FPaths::EngineDir() : FPaths::ProjectDir(), TEXT("Config/ConfigRedirects.ini")));
+		
+		for (const TPair<FString, FConfigSection>& Section : RemapFile)
 		{
-			for (const TPair<FName, FConfigValue>& Line : Section.Value)
+			if (Section.Key == TEXT("SectionNameRemap"))
 			{
-				SectionRemap.Add(Line.Key.ToString(), Line.Value.GetSavedValue());
+				for (const TPair<FName, FConfigValue>& Line : Section.Value)
+				{
+					SectionRemap.Add(Line.Key.ToString(), Line.Value.GetSavedValue());
+				}
 			}
-		}
-		else
-		{
-			TMap<FString, FString>& KeyRemaps = KeyRemap.FindOrAdd(Section.Key);
-			for (const TPair<FName, FConfigValue>& Line : Section.Value)
+			else
 			{
-				KeyRemaps.Add(Line.Key.ToString(), Line.Value.GetSavedValue());
+				TMap<FString, FString>& KeyRemaps = KeyRemap.FindOrAdd(Section.Key);
+				for (const TPair<FName, FConfigValue>& Line : Section.Value)
+				{
+					KeyRemaps.Add(Line.Key.ToString(), Line.Value.GetSavedValue());
+				}
 			}
 		}
 	}
@@ -3774,10 +3779,6 @@ void FConfigCacheIni::InitializeConfigSystem()
 	
 	InitializeConfigRemap();
 	
-#if WITH_EDITOR
-	AsyncInitializeConfigForPlatforms();
-#endif
-
 #if PLATFORM_SUPPORTS_BINARYCONFIG && PRELOAD_BINARY_CONFIG
 	// attempt to load from staged binary config data
 	if (!FParse::Param(FCommandLine::Get(), TEXT("textconfig")) &&
@@ -3861,6 +3862,12 @@ void FConfigCacheIni::InitializeConfigSystem()
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;
+
+#if WITH_EDITOR
+	// this needs to be called after setting bIsReadyForUse, because it uses ProjectDir, and bIsReadyForUse can reset the 
+	// ProjectDir array while the async threads are using it and crash
+	AsyncInitializeConfigForPlatforms();
+#endif
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(ConfigReadyForUseBroadcast);
 	FCoreDelegates::TSConfigReadyForUse().Broadcast();
