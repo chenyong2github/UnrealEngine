@@ -3,20 +3,20 @@
 
 #include "PCGSettings.h"
 
-#include "PCGBranch.generated.h"
+#include "PCGBooleanSelect.generated.h"
 
 /**
- * Routes input data to one of two outputs,based on a boolean condition.
+ * Selects data from either input pin, based on a boolean condition.
  */
-UCLASS(BlueprintType, ClassGroup = (Procedural), meta=(Keywords = "if bool branch"))
-class UPCGBranchSettings : public UPCGSettings
+UCLASS(BlueprintType, ClassGroup = (Procedural), meta=(Keywords = "if bool select"))
+class UPCGBooleanSelectSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Branch")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Select")); }
 	virtual FText GetDefaultNodeTitle() const override;
 	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::ControlFlow; }
@@ -26,16 +26,17 @@ public:
 	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* Pin) const override;
 
 protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Settings, meta=(PCG_Overridable))
-	bool bOutputToB = false;
+	bool bUseInputB = false;
 };
 
-class FPCGBranchElement : public FSimplePCGElement
+class FPCGBooleanSelectElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
