@@ -40,24 +40,6 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 
 	const FCollectionClothConstFacade ClothFacade(ClothCollection);
 
-	// Cloth Render Patterns == Skeletal Mesh Sections
-	const int32 NumSections = ClothFacade.GetNumRenderPatterns();
-	const int32 NumLodMaterials = NumSections;
-	const TConstArrayView<FString> LodRenderMaterialPathName = ClothFacade.GetRenderMaterialPathName();
-
-	TArray<int32> LodMaterialMap;
-	LodMaterialMap.AddUninitialized(NumLodMaterials);
-
-	for (int32 LodMaterialIndex = 0; LodMaterialIndex < NumLodMaterials; ++LodMaterialIndex)
-	{
-		const FString& RenderMaterialPathName = LodRenderMaterialPathName[LodMaterialIndex];
-		const int32 SkeletalMaterialIndex = Materials.IndexOfByPredicate([&RenderMaterialPathName](const FSkeletalMaterial& SkeletalMaterial)
-			{
-				return SkeletalMaterial.MaterialInterface && SkeletalMaterial.MaterialInterface->GetPathName() == RenderMaterialPathName;
-			});
-		LodMaterialMap[LodMaterialIndex] = SkeletalMaterialIndex;
-	}
-
 	// Keep track of the active bone indices for this LOD model
 	TSet<FBoneIndexType> ActiveBoneIndices;
 	ActiveBoneIndices.Reserve(ClothAsset.RefSkeleton.GetNum());
@@ -91,6 +73,7 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	LODModel.MeshToImportVertexMap.Reserve(NumRenderVertices);
 
 	// Populate this LOD's sections and the LOD index buffer
+	const int32 NumSections = ClothFacade.GetNumRenderPatterns();  // Cloth Render Patterns == Skeletal Mesh Sections
 	LODModel.Sections.SetNum(NumSections);
 
 	int32 BaseIndex = 0;

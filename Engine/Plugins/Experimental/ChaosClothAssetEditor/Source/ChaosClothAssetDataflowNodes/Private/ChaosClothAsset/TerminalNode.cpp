@@ -79,17 +79,13 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 				{
 					const FString& RenderMaterialPathName = LodRenderMaterialPathName[LodMaterialIndex];
 
-					auto Predicate = [&RenderMaterialPathName](const FSkeletalMaterial& SkeletalMaterial)
+					if (UMaterialInterface* const Material = LoadObject<UMaterialInterface>(ClothAsset, *RenderMaterialPathName, nullptr, LOAD_None, nullptr))
 					{
-						return SkeletalMaterial.MaterialInterface && SkeletalMaterial.MaterialInterface->GetPathName() == RenderMaterialPathName;
-					};
-
-					if (!Materials.FindByPredicate(Predicate))
+						Materials.Emplace(Material, true, false, Material->GetFName());
+					}
+					else
 					{
-						if (UMaterialInterface* const Material = LoadObject<UMaterialInterface>(ClothAsset, *RenderMaterialPathName, nullptr, LOAD_None, nullptr))
-						{
-							Materials.Emplace(Material, true, false, Material->GetFName());
-						}
+						Materials.Emplace();
 					}
 				}
 
