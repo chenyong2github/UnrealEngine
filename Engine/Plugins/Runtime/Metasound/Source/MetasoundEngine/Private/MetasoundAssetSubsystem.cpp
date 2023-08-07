@@ -330,11 +330,6 @@ TSet<UMetaSoundAssetSubsystem::FAssetInfo> UMetaSoundAssetSubsystem::GetReferenc
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::GetReferencedAssetClasses);
 	using namespace Metasound::Frontend;
 
-	if (!bIsInitialAssetScanComplete)
-	{
-		UE_LOG(LogMetaSound, Warning, TEXT("Attempt to get registered dependent assets for %s before asset scan is complete may result in missed dependencies"), *InAssetBase.GetOwningAssetName());
-	}
-
 	TSet<FAssetInfo> OutAssetInfos;
 	const FMetasoundFrontendDocument& Document = InAssetBase.GetDocumentChecked();
 	for (const FMetasoundFrontendClass& Class : Document.Dependencies)
@@ -343,6 +338,37 @@ TSet<UMetaSoundAssetSubsystem::FAssetInfo> UMetaSoundAssetSubsystem::GetReferenc
 		if (const FSoftObjectPath* ObjectPath = PathMap.Find(Key))
 		{
 			OutAssetInfos.Add(FAssetInfo{Key, *ObjectPath});
+		}
+		else
+		{
+			const FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+			check(Registry);
+			const bool bIsRegistered = Registry->IsNodeRegistered(Key);
+
+			bool bReportFail = false;
+			if (bIsRegistered)
+			{
+				if (!Registry->IsNodeNative(Key))
+				{
+					bReportFail = true;
+				}
+			}
+			else
+			{
+				bReportFail = true;
+			}
+
+			if (bReportFail)
+			{
+				if (bIsInitialAssetScanComplete)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("MetaSound Node Class with registry key '%s' not registered when gathering referenced asset classes from '%s': Retrieving all asset classes may not be comprehensive."), *Key, *InAssetBase.GetOwningAssetName());
+				}
+				else
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Attempt to get registered dependent asset with key '%s' from MetaSound asset '%s' before asset scan has completed: Asset class cannot be provided"), *Key, *InAssetBase.GetOwningAssetName());
+				}
+			}
 		}
 	}
 	return MoveTemp(OutAssetInfos);
