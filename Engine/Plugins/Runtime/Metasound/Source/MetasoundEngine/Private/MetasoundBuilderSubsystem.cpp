@@ -1036,7 +1036,7 @@ bool UMetaSoundSourceBuilder::GetLiveUpdatesEnabled() const
 void UMetaSoundSourceBuilder::InitDelegates(Metasound::Frontend::FDocumentModifyDelegates& OutDocumentDelegates) const
 {
 	OutDocumentDelegates.EdgeDelegates.OnEdgeAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnEdgeAdded);
-	OutDocumentDelegates.EdgeDelegates.OnRemovingEdge.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingEdge);
+	OutDocumentDelegates.EdgeDelegates.OnRemoveSwappingEdge.AddUObject(this, &UMetaSoundSourceBuilder::OnRemoveSwappingEdge);
 
 	OutDocumentDelegates.InterfaceDelegates.OnInputAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnInputAdded);
 	OutDocumentDelegates.InterfaceDelegates.OnOutputAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnOutputAdded);
@@ -1045,7 +1045,7 @@ void UMetaSoundSourceBuilder::InitDelegates(Metasound::Frontend::FDocumentModify
 
 	OutDocumentDelegates.NodeDelegates.OnNodeAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnNodeAdded);
 	OutDocumentDelegates.NodeDelegates.OnNodeInputLiteralSet.AddUObject(this, &UMetaSoundSourceBuilder::OnNodeInputLiteralSet);
-	OutDocumentDelegates.NodeDelegates.OnRemovingNode.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingNode);
+	OutDocumentDelegates.NodeDelegates.OnRemoveSwappingNode.AddUObject(this, &UMetaSoundSourceBuilder::OnRemoveSwappingNode);
 	OutDocumentDelegates.NodeDelegates.OnRemovingNodeInputLiteral.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingNodeInputLiteral);
 }
 
@@ -1156,7 +1156,8 @@ void UMetaSoundSourceBuilder::OnNodeInputLiteralSet(int32 NodeIndex, int32 Verte
 	const FMetasoundFrontendNode& Node = GraphClass.Graph.Nodes[NodeIndex];
 	const FMetasoundFrontendVertex& Input = Node.Interface.Inputs[VertexIndex];
 
-	// Only send the literal down if not connected, as the graph core layer will disconnect.
+	// Only send the literal down if not connected, as the graph core layer
+	// will disconnect if a new literal is sent and edge already exists.
 	if (!Builder.IsNodeInputConnected(Node.GetID(), Input.VertexID))
 	{
 		ExecuteAuditionableTransaction([this, &Node, &Input, &LiteralIndex](FDynamicOperatorTransactor& Transactor)
@@ -1189,12 +1190,12 @@ void UMetaSoundSourceBuilder::OnOutputAdded(int32 OutputIndex) const
 	});
 }
 
-void UMetaSoundSourceBuilder::OnRemovingEdge(int32 EdgeIndex) const
+void UMetaSoundSourceBuilder::OnRemoveSwappingEdge(int32 SwapIndex, int32 LastIndex) const
 {
 	using namespace Metasound::DynamicGraph;
 
 	const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
-	const FMetasoundFrontendEdge& EdgeBeingRemoved = Doc.RootGraph.Graph.Edges[EdgeIndex];
+	const FMetasoundFrontendEdge& EdgeBeingRemoved = Doc.RootGraph.Graph.Edges[SwapIndex];
 	ExecuteAuditionableTransaction([this, EdgeBeingRemoved](FDynamicOperatorTransactor& Transactor)
 	{
 		using namespace Metasound;
@@ -1240,16 +1241,20 @@ void UMetaSoundSourceBuilder::OnRemovingInput(int32 InputIndex) const
 	});
 }
 
-void UMetaSoundSourceBuilder::OnRemovingNode(int32 NodeIndex) const
+void UMetaSoundSourceBuilder::OnRemoveSwappingNode(int32 SwapIndex, int32 LastIndex) const
 {
 	using namespace Metasound::DynamicGraph;
-	ExecuteAuditionableTransaction([this, NodeIndex](FDynamicOperatorTransactor& Transactor)
+
+	// Last index will just be re-added, so this aspect of the swap is ignored by transactor
+	// (i.e. no sense removing and re-adding the node that is swapped from the end as this
+	// would potentially disconnect that node in the runtime graph model).
+	ExecuteAuditionableTransaction([this, SwapIndex](FDynamicOperatorTransactor& Transactor)
 	{
 		using namespace Metasound::Frontend;
 
 		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
 		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
-		const FMetasoundFrontendNode& NodeBeingRemoved = GraphClass.Graph.Nodes[NodeIndex];
+		const FMetasoundFrontendNode& NodeBeingRemoved = GraphClass.Graph.Nodes[SwapIndex];
 		const FGuid& NodeID = NodeBeingRemoved.GetID();
 		Transactor.RemoveNode(NodeID);
 		return true;
@@ -1260,26 +1265,34 @@ void UMetaSoundSourceBuilder::OnRemovingNodeInputLiteral(int32 NodeIndex, int32 
 {
 	using namespace Metasound::DynamicGraph;
 
-	ExecuteAuditionableTransaction([this, &NodeIndex, &VertexIndex, &LiteralIndex](FDynamicOperatorTransactor& Transactor)
+	const FMetasoundFrontendGraphClass& GraphClass = Builder.GetDocument().RootGraph;
+	const FMetasoundFrontendNode& Node = GraphClass.Graph.Nodes[NodeIndex];
+	const FMetasoundFrontendVertex& Input = Node.Interface.Inputs[VertexIndex];
+
+	// Only send the literal down if not connected, as the graph core layer will disconnect.
+	if (!Builder.IsNodeInputConnected(Node.GetID(), Input.VertexID))
 	{
-		using namespace Metasound;
-		using namespace Metasound::Engine;
-		using namespace Metasound::Frontend;
-
-		const TArray<FMetasoundFrontendNode>& Nodes = Builder.GetDocument().RootGraph.Graph.Nodes;
-		const FMetasoundFrontendNode& Node = Nodes[NodeIndex];
-		const FMetasoundFrontendVertex& Input = Node.Interface.Inputs[VertexIndex];
-
-		const FMetasoundFrontendLiteral* InputDefault = Builder.GetNodeInputClassDefault(Node.GetID(), Input.VertexID);
-		if (ensureAlwaysMsgf(InputDefault, TEXT("Could not dynamically assign default literal from class definition upon removing input literal: document's dependency entry invalid and has no default assigned")))
+		ExecuteAuditionableTransaction([this, &NodeIndex, &VertexIndex, &LiteralIndex](FDynamicOperatorTransactor& Transactor)
 		{
-			TUniquePtr<INode> LiteralNode = BuilderSubsystemPrivate::CreateDynamicNodeFromFrontendLiteral(Input.TypeName, *InputDefault);
-			Transactor.SetValue(Node.GetID(), Input.Name, MoveTemp(LiteralNode));
-			return true;
-		}
+			using namespace Metasound;
+			using namespace Metasound::Engine;
+			using namespace Metasound::Frontend;
 
-		return false;
-	});
+			const TArray<FMetasoundFrontendNode>& Nodes = Builder.GetDocument().RootGraph.Graph.Nodes;
+			const FMetasoundFrontendNode& Node = Nodes[NodeIndex];
+			const FMetasoundFrontendVertex& Input = Node.Interface.Inputs[VertexIndex];
+
+			const FMetasoundFrontendLiteral* InputDefault = Builder.GetNodeInputClassDefault(Node.GetID(), Input.VertexID);
+			if (ensureAlwaysMsgf(InputDefault, TEXT("Could not dynamically assign default literal from class definition upon removing input '%s' literal: document's dependency entry invalid and has no default assigned"), *Input.Name.ToString()))
+			{
+				TUniquePtr<INode> LiteralNode = BuilderSubsystemPrivate::CreateDynamicNodeFromFrontendLiteral(Input.TypeName, *InputDefault);
+				Transactor.SetValue(Node.GetID(), Input.Name, MoveTemp(LiteralNode));
+				return true;
+			}
+
+			return false;
+		});
+	}
 }
 
 void UMetaSoundSourceBuilder::OnRemovingOutput(int32 OutputIndex) const

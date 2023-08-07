@@ -11,6 +11,63 @@
 
 namespace Metasound::Frontend
 {
+	namespace DocumentCachePrivate
+	{
+		// Modifies cache map of an attempted array index swap removal, where the
+		// given cache map is a map of keys to indices.
+		template <typename TMapType, typename TKeyType>
+		void RemoveSwapMapIndexChecked(const TKeyType& InSwapKey, const TKeyType& InLastKey, TMapType& OutMap)
+		{
+			// Remove swap item
+			int32 SwapIndex = INDEX_NONE;
+			const bool bRemoved = OutMap.RemoveAndCopyValue(InSwapKey, SwapIndex);
+			checkf(bRemoved, TEXT("Failed to remove/swap expected MetaSound Document Cache key/value pair"));
+
+			// Swap last item index if not the same entry
+			if (InLastKey != InSwapKey)
+			{
+				OutMap.FindChecked(InLastKey) = SwapIndex;
+			}
+		}
+
+		// Modifies cache map of an attempted array index swap removal, where the
+		// given cache map is a map of keys to arrays of indices.
+		template <typename TMapArrayType, typename TKeyType>
+		void RemoveSwapMapArrayIndexChecked(
+			const TKeyType& InSwapKey,
+			int32 SwapIndex,
+			const TKeyType& InLastKey,
+			int32 LastIndex,
+			TMapArrayType& OutMap
+		)
+		{
+			constexpr bool bAllowShrinking = false;
+
+			// Remove swap item
+			{
+				TArray<int32>& Indices = OutMap.FindChecked(InSwapKey);
+				Indices.RemoveAllSwap([&SwapIndex](const int32& Index)
+				{
+					return Index == SwapIndex;
+				}, bAllowShrinking);
+				if (Indices.IsEmpty())
+				{
+					OutMap.Remove(InSwapKey);
+				}
+			}
+
+			// Swap last item index if not the same entry
+			if (InSwapKey != InLastKey && SwapIndex != LastIndex)
+			{
+				TArray<int32>& Indices = OutMap.FindChecked(InLastKey);
+				Algo::ForEachIf(Indices,
+					[&LastIndex](const int32& Index) { return Index == LastIndex; },
+					[&SwapIndex](int32& Index) { Index = SwapIndex; }
+				);
+			}
+		}
+	}
+
 	FDocumentCache::FDocumentCache(const FMetasoundFrontendDocument& InDocument)
 		: Document(&InDocument)
 	{
@@ -34,12 +91,12 @@ namespace Metasound::Frontend
 			IDToIndex.Add(Class.ID, Index);
 		}
 
-		OutDelegates.OnDependencyAdded.Remove(OnDependencyAddedHandle);
-		OutDelegates.OnRemovingDependency.Remove(OnRemovingDependencyHandle);
+		OutDelegates.OnDependencyAdded.Remove(OnAddedHandle);
+		OutDelegates.OnRemoveSwappingDependency.Remove(OnRemoveSwappingHandle);
 		OutDelegates.OnRenamingDependencyClass.Remove(OnRenamingDependencyClassHandle);
 
-		OnDependencyAddedHandle = OutDelegates.OnDependencyAdded.AddSP(this, &FDocumentCache::OnDependencyAdded);
-		OnRemovingDependencyHandle = OutDelegates.OnRemovingDependency.AddSP(this, &FDocumentCache::OnRemovingDependency);
+		OnAddedHandle = OutDelegates.OnDependencyAdded.AddSP(this, &FDocumentCache::OnDependencyAdded);
+		OnRemoveSwappingHandle = OutDelegates.OnRemoveSwappingDependency.AddSP(this, &FDocumentCache::OnRemoveSwappingDependency);
 		OnRenamingDependencyClassHandle = OutDelegates.OnRenamingDependencyClass.AddSP(this, &FDocumentCache::OnRenamingDependencyClass);
 
 		if (!EdgeCache.IsValid())
@@ -127,14 +184,18 @@ namespace Metasound::Frontend
 		IDToIndex.Add(Dependency.ID, NewIndex);
 	}
 
-	void FDocumentCache::OnRemovingDependency(int32 IndexBeingRemoved)
+	void FDocumentCache::OnRemoveSwappingDependency(int32 SwapIndex, int32 LastIndex)
 	{
 		using namespace Metasound::Frontend;
 
-		const FMetasoundFrontendClass& DependencyBeingRemoved = GetDocument().Dependencies[IndexBeingRemoved];
-		const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(DependencyBeingRemoved.Metadata);
-		KeyToIndex.Remove(Key);
-		IDToIndex.Remove(DependencyBeingRemoved.ID);
+		const TArray<FMetasoundFrontendClass>& Dependencies = GetDocument().Dependencies;
+		const FMetasoundFrontendClass& SwapDependency = Dependencies[SwapIndex];
+		const FMetasoundFrontendClass& LastDependency = Dependencies[LastIndex];
+
+		const FNodeRegistryKey SwapKey = NodeRegistryKey::CreateKey(SwapDependency.Metadata);
+		const FNodeRegistryKey LastKey = NodeRegistryKey::CreateKey(LastDependency.Metadata);
+		DocumentCachePrivate::RemoveSwapMapIndexChecked(SwapKey, LastKey, KeyToIndex);
+		DocumentCachePrivate::RemoveSwapMapIndexChecked(SwapDependency.ID, LastDependency.ID, IDToIndex);
 	}
 
 	void FDocumentCache::OnRenamingDependencyClass(const int32 IndexBeingRenamed, const FMetasoundFrontendClassName& NewName)
@@ -262,11 +323,11 @@ namespace Metasound::Frontend
 			ClassIDToNodeIndices.FindOrAdd(Node.ClassID).Add(Index);
 		}
 
-		OutDelegates.OnNodeAdded.Remove(OnNodeAddedHandle);
-		OnNodeAddedHandle = OutDelegates.OnNodeAdded.AddSP(this, &FDocumentGraphNodeCache::OnNodeAdded);
+		OutDelegates.OnNodeAdded.Remove(OnAddedHandle);
+		OnAddedHandle = OutDelegates.OnNodeAdded.AddSP(this, &FDocumentGraphNodeCache::OnNodeAdded);
 
-		OutDelegates.OnRemovingNode.Remove(OnRemovingNodeHandle);
-		OnRemovingNodeHandle = OutDelegates.OnRemovingNode.AddSP(this, &FDocumentGraphNodeCache::OnRemovingNode);
+		OutDelegates.OnRemoveSwappingNode.Remove(OnRemoveSwappingHandle);
+		OnRemoveSwappingHandle = OutDelegates.OnRemoveSwappingNode.AddSP(this, &FDocumentGraphNodeCache::OnRemoveSwappingNode);
 	}
 
 	bool FDocumentGraphNodeCache::ContainsNode(const FGuid& InNodeID) const
@@ -404,21 +465,17 @@ namespace Metasound::Frontend
 		ClassIDToNodeIndices.FindOrAdd(Node.ClassID).Add(InNewIndex);
 	}
 
-	void FDocumentGraphNodeCache::OnRemovingNode(int32 IndexBeingRemoved)
+	void FDocumentGraphNodeCache::OnRemoveSwappingNode(int32 SwapIndex, int32 LastIndex)
 	{
 		using namespace Metasound::Frontend;
 
-		// If not found, transaction was missed
 		const FMetasoundFrontendDocument& Document = Parent->GetDocument();
-		const FMetasoundFrontendNode& NodeBeingRemoved = Document.RootGraph.Graph.Nodes[IndexBeingRemoved];
+		const TArray<FMetasoundFrontendNode>& Nodes = Document.RootGraph.Graph.Nodes;
+		const FMetasoundFrontendNode& SwapNode = Nodes[SwapIndex];
+		const FMetasoundFrontendNode& LastNode = Nodes[LastIndex];
 
-		IDToIndex.Remove(NodeBeingRemoved.GetID());
-		TArray<int32>& NodeIndices = ClassIDToNodeIndices.FindChecked(NodeBeingRemoved.ClassID);
-		NodeIndices.Remove(IndexBeingRemoved);
-		if (NodeIndices.IsEmpty())
-		{
-			ClassIDToNodeIndices.Remove(NodeBeingRemoved.ClassID);
-		}
+		DocumentCachePrivate::RemoveSwapMapArrayIndexChecked(SwapNode.ClassID, SwapIndex, LastNode.ClassID, LastIndex, ClassIDToNodeIndices);
+		DocumentCachePrivate::RemoveSwapMapIndexChecked(SwapNode.GetID(), LastNode.GetID(), IDToIndex);
 	}
 
 	FDocumentGraphEdgeCache::FDocumentGraphEdgeCache(TSharedRef<IDocumentCache> ParentCache)
@@ -442,8 +499,8 @@ namespace Metasound::Frontend
 		OutDelegates.OnEdgeAdded.Remove(OnAddedHandle);
 		OnAddedHandle = OutDelegates.OnEdgeAdded.AddSP(this, &FDocumentGraphEdgeCache::OnEdgeAdded);
 
-		OutDelegates.OnRemovingEdge.Remove(OnRemovedHandle);
-		OnRemovedHandle = OutDelegates.OnRemovingEdge.AddSP(this, &FDocumentGraphEdgeCache::OnRemovingEdge);
+		OutDelegates.OnRemoveSwappingEdge.Remove(OnRemoveSwappingHandle);
+		OnRemoveSwappingHandle = OutDelegates.OnRemoveSwappingEdge.AddSP(this, &FDocumentGraphEdgeCache::OnRemoveSwappingEdge);
 	}
 
 	bool FDocumentGraphEdgeCache::ContainsEdge(const FMetasoundFrontendEdge& InEdge) const
@@ -509,17 +566,14 @@ namespace Metasound::Frontend
 		OutputToEdgeIndices.FindOrAdd(NewEdge.GetFromVertexHandle()).Add(InNewIndex);
 	}
 
-	void FDocumentGraphEdgeCache::OnRemovingEdge(int32 IndexToRemove)
+	void FDocumentGraphEdgeCache::OnRemoveSwappingEdge(int32 SwapIndex, int32 LastIndex)
 	{
 		const FMetasoundFrontendDocument& Document = Parent->GetDocument();
-		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
-		const FMetasoundFrontendEdge& EdgeToRemove = Graph.Edges[IndexToRemove];
-		InputToEdgeIndex.Remove(EdgeToRemove.GetToVertexHandle());
-		TArray<int32>& Indices = OutputToEdgeIndices.FindChecked(EdgeToRemove.GetFromVertexHandle());
-		Indices.RemoveAllSwap([&IndexToRemove](const int32& Index) { return Index == IndexToRemove; }, false /* bAllowShrinking */);
-		if (Indices.IsEmpty())
-		{
-			OutputToEdgeIndices.Remove(EdgeToRemove.GetFromVertexHandle());
-		}
+		const TArray<FMetasoundFrontendEdge>& Edges = Document.RootGraph.Graph.Edges;
+
+		const FMetasoundFrontendEdge& SwapEdge = Edges[SwapIndex];
+		const FMetasoundFrontendEdge& LastEdge = Edges[LastIndex];
+		DocumentCachePrivate::RemoveSwapMapIndexChecked(SwapEdge.GetToVertexHandle(), LastEdge.GetToVertexHandle(), InputToEdgeIndex);
+		DocumentCachePrivate::RemoveSwapMapArrayIndexChecked(SwapEdge.GetFromVertexHandle(), SwapIndex, LastEdge.GetFromVertexHandle(), LastIndex, OutputToEdgeIndices);
 	}
 } // namespace Metasound::Frontend

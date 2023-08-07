@@ -334,6 +334,33 @@ bool FAudioComponentRemoveFromRootLatentCommand::Update()
 	return false;
 }
 
+DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FMetaSoundSourceBuilderRemoveNodesLatentCommand, FAutomationTestBase&, Test, UMetaSoundSourceBuilder*, Builder, FMetaSoundNodeHandle, Node);
+
+bool FMetaSoundSourceBuilderRemoveNodesLatentCommand::Update()
+{
+	if (Builder)
+	{
+		EMetaSoundBuilderResult Result;
+		Builder->RemoveNode(Node, Result);
+		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, "Failed to remove node from MetaSound graph");
+	}
+
+	return true;
+}
+
+DEFINE_LATENT_AUTOMATION_COMMAND_FOUR_PARAMETER(FMetaSoundSourceBuilderConnectNodesLatentCommand, FAutomationTestBase&, Test, UMetaSoundSourceBuilder*, Builder, FMetaSoundBuilderNodeOutputHandle, Output, FMetaSoundBuilderNodeInputHandle, Input);
+
+bool FMetaSoundSourceBuilderConnectNodesLatentCommand::Update()
+{
+	if (Builder)
+	{
+		EMetaSoundBuilderResult Result;
+		Builder->ConnectNodes(Output, Input, Result);
+		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to connect MetaSound nodes"));
+	}
+
+	return true;
+}
 
 // This test creates a MetaSound from the legacy controller document editing system and attempts to play it directly.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMetasoundSourceTest, "Audio.Metasound.PlayMetasoundSource", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -565,6 +592,87 @@ bool FAudioMetasoundSourceBuilderMutateInterface::RunTest(const FString& Paramet
 
 	bIsDeclared = Builder.InterfaceIsDeclared(AttenuationInterface::Name);
 	AddErrorIfFalse(!bIsDeclared, "'Attenuation' Interface removed but remains member of declaration list on MetaSound asset.");
+
+	return true;
+}
+
+// This test creates a MetaSound source from a SourceBuilder, then adds and connects saw oscillator nodes setting their input freq to a new chromatic tone which cascades up, and finally removes all of the added nodes.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMetasoundSourceBuilderAddRemoveNodes, "Audio.Metasound.AddRemoveNodes", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FAudioMetasoundSourceBuilderAddRemoveNodes::RunTest(const FString& Parameters)
+{
+	using namespace Audio;
+	using namespace EngineTestMetaSoundPatchBuilderPrivate;
+	using namespace EngineTestMetaSoundSourcePrivate;
+	using namespace Metasound::Frontend;
+
+	constexpr EMetaSoundOutputAudioFormat OutputFormat = EMetaSoundOutputAudioFormat::Mono;
+	constexpr bool bIsOneShot = false;
+	FInitTestBuilderSourceOutput Output;
+	UMetaSoundSourceBuilder& Builder = CreateSourceBuilder(*this, EMetaSoundOutputAudioFormat::Mono, bIsOneShot, Output);
+	Builder.AddToRoot();
+
+	EMetaSoundBuilderResult Result;
+
+		if (UAudioComponent* AudioComponent = CreateTestComponent(*this))
+		{
+			constexpr bool bEnableLiveUpdate = true;
+			ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderAuditionLatentCommand(&Builder, AudioComponent, bEnableLiveUpdate));
+
+			const FName OscType = "Sine";
+			const TArray<float> ChromaticFreqs
+			{
+				293.66,
+				311.13,
+				329.63,
+				349.23,
+				369.99,
+				392.00,
+				415.30,
+				440.00
+			};
+
+		TArray<FMetaSoundNodeHandle> GenNodes;
+		for (int32 i = 0; i < 8; ++i)
+		{
+			FMetaSoundNodeHandle OscNode = Builder.AddNodeByClassName({ "UE", OscType, "Audio" }, 1, Result);
+			AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, "Failed to add osc node to graph");
+
+			if (Result == EMetaSoundBuilderResult::Succeeded)
+			{
+				GenNodes.Add(MoveTemp(OscNode));
+			}
+		}
+
+		for (int32 i = 0; i < GenNodes.Num(); ++i)
+		{
+			FMetaSoundNodeHandle& OscNode = GenNodes[i];
+			EMetaSoundBuilderResult ConnectResult;
+			const FMetaSoundBuilderNodeOutputHandle OscNodeAudioOutput = Builder.FindNodeOutputByName(OscNode, "Audio", ConnectResult);
+			AddErrorIfFalse(ConnectResult == EMetaSoundBuilderResult::Succeeded && OscNodeAudioOutput.IsSet(), TEXT("Failed to find oscillator node output 'Audio'"));
+
+			FMetaSoundBuilderNodeInputHandle InputHandle = Builder.FindNodeInputByName(OscNode, "Frequency", ConnectResult);
+			AddErrorIfFalse(ConnectResult == EMetaSoundBuilderResult::Succeeded && InputHandle.IsSet(), TEXT("Failed to find oscillator node input 'Frequency'"));
+
+			FMetasoundFrontendLiteral Literal;
+			Literal.Set(ChromaticFreqs[i]);
+			Builder.SetNodeInputDefault(InputHandle, Literal, ConnectResult);
+			AddErrorIfFalse(ConnectResult == EMetaSoundBuilderResult::Succeeded && OscNodeAudioOutput.IsSet(), TEXT("Failed to find oscillator node output 'Audio'"));
+
+			Builder.FindGraphOutputNode(SourceOneShotInterface::Outputs::OnFinished, Result);
+			AddErrorIfFalse(Result == EMetaSoundBuilderResult::Failed, "Failed to remove 'OnFinished' output to MetaSound using RemoveInterface Builder API call");
+
+			ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderConnectNodesLatentCommand(*this, &Builder, OscNodeAudioOutput, Output.AudioOutNodeInputs.Last()));
+			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.125f));
+			ADD_LATENT_AUTOMATION_COMMAND(FMetaSoundSourceBuilderRemoveNodesLatentCommand(*this, &Builder, GenNodes[i]));
+			ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.125f));
+		}
+
+		ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(1.f));
+		ADD_LATENT_AUTOMATION_COMMAND(FAudioComponentStopLatentCommand(AudioComponent));
+		ADD_LATENT_AUTOMATION_COMMAND(FEngineWaitLatentCommand(0.1f));
+		ADD_LATENT_AUTOMATION_COMMAND(FBuilderRemoveFromRootLatentCommand(&Builder));
+		ADD_LATENT_AUTOMATION_COMMAND(FAudioComponentRemoveFromRootLatentCommand(AudioComponent));
+	}
 
 	return true;
 }

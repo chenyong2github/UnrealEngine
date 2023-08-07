@@ -516,9 +516,9 @@ private:
 	void OnNodeAdded(int32 NodeIndex) const;
 	void OnNodeInputLiteralSet(int32 NodeIndex, int32 VertexIndex, int32 LiteralIndex) const;
 	void OnOutputAdded(int32 OutputIndex) const;
-	void OnRemovingEdge(int32 EdgeIndex) const;
+	void OnRemoveSwappingEdge(int32 SwapIndex, int32 LastIndex) const;
 	void OnRemovingInput(int32 InputIndex) const;
-	void OnRemovingNode(int32 NodeIndex) const;
+	void OnRemoveSwappingNode(int32 SwapIndex, int32 LastIndex) const;
 	void OnRemovingNodeInputLiteral(int32 NodeIndex, int32 VertexIndex, int32 LiteralIndex) const;
 	void OnRemovingOutput(int32 OutputIndex) const;
 

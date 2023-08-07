@@ -37,7 +37,7 @@ namespace Metasound::Frontend
 
 	private:
 		void OnEdgeAdded(int32 InNewIndex);
-		void OnRemovingEdge(int32 IndexBeingRemoved);
+		void OnRemoveSwappingEdge(int32 SwapIndex, int32 LastIndex);
 
 		// Cache of outputs NodeId/VertexId pairs to associated edge indices
 		TMap<FMetasoundFrontendVertexHandle, TArray<int32>> OutputToEdgeIndices;
@@ -48,7 +48,7 @@ namespace Metasound::Frontend
 		TSharedPtr<IDocumentCache> Parent;
 
 		FDelegateHandle OnAddedHandle;
-		FDelegateHandle OnRemovedHandle;
+		FDelegateHandle OnRemoveSwappingHandle;
 	};
 
 
@@ -79,7 +79,7 @@ namespace Metasound::Frontend
 
 	private:
 		void OnNodeAdded(int32 NewIndex);
-		void OnRemovingNode(int32 IndexBeingRemoved);
+		void OnRemoveSwappingNode(int32 IndexBeingRemoved, int32 LastIndex);
 
 		// Cache of NodeId to array index of node
 		TSortedMap<FGuid, int32> IDToIndex;
@@ -89,8 +89,8 @@ namespace Metasound::Frontend
 
 		TSharedPtr<IDocumentCache> Parent;
 
-		FDelegateHandle OnNodeAddedHandle;
-		FDelegateHandle OnRemovingNodeHandle;
+		FDelegateHandle OnAddedHandle;
+		FDelegateHandle OnRemoveSwappingHandle;
 	};
 
 
@@ -151,7 +151,7 @@ namespace Metasound::Frontend
 
 	private:
 		void OnDependencyAdded(int32 InNewIndex);
-		void OnRemovingDependency(int32 IndexBeingRemoved);
+		void OnRemoveSwappingDependency(int32 SwapIndex, int32 LastIndex);
 		void OnRenamingDependencyClass(const int32 IndexBeingRenamed, const FMetasoundFrontendClassName& NewName);
 
 		// Cache of dependency (Class) ID to corresponding class dependency index
@@ -164,8 +164,8 @@ namespace Metasound::Frontend
 		TSharedPtr<FDocumentGraphNodeCache> NodeCache;
 		TSharedPtr<FDocumentGraphInterfaceCache> InterfaceCache;
 
-		FDelegateHandle OnDependencyAddedHandle;
-		FDelegateHandle OnRemovingDependencyHandle;
+		FDelegateHandle OnAddedHandle;
+		FDelegateHandle OnRemoveSwappingHandle;
 		FDelegateHandle OnRenamingDependencyClassHandle;
 
 		const FMetasoundFrontendDocument* Document = nullptr;

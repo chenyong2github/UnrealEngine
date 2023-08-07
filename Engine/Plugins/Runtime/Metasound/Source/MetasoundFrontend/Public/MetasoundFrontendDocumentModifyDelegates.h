@@ -8,6 +8,7 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetaSoundFrontendDocumentMutateArray, int32 /* Index */);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetaSoundFrontendDocumentMutateInterfaceArray, const FMetasoundFrontendInterface& /* Interface */);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMetaSoundFrontendDocumentRemoveSwappingArray, int32 /* Index */, int32 /* LastIndex */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMetaSoundFrontendDocumentRenameClass, const int32 /* Index */, const FMetasoundFrontendClassName& /* NewName */);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnMetaSoundFrontendDocumentMutateNodeInputLiteralArray, int32 /* NodeIndex */, int32 /* VertexIndex */, int32 /* LiteralIndex */);
 
@@ -29,7 +30,7 @@ namespace Metasound::Frontend
 	struct METASOUNDFRONTEND_API FNodeModifyDelegates
 	{
 		FOnMetaSoundFrontendDocumentMutateArray OnNodeAdded;
-		FOnMetaSoundFrontendDocumentMutateArray OnRemovingNode;
+		FOnMetaSoundFrontendDocumentRemoveSwappingArray OnRemoveSwappingNode;
 
 		FOnMetaSoundFrontendDocumentMutateNodeInputLiteralArray OnNodeInputLiteralSet;
 		FOnMetaSoundFrontendDocumentMutateNodeInputLiteralArray OnRemovingNodeInputLiteral;
@@ -38,13 +39,13 @@ namespace Metasound::Frontend
 	struct METASOUNDFRONTEND_API FEdgeModifyDelegates
 	{
 		FOnMetaSoundFrontendDocumentMutateArray OnEdgeAdded;
-		FOnMetaSoundFrontendDocumentMutateArray OnRemovingEdge;
+		FOnMetaSoundFrontendDocumentRemoveSwappingArray OnRemoveSwappingEdge;
 	};
 
 	struct METASOUNDFRONTEND_API FDocumentModifyDelegates : TSharedFromThis<FDocumentModifyDelegates>
 	{
 		FOnMetaSoundFrontendDocumentMutateArray OnDependencyAdded;
-		FOnMetaSoundFrontendDocumentMutateArray OnRemovingDependency;
+		FOnMetaSoundFrontendDocumentRemoveSwappingArray OnRemoveSwappingDependency;
 		FOnMetaSoundFrontendDocumentRenameClass OnRenamingDependencyClass;
 
 		FInterfaceModifyDelegates InterfaceDelegates;
