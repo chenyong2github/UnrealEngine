@@ -1012,6 +1012,14 @@ void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
 		if (Edge->IsDegenerated())
 		{
 			EdgeVerticesIndex.Init(ActiveEdge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel).GetMesh(), CuttingPolyline.Coordinates.Num());
+			if (OrientedEdge.Direction == Front)
+			{
+				EdgeVerticesIndex[0] = ActiveEdge->GetEndVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel).GetMesh();
+			}
+			else
+			{
+				EdgeVerticesIndex.Last() = ActiveEdge->GetEndVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel).GetMesh();
+			}
 		}
 		else if (Edge->IsVirtuallyMeshed())
 		{
@@ -1125,26 +1133,85 @@ void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
 
 void FGrid::GetMeshOfThinZone(const FThinZone2D& ThinZone)
 {
-	TFunction<void(const FThinZoneSide&, TArray<FPoint2D>&)> GetThinZoneSideMesh = [this](const FThinZoneSide& Side, TArray<FPoint2D>& ThinZoneSideMesh)
+	// ThinZones are identified during "ApplyCriteria". "ApplyCriteria" use the FCriteriaGrid, The EGridSpace::UniformScaled are not the same between FCriteriaGrid and FGrid
+	// This is the reason why, to get the ThinZone in the FGrid UniformScaled space, we need to get the mesh of the thinZone defined by the node ids, 
+	// And then, from this, we retrieve the thinZone points in Grid UniformScaled space.
+
+	// Return the mesh defined by the node index
+	TFunction<void(const FThinZoneSide&, TArray<int32>&)> GetThinZoneSideMesh = [this](const FThinZoneSide& Side, TArray<int32>& MeshIndices)
 	{
-		TArray<int32> MeshIndices;
-		FAddMeshNodeFunc AddMeshNode = [&Mesh = ThinZoneSideMesh, &MeshIndices](int32 NodeIndice, const FPoint2D& MeshNode2D, double MeshingTolerance, const FEdgeSegment& EdgeSegment, const FPairOfIndex& OppositeNodeIndices)
+		FAddMeshNodeFunc AddMeshNode = [&MeshIndices](int32 NodeIndice, const FPoint2D& MeshNode2D, double MeshingTolerance, const FEdgeSegment& EdgeSegment, const FPairOfIndex& OppositeNodeIndices)
 		{
-			if(MeshIndices.IsEmpty() || MeshIndices.Last() != NodeIndice)
+			if (MeshIndices.IsEmpty() || MeshIndices.Last() != NodeIndice)
 			{
 				MeshIndices.Add(NodeIndice);
-				Mesh.Emplace(MeshNode2D);
 			}
 		};
 
-		FReserveContainerFunc Reserve = [&Mesh = ThinZoneSideMesh, &MeshIndices](int32 MeshVertexCount)
+		FReserveContainerFunc Reserve = [&MeshIndices](int32 MeshVertexCount)
 		{
-			Mesh.Reserve(Mesh.Num() + MeshVertexCount);
-			MeshIndices.Reserve(Mesh.Num() + MeshVertexCount);
+			MeshIndices.Reserve(MeshIndices.Num() + MeshVertexCount);
 		};
-
 		const bool bWithTolerance = false;
 		Side.GetExistingMeshNodes(GetFace(), MeshModel, Reserve, AddMeshNode, bWithTolerance);
+	};
+
+	TFunction<bool(int32, int32&, int32&)> FindLoopAndNodeIndex = [&NodeIdsOfLoops = NodeIdsOfFaceLoops](int32 NodeId, int32& LoopIndex, int32& LoopNodeIndex)
+	{
+		bool bFind = false;
+		for (LoopIndex = 0; LoopIndex < NodeIdsOfLoops.Num(); ++LoopIndex)
+		{
+			TArray<int32>& NodeIdsOfLoop = NodeIdsOfLoops[LoopIndex];
+			for (LoopNodeIndex = 0; LoopNodeIndex < NodeIdsOfLoop.Num(); ++LoopNodeIndex)
+			{
+				if (NodeIdsOfLoop[LoopNodeIndex] == NodeId)
+				{
+					return true;
+				}
+			}
+		}
+		LoopIndex = -1;
+		LoopNodeIndex = -1;
+		return false;
+	};
+
+	TFunction<void(const TArray<int32>&, TArray<FPoint2D>&)> GetThinZoneMeshCoordinates = [&NodeIdsOfLoops = NodeIdsOfFaceLoops, &Loops2D = FaceLoops2D, &FindLoopAndNodeIndex](const TArray<int32>& ThinZoneNodeIds, TArray<FPoint2D>& ThinZonePoints)
+	{
+		ThinZonePoints.Reset(ThinZoneNodeIds.Num());
+
+		int32 LoopIndex = 0;
+		int32 LoopNodeIndex = 0;
+
+		for (int32 NodeId : ThinZoneNodeIds)
+		{
+			if (LoopIndex >= 0)
+			{
+				const int32 NextLoopNodeIndex = (LoopNodeIndex == NodeIdsOfLoops[LoopIndex].Num() - 1) ? 0 : LoopNodeIndex + 1;
+				if (NodeIdsOfLoops[LoopIndex][NextLoopNodeIndex] == NodeId)
+				{
+					LoopNodeIndex = NextLoopNodeIndex;
+				}
+				else
+				{
+					const int32 PrevLoopNodeIndex = LoopNodeIndex ? LoopNodeIndex - 1 : NodeIdsOfLoops[LoopIndex].Num() - 1;
+					if (NodeIdsOfLoops[LoopIndex][PrevLoopNodeIndex] == NodeId)
+					{
+						LoopNodeIndex = PrevLoopNodeIndex;
+					}
+					else
+					{
+						LoopIndex = -1;
+					}
+				}
+			}
+
+			if (LoopIndex < 0 && !FindLoopAndNodeIndex(NodeId, LoopIndex, LoopNodeIndex))
+			{
+				continue;
+			}
+
+			ThinZonePoints.Emplace(Loops2D[EGridSpace::UniformScaled][LoopIndex][LoopNodeIndex]);
+		}
 	};
 
 	TFunction<void(TArray<FPoint2D>&)> RemoveDuplicatedNode = [](TArray<FPoint2D>& ThinZoneMesh)
@@ -1175,17 +1242,39 @@ void FGrid::GetMeshOfThinZone(const FThinZone2D& ThinZone)
 	const bool FirstSideIsClosed = ThinZone.GetFirstSide().IsClosed();
 	const bool SecondSideIsClosed = ThinZone.GetSecondSide().IsClosed();
 
-	TArray<FPoint2D>* ThinZoneMesh = &FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
-	GetThinZoneSideMesh(ThinZone.GetFirstSide(), *ThinZoneMesh);
+	TArray<int32> ThinZoneNodeIds;
+	GetThinZoneSideMesh(ThinZone.GetFirstSide(), ThinZoneNodeIds);
+	const int32 FirstSideSize = ThinZoneNodeIds.Num();
+
+	if (FirstSideSize < 2)
+	{
+		return;
+	}
+
 	if (FirstSideIsClosed && SecondSideIsClosed)
 	{
-		RemoveDuplicatedNode(*ThinZoneMesh);
-		ThinZoneMesh = &FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
+		TArray<FPoint2D>& ThinZoneMesh = FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
+		GetThinZoneMeshCoordinates(ThinZoneNodeIds, ThinZoneMesh);
+		RemoveDuplicatedNode(ThinZoneMesh);
+		ThinZoneNodeIds.Reset();
 	}
-	GetThinZoneSideMesh(ThinZone.GetSecondSide(), *ThinZoneMesh);
-	RemoveDuplicatedNode(*ThinZoneMesh);
 
-	if (ThinZoneMesh->Num() < 3)
+	GetThinZoneSideMesh(ThinZone.GetSecondSide(), ThinZoneNodeIds);
+	const int32 SecondSideSize = (FirstSideIsClosed && SecondSideIsClosed) ? ThinZoneNodeIds.Num() : ThinZoneNodeIds.Num() - FirstSideSize;
+	if (SecondSideSize < 2)
+	{
+		if (FirstSideIsClosed && SecondSideIsClosed)
+		{
+			FaceLoops2D[EGridSpace::UniformScaled].Pop();
+		}
+		return;
+	}
+
+	TArray<FPoint2D>& ThinZoneMesh = FaceLoops2D[EGridSpace::UniformScaled].Emplace_GetRef();
+	GetThinZoneMeshCoordinates(ThinZoneNodeIds, ThinZoneMesh);
+	RemoveDuplicatedNode(ThinZoneMesh);
+
+	if (ThinZoneMesh.Num() < 4)
 	{
 		FaceLoops2D[EGridSpace::UniformScaled].Pop();
 	}

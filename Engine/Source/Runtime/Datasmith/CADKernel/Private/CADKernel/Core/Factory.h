@@ -12,11 +12,12 @@
 
 namespace UE::CADKernel
 {
-const int32 MaxSize = 256;
 
 template<class ElementType>
 class TFactory
 {
+	static const int32 MaxSize = 256;
+
 protected:
 	TDoubleLinkedList<TArray<ElementType>> StackOfEntitySet;
 	TArray<ElementType*> FreeEntityStack;

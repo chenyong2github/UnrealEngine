@@ -871,7 +871,10 @@ const FTopologicalEdge* FTopologicalEdge::GetPreMeshedTwin() const
 
 void FTopologicalEdge::AddImposedCuttingPointU(const double ImposedCuttingPointU, int32 OppositeNodeIndex, const double DeltaU)
 {
-	ImposedCuttingPointUs.Emplace(ImposedCuttingPointU, OppositeNodeIndex, DeltaU);
+	if(Boundary.Contains(ImposedCuttingPointU))
+	{
+		ImposedCuttingPointUs.Emplace(ImposedCuttingPointU, OppositeNodeIndex, DeltaU);
+	}
 }
 
 void FTopologicalEdge::AddTwinsCuttingPoint(double Coord, double DeltaU)
@@ -892,7 +895,7 @@ void FTopologicalEdge::TransferCuttingPointFromMeshedEdge(bool bOnlyWithOpposite
 {
 	const FTopologicalEdge* PreMeshedTwin = GetPreMeshedTwin();
 
-	if ((PreMeshedTwin == nullptr) || (PreMeshedTwin == this) /*|| (PreMeshedTwin->GetFace() == GetFace())*/ )
+	if ((PreMeshedTwin == nullptr) || (PreMeshedTwin == this))
 	{
 		return;
 	}
@@ -1348,7 +1351,6 @@ FTopologicalVertex* FTopologicalEdge::SplitAt(double SplittingCoordinate, const 
 	if (GetTwinEntityCount() > 1)
 	{
 		return nullptr;
-		// TODO
 	}
 
 	TSharedRef<FTopologicalVertex> MiddelVertex = FTopologicalVertex::Make(NewVertexCoordinate);

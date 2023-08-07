@@ -117,6 +117,11 @@ void FFaceAnalyzer::FindClosedSegments(Topo::FThinFaceContext& Context)
 
 void FFaceAnalyzer::Analyze(Topo::FThinFaceContext& Context)
 {
+	if (Context.LoopSegments.IsEmpty())
+	{
+		return;
+	}
+
 	const FTopologicalEdge* Edge = Context.LoopSegments[0]->GetEdge();
 	double MaxSquareDistance = 0;
 	double MedSquareDistance = 0;

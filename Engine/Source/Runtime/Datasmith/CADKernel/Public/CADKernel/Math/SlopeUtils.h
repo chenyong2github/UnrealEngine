@@ -11,19 +11,19 @@ namespace UE::CADKernel
 
 /**
  * "Slope" is a fast angle approximation.
- * 
+ *
  * This file propose all useful methods to use slope instead of angle.
- * 
- * The method "ComputeSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint) is the main method. 
+ *
+ * The method "ComputeSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint) is the main method.
  * It compute the slope between the input segment defined by two points and [0, u) axis.
  * The return value is a real in the interval [0, 8] for an angle in the interval [0, 2Pi]
- * 
+ *
  * Warning, it's only an approximation... The conversion is not linear but the error is small near the integer value of slope (0, 1, 2, 3, ...8)
  *
  * To compute an angle value between two segments, the call of acos (and asin for an oriented angle) is necessary while with this approximation, only a division is useful.
- * 
+ *
  * This approximation is very good when only comparison of angles is needed and more faster than acos and/or asin i.e. Slope approximation need only a division and few addition and test
- * 
+ *
  * [0 - 2Pi] is divide into 8 angular sector i.e. [0, Pi/4] = [0,1], [Pi/4, Pi/2] = [1,2], ...
  *
  * The value of the slope for an angle in [0, Pi/4] = tan(angle)
@@ -84,12 +84,12 @@ constexpr double TwoPiSlope = 8.;
  * ThirdPiSlope i.e. Pi/3 angle (60 deg)
  */
 constexpr double ThirdPiSlope = 1.422649730810374235490851219498;
-constexpr double SixtySlope = 1.422649730810374235490851219498;
+constexpr double SixtySlope   = 1.422649730810374235490851219498;
 
 /**
  * ThirdPiSlope i.e. Pi/4 angle (45 deg)
  */
-constexpr double QuaterPiSlope = 1;
+constexpr double QuaterPiSlope  = 1;
 constexpr double FortyFiveSlope = 0.57735026918962576450914878050196;
 
 /**
@@ -103,12 +103,12 @@ constexpr double ThirtySlope  = 0.57735026918962576450914878050196;
  */
 constexpr double ThreeQuaterPiSlope = 3;
                               
-constexpr double OneDegree  = 0.01745506492821758576512889521973;
-constexpr double TwoDegree  = 0.03492076949174773050040262577373;
-constexpr double FiveDegree = 0.08748866352592400522201866943496;
-constexpr double TenDegree = 0.17632698070846497347109038686862;
-constexpr double FifteenDegree = 0.26794919243112270647255365849413;
-constexpr double TwentyDegree = 0.36397023426620236135104788277683;
+constexpr double OneDegree        = 0.01745506492821758576512889521973;
+constexpr double TwoDegree        = 0.03492076949174773050040262577373;
+constexpr double FiveDegree       = 0.08748866352592400522201866943496;
+constexpr double TenDegree        = 0.17632698070846497347109038686862;
+constexpr double FifteenDegree    = 0.26794919243112270647255365849413;
+constexpr double TwentyDegree     = 0.36397023426620236135104788277683;
 constexpr double TwentyFiveDegree = 0.46630765815499859283000619479956;
 
 constexpr double Epsilon = 0.001;
@@ -207,13 +207,17 @@ inline double ComputeSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
 			{
 				Delta = 8. + DeltaV / DeltaU;
 			}
-			else
+			else if (fabs(DeltaV) > DOUBLE_SMALL_NUMBER)
 			{
 				Delta = 6. - DeltaU / DeltaV; // deltaU/deltaV <0
 			}
+			else
+			{
+				Delta = 8.;
+			}
 		}
 	}
-	else
+	else if (-DeltaU > DOUBLE_SMALL_NUMBER)
 	{
 		if (DeltaV > DOUBLE_SMALL_NUMBER)
 		{
@@ -232,10 +236,25 @@ inline double ComputeSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
 			{
 				Delta = 4. + DeltaV / DeltaU;
 			}
-			else
+			else if (fabs(DeltaV) > DOUBLE_SMALL_NUMBER)
 			{
 				Delta = 6. - DeltaU / DeltaV;
 			}
+			else
+			{
+				Delta = 4.;
+			}
+		}
+	}
+	else
+	{
+		if (DeltaV > 0)
+		{
+			Delta = 2.;
+		}
+		else
+		{
+			Delta = 6.;
 		}
 	}
 
@@ -409,7 +428,8 @@ inline bool ArePointsInsideSectorABC(const FPoint2D& PointA, const FPoint2D& Poi
 	double SlopWithNextBoundary = ComputeSlope(PointB, PointC);
 	double BoundaryDeltaSlope = ComputePositiveSlope(PointB, PointA, SlopWithNextBoundary);
 
-	return Algo::AllOf(Points, [&](const FPoint2D* PointP) {
+	return Algo::AllOf(Points, [&](const FPoint2D* PointP) 
+	{
 		double DeltaU = PointB.U - PointP->U;
 		double DeltaV = PointB.V - PointP->V;
 
@@ -424,7 +444,7 @@ inline bool ArePointsInsideSectorABC(const FPoint2D& PointA, const FPoint2D& Poi
 			return false;
 		}
 		return true;
-		});
+	});
 }
 
 inline FPoint2D SlopeToVector(const double Slope)

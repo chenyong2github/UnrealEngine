@@ -37,7 +37,7 @@ bool FCycleTriangulator::MeshCycle()
 	if (Grid.bDisplay)
 	{
 		Grid.DisplayIsoSegments(TEXT("Cycle"), EGridSpace::UniformScaled, Cycle);
-		Wait(CycleId == 60);
+		Wait(CycleId == 0);
 	}
 #endif
 
@@ -586,22 +586,28 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 			// if the segment exist, it has already been tested
 			{
 				const FIsoSegment* StartSegment = FirstSideStartNode->GetSegmentConnectedTo(Node);
-				if (!StartSegment && CycleIntersectionTool.DoesIntersect(FirstSideStartNode, Node))
+				if (!StartSegment)
 				{
-					if (ConfirmIntersection(FirstSideStartNode, Node, FirstSideEndNode, StartSegment))
+					if(const FIsoSegment* Intersection = CycleIntersectionTool.FindIntersectingSegment(FirstSideStartNode, Node))
 					{
-						continue;
+						if (ConfirmIntersection(FirstSideStartNode, Node, FirstSideEndNode, Intersection))
+						{
+							continue;
+						}
 					}
 				}
 			}
 
 			{
 				const FIsoSegment* EndSegment = FirstSideEndNode->GetSegmentConnectedTo(Node);
-				if (CycleIntersectionTool.DoesIntersect(FirstSideEndNode, Node))
+				if(!EndSegment)
 				{
-					if (ConfirmIntersection(FirstSideEndNode, Node, FirstSideStartNode, EndSegment))
+					if (const FIsoSegment* Intersection = CycleIntersectionTool.FindIntersectingSegment(FirstSideEndNode, Node))
 					{
-						continue;
+						if (ConfirmIntersection(FirstSideEndNode, Node, FirstSideStartNode, EndSegment))
+						{
+							continue;
+						}
 					}
 				}
 			}

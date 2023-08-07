@@ -193,6 +193,24 @@ FTopologicalVertex* SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEd
 		return &VertexToLink->GetLinkActiveEntity().Get();
 	}
 
+	TArray<FTopologicalVertex*> NewTwinVertices;
+	if (EdgeToSplit.GetTwinEntityCount() > 1)
+	{
+		TArray<FTopologicalEdge*> TwinEdges = EdgeToSplit.GetTwinEntities();
+		EdgeToSplit.UnlinkTwinEntities();
+		for (FTopologicalEdge* TwinEdge : TwinEdges)
+		{
+			if (TwinEdge != &EdgeToSplit)
+			{
+				FTopologicalVertex* NewVertex = SplitAndLink(StartVertex, EdgeToLink, *TwinEdge, SquareSewTolerance, SquareMinEdgeLength);
+				if (NewVertex)
+				{
+					NewTwinVertices.Add(NewVertex);
+				}
+			}
+		}
+	}
+
 	// JoinParallelEdges process all edges connected to startVertex (ConnectedEdges).
 	// Connected edges must remain compliant i.e. all edges of ConnectedEdges must be connected to StartVertex
 	// EdgeToSplit->SplitAt() must keep EdgeToSplit connected to StartVertex
@@ -207,10 +225,19 @@ FTopologicalVertex* SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEd
 
 	VertexToLink->Link(*NewVertex);
 	EdgeToLink.Link(EdgeToSplit);
+
+	if (NewTwinVertices.Num() > 0)
+	{
+		for (FTopologicalVertex* Vertex : NewTwinVertices)
+		{
+			NewVertex->Link(*Vertex);
+		}
+	}
+
 	return NewVertex;
 }
 
-FTopologicalVertex* StitchParallelEdgesFrom(FTopologicalVertex* Vertex, double SewTolerance, double MinEdgeLength)
+FTopologicalVertex* StitchParallelEdgesFrom(FTopologicalVertex* Vertex, double SewTolerance, double MinEdgeLength, bool bProhibitSewingEdgesOfSameFace)
 {
 	double SquareTolerance = FMath::Square(SewTolerance);
 	double SquareMinEdgeLength = FMath::Square(MinEdgeLength);
@@ -287,6 +314,27 @@ FTopologicalVertex* StitchParallelEdgesFrom(FTopologicalVertex* Vertex, double S
 				continue;
 			}
 
+			if(bProhibitSewingEdgesOfSameFace)
+			{
+				bool bVoidSelection = false;
+				for (FTopologicalEdge* FirstEdgeTwin : Edge->GetTwinEntities())
+				{
+					FTopologicalFace* FirstEdgeFace = FirstEdgeTwin->GetFace();
+					for (FTopologicalEdge* SecondEdgeTwin : SecondEdge->GetTwinEntities())
+					{
+						if (FirstEdgeFace == SecondEdgeTwin->GetFace())
+						{
+							bVoidSelection = true;
+							break;
+						}
+					}
+				}
+				if (bVoidSelection)
+				{
+					continue;
+				}
+			}
+
 			FPoint StartTangentEdge = Edge->GetTangentAt(*Vertex);
 			FPoint StartTangentOtherEdge = SecondEdge->GetTangentAt(*Vertex);
 
@@ -307,6 +355,7 @@ FTopologicalVertex* StitchParallelEdgesFrom(FTopologicalVertex* Vertex, double S
 					F3DDebugSession A(*FString::Printf(TEXT("SecondEdge %d"), SecondEdge->GetId()));
 					Display(*SecondEdge, EVisuProperty::RedCurve);
 				}
+				Wait();
 			}
 #endif
 
@@ -346,7 +395,7 @@ FTopologicalVertex* StitchParallelEdgesFrom(FTopologicalVertex* Vertex, double S
 	return nullptr;
 }
 
-void StitchParallelEdges(TArray<FTopologicalVertex*>& VerticesToProcess, double SewTolerance, double MinEdgeLength)
+void StitchParallelEdges(TArray<FTopologicalVertex*>& VerticesToProcess, double SewTolerance, double MinEdgeLength, bool bProhibitSewingEdgesOfSameFace)
 {
 	double SquareTolerance = FMath::Square(SewTolerance);
 	double SquareMinEdgeLength = FMath::Square(MinEdgeLength);
@@ -364,7 +413,7 @@ void StitchParallelEdges(TArray<FTopologicalVertex*>& VerticesToProcess, double 
 
 		while (Vertex)
 		{
-			Vertex = StitchParallelEdgesFrom(Vertex, SewTolerance, MinEdgeLength);
+			Vertex = StitchParallelEdgesFrom(Vertex, SewTolerance, MinEdgeLength, bProhibitSewingEdgesOfSameFace);
 		}
 	}
 
@@ -560,6 +609,18 @@ FTopomaker::FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& In
 	InitFaces();
 }
 
+FTopomaker::FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, const FTopomakerOptions& InOptions)
+	: Session(InSession)
+{
+	SetTolerance(InOptions);
+
+	Faces.Reserve(InFaces.Num());
+	for (const TSharedPtr<FTopologicalFace>& Face : InFaces)
+	{
+		Faces.Add(Face);
+	}
+}
+
 void FTopomaker::InitFaces()
 {
 	int32 FaceCount = 0;
@@ -609,7 +670,7 @@ void FTopomaker::Sew()
 	// advance case: two partially coincident edges connected at one extremity i.e. coincident along the shortest edge
 	BorderVertices.Reset();
 	GetBorderVertices(BorderVertices);
-	TopomakerTools::StitchParallelEdges(BorderVertices, SewTolerance, EdgeLengthTolerance);
+	TopomakerTools::StitchParallelEdges(BorderVertices, SewTolerance, EdgeLengthTolerance, /*bProhibitSewingEdgesOfSameFace*/ false);
 
 	const bool bForceJoining = SewOption::IsForceJoining(SewOptions);
 	if (bForceJoining)
@@ -619,28 +680,33 @@ void FTopomaker::Sew()
 		TopomakerTools::MergeCoincidentVertices(BorderVertices, SewToleranceToForceJoin);
 
 		CheckSelfConnectedEdge(EdgeLengthTolerance, BorderVertices);
+
+		// re process with new edges from MergeUnconnectedSuccessiveEdges and new merged vertices (if bForceJoining)
+		BorderVertices.Reset();
+		GetBorderVertices(BorderVertices);
+		TopomakerTools::MergeCoincidentEdges(BorderVertices, LargeEdgeLengthTolerance);
+
+		// advance case: two partially coincident edges connected at one extremity i.e. coincident along the shortest edge
+		BorderVertices.Reset();
+		GetBorderVertices(BorderVertices);
+		TopomakerTools::StitchParallelEdges(BorderVertices, SewToleranceToForceJoin, LargeEdgeLengthTolerance, /*bProhibitSewingEdgesOfSameFace*/ true);
 	}
-
-	// re process with new edges from MergeUnconnectedSuccessiveEdges and new merged vertices (if bForceJoining)
-	BorderVertices.Reset();
-	GetBorderVertices(BorderVertices);
-	TopomakerTools::MergeCoincidentEdges(BorderVertices, bForceJoining ? LargeEdgeLengthTolerance : EdgeLengthTolerance);
-
-	if (SewOption::IsRemoveThinFaces(SewOptions))
-	{
-		RemoveThinFaces();
-	}
-
-	// advance case: two partially coincident edges connected at one extremity i.e. coincident along the shortest edge
-	BorderVertices.Reset();
-	GetBorderVertices(BorderVertices);
-
-	TopomakerTools::MergeCoincidentEdges(BorderVertices, bForceJoining ? LargeEdgeLengthTolerance : EdgeLengthTolerance);
-	TopomakerTools::StitchParallelEdges(BorderVertices, bForceJoining ? SewToleranceToForceJoin : SewTolerance, bForceJoining ? LargeEdgeLengthTolerance : EdgeLengthTolerance);
 
 	if (SewOption::IsRemoveDuplicatedFaces(SewOptions))
 	{
 		RemoveDuplicatedFaces();
+	}
+
+	if (SewOption::IsRemoveThinFaces(SewOptions))
+	{
+		RemoveThinFaces();
+		// advance case: two partially coincident edges connected at one extremity i.e. coincident along the shortest edge
+		BorderVertices.Reset();
+		GetBorderVertices(BorderVertices);
+
+		TopomakerTools::MergeCoincidentEdges(BorderVertices, bForceJoining ? LargeEdgeLengthTolerance : EdgeLengthTolerance);
+		
+		TopomakerTools::StitchParallelEdges(BorderVertices, bForceJoining ? SewToleranceToForceJoin : SewTolerance, bForceJoining ? LargeEdgeLengthTolerance : EdgeLengthTolerance, /*bProhibitSewingEdgesOfSameFace*/ true);
 	}
 
 	ResetMarkersOfFaces();

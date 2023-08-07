@@ -618,20 +618,20 @@ void FLoopCleaner::FixLoopOrientation()
 	if (Orientation == EOrientation::Back)
 	{
 #ifdef DEBUG_LOOP_ORIENTATION
+		F3DDebugSession Q(Grid.bDisplay, TEXT("FixLoopOrientation"));
+		Grid.DisplayIsoNodes(TEXT("Nodes of loop Before orientation"), EGridSpace::UniformScaled, (const TArray<const FIsoNode*>&) NodesOfLoop, EVisuProperty::BluePoint);
 		Grid.DisplayIsoSegments(TEXT("Before orientation"), EGridSpace::UniformScaled, LoopSegments, true, true);
-		Wait(bDisplay);
+		Wait(false);
 #endif
 
 		SwapSubLoopOrientation(StartSegmentIndex, NextLoopFirstSegmentIndex);
 
 #ifdef DEBUG_LOOP_ORIENTATION
 		Grid.DisplayIsoSegments(TEXT("After orientation"), EGridSpace::UniformScaled, LoopSegments, true, true);
-		Wait(bDisplay);
+		Wait(false);
 #endif
 	}
 }
-
-
 
 bool FLoopCleaner::RemoveSelfIntersectionsOfLoop()
 {
@@ -1617,28 +1617,13 @@ void FLoopCleaner::SwapSegments(FIsoSegment& IntersectingSegment, FIsoSegment& S
 
 void FLoopCleaner::SwapSubLoopOrientation(int32 FirstSegmentIndex, int32 LastSegmentIndex)
 {
+	FirstSegmentIndex = FitSegmentIndex(FirstSegmentIndex);
 	LastSegmentIndex = FitSegmentIndex(LastSegmentIndex);
 
 	TArray<FIsoSegment*> Segments;
-	{
-		int32 SegCount = 0;
-		if (LastSegmentIndex < FirstSegmentIndex)
-		{
-			int32 SegIndex = FitSegmentIndex(FirstSegmentIndex);
-			do
-			{
-				SegCount++;
-				SegIndex = NextSegmentIndex(SegIndex);
-			} while (SegIndex != LastSegmentIndex);
-		}
-		else
-		{
-			SegCount = LastSegmentIndex - FirstSegmentIndex;
-		}
-		Segments.Reserve(SegCount);
-	}
+	Segments.Reserve(SegmentCount);
 
-	int32 Index = FitSegmentIndex(FirstSegmentIndex);
+	int32 Index = FirstSegmentIndex;
 	do
 	{
 		LoopSegments[Index]->SwapOrientation();
@@ -1647,15 +1632,12 @@ void FLoopCleaner::SwapSubLoopOrientation(int32 FirstSegmentIndex, int32 LastSeg
 	}
 	while(Index != LastSegmentIndex);
 
-	int32 ReverseIndex = Segments.Num() - 1;
-	Index = FitSegmentIndex(FirstSegmentIndex);
-	do
+	Index = FirstSegmentIndex;
+	for (int32 ReverseIndex = Segments.Num() - 1; ReverseIndex >= 0; --ReverseIndex)
 	{
 		LoopSegments[Index] = Segments[ReverseIndex];
 		Index = NextSegmentIndex(Index);
-		--ReverseIndex;
 	}
-	while(Index != LastSegmentIndex);
 }
 
 bool FLoopCleaner::RemoveSubLoop(FLoopNode* StartNode, FLoopNode* EndNode)
@@ -2169,18 +2151,20 @@ void FLoopCleaner::FindBestLoopExtremity()
 	double OptimalSlope = 9.;
 	LoopIndex = 0;
 
-	//F3DDebugSession _(TEXT("FindBestLoopExtremity"));
-
-	BestStartNodeOfLoops.Reserve(Grid.GetLoopCount());
+	BestStartNodeOfLoops.Reset(Grid.GetLoopCount());
 
 	TFunction<void(FLoopNode*)> CompareWithSlopeAt = [&](FLoopNode* Node)
 	{
 		FLoopNode& PreviousNode = Node->GetPreviousNode();
 		FLoopNode& NextNode = Node->GetNextNode();
-		double Slope = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
 
-		//F3DDebugSession A(FString::Printf(TEXT("Node Slope %f"), Slope));
-		//Display(EGridSpace::UniformScaled, *Node, 0, EVisuProperty::RedPoint);
+		if (Node->Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid)) < DOUBLE_SMALL_NUMBER ||
+			Node->Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid)) < DOUBLE_SMALL_NUMBER)
+		{
+			return;
+		}
+
+		double Slope = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
 
 		if ((Slope > OptimalSlope) == (LoopIndex == 0))
 		{
@@ -2202,7 +2186,10 @@ void FLoopCleaner::FindBestLoopExtremity()
 			}
 			CompareWithSlopeAt(Node);
 		}
-		BestStartNodeOfLoops.Add(BestNode);
+		if(BestNode)
+		{
+			BestStartNodeOfLoops.Add(BestNode);
+		}
 
 		// init for next loop
 		UMin = HUGE_VAL;
@@ -2291,8 +2278,6 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 
 	const FLoopNode* ExtremityNodes[4] = { nullptr, nullptr, nullptr, nullptr };
 
-	const FLoopNode* BestNode = nullptr;
-
 	LoopIndex = StartNode->GetLoopIndex();
 	double OptimalSlope = (LoopIndex == 0) ? -1 : 9.;
 
@@ -2302,11 +2287,18 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 #ifdef DEBUG_LOOP_ORIENTATION
 	F3DDebugSession _(Grid.bDisplay, TEXT("GetLoopOrientation"));
 #endif
-	TFunction<void(const FLoopNode*)> CompareWithSlopeAt = [&](const FLoopNode* Node)
+
+	TFunction<void(int32)> CompareWithSlopeAt = [&ExtremityNodes, &MaxFrontSlope , &MinBackSlope, &Grid = Grid](int32 Index)
 	{
-		FLoopNode& PreviousNode = Node->GetPreviousNode();
-		FLoopNode& NextNode = Node->GetNextNode();
-		double Slope = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
+		const FLoopNode* Node = ExtremityNodes[Index];
+		const FLoopNode& PreviousNode = Node->GetPreviousNode();
+		const FLoopNode& NextNode = Node->GetNextNode();
+
+		const FPoint2D Point = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		const FPoint2D PreviousPoint = PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
+		const FPoint2D NextPoint = NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+		double Slope = ComputePositiveSlope(Point, PreviousPoint, NextPoint);
 
 #ifdef DEBUG_LOOP_ORIENTATION
 		F3DDebugSession A(Grid.bDisplay, FString::Printf(TEXT("Slope %f"), Slope));
@@ -2315,7 +2307,40 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Node, NextNode);
 #endif
 
-		if (Slope > 4)
+		if (FMath::IsNearlyEqual(Slope, 4.))
+		{
+			switch (Index)
+			{
+			case 0:
+			{
+				// UMax
+				Slope += PreviousPoint.V < NextPoint.V ? 0.1 : -0.1;
+				break;
+			}
+			case 1:
+			{
+				// UMin
+				Slope += PreviousPoint.V > NextPoint.V ? 0.1 : -0.1;
+				break;
+			}
+			case 2:
+			{
+				// VMax
+				Slope += PreviousPoint.U > NextPoint.U ? 0.1 : -0.1;
+				break;
+			}
+			case 3:
+			{
+				// VMin
+				Slope += PreviousPoint.U < NextPoint.U ? 0.1 : -0.1;
+				break;
+			}
+			default:
+				break;
+			}
+		}
+		
+		if (Slope > 4.)
 		{
 			if (MaxFrontSlope < Slope) MaxFrontSlope = Slope;
 		}
@@ -2325,27 +2350,7 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 		}
 	};
 
-	TFunction<void()> FindLoopExtremity = [&]()
-	{
-		BestNode = nullptr;
-
-		for (const FLoopNode* Node : ExtremityNodes)
-		{
-			CompareWithSlopeAt(Node);
-		}
-
-		// init for next loop
-		UMin = HUGE_VAL;
-		UMax = -HUGE_VAL;
-		VMin = HUGE_VAL;
-		VMax = -HUGE_VAL;
-
-		for (const FLoopNode*& Node : ExtremityNodes)
-		{
-			Node = nullptr;
-		}
-	};
-
+	// Find extremities
 	const FLoopNode* Node = StartNode;
 	do
 	{
@@ -2375,7 +2380,10 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 		Node = LoopCleanerImpl::GetNextConstNodeImpl(Node);
 	} while (Node != StartNode);
 
-	FindLoopExtremity();
+	for (int32 Index = 0; Index<4; ++Index)
+	{
+		CompareWithSlopeAt(Index);
+	}
 
 	MaxFrontSlope = 8. - MaxFrontSlope;
 

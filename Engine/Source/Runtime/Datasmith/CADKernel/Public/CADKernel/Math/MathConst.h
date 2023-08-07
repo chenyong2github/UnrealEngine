@@ -68,6 +68,11 @@ uint8 ToUInt8(T Value)
  */
 inline double WrapTo(double Slope, const double StartOfPeriod, const double EndOfPeriod, const double PeriodLength)
 {
+	if (FMath::Abs(Slope) > DOUBLE_BIG_NUMBER)
+	{
+		return 0;
+	}
+
 	while (Slope < StartOfPeriod)
 	{
 		Slope += PeriodLength;

@@ -2431,6 +2431,35 @@ bool FDatasmithWireTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 	UE_LOG(LogDatasmithWireTranslator, Display, TEXT("CAD translation [%s]."), *Filename);
 	UE_LOG(LogDatasmithWireTranslator, Display, TEXT(" - Parsing Library:      %s"), TEXT("Alias"));
 	UE_LOG(LogDatasmithWireTranslator, Display, TEXT(" - Tessellation Library: %s"), CADLibrary::FImportParameters::bGDisableCADKernelTessellation ? TEXT("TechSoft") : TEXT("CADKernel"));
+	UE_LOG(LogDatasmithWireTranslator, Display, TEXT(" - Import parameters:"));
+
+	const FDatasmithTessellationOptions& TessellationOptions = GetCommonTessellationOptions();
+	UE_LOG(LogDatasmithWireTranslator, Display, TEXT("     - ChordTolerance:     %lf"), TessellationOptions.ChordTolerance);
+	UE_LOG(LogDatasmithWireTranslator, Display, TEXT("     - MaxEdgeLength:      %lf"), TessellationOptions.MaxEdgeLength);
+	UE_LOG(LogDatasmithWireTranslator, Display, TEXT("     - MaxNormalAngle:     %lf"), TessellationOptions.NormalTolerance);
+	FString StitchingTechnique;
+	switch (TessellationOptions.StitchingTechnique)
+	{
+	case EDatasmithCADStitchingTechnique::StitchingHeal:
+		StitchingTechnique = TEXT("Heal");
+		break;
+	case EDatasmithCADStitchingTechnique::StitchingSew:
+		StitchingTechnique = TEXT("Sew");
+		break;
+	default:
+		StitchingTechnique = TEXT("None");
+		break;
+	}
+	UE_LOG(LogDatasmithWireTranslator, Display, TEXT("     - StitchingTechnique: %s"), *StitchingTechnique);
+
+	if (!CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
+	{
+		UE_LOG(LogDatasmithWireTranslator, Display, TEXT("     - Stitching Options:"));
+		UE_LOG(LogDatasmithWireTranslator, Display, TEXT("         - ForceSew:              %s"), CADLibrary::FImportParameters::bGStitchingForceSew ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogDatasmithWireTranslator, Display, TEXT("         - RemoveThinFaces:       %s"), CADLibrary::FImportParameters::bGStitchingRemoveThinFaces ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogDatasmithWireTranslator, Display, TEXT("         - RemoveDuplicatedFaces: %s"), CADLibrary::FImportParameters::bGStitchingRemoveDuplicatedFaces ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogDatasmithWireTranslator, Display, TEXT("         - ForceFactor:           %f"), CADLibrary::FImportParameters::GStitchingForceFactor);
+	}
 
 	FString OutputPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FDatasmithWireTranslatorModule::Get().GetTempDir(), TEXT("Cache"), GetSource().GetSceneName()));
 	IFileManager::Get().MakeDirectory(*OutputPath, true);

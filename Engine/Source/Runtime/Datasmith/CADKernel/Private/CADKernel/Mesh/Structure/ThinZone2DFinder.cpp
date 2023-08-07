@@ -1940,6 +1940,10 @@ void FThinZoneSide::GetExistingMeshNodes(const FTopologicalFace& Face, FModelMes
 						if (ActiveEdge->IsMeshed())
 						{
 							EdgeElementLength = Edge->GetMesh()->GetElementLengths();
+							if (EdgeElementLength.Num() + 1 != EdgeMeshNodeCount)
+							{
+								EdgeElementLength = Edge->GetPreElementLengths();
+							}
 						}
 						else
 						{

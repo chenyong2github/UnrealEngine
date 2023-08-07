@@ -100,6 +100,7 @@ public:
 
 	FTopomaker(FSession& InSession, const FTopomakerOptions& InOptions);
 	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, const FTopomakerOptions& InOptions);
+	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Faces, const FTopomakerOptions& InOptions);
 
 	void SetTolerance(const FTopomakerOptions Options)
 	{
@@ -120,9 +121,8 @@ public:
 		SewToleranceToForceJoin = Tolerance * ForceJoinFactor;
 		LargeEdgeLengthTolerance = SewToleranceToForceJoin * 2.;
 
-		ThinFaceWidth = Tolerance * ForceJoinFactor;
+		ThinFaceWidth = Tolerance * ForceJoinFactor * 0.5;
 	}
-
 
 	void Sew();
 

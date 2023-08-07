@@ -456,12 +456,12 @@ public:
 		int32 BoundaryIndices[2];
 
 		TArray<double> CurvilinearCoordinates;
-		double CurveLength = ComputeCurvilinearCoordinatesOfPolyline(InBoundary, CurvilinearCoordinates, BoundaryIndices);
+		const double CurveLength = ComputeCurvilinearCoordinatesOfPolyline(InBoundary, CurvilinearCoordinates, BoundaryIndices);
 
-		PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
+		const PointType StartPoint = ComputePoint(BoundaryIndices[0], InBoundary.Min);
 		double FromStartSegmentLength = PolylinePoints[BoundaryIndices[0]].Distance(StartPoint);
 
-		if (CurveLength < 2. * DesiredSegmentLength)
+		if (FMath::IsNearlyZero(DesiredSegmentLength, DOUBLE_KINDA_SMALL_NUMBER) || CurveLength < 2. * DesiredSegmentLength)
 		{
 			OutCoordinates.SetNum(3);
 			OutCoordinates[0] = InBoundary.GetMin();
@@ -472,7 +472,7 @@ public:
 
 		int32 SegmentNum = FMath::IsNearlyZero(DesiredSegmentLength) ? 2 : (int32)FMath::Max(CurveLength / DesiredSegmentLength + 0.5, 1.0);
 
-		double SectionLength = CurveLength / (double)(SegmentNum);
+		const double SectionLength = CurveLength / (double)(SegmentNum);
 
 		OutCoordinates.Empty();
 		OutCoordinates.Reserve(SegmentNum + 1);
@@ -483,26 +483,35 @@ public:
 			return Coordinate + (PolylineCoordinates[IndexCoordinate] - Coordinate) * (Length - CurvilinearCoordinates[IndexCurvilinear - 1]) / (CurvilinearCoordinates[IndexCurvilinear] - CurvilinearCoordinates[IndexCurvilinear - 1]);
 		};
 
-		double CurvilinearLength = SectionLength;
-		FromStartSegmentLength += SectionLength;
+		double CurvilinearLength = 0.;
 
 		double LastCoordinate = InBoundary.Min;
 		for (int32 IndexCurvilinear = 1, IndexCoordinate = BoundaryIndices[0] + 1; IndexCurvilinear < CurvilinearCoordinates.Num(); ++IndexCurvilinear, ++IndexCoordinate)
 		{
 			while (FromStartSegmentLength + DOUBLE_SMALL_NUMBER < CurvilinearCoordinates[IndexCurvilinear])
 			{
-				double Coordinate = ComputeSamplePointCoordinate(IndexCurvilinear, IndexCoordinate, FromStartSegmentLength, LastCoordinate);
+				const double Coordinate = ComputeSamplePointCoordinate(IndexCurvilinear, IndexCoordinate, FromStartSegmentLength, LastCoordinate);
 				OutCoordinates.Add(Coordinate);
 				CurvilinearLength += SectionLength;
 				FromStartSegmentLength += SectionLength;
-				if (OutCoordinates.Num() == SegmentNum)
+				if (CurvilinearLength > CurveLength || OutCoordinates.Num() == SegmentNum)
 				{
-					OutCoordinates.Add(InBoundary.Max);
-					break;
+					while (OutCoordinates.Last() + SMALL_NUMBER > InBoundary.GetMax())
+					{
+						OutCoordinates.Pop();
+					}
+					OutCoordinates.Add(InBoundary.GetMax());
+					return;
 				}
 			}
 			LastCoordinate = PolylineCoordinates[IndexCoordinate];
 		}
+
+		while (OutCoordinates.Last() + SMALL_NUMBER > InBoundary.GetMax())
+		{
+			OutCoordinates.Pop();
+		}
+		OutCoordinates.Add(InBoundary.GetMax());
 	}
 
 	/**
@@ -513,7 +522,22 @@ public:
 	{
 		int32 BoundaryIndices[2];
 		GetStartEndIndex(InBoundary, BoundaryIndices);
-		return ProjectPointToPolyline(BoundaryIndices, PointOnEdge, OutProjectedPoint);
+		double Coordinate = ProjectPointToPolyline(BoundaryIndices, PointOnEdge, OutProjectedPoint);
+		if (InBoundary.Contains(Coordinate))
+		{
+			return Coordinate;
+		}
+
+		if (Coordinate < InBoundary.GetMin())
+		{
+			Coordinate = InBoundary.GetMin();
+		}
+		else if (Coordinate > InBoundary.GetMax())
+		{
+			Coordinate = InBoundary.GetMax();
+		}
+		OutProjectedPoint = ApproximatePoint(Coordinate);
+		return Coordinate;
 	}
 
 	/**
