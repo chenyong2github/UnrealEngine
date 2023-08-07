@@ -5,6 +5,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Models/AnamorphicLensModel.h"
 #include "Models/SphericalLensModel.h"
+#include "OpenCVHelper.h"
 
 #if WITH_OPENCV
 
@@ -28,8 +29,9 @@ double FCameraCalibrationSolver::CalibrateCamera(
 	FVector2f& InOutFocalLength,
 	FVector2f& InOutImageCenter,
 	TArray<float>& OutDistCoeffs,
+	TArray<FTransform>& InOutCameraPoses,
 	double PixelAspect,
-	int SolverFlags)
+	ECalibrationFlags SolverFlags)
 {
 	const int NumImages = InObjectPoints.Num();
 
@@ -122,6 +124,20 @@ double FCameraCalibrationSolver::CalibrateCamera(
 			Samples2d.push_back(Points2d);
 		}
 
+		int LegacyFlags = 0;
+		if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::UseIntrinsicGuess))
+		{
+			LegacyFlags |= cv::CALIB_USE_INTRINSIC_GUESS;
+		}
+		if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixFocalLength))
+		{
+			LegacyFlags |= cv::CALIB_FIX_FOCAL_LENGTH;
+		}
+		if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixPrincipalPoint))
+		{
+			LegacyFlags |= cv::CALIB_FIX_PRINCIPAL_POINT;
+		}
+
 		RMSE = cv::calibrateCamera(
 			Samples3d,
 			Samples2d,
@@ -133,7 +149,7 @@ double FCameraCalibrationSolver::CalibrateCamera(
 			cv::noArray(),
 			cv::noArray(),
 			cv::noArray(),
-			SolverFlags
+			LegacyFlags
 		);
 
 		// Set the output intrinsics and distortion parameters to the final values calculated by the solver
@@ -153,7 +169,7 @@ double FCameraCalibrationSolver::CalibrateCamera(
 	}
 
 	// If the flag to use a starting guess for the camera intrinsics is not set, calculate some initial values for the intrinsic parameters
-	if (!(SolverFlags & cv::CALIB_USE_INTRINSIC_GUESS))
+	if (!(EnumHasAnyFlags(SolverFlags, ECalibrationFlags::UseIntrinsicGuess)))
 	{
 		InitCameraIntrinsics(ObjectPointsMat, ImagePointsMat, NumPointsMat, CvImageSize, CameraMatrix);
 	}
@@ -179,15 +195,29 @@ double FCameraCalibrationSolver::CalibrateCamera(
 
 	// Instruct the solver to ignore some parameters when running its solve
 	uchar* Mask = Solver.Mask.ptr<uchar>();
-	if (SolverFlags & cv::CALIB_FIX_FOCAL_LENGTH)
+	if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixFocalLength))
 	{
 		Mask[0] = 0;
 		Mask[1] = 0;
 	}
-	if (SolverFlags & cv::CALIB_FIX_PRINCIPAL_POINT)
+	if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixPrincipalPoint))
 	{
 		Mask[2] = 0;
 		Mask[3] = 0;
+	}
+	if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixExtrinsics))
+	{
+		for (int ParamIndex = NumIntrinsics; ParamIndex < NumParamsToSolve; ++ParamIndex)
+		{
+			Mask[ParamIndex] = 0;
+		}
+	}
+	if (EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixZeroDistortion))
+	{
+		for (int ParamIndex = 0; ParamIndex < NumDistortionCoefficients; ++ParamIndex)
+		{
+			Mask[ParamIndex + 4] = 0;
+		}
 	}
 
 	if (LensModel == UAnamorphicLensModel::StaticClass())
@@ -212,7 +242,14 @@ double FCameraCalibrationSolver::CalibrateCamera(
 		cv::Mat Rotation = Solver.Params.rowRange(ExtrinsicOffset, ExtrinsicOffset + 3);
 		cv::Mat Translation = Solver.Params.rowRange(ExtrinsicOffset + 3, ExtrinsicOffset + 6);
 
-		InitCameraExtrinsics(LensModel, ObjectPointsInImage, ImagePointsInImage, CameraMatrix, DistCoeffs, CvImageSize, Rotation, Translation, SolverFlags);
+		if (!(EnumHasAnyFlags(SolverFlags, ECalibrationFlags::UseExtrinsicGuess)))
+		{
+			InitCameraExtrinsics(LensModel, ObjectPointsInImage, ImagePointsInImage, CameraMatrix, DistCoeffs, CvImageSize, Rotation, Translation, SolverFlags);
+		}
+		else
+		{
+			FOpenCVHelper::ConvertTransformToVectors(InOutCameraPoses[ImageIndex], Rotation, Translation);
+		}
 	}
 
 	double ReprojectionError = 0.0;
@@ -322,6 +359,15 @@ double FCameraCalibrationSolver::CalibrateCamera(
 		OutDistCoeffs.Add(DistCoeffs.at<double>(4));
 		OutDistCoeffs.Add(DistCoeffs.at<double>(2));
 		OutDistCoeffs.Add(DistCoeffs.at<double>(3));
+	}
+
+	for (int ImageIndex = 0; ImageIndex < NumImages; ImageIndex++)
+	{
+		const int ExtrinsicOffset = NumIntrinsics + (ImageIndex * NumExtrinsics);
+		cv::Mat Rotation = Solver.Params.rowRange(ExtrinsicOffset, ExtrinsicOffset + 3);
+		cv::Mat Translation = Solver.Params.rowRange(ExtrinsicOffset + 3, ExtrinsicOffset + 6);
+
+		FOpenCVHelper::ConvertVectorsToTransform(Rotation, Translation, InOutCameraPoses[ImageIndex]);
 	}
 
 	return RMSE;
@@ -436,7 +482,7 @@ void FCameraCalibrationSolver::InitCameraExtrinsics(
 	const cv::Size ImageSize,
 	cv::Mat& Rotation,
 	cv::Mat& Translation,
-	const int SolverFlags)
+	const ECalibrationFlags SolverFlags)
 {
 	const int NumPoints = ObjectPoints.total();
 
@@ -596,7 +642,7 @@ void FCameraCalibrationSolver::ProjectPoints(
 	cv::Mat& ProjectedPoints)
 {
 	cv::Mat Jacobian;
-	const int SolverFlags = 0;
+	const ECalibrationFlags SolverFlags = ECalibrationFlags::None;
 	ProjectPoints(LensModel, ObjectPoints, Rotation, Translation, CameraMatrix, DistCoeffs, ImageSize, ProjectedPoints, Jacobian, SolverFlags);
 }
 
@@ -610,7 +656,7 @@ void FCameraCalibrationSolver::ProjectPoints(
 	const cv::Size ImageSize,
 	cv::Mat& ProjectedPoints,
 	cv::Mat& Jacobian,
-	int SolverFlags)
+	ECalibrationFlags SolverFlags)
 {
 	// Project the 3D points to 2D using the transformation matrix, camera matrix, and distortion equation
 	if (LensModel == USphericalLensModel::StaticClass())
@@ -649,7 +695,7 @@ void FCameraCalibrationSolver::ProjectPointsAnamorphic(
 	const cv::Size ImageSize,
 	cv::Mat& ProjectedPoints,
 	cv::Mat& Jacobian,
-	int SolverFlags)
+	ECalibrationFlags SolverFlags)
 {
 	const bool bComputeJacobian = !Jacobian.empty();
 
@@ -971,7 +1017,7 @@ void FCameraCalibrationSolver::ProjectPointsSpherical(
 	const cv::Mat& DistCoeffs,
 	cv::Mat& ProjectedPoints,
 	cv::Mat& Jacobian,
-	int SolverFlags)
+	ECalibrationFlags SolverFlags)
 {
 	const bool bComputeJacobian = !Jacobian.empty();
 
@@ -1215,7 +1261,7 @@ void FCameraCalibrationSolver::SubdivideJacobian(
 	cv::Mat& JacFocalLength,
 	cv::Mat& JacImageCenter,
 	cv::Mat& JacDistortion,
-	int SolverFlags)
+	ECalibrationFlags SolverFlags)
 {
 	const bool bComputeJacobian = !Jacobian.empty();
 
@@ -1223,18 +1269,21 @@ void FCameraCalibrationSolver::SubdivideJacobian(
 	{
 		if (Jacobian.cols >= 6)
 		{
-			JacRotation = cv::Mat(Jacobian.colRange(0, 3));
-			JacTranslation = cv::Mat(Jacobian.colRange(3, 6));
+			if (!(EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixExtrinsics)))
+			{
+				JacRotation = cv::Mat(Jacobian.colRange(0, 3));
+				JacTranslation = cv::Mat(Jacobian.colRange(3, 6));
+			}
 		}
 
 		if (Jacobian.cols >= 10)
 		{
-			if (!(SolverFlags & cv::CALIB_FIX_FOCAL_LENGTH))
+			if (!(EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixFocalLength)))
 			{
 				JacFocalLength = cv::Mat(Jacobian.colRange(6, 8));
 			}
 
-			if (!(SolverFlags & cv::CALIB_FIX_PRINCIPAL_POINT))
+			if (!(EnumHasAnyFlags(SolverFlags, ECalibrationFlags::FixPrincipalPoint)))
 			{
 				JacImageCenter = cv::Mat(Jacobian.colRange(8, 10));
 			}
@@ -1399,6 +1448,11 @@ void FLevMarqSolver::SubMatrix(const cv::Mat& Src, cv::Mat& Dst, const cv::Mat& 
 
 void FLevMarqSolver::Step()
 {
+	if (cv::countNonZero(Mask) == 0)
+	{
+		return;
+	}
+
 	cv::Mat SubJtJ;
 	SubMatrix(JacTJac, SubJtJ, Mask, Mask);
 

@@ -93,6 +93,12 @@ public:
 	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, const FString* PackagePath = nullptr, const FName* TextureName = nullptr);
 	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture);
 
+	/** Converts an FTransform to a rotation vector (cv::Mat) and a translation vector (cv::Mat) */
+	static void ConvertTransformToVectors(const FTransform& InTransform, cv::Mat& OutRotation, cv::Mat& OutTranslation);
+
+	/** Converts a rotation vector (cv::Mat) and a translation vector (cv::Mat) to an FTransform */
+	static void ConvertVectorsToTransform(const cv::Mat& InRotation, const cv::Mat& InTranslation, FTransform& OutTransform);
+
 	static double ComputeReprojectionError(const FTransform& CameraPose, const cv::Mat& CameraIntrinsicMatrix, const std::vector<cv::Point3f>& Points3d, const std::vector<cv::Point2f>& Points2d);
 #endif	// WITH_OPENCV
 };

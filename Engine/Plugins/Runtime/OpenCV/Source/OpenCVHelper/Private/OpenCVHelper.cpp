@@ -313,4 +313,65 @@ double FOpenCVHelper::ComputeReprojectionError(const FTransform& CameraPose, con
 	return ReprojectionError;
 }
 
+void FOpenCVHelper::ConvertTransformToVectors(const FTransform& InTransform, cv::Mat& OutRotation, cv::Mat& OutTranslation)
+{
+	const FMatrix Matrix = InTransform.ToMatrixNoScale();
+
+	const cv::Mat Tcam = (cv::Mat_<double>(3, 1) << Matrix.M[3][0], Matrix.M[3][1], Matrix.M[3][2]);
+
+	cv::Mat Rcam = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
+	for (int32 Column = 0; Column < 3; ++Column)
+	{
+		FVector ColVec = Matrix.GetColumn(Column);
+		Rcam.at<double>(Column, 0) = ColVec.X;
+		Rcam.at<double>(Column, 1) = ColVec.Y;
+		Rcam.at<double>(Column, 2) = ColVec.Z;
+	}
+
+	const cv::Mat Robj = Rcam.t();
+
+	cv::Rodrigues(Robj, OutRotation);
+
+	OutTranslation = -Rcam.inv() * Tcam;
+}
+
+void FOpenCVHelper::ConvertVectorsToTransform(const cv::Mat& InRotation, const cv::Mat& InTranslation, FTransform& OutTransform)
+{
+	// Convert to camera pose
+
+	// [R|t]' = [R'|-R'*t]
+
+	// Convert from Rodrigues to rotation matrix
+	cv::Mat Robj;
+	cv::Rodrigues(InRotation, Robj); // Robj is 3x3
+
+	// Calculate camera translation
+	cv::Mat Tcam = -Robj.t() * InTranslation;
+
+	// Invert/transpose to get camera orientation
+	cv::Mat Rcam = Robj.t();
+
+	// Convert back to UE coordinates
+
+	FMatrix M = FMatrix::Identity;
+
+	// Fill rotation matrix
+	for (int32 Column = 0; Column < 3; ++Column)
+	{
+		M.SetColumn(Column, FVector(
+			Rcam.at<double>(Column, 0),
+			Rcam.at<double>(Column, 1),
+			Rcam.at<double>(Column, 2))
+		);
+	}
+
+	// Fill translation vector
+	M.M[3][0] = Tcam.at<double>(0);
+	M.M[3][1] = Tcam.at<double>(1);
+	M.M[3][2] = Tcam.at<double>(2);
+
+	OutTransform.SetFromMatrix(M);
+	FOpenCVHelper::ConvertOpenCVToUnreal(OutTransform);
+}
+
 #endif // WITH_OPENCV

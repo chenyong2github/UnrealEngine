@@ -13,6 +13,20 @@
 
 #endif	// WITH_OPENCV
 
+/**
+  * Flags used to modify the execution of the calibration solver
+  */
+enum class ECalibrationFlags : uint32
+{
+	None = 0,
+	UseIntrinsicGuess = 1 << 0,  /** The solver will skip intrinsics initialization an use the input values of Focal Length and Image Center as the starting values for the optimization */
+	UseExtrinsicGuess = 1 << 1,  /** The solver will skip extrinsics initialization an use the input Camera Poses as the starting value for the optimization */
+	FixFocalLength = 1 << 2,     /** The solver will not optimize the focal length */
+	FixPrincipalPoint = 1 << 3,  /** The solver will not optimize the principal point */
+	FixExtrinsics = 1 << 4,      /** The solver will not optimize the camera extrinsics */
+	FixZeroDistortion = 1 << 5   /** The solver will fix all distortion values at 0 */
+};
+
 /** 
   * Lens Distortion Solver class, supporting anamorphic and spherical models 
   * The implementation is largely based on the implementation of calibrateCamera from OpenCV: https://github.com/opencv/opencv
@@ -33,8 +47,9 @@ public:
 		FVector2f& InOutFocalLength,
 		FVector2f& InOutImageCenter,
 		TArray<float>& OutDistCoeffs,
+		TArray<FTransform>& InOutCameraPoses,
 		double PixelAspect = 1.0,
-		int SolverFlags = 0);
+		ECalibrationFlags SolverFlags = ECalibrationFlags::None);
 
 private:
 	/** Initialize the camera matrix of intrinsic parameters using linear algebra techniques */
@@ -55,7 +70,7 @@ private:
 		const cv::Size ImageSize,
 		cv::Mat& Rotation,
 		cv::Mat& Translation,
-		const int SolverFlags);
+		const ECalibrationFlags SolverFlags);
 
 	/** Project the input object points to 2D using the input camera intrinsics, extrinsics, and distortion parameters */
 	static void ProjectPoints(
@@ -79,7 +94,7 @@ private:
 		const cv::Size ImageSize,
 		cv::Mat& ProjectedPoints,
 		cv::Mat& Jacobian,
-		int SolverFlags);
+		ECalibrationFlags SolverFlags);
 
 	/** Project the input object points to 2D using the input camera intrinsics, extrinsics, and anamorphic distortion parameters */
 	static void ProjectPointsAnamorphic(
@@ -91,7 +106,7 @@ private:
 		const cv::Size ImageSize,
 		cv::Mat& ProjectedPoints,
 		cv::Mat& Jacobian,
-		int SolverFlags);
+		ECalibrationFlags SolverFlags);
 
 	/** Project the input object points to 2D using the input camera intrinsics, extrinsics, and spherical distortion parameters */
 	static void ProjectPointsSpherical(
@@ -102,7 +117,7 @@ private:
 		const cv::Mat& DistCoeffs,
 		cv::Mat& ProjectedPoints,
 		cv::Mat& Jacobian,
-		int SolverFlags);
+		ECalibrationFlags SolverFlags);
 
 	/** Copy the input 3D and 2D points to OpenCV matrices for ease of use with the solver */
 	static void GatherPoints(
@@ -119,7 +134,7 @@ private:
 		cv::Mat& JacFocalLength,
 		cv::Mat& JacImageCenter,
 		cv::Mat& JacDistortion,
-		int SolverFlags);
+		ECalibrationFlags SolverFlags);
 
 #endif	// WITH_OPENCV
 };
