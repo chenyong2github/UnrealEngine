@@ -199,8 +199,9 @@ private:
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
 	void CreateRefreshMenu(FMenuBuilder& MenuBuilder);
+	void CreateResetCurvesMenu(FMenuBuilder& MenuBuilder);
 	bool ShouldFilterOnImport(const FAssetData& AssetData) const;
-	void RefreshHierarchy(const FAssetData& InAssetData);
+	void RefreshHierarchy(const FAssetData& InAssetData, bool bOnlyResetCurves);
 	void UpdateMesh(USkeletalMesh* InMesh, const bool bImport) const;
 
 	void HandleResetTransform(bool bSelectionOnly);
