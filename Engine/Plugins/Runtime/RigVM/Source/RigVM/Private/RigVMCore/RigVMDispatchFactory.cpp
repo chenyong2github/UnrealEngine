@@ -179,6 +179,33 @@ const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks_Impl(const FRig
 	return EmptyArray;
 }
 
+const TArray<FName>* FRigVMDispatchFactory::UpdateArgumentNameCache(int32 InNumberOperands) const
+{
+	FScopeLock ArgumentNamesLock(ArgumentNamesMutex);
+	return UpdateArgumentNameCache_NoLock(InNumberOperands);
+}
+
+const TArray<FName>* FRigVMDispatchFactory::UpdateArgumentNameCache_NoLock(int32 InNumberOperands) const
+{
+	TSharedPtr<TArray<FName>>& ArgumentNames = ArgumentNamesMap.FindOrAdd(InNumberOperands);
+	if(!ArgumentNames.IsValid())
+	{
+		ArgumentNames = MakeShareable(new TArray<FName>()); 
+		ArgumentNames->Reserve(InNumberOperands);
+		for(int32 OperandIndex = 0; OperandIndex < InNumberOperands; OperandIndex++)
+		{
+			ArgumentNames->Add(GetArgumentNameForOperandIndex(OperandIndex, InNumberOperands));
+		}
+	}
+	return ArgumentNames.Get();
+}
+
+const TArray<FRigVMTemplateArgument>& FRigVMDispatchFactory::GetArguments() const
+{
+	static TArray<FRigVMTemplateArgument> EmptyArguments;
+	return EmptyArguments;
+}
+
 TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments(const FRigVMDispatchContext& InContext) const
 {
 	TArray<FRigVMExecuteArgument> Arguments = GetExecuteArguments_Impl(InContext);
@@ -194,6 +221,13 @@ TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments(const F
 		}
 	}
 	return Arguments;
+}
+
+const TArray<FRigVMExecuteArgument>& FRigVMDispatchFactory::GetExecuteArguments_Impl(
+	const FRigVMDispatchContext& InContext) const
+{
+	static TArray<FRigVMExecuteArgument> EmptyArguments;
+	return EmptyArguments;
 }
 
 FRigVMFunctionPtr FRigVMDispatchFactory::GetOrCreateDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const
@@ -234,7 +268,7 @@ TArray<FRigVMFunction> FRigVMDispatchFactory::CreateDispatchPredicates_NoLock(co
 FString FRigVMDispatchFactory::GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const
 {
 #if WITH_EDITOR
-	const TArray<FRigVMTemplateArgument> Arguments = GetArguments();
+	const TArray<FRigVMTemplateArgument>& Arguments = GetArguments();
 	check(InTypes.Num() == Arguments.Num());
 	for(const FRigVMTemplateArgument& Argument : Arguments)
 	{
@@ -252,7 +286,7 @@ FString FRigVMDispatchFactory::GetPermutationNameImpl(const FRigVMTemplateTypeMa
 }
 
 bool FRigVMDispatchFactory::CopyProperty(const FProperty* InTargetProperty, uint8* InTargetPtr,
-	const FProperty* InSourceProperty, const uint8* InSourcePtr)
+                                         const FProperty* InSourceProperty, const uint8* InSourcePtr)
 {
 	return URigVMMemoryStorage::CopyProperty(InTargetProperty, InTargetPtr, InSourceProperty, InSourcePtr);
 }
@@ -275,7 +309,7 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 		return CachedTemplate;
 	}
 
-	const TArray<FRigVMTemplateArgument> Arguments = GetArguments();
+	const TArray<FRigVMTemplateArgument>& Arguments = GetArguments();
 
 	// we don't allow execute types on arguments
 	for(const FRigVMTemplateArgument& Argument : Arguments)

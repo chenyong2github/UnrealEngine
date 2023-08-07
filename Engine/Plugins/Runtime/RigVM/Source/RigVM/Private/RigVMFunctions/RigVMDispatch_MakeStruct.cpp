@@ -11,15 +11,16 @@
 const FName FRigVMDispatch_MakeStruct::ElementsName = TEXT("Elements");
 const FName FRigVMDispatch_MakeStruct::StructName = TEXT("Struct");
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_MakeStruct::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_MakeStruct::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue
 	};
-	return {
+	static TArray<FRigVMTemplateArgument> Arguments = {
 		{ElementsName, ERigVMPinDirection::Input, Categories},
 		{StructName, ERigVMPinDirection::Output, Categories}
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_MakeStruct::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
@@ -84,15 +85,16 @@ void FRigVMDispatch_MakeStruct::Execute(FRigVMExtendedExecuteContext& InContext,
 	URigVMMemoryStorage::CopyProperty(TargetProperty, TargetMemory, SourceProperty, SourceMemory);
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_BreakStruct::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_BreakStruct::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue
 	};
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		{StructName, ERigVMPinDirection::Input, Categories},
 		{ElementsName, ERigVMPinDirection::Output, Categories}
 	};
+	return Arguments;
 }
 
 #if WITH_EDITOR

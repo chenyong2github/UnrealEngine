@@ -65,7 +65,7 @@ FString FRigDispatch_MetadataBase::GetNodeTitle(const FRigVMTemplateTypeMap& InT
 
 #endif
 
-TArray<FRigVMTemplateArgument> FRigDispatch_MetadataBase::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_MetadataBase::GetArguments() const
 {
 	if(Arguments.IsEmpty())
 	{
@@ -155,7 +155,7 @@ const TArray<TRigVMTypeIndex>& FRigDispatch_MetadataBase::GetValueTypes() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-TArray<FRigVMTemplateArgument> FRigDispatch_GetMetadata::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_GetMetadata::GetArguments() const
 {
 	if(ValueArgIndex == INDEX_NONE)
 	{
@@ -272,7 +272,7 @@ FRigVMFunctionPtr FRigDispatch_GetMetadata::GetDispatchFunctionImpl(const FRigVM
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-TArray<FRigVMTemplateArgument> FRigDispatch_SetMetadata::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_SetMetadata::GetArguments() const
 {
 	if(ValueArgIndex == INDEX_NONE)
 	{
@@ -283,9 +283,12 @@ TArray<FRigVMTemplateArgument> FRigDispatch_SetMetadata::GetArguments() const
 	return Arguments;
 }
 
-TArray<FRigVMExecuteArgument> FRigDispatch_SetMetadata::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
+const TArray<FRigVMExecuteArgument>& FRigDispatch_SetMetadata::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
 {
-	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
+	static const TArray<FRigVMExecuteArgument> ExecuteArguments = {
+		{TEXT("ExecuteContext"), ERigVMPinDirection::IO}
+	};
+	return ExecuteArguments;
 }
 
 FRigBaseMetadata* FRigDispatch_SetMetadata::FindOrAddMetadata(FControlRigExecuteContext& InContext,

@@ -252,16 +252,17 @@ FRigVMFunction_StringPadInteger_Execute()
 	}
 }
 
-TArray<FRigVMTemplateArgument> FRigDispatch_ToString::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_ToString::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		FRigVMTemplateArgument(TEXT("Value"), ERigVMPinDirection::Input, ValueCategories),
 		FRigVMTemplateArgument(TEXT("Result"), ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::FString)
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigDispatch_ToString::OnNewArgumentType(const FName& InArgumentName,
@@ -317,16 +318,17 @@ void FRigDispatch_ToString::Execute(FRigVMExtendedExecuteContext& InContext, FRi
 	ValueProperty->ExportText_Direct(Result, Value, Value, nullptr, PPF_None, nullptr);
 }
 
-TArray<FRigVMTemplateArgument> FRigDispatch_FromString::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_FromString::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		FRigVMTemplateArgument(TEXT("String"), ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FString),
 		FRigVMTemplateArgument(TEXT("Result"), ERigVMPinDirection::Output, ValueCategories)
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigDispatch_FromString::OnNewArgumentType(const FName& InArgumentName,

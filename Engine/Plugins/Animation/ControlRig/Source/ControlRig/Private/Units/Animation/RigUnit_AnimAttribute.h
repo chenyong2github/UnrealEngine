@@ -134,7 +134,7 @@ struct CONTROLRIG_API FRigDispatch_AnimAttributeBase : public FRigDispatchFactor
 	virtual FString GetNodeTitle(const FRigVMTemplateTypeMap& InTypes) const override;;
 #endif
 	
-	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
+	virtual const TArray<FRigVMTemplateArgument>& GetArguments() const override;
 	virtual bool IsSet() const { return false; }
 
 #if WITH_EDITOR
@@ -187,7 +187,7 @@ struct CONTROLRIG_API FRigDispatch_GetAnimAttribute: public FRigDispatch_AnimAtt
 		FactoryScriptStruct = StaticStruct();
 	}
 
-	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
+	virtual const TArray<FRigVMTemplateArgument>& GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 
 	
@@ -267,8 +267,8 @@ struct CONTROLRIG_API FRigDispatch_SetAnimAttribute: public FRigDispatch_AnimAtt
 	}
 
 	virtual bool IsSet() const override { return true; }
-	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
+	virtual const TArray<FRigVMTemplateArgument>& GetArguments() const override;
+	virtual const TArray<FRigVMExecuteArgument>& GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 	
 protected:

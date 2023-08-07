@@ -23,18 +23,19 @@ FName FRigVMDispatch_If::GetArgumentNameForOperandIndex(int32 InOperandIndex, in
 	return ArgumentNames[InOperandIndex];
 }
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_If::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_If::GetArguments() const
 {
 	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		FRigVMTemplateArgument(ConditionName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool),
 		FRigVMTemplateArgument(TrueName, ERigVMPinDirection::Input, ValueCategories),
 		FRigVMTemplateArgument(FalseName, ERigVMPinDirection::Input, ValueCategories),
 		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, ValueCategories)
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_If::OnNewArgumentType(const FName& InArgumentName,

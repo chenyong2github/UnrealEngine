@@ -23,7 +23,7 @@ FName FRigVMDispatch_SelectInt32::GetArgumentNameForOperandIndex(int32 InOperand
 }
 
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_SelectInt32::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_SelectInt32::GetArguments() const
 {
 	static const TArray<FRigVMTemplateArgument::ETypeCategory> ArrayCategories = {
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue,
@@ -34,11 +34,13 @@ TArray<FRigVMTemplateArgument> FRigVMDispatch_SelectInt32::GetArguments() const
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
 	
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		FRigVMTemplateArgument(IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32),
 		FRigVMTemplateArgument(ValuesName, ERigVMPinDirection::Input, ArrayCategories),
 		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, SingleCategories)
 	};
+
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_SelectInt32::OnNewArgumentType(const FName& InArgumentName,

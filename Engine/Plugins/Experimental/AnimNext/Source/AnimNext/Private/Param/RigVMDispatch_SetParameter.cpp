@@ -48,25 +48,28 @@ FString FRigVMDispatch_SetParameter::GetArgumentDefaultValue(const FName& InArgu
 }
 #endif
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_SetParameter::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_SetParameter::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories =
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories =
 	{
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
-	return 
-	{ 
+	
+	static const TArray<FRigVMTemplateArgument> Arguments = { 
 		FRigVMTemplateArgument(ParameterName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FName),
 		FRigVMTemplateArgument(ValueName, ERigVMPinDirection::Input, ValueCategories),
 		FRigVMTemplateArgument(ParameterIdName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::UInt32),
 		FRigVMTemplateArgument(TypeHandleName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::UInt32),
 	};
+
+	return Arguments;
 }
 
-TArray<FRigVMExecuteArgument> FRigVMDispatch_SetParameter::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
+TArray<FRigVMExecuteArgument>& FRigVMDispatch_SetParameter::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
 {
-	return { { ExecuteContextName, ERigVMPinDirection::Input } };
+	static TArray<FRigVMExecuteArgument> Arguments = { { ExecuteContextName, ERigVMPinDirection::Input } };
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_SetParameter::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const

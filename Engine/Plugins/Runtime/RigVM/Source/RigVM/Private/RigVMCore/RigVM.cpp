@@ -1510,6 +1510,24 @@ bool URigVM::Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVM
 			}
 		}
 	}
+
+	// make sure to update all argument name caches
+	TArray<const FRigVMFunction*>& Functions = GetFunctions();
+	for(const FRigVMInstruction& Instruction : Instructions)
+	{
+		if(Instruction.OpCode == ERigVMOpCode::Execute)
+		{
+			const FRigVMExecuteOp& Op = ByteCodeStorage.GetOpAt<FRigVMExecuteOp>(Instruction);
+			if(Functions.IsValidIndex(Op.FunctionIndex))
+			{
+				if(const FRigVMDispatchFactory* Factory = Functions[Op.FunctionIndex]->Factory)
+				{
+					FRigVMOperandArray Operands = ByteCodeStorage.GetOperandsForExecuteOp(Instruction);
+					(void)Factory->UpdateArgumentNameCache(Operands.Num());
+				}
+			}
+		}
+	}
 	
 	CacheMemoryHandlesIfRequired(Context, Memory);
 

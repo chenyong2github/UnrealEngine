@@ -52,9 +52,14 @@ public:
 	FRigVMDispatchFactory()
 		: FactoryScriptStruct(nullptr)
 		, CachedTemplate(nullptr)
-	{}
+	{
+		ArgumentNamesMutex = new FCriticalSection();
+	}
 	
-	virtual ~FRigVMDispatchFactory() {}
+	virtual ~FRigVMDispatchFactory()
+	{
+		delete ArgumentNamesMutex;
+	}
 
 	// returns the name of the factory template
 	RIGVM_API FName GetFactoryName() const;
@@ -135,7 +140,7 @@ public:
 	virtual void RegisterDependencyTypes() const {}
 
 	// returns the arguments of the template
-	virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
+	RIGVM_API virtual const TArray<FRigVMTemplateArgument>& GetArguments() const;
 
 	// returns the execute arguments of the template
 	RIGVM_API TArray<FRigVMExecuteArgument> GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
@@ -177,7 +182,7 @@ protected:
 	
 	virtual TArray<FRigVMFunction> GetDispatchPredicatesImpl(const FRigVMTemplateTypeMap& InTypes) const { return TArray<FRigVMFunction>(); }
 
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const { return TArray<FRigVMExecuteArgument>(); }
+	RIGVM_API virtual const TArray<FRigVMExecuteArgument>& GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const;
 
 	RIGVM_API static bool CopyProperty(
 		const FProperty* InTargetProperty,
@@ -229,9 +234,16 @@ protected:
 	RIGVM_API static const FString DispatchPrefix;
 	RIGVM_API static const FString TrueString;
 
+	const TArray<FName>* UpdateArgumentNameCache(int32 InNumberOperands) const;
+	const TArray<FName>* UpdateArgumentNameCache_NoLock(int32 InNumberOperands) const;
+
 	UScriptStruct* FactoryScriptStruct;
 	mutable const FRigVMTemplate* CachedTemplate;
 	static FCriticalSection GetTemplateMutex;
+	mutable TMap<int32, TSharedPtr<TArray<FName>>> ArgumentNamesMap;
+	FCriticalSection* ArgumentNamesMutex;
 	friend struct FRigVMTemplate;
 	friend struct FRigVMRegistry;
+	friend struct FRigVMFunction;
+	friend class URigVM;
 };

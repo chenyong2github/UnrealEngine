@@ -10,14 +10,15 @@
 
 const FName FRigVMDispatch_Constant::ValueName = TEXT("Value");
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_Constant::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_Constant::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue
 	};
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		{ValueName, ERigVMPinDirection::IO, Categories}
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_Constant::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const

@@ -134,6 +134,7 @@ struct RIGVM_API FRigVMFunction
 	int32 TemplateIndex;
 	TArray<FRigVMFunctionArgument> Arguments;
 	mutable TArray<TRigVMTypeIndex> ArgumentTypeIndices;
+	mutable TArray<FName> ArgumentNames;
 
 	FRigVMFunction()
 		: Name()
@@ -144,19 +145,11 @@ struct RIGVM_API FRigVMFunction
 		, TemplateIndex(INDEX_NONE)
 		, Arguments()
 		, ArgumentTypeIndices()
+		, ArgumentNames()
 	{
 	}
 
-	FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, int32 InIndex = INDEX_NONE, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>())
-		: Name(InName)
-		, Struct(InStruct)
-		, Factory(nullptr)
-		, FunctionPtr(InFunctionPtr)
-		, Index(InIndex)
-		, TemplateIndex(INDEX_NONE)
-		, Arguments(InArguments)
-	{
-	}
+	FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, int32 InIndex = INDEX_NONE, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>());
 
 	FRigVMFunction(const FString& InName, FRigVMFunctionPtr InFunctionPtr, FRigVMDispatchFactory* InFactory, int32 InIndex = INDEX_NONE, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>())
 	: Name(InName)
@@ -166,6 +159,7 @@ struct RIGVM_API FRigVMFunction
 	, Index(InIndex)
 	, TemplateIndex(INDEX_NONE)
 	, Arguments(InArguments)
+	, ArgumentNames()
 	{
 	}
 
@@ -179,5 +173,5 @@ struct RIGVM_API FRigVMFunction
 	const FRigVMTemplate* GetTemplate() const;
 	const UScriptStruct* GetExecuteContextStruct() const;
 	bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
-	FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const;
+	const FName& GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const;
 };

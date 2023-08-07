@@ -28,19 +28,20 @@ FString FRigDispatch_GetUserData::GetArgumentMetaData(const FName& InArgumentNam
 
 #endif
 
-TArray<FRigVMTemplateArgument> FRigDispatch_GetUserData::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_GetUserData::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
-	return {
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		FRigVMTemplateArgument(ArgNameSpaceName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FString),
 		FRigVMTemplateArgument(ArgPathName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FString),
 		FRigVMTemplateArgument(ArgDefaultName, ERigVMPinDirection::Input, ValueCategories),
 		FRigVMTemplateArgument(ArgResultName, ERigVMPinDirection::Output, ValueCategories),
 		FRigVMTemplateArgument(ArgFoundName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool)
 	};
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigDispatch_GetUserData::OnNewArgumentType(const FName& InArgumentName,

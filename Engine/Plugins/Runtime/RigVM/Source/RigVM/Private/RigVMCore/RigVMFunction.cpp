@@ -7,6 +7,23 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "UObject/Package.h"
 
+FRigVMFunction::FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct, int32 InIndex, const TArray<FRigVMFunctionArgument>& InArguments)
+: Name(InName)
+, Struct(InStruct)
+, Factory(nullptr)
+, FunctionPtr(InFunctionPtr)
+, Index(InIndex)
+, TemplateIndex(INDEX_NONE)
+, Arguments(InArguments)
+, ArgumentNames()
+{
+	ArgumentNames.SetNumZeroed(Arguments.Num());
+	for(int32 ArgumentIndex = 0; ArgumentIndex < Arguments.Num(); ArgumentIndex++)
+	{
+		ArgumentNames[ArgumentIndex] = Arguments[ArgumentIndex].Name;
+	}
+}
+
 FString FRigVMFunction::GetName() const
 {
 	return Name;
@@ -160,14 +177,16 @@ bool FRigVMFunction::SupportsExecuteContextStruct(const UScriptStruct* InExecute
 	return InExecuteContextStruct->IsChildOf(GetExecuteContextStruct());
 }
 
-FName FRigVMFunction::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+const FName& FRigVMFunction::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
 {
 	if(Factory)
 	{
-		return Factory->GetArgumentNameForOperandIndex(InOperandIndex, InTotalOperands);
+		const TArray<FName>* FactoryArgumentNames = Factory->UpdateArgumentNameCache_NoLock(InTotalOperands);
+		check(FactoryArgumentNames);
+		check(FactoryArgumentNames->IsValidIndex(InOperandIndex));
+		return (*FactoryArgumentNames)[InOperandIndex];
 	}
 
-	check(Arguments.IsValidIndex(InOperandIndex));
-	check(Arguments.Num() == InTotalOperands);
-	return Arguments[InOperandIndex].Name;
+	check(ArgumentNames.IsValidIndex(InOperandIndex));
+	return ArgumentNames[InOperandIndex];
 }

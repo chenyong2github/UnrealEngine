@@ -321,7 +321,7 @@ FString FRigDispatch_AnimAttributeBase::GetNodeTitle(const FRigVMTemplateTypeMap
 }
 #endif
 
-TArray<FRigVMTemplateArgument> FRigDispatch_AnimAttributeBase::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_AnimAttributeBase::GetArguments() const
 {
 	if (Arguments.IsEmpty())
 	{
@@ -372,7 +372,7 @@ FText FRigDispatch_AnimAttributeBase::GetArgumentTooltip(const FName& InArgument
 
 
 
-TArray<FRigVMTemplateArgument> FRigDispatch_GetAnimAttribute::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_GetAnimAttribute::GetArguments() const
 {
 	if (ValueArgIndex == INDEX_NONE)
 	{
@@ -455,7 +455,7 @@ FRigVMFunctionPtr FRigDispatch_GetAnimAttribute::GetDispatchFunctionImpl(const F
 	return nullptr;
 }
 
-TArray<FRigVMTemplateArgument> FRigDispatch_SetAnimAttribute::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigDispatch_SetAnimAttribute::GetArguments() const
 {
 	if (ValueArgIndex == INDEX_NONE)
 	{
@@ -471,9 +471,12 @@ TArray<FRigVMTemplateArgument> FRigDispatch_SetAnimAttribute::GetArguments() con
 	return Arguments;
 }
 
-TArray<FRigVMExecuteArgument> FRigDispatch_SetAnimAttribute::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
+const TArray<FRigVMExecuteArgument>& FRigDispatch_SetAnimAttribute::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
 {
-	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
+	static const TArray<FRigVMExecuteArgument> ExecuteArguments = {
+		{TEXT("ExecuteContext"), ERigVMPinDirection::IO}
+	};
+	return ExecuteArguments;
 }
 
 FRigVMTemplateTypeMap FRigDispatch_SetAnimAttribute::OnNewArgumentType(const FName& InArgumentName,

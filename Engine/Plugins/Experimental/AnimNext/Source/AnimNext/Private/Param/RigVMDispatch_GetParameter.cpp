@@ -47,20 +47,22 @@ FString FRigVMDispatch_GetParameter::GetArgumentDefaultValue(const FName& InArgu
 }
 #endif
 
-TArray<FRigVMTemplateArgument> FRigVMDispatch_GetParameter::GetArguments() const
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_GetParameter::GetArguments() const
 {
-	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories =
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories =
 	{
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
-	return
-	{
+
+	static const TArray<FRigVMTemplateArgument> Arguments = {
 		FRigVMTemplateArgument(ParameterName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FName),
 		FRigVMTemplateArgument(ValueName, ERigVMPinDirection::Output, ValueCategories),
 		FRigVMTemplateArgument(ParameterIdName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::UInt32),
 		FRigVMTemplateArgument(TypeHandleName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::UInt32),
 	};
+
+	return Arguments;
 }
 
 FRigVMTemplateTypeMap FRigVMDispatch_GetParameter::OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
