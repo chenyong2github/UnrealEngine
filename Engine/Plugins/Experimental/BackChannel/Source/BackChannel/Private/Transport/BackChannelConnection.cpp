@@ -7,7 +7,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Sockets.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 #include "Stats/StatsTrace.h"
 
 DECLARE_STATS_GROUP(TEXT("BackChannel"), STATGROUP_BackChannel, STATCAT_Advanced);

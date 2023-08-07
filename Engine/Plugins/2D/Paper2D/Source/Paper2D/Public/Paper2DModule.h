@@ -4,7 +4,7 @@
 
 #include "Math/Vector.h"
 #include "Modules/ModuleInterface.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 
 enum class EStatFlags : uint8;
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 
 // Module-wide log categories
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterEngine,     Log, All);

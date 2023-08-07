@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 
 DECLARE_STATS_GROUP(TEXT("Camera Animation Evaluation"), STATGROUP_CameraAnimation, STATCAT_Advanced)
 

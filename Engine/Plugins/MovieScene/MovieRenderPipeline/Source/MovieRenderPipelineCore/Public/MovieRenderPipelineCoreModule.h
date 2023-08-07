@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 #include "Modules/ModuleInterface.h"
 #include "Features/IModularFeature.h"
 
