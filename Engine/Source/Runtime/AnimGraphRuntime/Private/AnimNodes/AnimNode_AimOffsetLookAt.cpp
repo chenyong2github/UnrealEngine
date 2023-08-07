@@ -172,11 +172,15 @@ void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseCo
 #endif // ENABLE_DRAW_DEBUG
 	}
 
-	// Update Blend Space and put the result into BlendSampleDataCache.
+	// Update Blend Space, including the smoothing/filtering, and put the result into BlendSampleDataCache.
 	if (CurrentBlendSpace)
 	{
+		const FVector BlendSpacePosition(CurrentBlendInput.X, CurrentBlendInput.Y, 0.f);
+		const FVector FilteredBlendInput = CurrentBlendSpace->FilterInput(
+			&BlendFilter, BlendSpacePosition, DeltaTimeRecord.Delta);
+
 		CurrentBlendSpace->UpdateBlendSamples(
-			CurrentBlendInput, DeltaTimeRecord.Delta, BlendSampleDataCache, CachedTriangulationIndex);
+			FilteredBlendInput, DeltaTimeRecord.Delta, BlendSampleDataCache, CachedTriangulationIndex);
 	}
 }
 
