@@ -18,6 +18,7 @@ public:
 
 	bool IsFoveationExtensionEnabled() { return bFoveationExtensionSupported;}
 	void UpdateFoveationImages();
+	void SetCurrentFrameSwapchainIndex(int32 CurrentFrameSwapchainIndex);
 
 	/** IVariableRateShadingImageGenerator interface */
 	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) override;
@@ -34,6 +35,7 @@ private:
 
 	FOpenXRHMD* OpenXRHMD;
 	bool		bIsMobileMultiViewEnabled;
+	int32		CurrentFrameSwapchainIndex;
 
 	// XR_FB_foveation
 	bool					bFoveationExtensionSupported;

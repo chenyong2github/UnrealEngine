@@ -61,10 +61,9 @@ FRDGTextureRef FFBFoveationImageGenerator::GetImage(FRDGBuilder& GraphBuilder, c
 	{
 		return nullptr;
 	}
-	FOpenXRSwapchain* ColorSwapchain = OpenXRHMD->GetColorSwapchain_RenderThread();
-	if (ColorSwapchain != nullptr)
+	if (FoveationImages.IsValidIndex(CurrentFrameSwapchainIndex))
 	{
-		FTextureRHIRef SwapchainTexture = FoveationImages[ColorSwapchain->GetSwapChainIndex_RHIThread()];
+		FTextureRHIRef SwapchainTexture = FoveationImages[CurrentFrameSwapchainIndex];
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget = CreateRenderTarget(SwapchainTexture, *SwapchainTexture->GetName().ToString());
 
 		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, *SwapchainTexture->GetName().ToString(), ERDGTextureFlags::SkipTracking);
@@ -132,4 +131,9 @@ void FFBFoveationImageGenerator::UpdateFoveationImages()
 
 		ColorSwapchain->GetFragmentDensityMaps(FoveationImages, bIsMobileMultiViewEnabled);
 	}
+}
+
+void FFBFoveationImageGenerator::SetCurrentFrameSwapchainIndex(int32 InCurrentFrameSwapchainIndex)
+{
+	CurrentFrameSwapchainIndex = InCurrentFrameSwapchainIndex;
 }
