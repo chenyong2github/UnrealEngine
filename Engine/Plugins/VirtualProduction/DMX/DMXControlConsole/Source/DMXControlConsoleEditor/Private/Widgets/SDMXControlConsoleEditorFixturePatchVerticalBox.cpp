@@ -296,9 +296,26 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateAddPa
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("AddPatchButtonMainSection", "Add Patch"));
 	{
-		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().AddPatchNext);
-		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().AddPatchNextRow);
-		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().AddPatchToSelection);
+		MenuBuilder.AddMenuEntry
+		(
+			FDMXControlConsoleEditorCommands::Get().AddPatchNext,
+			NAME_None,
+			LOCTEXT("AddPatchNextButtonLabel", "To the right")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FDMXControlConsoleEditorCommands::Get().AddPatchNextRow,
+			NAME_None,
+			LOCTEXT("AddPatchNextRowButtonLabel", "To next row")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FDMXControlConsoleEditorCommands::Get().AddPatchToSelection,
+			NAME_None,
+			LOCTEXT("AddPatchToSelectionButtonLabel", "To selection")
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -338,8 +355,9 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 	}
 
 	// Do only if current layout is Default Layout
-	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
-	if (!CurrentLayout || CurrentLayout->GetClass() != UDMXControlConsoleEditorGlobalLayoutDefault::StaticClass())
+	UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	UDMXControlConsoleEditorGlobalLayoutDefault* DefaultLayout = Cast<UDMXControlConsoleEditorGlobalLayoutDefault>(CurrentLayout);
+	if (!DefaultLayout)
 	{
 		return;
 	}
@@ -364,6 +382,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 		FaderGroup->SetIsActive(bIsFixturePatchSelected);
 		if (bIsFixturePatchSelected)
 		{
+			DefaultLayout->AddToActiveFaderGroups(FaderGroup);
 			const bool bAutoSelect = EditorConsoleModel->GetAutoSelectActivePatches();
 			if (bAutoSelect)
 			{
@@ -373,6 +392,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 		}
 		else
 		{
+			DefaultLayout->RemoveFromActiveFaderGroups(FaderGroup);
 			FaderGroupsToRemoveFromSelection.Add(FaderGroup);
 		}
 	}

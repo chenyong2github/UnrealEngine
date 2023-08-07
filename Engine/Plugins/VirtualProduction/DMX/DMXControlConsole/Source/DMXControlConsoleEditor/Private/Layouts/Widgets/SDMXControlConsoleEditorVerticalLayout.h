@@ -25,7 +25,7 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 		SLATE_END_ARGS()
 
 		/** Constructs the widget */
-		void Construct(const FArguments& InArgs);
+		void Construct(const FArguments& InArgs, UDMXControlConsoleEditorGlobalLayoutBase* InLayout);
 
 	protected:
 		//~ Begin SDMXControlConsoleEditorLayout interface

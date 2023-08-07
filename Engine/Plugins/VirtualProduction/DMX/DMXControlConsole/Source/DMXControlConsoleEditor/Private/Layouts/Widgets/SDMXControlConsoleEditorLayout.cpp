@@ -8,6 +8,11 @@
 
 namespace UE::DMXControlConsoleEditor::Layout::Private
 { 
+	void SDMXControlConsoleEditorLayout::Construct(const FArguments& InArgs, UDMXControlConsoleEditorGlobalLayoutBase* InLayout)
+	{
+		EditorLayout = InLayout;
+	}
+
 	void SDMXControlConsoleEditorLayout::RequestRefresh()
 	{
 		if (!RefreshLayoutTimerHandle.IsValid() && CanRefresh())

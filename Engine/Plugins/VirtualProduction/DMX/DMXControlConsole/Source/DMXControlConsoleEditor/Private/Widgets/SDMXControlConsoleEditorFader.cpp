@@ -24,7 +24,7 @@
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFader"
 
-namespace UE::Private::DMXControlConsoleEditorFader
+namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorFader::Private
 {
 	static float CollapsedViewModeHeight = 230.f;
 	static float ExpandedViewModeHeight = 310.f;
@@ -830,7 +830,7 @@ bool SDMXControlConsoleEditorFader::IsFaderSpinBoxActive() const
 
 FOptionalSize SDMXControlConsoleEditorFader::GetFaderHeightByViewMode() const
 {
-	using namespace UE::Private::DMXControlConsoleEditorFader;
+	using namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorFader::Private;
 
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 	const EDMXControlConsoleEditorViewMode ViewMode = EditorConsoleModel->GetFadersViewMode();

@@ -192,6 +192,19 @@ void UDMXControlConsoleEditorGlobalLayoutBase::SetLayoutMode(const EDMXControlCo
 	OwnerEditorLayouts->OnLayoutModeChanged.Broadcast();
 }
 
+void UDMXControlConsoleEditorGlobalLayoutBase::SetActiveFaderGroupsInLayout(bool bActive)
+{
+	const TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> AllFaderGroups = GetAllFaderGroups();
+	for (const TWeakObjectPtr<UDMXControlConsoleFaderGroup>& FaderGroup : AllFaderGroups)
+	{
+		if (FaderGroup.IsValid())
+		{
+			FaderGroup->Modify();
+			FaderGroup->SetIsActive(bActive);
+		}
+	}
+}
+
 bool UDMXControlConsoleEditorGlobalLayoutBase::ContainsFaderGroup(const UDMXControlConsoleFaderGroup* FaderGroup) const
 {
 	return GetFaderGroupRowIndex(FaderGroup) != INDEX_NONE;

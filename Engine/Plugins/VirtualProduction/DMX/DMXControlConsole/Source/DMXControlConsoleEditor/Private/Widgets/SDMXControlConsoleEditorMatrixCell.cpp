@@ -23,7 +23,7 @@
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorMatrixCell"
 
-namespace UE::Private::DMXControlConsoleEditorMatrixCell
+namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorMatrixCell::Private
 {
 	static float CollapsedViewModeHeight = 200.f;
 	static float ExpandedViewModeHeight = 280.f;
@@ -263,7 +263,7 @@ bool SDMXControlConsoleEditorMatrixCell::IsAnyCellAttributeFaderSelected() const
 
 FOptionalSize SDMXControlConsoleEditorMatrixCell::GetMatrixCellHeightByFadersViewMode() const
 {
-	using namespace UE::Private::DMXControlConsoleEditorMatrixCell;
+	using namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorMatrixCell::Private;
 
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 	const EDMXControlConsoleEditorViewMode ViewMode = EditorConsoleModel->GetFadersViewMode();

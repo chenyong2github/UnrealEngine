@@ -33,7 +33,7 @@
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFaderGroupView"
 
-namespace UE::Private::DMXControlConsoleEditorFaderGroupView
+namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorFaderGroupView::Private
 {
 	static float CollapsedViewModeHeight = 280.f;
 	static float ExpandedViewModeHeight = 360.f;
@@ -691,7 +691,7 @@ bool SDMXControlConsoleEditorFaderGroupView::IsCurrentViewMode(EDMXControlConsol
 
 FOptionalSize SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewHeightByFadersViewMode() const
 {
-	using namespace UE::Private::DMXControlConsoleEditorFaderGroupView;
+	using namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorFaderGroupView::Private;
 
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 	const EDMXControlConsoleEditorViewMode FadersViewMode = EditorConsoleModel->GetFadersViewMode();

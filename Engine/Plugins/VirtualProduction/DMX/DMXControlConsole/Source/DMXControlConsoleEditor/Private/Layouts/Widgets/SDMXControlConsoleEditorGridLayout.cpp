@@ -29,8 +29,15 @@
 
 namespace UE::DMXControlConsoleEditor::Layout::Private
 {
-	void SDMXControlConsoleEditorGridLayout::Construct(const FArguments& InArgs)
+	void SDMXControlConsoleEditorGridLayout::Construct(const FArguments& InArgs, UDMXControlConsoleEditorGlobalLayoutBase* InLayout)
 	{
+		if (!ensureMsgf(InLayout, TEXT("Invalid layout, cannot create layout view correctly.")))
+		{
+			return;
+		}
+
+		EditorLayout = InLayout;
+
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 		EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorGridLayout::Refresh);
 		EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorGridLayout::Refresh);
@@ -102,6 +109,11 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 
 	bool SDMXControlConsoleEditorGridLayout::CanRefresh() const
 	{
+		if (!EditorLayout.IsValid())
+		{
+			return false;
+		}
+
 		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 		const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
 		if (!EditorConsoleLayouts)
@@ -145,7 +157,6 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 			{
 				continue;
 			}
-
 
 			const TSharedRef<SDMXControlConsoleEditorLayoutRowView> LayoutRowWidget =
 				SNew(SDMXControlConsoleEditorLayoutRowView, LayoutRow)

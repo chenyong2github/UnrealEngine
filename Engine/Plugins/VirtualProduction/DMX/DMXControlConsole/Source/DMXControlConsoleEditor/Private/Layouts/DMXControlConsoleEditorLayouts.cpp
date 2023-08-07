@@ -68,10 +68,7 @@ void UDMXControlConsoleEditorLayouts::SetActiveLayout(UDMXControlConsoleEditorGl
 	if (InLayout && InLayout != ActiveLayout)
 	{
 		ActiveLayout = InLayout;
-		if (UDMXControlConsoleEditorGlobalLayoutUser* ActiveUserLayout = Cast<UDMXControlConsoleEditorGlobalLayoutUser>(InLayout))
-		{
-			ActiveUserLayout->SetIsActive(true);
-		}
+		ActiveLayout->SetActiveFaderGroupsInLayout(true);
 
 		OnActiveLayoutChanged.Broadcast();
 		OnLayoutModeChanged.Broadcast();

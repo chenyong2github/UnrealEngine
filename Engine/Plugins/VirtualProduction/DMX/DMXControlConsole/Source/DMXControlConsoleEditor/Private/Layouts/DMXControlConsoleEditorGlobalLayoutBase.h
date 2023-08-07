@@ -19,12 +19,13 @@ enum class EDMXControlConsoleLayoutMode : uint8
 {
 	Horizontal,
 	Vertical,
-	Grid
+	Grid,
+	None
 };
 
 /** Base class for Control Console layout */
 UCLASS(Abstract)
-class DMXCONTROLCONSOLEEDITOR_API UDMXControlConsoleEditorGlobalLayoutBase
+class UDMXControlConsoleEditorGlobalLayoutBase
 	: public UObject
 {
 	GENERATED_BODY()
@@ -77,6 +78,9 @@ public:
 
 	/** Sets current layout mode */
 	void SetLayoutMode(const EDMXControlConsoleLayoutMode NewLayoutMode);
+
+	/** Sets active state of all Fader Groups in the layout */
+	virtual void SetActiveFaderGroupsInLayout(bool bActive);
 
 	/** True if the layout contains the given Fader Group */
 	bool ContainsFaderGroup(const UDMXControlConsoleFaderGroup* FaderGroup) const;

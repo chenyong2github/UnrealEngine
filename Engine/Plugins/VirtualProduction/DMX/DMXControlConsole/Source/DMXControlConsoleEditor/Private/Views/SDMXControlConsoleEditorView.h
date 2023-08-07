@@ -61,6 +61,7 @@ protected:
 	//~ End of SWidget interface
 	
 	//~ Begin FSelfRegisteringEditorUndoClient interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 	//~ End FSelfRegisteringEditorUndoClient interface

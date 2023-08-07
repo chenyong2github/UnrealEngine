@@ -26,8 +26,15 @@
 
 namespace UE::DMXControlConsoleEditor::Layout::Private
 {
-	void SDMXControlConsoleEditorHorizontalLayout::Construct(const FArguments& InArgs)
+	void SDMXControlConsoleEditorHorizontalLayout::Construct(const FArguments& InArgs, UDMXControlConsoleEditorGlobalLayoutBase* InLayout)
 	{
+		if (!ensureMsgf(InLayout, TEXT("Invalid layout, cannot create layout view correctly.")))
+		{
+			return;
+		}
+
+		EditorLayout = InLayout;
+
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 		EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorHorizontalLayout::Refresh);
 		EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorHorizontalLayout::Refresh);
@@ -81,6 +88,11 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 
 	bool SDMXControlConsoleEditorHorizontalLayout::CanRefresh() const
 	{
+		if (!EditorLayout.IsValid())
+		{
+			return false;
+		}
+
 		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 		const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
 		if (!EditorConsoleLayouts)

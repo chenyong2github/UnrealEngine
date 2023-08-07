@@ -53,6 +53,44 @@ void UDMXControlConsoleEditorGlobalLayoutDefault::Unregister()
 	bIsRegistered = false;
 }
 
+void UDMXControlConsoleEditorGlobalLayoutDefault::AddToActiveFaderGroups(UDMXControlConsoleFaderGroup* FaderGroup)
+{
+	if (FaderGroup && !ActiveFaderGroups.Contains(FaderGroup))
+	{
+		ActiveFaderGroups.Add(FaderGroup);
+	}
+}
+
+void UDMXControlConsoleEditorGlobalLayoutDefault::RemoveFromActiveFaderGroups(UDMXControlConsoleFaderGroup* FaderGroup)
+{
+	if (FaderGroup && ActiveFaderGroups.Contains(FaderGroup))
+	{
+		ActiveFaderGroups.Remove(FaderGroup);
+	}
+}
+
+void UDMXControlConsoleEditorGlobalLayoutDefault::SetActiveFaderGroupsInLayout(bool bActive)
+{
+	const TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> AllFaderGroups = GetAllFaderGroups();
+	for (const TWeakObjectPtr<UDMXControlConsoleFaderGroup>& FaderGroup : AllFaderGroups)
+	{
+		if (!FaderGroup.IsValid())
+		{
+			continue;
+		}
+
+		FaderGroup->Modify();
+		if (ActiveFaderGroups.Contains(FaderGroup))
+		{
+			FaderGroup->SetIsActive(bActive);
+		}
+		else
+		{
+			FaderGroup->SetIsActive(!bActive);
+		}
+	}
+}
+
 void UDMXControlConsoleEditorGlobalLayoutDefault::GenerateLayoutByControlConsoleData(const UDMXControlConsoleData* ControlConsoleData)
 {
 	Super::GenerateLayoutByControlConsoleData(ControlConsoleData);

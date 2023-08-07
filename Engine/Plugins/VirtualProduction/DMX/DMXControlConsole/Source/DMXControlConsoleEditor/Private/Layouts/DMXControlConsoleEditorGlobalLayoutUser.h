@@ -21,9 +21,6 @@ public:
 	/** Sets Layout's name identifier */
 	void SetLayoutName(const FString& NewName) { LayoutName = NewName; }
 
-	/** Sets activity state of all Fader Groups in this layout */
-	void SetIsActive(bool bActive);
-
 	// Property Name getters
 	FORCEINLINE static FName GetLayoutNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleEditorGlobalLayoutUser, LayoutName); }
 

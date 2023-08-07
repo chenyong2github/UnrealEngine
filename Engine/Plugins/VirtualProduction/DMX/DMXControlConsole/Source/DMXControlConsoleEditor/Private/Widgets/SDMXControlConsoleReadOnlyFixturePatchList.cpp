@@ -40,19 +40,10 @@ void SDMXControlConsoleReadOnlyFixturePatchList::Construct(const FArguments& InA
 
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 	EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
+	EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::Register);
 	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
 
-	if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
-	{
-		EditorConsoleData->GetOnFaderGroupAdded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
-		EditorConsoleData->GetOnFaderGroupRemoved().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
-	}
-
-	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts())
-	{
-		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
-	}
-
+	Register();
 	SyncSelection();
 }
 
@@ -208,6 +199,32 @@ void SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection()
 			const bool bIsSelected = FaderGroup->IsActive();
 			ListView->SetItemSelection(*FixturePatcheRefPtr, bIsSelected, ESelectInfo::Direct);
 		}
+	}
+}
+
+void SDMXControlConsoleReadOnlyFixturePatchList::Register()
+{
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
+	UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleData || !EditorConsoleLayouts)
+	{
+		return;
+	}
+
+	if (!EditorConsoleData->GetOnFaderGroupAdded().IsBoundToObject(this))
+	{
+		EditorConsoleData->GetOnFaderGroupAdded().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
+	}
+
+	if (!EditorConsoleData->GetOnFaderGroupRemoved().IsBoundToObject(this))
+	{
+		EditorConsoleData->GetOnFaderGroupRemoved().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::OnEditorConsoleDataChanged);
+	}
+
+	if (!EditorConsoleLayouts->GetOnActiveLayoutChanged().IsBoundToObject(this))
+	{
+		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleReadOnlyFixturePatchList::SyncSelection);
 	}
 }
 

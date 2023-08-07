@@ -2,6 +2,7 @@
 
 #include "SDMXControlConsoleEditorView.h"
 
+#include "Algo/AnyOf.h"
 #include "Application/ThrottleManager.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Customizations/DMXControlConsoleDataDetails.h"
@@ -19,11 +20,13 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailsView.h"
 #include "Layout/Visibility.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutRow.h"
 #include "Layouts/DMXControlConsoleEditorGlobalLayoutUser.h"
 #include "Layouts/DMXControlConsoleEditorLayouts.h"
 #include "Layouts/Widgets/SDMXControlConsoleEditorGridLayout.h"
 #include "Layouts/Widgets/SDMXControlConsoleEditorHorizontalLayout.h"
 #include "Layouts/Widgets/SDMXControlConsoleEditorVerticalLayout.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "Models/Filter/FilterModel.h"
 #include "Modules/ModuleManager.h"
@@ -49,10 +52,18 @@
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorView"
 
-namespace UE::Private::DMXControlConsoleEditorView
+namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorView::Private
 {
 	static const FSlateIcon SendDMXIcon = FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), ("DMXControlConsole.PlayDMX"));
 	static const FSlateIcon StopSendingDMXIcon = FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), ("DMXControlConsole.StopPlayingDMX"));
+	static const TArray<UClass*> MatchingContextClasses =
+		{
+			UDMXControlConsoleEditorModel::StaticClass(),
+			UDMXControlConsoleData::StaticClass(),
+			UDMXControlConsoleEditorLayouts::StaticClass(),
+			UDMXControlConsoleEditorGlobalLayoutBase::StaticClass(),
+			UDMXControlConsoleEditorGlobalLayoutRow::StaticClass()
+		};
 };
 
 SDMXControlConsoleEditorView::~SDMXControlConsoleEditorView()
@@ -277,6 +288,28 @@ FReply SDMXControlConsoleEditorView::OnMouseButtonDown(const FGeometry& MyGeomet
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	SelectionHandler->ClearSelection();
 	return FReply::Handled();
+}
+
+bool SDMXControlConsoleEditorView::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	using namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorView::Private;
+	const bool bMatchesContext = Algo::AnyOf(TransactionObjectContexts, [this](const TPair<UObject*, FTransactionObjectEvent>& Pair)
+		{
+			bool bMatchesClasses = false;
+			const UObject* Object = Pair.Key;
+			if (IsValid(Object))
+			{
+				const UClass* ObjectClass = Object->GetClass();
+				bMatchesClasses = Algo::AnyOf(MatchingContextClasses, [ObjectClass](UClass* InClass)
+					{
+						return IsValid(ObjectClass) && ObjectClass->IsChildOf(InClass);
+					});
+			}
+
+			return bMatchesClasses;
+		});
+
+	return bMatchesContext;
 }
 
 void SDMXControlConsoleEditorView::PostUndo(bool bSuccess)
@@ -796,39 +829,45 @@ void SDMXControlConsoleEditorView::UpdateLayout()
 		return;
 	}
 
-	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
-	if (!CurrentLayout)
+	UDMXControlConsoleEditorGlobalLayoutBase* ActiveLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (!ActiveLayout)
 	{
 		return;
 	}
 
 	using namespace UE::DMXControlConsoleEditor::Layout::Private;
-	const EDMXControlConsoleLayoutMode LayoutMode = CurrentLayout->GetLayoutMode();
 
+	const EDMXControlConsoleLayoutMode LayoutMode = ActiveLayout->GetLayoutMode();
 	TSharedPtr<SDMXControlConsoleEditorLayout> NewLayoutWidget;
 	switch (LayoutMode)
 	{
 	case EDMXControlConsoleLayoutMode::Horizontal:
 	{
-		NewLayoutWidget = SNew(SDMXControlConsoleEditorHorizontalLayout);
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorHorizontalLayout, ActiveLayout);
 		break;
 	}
 	case EDMXControlConsoleLayoutMode::Vertical:
 	{
-		NewLayoutWidget = SNew(SDMXControlConsoleEditorVerticalLayout);
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorVerticalLayout, ActiveLayout);
 		break;
 	}
 	case EDMXControlConsoleLayoutMode::Grid:
 	{
-		NewLayoutWidget = SNew(SDMXControlConsoleEditorGridLayout);
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorGridLayout, ActiveLayout);
 		break;
 	}
 	default:
-		NewLayoutWidget = SNew(SDMXControlConsoleEditorGridLayout);
+		NewLayoutWidget = SNew(SDMXControlConsoleEditorGridLayout, ActiveLayout);
 		break;
 	}
 
-	if (NewLayoutWidget.IsValid() && !IsCurrentLayoutWidgetType(NewLayoutWidget->GetType()))
+	if (!ensureMsgf(NewLayoutWidget.IsValid(), TEXT("Invalid layout widget, cannot update layout correctly.")))
+	{
+		return;
+	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = Layout.IsValid() ? Layout->GetEditorLayout() : nullptr;
+	if (ActiveLayout != CurrentLayout || !IsCurrentLayoutWidgetType(NewLayoutWidget->GetType()))
 	{
 		Layout = NewLayoutWidget;
 		LayoutBox->ClearChildren();
@@ -836,11 +875,6 @@ void SDMXControlConsoleEditorView::UpdateLayout()
 			[
 				Layout.ToSharedRef()
 			];
-	}
-
-	if (Layout.IsValid())
-	{
-		Layout->RequestRefresh();
 	}
 }
 
@@ -1080,7 +1114,7 @@ FSlateIcon SDMXControlConsoleEditorView::GetSendDMXButtonIcon() const
 	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
 	if (const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
 	{
-		using namespace UE::Private::DMXControlConsoleEditorView;
+		using namespace UE::DMXControlConsoleEditor::DMXControlConsoleEditorView::Private;
 		return ControlConsoleData->IsSendingDMX() ? StopSendingDMXIcon : SendDMXIcon;
 	}
 

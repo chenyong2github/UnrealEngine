@@ -325,7 +325,10 @@ void SDMXControlConsoleEditorLayoutPicker::OnComboBoxSelectionChanged(const TWea
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		SelectionHandler->ClearSelection();
 
-		const FScopedTransaction UserLayoutSelectionChangedTransaction(LOCTEXT("UserLayoutSelectionChangedTransaction", "Change Layout"));
+		if (!GIsTransacting)
+		{
+			const FScopedTransaction UserLayoutSelectionChangedTransaction(LOCTEXT("UserLayoutSelectionChangedTransaction", "Change Layout"));
+		}
 		EditorConsoleLayouts->Modify();
 		EditorConsoleLayouts->SetActiveLayout(InLayout.Get());
 

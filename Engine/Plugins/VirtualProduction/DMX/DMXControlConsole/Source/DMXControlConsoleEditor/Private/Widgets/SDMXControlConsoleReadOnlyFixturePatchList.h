@@ -81,6 +81,9 @@ private:
 	/** Syncs selection to current active Fader Groups */
 	void SyncSelection();
 
+	/** Registers this widget */
+	void Register();
+
 	/** Called when Control Console Data have been changed by adding/removing Fader Groups */
 	void OnEditorConsoleDataChanged(const UDMXControlConsoleFaderGroup* FaderGroup);
 

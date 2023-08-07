@@ -3,16 +3,28 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
+#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
 #include "Widgets/SCompoundWidget.h"
 
 
 namespace UE::DMXControlConsoleEditor::Layout::Private
 { 
 	/** Base widget for Control Console layout */
-	class DMXCONTROLCONSOLEEDITOR_API SDMXControlConsoleEditorLayout
+	class SDMXControlConsoleEditorLayout
 		: public SCompoundWidget
 	{
 	public:
+		SLATE_BEGIN_ARGS(SDMXControlConsoleEditorLayout)
+		{}
+
+		SLATE_END_ARGS()
+
+		/** Constructs the widget */
+		void Construct(const FArguments& InArgs, UDMXControlConsoleEditorGlobalLayoutBase* InLayout);
+
+		/** Gets the Layout this view is based on */
+		UDMXControlConsoleEditorGlobalLayoutBase* GetEditorLayout() const { return EditorLayout.IsValid() ? EditorLayout.Get() : nullptr; }
+
 		/** Requests this layout to be refreshed */
 		virtual void RequestRefresh();
 
@@ -31,5 +43,8 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 
 		/** Timer handle in use while refreshing layout is requested but not carried out yet */
 		FTimerHandle RefreshLayoutTimerHandle;
+
+		/** Weak Reference to the Editor Layout */
+		TWeakObjectPtr<UDMXControlConsoleEditorGlobalLayoutBase> EditorLayout;
 	};
 }

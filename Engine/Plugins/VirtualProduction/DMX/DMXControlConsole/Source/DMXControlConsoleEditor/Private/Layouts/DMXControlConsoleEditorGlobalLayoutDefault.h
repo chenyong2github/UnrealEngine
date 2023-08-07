@@ -7,6 +7,7 @@
 #include "DMXControlConsoleEditorGlobalLayoutDefault.generated.h"
 
 class UDMXControlConsoleData;
+class UDMXControlConsoleFaderGroup;
 class UDMXEntity;
 class UDMXLibrary;
 
@@ -28,7 +29,14 @@ public:
 	/** True if this layout is registered to DMX Library delegates */
 	bool IsRegistered() const { return bIsRegistered; }
 
+	/** Adds the Fader Group to the array of active Fader Groups */
+	void AddToActiveFaderGroups(UDMXControlConsoleFaderGroup* FaderGroup);
+	
+	/** Removes the Fader Group form the array of active Fader Groups */
+	void RemoveFromActiveFaderGroups(UDMXControlConsoleFaderGroup* FaderGroup);
+
 	//~ Begin UDMXControlConsoleBaseGlobalLayout interface
+	virtual void SetActiveFaderGroupsInLayout(bool bActive) override;
 	virtual void GenerateLayoutByControlConsoleData(const UDMXControlConsoleData* ControlConsoleData) override;
 	//~ End UDMXControlConsoleBaseGlobalLayout interface
 
@@ -46,6 +54,10 @@ private:
 
 	/** Called to clean this layout from all unpatched Fader Groups */
 	void CleanLayoutFromUnpatchedFaderGroups();
+
+	/** Array of currently active Fader Groups in the layout */
+	UPROPERTY()
+	TArray<TWeakObjectPtr<UDMXControlConsoleFaderGroup>> ActiveFaderGroups;
 
 	/** True if the layout is registered to DMX Library delegates */
 	bool bIsRegistered = false;
