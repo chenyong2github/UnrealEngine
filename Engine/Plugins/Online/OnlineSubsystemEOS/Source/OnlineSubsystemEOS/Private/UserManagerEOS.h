@@ -83,8 +83,8 @@ class TOnlinePlayerList
 	FUniqueNetIdEOSRef OwningNetId;
 	/** The array of list class entries */
 	TArray<ListClass> ListEntries;
-	/** Indexed by string form of account id for fast look up */
-	TMap<FString, ListClass> NetIdStringToListEntryMap;
+	/** Indexed by unique id for fast look up */
+	TUniqueNetIdMap<ListClass> UniqueIdToListEntryMap;
 
 public:
 	TOnlinePlayerList(int32 InLocalUserNum, FUniqueNetIdEOSRef InOwningNetId)
@@ -98,31 +98,22 @@ public:
 		return ListEntries;
 	}
 
-	void Add(const FString& InNetId, ListClass InListEntry)
+	void Add(const FUniqueNetIdRef& InNetId, ListClass InListEntry)
 	{
 		ListEntries.Add(InListEntry);
-		NetIdStringToListEntryMap.Add(InNetId, InListEntry);
+		UniqueIdToListEntryMap.Add(InNetId, InListEntry);
 	}
 
-	void Remove(const FString& InNetId, ListClass InListEntry)
+	void Remove(const FUniqueNetIdRef& InNetId, ListClass InListEntry)
 	{
-		NetIdStringToListEntryMap.Remove(InNetId);
+		UniqueIdToListEntryMap.Remove(InNetId);
 		ListEntries.Remove(InListEntry);
 	}
 
 	void Empty(int32 Slack = 0)
 	{
 		ListEntries.Empty(Slack);
-		NetIdStringToListEntryMap.Empty(Slack);
-	}
-
-	void UpdateNetIdStr(const FString& PrevNetId, const FString& NewNetId)
-	{
-		if (ListClass* ListEntry = NetIdStringToListEntryMap.Find(PrevNetId))
-		{
-			NetIdStringToListEntryMap.Add(NewNetId, *ListEntry);
-			NetIdStringToListEntryMap.Remove(PrevNetId);
-		}
+		UniqueIdToListEntryMap.Empty(Slack);
 	}
 
 	ListClassReturnType GetByIndex(int32 Index)
@@ -134,9 +125,9 @@ public:
 		return ListClassReturnType();
 	}
 
-	ListClassReturnType GetByNetIdString(const FString& NetId)
+	ListClassReturnType GetByNetId(const FUniqueNetIdRef& NetId)
 	{
-		const ListClass* Found = NetIdStringToListEntryMap.Find(NetId);
+		const ListClass* Found = UniqueIdToListEntryMap.Find(NetId);
 		if (Found != nullptr)
 		{
 			return *Found;
@@ -155,8 +146,8 @@ public:
 	}
 	virtual ~FFriendsListEOS() = default;
 };
-
 typedef TSharedRef<FFriendsListEOS> FFriendsListEOSRef;
+typedef TSharedPtr<FFriendsListEOS> FFriendsListEOSPtr;
 
 struct FNotificationIdCallbackPair
 {
@@ -173,6 +164,53 @@ struct FNotificationIdCallbackPair
 	{
 		delete Callback;
 	}
+};
+typedef TSharedPtr<FNotificationIdCallbackPair> FNotificationIdCallbackPairPtr;
+
+/** Cache for the info passed on to ReadFriendsList, kept while user info queries complete */
+struct ReadUserListInfo
+{
+	const int32 LocalUserNum;
+	const FString ListName;
+	const FOnReadFriendsListComplete Delegate;
+
+	ReadUserListInfo(int32 InLocalUserNum, const FString& InListName, FOnReadFriendsListComplete InDelegate)
+		: LocalUserNum(InLocalUserNum), ListName(InListName), Delegate(MoveTemp(InDelegate))
+	{
+	}
+
+	void ExecuteDelegateIfBound(bool bWasSuccessful, const FString& ErrorStr) const
+	{
+		Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
+	};
+};
+
+/** Information related to ongoing operations and state for local users */
+struct FLocalUserEOS
+{
+	/** UniqueNetId for the local user, set after successful authentication */
+	FUniqueNetIdEOSPtr UniqueNetId;
+
+	/** Online Account information for the local user */
+	FUserOnlineAccountEOSPtr UserOnlineAccount;
+
+	/** Friends information for the local user */
+	FFriendsListEOSPtr FriendsList;
+
+	/** Epic ids for friends with ongoing queries */
+	TArray<EOS_EpicAccountId> OngoingFriendQueryUserInfo;
+
+	/** External ids still in process of resolution for local user */
+	TArray<FString> OngoingPlayerQueryExternalMappings;
+
+	/** This keeps track of all delegates passed on to calls to ReadFriendsList, so they will all be executed once the process finishes */
+	TArray<ReadUserListInfo> CachedReadUserListInfo;
+
+	/** Last Login Credentials used for a login attempt */
+	TSharedPtr<FOnlineAccountCredentials> LastLoginCredentials;
+
+	/** Struct containing the information related to the connect login notification for the user */
+	FNotificationIdCallbackPairPtr ConnectLoginNotification;
 };
 
 /**
@@ -312,28 +350,30 @@ public:
 	 */
 	FUserManagerEOS() = delete;
 
-	bool ConnectLoginEAS(int32 LocalUserNum, EOS_EpicAccountId AccountId);
-	void LoginViaExternalAuth(int32 LocalUserNum);
-	void CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ContinuanceToken Token);
-	void LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token);
+	bool ConnectLoginEAS(int32 LocalUserNum, EOS_EpicAccountId AccountId, const FOnlineAccountCredentials& AccountCredentials);
+	void LoginViaExternalAuth(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials);
+	void CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ContinuanceToken Token, const FOnlineAccountCredentials& AccountCredentials);
+	void LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token, const FOnlineAccountCredentials& AccountCredentials);
 	void RefreshConnectLogin(int32 LocalUserNum);
-	bool ConnectLoginNoEAS(int32 LocalUserNum);
+	bool ConnectLoginNoEAS(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials);
 
-	void FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ProductUserId UserId);
+	void FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ProductUserId UserId, const FOnlineAccountCredentials& AccountCredentials);
 	void FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo* Data);
 	void LoginStatusChanged(const EOS_Auth_LoginStatusChangedCallbackInfo* Data);
 
 	int32 GetDefaultLocalUser() const { return DefaultLocalUser; }
 
 private:
+	FLocalUserEOS& GetLocalUserChecked(int32 LocalUserNum);
+
 	void CallEOSAuthLogin(int32 LocalUserNum, const FOnlineAccountCredentials& Credentials);
 
 	void RemoveLocalUser(int32 LocalUserNum);
-	void AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId, EOS_ProductUserId UserId);
+	FLocalUserEOS& AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId, EOS_ProductUserId UserId, const FOnlineAccountCredentials& AccountCredentials);
 
 	FOnlineFriendEOSRef AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId);
-	void AddRemotePlayer(int32 LocalUserNum, const FString& NetId, EOS_EpicAccountId EpicAccountId);
-	void AddRemotePlayer(int32 LocalUserNum, const FString& NetId, EOS_EpicAccountId EpicAccountId, FUniqueNetIdEOSPtr UniqueNetId, FOnlineUserPtr OnlineUser, IAttributeAccessInterfaceRef AttributeRef);
+	void AddRemotePlayer(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId);
+	void AddRemotePlayer(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId, IAttributeAccessInterfaceRef AttributeRef);
 	void UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId);
 	void ReadUserInfo(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId);
 
@@ -342,7 +382,7 @@ private:
 	void ProcessReadFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& ErrorStr);
 
 	void UpdatePresence(int32 LocalUserNum, EOS_EpicAccountId AccountId);
-	void UpdateFriendPresence(const FString& FriendId, FOnlineUserPresenceRef Presence);
+	void UpdateFriendPresence(const FUniqueNetIdEOSRef& FriendId, FOnlineUserPresenceRef Presence);
 
 	void GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const;
 	FString GetPlatformDisplayName(int32 LocalUserNum) const;
@@ -354,61 +394,25 @@ private:
 	int32 DefaultLocalUser;
 
 	/** Notification state for SDK events */
-	EOS_NotificationId LoginNotificationId;
-	FCallbackBase* LoginNotificationCallback;
-	EOS_NotificationId FriendsNotificationId;
-	FCallbackBase* FriendsNotificationCallback;
-	EOS_NotificationId PresenceNotificationId;
-	FCallbackBase* PresenceNotificationCallback;
-	TMap<int32, FNotificationIdCallbackPair*> LocalUserNumToConnectLoginNotifcationMap;
-
-	/** Ids mapped to locally registered users */
-	TLocalUserArray<FUniqueNetIdEOSRef> LocalUserUniqueNetIds;
-	/** General map for all registered online users */
-	TUniqueNetIdMap<FUserOnlineAccountEOSRef> UniqueNetIdToUserAccountMap;
-
-	/** Per user friends lists accessible by user num or net id */
-	TMap<int32, FFriendsListEOSRef> LocalUserNumToFriendsListMap;
-	TMap<FString, FFriendsListEOSRef> NetIdStringToFriendsListMap;
-
-	/** Ids mapped to remote users */
-	TMap<FString, IAttributeAccessInterfaceRef> NetIdStringToAttributeAccessMap;
-	TMap<EOS_EpicAccountId, IAttributeAccessInterfaceRef> EpicAccountIdToAttributeAccessMap;
-
-	/** Ids mapped to remote user presence */
-	TMap<FString, FOnlineUserPresenceRef> NetIdStringToOnlineUserPresenceMap;
-
-	/** Id map to keep track of which friends have been processed during async user info queries */
-	TMap<int32, TArray<EOS_EpicAccountId>> IsFriendQueryUserInfoOngoingForLocalUserMap;
-	/** Id map to keep track of which players still need their external id synced */
-	TMap<int32, TArray<FString>> IsPlayerQueryExternalMappingsOngoingForLocalUserMap;
-
-	/** Cache for the info passed on to ReadFriendsList, kept while user info queries complete */
-	struct ReadUserListInfo
-	{
-		const int32 LocalUserNum;
-		const FString ListName;
-		const FOnReadFriendsListComplete Delegate;
-
-		ReadUserListInfo(int32 InLocalUserNum, const FString& InListName, FOnReadFriendsListComplete InDelegate)
-			: LocalUserNum(InLocalUserNum), ListName(InListName), Delegate(MoveTemp(InDelegate))
-		{
-		}
-
-		void ExecuteDelegateIfBound(bool bWasSuccessful, const FString& ErrorStr) const
-		{
-			Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
-		};
-	};
-
-	TMap<int32, TArray<ReadUserListInfo>> CachedReadUserListInfoForLocalUserMap;
-
-	/** Identifier for the external UI notification callback */
+	EOS_NotificationId LoginNotificationId = EOS_INVALID_NOTIFICATIONID;
+	FCallbackBase* LoginNotificationCallback = nullptr;
+	EOS_NotificationId FriendsNotificationId = EOS_INVALID_NOTIFICATIONID;
+	FCallbackBase* FriendsNotificationCallback = nullptr;
+	EOS_NotificationId PresenceNotificationId = EOS_INVALID_NOTIFICATIONID;
+	FCallbackBase* PresenceNotificationCallback = nullptr;
 	EOS_NotificationId DisplaySettingsUpdatedId = EOS_INVALID_NOTIFICATIONID;
 	FCallbackBase* DisplaySettingsUpdatedCallback = nullptr;
 
-	/** Last Login Credentials used for a login attempt */
-	TMap<int32, TSharedRef<FOnlineAccountCredentials>> LocalUserNumToLastLoginCredentials;
+	/** Information related to ongoing operations and state for local users */
+	TLocalUserArray<FLocalUserEOS> LocalUsers;
+
+	// Online user info
+
+	/** Ids mapped to attribute access information for any user */
+	TUniqueNetIdMap<IAttributeAccessInterfaceRef> UniqueNetIdToAttributeAccessMap;
+
+	/** Ids mapped to user presence information for any user */
+	TUniqueNetIdMap<FOnlineUserPresenceRef> UniqueNetIdToOnlineUserPresenceMap;
 };
 
 typedef TSharedPtr<FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSPtr;
