@@ -269,9 +269,7 @@ public class UnrealEd : ModuleRules
 				"MeshPaint",
 				"PropertyEditor",
 				"ToolMenusEditor",
-				"InputBindingEditor",
 				"ClothingSystemEditor",
-				"PluginWarden",
 				"MaterialShaderQualitySettings",
 				"EditorInteractiveToolsFramework"
 			}
