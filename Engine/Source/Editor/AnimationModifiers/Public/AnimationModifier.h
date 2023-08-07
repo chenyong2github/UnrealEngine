@@ -28,7 +28,7 @@ class USkeleton;
 struct FFrame;
 struct FObjectKey;
 
-UCLASS(Blueprintable, Experimental, config = Editor, defaultconfig)
+UCLASS(Blueprintable, config = Editor, defaultconfig)
 class ANIMATIONMODIFIERS_API UAnimationModifier : public UObject
 {
 	GENERATED_BODY()
