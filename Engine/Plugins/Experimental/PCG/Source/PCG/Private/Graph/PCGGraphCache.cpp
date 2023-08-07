@@ -276,7 +276,7 @@ void FPCGGraphCache::RemoveFromMemoryTotal(const FPCGDataCollection& InCollectio
 					if (Record->InstanceCount == 0)
 					{
 						// Last instance removed, update accordingly
-						if (ensure(TotalMemoryUsed > Record->MemoryPerInstance))
+						if (ensure(TotalMemoryUsed >= Record->MemoryPerInstance))
 						{
 							TotalMemoryUsed -= Record->MemoryPerInstance;
 						}
