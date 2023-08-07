@@ -147,8 +147,6 @@ public:
 		SLATE_ATTRIBUTE( ETextJustify::Type, Justification )
 		/** Provide custom type conversion functionality to this spin box */
 		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
-		/** If refresh requests for the viewport should happen for all value changes **/
-		SLATE_ARGUMENT(bool, PreventThrottling)
 		/** Menu extender for the right-click context menu */
 		SLATE_EVENT( FMenuExtensionDelegate, ContextMenuExtender )
 
@@ -185,8 +183,6 @@ public:
 		SupportDynamicSliderMinValue = InArgs._SupportDynamicSliderMinValue;
 		OnDynamicSliderMaxValueChanged = InArgs._OnDynamicSliderMaxValueChanged;
 		OnDynamicSliderMinValueChanged = InArgs._OnDynamicSliderMinValueChanged;
-
-		bPreventThrottling = InArgs._PreventThrottling;
 
 		// Update the max slider value based on the current value if we're in dynamic mode
 		NumericType CurrentMaxValue = GetMaxValue();
@@ -348,20 +344,10 @@ public:
 			PreDragValue = InternalValue;
 			PointerDraggingSliderIndex = MouseEvent.GetPointerIndex();
 			CachedMousePosition = MouseEvent.GetScreenSpacePosition().IntPoint();
-
-			// Don't handle the change, instead propagonate the event to allow selection in the outer widget, in case this was clicked directly.
-			FReply Reply = FReply::Unhandled().CaptureMouse(SharedThis(this)).UseHighPrecisionMouseMovement(SharedThis(this)).SetUserFocus(SharedThis(this), EFocusCause::Mouse);
-			if (bPreventThrottling) 
-			{
-				Reply.PreventThrottling();
-			}
-			return Reply;
 		}
-		else
-		{
 
-			return FReply::Unhandled();
-		}
+		// Don't handle the mouse event, instead propagonate the event to allow selection in the outer widget, in case this was clicked directly.
+		return FReply::Unhandled();
 	}
 	
 	/**
@@ -944,8 +930,4 @@ private:
 
 	/** Re-entrant guard for the text changed handler */
 	bool bIsTextChanging;
-
-	/* Holds whether or not to prevent throttling during mouse capture */
-	// When true, the viewport will be updated with every single change to the value during dragging
-	bool bPreventThrottling;
 };
