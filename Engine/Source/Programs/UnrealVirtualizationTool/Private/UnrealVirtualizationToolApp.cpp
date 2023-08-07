@@ -132,7 +132,9 @@ public:
 
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override
 	{
+#if !NO_LOGGING
 		if (Verbosity == ELogVerbosity::Display && Category != LogVirtualizationTool.GetCategoryName())
+#endif
 		{
 			Verbosity = ELogVerbosity::Log;
 		}
@@ -142,12 +144,14 @@ public:
 
 	virtual void SerializeRecord(const UE::FLogRecord& Record) override
 	{
+#if !NO_LOGGING
 		if (Record.GetVerbosity() == ELogVerbosity::Display && Record.GetCategory() != LogVirtualizationTool.GetCategoryName())
 		{
 			UE::FLogRecord LocalRecord = Record;
 			LocalRecord.SetVerbosity(ELogVerbosity::Log);
 			return FFeedbackContextAnsi::SerializeRecord(LocalRecord);
 		}
+#endif
 
 		FFeedbackContextAnsi::SerializeRecord(Record);
 	}

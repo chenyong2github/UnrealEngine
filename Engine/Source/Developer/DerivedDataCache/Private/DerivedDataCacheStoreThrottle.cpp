@@ -7,6 +7,7 @@
 #include "DerivedDataLegacyCacheStore.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include <atomic>
 
 namespace UE::DerivedData

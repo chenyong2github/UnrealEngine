@@ -6,6 +6,7 @@
 
 #include "Trace/Platform.h"
 #include "Trace/Message.h"
+#include "Trace/Detail/Channel.h"
 
 #include "Misc/CString.h"
 #include "Templates/UnrealTemplate.h"
