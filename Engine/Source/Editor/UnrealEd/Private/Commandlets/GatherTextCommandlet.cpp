@@ -132,6 +132,8 @@ int32 UGatherTextCommandlet::Main( const FString& Params )
 	}
 	UE_LOG(LogGatherTextCommandlet, Display, TEXT("Completed all steps in %.2f seconds"), FPlatformTime::Seconds() - AllCommandletExecutionStartTime);
 
+	// Note: Other things use the below log as a tracker for GatherText completing successfully - DO NOT remove or edit this line without also updating those places
+	UE_LOG(LogGatherTextCommandlet, Display, TEXT("GatherText completed with exit code 0"));
 	return 0;
 }
 
