@@ -913,7 +913,7 @@ static void GetTextureBuildSettings(
 	if (bVirtualTextureStreaming && MipGenSettings == TMGS_NoMipmaps)
 	{
 		MipGenSettings = TMGS_SimpleAverage;
-		UE_LOG(LogTexture, Warning, TEXT("Texture %s is virtual and has NoMips - forcing to SimpleAverage."), *Texture.GetPathName());
+		UE_LOG(LogTexture, Display, TEXT("Texture %s is virtual and has NoMips - forcing to SimpleAverage."), *Texture.GetPathName());
 	}
 	if (bVirtualTextureStreaming && MipGenSettings == TMGS_LeaveExistingMips)
 	{
