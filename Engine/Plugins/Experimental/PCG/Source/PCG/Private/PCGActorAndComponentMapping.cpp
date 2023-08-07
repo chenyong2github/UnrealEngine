@@ -597,10 +597,16 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 	TSet<UPCGComponent*>& AllComponents = AlwaysTrackedActorsToComponentsMap.FindOrAdd(ComponentOwner);
 	AllComponents.Add(InComponent);
 
-	UWorld* World = PCGSubsystem->GetWorld();
+	UWorld* World = PCGSubsystem ? PCGSubsystem->GetWorld() : nullptr;
+
+	if (!World)
+	{
+		return;
+	}
+
 	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->GetPCGWorldActor() : nullptr;
 
-	if (!World || !PCGWorldActor)
+	if (!PCGWorldActor)
 	{
 		return;
 	}

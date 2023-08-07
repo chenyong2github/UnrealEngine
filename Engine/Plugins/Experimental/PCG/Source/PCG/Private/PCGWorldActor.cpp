@@ -29,6 +29,7 @@ APCGWorldActor::APCGWorldActor(const FObjectInitializer& ObjectInitializer)
 void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
+	check(LandscapeCacheObject);
 	LandscapeCacheObject->PrimeCache();
 }
 #endif
@@ -123,9 +124,17 @@ void APCGWorldActor::GetGridGuids(PCGHiGenGrid::FSizeToGuidMap& OutSizeToGuidMap
 #if WITH_EDITOR
 APCGWorldActor* APCGWorldActor::CreatePCGWorldActor(UWorld* InWorld)
 {
-	check(InWorld);
-	APCGWorldActor* PCGActor = InWorld->SpawnActor<APCGWorldActor>();
-	PCGActor->RegisterToSubsystem();
+	APCGWorldActor* PCGActor = nullptr;
+
+	if (InWorld)
+	{
+		PCGActor = InWorld->SpawnActor<APCGWorldActor>();
+
+		if (PCGActor)
+		{
+			PCGActor->RegisterToSubsystem();
+		}
+	}
 
 	return PCGActor;
 }
