@@ -1348,6 +1348,14 @@ namespace UnrealBuildTool
 		/// <returns>Max number of actions to execute in parallel</returns>
 		public static int GetMaxActionsToExecuteInParallel(int MaxProcessorCount, double ProcessorCountMultiplier, bool ConsiderLogicalCores, long MemoryPerActionBytes)
 		{
+			// If non-zero then this is the number of actions that can be executed in parallel. This 
+			// matches the BuildConfiguration.MaxLocalActions documentation and the <= 5.1 behavior
+			if (MaxProcessorCount != 0)
+			{
+				Log.TraceInformationOnce($"Executing up to {MaxProcessorCount} actions based on MaxProcessorCount override");
+				return MaxProcessorCount;
+			}
+
 			// Get the number of logical processors
 			int NumLogicalCores = Utils.GetLogicalProcessorCount();
 
@@ -1400,11 +1408,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (MaxProcessorCount > 0 && MaxProcessorCount < MaxActionsToExecuteInParallel)
-			{
-				MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, MaxProcessorCount));
-				Log.TraceInformationOnce($"  Requested max {MaxProcessorCount} action(s): limiting max parallel actions to {MaxActionsToExecuteInParallel}");
-			}
 			return MaxActionsToExecuteInParallel;
 		}
 

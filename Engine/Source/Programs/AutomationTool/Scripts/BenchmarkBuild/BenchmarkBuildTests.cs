@@ -87,12 +87,12 @@ namespace AutomationTool.Benchmark
 				//TaskModifiers.Add(Arg);
 				Command.Params = new[] { Arg }; // need to also pass it to this
 
-				if (CoreCount > 0)
-				{
-					TaskModifiers.Add(string.Format("{0}c", CoreCount));
+				// If no cores were specified use the machines CPU count rather than letting UBT pick a value. The latter may 
+				// not be deterministic.
+				int NumCores = CoreCount > 0 ? CoreCount : Environment.ProcessorCount;
 
-					Command.UBTArgs += string.Format(" -MaxParallelActions={0}", CoreCount);
-				}
+				TaskModifiers.Add(string.Format("{0}c", NumCores));
+				Command.UBTArgs += string.Format(" -MaxParallelActions={0}", NumCores);
 			}
 			else
 			{
