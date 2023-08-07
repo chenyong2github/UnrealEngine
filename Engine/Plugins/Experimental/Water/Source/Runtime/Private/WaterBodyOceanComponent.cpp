@@ -199,14 +199,8 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 
 	const UWaterSplineComponent* SplineComp = GetWaterSpline();
 	const FVector OceanLocation = GetComponentLocation();
-	const AWaterZone* WaterZone = GetWaterZone();
 	
 	if (SplineComp->GetNumberOfSplineSegments() < 3)
-	{
-		return false;
-	}
-
-	if (WaterZone == nullptr)
 	{
 		return false;
 	}
@@ -502,7 +496,7 @@ FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToW
 {
 	const FTransform& ComponentTransform = GetComponentTransform();
 	FVector RelativeLocationToZone = ComponentTransform.InverseTransformPosition(FVector(SavedZoneLocation, 0.));
-	RelativeLocationToZone.Z = ComponentTransform.GetLocation().Z;
+	RelativeLocationToZone.Z = 0;
 
 	const FVector2D OceanExtentScaled = (OceanExtents / FVector2D(GetComponentScale())) / 2.;
 
