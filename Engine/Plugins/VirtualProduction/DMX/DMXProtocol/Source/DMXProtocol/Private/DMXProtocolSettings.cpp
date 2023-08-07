@@ -174,7 +174,11 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	const UScriptStruct* OutputPortConfigStruct = FDMXOutputPortConfig::StaticStruct();
 	const UStruct* PropertyOwnerStruct = Property ? Property->GetOwnerStruct() : nullptr;
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, SendingRefreshRate))
+	{
+		OnSendingRefresRateChanged.Broadcast();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
 	{
 		if (FixtureCategories.Num() == 0)
 		{

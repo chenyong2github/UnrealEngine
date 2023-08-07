@@ -4,6 +4,7 @@
 
 #include "DMXPort.h"
 
+#include <atomic>
 #include "DMXProtocolCommon.h"
 #include "Containers/Queue.h" 
 #include "HAL/Runnable.h"
@@ -168,7 +169,10 @@ protected:
 	virtual void Unregister() override;
 	//~ End DMXPort Interface
 
-		/** Called to set if DMX should be enabled */
+	/** Called when the DMX send rate changed */
+	void OnSendingRefreshRateChanged();
+
+	/** Called to set if DMX should be enabled */
 	void OnSetSendDMXEnabled(bool bEnabled);
 
 	/** Called to set if DMX should be enabled */
@@ -222,6 +226,9 @@ private:
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;
+
+	/** Current send rate, set from project settings (see OnSendingRefreshRateChanged) */
+	TAtomic<uint32> SendRate = 44.f;
 
 	/** Delay to apply on packets being sent */
 	double DelaySeconds = 0.0;

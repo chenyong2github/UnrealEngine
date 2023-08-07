@@ -53,9 +53,10 @@ void FDMXProtocolEditorModule::RegisterDetailsCustomizations()
 
 void FDMXProtocolEditorModule::UnregisterDetailsCustomizations()
 {
-	FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-	if (PropertyModule)
+	if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
 	{
+		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+
 		PropertyModule->UnregisterCustomPropertyTypeLayout(FDMXInputPortConfig::StaticStruct()->GetFName());
 		PropertyModule->UnregisterCustomPropertyTypeLayout(FDMXOutputPortConfig::StaticStruct()->GetFName());
 

@@ -541,12 +541,13 @@ FDMXOutputPortSharedRef FDMXOutputPort::CreateFromConfig(FDMXOutputPortConfig& O
 	UDMXProtocolSettings* Settings = GetMutableDefault<UDMXProtocolSettings>();
 	check(Settings);
 
+	NewOutputPort->SendRate = Settings->SendingRefreshRate;
 	NewOutputPort->CommunicationDeterminator.SetSendEnabled(Settings->IsSendDMXEnabled());
 	NewOutputPort->CommunicationDeterminator.SetReceiveEnabled(Settings->IsReceiveDMXEnabled());
 
+	Settings->GetOnSendingRefresRateChanged().AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSendingRefreshRateChanged);
 	Settings->GetOnSetSendDMXEnabled().AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSetSendDMXEnabled);
 	Settings->GetOnSetReceiveDMXEnabled().AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSetReceiveDMXEnabled);
-
 	NewOutputPort->UpdateFromConfig(OutputPortConfig);
 
 	const FString SenderThreadName = FString(TEXT("DMXOutputPort_")) + OutputPortConfig.GetPortName();
@@ -908,6 +909,12 @@ void FDMXOutputPort::Unregister()
 	bRegistered = false;
 }
 
+void FDMXOutputPort::OnSendingRefreshRateChanged()
+{
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault< UDMXProtocolSettings>();
+	SendRate = ProtocolSettings->SendingRefreshRate;
+}
+
 void FDMXOutputPort::OnSetSendDMXEnabled(bool bEnabled)
 {
 	checkf(IsInGameThread(), TEXT("Only the game thread can enable and disable send DMX."));
@@ -935,20 +942,22 @@ bool FDMXOutputPort::Init()
 
 uint32 FDMXOutputPort::Run()
 {
-	UDMXProtocolSettings* DMXSettings = GetMutableDefault<UDMXProtocolSettings>();
-	check(DMXSettings);
-
 	SendDMXEvent = FPlatformProcess::GetSynchEventFromPool();
 	check(SendDMXEvent != nullptr);
 
 	while (!bStopping)
 	{
 		const double StartTime = FPlatformTime::Seconds();
+		if (IsEngineExitRequested())
+		{
+			// Stop sending DMX when the engine is shutting down
+			break;
+		}
 
 		ProcessSendDMX();
 
 		const double EndTime = FPlatformTime::Seconds();
-		const double WaitTimeMs = ((1.0 / DMXSettings->SendingRefreshRate) - (EndTime - StartTime)) * 1000.0;
+		const double WaitTimeMs = ((1.0 / SendRate) - (EndTime - StartTime)) * 1000.0;
 		
 		if (WaitTimeMs > 0.0 && WaitTimeMs < std::numeric_limits<uint32>::max())
 		{

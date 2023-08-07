@@ -434,7 +434,7 @@ void FDMXEditorModule::RegisterAssetTypeAction(TSharedRef<IAssetTypeActions> Act
 
 void FDMXEditorModule::UnregisterAssetTypeActions()
 {
-	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
+	if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
 		IAssetTools& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		for (TSharedPtr<IAssetTypeActions>& AssetIt : RegisteredAssetTypeActions)
@@ -461,9 +461,10 @@ void FDMXEditorModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCu
 
 void FDMXEditorModule::UnregisterCustomClassLayouts()
 {
-	FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-	if (PropertyModule)
+	if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
 	{
+		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+
 		for (const FName& ClassName : RegisteredClassNames)
 		{
 			PropertyModule->UnregisterCustomClassLayout(ClassName);
@@ -488,9 +489,10 @@ void FDMXEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, 
 
 void FDMXEditorModule::UnregisterCustomPropertyTypeLayouts()
 {
-	FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-	if (PropertyModule)
+	if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
 	{
+		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+
 		for (const FName& PropertyTypeName : RegisteredPropertyTypes)
 		{
 			PropertyModule->UnregisterCustomPropertyTypeLayout(PropertyTypeName);
@@ -508,9 +510,10 @@ void  FDMXEditorModule::RegisterCustomSequencerTrackType(const FOnCreateTrackEdi
 
 void FDMXEditorModule::UnregisterCustomSequencerTrackTypes()
 {
-	ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
-	if (SequencerModule)
+	if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded(TEXT("Sequencer")))
 	{
+		ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
+
 		for (const FDelegateHandle& TrackCreateHandle : RegisteredSequencerTrackHandles)
 		{
 			SequencerModule->UnRegisterTrackEditor(TrackCreateHandle);
