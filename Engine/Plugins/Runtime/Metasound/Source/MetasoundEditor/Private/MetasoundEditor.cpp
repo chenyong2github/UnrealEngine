@@ -2431,10 +2431,19 @@ namespace Metasound
 						}
 						else
 						{
-							FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
-							if (!NewHandle->IsValid())
+							FMetasoundFrontendClass ExternalClass;
+							if (ISearchEngine::Get().FindClassWithHighestVersion(ClassName, ExternalClass))
+							{
+								FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
+								if (!NewHandle->IsValid())
+								{
+									NodesToRemove.Add(GraphNode);
+								}
+							}
+							else
 							{
 								NodesToRemove.Add(GraphNode);
+								UE_LOG(LogMetaSound, Warning, TEXT("Cannot add pasted node with class '%s': Node class not found"), *ClassName.ToString());
 							}
 						}
 					}
