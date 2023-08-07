@@ -19,19 +19,19 @@ class AUDIOEDITOR_API UAudioEditorSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	/** Whether to pin the Sound Cue asset type when creating new assets. */
+	/** Whether to pin the Sound Cue asset type when creating new assets. Requires editor restart to take effect. */
 	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
 	bool bPinSoundCueInAssetMenu = true;
 
-	/** Whether to pin the Sound Cue Template asset type when creating new assets. */
+	/** Whether to pin the Sound Cue Template asset type when creating new assets. Requires editor restart to take effect. */
 	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
 	bool bPinSoundCueTemplateInAssetMenu = false;
 
-	/** Whether to pin the Sound Attenuation asset type when creating new assets. */
+	/** Whether to pin the Sound Attenuation asset type when creating new assets. Requires editor restart to take effect. */
 	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
 	bool bPinSoundAttenuationInAssetMenu = true;
 
-	/** Whether to pin the Sound Concurrency asset type when creating new assets. */
+	/** Whether to pin the Sound Concurrency asset type when creating new assets. Requires editor restart to take effect. */
 	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
 	bool bPinSoundConcurrencyInAssetMenu = true;
 

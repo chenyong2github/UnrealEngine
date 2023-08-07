@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Sound/SoundConcurrency.h"
 #include "AssetDefinitionDefault.h"
+#include "AudioEditorSettings.h"
 
 #include "AssetDefinition_SoundConcurrency.generated.h"
 
@@ -20,7 +21,13 @@ public:
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return USoundConcurrency::StaticClass(); }
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
 	{
+		static const auto PinnedCategories = { EAssetCategoryPaths::Audio };
 		static const auto Categories = { FAssetCategoryPath(EAssetCategoryPaths::Audio, NSLOCTEXT("AssetTypeActions", "AssetSoundConcurrencySubMenu", "Mix")) };
+
+		if (GetDefault<UAudioEditorSettings>()->bPinSoundConcurrencyInAssetMenu)
+		{
+			return PinnedCategories;
+		}
 		return Categories;
 	}
 	// UAssetDefinition End

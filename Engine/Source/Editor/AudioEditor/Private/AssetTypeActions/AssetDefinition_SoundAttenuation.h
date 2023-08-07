@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Sound/SoundAttenuation.h"
 #include "AssetDefinitionDefault.h"
+#include "AudioEditorSettings.h"
 
 #include "AssetDefinition_SoundAttenuation.generated.h"
 
@@ -20,7 +21,13 @@ public:
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return USoundAttenuation::StaticClass(); }
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
 	{
+		static const auto PinnedCategories = { EAssetCategoryPaths::Audio };
 		static const auto Categories = { FAssetCategoryPath(EAssetCategoryPaths::Audio, NSLOCTEXT("AssetTypeActions", "AssetSoundAttenuationSubMenu", "Spatialization")) };
+		
+		if (GetDefault<UAudioEditorSettings>()->bPinSoundAttenuationInAssetMenu)
+		{
+			return PinnedCategories;
+		}
 		return Categories;
 	}
 	// UAssetDefinition End
