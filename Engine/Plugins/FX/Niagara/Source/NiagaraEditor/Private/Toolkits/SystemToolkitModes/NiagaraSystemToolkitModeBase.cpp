@@ -119,6 +119,8 @@ void FNiagaraSystemToolkitModeBase::OnActiveDocumentChanged(TSharedPtr<SDockTab>
 
 	SwitcherIdx = 0;
 	TSharedPtr<SDockTab>  ActiveTab = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveDocumentTab().Pin();
+	// active tab might be nullptr due to a scratch pad tab closing. In that case, the details panel should update to clear the selected objects
+	UpdateSelectionForActiveDocument();
 	if (ActiveTab.IsValid())
 	{
 		if (ActiveTab->GetLayoutIdentifier().TabType == SystemOverviewTabID)
@@ -129,7 +131,6 @@ void FNiagaraSystemToolkitModeBase::OnActiveDocumentChanged(TSharedPtr<SDockTab>
 		{
 			SwitcherIdx = 1;
 		}
-		UpdateSelectionForActiveDocument();
 
 		TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchScriptVM = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveScratchPadViewModelIfSet();
 		if (ScratchScriptVM.IsValid())

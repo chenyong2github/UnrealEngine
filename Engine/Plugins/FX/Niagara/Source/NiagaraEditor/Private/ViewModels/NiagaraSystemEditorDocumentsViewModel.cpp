@@ -223,6 +223,14 @@ void UNiagaraSystemEditorDocumentsViewModel::SwapEditableScripts(TSharedPtr < cl
 
 }
 
+void UNiagaraSystemEditorDocumentsViewModel::CleanInvalidTabs() const
+{
+	if(DocumentManager.IsValid())
+	{
+		DocumentManager->CleanInvalidTabs();
+	}
+}
+
 
 void UNiagaraSystemEditorDocumentsViewModel::CloseChildScript(UEdGraph* InGraph)
 {
@@ -230,7 +238,7 @@ void UNiagaraSystemEditorDocumentsViewModel::CloseChildScript(UEdGraph* InGraph)
 }
 
 
-TSharedRef<FNiagaraSystemViewModel> UNiagaraSystemEditorDocumentsViewModel::GetSystemViewModel()
+TSharedRef<FNiagaraSystemViewModel> UNiagaraSystemEditorDocumentsViewModel::GetSystemViewModel() const
 {
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = SystemViewModelWeak.Pin();
 	checkf(SystemViewModel.IsValid(), TEXT("SystemViewModel destroyed before system editor document view model."));

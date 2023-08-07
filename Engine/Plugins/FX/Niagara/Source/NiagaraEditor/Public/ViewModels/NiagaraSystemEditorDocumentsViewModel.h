@@ -57,6 +57,7 @@ public:
 	void SetPrimaryDocumentID(const FName& TabId) { PrimaryDocumentTabId = TabId; }
 	NIAGARAEDITOR_API void SwapEditableScripts(TSharedPtr < class FNiagaraScratchPadScriptViewModel> OldScriptViewModel, TSharedPtr < class FNiagaraScratchPadScriptViewModel> NewScriptViewModel);
 
+	void CleanInvalidTabs() const;
 protected:
 	NIAGARAEDITOR_API TSharedPtr<SDockTab> OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause);
 
@@ -71,7 +72,7 @@ protected:
 
 
 private:
-	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
+	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel() const;
 
 	FScriptToolkitsActiveDocumentChanged ActiveDocChangedDelegate;
 

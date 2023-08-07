@@ -93,13 +93,13 @@ void SNiagaraScratchPadScriptEditor::SetViewModel(TSharedPtr<FNiagaraScratchPadS
 
 	ScriptViewModel = InScriptViewModel;
 
-	if (ScriptViewModel)
+	if (ScriptViewModel.IsValid())
 	{
 		if (Graph.IsValid() && Graph->GetViewModel() != InScriptViewModel->GetGraphViewModel())
 		{
 			Graph->UpdateViewModel(InScriptViewModel->GetGraphViewModel());
 		}
-		NodeIDHandle = ScriptViewModel->OnNodeIDFocusRequested().AddLambda(
+		NodeIDHandle = ScriptViewModel.Pin()->OnNodeIDFocusRequested().AddLambda(
 			[this](FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
 			{
 				if (Graph.IsValid() && FocusInfo != nullptr)
@@ -109,7 +109,7 @@ void SNiagaraScratchPadScriptEditor::SetViewModel(TSharedPtr<FNiagaraScratchPadS
 			}
 		);
 
-		PinIDHandle = ScriptViewModel->OnPinIDFocusRequested().AddLambda(
+		PinIDHandle = ScriptViewModel.Pin()->OnPinIDFocusRequested().AddLambda(
 			[this](FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
 			{
 				if (Graph.IsValid() && FocusInfo != nullptr)
@@ -233,6 +233,30 @@ const FSlateBrush* FNiagaraGraphEditorSummoner::GetTabIconForObject(const FWorkf
 TSharedRef<FGenericTabHistory> FNiagaraGraphEditorSummoner::CreateTabHistoryNode(TSharedPtr<FTabPayload> Payload)
 {
 	return MakeShareable(new FNiagaraGraphTabHistory(SharedThis(this), Payload));
+}
+
+bool FNiagaraGraphEditorSummoner::IsPayloadValid(TSharedRef<FTabPayload> Payload) const
+{
+	bool bBaseResult = FDocumentTabFactoryForObjects<UEdGraph>::IsPayloadValid(Payload);
+
+	if(bBaseResult == false)
+	{
+		return false;
+	}
+
+	UEdGraph* ObjectPayload = FTabPayload_UObject::CastChecked<UEdGraph>(Payload);
+
+	// if our script view models don't contain the tab's graph, we know the tab is outdated and should be closed
+	// this can happen if we undo/redo the creation of a scratch pad, where the data is deleted but the tab is still displaying the graph
+	for(TSharedRef<FNiagaraScratchPadScriptViewModel> ScriptViewModel : EditorPtr.Pin()->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetScriptViewModels())
+	{
+		if(ScriptViewModel->GetEditableGraphs().Contains(ObjectPayload))
+		{
+			return true;
+		}
+	}
+	
+	return false;
 }
 
 TAttribute<FText> FNiagaraGraphEditorSummoner::ConstructTabNameForObject(UEdGraph* DocumentID) const 

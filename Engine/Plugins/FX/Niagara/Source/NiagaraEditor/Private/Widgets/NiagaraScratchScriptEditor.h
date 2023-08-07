@@ -36,7 +36,7 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModel()
 	{
-		return ScriptViewModel;
+		return ScriptViewModel.Pin();
 	}
 
 	void SetViewModel(TSharedPtr<FNiagaraScratchPadScriptViewModel> InViewModel);
@@ -46,42 +46,42 @@ private:
 
 	void ClearHandles()
 	{
-		if (ScriptViewModel)
+		if (ScriptViewModel.IsValid())
 		{
-			ScriptViewModel->OnNodeIDFocusRequested().Remove(NodeIDHandle);
-			ScriptViewModel->OnPinIDFocusRequested().Remove(PinIDHandle);
+			ScriptViewModel.Pin()->OnNodeIDFocusRequested().Remove(NodeIDHandle);
+			ScriptViewModel.Pin()->OnPinIDFocusRequested().Remove(PinIDHandle);
 		}
 	}
 
 	FText GetNameText() const
 	{
-		return ScriptViewModel->GetDisplayName();
+		return ScriptViewModel.Pin()->GetDisplayName();
 	}
 
 	FText GetNameToolTipText() const
 	{
-		return ScriptViewModel->GetToolTip();
+		return ScriptViewModel.Pin()->GetToolTip();
 	}
 
 	EVisibility GetUnappliedChangesVisibility() const
 	{
-		return ScriptViewModel->HasUnappliedChanges() ? EVisibility::Visible : EVisibility::Collapsed;
+		return ScriptViewModel.Pin()->HasUnappliedChanges() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	FReply OnApplyButtonClicked()
 	{
-		ScriptViewModel->ApplyChanges();
+		ScriptViewModel.Pin()->ApplyChanges();
 
 		return FReply::Handled();
 	}
 
 	bool GetApplyButtonIsEnabled() const
 	{
-		return ScriptViewModel->HasUnappliedChanges();
+		return ScriptViewModel.Pin()->HasUnappliedChanges();
 	}
 
 private:
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel;
+	TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel;
 	TSharedPtr<SNiagaraScriptGraph> Graph;
 
 	FDelegateHandle NodeIDHandle;
@@ -137,8 +137,7 @@ public:
 	virtual void OnTabBackgrounded(TSharedPtr<SDockTab> Tab) const override;
 
 	virtual void OnTabRefreshed(TSharedPtr<SDockTab> Tab) const override;
-
-
+	
 	virtual void SaveState(TSharedPtr<SDockTab> Tab, TSharedPtr<FTabPayload> Payload) const override;
 
 	virtual TSharedRef<SDockTab> OnSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const override;
@@ -152,6 +151,8 @@ protected:
 
 	virtual TSharedRef<FGenericTabHistory> CreateTabHistoryNode(TSharedPtr<FTabPayload> Payload) override;
 
+	/** If the payload (a scratch pad script's graph) is invalid, it will be closed whenever the document tracker refreshes or cleans tabs. */
+	virtual bool IsPayloadValid(TSharedRef<FTabPayload> Payload) const override;
 protected:
 	TWeakPtr<FNiagaraSystemToolkit> EditorPtr;
 	FOnCreateGraphEditorWidget OnCreateGraphEditorWidget;

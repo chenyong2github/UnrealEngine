@@ -474,6 +474,13 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	TArray<TObjectPtr<UNiagaraScript>>* TargetScripts;
 	GetOuterAndTargetScripts(GetSystemViewModel(), ScriptOuter, TargetScripts);
 
+	// we have to make sure we can record the script outer into the transaction buffer. If not, undoing the creation of this script will keep the (deleted/undone) script in the outer
+	if(ScriptOuter->HasAnyFlags(RF_Transactional) == false)
+	{
+		ScriptOuter->SetFlags(RF_Transactional);
+	}
+	ScriptOuter->Modify();
+	
 	UNiagaraScript* NewScript = nullptr;
 	switch (InScriptUsage)
 	{

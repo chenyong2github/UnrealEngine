@@ -1809,6 +1809,8 @@ void FNiagaraSystemViewModel::RefreshAll()
 	CurveSelectionViewModel->Refresh();
 	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SelectionViewModel->Refresh();
+	// clean invalid tabs has to be called after view models have refreshed as invalid tabs can be determined by view model state
+	EditorDocumentsViewModel->CleanInvalidTabs();
 	bPendingAssetMessagesChanged = true;
 }
 
