@@ -131,7 +131,10 @@ private:
 
 	void CreateAnimSequenceFactoryNode(UInterchangeSkeletalAnimationTrackNode& Node);
 
+	// Set as a property to carry this value over during a duplicate
+	UPROPERTY()
 	bool bSceneImport = false;
+
 	UInterchangeBaseNodeContainer* BaseNodeContainer = nullptr;
 	TArray<const UInterchangeSourceData*> SourceDatas;
 
