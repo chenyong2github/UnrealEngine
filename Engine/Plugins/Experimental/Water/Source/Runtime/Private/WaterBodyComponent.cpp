@@ -340,6 +340,7 @@ void UWaterBodyComponent::UpdateIslands()
 #if WITH_EDITOR
 	if (GetWorld())
 	{
+		WaterBodyIslands.Empty();
 		for (AWaterBodyIsland* Island : TActorRange<AWaterBodyIsland>(GetWorld()))
 		{
 			Island->UpdateOverlappingWaterBodyComponents();
