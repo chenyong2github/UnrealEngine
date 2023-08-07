@@ -221,7 +221,7 @@ void URivermaxCustomTimeStep::OnRivermaxManagerInitialized()
 	{
 		IRivermaxCoreModule& RivermaxModule = FModuleManager::GetModuleChecked<IRivermaxCoreModule>("RivermaxCore");
 
-		if (RivermaxModule.GetRivermaxManager()->IsLibraryInitialized() == false)
+		if (RivermaxModule.GetRivermaxManager()->ValidateLibraryIsLoaded() == false)
 		{
 			UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. Library isn't available."));
 			

@@ -13,23 +13,38 @@ public class RivermaxLib : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			string SDKPath = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA/Rivermax");
-			string LibraryPath = Path.Combine(SDKPath, "lib/Win64");
-			string LibraryName = "rivermax.dll";
-			PublicSystemIncludePaths.Add(Path.Combine(SDKPath,"include"));
-			PublicRuntimeLibraryPaths.Add(LibraryPath);
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "rivermax.lib"));
+			string RivermaxDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Mellanox", "Rivermax");
+			string MellanoxInstallPath = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Mellanox\MLNX_WinOF2", "InstalledPath", null) as string;
 
-			//This is required because dll is not staged otherwise and won't be part of the package
-			RuntimeDependencies.Add(Path.Combine(LibraryPath, LibraryName));
+			if (MellanoxInstallPath != null)
+			{
+				DirectoryInfo ParentDir = Directory.GetParent(MellanoxInstallPath);
+				RivermaxDir = Path.Combine(ParentDir.Parent.FullName, "Rivermax"); 
+			}
+			
+			string RivermaxLibDir = Path.Combine(RivermaxDir, "Lib");
+		
+			string RivermaxDllPath = Path.Combine(RivermaxLibDir, "rivermax.dll");
 
-			//This is required because Rivermax depends on other drivers / dll to be installed for mellanox. We will manually load the dll and gracefully fail instead of 
-			//failing to load the module entirely.
-			PublicDelayLoadDLLs.Add(LibraryName);
-
-			//Used during manual loading of the library
-			PublicDefinitions.Add("RIVERMAX_LIBRARY_PLATFORM_PATH=" + "Win64");
-			PublicDefinitions.Add("RIVERMAX_LIBRARY_NAME=" + LibraryName);
+			if (File.Exists(RivermaxDllPath))
+			{
+				//This is required because dll is not staged otherwise and won't be part of the package
+				RuntimeDependencies.Add(RivermaxDllPath);
+				
+				//This is required because Rivermax depends on other drivers / dll to be installed for mellanox. We will manually load the dll and gracefully fail instead of 
+				//failing to load the module entirely.
+				PublicDelayLoadDLLs.Add("rivermax.dll");
+				
+				PublicRuntimeLibraryPaths.Add(RivermaxLibDir);
+				PublicAdditionalLibraries.Add(Path.Combine(RivermaxLibDir, "rivermax.lib"));
+				
+				//Used during manual loading of the library
+                PublicDefinitions.Add("RIVERMAX_LIBRARY_PLATFORM_PATH=" + RivermaxLibDir.Replace(@"\", "/"));
+                PublicDefinitions.Add("RIVERMAX_LIBRARY_NAME=" + "rivermax.dll");
+			}
+		
+			string SDKThirdPartyPath = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA/Rivermax");
+			PublicSystemIncludePaths.Add(Path.Combine(SDKThirdPartyPath,"include"));
 		}
 	}
 }

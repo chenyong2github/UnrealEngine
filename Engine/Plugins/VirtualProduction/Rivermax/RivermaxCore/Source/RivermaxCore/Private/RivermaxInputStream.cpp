@@ -121,7 +121,7 @@ namespace UE::RivermaxCore::Private
 	bool FRivermaxInputStream::Initialize(const FRivermaxInputStreamOptions& InOptions, IRivermaxInputStreamListener& InListener)
 	{
 		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		if (RivermaxModule.GetRivermaxManager()->IsLibraryInitialized() == false)
+		if (RivermaxModule.GetRivermaxManager()->ValidateLibraryIsLoaded() == false)
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Can't create Rivermax Input Stream. Library isn't initialized."));
 			return false;
@@ -132,6 +132,8 @@ namespace UE::RivermaxCore::Private
 		FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(Options.PixelFormat);
 		ExpectedPayloadSize = CVarExpectedPayloadSize.GetValueOnGameThread();
 		bIsDynamicHeaderEnabled = RivermaxModule.GetRivermaxManager()->EnableDynamicHeaderSupport(Options.InterfaceAddress);
+		CachedAPI = RivermaxModule.GetRivermaxManager()->GetApi();
+		checkSlow(CachedAPI);
 
 		if (Options.bEnforceVideoFormat)
 		{
@@ -201,7 +203,9 @@ namespace UE::RivermaxCore::Private
 					BufferConfiguration.HeaderMemory.max_size = BufferConfiguration.HeaderMemory.min_size = BufferConfiguration.HeaderExpectedSize;
 					BufferAttributes.hdr = &BufferConfiguration.HeaderMemory;
 
-					rmax_status_t Status = rmax_in_query_buffer_size(StreamType, &RivermaxInterface, &BufferAttributes, &BufferConfiguration.PayloadSize, &BufferConfiguration.HeaderSize);
+
+
+					rmax_status_t Status = CachedAPI->rmax_in_query_buffer_size(StreamType, &RivermaxInterface, &BufferAttributes, &BufferConfiguration.PayloadSize, &BufferConfiguration.HeaderSize);
 					if (Status == RMAX_OK)
 					{
 						AllocateBuffers();
@@ -209,10 +213,10 @@ namespace UE::RivermaxCore::Private
 						//Buffers configured, now configure stream and attach flow
 						const rmax_in_timestamp_format TimestampFormat = rmax_in_timestamp_format::RMAX_PACKET_TIMESTAMP_RAW_NANO; //how packets are stamped. counter or nanoseconds
 						const rmax_in_flags InputFlags = rmax_in_flags::RMAX_IN_CREATE_STREAM_INFO_PER_PACKET; //default value for 2110 in example
-						Status = rmax_in_create_stream(StreamType, &RivermaxInterface, &BufferAttributes, TimestampFormat, InputFlags, &StreamId);
+						Status = CachedAPI->rmax_in_create_stream(StreamType, &RivermaxInterface, &BufferAttributes, TimestampFormat, InputFlags, &StreamId);
 						if (Status == RMAX_OK)
 						{
-							Status = rmax_in_attach_flow(StreamId, &FlowAttribute);
+							Status = CachedAPI->rmax_in_attach_flow(StreamId, &FlowAttribute);
 							if (Status == RMAX_OK)
 							{
 								bIsActive = true;
@@ -290,7 +294,9 @@ namespace UE::RivermaxCore::Private
 		const int Flags = 0;
 		rmax_in_completion Completion;
 		FMemory::Memset(&Completion, 0, sizeof(Completion));
-		rmax_status_t Status = rmax_in_get_next_chunk(StreamId, MinChunkSize, MaxChunkSize, Timeout, Flags, &Completion);
+		
+		checkSlow(CachedAPI);
+		rmax_status_t Status = CachedAPI->rmax_in_get_next_chunk(StreamId, MinChunkSize, MaxChunkSize, Timeout, Flags, &Completion);
 		if (Status == RMAX_OK)
 		{
 			ParseChunks(Completion);
@@ -318,13 +324,14 @@ namespace UE::RivermaxCore::Private
 
 		if (StreamId)
 		{
-			rmax_status_t Status = rmax_in_detach_flow(StreamId, &FlowAttribute);
+			checkSlow(CachedAPI);
+			rmax_status_t Status = CachedAPI->rmax_in_detach_flow(StreamId, &FlowAttribute);
 			if (Status != RMAX_OK)
 			{
 				UE_LOG(LogRivermax, Warning, TEXT("Failed to detach rivermax flow %d from input stream %d. Status: %d"), FlowAttribute.flow_id, StreamId, Status);
 			}
 
-			Status = rmax_in_destroy_stream(StreamId);
+			Status = CachedAPI->rmax_in_destroy_stream(StreamId);
 
 			if (Status != RMAX_OK)
 			{

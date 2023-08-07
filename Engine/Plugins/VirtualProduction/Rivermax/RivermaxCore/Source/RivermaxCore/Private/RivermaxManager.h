@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IRivermaxManager.h"
+#include "RivermaxWrapper.h"
 
 namespace UE::RivermaxCore::Private
 {
@@ -18,6 +19,8 @@ namespace UE::RivermaxCore::Private
 		//~ Begin IRivermaxManager interface
 		virtual bool IsManagerInitialized() const override;
 		virtual bool IsLibraryInitialized() const override;
+		virtual bool ValidateLibraryIsLoaded() const override;
+		virtual const RIVERMAX_API_FUNCTION_LIST* GetApi() const override;
 		virtual FOnPostRivermaxManagerInit& OnPostRivermaxManagerInit() override;
 		virtual uint64 GetTime() const override;
 		virtual ERivermaxTimeSource GetTimeSource() const override;
@@ -35,6 +38,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Loads the rivermax dll shipping with engine */
 		bool LoadRivermaxLibrary();
+
+		/** Load function pointers from the DLL. */
+		bool LoadRivermaxFunctions();
 		
 		/** Initializes rivermax library */
 		void InitializeLibrary();
@@ -54,6 +60,9 @@ namespace UE::RivermaxCore::Private
 
 		/** True when library is usable */
 		bool bIsLibraryInitialized = false;
+
+		/** True when library function pointers are available. */
+		bool bIsLibraryLoaded = false;
 
 		/** Whether library was initialized but failed along the way and needs to be cleaned up on exit */
 		bool bIsCleanupRequired = false;
@@ -75,6 +84,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Streams using dynamic header size per users. When last one is removing itself, it will be disabled */
 		TMap<FString, uint32> DynamicHeaderUsers;
+
+		/** List of function pointers to the rivermax DLL. */
+		RIVERMAX_API_FUNCTION_LIST FuncList;
 	};
 }
 

@@ -337,7 +337,7 @@ namespace UE::RivermaxCore::Private
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::Initialize);
 
 		RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		if (RivermaxModule->GetRivermaxManager()->IsLibraryInitialized() == false)
+		if (RivermaxModule->GetRivermaxManager()->ValidateLibraryIsLoaded() == false)
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Can't create Rivermax Output Stream. Library isn't initialized."));
 			return false;
@@ -393,14 +393,17 @@ namespace UE::RivermaxCore::Private
 				BufferAttributes.mem_block_array_len = StreamMemory.MemoryBlocks.Num();
 				BufferAttributes.attr_flags = RMAX_OUT_BUFFER_ATTR_FLAG_NONE;
 
-				rmax_status_t Status = rmax_out_create_stream(SDPDescription.GetData(), &BufferAttributes, &QOSAttributes, NumberPacketsPerFrame, MediaBlockIndex, &NewId);
+				CachedAPI = RivermaxModule->GetRivermaxManager()->GetApi();
+				checkSlow(CachedAPI);
+
+				rmax_status_t Status = CachedAPI->rmax_out_create_stream(SDPDescription.GetData(), &BufferAttributes, &QOSAttributes, NumberPacketsPerFrame, MediaBlockIndex, &NewId);
 				if (Status == RMAX_OK)
 				{
 					struct sockaddr_in SourceAddress;
 					struct sockaddr_in DestinationAddress;
 					FMemory::Memset(&SourceAddress, 0, sizeof(SourceAddress));
 					FMemory::Memset(&DestinationAddress, 0, sizeof(DestinationAddress));
-					Status = rmax_out_query_address(NewId, MediaBlockIndex, &SourceAddress, &DestinationAddress);
+					Status = CachedAPI->rmax_out_query_address(NewId, MediaBlockIndex, &SourceAddress, &DestinationAddress);
 					if (Status == RMAX_OK)
 					{
 						StreamId = NewId;
@@ -804,7 +807,7 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputStream::DestroyStream()
 	{
-		rmax_status_t Status = rmax_out_cancel_unsent_chunks(StreamId);
+		rmax_status_t Status = RivermaxModule->GetRivermaxManager()->GetApi()->rmax_out_cancel_unsent_chunks(StreamId);
 		if (Status != RMAX_OK)
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Could not cancel unsent chunks when destroying output stream. Status: %d"), Status);
@@ -812,7 +815,7 @@ namespace UE::RivermaxCore::Private
 
 		do 
 		{
-			Status = rmax_out_destroy_stream(StreamId);
+			Status = RivermaxModule->GetRivermaxManager()->GetApi()->rmax_out_destroy_stream(StreamId);
 			if (RMAX_ERR_BUSY == Status) 
 			{
 				FPlatformProcess::SleepNoStats(SleepTimeSeconds);
@@ -908,7 +911,7 @@ namespace UE::RivermaxCore::Private
 		rmax_status_t Status;
 		do
 		{
-			Status = rmax_out_get_next_chunk(StreamId, &CurrentFrame->PayloadPtr, &CurrentFrame->HeaderPtr);
+			Status = CachedAPI->rmax_out_get_next_chunk(StreamId, &CurrentFrame->PayloadPtr, &CurrentFrame->HeaderPtr);
 			if (Status == RMAX_OK)
 			{
 				if (StreamData.bHasFrameFirstChunkBeenFetched == false)
@@ -1042,7 +1045,8 @@ namespace UE::RivermaxCore::Private
 				}
 			}
 
-			Status = rmax_out_commit(StreamId, ScheduleTime, CommitFlags);
+			checkSlow(CachedAPI);
+			Status = CachedAPI->rmax_out_commit(StreamId, ScheduleTime, CommitFlags);
 
 			if (Status == RMAX_OK)
 			{
@@ -1213,7 +1217,8 @@ namespace UE::RivermaxCore::Private
 				bool bHasAddedTrace = false;
 				do
 				{
-					Status = rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
+					checkSlow(CachedAPI);
+					Status = CachedAPI->rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
 					if (Status != RMAX_OK)
 					{
 						if (Status == RMAX_ERR_NO_FREE_CHUNK)

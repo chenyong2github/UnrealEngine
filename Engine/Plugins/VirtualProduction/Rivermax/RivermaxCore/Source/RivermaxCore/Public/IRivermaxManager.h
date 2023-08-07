@@ -14,6 +14,11 @@ namespace UE::RivermaxCore
 		FString InterfaceAddress;
 	};
 
+	namespace Private
+	{
+		struct RIVERMAX_API_FUNCTION_LIST;
+	}
+
 	/** Delegate called when rivermax manager has been initialized and library tried to be loaded */
 	DECLARE_MULTICAST_DELEGATE(FOnPostRivermaxManagerInit)
 
@@ -33,6 +38,12 @@ namespace UE::RivermaxCore
 
 		/** Returns true if Rivermax library has been initialized and is usable */
 		virtual bool IsLibraryInitialized() const = 0;
+
+		/** Returns true if Rivermax library has been initialized and is usable, but also warns the user with a toast notification if it's not. */
+		virtual bool ValidateLibraryIsLoaded() const = 0;
+
+		/** Return the Rivermax API. */
+		virtual const Private::RIVERMAX_API_FUNCTION_LIST* GetApi() const = 0;
 
 		/** Delegate triggered after manager has been initialized and library tried to be loaded */
 		virtual FOnPostRivermaxManagerInit& OnPostRivermaxManagerInit() = 0;

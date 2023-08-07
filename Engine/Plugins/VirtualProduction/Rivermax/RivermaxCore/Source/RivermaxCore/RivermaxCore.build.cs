@@ -46,5 +46,15 @@ public class RivermaxCore : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "CUDA", "DX12");
 		}
 
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Slate",
+					"UnrealEd"
+				}
+			);
+
+		}
 	}
 }

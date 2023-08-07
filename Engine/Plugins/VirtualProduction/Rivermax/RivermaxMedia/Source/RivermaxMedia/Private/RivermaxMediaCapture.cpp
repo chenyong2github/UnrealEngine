@@ -219,6 +219,11 @@ bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput,
 	{
 		return false;
 	}
+	
+	if (!Module->GetRivermaxManager()->ValidateLibraryIsLoaded())
+	{
+		return false;
+	}
 
 	const bool bFoundDevice = Module->GetRivermaxManager()->GetMatchingDevice(InMediaOutput->InterfaceAddress, OutOptions.InterfaceAddress);
 	if (bFoundDevice == false)

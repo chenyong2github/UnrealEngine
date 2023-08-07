@@ -7,7 +7,7 @@
 #include "Async/Future.h"
 #include "Containers/SpscQueue.h"
 #include "HAL/Runnable.h"
-#include "RivermaxHeader.h"
+#include "RivermaxWrapper.h"
 #include "RivermaxOutputFrame.h"
 #include "RivermaxTypes.h"
 #include "RTPHeader.h"
@@ -305,6 +305,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Time to sleep when waiting for an operation to complete */
 		static constexpr double SleepTimeSeconds = 50.0 * 1E-6;
+
+		/* Pointer to the rivermax API to avoid virtual calls in a hot loop. */ 
+		const UE::RivermaxCore::Private::RIVERMAX_API_FUNCTION_LIST* CachedAPI = nullptr;
 	};
 }
 

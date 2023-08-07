@@ -8,7 +8,7 @@
 #include "Async/Future.h"
 #include "HAL/Runnable.h"
 #include "RHI.h"
-#include "RivermaxHeader.h"
+#include "RivermaxWrapper.h"
 #include "RivermaxTypes.h"
 
 
@@ -274,6 +274,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Resolution being used by this stream. Can either be auto detected or enforced by owner */
 		FIntPoint StreamResolution = FIntPoint::ZeroValue;
+
+		/* Pointer to the rivermax API to avoid virtual calls in a hot loop. */
+		const UE::RivermaxCore::Private::RIVERMAX_API_FUNCTION_LIST* CachedAPI = nullptr;
 	};
 }
 
