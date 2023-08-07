@@ -1221,9 +1221,10 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 			{
 				FMarkerTickRecord* MarkerTickRecord = Instance.MarkerTickRecord;
 				FMarkerTickContext& MarkerTickContext = Context.MarkerTickContext;
-
+				const bool bIsMarkerTickRecordValid = MarkerTickRecord->IsValid(Instance.bLooping);
+				
 				// Store the sync anim position BEFORE the asset has being ticked.
-				if (MarkerTickRecord->IsValid(Instance.bLooping))
+				if (bIsMarkerTickRecordValid)
 				{
 					MarkerTickContext.SetMarkerSyncStartPosition(GetMarkerSyncPositionFromMarkerIndicies(MarkerTickRecord->PreviousMarker.MarkerIndex, MarkerTickRecord->NextMarker.MarkerIndex, PreviousTime, nullptr));
 				}
@@ -1248,7 +1249,9 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 				MarkerTickContext.MarkersPassedThisTick = *Instance.Montage.MarkersPassedThisTick;
 
 #if DO_CHECK
-				if(MarkerTickContext.MarkersPassedThisTick.Num() == 0)
+				// The marker tick record gets invalidated when the montage position is set externally and due to this change we cannot assume
+				// its sync positions will be the same as the previous tick. 
+				if (MarkerTickContext.MarkersPassedThisTick.Num() == 0 && bIsMarkerTickRecordValid)
 				{
 					const FMarkerSyncAnimPosition& StartPosition = MarkerTickContext.GetMarkerSyncStartPosition();
 					const FMarkerSyncAnimPosition& EndPosition = MarkerTickContext.GetMarkerSyncEndPosition();
