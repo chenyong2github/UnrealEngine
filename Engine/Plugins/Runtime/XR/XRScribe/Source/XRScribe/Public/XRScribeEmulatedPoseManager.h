@@ -77,6 +77,23 @@ public:
 	 */
 	void RegisterCapturedSpaceHistories(const TMap<XrSpace, TArray<FOpenXRLocateSpacePacket>>& SpaceHistories);
 
+
+	/**
+	 * Register history of GetActionState + SyncActions calls
+	 *
+	 * @param SyncActionsPackets List of SyncActions calls
+	 * @param BooleanActionStates Per-action history of boolean action states
+	 * @param FloatActionStates Per-action history of float action states
+	 * @param VectorActionStates Per-action history of Vector2f action states
+	 * @param PoseActionStates Per-action history of Pose action states (indicating whether pose is valid or not, not actual pose data)
+	 *
+	 */
+	void RegisterCapturedActionStates(const TArray<FOpenXRSyncActionsPacket>& SyncActionsPackets, 
+		const TMap<XrAction, TArray<FOpenXRGetActionStateBooleanPacket>>& BooleanActionStates,
+		const TMap<XrAction, TArray<FOpenXRGetActionStateFloatPacket>>& FloatActionStates,
+		const TMap<XrAction, TArray<FOpenXRGetActionStateVector2fPacket>>& VectorActionStates,
+		const TMap<XrAction, TArray<FOpenXRGetActionStatePosePacket>>& PoseActionStates);
+
 	/**
 	 * Register emulated reference space. Pose manager needs this to match the new emulated reference space against
 	 * a captured reference space of similar attributes.
@@ -165,7 +182,7 @@ private:
 	// Known spaces and relevant actions from capture
 	TArray<FOpenXRCreateReferenceSpacePacket> CapturedReferenceSpaces;
 	TArray<FOpenXRCreateActionSpacePacket> CapturedActionSpaces;
-	TMap<XrAction, FOpenXRCreateActionPacket> CapturedPoseActions;
+	TMap<XrAction, FOpenXRCreateActionPacket> CapturedActions;
 
 	/**
 	 * Pose histories for space types, which could be unified across different space handles
@@ -173,6 +190,11 @@ private:
 	 */
 	TMap<XrReferenceSpaceType, TArray<FOpenXRLocateSpacePacket>> ReferencePoseHistories;
 	TMap<FName, TArray<FOpenXRLocateSpacePacket>> ActionPoseHistories;
+
+	TMap<FName, TArray<FOpenXRGetActionStateBooleanPacket>> BooleanActionStateHistories;
+	TMap<FName, TArray<FOpenXRGetActionStateFloatPacket>> FloatActionStateHistories;
+	TMap<FName, TArray<FOpenXRGetActionStateVector2fPacket>> VectorActionStateHistories;
+	TMap<FName, TArray<FOpenXRGetActionStatePosePacket>> PoseActionStateHistories;
 
 	// Map of emulated spaces to their underlying reference space type (if applicable)
 	TMap<XrSpace, XrReferenceSpaceType> EmulatedReferenceSpaceTypeMap;

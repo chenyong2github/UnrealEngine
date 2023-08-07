@@ -40,6 +40,11 @@ public:
 	[[nodiscard]] const TArray<int64>& GetSwapchainFormats() { return SwapchainFormats; }
 	[[nodiscard]] const TArray<FOpenXRCreateActionPacket>& GetCreatedActions() { return CreatedActions; }
 	[[nodiscard]] const TArray<FOpenXRWaitFramePacket>& GetWaitFrames() { return WaitFrames; }
+	[[nodiscard]] const TArray<FOpenXRSyncActionsPacket>& GetSyncActions() { return SyncActions; }
+	[[nodiscard]] const TMap<XrAction, TArray<FOpenXRGetActionStateBooleanPacket>>& GetBooleanActionStates() { return BooleanActionStates; }
+	[[nodiscard]] const TMap<XrAction, TArray<FOpenXRGetActionStateFloatPacket>>& GetFloatActionStates() { return FloatActionStates; }
+	[[nodiscard]] const TMap<XrAction, TArray<FOpenXRGetActionStateVector2fPacket>>& GetVectorActionStates() { return VectorActionStates; }
+	[[nodiscard]] const TMap<XrAction, TArray<FOpenXRGetActionStatePosePacket>>& GetPoseActionStates() { return PoseActionStates; }
 
 	TArray<uint8>& GetEncodedData()
 	{
@@ -161,6 +166,13 @@ protected:
 	TArray<FOpenXRCreateActionPacket> CreatedActions;
 
 	TArray<FOpenXRWaitFramePacket> WaitFrames;
+
+	TArray<FOpenXRSyncActionsPacket> SyncActions;
+
+	TMap<XrAction, TArray<FOpenXRGetActionStateBooleanPacket>> BooleanActionStates;
+	TMap<XrAction, TArray<FOpenXRGetActionStateFloatPacket>> FloatActionStates;
+	TMap<XrAction, TArray<FOpenXRGetActionStateVector2fPacket>> VectorActionStates;
+	TMap<XrAction, TArray<FOpenXRGetActionStatePosePacket>> PoseActionStates;
 
 	// TODO: Would I ever want to bin properties into per-instance collections?
 	// When we are repaying, we're just going to create our own set of 'valid' parameters

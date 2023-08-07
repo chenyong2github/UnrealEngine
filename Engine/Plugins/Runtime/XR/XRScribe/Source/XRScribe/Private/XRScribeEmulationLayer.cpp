@@ -21,14 +21,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogXRScribeEmulate, Log, All);
 // * useful error logs at fail points
 // * per-api next pointer validation
 
-// Action state processing
-// Get list of waitframes + sync actions
-// associate SyncAction call with waitframe
-// sort GetActionState calls by time
-// associate GetActionState with syncaction + therefore, a frame
-// Splice states into 120Hz samples
-// resample states based on timeoffset from initial waitframe
-
 namespace UE::XRScribe
 {
 
@@ -374,6 +366,12 @@ void FOpenXREmulationLayer::PostLoadActions()
 	PoseManager.RegisterCapturedActionSpaces(CaptureDecoder.GetCreatedActionSpaces());
 
 	PoseManager.RegisterCapturedSpaceHistories(CaptureDecoder.GetSpaceLocations());
+
+	PoseManager.RegisterCapturedActionStates(CaptureDecoder.GetSyncActions(),
+		CaptureDecoder.GetBooleanActionStates(), 
+		CaptureDecoder.GetFloatActionStates(), 
+		CaptureDecoder.GetVectorActionStates(), 
+		CaptureDecoder.GetPoseActionStates());
 }
 
 bool FOpenXREmulationLayer::InstanceHandleCheck(XrInstance InputInstance)

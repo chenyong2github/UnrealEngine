@@ -8,6 +8,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogXRScribePoseManager, Log, All);
 
+// Action state processing
+// Get list of waitframes + sync actions DONE
+// associate SyncAction call with waitframe
+// sort GetActionState calls by time
+// associate GetActionState with syncaction + therefore, a frame
+// Splice states into 120Hz samples
+// resample states based on timeoffset from initial waitframe
+
 namespace UE::XRScribe
 {
 
@@ -64,10 +72,7 @@ void FOpenXRPoseManager::RegisterCapturedActions(const TArray <FOpenXRCreateActi
 {
 	for (const FOpenXRCreateActionPacket& CreateAction : CreateActionPackets)
 	{
-		if (CreateAction.ActionType == XR_ACTION_TYPE_POSE_INPUT)
-		{
-			CapturedPoseActions.Add(CreateAction.Action, CreateAction);
-		}
+		CapturedActions.Add(CreateAction.Action, CreateAction);
 	}
 }
 
@@ -197,7 +202,7 @@ void FOpenXRPoseManager::ProcessCapturedActionSpaceHistory(const TArray<FOpenXRL
 	});
 	check(MatchingInfo);
 
-	const FOpenXRCreateActionPacket& CreateAction = CapturedPoseActions[MatchingInfo->ActionSpaceCreateInfo.action];
+	const FOpenXRCreateActionPacket& CreateAction = CapturedActions[MatchingInfo->ActionSpaceCreateInfo.action];
 
 	check(CreateAction.ActionType == XR_ACTION_TYPE_POSE_INPUT);
 
@@ -241,6 +246,49 @@ void FOpenXRPoseManager::RegisterCapturedSpaceHistories(const TMap<XrSpace, TArr
 		}
 
 	}
+}
+
+void FOpenXRPoseManager::RegisterCapturedActionStates(const TArray<FOpenXRSyncActionsPacket>& SyncActionsPackets,
+	const TMap<XrAction, TArray<FOpenXRGetActionStateBooleanPacket>>& BooleanActionStates,
+	const TMap<XrAction, TArray<FOpenXRGetActionStateFloatPacket>>& FloatActionStates,
+	const TMap<XrAction, TArray<FOpenXRGetActionStateVector2fPacket>>& VectorActionStates,
+	const TMap<XrAction, TArray<FOpenXRGetActionStatePosePacket>>& PoseActionStates)
+{
+
+	for (const auto& BooleanActionStateList : BooleanActionStates)
+	{
+		const FOpenXRCreateActionPacket& CreateActionPacket = CapturedActions[BooleanActionStateList.Key];
+		const FName ActionName(CreateActionPacket.ActionName.GetData());
+
+		BooleanActionStateHistories.Add(ActionName, BooleanActionStateList.Value);
+	}
+
+	for (const auto& FloatActionStateList : FloatActionStates)
+	{
+		const FOpenXRCreateActionPacket& CreateActionPacket = CapturedActions[FloatActionStateList.Key];
+		const FName ActionName(CreateActionPacket.ActionName.GetData());
+
+		FloatActionStateHistories.Add(ActionName, FloatActionStateList.Value);
+	}
+
+	for (const auto& VectorActionStateList : VectorActionStates)
+	{
+		const FOpenXRCreateActionPacket& CreateActionPacket = CapturedActions[VectorActionStateList.Key];
+		const FName ActionName(CreateActionPacket.ActionName.GetData());
+
+		VectorActionStateHistories.Add(ActionName, VectorActionStateList.Value);
+	}
+
+	for (const auto& PoseActionStateList : PoseActionStates)
+	{
+		const FOpenXRCreateActionPacket& CreateActionPacket = CapturedActions[PoseActionStateList.Key];
+		const FName ActionName(CreateActionPacket.ActionName.GetData());
+
+		PoseActionStateHistories.Add(ActionName, PoseActionStateList.Value);
+	}
+
+	// map sync actions to wait frames
+
 }
 
 void FOpenXRPoseManager::RegisterEmulatedReferenceSpace(const XrReferenceSpaceCreateInfo& CreateInfo, XrSpace SpaceHandle)

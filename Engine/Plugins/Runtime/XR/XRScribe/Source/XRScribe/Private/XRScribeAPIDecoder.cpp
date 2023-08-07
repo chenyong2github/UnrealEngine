@@ -673,6 +673,12 @@ void FOpenXRCaptureDecoder::DecodeGetActionStateBoolean(const FOpenXRAPIPacketBa
 	FOpenXRGetActionStateBooleanPacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
+
+	if (!BooleanActionStates.Contains(Data.GetInfoBoolean.action))
+	{
+		BooleanActionStates.Add(Data.GetInfoBoolean.action);
+	}
+	BooleanActionStates[Data.GetInfoBoolean.action].Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeGetActionStateFloat(const FOpenXRAPIPacketBase& BasePacket)
@@ -683,6 +689,12 @@ void FOpenXRCaptureDecoder::DecodeGetActionStateFloat(const FOpenXRAPIPacketBase
 	FOpenXRGetActionStateFloatPacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
+
+	if (!FloatActionStates.Contains(Data.GetInfoFloat.action))
+	{
+		FloatActionStates.Add(Data.GetInfoFloat.action);
+	}
+	FloatActionStates[Data.GetInfoFloat.action].Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeGetActionStateVector2f(const FOpenXRAPIPacketBase& BasePacket)
@@ -693,6 +705,12 @@ void FOpenXRCaptureDecoder::DecodeGetActionStateVector2f(const FOpenXRAPIPacketB
 	FOpenXRGetActionStateVector2fPacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
+
+	if (!VectorActionStates.Contains(Data.GetInfoVector2f.action))
+	{
+		VectorActionStates.Add(Data.GetInfoVector2f.action);
+	}
+	VectorActionStates[Data.GetInfoVector2f.action].Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeGetActionStatePose(const FOpenXRAPIPacketBase& BasePacket)
@@ -703,6 +721,12 @@ void FOpenXRCaptureDecoder::DecodeGetActionStatePose(const FOpenXRAPIPacketBase&
 	FOpenXRGetActionStatePosePacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
+
+	if (!PoseActionStates.Contains(Data.GetInfoPose.action))
+	{
+		PoseActionStates.Add(Data.GetInfoPose.action);
+	}
+	PoseActionStates[Data.GetInfoPose.action].Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeSyncActions(const FOpenXRAPIPacketBase& BasePacket)
@@ -715,6 +739,8 @@ void FOpenXRCaptureDecoder::DecodeSyncActions(const FOpenXRAPIPacketBase& BasePa
 	FOpenXRSyncActionsPacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
+
+	SyncActions.Add(Data);
 }
 
 //void FOpenXRCaptureDecoder::DecodeEnumerateBoundSourcesForAction(const FOpenXRAPIPacketBase& BasePacket)
