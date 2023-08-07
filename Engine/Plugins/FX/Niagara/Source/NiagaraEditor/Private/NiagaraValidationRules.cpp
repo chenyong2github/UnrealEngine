@@ -212,6 +212,35 @@ namespace NiagaraValidation
 			}
 		}
 	};
+
+	bool StructContainsUObjectProperty(UStruct* Struct)
+	{
+		for (TFieldIterator<const FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+		{
+			const FProperty* Property = *PropertyIt;
+			if (const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(Property))
+			{
+				// If we are an array change the property to be the inner one to check for struct / object
+				Property = ArrayProperty->Inner;
+			}
+
+			if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
+			{
+				if (StructProperty->Struct)
+				{
+					if (StructContainsUObjectProperty(StructProperty->Struct))
+					{
+						return true;
+					}
+				}
+			}
+			else if (CastField<const FWeakObjectProperty>(Property) || CastField<const FObjectProperty>(Property) || CastField<const FSoftObjectProperty>(Property))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -956,6 +985,51 @@ void UNiagaraValidationRule_TickDependencyCheck::CheckValidity(const FNiagaraVal
 			}
 		}
 	);
+}
+
+void UNiagaraValidationRule_UserDataInterfaces::CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const
+{
+	UNiagaraSystem* NiagaraSystem = &Context.ViewModel->GetSystem();
+	const FNiagaraUserRedirectionParameterStore& ExposedParameters = NiagaraSystem->GetExposedParameters();
+	if (ExposedParameters.GetDataInterfaces().Num() == 0)
+	{
+		return;
+	}
+
+	UObject* StackObject = NiagaraValidation::GetStackEntry<UNiagaraStackSystemPropertiesItem>(Context.ViewModel->GetSystemStackViewModel());
+	for (const FNiagaraVariableWithOffset& Variable : ExposedParameters.ReadParameterVariables())
+	{
+		if (Variable.IsDataInterface() == false)
+		{
+			continue;
+		}
+
+		UClass* DIClass = Variable.GetType().GetClass();
+		if (BannedDataInterfaces.Num() > 0 && !BannedDataInterfaces.Contains(DIClass))
+		{
+			continue;
+		}
+
+
+		if (AllowDataInterfaces.Num() > 0 && AllowDataInterfaces.Contains(DIClass))
+		{
+			continue;
+		}
+
+		if (bOnlyIncludeExposedUObjects && !NiagaraValidation::StructContainsUObjectProperty(DIClass))
+		{
+			continue;
+		}
+
+		const FText DIClassText = FText::FromName(DIClass->GetFName());
+		const FText VariableText = FText::FromName(Variable.GetName());
+		OutResults.Emplace(
+			Severity,
+			FText::Format(LOCTEXT("UserDataInterfaceFormat", "User DataInterface '{0}' should be removed."), VariableText),
+			FText::Format(LOCTEXT("UserDataInterfaceDetailedFormat", "DataInterface '{0}' type '{1}' may cause issues when exposed to UEFN and reduce performance when creating an instance.  Consider moving to system level and use object parameter binding on the data interface instead."), VariableText, DIClassText),
+			StackObject
+		);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
