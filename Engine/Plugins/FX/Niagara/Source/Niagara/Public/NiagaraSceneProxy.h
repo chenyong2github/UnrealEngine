@@ -11,6 +11,8 @@ class FNiagaraSystemRenderData;
 class UNiagaraComponent;
 enum class ENiagaraOcclusionQueryMode : uint8;
 
+#define NIAGARAPROXY_EVENTS_ENABLED	(!STATS && (ENABLE_STATNAMEDEVENTS || CPUPROFILERTRACE_ENABLED))
+
 /**
 * Scene proxy for drawing niagara particle simulations.
 */
@@ -96,6 +98,9 @@ private:
 	FMatrix LocalToWorldInverse;
 
 	TStatId SystemStatID;
+#if NIAGARAPROXY_EVENTS_ENABLED
+	FString SystemStatString;
+#endif
 
 	FDynamicData DynamicData;
 

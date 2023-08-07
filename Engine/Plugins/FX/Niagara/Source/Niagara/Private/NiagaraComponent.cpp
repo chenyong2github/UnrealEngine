@@ -199,6 +199,9 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 		bIsHeterogeneousVolume = RenderData->HasAnyHeterogeneousVolumesEnabled();
 
 		SystemStatID = InComponent->GetAsset()->GetStatID(false, false);
+#if NIAGARAPROXY_EVENTS_ENABLED
+		SystemStatString = InComponent->GetAsset()->GetFName().ToString();
+#endif
 	}
 }
 
@@ -439,6 +442,40 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentGetDynamicMeshElements);
 
 	FScopeCycleCounter SystemStatCounter(SystemStatID);
+
+#if NIAGARAPROXY_EVENTS_ENABLED
+	bool bEndPlatformEvent = false;
+#if CPUPROFILERTRACE_ENABLED
+	bool bEndTraceEvent = false;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+	{
+		bEndTraceEvent = true;
+		FCpuProfilerTrace::OutputBeginDynamicEvent(GetResourceName());
+	}
+	else
+#endif //CPUPROFILERTRACE_ENABLED
+#if ENABLE_STATNAMEDEVENTS
+	{
+		bEndPlatformEvent = true;
+		FPlatformMisc::BeginNamedEvent(FColor(0), *SystemStatString);
+	}
+#endif //ENABLE_STATNAMEDEVENTS
+	ON_SCOPE_EXIT
+	{
+#if CPUPROFILERTRACE_ENABLED
+		if (bEndTraceEvent)
+		{
+			FCpuProfilerTrace::OutputEndEvent();
+		}
+#endif //CPUPROFILERTRACE_ENABLED
+#if ENABLE_STATNAMEDEVENTS
+		if (bEndPlatformEvent)
+		{
+			FPlatformMisc::EndNamedEvent();
+		}
+#endif //ENABLE_STATNAMEDEVENTS
+	};
+#endif
 
 	if (RenderData)
 	{
