@@ -733,7 +733,7 @@ void FVulkanDevice::SetupFormats()
 		MapFormatSupport(PF_G16, { VK_FORMAT_R16_SFLOAT, VK_FORMAT_R16_UNORM }, ComponentMappingR001);
 	}
 
-	if (GetOptionalExtensions().HasEXTASTCDecodeMode)
+	if (GetOptionalExtensions().HasEXTTextureCompressionASTCHDR)
 	{
 		MapFormatSupport(PF_ASTC_4x4_HDR,   { VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT },   ComponentMappingRGBA);
 		MapFormatSupport(PF_ASTC_6x6_HDR,   { VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT },   ComponentMappingRGBA);
