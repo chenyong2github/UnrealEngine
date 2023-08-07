@@ -20,7 +20,7 @@ struct FDMXChannelData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "DMX Channel")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
 	FDMXAttributeName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
@@ -80,9 +80,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	class ADMXFixtureActor* GetParentFixtureActor();
 
-	/** Reads pixel color in the middle of each "Texture" and output linear colors */
+	/** 
+	 * Reads pixel color in the middle of each "Texture" and output linear colors. 
+	 * Note, this function locks the GPU to read the color and is slow to call, even if Update TextureResource is not enabled.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	TArray<FLinearColor> GetTextureCenterColors(UTexture2D* TextureAtlas, int numTextures);
+	TArray<FLinearColor> GetTextureCenterColors(UTexture2D* TextureAtlas, int numTextures, bool bUpdateTextureResource = true);
 
 	/** Called each tick when interpolation is enabled, to calculate the next value */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")

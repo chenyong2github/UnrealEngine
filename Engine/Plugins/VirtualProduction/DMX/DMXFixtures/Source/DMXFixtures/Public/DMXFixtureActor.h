@@ -50,9 +50,6 @@ public:
 	//~ Begin DMXMVRFixtureActorInterface interface
 	virtual void OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const override;
 	//~ End DMXMVRFixtureActorInterface interface
-	
-	// UObject interface
-	virtual void PostLoad() override;
 
 	bool HasBeenInitialized;
 	float LensRadius;
@@ -196,9 +193,9 @@ public:
 public:
 	UE_DEPRECATED(5.1, "Use BeamQuality instead")
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BeamQuality instead."))
-	float MinQuality;
+	float MinQuality_DEPRECATED;
 
 	UE_DEPRECATED(5.1, "Use ZoomQuality instead")
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use ZoomQuality instead."))
-	float MaxQuality;
+	float MaxQuality_DEPRECATED;
 };

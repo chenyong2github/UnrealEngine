@@ -3,11 +3,10 @@
 #include "DMXFixtureActor.h"
 
 #include "Components/ArrowComponent.h"
-#include "DMXStats.h"
-
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DMXFixtureComponent.h"
+#include "DMXStats.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 
@@ -53,17 +52,6 @@ ADMXFixtureActor::ADMXFixtureActor()
 	HasBeenInitialized = false;
 }
 
-void ADMXFixtureActor::PostLoad()
-{
-	Super::PostLoad();
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Upgrade from deprecated MinQuality and MaxQuality to ZoomQuality and BeamQuality
-	ZoomQuality = MaxQuality;
-	BeamQuality = MinQuality;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const
 {
 	for (UDMXFixtureComponent* DMXFixtureComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
@@ -79,7 +67,11 @@ void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FNam
 void ADMXFixtureActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	FeedFixtureData();
+
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		FeedFixtureData();
+	}
 }
 #endif
 
@@ -117,7 +109,7 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	if (StaticMeshBeam)
 	{
 		StaticMeshBeam->SetMaterial(0, DynamicMaterialBeam);
-		StaticMeshBeam->SetWorldScale3D(FVector(1,1,1));
+		StaticMeshBeam->SetWorldScale3D(FVector(1, 1, 1));
 	}
 
 	// Assign dynamic materials to lights

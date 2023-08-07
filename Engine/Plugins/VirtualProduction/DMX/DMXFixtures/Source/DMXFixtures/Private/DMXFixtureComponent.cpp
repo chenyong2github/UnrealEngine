@@ -84,12 +84,17 @@ ADMXFixtureActor* UDMXFixtureComponent::GetParentFixtureActor()
 
 // Warning: Input Texture must use VectorDisplacementMap compression or else RHI complains about BytesPerPixel
 // Reads pixel color in the middle of each "Texture" and output linear colors
-TArray<FLinearColor> UDMXFixtureComponent::GetTextureCenterColors(UTexture2D* Texture, int NumCells)
+TArray<FLinearColor> UDMXFixtureComponent::GetTextureCenterColors(UTexture2D* Texture, int NumCells, bool bUpdateTextureResource)
 {
 	TArray<FLinearColor> PixelColorArray;
 	PixelColorArray.SetNumZeroed(NumCells, true);
 	if (Texture)
 	{
+		if (bUpdateTextureResource)
+		{
+			Texture->UpdateResource();
+		}
+
 		FRenderCommandFence Fence;
 		ENQUEUE_RENDER_COMMAND(GetPixelColors)
 		(
