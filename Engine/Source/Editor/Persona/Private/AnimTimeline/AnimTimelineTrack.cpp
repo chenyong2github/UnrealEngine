@@ -184,7 +184,8 @@ float FAnimTimelineTrack::GetViewMaxInput() const
 
 float FAnimTimelineTrack::GetScrubValue() const
 {
-	const int64 Resolution = FMath::RoundToInt(static_cast<double>(GetDefault<UPersonaOptions>()->TimelineScrubSnapValue) * GetModel()->GetFrameRate());
+	const FFrameRate FrameRate = GetModel()->GetFrameRate();
+	const int64 Resolution = FMath::RoundToInt(static_cast<double>(GetDefault<UPersonaOptions>()->TimelineScrubSnapValue) * FrameRate.AsDecimal());
 	return static_cast<float>(static_cast<double>(GetModel()->GetScrubPosition().Value) / static_cast<double>(Resolution));
 }
 

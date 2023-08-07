@@ -81,6 +81,8 @@ public:
 
 	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
 
+	bool OnIsAnimAssetValid(const UAnimSequenceBase* AnimSequenceBase, FText* OutReason);
+
 private:
 	/** Reference to our editor model */
 	TWeakPtr<FAnimModel> WeakModel;

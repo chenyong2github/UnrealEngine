@@ -80,6 +80,7 @@ public:
 	SLATE_EVENT(FOnAnimSegmentRemoved, OnAnimSegmentRemoved)
 	SLATE_EVENT(FOnAnimReplaceMapping, OnAnimReplaceMapping)
 	SLATE_EVENT(FOnDiffFromParentAsset, OnDiffFromParentAsset)
+	SLATE_EVENT(FIsAnimAssetValid, OnIsAnimAssetValid)
 
 	SLATE_EVENT( FOnBarDrag,				OnBarDrag)
 	SLATE_EVENT( FOnBarDrop,				OnBarDrop)
@@ -131,8 +132,9 @@ private:
 	void				SummonSegmentNodeContextMenu( FMenuBuilder& MenuBuilder, int32 AnimSegmentIndex );
 
 	void				AddAnimSegment(UAnimSequenceBase *NewSequenceBase, float NewStartPos );
-	bool				IsValidToAdd(UAnimSequenceBase* NewSequenceBase) const;
+	bool				IsValidToAdd(UAnimSequenceBase* NewSequenceBase, FText* OutReason = nullptr) const;
 	void				OnTrackDragDrop( TSharedPtr<FDragDropOperation> DragDropOp, float DataPos );
+	bool				OnAssetDragDrop(TSharedPtr<FAssetDragDropOp> AssetDragDropOp);
 	void				OnAnimSegmentNodeClicked(int32 SegmentIdx);
 	void				OnAnimSegmentNodeDoubleClicked(int32 SegmentIdx);
 
@@ -174,6 +176,7 @@ private:
 
 	TAttribute<FLinearColor> DefaultNodeColor;
 
+	FIsAnimAssetValid OnIsAnimAssetValid;
  	/* 
 	 * Child Anim Montage: Child Anim Montage only can replace name of animations, and no other meaningful edits 
 	 * as it will derive every data from Parent. There might be some other data that will allow to be replaced, but for now, it is

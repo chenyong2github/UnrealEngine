@@ -23,6 +23,7 @@
 #include "AnimTimeline/AnimModel.h"
 #include "AnimPreviewInstance.h"
 #include "ScopedTransaction.h"
+#include "Animation/AnimationSettings.h"
 #include "Misc/MessageDialog.h"
 #include "Animation/EditorAnimCompositeSegment.h"
 #include "Factories/AnimMontageFactory.h"
@@ -97,6 +98,33 @@ UAnimPreviewInstance* SAnimMontagePanel::GetPreviewInstance() const
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = WeakModel.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
 	return PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn()? PreviewMeshComponent->PreviewInstance : nullptr;
+}
+
+bool SAnimMontagePanel::OnIsAnimAssetValid(const UAnimSequenceBase* AnimSequenceBase, FText* OutReason)
+{
+	if (AnimSequenceBase)
+	{
+		if (UAnimationSettings::Get()->bEnforceSupportedFrameRates)
+		{
+			const FFrameRate AssetFrameRate = AnimSequenceBase->GetSamplingFrameRate();
+			
+			const UAnimMontage* AnimMontage = WeakModel.Pin()->GetAsset<UAnimMontage>();
+			const FFrameRate MontageFrameRate = WeakModel.Pin()->GetAsset<UAnimMontage>()->GetCommonTargetFrameRate();
+			const bool bContainsSegments = AnimMontage->SlotAnimTracks.Num() != 0 && AnimMontage->SlotAnimTracks[0].AnimTrack.AnimSegments.Num() != 0;
+			if (MontageFrameRate.IsValid() && bContainsSegments && !AssetFrameRate.IsMultipleOf(MontageFrameRate) && !AssetFrameRate.IsFactorOf(MontageFrameRate))
+			{
+				if (OutReason)
+				{
+					*OutReason = FText::Format(LOCTEXT("InvalidFrameRate", "Animation Asset {0} its framerate {1} is incompatible with the Anim Montage's {2}"), FText::FromString(AnimSequenceBase->GetName()), AssetFrameRate.ToPrettyText(), MontageFrameRate.ToPrettyText());
+				}				
+				
+				return false;
+			}
+		}
+		
+		return true;	
+	}
+	return false;
 }
 
 FReply SAnimMontagePanel::OnFindParentClassInContentBrowserClicked()
@@ -658,6 +686,7 @@ void SAnimMontagePanel::Update()
 						.OnDiffFromParentAsset(this, &SAnimMontagePanel::IsDiffererentFromParent)
 						.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
 						.TrackNumDiscreteValues(Montage->GetNumberOfSampledKeys())
+						.OnIsAnimAssetValid(this, &SAnimMontagePanel::OnIsAnimAssetValid)
 					];
 
 				}
@@ -690,6 +719,7 @@ void SAnimMontagePanel::Update()
 						.OnPostAnimUpdate(this, &SAnimMontagePanel::PostAnimUpdate)
 						.OnAnimSegmentRemoved(this, &SAnimMontagePanel::OnAnimSegmentRemoved, SlotAnimIdx)
 						.OnTrackRightClickContextMenu(this, &SAnimMontagePanel::SummonTrackContextMenu, static_cast<int>(SlotAnimIdx))
+						.OnIsAnimAssetValid(this, &SAnimMontagePanel::OnIsAnimAssetValid)
 					];
 				}
 			}

@@ -52,8 +52,6 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 	Model = InModel;
 	OnReceivedFocus = InArgs._OnReceivedFocus;
 
-	int32 TickResolutionValue = InModel->GetTickResolution();
-	int32 SequenceFrameRate = static_cast<int32>(FMath::RoundToInt(InModel->GetFrameRate()));
 
 	if (InModel->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance)
 	{
@@ -72,14 +70,14 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 		return GetDefault<UPersonaOptions>()->TimelineDisplayFormat == EFrameNumberDisplayFormats::Frames ? EFrameNumberDisplayFormats::Seconds : EFrameNumberDisplayFormats::Frames;
 	});
 
-	const TAttribute<FFrameRate> TickResolution = MakeAttributeLambda([TickResolutionValue]()
+	const TAttribute<FFrameRate> TickResolution = MakeAttributeLambda([this]()
 	{
-		return FFrameRate(TickResolutionValue, 1);
+		return FFrameRate(Model.Pin()->GetTickResolution(), 1);
 	});
 
-	const TAttribute<FFrameRate> DisplayRate = MakeAttributeLambda([SequenceFrameRate]()
+	const TAttribute<FFrameRate> DisplayRate = MakeAttributeLambda([this]()
 	{
-		return FFrameRate(SequenceFrameRate, 1);
+		return Model.Pin()->GetFrameRate();
 	});
 
 	// Create our numeric type interface so we can pass it to the time slider below.
@@ -767,7 +765,7 @@ bool SAnimTimeline::GetGridMetrics(float PhysicalWidth, double& OutMajorInterval
 	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-	const FFrameRate DisplayRate(static_cast<int32>(FMath::Max(FMath::RoundToInt(Model.Pin()->GetFrameRate()), 1)), 1);
+	const FFrameRate DisplayRate = Model.Pin()->GetFrameRate();
 	const double BiggestTime = ViewRange.Get().GetUpperBoundValue();
 	const FString TickString = NumericTypeInterface->ToString((BiggestTime * DisplayRate).FrameNumber.Value);
 	const FVector2D MaxTextSize = FontMeasureService->Measure(TickString, SmallLayoutFont);
@@ -834,7 +832,7 @@ void SAnimTimeline::HandleScrubPositionChanged(FFrameTime NewScrubPosition, bool
 
 double SAnimTimeline::GetSpinboxDelta() const
 {
-	return FFrameRate(Model.Pin()->GetTickResolution(), 1).AsDecimal() * FFrameRate(static_cast<int32>(FMath::RoundToInt(Model.Pin()->GetFrameRate())), 1).AsInterval();
+	return FFrameRate(Model.Pin()->GetTickResolution(), 1).AsDecimal() * Model.Pin()->GetFrameRate().AsInterval();
 }
 
 void SAnimTimeline::SetPlayTime(double InFrameTime)

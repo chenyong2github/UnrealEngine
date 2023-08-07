@@ -18,6 +18,7 @@
 #include "Rendering/DrawElements.h"
 #include "Rendering/RenderingCommon.h"
 #include "SCurveEditor.h"
+#include "DragAndDrop/AssetDragDropOp.h"
 #include "Styling/CoreStyle.h"
 #include "Templates/TypeHash.h"
 #include "Widgets/Layout/SBorder.h"
@@ -414,6 +415,7 @@ void STrack::Construct( const FArguments& InArgs )
 	OnBarClicked = InArgs._OnBarClicked;
 	OnBarDrop = InArgs._OnBarDrop;
 	OnTrackDragDrop = InArgs._OnTrackDragDrop;
+	OnAssetDragDrop = InArgs._OnAssetDragDrop;
 	OnSummonContextMenu = InArgs._OnSummonContextMenu;
 	OnTrackRightClickContextMenu = InArgs._OnTrackRightClickContextMenu;
 
@@ -569,6 +571,28 @@ FReply STrack::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& 
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
+}
+
+void STrack::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FAssetDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	if (DragDropOp.IsValid())
+	{
+		if(OnAssetDragDrop.IsBound())
+		{
+			OnAssetDragDrop.Execute(DragDropOp);
+		}
+	}
+}
+
+void STrack::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	SPanel::OnDragLeave(DragDropEvent);
+	TSharedPtr<FAssetDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	if (DragDropOp.IsValid())
+	{
+		DragDropOp->ResetToDefaultToolTip();
+	}
 }
 
 float STrack::GetNodeDragDropDataPos( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) const

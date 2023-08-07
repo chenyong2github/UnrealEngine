@@ -16,6 +16,11 @@ class UAnimCompositeBase;
 class UAnimSequence;
 struct FCompactPose;
 
+namespace UE { namespace Anim
+{
+	extern TAutoConsoleVariable<bool> CVarOutputMontageFrameRateWarning;
+}}
+
 /** Struct defining a RootMotionExtractionStep.
  * When extracting RootMotion we can encounter looping animations (wrap around), or different animations.
  * We break those up into different steps, to help with RootMotion extraction, 
@@ -267,7 +272,7 @@ struct FAnimTrack
 	void ValidateSegmentTimes();
 
 	/** return true if valid to add */
-	ENGINE_API bool IsValidToAdd(const UAnimSequenceBase* SequenceBase) const;
+	ENGINE_API bool IsValidToAdd(const UAnimSequenceBase* SequenceBase, FText* OutReason = nullptr) const;
 
 	/** Gets the index of the segment at the given absolute montage time. */	
 	ENGINE_API int32 GetSegmentIndexAtTime(float InTime) const;
@@ -371,6 +376,13 @@ class UAnimCompositeBase : public UAnimSequenceBase
 
 #if WITH_EDITOR
 	virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel) override;
+
+	virtual void UpdateCommonTargetFrameRate() PURE_VIRTUAL(UAnimCompositeBase::UpdateCommonTargetFrameRate, );	
 #endif // WITH_EDITOR
+	FFrameRate GetCommonTargetFrameRate() const { return CommonTargetFrameRate; }
+protected:
+	/** Frame-rate used to represent this Animation Montage (best fitting for placed Animation Sequences)*/
+	UPROPERTY(VisibleAnywhere, Category = AnimationComposite)
+	FFrameRate CommonTargetFrameRate;
 };
 

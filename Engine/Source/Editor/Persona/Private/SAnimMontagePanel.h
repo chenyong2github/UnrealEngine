@@ -172,6 +172,7 @@ public:
 
 	UAnimPreviewInstance* GetPreviewInstance() const;
 
+	bool OnIsAnimAssetValid(const UAnimSequenceBase* AnimSequenceBase, FText* OutReason);
 public:
 
 	/** These are meant to be callbacks used by the montage editing UI widgets */

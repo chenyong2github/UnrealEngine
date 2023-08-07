@@ -44,6 +44,7 @@ void SAnimSegmentsPanel::Construct(const FArguments& InArgs)
 	OnAnimReplaceMapping					= InArgs._OnAnimReplaceMapping;
 	OnDiffFromParentAsset					= InArgs._OnDiffFromParentAsset;
 	OnGetNodeColor							= InArgs._OnGetNodeColor;
+	OnIsAnimAssetValid						= InArgs._OnIsAnimAssetValid;
 
 	bChildAnimMontage = InArgs._bChildAnimMontage;
 
@@ -84,6 +85,7 @@ void SAnimSegmentsPanel::Construct(const FArguments& InArgs)
 					.TrackNumDiscreteValues(InArgs._TrackNumDiscreteValues)
 					.OnTrackRightClickContextMenu(InArgs._OnTrackRightClickContextMenu)
 					.OnTrackDragDrop(this, &SAnimSegmentsPanel::OnTrackDragDrop)
+					.OnAssetDragDrop(this, &SAnimSegmentsPanel::OnAssetDragDrop)
 				];
 		}
 		else
@@ -106,6 +108,7 @@ void SAnimSegmentsPanel::Construct(const FArguments& InArgs)
 					.TrackNumDiscreteValues(InArgs._TrackNumDiscreteValues)
 					.OnTrackRightClickContextMenu(InArgs._OnTrackRightClickContextMenu)
 					.OnTrackDragDrop(this, &SAnimSegmentsPanel::OnTrackDragDrop)
+					.OnAssetDragDrop(this, &SAnimSegmentsPanel::OnAssetDragDrop)
 				];
 		}
 
@@ -361,14 +364,19 @@ void SAnimSegmentsPanel::ReplaceAnimSegment(UAnimSequenceBase* NewSequenceBase, 
 	ReplaceAnimSegment(SegmentIdx, NewSequenceBase);
 }
 
-bool SAnimSegmentsPanel::IsValidToAdd(UAnimSequenceBase* NewSequenceBase) const
+bool SAnimSegmentsPanel::IsValidToAdd(UAnimSequenceBase* NewSequenceBase, FText* OutReason /*= nullptr*/) const
 {
-	if (AnimTrack == NULL || NewSequenceBase == NULL)
+	if (AnimTrack == nullptr || NewSequenceBase == nullptr)
 	{
 		return false;
 	}
 
-	return (AnimTrack->IsValidToAdd(NewSequenceBase));
+	if (!AnimTrack->IsValidToAdd(NewSequenceBase, OutReason) || (OnIsAnimAssetValid.IsBound() && !OnIsAnimAssetValid.Execute(NewSequenceBase, OutReason)))
+    {
+        return false;
+    } 
+
+	return true;
 }
 
 void SAnimSegmentsPanel::RemoveAnimSegment(int32 AnimSegmentIndex)
@@ -501,13 +509,35 @@ void SAnimSegmentsPanel::OnTrackDragDrop( TSharedPtr<FDragDropOperation> DragDro
 					}
 				}
 			}
-
-			if(bFailedToAdd)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FailedToAdd", "Make sure the target animations are valid. Check to make sure if they are the same additive type if additive."));
-			}
 		}
 	}
+}
+
+bool SAnimSegmentsPanel::OnAssetDragDrop(TSharedPtr<FAssetDragDropOp> AssetDragDropOp)
+{
+	if (AssetDragDropOp.IsValid())
+	{
+		if (AssetDragDropOp->HasAssets())
+		{			
+			for(const FAssetData& DroppedAssetData : AssetDragDropOp->GetAssets())
+			{
+				FText FailureReason;
+				UAnimSequenceBase* DroppedSequence = Cast<UAnimSequenceBase>(DroppedAssetData.GetAsset());
+
+				bool bInvalidAsset = false;
+				if (!IsValidToAdd(DroppedSequence, &FailureReason))
+				{
+					AssetDragDropOp->SetToolTip(FailureReason, FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+					return false;
+				}
+			}
+			
+			AssetDragDropOp->SetToolTip(FText(), FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void SAnimSegmentsPanel::OnAnimSegmentNodeClicked(int32 SegmentIdx)

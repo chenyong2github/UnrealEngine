@@ -1041,6 +1041,25 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 				TextValue = ConcatenateLine(TextValue, LOCTEXT("ApplyToCompressedDataWarning", "<AnimViewport.WarningText>Animation is being edited. To apply to compressed data (and recalculate baked additives), click \"Apply\"</>"));
 			}
 		}
+
+		UAnimCompositeBase* CompositeBase = Cast<UAnimCompositeBase>(PreviewInstance->GetCurrentAsset());
+		if (CompositeBase && !CompositeBase->GetCommonTargetFrameRate().IsValid())
+		{
+			FString AssetString;
+			TArray<UAnimationAsset*> Assets;
+			if(CompositeBase->GetAllAnimationSequencesReferred(Assets, false))
+			{
+				for (const UAnimationAsset* AnimAsset : Assets)
+				{
+					if (const UAnimSequenceBase* AnimSequenceBase = Cast<UAnimSequenceBase>(AnimAsset))
+					{
+						AssetString.Append(FString::Printf(TEXT("\n\t<AnimViewport.WarningText>%s - %s</>"), *AnimSequenceBase->GetName(), *AnimSequenceBase->GetSamplingFrameRate().ToPrettyText().ToString()));
+					}
+				}
+			}
+			
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("IncompatibleFrameRatesCompositeWarning", "<AnimViewport.WarningText>{0} is composed of assets with incompatible framerates:</>{1}"), CompositeBase->GetClass()->GetDisplayNameText(), FText::FromString(AssetString)));
+		}
 	}
 
 	if (PreviewMeshComponent->IsUsingInGameBounds())

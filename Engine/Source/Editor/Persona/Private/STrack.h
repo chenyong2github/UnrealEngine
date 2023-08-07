@@ -23,6 +23,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SPanel.h"
+#include "DragAndDrop/AssetDragDropOp.h"
 
 class FArrangedChildren;
 class FChildren;
@@ -47,6 +48,8 @@ DECLARE_DELEGATE_OneParam( FOnBarClicked, int32)
 DECLARE_DELEGATE_TwoParams( FOnBarDrag, int32, float)
 DECLARE_DELEGATE_OneParam( FOnBarDrop, int32 )
 DECLARE_DELEGATE_TwoParams( FOnTrackDragDop, TSharedPtr<FDragDropOperation>, float )
+DECLARE_DELEGATE_RetVal_OneParam( bool, FOnAssetDragDrop, TSharedPtr<FAssetDragDropOp>)
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsAnimAssetValid, const UAnimSequenceBase*, FText* OutReason)
 
 DECLARE_DELEGATE_RetVal( FString, FOnGetNodeName )
 DECLARE_DELEGATE_OneParam( FOnTrackNodeDragged, float )
@@ -270,6 +273,7 @@ public:
 		SLATE_EVENT( FOnBarDrag, OnBarDrag)
 		SLATE_EVENT( FOnBarClicked, OnBarClicked)
 		SLATE_EVENT( FOnTrackDragDop, OnTrackDragDrop )
+		SLATE_EVENT( FOnAssetDragDrop, OnAssetDragDrop )
 		SLATE_EVENT( FOnBarDrop, OnBarDrop )
 		SLATE_EVENT( FOnSummonContextMenu, OnSummonContextMenu )
 		SLATE_EVENT( FOnTrackRightClickContextMenu, OnTrackRightClickContextMenu )
@@ -286,6 +290,8 @@ public:
 	virtual FReply	OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;	
 	virtual FReply	OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	virtual FReply	OnDragDetected( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 
 	int32			GetHitNode(const FGeometry& MyGeometry, const FVector2D& CursorPosition);
 
@@ -337,6 +343,7 @@ protected:
 
 	FOnGetBarPos							OnGetDraggableBarPos;
 	FOnTrackDragDop							OnTrackDragDrop;
+	FOnAssetDragDrop						OnAssetDragDrop;
 	
 	TAttribute<const FSlateBrush*>			StyleInfo;
 	FOnSummonContextMenu					OnSummonContextMenu;

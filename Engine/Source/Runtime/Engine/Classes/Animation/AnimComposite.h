@@ -39,6 +39,10 @@ public:
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UObject Interface
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+
 	//~ Begin UAnimSequenceBase Interface
 	ENGINE_API virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const override;
 
@@ -58,6 +62,7 @@ public:
 	virtual class UAnimSequence* GetAdditiveBasePose() const override;
 	virtual bool GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive = true) override;
 	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap) override;
+	virtual void UpdateCommonTargetFrameRate() override;	
 #endif
 	//~ End UAnimSequence Interface
 
@@ -66,6 +71,7 @@ public:
 	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) override;
 	virtual void SetCompositeLength(float InLength) override;
 	virtual void PostLoad() override;
+	virtual FFrameRate GetSamplingFrameRate() const override;
 	//~End UAnimCompositeBase Interface
 };
 

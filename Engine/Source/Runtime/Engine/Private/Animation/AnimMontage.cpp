@@ -20,6 +20,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/ActiveMontageInstanceScope.h"
+#include "Animation/AnimationSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimMontage)
 
@@ -370,6 +371,16 @@ void UAnimMontage::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	BakeTimeStretchCurve();
 #endif // WITH_EDITOR
 	Super::PreSave(ObjectSaveContext);
+}
+
+FFrameRate UAnimMontage::GetSamplingFrameRate() const
+{	
+	if (CommonTargetFrameRate.IsValid())
+	{
+		return CommonTargetFrameRate;
+	}
+
+	return Super::GetSamplingFrameRate();
 }
 
 void UAnimMontage::PostLoad()
@@ -738,6 +749,8 @@ void UAnimMontage::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	{
 		CollectMarkers();
 	}
+
+	UpdateCommonTargetFrameRate();
 
 	PropagateChanges();
 }
@@ -2991,6 +3004,74 @@ void UAnimMontage::PopulateWithExistingModel(TScriptInterface<IAnimationDataMode
 	const float CurrentCalculatedLength = CalculateSequenceLength();
 	SetCompositeLength(CurrentCalculatedLength);
 }
+
+void UAnimMontage::UpdateCommonTargetFrameRate()
+{
+	CommonTargetFrameRate = FFrameRate(0,0);
+	FFrameRate TargetRate = UAnimationSettings::Get()->GetDefaultFrameRate();
+
+	bool bValidFrameRate = true;
+	bool bFirst = true;
+	for (const FSlotAnimationTrack& Track : SlotAnimTracks)
+	{
+		for (const FAnimSegment& Segment : Track.AnimTrack.AnimSegments)
+		{
+			const UAnimSequenceBase* Base = Segment.GetAnimReference();
+			if (Base && Base != this)
+			{
+				const FFrameRate BaseFrameRate = Base->GetSamplingFrameRate();
+				if (bFirst)
+				{
+					TargetRate = BaseFrameRate;
+					bFirst = false;
+				}
+				else
+				{
+					if (BaseFrameRate.IsValid())
+					{
+						if (TargetRate.IsMultipleOf(BaseFrameRate))
+						{
+							TargetRate = BaseFrameRate;
+						}
+						else if (TargetRate != BaseFrameRate && !BaseFrameRate.IsMultipleOf(TargetRate))
+						{
+							FString AssetString;
+							TArray<UAnimationAsset*> Assets;
+							if(GetAllAnimationSequencesReferred(Assets, false))
+							{
+								for (const UAnimationAsset* AnimAsset : Assets)
+								{
+									if (const UAnimSequenceBase* AnimSequenceBase = Cast<UAnimSequenceBase>(AnimAsset))
+									{
+										AssetString.Append(FString::Printf(TEXT("\n\t%s - %s"), *AnimSequenceBase->GetName(), *AnimSequenceBase->GetSamplingFrameRate().ToPrettyText().ToString()));
+									}
+								}
+							}						
+
+							if (UE::Anim::CVarOutputMontageFrameRateWarning.GetValueOnAnyThread() == true)
+							{
+								UE_LOG(LogAnimation, Warning, TEXT("Frame rate of animation %s (%s) is incompatible with other animations in Animation Montage %s - underlying frame-rate will be set to %s:%s"), *Base->GetName(), *BaseFrameRate.ToPrettyText().ToString(), *GetName(), *Super::GetSamplingFrameRate().ToPrettyText().ToString(), *AssetString);
+							}
+						
+							bValidFrameRate = false;
+							break;
+						}
+					}
+					else
+					{
+						UE_LOG(LogAnimMontage, Warning, TEXT("Invalid frame rate %s for %s in %s"), *BaseFrameRate.ToPrettyText().ToString(), *Base->GetName(), *GetName());
+					}
+				}			
+			}	
+		}			
+	}
+
+	if (bValidFrameRate)
+	{
+		CommonTargetFrameRate = TargetRate;
+	}
+}
+
 #endif // WITH_EDITOR
 
 FMontageBlendSettings::FMontageBlendSettings()

@@ -103,7 +103,11 @@ class UAnimationSettings : public UDeveloperSettings
 
 	/** Project specific default frame-rate used when (re)initializing any animation based data */
 	UPROPERTY(config, EditAnywhere, Category = AnimationData)
-	FFrameRate DefaultFrameRate;	
+	FFrameRate DefaultFrameRate;
+
+	/** Whether to enforce the project to only use entries from SupportedFrameRates for the animation assets, if disable will warn instead */
+	UPROPERTY(config, EditAnywhere, Category = AnimationData)
+	bool bEnforceSupportedFrameRates;
 public:
 	static UAnimationSettings * Get() { return CastChecked<UAnimationSettings>(UAnimationSettings::StaticClass()->GetDefaultObject()); }
 

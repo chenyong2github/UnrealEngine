@@ -43,6 +43,7 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 	};
 	
 	DefaultFrameRate = FFrameRate(30,1);
+	bEnforceSupportedFrameRates = false;
 }
 
 TArray<FString> UAnimationSettings::GetBoneCustomAttributeNamesToImport() const

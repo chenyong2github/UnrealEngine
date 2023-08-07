@@ -14,10 +14,10 @@
 const FAnimModel::FSnapType FAnimModel::FSnapType::Frames("Frames", LOCTEXT("FramesSnapName", "Frames"), [](const FAnimModel& InModel, double InTime)
 {
 	// Round to nearest frame
-	double FrameRate = InModel.GetFrameRate();
-	if(FrameRate > 0)
+	FFrameRate FrameRate = InModel.GetFrameRate();
+	if(FrameRate.IsValid())
 	{
-		return FMath::RoundToDouble(InTime * FrameRate) / FrameRate;
+		return (double)FrameRate.AsFrameNumber(InTime).Value;
 	}
 	
 	return InTime;
@@ -52,21 +52,14 @@ FAnimatedRange FAnimModel::GetWorkingRange() const
 	return WorkingRange;
 }
 
-double FAnimModel::GetFrameRate() const
+FFrameRate FAnimModel::GetFrameRate() const
 {
-	if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(GetAnimSequenceBase()))
-	{
-		return AnimSequence->GetSamplingFrameRate().AsDecimal();
-	}
-	else
-	{
-		return 30.0;
-	}
+	return GetAnimSequenceBase()->GetSamplingFrameRate();
 }
 
 int32 FAnimModel::GetTickResolution() const
 {
-	return FMath::RoundToInt32((double)GetDefault<UPersonaOptions>()->TimelineScrubSnapValue * GetFrameRate());
+	return FMath::RoundToInt32((double)GetDefault<UPersonaOptions>()->TimelineScrubSnapValue * GetFrameRate().AsDecimal());
 }
 
 TRange<FFrameNumber> FAnimModel::GetPlaybackRange() const

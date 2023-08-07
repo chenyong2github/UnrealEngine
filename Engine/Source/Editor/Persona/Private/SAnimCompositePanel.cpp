@@ -11,6 +11,7 @@
 #include "AnimTimeline/AnimModel.h"
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
+#include "Animation/AnimationSettings.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
 
@@ -90,6 +91,7 @@ void SAnimCompositePanel::Update()
 				.OnAnimSegmentNodeClicked( this, &SAnimCompositePanel::ShowSegmentInDetailsView )
 				.OnPreAnimUpdate( this, &SAnimCompositePanel::PreAnimUpdate )
 				.OnPostAnimUpdate( this, &SAnimCompositePanel::PostAnimUpdate )
+				.OnIsAnimAssetValid(this, &SAnimCompositePanel::OnIsAnimAssetValid)
 			];
 	}
 }
@@ -170,6 +172,8 @@ void SAnimCompositePanel::SortAndUpdateComposite()
 
 	Composite->AnimationTrack.SortAnimSegments();
 
+	Composite->UpdateCommonTargetFrameRate();
+
 	WeakModel.Pin()->RecalculateSequenceLength();
 
 	// Update view (this will recreate everything)
@@ -239,6 +243,32 @@ void SAnimCompositePanel::HandleObjectsSelected(const TArray<UObject*>& InObject
 	{
 		ClearSelected();
 	}
+}
+
+bool SAnimCompositePanel::OnIsAnimAssetValid(const UAnimSequenceBase* AnimSequenceBase, FText* OutReason)
+{
+	if (AnimSequenceBase)
+	{
+		if (UAnimationSettings::Get()->bEnforceSupportedFrameRates)
+		{
+			const FFrameRate AssetFrameRate = AnimSequenceBase->GetSamplingFrameRate();
+			const UAnimComposite* AnimComposite = WeakModel.Pin()->GetAsset<UAnimComposite>();
+			const FFrameRate CompositeFrameRate = AnimComposite->GetCommonTargetFrameRate();
+			const bool bContainsSegments = AnimComposite->AnimationTrack.AnimSegments.Num() != 0;
+			if (CompositeFrameRate.IsValid() && bContainsSegments && !AssetFrameRate.IsMultipleOf(CompositeFrameRate) && !AssetFrameRate.IsFactorOf(CompositeFrameRate))
+			{
+				if (OutReason)
+				{
+					*OutReason = FText::Format(LOCTEXT("InvalidFrameRate", "Animation Asset {0} its framerate {1} is incompatible with the Anim Composite's {2}"), FText::FromString(AnimSequenceBase->GetName()), AssetFrameRate.ToPrettyText(), CompositeFrameRate.ToPrettyText());
+				}
+			
+				return false;
+			}
+		}
+		
+		return true;	
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
