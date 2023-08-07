@@ -208,6 +208,11 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 
 			bool bSuccess = AsyncBuildData->LandscapeWeakRef->ExportToRawMeshDataCopy(ExportParams, *AsyncBuildData->NaniteMeshDescription, AsyncBuildData.Get());
 
+			if (!bSuccess)
+			{
+				AsyncBuildData->bCancelled = true;
+				return;
+			}
 			// Apply the mesh description cleanup/optimization here instead of during DDC build (avoids expensive large mesh copies)
 			{
 				FMeshDescriptionHelper MeshDescriptionHelper(&AsyncBuildData->SourceModel->BuildSettings);
@@ -241,11 +246,27 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 
 	FGraphEventRef BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([AsyncBuildData, Component = this, NewProxyContentId, bInIsAsync, Name = Landscape->GetActorNameOrLabel(), StaticMeshBuildCompleteEvent, InNaniteComponentIndex]()
 		{
+
+			auto OnFinishTask = [StaticMeshBuildCompleteEvent, AsyncBuildData]()
+			{
+				if (AsyncBuildData->LandscapeSubSystemWeakRef.IsValid())
+				{
+					AsyncBuildData->LandscapeSubSystemWeakRef->DecNaniteBuild();
+				}
+				StaticMeshBuildCompleteEvent->DispatchSubsequents();
+			};
+
+			if (AsyncBuildData->bCancelled || !AsyncBuildData->LandscapeWeakRef.IsValid())
+			{
+				OnFinishTask();
+				return;
+			}
+
 			TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeNaniteComponent::ExportLandscapeAsync-BatchBuildTask);
 			AsyncBuildData->NaniteStaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 
 			UE_LOG(LogLandscape, Log, TEXT("Build Static Mesh '%s' package:'%s'"), *Name, *AsyncBuildData->LandscapeWeakRef->GetPackage()->GetName());
-			auto CompleteStaticMesh = [AsyncBuildData, Component, NewProxyContentId, Name, StaticMeshBuildCompleteEvent, bInIsAsync, InNaniteComponentIndex](UStaticMesh* InStaticMesh)
+			auto CompleteStaticMesh = [AsyncBuildData, Component, NewProxyContentId, Name, StaticMeshBuildCompleteEvent, bInIsAsync, InNaniteComponentIndex, OnFinishTask](UStaticMesh* InStaticMesh)
 			{
 				// this is as horror as we have to mark all the objects created in the background thread as not async 
 				AsyncBuildData->NaniteStaticMesh->ClearInternalFlags(EInternalObjectFlags::Async);
@@ -257,14 +278,9 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 				AsyncBuildData->NaniteStaticMesh->GetSourceModel(0).StaticMeshDescriptionBulkData->ClearInternalFlags(EInternalObjectFlags::Async);
 				AsyncBuildData->NaniteStaticMesh->GetSourceModel(0).StaticMeshDescriptionBulkData->GetMeshDescription()->ClearInternalFlags(EInternalObjectFlags::Async);
 
-				if (!AsyncBuildData->LandscapeWeakRef.IsValid() || AsyncBuildData->bCancelled)
+				if (AsyncBuildData->bCancelled || !AsyncBuildData->LandscapeWeakRef.IsValid())
 				{
-					if (AsyncBuildData->LandscapeSubSystemWeakRef.IsValid())
-					{
-						AsyncBuildData->LandscapeSubSystemWeakRef->DecNaniteBuild();
-					}
-					StaticMeshBuildCompleteEvent->DispatchSubsequents();
-					AsyncBuildData->bCancelled = true;
+					OnFinishTask();
 					return;
 				}
 
@@ -284,12 +300,7 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 				if (AsyncBuildData->LandscapeWeakRef->GetNaniteContentId() != NewProxyContentId)
 				{
 					AsyncBuildData->bIsComplete = true;
-					
-					if (AsyncBuildData->LandscapeSubSystemWeakRef.IsValid())
-					{
-						AsyncBuildData->LandscapeSubSystemWeakRef->DecNaniteBuild();
-					}
-					StaticMeshBuildCompleteEvent->DispatchSubsequents();
+					OnFinishTask();
 					return;
 				}				
 				
