@@ -492,6 +492,8 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	}
 	else
 	{
+		InHierarchy->UpdateAllCachedChildren();
+		
 		// remove the superfluous elements
 		for(int32 ElementIndex = Elements.Num() - 1; ElementIndex >= InHierarchy->Elements.Num(); ElementIndex--)
 		{
@@ -524,6 +526,8 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 			{
 				Target->CachedChildren[ChildIndex] = Elements[Source->CachedChildren[ChildIndex]->Index];
 			}
+
+			Target->TopologyVersion = InHierarchy->GetTopologyVersion();
 		}
 
 		IndexLookup = InHierarchy->IndexLookup;
