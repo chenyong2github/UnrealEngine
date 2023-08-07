@@ -523,6 +523,45 @@ int32 FShaderCompileJobCollection::RemoveAllPendingJobsWithId(uint32 InId)
 					if (ShaderCompiler::IsJobCacheEnabled())
 					{
 						JobsInFlight.Remove(Job.GetInputHash());
+
+						// If we are removing an in-flight job, we need to promote a duplicate to be the new in-flight job, if present.
+						// Make sure the duplicate we choose doesn't have the same ID as what we're removing.
+						FShaderCommonCompileJob** WaitListHead = DuplicateJobsWaitList.Find(Job.GetInputHash());
+
+						FShaderCommonCompileJob* DuplicateJob;
+						for (DuplicateJob = WaitListHead ? *WaitListHead : nullptr; DuplicateJob; DuplicateJob = DuplicateJob->Next())
+						{
+							if (DuplicateJob->Id != InId)
+							{
+								break;
+							}
+						}
+
+						if (DuplicateJob)
+						{
+							// Advance head if we are unlinking the head, then unlink
+							if (*WaitListHead == DuplicateJob)
+							{
+								*WaitListHead = DuplicateJob->Next();
+							}
+							DuplicateJob->Unlink();
+
+							// Remove the wait list if it becomes empty
+							if (*WaitListHead == nullptr)
+							{
+								DuplicateJobsWaitList.Remove(Job.GetInputHash());
+							}
+
+							// Add it as pending at the appropriate priority
+							GShaderCompilerStats->RegisterNewPendingJob(*DuplicateJob);
+
+							int32 DuplicatePriorityIndex = (int32)DuplicateJob->Priority;
+							DuplicateJob->LinkHead(PendingJobs[DuplicatePriorityIndex]);
+							NumPendingJobs[DuplicatePriorityIndex]++;
+							DuplicateJob->PendingPriority = DuplicateJob->Priority;
+
+							JobsInFlight.Add(DuplicateJob->GetInputHash(), DuplicateJob);
+						}
 					}
 
 					check(NumPendingJobs[PriorityIndex] > 0);
