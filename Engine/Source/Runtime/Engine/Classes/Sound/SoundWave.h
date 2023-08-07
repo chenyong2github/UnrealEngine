@@ -1252,6 +1252,7 @@ public:
 
 private:
 	friend class FSoundWaveProxy;
+	friend class USoundFactory;
 };
 
 

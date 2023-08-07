@@ -437,6 +437,8 @@ UObject* USoundFactory::CreateObject
 		{
 			Sound->SoundClassObject = TemplateSoundWave->SoundClassObject;
 			Sound->ConcurrencySet = TemplateSoundWave->ConcurrencySet;
+			Sound->CompressionQuality = TemplateSoundWave->CompressionQuality;
+			Sound->SoundAssetCompressionType = TemplateSoundWave->SoundAssetCompressionType;
 
 			// we do not want to inherit these values from the template, as the data may be incorrect
 			// rather we re-parse them from the incoming file.
