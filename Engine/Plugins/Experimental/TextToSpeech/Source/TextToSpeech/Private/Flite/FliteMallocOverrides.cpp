@@ -2,6 +2,7 @@
 
 #if USING_FLITE
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/UnrealMemory.h"
 THIRD_PARTY_INCLUDES_START
 extern "C"
 {
