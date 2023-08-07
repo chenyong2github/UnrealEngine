@@ -24,6 +24,7 @@ struct FLandscapeImageDataRef
 	FIntPoint Resolution;
 	ELandscapeImportResult Result;
 	FText ErrorMessage;
+	int32 BytesPerPixel;
 };
 
 class FLandscapeImageFileCache
@@ -73,6 +74,7 @@ public:
 			NewImageData.Resolution = FIntPoint(ExpectedResolution.Width, ExpectedResolution.Height);
 			NewImageData.Result = FileInfo.ResultCode;
 			NewImageData.ErrorMessage = FileInfo.ErrorMessage;
+			NewImageData.BytesPerPixel = BufferSize / (ExpectedResolution.Width * ExpectedResolution.Height);
 		}
 		else
 		{

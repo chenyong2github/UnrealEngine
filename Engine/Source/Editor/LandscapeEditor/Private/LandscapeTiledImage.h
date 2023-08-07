@@ -74,7 +74,7 @@ public:
 						return TileResult;
 					}
 
-					const T* TileData = (const T* ) ImageData.Data->GetData();
+					const uint8* TileData = ImageData.Data->GetData();
 
 					FIntRect TileRegion = Region;
 					TileRegion -= TileMin;
@@ -89,7 +89,21 @@ public:
 							
 							const int32 SrcY = bFlipYAxis ? TileResolution.Y - TileCoord.Y - 1 : TileCoord.Y;
 
-							OutImageData[OutCoord.Y * Region.Width() + OutCoord.X] = TileData[SrcY * TileResolution.X + TileCoord.X];
+							T& Dest = OutImageData[OutCoord.Y * Region.Width() + OutCoord.X];
+							const uint8* Src = &TileData[ImageData.BytesPerPixel * (SrcY * TileResolution.X + TileCoord.X)];
+
+							if (sizeof(T) == ImageData.BytesPerPixel)
+							{
+								Dest = *(reinterpret_cast<const T*>(Src));
+							}
+							else if (ImageData.BytesPerPixel == 2 && sizeof(T) == 1)
+							{
+								Dest = *(reinterpret_cast<const uint16*>(Src)) >> 8;
+							}
+							else
+							{
+								Dest = *Src;
+							}
 						}
 					}
 				}
