@@ -99,6 +99,12 @@ static FAutoConsoleVariableRef CVarDistanceFieldBlockAllocatorSizeInBricks(
 	TEXT("Allocation granularity of the distance field block allocator. Higher number may cause more memory wasted on padding but allocation may be faster."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarUseNewAtlasUploadBufferShrink(
+	TEXT("r.DistanceFields.UseNewAtlasUploadBufferShrink"),
+	1,
+	TEXT(""),
+	ECVF_RenderThreadSafe);
+
 static const int32 MaxStreamingRequests = 4095;
 static const float IndirectionAtlasGrowMult = 2.0f;
 
@@ -351,9 +357,11 @@ public:
 
 		const uint32 NumBrickDataElements = FMath::RoundUpToPowerOfTwo(NumBrickUploads) * BrickSize * BrickSize * BrickSize;
 		const uint32 BrickDataNumBytesPerElement = GPixelFormats[DistanceField::DistanceFieldFormat].BlockBytes;
+		const bool bUseNewUploadBufferShrink = CVarUseNewAtlasUploadBufferShrink.GetValueOnRenderThread() != 0;
 
 		if (BrickUploadDataBuffer.NumBytes < NumBrickDataElements * BrickDataNumBytesPerElement 
-			|| BrickUploadDataBuffer.NumBytes > 2 * NumBrickDataElements * BrickDataNumBytesPerElement)
+			|| (bUseNewUploadBufferShrink && BrickUploadDataBuffer.NumBytes > 2 * NumBrickDataElements * BrickDataNumBytesPerElement)
+			|| (!bUseNewUploadBufferShrink && BrickUploadDataBuffer.NumBytes > NumBrickDataElements * BrickDataNumBytesPerElement && BrickUploadDataBuffer.NumBytes > 32 * 1024 * 1024))
 		{
 			BrickUploadDataBuffer.Initialize(RHICmdList, TEXT("DistanceFields.BrickUploadDataBuffer"), BrickDataNumBytesPerElement, NumBrickDataElements, DistanceField::DistanceFieldFormat, BUF_Volatile);
 		}
