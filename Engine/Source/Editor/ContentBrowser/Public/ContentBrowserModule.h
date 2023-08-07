@@ -48,17 +48,20 @@ private:
 	friend class FContentBrowserModule;
 };
 
-struct FCollectionTelemetryEventBase {};
 // Workflow event when a collection is created
-struct FCollectionCreatedTelemetryEvent : FCollectionTelemetryEventBase
+struct FCollectionCreatedTelemetryEvent
 {
+	static inline constexpr FGuid TelemetryID = FGuid(0x2F9C8896, 0xCB2C402B, 0xB8D6DCF1, 0xE3F22D41);
+	
 	double DurationSec = 0.0;
 	ECollectionShareType::Type CollectionShareType = ECollectionShareType::CST_All;
 };
 
 // Workflow event when a set of collections are deleted
-struct FCollectionsDeletedTelemetryEvent : FCollectionTelemetryEventBase
+struct FCollectionsDeletedTelemetryEvent
 {
+	static inline constexpr FGuid TelemetryID = FGuid(0x1362ABC8, 0x6CDD4FF9, 0xB4B0E06C, 0x2CA418DC);
+	
 	double DurationSec = 0.0;
 	int32 CollectionsDeleted = 0;
 };
@@ -70,8 +73,10 @@ enum class ECollectionTelemetryAssetAddedWorkflow : int32
 };
 
 // Workflow event when assets are added to a collection
-struct FAssetAddedTelemetryEvent : FCollectionTelemetryEventBase
+struct FAssetAddedToCollectionTelemetryEvent
 {
+	static inline constexpr FGuid TelemetryID = FGuid(0x3676C84E, 0xFEB74E21, 0x99FF6FB8, 0x622431D2);
+	
 	double DurationSec;
 	ECollectionShareType::Type CollectionShareType;
 	uint32 NumAdded;
@@ -84,22 +89,15 @@ enum class ECollectionTelemetryAssetRemovedWorkflow : int32
 };
 
 // Workflow event when assets are removed from a collection
-struct FAssetRemovedTelemetryEvent : FCollectionTelemetryEventBase
+struct FAssetRemovedFromCollectionTelemetryEvent
 {
+	static inline constexpr FGuid TelemetryID = FGuid(0xF7660FA4, 0x744F44F5, 0x9B647690, 0x3C5689BD);
+	
 	double DurationSec;
 	ECollectionShareType::Type CollectionShareType;
 	uint32 NumRemoved;
 	ECollectionTelemetryAssetRemovedWorkflow Workflow;
 };
-
-typedef TVariant<FCollectionCreatedTelemetryEvent, FCollectionsDeletedTelemetryEvent, FAssetAddedTelemetryEvent, FAssetRemovedTelemetryEvent> FCollectionTelemetryEvent;
-
-// Helper to simplify creation of FTelemetryEventTaggedUnion
-template<typename T>
-FCollectionTelemetryEvent MakeTelemetryEvent(const T& Event)
-{
-	return FCollectionTelemetryEvent(TInPlaceType<T>(), Event);
-}
 
 /**
  * Content browser module
@@ -127,8 +125,6 @@ public:
 	DECLARE_DELEGATE_OneParam( FDefaultSelectedPathsDelegate, TArray<FName>& /*VirtualPaths*/ );
 	/** */
 	DECLARE_DELEGATE_OneParam( FDefaultPathsToExpandDelegate, TArray<FName>& /*VirtualPaths*/ );
-	/** */
-	DECLARE_DELEGATE_OneParam( FAssetCollectionTelemetryDelegate, const FCollectionTelemetryEvent&);
 	
 	/**
 	 * Called right after the plugin DLL has been loaded and the plugin object has been created
@@ -191,8 +187,6 @@ public:
 	/** Override list of paths to expand by default */
 	FDefaultPathsToExpandDelegate& GetDefaultPathsToExpandDelegate() { return DefaultPathsToExpandDelegate; }
 
-	FAssetCollectionTelemetryDelegate& GetAssetCollectionTelemetryDelegate() { return AssetCollectionTelemetryDelegate; }
-
 	FMainMRUFavoritesList* GetRecentlyOpenedAssets() const;
 
 	static const FName NumberOfRecentAssetsName;
@@ -254,6 +248,4 @@ private:
 
 	FDefaultSelectedPathsDelegate DefaultSelectedPathsDelegate;
 	FDefaultPathsToExpandDelegate DefaultPathsToExpandDelegate;
-	
-	FAssetCollectionTelemetryDelegate AssetCollectionTelemetryDelegate;
 };

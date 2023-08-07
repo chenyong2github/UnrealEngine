@@ -63,6 +63,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "AssetDefinitionRegistry.h"
+#include "TelemetryRouter.h"
 #include "AssetRegistry/AssetRegistryHelpers.h"
 #include "Engine/AssetManager.h"
 #include "Misc/WarnIfAssetsLoadedInScope.h"
@@ -810,30 +811,26 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 			}
 
 			const double DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
-
-			FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
-			if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+			
 			{
-				FCollectionTelemetryEvent Event;
 				if (RemoveFromCollection)
 				{
-					FAssetRemovedTelemetryEvent AssetRemoved;
+					FAssetRemovedFromCollectionTelemetryEvent AssetRemoved;
 					AssetRemoved.DurationSec = DurationSec;
 					AssetRemoved.NumRemoved = ObjectCount;
 					AssetRemoved.CollectionShareType = InCollectionKey.Type;
 					AssetRemoved.Workflow = ECollectionTelemetryAssetRemovedWorkflow::ContextMenu;
-					Event = MakeTelemetryEvent(AssetRemoved);
+					FTelemetryRouter::Get().ProvideTelemetry(AssetRemoved);
 				}
 				else
 				{
-					FAssetAddedTelemetryEvent AssetAdded;
+					FAssetAddedToCollectionTelemetryEvent AssetAdded;
 					AssetAdded.DurationSec = DurationSec;
 					AssetAdded.NumAdded = ObjectCount;
 					AssetAdded.CollectionShareType = InCollectionKey.Type;
 					AssetAdded.Workflow = ECollectionTelemetryAssetAddedWorkflow::ContextMenu;
-					Event = MakeTelemetryEvent(AssetAdded);
+					FTelemetryRouter::Get().ProvideTelemetry(AssetAdded);
 				}
-				ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(Event);
 			}
 		}
 	};
@@ -1217,8 +1214,17 @@ void FAssetContextMenu::ExecuteRemoveFromCollection()
 			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
 			const FCollectionNameType& Collection = SourcesData.Collections[0];
+			const double BeginTimeSec = FPlatformTime::Seconds();
 			CollectionManagerModule.Get().RemoveFromCollection(Collection.Name, Collection.Type, SelectedItemCollectionIds);
+			const double DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
 			OnAssetViewRefreshRequested.ExecuteIfBound();
+
+			FAssetRemovedFromCollectionTelemetryEvent AssetRemoved;
+			AssetRemoved.DurationSec = DurationSec;
+			AssetRemoved.NumRemoved = SelectedItemCollectionIds.Num();
+			AssetRemoved.CollectionShareType = Collection.Type;
+			AssetRemoved.Workflow = ECollectionTelemetryAssetRemovedWorkflow::ContextMenu;
+			FTelemetryRouter::Get().ProvideTelemetry(AssetRemoved);
 		}
 	}
 }

@@ -33,6 +33,7 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "SlotBase.h"
+#include "TelemetryRouter.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/NameTypes.h"
@@ -457,14 +458,10 @@ void FCollectionContextMenu::ExecuteNewCollection(ECollectionShareType::Type Col
 
 	// Telemetry Event
 	{
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
-		if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
-		{
-			FCollectionCreatedTelemetryEvent AssetAdded;
-			AssetAdded.DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
-			AssetAdded.CollectionShareType = CollectionType;
-			ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(AssetAdded));
-		}
+		FCollectionCreatedTelemetryEvent AssetAdded;
+		AssetAdded.DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
+		AssetAdded.CollectionShareType = CollectionType;
+		FTelemetryRouter::Get().ProvideTelemetry(AssetAdded);
 	}
 }
 
@@ -606,13 +603,11 @@ FReply FCollectionContextMenu::ExecuteDestroyCollectionConfirmed(TArray<TSharedP
 	
 	CollectionView.Pin()->DeleteCollectionItems(CollectionList);
 
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
-	if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
 	{
 		FCollectionsDeletedTelemetryEvent CollectionDeleted;
 		CollectionDeleted.DurationSec = FPlatformTime::Seconds() - BeginEventSec;
 		CollectionDeleted.CollectionsDeleted = CollectionList.Num();
-		ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(CollectionDeleted));
+		FTelemetryRouter::Get().ProvideTelemetry(CollectionDeleted);
 	}
 	
 	return FReply::Handled();

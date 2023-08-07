@@ -49,6 +49,7 @@
 #include "SourcesData.h"
 #include "SourcesSearch.h"
 #include "SourcesViewWidgets.h"
+#include "TelemetryRouter.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateColor.h"
@@ -1368,15 +1369,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			const double DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
 
-			FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
-			if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
 			{
-				FAssetAddedTelemetryEvent AssetAdded;
+				FAssetAddedToCollectionTelemetryEvent AssetAdded;
 				AssetAdded.DurationSec = DurationSec;
 				AssetAdded.NumAdded = NumAdded;
 				AssetAdded.CollectionShareType = CollectionItem->CollectionType;
 				AssetAdded.Workflow = ECollectionTelemetryAssetAddedWorkflow::DragAndDrop;
-				ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(AssetAdded));
+				FTelemetryRouter::Get().ProvideTelemetry(AssetAdded);
 			}
 		}
 		else
@@ -1545,14 +1544,12 @@ bool SCollectionView::CollectionNameChangeCommit( const TSharedPtr< FCollectionI
 			CollectionItem->OnCollectionCreatedEvent.Execute(FCollectionNameType(NewNameFinal, CollectionItem->CollectionType));
 			CollectionItem->OnCollectionCreatedEvent.Unbind();
 		}
-
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
-		if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+		
 		{
 			FCollectionCreatedTelemetryEvent CollectionCreatedEvent;
 			CollectionCreatedEvent.DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
 			CollectionCreatedEvent.CollectionShareType = CollectionItem->CollectionType;
-			ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(CollectionCreatedEvent));
+			FTelemetryRouter::Get().ProvideTelemetry(CollectionCreatedEvent);
 		}
 	}
 	else
