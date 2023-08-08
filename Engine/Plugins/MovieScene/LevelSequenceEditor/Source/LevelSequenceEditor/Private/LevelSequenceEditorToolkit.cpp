@@ -952,14 +952,15 @@ void FLevelSequenceEditorToolkit::HandleTrackMenuExtensionAddTrack(FMenuBuilder&
 
 					if (GlobalClassFilter.IsValid())
 					{
-						bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass(), ClassFilterFuncs);
-						
-						// Allow listing component if their parent class is allowed
-						UClass* ComponentSuperClass = Component->GetClass()->GetSuperClass();
-						while (!bValidComponent && ComponentSuperClass)
+						// Hack - forcibly allow USkeletalMeshComponentBudgeted until FORT-527888
+						static const FName SkeletalMeshComponentBudgetedClassName(TEXT("USkeletalMeshComponentBudgeted"));
+						if (Component->GetClass()->GetName() == SkeletalMeshComponentBudgetedClassName)
 						{
-							bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, ComponentSuperClass, ClassFilterFuncs);
-							ComponentSuperClass = ComponentSuperClass->GetSuperClass();
+							bValidComponent = true;
+						}
+						else
+						{
+							bValidComponent = GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass(), ClassFilterFuncs);
 						}
 					}
 
