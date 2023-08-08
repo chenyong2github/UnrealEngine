@@ -68,6 +68,10 @@ public:
 	 */
 	TPair<EConcertSequencerPreloadStatus, FText> GetPreloadStatusForSequence(const FTopLevelAssetPath& SequencePath);
 
+	TWeakPtr<IConcertClientSession> GetWeakSession() const
+	{
+		return WeakSession;
+	}
 protected:
 	USequencerPlaylist* CreateTransientPlaylistForEditor(TSharedRef<SSequencerPlaylistPanel> Editor);
 
