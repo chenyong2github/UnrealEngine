@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "ComponentInstanceDataCache.h"
-#include "Components/ActorComponent.h"
 #include "PCGNode.h"
 #include "PCGSettings.h"
+#include "Graph/PCGStackContext.h"
 #include "Utils/PCGExtraCapture.h"
 
+#include "ComponentInstanceDataCache.h"
+#include "Components/ActorComponent.h"
 #include "Containers/Map.h"
 
 #include "PCGComponent.generated.h"
@@ -16,7 +17,6 @@ namespace EEndPlayReason { enum Type : int; }
 
 class APCGPartitionActor;
 struct FPCGContext;
-class FPCGStack;
 class UPCGActorAndComponentMapping;
 class UPCGComponent;
 class UPCGGraph;
@@ -256,7 +256,7 @@ public:
 	void EnableInspection();
 	void DisableInspection();
 	void StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInputData, const FPCGDataCollection& InOutputData);
-	const FPCGDataCollection* GetInspectionData(const FString& InStackPath) const;
+	const FPCGDataCollection* GetInspectionData(const FPCGStack& InStack) const;
 
 	bool IsActorTracked(AActor* InActor, bool& bOutIsCulled) const;
 
@@ -428,7 +428,7 @@ private:
 	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors_DEPRECATED;
 
 	UPROPERTY(Transient)
-	TMap<FString, FPCGDataCollection> InspectionCache;
+	TMap<FPCGStack, FPCGDataCollection> InspectionCache;
 #endif
 
 	mutable FCriticalSection GeneratedResourcesLock;

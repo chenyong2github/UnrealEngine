@@ -28,7 +28,14 @@ FPCGEditorGraphDebugObjectInstance::FPCGEditorGraphDebugObjectInstance(TWeakObje
 
 	for (const FPCGStackFrame& StackFrame : PCGStack.GetStackFrames())
 	{
-		PathLabel /= StackFrame.Object->GetName();
+		if (StackFrame.Object.IsValid())
+		{
+			PathLabel /= StackFrame.Object->GetName();
+		}
+		else
+		{
+			PathLabel /= FString::Format(TEXT("{0}"), { StackFrame.LoopIndex });
+		}
 	}
 
 	Label = FText::FromString(PathLabel);
@@ -160,6 +167,20 @@ void SPCGEditorGraphDebugObjectWidget::RefreshDebugObjects()
 					{
 						DebugObjectsComboBox->SetSelectedItem(DebugInstance);
 					}
+				}
+			}
+		}
+
+		if (const TArray<FPCGStack>* DynamicStacks = DynamicInvocationStacks.Find(PCGComponent))
+		{
+			for (const FPCGStack& Stack : *DynamicStacks)
+			{
+				const TSharedPtr<FPCGEditorGraphDebugObjectInstance> DebugInstance = MakeShared<FPCGEditorGraphDebugObjectInstance>(PCGComponent, Stack);
+				DebugObjects.Add(DebugInstance);
+
+				if (SelectedItem.IsValid() && SelectedItem->GetPCGComponent() == PCGComponent && SelectedItem->GetStack() == Stack)
+				{
+					DebugObjectsComboBox->SetSelectedItem(DebugInstance);
 				}
 			}
 		}
@@ -381,6 +402,17 @@ void SPCGEditorGraphDebugObjectWidget::OnLevelActorDeleted(const AActor* InActor
 	if (bDebugObjectWasRemoved)
 	{
 		DebugObjectsComboBox->RefreshOptions();
+	}
+}
+
+void SPCGEditorGraphDebugObjectWidget::AddDynamicStack(const TWeakObjectPtr<UPCGComponent> InComponent, const FPCGStack& InvocationStack)
+{
+	TArray<FPCGStack>& Stacks = DynamicInvocationStacks.FindOrAdd(InComponent);
+
+	if (!Stacks.Contains(InvocationStack))
+	{
+		Stacks.Add(InvocationStack);
+		RefreshDebugObjects();
 	}
 }
 

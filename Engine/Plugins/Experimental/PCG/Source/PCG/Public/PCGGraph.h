@@ -5,6 +5,7 @@
 #include "PCGCommon.h"
 #include "PCGNode.h"
 #include "PCGSettings.h"
+#include "Graph/PCGStackContext.h"
 
 #include "PropertyBag.h"
 #include "UObject/ObjectPtr.h"
@@ -30,6 +31,7 @@ enum class EPCGGraphParameterEvent
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGGraphChanged, UPCGGraphInterface* /*Graph*/, EPCGChangeType /*ChangeType*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGGraphGridSizesChanged, UPCGGraphInterface* /*Graph*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPCGGraphParametersChanged, UPCGGraphInterface* /*Graph*/, EPCGGraphParameterEvent /*ChangeType*/, FName /*ChangedPropertyName*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPCGGraphDynamicallyExecuted, UPCGGraphInterface* /*Graph*/, const TWeakObjectPtr<UPCGComponent> /*SourceComponent*/, FPCGStack /*InvocationStack*/);
 #endif // WITH_EDITOR
 
 /**
@@ -102,6 +104,7 @@ public:
 	FOnPCGGraphChanged OnGraphChangedDelegate;
 	FOnPCGGraphGridSizesChanged OnGraphGridSizesChangedDelegate;
 	FOnPCGGraphParametersChanged OnGraphParametersChangedDelegate;
+	FOnPCGGraphDynamicallyExecuted OnGraphDynamicallyExecutedDelegate;
 #endif // WITH_EDITOR
 };
 

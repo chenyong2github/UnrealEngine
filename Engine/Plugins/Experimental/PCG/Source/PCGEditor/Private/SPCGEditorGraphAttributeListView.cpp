@@ -544,13 +544,14 @@ const FPCGDataCollection* SPCGEditorGraphAttributeListView::GetInspectionData()
 		return nullptr;
 	}
 
-	FString ResourcePath;
-	if (!PCGStack.CreateStackFramePath(ResourcePath, PCGNode, Pin))
-	{
-		return nullptr;
-	}
+	// Create a temporary stack with Node+Pin to query the exact DataCollection we are inspecting
+	FPCGStack Stack = PCGStack;
+	TArray<FPCGStackFrame>& StackFrames = Stack.GetStackFramesMutable();
+	StackFrames.Reserve(StackFrames.Num() + 2);
+	StackFrames.Emplace(PCGNode);
+	StackFrames.Emplace(Pin);
 
-	return PCGComponent->GetInspectionData(ResourcePath);
+	return PCGComponent->GetInspectionData(Stack);
 }
 
 void SPCGEditorGraphAttributeListView::RefreshAttributeList()

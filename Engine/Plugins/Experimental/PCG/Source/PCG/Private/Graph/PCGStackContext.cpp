@@ -10,6 +10,8 @@
 #include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGStackContext)
+
 const FPCGStack* FPCGStackContext::GetStack(int32 InStackIndex) const
 {
 	if (ensure(Stacks.IsValidIndex(InStackIndex)))
@@ -111,6 +113,18 @@ bool FPCGStack::operator==(const FPCGStack& Other) const
 	}
 
 	return true;
+}
+
+uint32 GetTypeHash(const FPCGStack& In)
+{
+	uint32 Hash = 0;
+
+	for (const FPCGStackFrame& Frame : In.StackFrames)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Frame));
+	}
+
+	return Hash;
 }
 
 int32 FPCGStackContext::PushFrame(const UObject* InFrameObject)

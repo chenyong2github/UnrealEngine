@@ -105,6 +105,27 @@ protected:
 	FPCGStack PCGStack;
 };
 
+class FPCGEditorGraphDebugObjectItem_PCGLoopIndex : public FPCGEditorGraphDebugObjectItem
+{
+public:
+	FPCGEditorGraphDebugObjectItem_PCGLoopIndex(TWeakObjectPtr<const UPCGNode> InPCGNode, int32 InLoopIndex, const FPCGStack& InPCGStack)
+		: PCGNode(InPCGNode)
+		, LoopIndex(InLoopIndex)
+		, PCGStack(InPCGStack)
+	{}
+
+	virtual FString GetLabel() const override;
+	virtual UPCGComponent* GetPCGComponent() const override { return GetParent() ? GetParent()->GetPCGComponent() : nullptr; }
+	virtual const UObject* GetObject() const override { return PCGNode.Get(); };
+	virtual const FPCGStack* GetPCGStack() const override { return &PCGStack; }
+	virtual int32 GetLoopIndex() const { return LoopIndex; }
+	
+protected:
+	TWeakObjectPtr<const UPCGNode> PCGNode = nullptr;
+	int32 LoopIndex = INDEX_NONE;
+	FPCGStack PCGStack;
+};
+
 class SPCGEditorGraphDebugObjectItemRow : public SCompoundWidget
 {
 public:
@@ -130,6 +151,8 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	
 	void RequestRefresh() { bNeedsRefresh = true; }
+
+	void AddDynamicStack(TWeakObjectPtr<UPCGComponent> InComponent, const FPCGStack& InvocationStack);
 	
 private:
 	void SelectedDebugObject_OnClicked() const;
@@ -156,6 +179,8 @@ private:
 	TSharedPtr<STreeView<FPCGEditorGraphDebugObjectItemPtr>> DebugObjectTreeView;
 	TArray<FPCGEditorGraphDebugObjectItemPtr> RootItems;
 	TArray<FPCGEditorGraphDebugObjectItemPtr> AllGraphItems;
+
+	TMap<const TWeakObjectPtr<UPCGComponent>, TArray<FPCGStack>> DynamicInvocationStacks;
 
 	bool bNeedsRefresh = false;
 };

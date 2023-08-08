@@ -5,6 +5,8 @@
 #include "Containers/Array.h"
 #include "UObject/WeakObjectPtr.h"
 
+#include "PCGStackContext.generated.h"
+
 class FString;
 class UObject;
 class UPCGGraph;
@@ -12,27 +14,44 @@ class UPCGNode;
 class UPCGPin;
 
 /** A single frame of a call stack, represented as a pointer to the associated object (graph/subgraph or node) or a loop index. */
+USTRUCT()
 struct PCG_API FPCGStackFrame
 {
+	GENERATED_BODY()
+
+	FPCGStackFrame() {}
+
 	explicit FPCGStackFrame(TWeakObjectPtr<const UObject> InObject)
 		: Object(InObject)
-	{}
+	{
+		Hash = PointerHash(Object.Get());
+	}
 
 	explicit FPCGStackFrame(int32 InLoopIndex)
 		: LoopIndex(InLoopIndex)
-	{}
+	{
+		Hash = GetTypeHash(LoopIndex);
+	}
 
 	bool operator==(const FPCGStackFrame& Other) const { return Object == Other.Object && LoopIndex == Other.LoopIndex; }
 	bool operator!=(const FPCGStackFrame& Other) const { return !(*this == Other); };
 
+	friend uint32 GetTypeHash(const FPCGStackFrame& In) { return In.Hash; }
+
 	// A valid frame should either point to an object or have a loop index >= 0.
 	TWeakObjectPtr<const UObject> Object;
 	int32 LoopIndex = INDEX_NONE;
+
+private:
+	uint32 Hash = 0;
 };
 
 /** A call stack, represented as an array of stack frames. */
-class PCG_API FPCGStack
+USTRUCT()
+struct PCG_API FPCGStack
 {
+	GENERATED_BODY()
+
 	friend class FPCGStackContext;
 
 public:
@@ -50,6 +69,8 @@ public:
 
 	bool operator==(const FPCGStack& Other) const;
 	bool operator!=(const FPCGStack& Other) const { return !(*this == Other); }
+
+	friend uint32 GetTypeHash(const FPCGStack& In);
 
 private:
 	TArray<FPCGStackFrame> StackFrames;

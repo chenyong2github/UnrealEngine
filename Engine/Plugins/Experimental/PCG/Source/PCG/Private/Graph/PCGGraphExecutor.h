@@ -18,7 +18,7 @@ class UPCGGraph;
 class UPCGNode;
 class UPCGComponent;
 class FPCGGraphCompiler;
-class FPCGStack;
+struct FPCGStack;
 class FPCGStackContext;
 class FTextFormat;
 

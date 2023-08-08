@@ -1508,25 +1508,27 @@ void UPCGComponent::StoreInspectionData(const FPCGStack* InStack, const UPCGNode
 		return;
 	}
 
-	auto StorePinInspectionData = [InStack, InNode](const TArray<TObjectPtr<UPCGPin>>& InPins, const FPCGDataCollection& InData, TMap<FString, FPCGDataCollection>& InOutInspectionCache)
+	auto StorePinInspectionData = [InStack, InNode](const TArray<TObjectPtr<UPCGPin>>& InPins, const FPCGDataCollection& InData, TMap<FPCGStack, FPCGDataCollection>& InOutInspectionCache)
 	{
 		for (const UPCGPin* Pin : InPins)
 		{
-			FString StackFramePath;
-			if (!ensure(InStack->CreateStackFramePath(StackFramePath, InNode, Pin)))
-			{
-				continue;
-			}
+			FPCGStack Stack = *InStack;
+
+			// Append the Node and Pin to the current Stack to uniquely identify each DataCollection
+			TArray<FPCGStackFrame>& StackFrames = Stack.GetStackFramesMutable();
+			StackFrames.Reserve(StackFrames.Num() + 2);
+			StackFrames.Emplace(InNode);
+			StackFrames.Emplace(Pin);
 
 			FPCGDataCollection PinDataCollection;
 			PinDataCollection.TaggedData = InData.GetInputsByPin(Pin->Properties.Label);
 			if (!PinDataCollection.TaggedData.IsEmpty())
 			{
-				InOutInspectionCache.Add(StackFramePath, PinDataCollection);
+				InOutInspectionCache.Add(Stack, PinDataCollection);
 			}
 			else
 			{
-				InOutInspectionCache.Remove(StackFramePath);
+				InOutInspectionCache.Remove(Stack);
 			}
 		}
 	};
@@ -1535,9 +1537,9 @@ void UPCGComponent::StoreInspectionData(const FPCGStack* InStack, const UPCGNode
 	StorePinInspectionData(InNode->GetOutputPins(), InOutputData, InspectionCache);
 }
 
-const FPCGDataCollection* UPCGComponent::GetInspectionData(const FString& InStackPath) const
+const FPCGDataCollection* UPCGComponent::GetInspectionData(const FPCGStack& InStack) const
 {
-	return InspectionCache.Find(InStackPath);
+	return InspectionCache.Find(InStack);
 }
 
 void UPCGComponent::Refresh(bool bStructural)

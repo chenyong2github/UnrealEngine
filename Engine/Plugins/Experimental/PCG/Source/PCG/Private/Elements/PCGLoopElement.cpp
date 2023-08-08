@@ -117,6 +117,10 @@ bool FPCGLoopElement::ExecuteInternal(FPCGContext* InContext) const
 			StackFrames.Emplace(Context->Node);
 			StackFrames.Emplace(EntryIndex);
 
+#if WITH_EDITOR
+			Subgraph->OnGraphDynamicallyExecutedDelegate.Broadcast(Subgraph, Context->SourceComponent, InvocationStack);
+#endif
+
 			FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), PreGraphElement, MakeShared<FPCGInputForwardingElement>(InputDataCollection), {}, &InvocationStack);
 
 			Context->SubgraphTaskIds.Add(SubgraphTaskId);

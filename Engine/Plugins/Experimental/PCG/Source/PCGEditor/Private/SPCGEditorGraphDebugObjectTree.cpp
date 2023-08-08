@@ -7,6 +7,7 @@
 #include "PCGEditorGraph.h"
 #include "PCGEditorModule.h"
 #include "PCGGraph.h"
+#include "Elements/PCGLoopElement.h"
 
 #include "PropertyCustomizationHelpers.h"
 #include "Selection.h"
@@ -51,6 +52,7 @@ FString FPCGEditorGraphDebugObjectItem_PCGGraph::GetLabel() const
 {
 	return PCGGraph.IsValid() ? PCGGraph->GetName() : FString();
 }
+
 FString FPCGEditorGraphDebugObjectItem_PCGSubgraph::GetLabel() const
 {
 	if (PCGNode.IsValid() && PCGGraph.IsValid())
@@ -58,6 +60,16 @@ FString FPCGEditorGraphDebugObjectItem_PCGSubgraph::GetLabel() const
 		return PCGNode->GetName() + FString(TEXT(" - ") + PCGGraph->GetName());
 	}
 	
+	return FString();
+}
+
+FString FPCGEditorGraphDebugObjectItem_PCGLoopIndex::GetLabel() const
+{
+	if (PCGNode.IsValid())
+	{
+		return PCGNode->GetName() + FString::Format(TEXT(" - {0}"), { LoopIndex });
+	}
+
 	return FString();
 }
 
@@ -205,6 +217,17 @@ void SPCGEditorGraphDebugObjectTree::Tick(const FGeometry& AllottedGeometry, con
 	{
 		bNeedsRefresh = false;
 		RefreshTree();
+	}
+}
+
+void SPCGEditorGraphDebugObjectTree::AddDynamicStack(const TWeakObjectPtr<UPCGComponent> InComponent, const FPCGStack& InvocationStack)
+{
+	TArray<FPCGStack>& Stacks = DynamicInvocationStacks.FindOrAdd(InComponent);
+
+	if (!Stacks.Contains(InvocationStack))
+	{
+		Stacks.Add(InvocationStack);
+		RequestRefresh();
 	}
 }
 
@@ -381,17 +404,19 @@ void SPCGEditorGraphDebugObjectTree::RefreshTree()
 		{
 			continue;
 		}
-		
+
 		FPCGStackContext StackContext = FPCGStackContext::CreateStackContextFromGraph(PCGComponentGraph);
 
 		TMap<const UPCGGraph*, FPCGEditorGraphDebugObjectItemPtr> GraphItems;
 		TArray<FPCGEditorGraphDebugObjectItemPtr> NodeItems;
 
+		// Process statically generated stacks
 		for (const FPCGStack& Stack : StackContext.GetStacks())
 		{
 			const UPCGGraph* TopStackGraph = Cast<const UPCGGraph>(Stack.GetStackFrames().Top().Object);
 			if (TopStackGraph == PCGGraph)
 			{
+				// Find or Create ActorItem
 				TSharedPtr<FPCGEditorGraphDebugObjectItem_Actor> ActorItem;
 				if (TSharedPtr<FPCGEditorGraphDebugObjectItem_Actor>* FoundActorItem = ActorItems.Find(Actor))
 				{
@@ -401,7 +426,8 @@ void SPCGEditorGraphDebugObjectTree::RefreshTree()
 				{
 					ActorItem = ActorItems.Emplace(Actor, MakeShared<FPCGEditorGraphDebugObjectItem_Actor>(Actor));
 				}
-				
+
+				// Find or Create ComponentItem
 				TSharedPtr<FPCGEditorGraphDebugObjectItem_PCGComponent> ComponentItem;
 				if (TSharedPtr<FPCGEditorGraphDebugObjectItem_PCGComponent>* FoundComponentItem = ComponentItems.Find(PCGComponent))
 				{
@@ -411,20 +437,20 @@ void SPCGEditorGraphDebugObjectTree::RefreshTree()
 				{
 					ComponentItem = ComponentItems.Emplace(PCGComponent, MakeShared<FPCGEditorGraphDebugObjectItem_PCGComponent>(PCGComponent));
 				}
-				
+
 				if (!ComponentItem->GetParent())
 				{
-					ActorItem->AddChild(ComponentItem.ToSharedRef());	
+					ActorItem->AddChild(ComponentItem.ToSharedRef());
 				}
 
 				const TArray<FPCGStackFrame>& StackFrames = Stack.GetStackFrames();
-				
+
 				FString StackPath;
 				Stack.CreateStackFramePath(StackPath);
-					
+
 				FPCGEditorGraphDebugObjectItemPtr PreviousItem = ComponentItem;
 				for (int32 StackIndex = 0; StackIndex < StackFrames.Num(); StackIndex++)
-				{	
+				{
 					const FPCGStackFrame& StackFrame = StackFrames[StackIndex];
 					FPCGEditorGraphDebugObjectItemPtr CurrentItem;
 					if (const UPCGGraph* StackGraph = Cast<const UPCGGraph>(StackFrame.Object))
@@ -440,6 +466,15 @@ void SPCGEditorGraphDebugObjectTree::RefreshTree()
 					}
 					else if (const UPCGNode* StackNode = Cast<const UPCGNode>(StackFrame.Object))
 					{
+						// We cannot handle dynamically executed graphs in this path. They must be provided through DynamicInvocationStacks
+						if (const UPCGBaseSubgraphSettings* SubgraphSettings = Cast<const UPCGBaseSubgraphSettings>(StackNode->GetSettings()))
+						{
+							if (SubgraphSettings->IsDynamicGraph())
+							{
+								break;
+							}
+						}
+
 						const int32 NextStackIndex = StackIndex + 1;
 						if (StackFrames.IsValidIndex(NextStackIndex))
 						{
@@ -464,10 +499,113 @@ void SPCGEditorGraphDebugObjectTree::RefreshTree()
 							}
 						}
 					}
-					
+
+					if (!CurrentItem)
+					{
+						break;
+					}
+
 					if (!CurrentItem->GetParent())
 					{
-						PreviousItem->AddChild(CurrentItem.ToSharedRef());	
+						PreviousItem->AddChild(CurrentItem.ToSharedRef());
+					}
+
+					AllGraphItems.Add(CurrentItem);
+					PreviousItem = CurrentItem;
+				}
+			}
+		}
+
+		if (const TArray<FPCGStack>* DynamicStacks = DynamicInvocationStacks.Find(PCGComponent))
+		{
+			for (const FPCGStack& Stack : *DynamicStacks)
+			{
+				TSharedPtr<FPCGEditorGraphDebugObjectItem_Actor> ActorItem;
+				if (TSharedPtr<FPCGEditorGraphDebugObjectItem_Actor>* FoundActorItem = ActorItems.Find(Actor))
+				{
+					ActorItem = *FoundActorItem;
+				}
+				else
+				{
+					ActorItem = ActorItems.Emplace(Actor, MakeShared<FPCGEditorGraphDebugObjectItem_Actor>(Actor));
+				}
+
+				TSharedPtr<FPCGEditorGraphDebugObjectItem_PCGComponent> ComponentItem;
+				if (TSharedPtr<FPCGEditorGraphDebugObjectItem_PCGComponent>* FoundComponentItem = ComponentItems.Find(PCGComponent))
+				{
+					ComponentItem = *FoundComponentItem;
+				}
+				else
+				{
+					ComponentItem = ComponentItems.Emplace(PCGComponent, MakeShared<FPCGEditorGraphDebugObjectItem_PCGComponent>(PCGComponent));
+				}
+
+				if (!ComponentItem->GetParent())
+				{
+					ActorItem->AddChild(ComponentItem.ToSharedRef());
+				}
+
+				const TArray<FPCGStackFrame>& StackFrames = Stack.GetStackFrames();
+
+				FString StackPath;
+				Stack.CreateStackFramePath(StackPath);
+
+				FPCGEditorGraphDebugObjectItemPtr PreviousItem = ComponentItem;
+				for (int32 StackIndex = 0; StackIndex < StackFrames.Num(); StackIndex++)
+				{
+					const FPCGStackFrame& StackFrame = StackFrames[StackIndex];
+					FPCGEditorGraphDebugObjectItemPtr CurrentItem;
+					if (const UPCGGraph* StackGraph = Cast<const UPCGGraph>(StackFrame.Object))
+					{
+						if (FPCGEditorGraphDebugObjectItemPtr* GraphItem = GraphItems.Find(StackGraph))
+						{
+							CurrentItem = *GraphItem;
+						}
+						else
+						{
+							CurrentItem = GraphItems.Emplace(StackGraph, MakeShared<FPCGEditorGraphDebugObjectItem_PCGGraph>(StackGraph, StackGraph == PCGGraph ? Stack : FPCGStack()));
+						}
+					}
+					else if (const UPCGNode* StackNode = Cast<const UPCGNode>(StackFrame.Object))
+					{
+						const int32 NextStackIndex = StackIndex + 1;
+						if (StackFrames.IsValidIndex(NextStackIndex))
+						{
+							const FPCGEditorGraphDebugObjectItemPtr* NodeItem = NodeItems.FindByPredicate([&StackNode, &Stack](const FPCGEditorGraphDebugObjectItemPtr& InItem)
+								{
+									return (InItem->GetObject() == StackNode) && (*InItem->GetPCGStack() == Stack);
+								});
+
+							if (NodeItem)
+							{
+								CurrentItem = *NodeItem;
+							}
+							else
+							{
+								const FPCGStackFrame& NextStackFrame = StackFrames[NextStackIndex];
+
+								if (const UPCGGraph* NextStackGraph = Cast<const UPCGGraph>(NextStackFrame.Object))
+								{
+									CurrentItem = NodeItems.Add_GetRef(MakeShared<FPCGEditorGraphDebugObjectItem_PCGSubgraph>(StackNode, NextStackGraph, Stack));
+								}
+								else if (NextStackFrame.LoopIndex != INDEX_NONE)
+								{
+									CurrentItem = NodeItems.Add_GetRef(MakeShared<FPCGEditorGraphDebugObjectItem_PCGLoopIndex>(StackNode, NextStackFrame.LoopIndex, Stack));
+								}
+							}
+
+							StackIndex++;
+						}
+					}
+
+					if (!CurrentItem)
+					{
+						break;
+					}
+
+					if (!CurrentItem->GetParent())
+					{
+						PreviousItem->AddChild(CurrentItem.ToSharedRef());
 					}
 
 					AllGraphItems.Add(CurrentItem);

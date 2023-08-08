@@ -24,7 +24,7 @@ class FPCGGraphCompiler;
 class FPCGGraphExecutor;
 struct FPCGContext;
 struct FPCGDataCollection;
-class FPCGStack;
+struct FPCGStack;
 class UPCGSettings;
 
 class IPCGElement;

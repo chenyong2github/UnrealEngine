@@ -46,6 +46,8 @@ public:
 
 	void OnLevelActorDeleted(const AActor* InActor);
 
+	void AddDynamicStack(const TWeakObjectPtr<UPCGComponent> InComponent, const FPCGStack& InvocationStack);
+
 private:
 	void OnComboBoxOpening();
 	void OnSelectionChanged(TSharedPtr<FPCGEditorGraphDebugObjectInstance> NewSelection, ESelectInfo::Type SelectInfo) const;
@@ -65,4 +67,6 @@ private:
 
 	TArray<TSharedPtr<FPCGEditorGraphDebugObjectInstance>> DebugObjects;
 	TSharedPtr<SComboBox<TSharedPtr<FPCGEditorGraphDebugObjectInstance>>> DebugObjectsComboBox;
+
+	TMap<const TWeakObjectPtr<UPCGComponent>, TArray<FPCGStack>> DynamicInvocationStacks;
 };

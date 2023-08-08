@@ -86,6 +86,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	if (PCGGraphBeingEdited)
 	{
 		PCGGraphBeingEdited->OnGraphGridSizesChangedDelegate.AddRaw(this, &FPCGEditor::OnGraphGridSizesChanged);
+		PCGGraphBeingEdited->OnGraphDynamicallyExecutedDelegate.AddRaw(this, &FPCGEditor::OnGraphDynamicallyExecuted);
 	}
 
 	PCGEditorGraph = NewObject<UPCGEditorGraph>(PCGGraphBeingEdited, UPCGEditorGraph::StaticClass(), NAME_None, RF_Transactional | RF_Transient);
@@ -2221,6 +2222,7 @@ void FPCGEditor::OnClose()
 		}
 
 		PCGGraphBeingEdited->OnGraphGridSizesChangedDelegate.RemoveAll(this);
+		PCGGraphBeingEdited->OnGraphDynamicallyExecutedDelegate.RemoveAll(this);
 	}
 }
 
@@ -2438,6 +2440,21 @@ void FPCGEditor::OnGraphGridSizesChanged(UPCGGraphInterface* InGraph)
 	if (UPCGComponent* PCGComponent = GetPCGComponentBeingInspected())
 	{
 		PCGEditorGraph->UpdateGridSizeVisualization(PCGComponent);
+	}
+}
+
+void FPCGEditor::OnGraphDynamicallyExecuted(UPCGGraphInterface* InGraphInterface, const TWeakObjectPtr<UPCGComponent> InSourceComponent, FPCGStack InvocationStack)
+{
+	InvocationStack.GetStackFramesMutable().Emplace(InGraphInterface);
+
+	if (DebugObjectWidget.IsValid())
+	{
+		DebugObjectWidget->AddDynamicStack(InSourceComponent, InvocationStack);
+	}
+
+	if (DebugObjectTreeWidget.IsValid())
+	{
+		DebugObjectTreeWidget->AddDynamicStack(InSourceComponent, InvocationStack);
 	}
 }
 

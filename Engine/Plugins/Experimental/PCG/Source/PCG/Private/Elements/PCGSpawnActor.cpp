@@ -613,7 +613,13 @@ bool FPCGSpawnActorElement::SpawnAndPrepareSubgraphs(FPCGSubgraphContext* Contex
 							// Prepare the invocation stack - which is the stack up to this node, and then this node, then a loop index
 							FPCGStack InvocationStack = ensure(Context->Stack) ? *Context->Stack : FPCGStack();
 
-							FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(GraphInterface->GetGraph(),
+							UPCGGraph* Graph = GraphInterface->GetGraph();
+
+#if WITH_EDITOR
+							Graph->OnGraphDynamicallyExecutedDelegate.Broadcast(Graph, Context->SourceComponent, InvocationStack);
+#endif
+
+							FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Graph,
 								Context->SourceComponent.Get(),
 								MakeShared<FPCGTrivialElement>(),// TODO: prepare user parameters like in subgraph/loop
 								MakeShared<FPCGInputForwardingElement>(SubgraphInputData),

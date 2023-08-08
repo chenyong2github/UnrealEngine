@@ -14,7 +14,7 @@ class UPCGSettingsInterface;
 class UPCGSpatialData;
 struct FPCGGraphCache;
 struct FPCGSettingsOverridableParam;
-class FPCGStack;
+struct FPCGStack;
 
 namespace PCGContextHelpers
 {
