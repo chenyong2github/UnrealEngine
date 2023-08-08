@@ -138,9 +138,9 @@ private:
 
 	/** Trigger an update when the actor changed. 
 	* Can specify if the actor has moved to also update components that were at its previous position.
-	* Can also specify an optional component, originating the change, to avoid re-dirtying it.
+	* Can also specify an optional object, originating the change, to avoid re-dirtying a component if it was the origin.
 	*/
-	void OnActorChanged(AActor* InActor, bool bInHasMoved, const UPCGComponent* InComponentChanged = nullptr);
+	void OnActorChanged(AActor* InActor, bool bInHasMoved, const UObject* InOriginatingChangeObject = nullptr);
 
 	/** Update dependencies for a given tracked actor. */
 	void UpdateActorDependencies(AActor* InActor);

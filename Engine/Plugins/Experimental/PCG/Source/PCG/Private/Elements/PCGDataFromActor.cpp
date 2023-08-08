@@ -22,10 +22,13 @@
 #if WITH_EDITOR
 void UPCGDataFromActorSettings::GetTrackedActorKeys(FPCGActorSelectionKeyToSettingsMap& OutKeysToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
-	if (ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
+	FPCGActorSelectionKey Key = ActorSelector.GetAssociatedKey();
+	if (Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponent || Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponentOrParseComponents)
 	{
-		OutKeysToSettings.FindOrAdd(ActorSelector.GetAssociatedKey()).Emplace(this, bTrackActorsOnlyWithinBounds);
+		Key.SetExtraDependency(UPCGComponent::StaticClass());
 	}
+
+	OutKeysToSettings.FindOrAdd(Key).Emplace(this, bTrackActorsOnlyWithinBounds);
 }
 
 FText UPCGDataFromActorSettings::GetNodeTooltipText() const

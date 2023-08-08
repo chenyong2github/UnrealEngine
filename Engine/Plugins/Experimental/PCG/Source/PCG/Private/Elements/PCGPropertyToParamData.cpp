@@ -17,10 +17,7 @@
 #if WITH_EDITOR
 void UPCGPropertyToParamDataSettings::GetTrackedActorKeys(FPCGActorSelectionKeyToSettingsMap& OutKeysToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
-	if (ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
-	{
-		OutKeysToSettings.FindOrAdd(ActorSelector.GetAssociatedKey()).Emplace(this, bTrackActorsOnlyWithinBounds);
-	}
+	OutKeysToSettings.FindOrAdd(ActorSelector.GetAssociatedKey()).Emplace(this, bTrackActorsOnlyWithinBounds);
 }
 
 void UPCGPropertyToParamDataSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

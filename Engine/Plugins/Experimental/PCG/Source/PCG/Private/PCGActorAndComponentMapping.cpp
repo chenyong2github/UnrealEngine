@@ -592,11 +592,6 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 		return;
 	}
 
-	// Components owner needs to be always tracked
-	RegisterActor(ComponentOwner);
-	TSet<UPCGComponent*>& AllComponents = AlwaysTrackedActorsToComponentsMap.FindOrAdd(ComponentOwner);
-	AllComponents.Add(InComponent);
-
 	UWorld* World = PCGSubsystem ? PCGSubsystem->GetWorld() : nullptr;
 
 	if (!World)
@@ -610,6 +605,14 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 	{
 		return;
 	}
+
+	// Components owner needs to be always tracked
+	RegisterActor(ComponentOwner);
+	TSet<UPCGComponent*>& AllComponents = AlwaysTrackedActorsToComponentsMap.FindOrAdd(ComponentOwner);
+	AllComponents.Add(InComponent);
+
+	FPCGActorSelectionKey OwnerKey = FPCGActorSelectionKey(EPCGActorFilter::Self);
+	KeysToComponentsMap.FindOrAdd(OwnerKey).Add(InComponent);
 
 	// And we also need to find all actors that should be tracked
 	if (UPCGGraph* PCGGraph = InComponent->GetGraph())
@@ -650,7 +653,7 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 				if (bInShouldDirtyActors)
 				{
 					// If we need to force dirty, disregard culling (always intersect).
-					InComponent->DirtyTrackedActor(Actor, /*bIntersect=*/ true, {});
+					InComponent->DirtyTrackedActor(Actor, /*bIntersect=*/ true, /*InRemovedTags=*/ {}, /*InOriginatingChangeObject=*/ nullptr);
 				}
 			}
 		};
@@ -1040,12 +1043,23 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 		return;
 	}
 
-	AActor* Actor = Cast<AActor>(InObject);
 	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
 
 	if (!PCGWorldActor)
 	{
 		return;
+	}
+
+	// First check if it is an actor
+	AActor* Actor = Cast<AActor>(InObject);
+
+	// Otherwise, if it's an actor component, track it as well
+	if (!Actor)
+	{
+		if (UActorComponent* ActorComponent = Cast<UActorComponent>(InObject))
+		{
+			Actor = ActorComponent->GetOwner();
+		}
 	}
 
 	// If we don't find any actor, try to see if it is a dependency
@@ -1057,7 +1071,7 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 			{
 				if (AActor* ActorToChange = TrackedActor.Key.ResolveObjectPtr())
 				{
-					OnActorChanged(ActorToChange, /*bInHasMoved=*/ false);
+					OnActorChanged(ActorToChange, /*bInHasMoved=*/ false, /*InOriginatingChangeObject=*/ InObject);
 					UpdateActorDependencies(ActorToChange);
 				}
 			}
@@ -1075,7 +1089,7 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 
 	if (bShouldChange)
 	{
-		OnActorChanged(Actor, /*bInHasMoved=*/ false);
+		OnActorChanged(Actor, /*bInHasMoved=*/ false, /*InOriginatingChangeObject=*/ InObject);
 	}
 	else
 	{
@@ -1084,7 +1098,7 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 	}
 }
 
-void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMoved, const UPCGComponent* InComponentChanged)
+void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMoved, const UObject* InOriginatingChangeObject)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorChanged);
 
@@ -1108,19 +1122,19 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 		// Then do an octree find to get all components that intersect with this actor.
 		// If the actor has moved, we also need to find components that intersected with it before
 		// We first do it for non-partitioned, then we do it for partitioned
-		auto UpdateNonPartitioned = [&DirtyComponents, InActor, CulledTrackedComponents, &RemovedTags, DirtyFlag, InComponentChanged](const FPCGComponentRef& ComponentRef) -> void
+		auto UpdateNonPartitioned = [&DirtyComponents, InActor, CulledTrackedComponents, &RemovedTags, DirtyFlag, InOriginatingChangeObject](const FPCGComponentRef& ComponentRef) -> void
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorChanged::UpdateNonPartitioned);
 
 			// Don't dirty if the component was already dirtied, not tracked, or the origin of the change.
 			if (DirtyComponents.Contains(ComponentRef.Component) || 
 				!CulledTrackedComponents->Contains(ComponentRef.Component) ||
-				InComponentChanged == ComponentRef.Component)
+				InOriginatingChangeObject == ComponentRef.Component)
 			{
 				return;
 			}
 
-			if (ComponentRef.Component->DirtyTrackedActor(InActor, /*bIntersect=*/true, RemovedTags))
+			if (ComponentRef.Component->DirtyTrackedActor(InActor, /*bIntersect=*/true, RemovedTags, InOriginatingChangeObject))
 			{
 				ComponentRef.Component->DirtyGenerated(DirtyFlag);
 				DirtyComponents.Add(ComponentRef.Component);
@@ -1130,7 +1144,7 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 		NonPartitionedOctree.FindElementsWithBoundsTest(ActorBounds, UpdateNonPartitioned);
 
 		// For partitioned, we first need to find all components that intersect with our actor and then forward the dirty call to all local components that intersect.
-		auto UpdatePartitioned = [this, &DirtyComponents, InActor, CulledTrackedComponents, &ActorBounds, &RemovedTags, DirtyFlag, InComponentChanged](const FPCGComponentRef& ComponentRef)  -> void
+		auto UpdatePartitioned = [this, &DirtyComponents, InActor, CulledTrackedComponents, &ActorBounds, &RemovedTags, DirtyFlag, InOriginatingChangeObject](const FPCGComponentRef& ComponentRef)  -> void
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorChanged::UpdatePartitioned);
 
@@ -1138,7 +1152,7 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 			// We can "re-dirty" it because changes can impact different local components, from the same
 			// original component.
 			if (!CulledTrackedComponents->Contains(ComponentRef.Component) ||
-				InComponentChanged == ComponentRef.Component)
+				InOriginatingChangeObject == ComponentRef.Component)
 			{
 				return;
 			}
@@ -1146,11 +1160,11 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 			const FBox Overlap = ActorBounds.Overlap(ComponentRef.Bounds.GetBox());
 			bool bWasDirtied = false;
 
-			ForAllIntersectingPartitionActors(Overlap, [InActor, Component = ComponentRef.Component, &RemovedTags, &bWasDirtied, DirtyFlag](APCGPartitionActor* InPartitionActor) -> void
+			ForAllIntersectingPartitionActors(Overlap, [InActor, Component = ComponentRef.Component, &RemovedTags, &bWasDirtied, DirtyFlag, InOriginatingChangeObject](APCGPartitionActor* InPartitionActor) -> void
 			{
 				if (UPCGComponent* LocalComponent = InPartitionActor->GetLocalComponent(Component))
 				{
-					if (LocalComponent->DirtyTrackedActor(InActor, /*bIntersect=*/true, RemovedTags))
+					if (LocalComponent->DirtyTrackedActor(InActor, /*bIntersect=*/true, RemovedTags, InOriginatingChangeObject))
 					{
 						bWasDirtied = true;
 						LocalComponent->DirtyGenerated(DirtyFlag);
@@ -1193,21 +1207,23 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 
 		for (UPCGComponent* PCGComponent : *AlwaysTrackedComponents)
 		{
-			if (!PCGComponent || PCGComponent == InComponentChanged)
+			if (!PCGComponent || PCGComponent == InOriginatingChangeObject)
 			{
 				continue;
 			}
 
-			const bool bOwnerChanged = PCGComponent->GetOwner() == InActor;
+			// Don't mark "Owner changed" if the change originate from a PCG Component. It will be delegated to the DirtyTrackedActor
+			// It is necessary to avoid infine loops when there are multiple PCG components on one actor, and one component was generated.
+			const bool bOwnerChanged = (PCGComponent->GetOwner() == InActor) && (!InOriginatingChangeObject || !InOriginatingChangeObject->IsA<UPCGComponent>());
 			bool bWasDirtied = false;
 
 			if (!DirtyComponents.Contains(PCGComponent) && !bOwnerChanged)
 			{
 				if (PCGComponent->IsPartitioned())
 				{
-					DispatchToRegisteredLocalComponents(PCGComponent, [InActor, &RemovedTags, &bWasDirtied, DirtyFlag](UPCGComponent* InLocalComponent) -> FPCGTaskId
+					DispatchToRegisteredLocalComponents(PCGComponent, [InActor, &RemovedTags, &bWasDirtied, DirtyFlag, InOriginatingChangeObject](UPCGComponent* InLocalComponent) -> FPCGTaskId
 					{
-						if (InLocalComponent->DirtyTrackedActor(InActor, /*bIntersect=*/false, RemovedTags))
+						if (InLocalComponent->DirtyTrackedActor(InActor, /*bIntersect=*/false, RemovedTags, InOriginatingChangeObject))
 						{
 							bWasDirtied = true;
 							InLocalComponent->DirtyGenerated(DirtyFlag);
@@ -1217,7 +1233,7 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 				}
 				else
 				{
-					bWasDirtied = PCGComponent->DirtyTrackedActor(InActor, /*bIntersect=*/false, RemovedTags);
+					bWasDirtied = PCGComponent->DirtyTrackedActor(InActor, /*bIntersect=*/false, RemovedTags, InOriginatingChangeObject);
 				}
 			}
 

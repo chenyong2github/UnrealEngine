@@ -350,10 +350,9 @@ private:
 	void SetupCallbacksOnCreation();
 
 	void UpdateTrackingCache();
-
-	bool ActorIsTracked(AActor* InActor) const;
 	
-	bool DirtyTrackedActor(AActor* InActor, bool bIntersect, const TSet<FName>& InRemovedTags);
+	// InOriginatingChangeObject can be null
+	bool DirtyTrackedActor(AActor* InActor, bool bIntersect, const TSet<FName>& InRemovedTags, const UObject* InOriginatingChangeObject);
 
 	bool ShouldTrackLandscape() const;
 #endif

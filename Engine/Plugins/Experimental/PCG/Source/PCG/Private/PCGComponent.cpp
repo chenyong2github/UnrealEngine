@@ -1649,11 +1649,11 @@ bool UPCGComponent::IsActorTracked(AActor* InActor, bool& bOutIsCulled) const
 
 	bool bFound = false;
 
-	for (const FPCGActorSelectionKey& Key : FPCGActorSelectionKey::GenerateAllKeysForActor(InActor))
+	for (const TPair<FPCGActorSelectionKey, bool>& It : CachedTrackedKeysToCulling)
 	{
-		if (const bool* ShouldCullPtr = CachedTrackedKeysToCulling.Find(Key))
+		if (It.Key.IsMatching(InActor, this))
 		{
-			bOutIsCulled = *ShouldCullPtr;
+			bOutIsCulled = It.Value;
 			bFound = true;
 
 			// Check for other tags that might not be culled
@@ -2222,7 +2222,7 @@ UPCGSubsystem* UPCGComponent::GetSubsystem() const
 }
 
 #if WITH_EDITOR
-bool UPCGComponent::DirtyTrackedActor(AActor* InActor, bool bIntersect, const TSet<FName>& InRemovedTags)
+bool UPCGComponent::DirtyTrackedActor(AActor* InActor, bool bIntersect, const TSet<FName>& InRemovedTags, const UObject* InOriginatingChangeObject)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::DirtyTrackedActor);
 
@@ -2233,35 +2233,22 @@ bool UPCGComponent::DirtyTrackedActor(AActor* InActor, bool bIntersect, const TS
 
 	bool bWasDirtied = false;
 
-	TArray<FPCGActorSelectionKey> AllKeys = FPCGActorSelectionKey::GenerateAllKeysForActor(InActor);
-
-	// We also need to force a refresh on tags that were removed.
-	for (FName RemovedTag : InRemovedTags)
+	for (const auto& It : CachedTrackedKeysToSettings)
 	{
-		AllKeys.Emplace(RemovedTag);
-	}
+		const FPCGActorSelectionKey& Key = It.Key;
 
-	for (FPCGActorSelectionKey Key : AllKeys)
-	{
-		const TArray<FPCGSettingsAndCulling>* SettingsAndCullingPtr = nullptr;
-		
-		while (!SettingsAndCullingPtr)
+		const bool bRemovedTagIsTracked = (Key.Selection == EPCGActorSelection::ByTag) && InRemovedTags.Contains(Key.Tag);
+
+		if (It.Key.IsMatching(InActor, this) || bRemovedTagIsTracked)
 		{
-			SettingsAndCullingPtr = CachedTrackedKeysToSettings.Find(Key);
-
-			if (!SettingsAndCullingPtr && Key.Selection == EPCGActorSelection::ByClass && Key.ActorSelectionClass != nullptr)
+			// Extra care if the change originates from a PCGComponent. Only dirty if we are tracking a PCG component.
+			if (InOriginatingChangeObject && InOriginatingChangeObject->IsA<UPCGComponent>() 
+				&& (!It.Key.OptionalExtraDependency || !It.Key.OptionalExtraDependency->IsChildOf(UPCGComponent::StaticClass())))
 			{
-				Key.ActorSelectionClass = (Key.ActorSelectionClass == AActor::StaticClass()) ? nullptr : Key.ActorSelectionClass->GetSuperClass();
+				continue;
 			}
-			else
-			{
-				break;
-			}
-		} 
 
-		if (SettingsAndCullingPtr)
-		{
-			for (const FPCGSettingsAndCulling& SettingsAndCulling : *SettingsAndCullingPtr)
+			for (const FPCGSettingsAndCulling& SettingsAndCulling : It.Value)
 			{
 				if (SettingsAndCulling.Value && !bIntersect)
 				{
@@ -2269,7 +2256,10 @@ bool UPCGComponent::DirtyTrackedActor(AActor* InActor, bool bIntersect, const TS
 				}
 
 				const TWeakObjectPtr<const UPCGSettings>& Settings = SettingsAndCulling.Key;
-				GetSubsystem()->CleanFromCache(Settings->GetElement().Get(), Settings.Get());
+				if (ensure(Settings.IsValid()))
+				{
+					GetSubsystem()->CleanFromCache(Settings->GetElement().Get(), Settings.Get());
+				}
 
 				bWasDirtied = true;
 			}

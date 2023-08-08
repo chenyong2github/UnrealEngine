@@ -17,26 +17,8 @@ enum class EPCGActorSelection : uint8
 	ByTag,
 	// Deprecated - actor labels are unavailable in shipping builds
 	ByName UMETA(Hidden),
-	ByClass
-};
-
-struct FPCGActorSelectionKey
-{
-	FPCGActorSelectionKey() = default;
-
-	explicit FPCGActorSelectionKey(FName InTag);
-	explicit FPCGActorSelectionKey(TSubclassOf<AActor> InSelectionClass);
-
-	bool operator==(const FPCGActorSelectionKey& InOther) const;
-
-	friend uint32 GetTypeHash(const FPCGActorSelectionKey& In);
-	bool IsMatching(const AActor* InActor) const;
-
-	static TArray<FPCGActorSelectionKey> GenerateAllKeysForActor(const AActor* InActor);
-
-	EPCGActorSelection Selection = EPCGActorSelection::ByTag;
-	FName Tag = NAME_None;
-	TSubclassOf<AActor> ActorSelectionClass = nullptr;
+	ByClass,
+	Unknown UMETA(Hidden)
 };
 
 UENUM()
@@ -52,6 +34,32 @@ enum class EPCGActorFilter : uint8
 	AllWorldActors,
 	/** The source PCG actor (rather than the generated partition actor). */
 	Original,
+};
+
+struct FPCGActorSelectionKey
+{
+	FPCGActorSelectionKey() = default;
+
+	// For all filters others than AllWorldActor. For AllWorldActors Filter, use the other constructors.
+	explicit FPCGActorSelectionKey(EPCGActorFilter InFilter);
+
+	explicit FPCGActorSelectionKey(FName InTag);
+	explicit FPCGActorSelectionKey(TSubclassOf<AActor> InSelectionClass);
+
+	bool operator==(const FPCGActorSelectionKey& InOther) const;
+
+	friend uint32 GetTypeHash(const FPCGActorSelectionKey& In);
+	bool IsMatching(const AActor* InActor, const UPCGComponent* InComponent) const;
+
+	void SetExtraDependency(const UClass* InExtraDependency);
+
+	EPCGActorFilter ActorFilter = EPCGActorFilter::AllWorldActors;
+	EPCGActorSelection Selection = EPCGActorSelection::Unknown;
+	FName Tag = NAME_None;
+	TSubclassOf<AActor> ActorSelectionClass = nullptr;
+
+	// If it should track a specific object dependency instead of an actor. For example, GetActorData with GetPCGComponent data.
+	const UClass* OptionalExtraDependency = nullptr;
 };
 
 USTRUCT(BlueprintType)

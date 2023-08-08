@@ -204,23 +204,49 @@ namespace PCGActorSelector
 	}
 }
 
+FPCGActorSelectionKey::FPCGActorSelectionKey(EPCGActorFilter InFilter)
+{
+	check(InFilter != EPCGActorFilter::AllWorldActors);
+	ActorFilter = InFilter;
+}
+
 FPCGActorSelectionKey::FPCGActorSelectionKey(FName InTag)
 {
 	Selection = EPCGActorSelection::ByTag;
 	Tag = InTag;
+	ActorFilter = EPCGActorFilter::AllWorldActors;
 }
 
 FPCGActorSelectionKey::FPCGActorSelectionKey(TSubclassOf<AActor> InSelectionClass)
 {
 	Selection = EPCGActorSelection::ByClass;
 	ActorSelectionClass = InSelectionClass;
+	ActorFilter = EPCGActorFilter::AllWorldActors;
 }
 
-bool FPCGActorSelectionKey::IsMatching(const AActor* InActor) const
+void FPCGActorSelectionKey::SetExtraDependency(const UClass* InExtraDependency)
+{
+	OptionalExtraDependency = InExtraDependency;
+}
+
+bool FPCGActorSelectionKey::IsMatching(const AActor* InActor, const UPCGComponent* InComponent) const
 {
 	if (!InActor)
 	{
 		return false;
+	}
+	
+	// If we filter something else than all world actors, matching depends on the component.
+	// Re-use the same mecanism than Get Actor Data, which should be cheap since we don't look for all actors in the world.
+	if (ActorFilter != EPCGActorFilter::AllWorldActors)
+	{
+		// InKey provide the info for selecting a given actor.
+		// We reconstruct the selector settings from this key, and we also force it to SelectMultiple, since
+		// we want to gather all the actors that matches this given key, to find if ours matches.
+		FPCGActorSelectorSettings SelectorSettings = FPCGActorSelectorSettings::ReconstructFromKey(*this);
+		SelectorSettings.bSelectMultiple = true;
+		TArray<AActor*> AllActors = PCGActorSelector::FindActors(SelectorSettings, InComponent, [](const AActor*) { return true; }, [](const AActor*) { return true; });
+		return AllActors.Contains(InActor);
 	}
 
 	switch (Selection)
@@ -234,35 +260,9 @@ bool FPCGActorSelectionKey::IsMatching(const AActor* InActor) const
 	}
 }
 
-TArray<FPCGActorSelectionKey> FPCGActorSelectionKey::GenerateAllKeysForActor(const AActor* InActor)
-{
-	TArray<FPCGActorSelectionKey> Result;
-
-	if (!InActor)
-	{
-		return Result;
-	}
-
-	Result.Reserve(InActor->Tags.Num() + 1);
-	// Register keys all the way up the chain
-	UClass* CurrentClass = InActor->GetClass();
-	while (CurrentClass && CurrentClass != AActor::StaticClass())
-	{
-		Result.Emplace(CurrentClass);
-		CurrentClass = CurrentClass->GetSuperClass();
-	}
-
-	for (FName Tag : InActor->Tags)
-	{
-		Result.Emplace(Tag);
-	}
-
-	return Result;
-}
-
 bool FPCGActorSelectionKey::operator==(const FPCGActorSelectionKey& InOther) const
 {
-	if (Selection != InOther.Selection)
+	if (ActorFilter != InOther.ActorFilter || Selection != InOther.Selection || OptionalExtraDependency != InOther.OptionalExtraDependency)
 	{
 		return false;
 	}
@@ -280,7 +280,12 @@ bool FPCGActorSelectionKey::operator==(const FPCGActorSelectionKey& InOther) con
 
 uint32 GetTypeHash(const FPCGActorSelectionKey& In)
 {
-	return HashCombine(HashCombine(GetTypeHash(In.Selection), GetTypeHash(In.Tag)), GetTypeHash(In.ActorSelectionClass));
+	uint32 HashResult = HashCombine(GetTypeHash(In.ActorFilter), GetTypeHash(In.Selection));
+	HashResult = HashCombine(HashResult, GetTypeHash(In.Tag));
+	HashResult = HashCombine(HashResult, GetTypeHash(In.ActorSelectionClass));
+	HashResult = HashCombine(HashResult, GetTypeHash(In.OptionalExtraDependency));
+
+	return HashResult;
 }
 
 #if WITH_EDITOR
@@ -313,10 +318,9 @@ FName FPCGActorSelectorSettings::GetTaskName(const FText& Prefix) const
 
 FPCGActorSelectionKey FPCGActorSelectorSettings::GetAssociatedKey() const
 {
-	// If we don't look for AllWorldActors, it means we track the pcg component, which should be already picked up by the tracking system.
 	if (ActorFilter != EPCGActorFilter::AllWorldActors)
 	{
-		return FPCGActorSelectionKey();
+		return FPCGActorSelectionKey(ActorFilter);
 	}
 
 	switch (ActorSelection)
@@ -333,7 +337,7 @@ FPCGActorSelectionKey FPCGActorSelectorSettings::GetAssociatedKey() const
 FPCGActorSelectorSettings FPCGActorSelectorSettings::ReconstructFromKey(const FPCGActorSelectionKey& InKey)
 {
 	FPCGActorSelectorSettings Result{};
-	Result.ActorFilter = EPCGActorFilter::AllWorldActors;
+	Result.ActorFilter = InKey.ActorFilter;
 	Result.ActorSelection = InKey.Selection;
 	Result.ActorSelectionTag = InKey.Tag;
 	Result.ActorSelectionClass = InKey.ActorSelectionClass;
