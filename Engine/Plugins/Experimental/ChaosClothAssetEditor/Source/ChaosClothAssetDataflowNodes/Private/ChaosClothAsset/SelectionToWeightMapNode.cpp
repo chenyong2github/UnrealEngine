@@ -32,7 +32,7 @@ void FChaosClothAssetSelectionToWeightMapNode::Evaluate(Dataflow::FContext& Cont
 		const FCollectionClothSelectionConstFacade SelectionFacade(ClothCollection);
 		const FString InSelectionName = GetValue<FString>(Context, &SelectionName);
 
-		if (SelectionFacade.IsValid())
+		if (SelectionFacade.IsValid() && ClothFacade.IsValid())
 		{
 			const int32 FoundSelectionIndex = SelectionFacade.FindSelection(InSelectionName);
 
