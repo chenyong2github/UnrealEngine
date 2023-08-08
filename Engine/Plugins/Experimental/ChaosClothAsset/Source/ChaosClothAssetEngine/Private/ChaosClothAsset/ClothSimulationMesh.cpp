@@ -77,22 +77,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return TConstArrayView<uint32>(ClothSimulationModel.GetPatternToWeldedIndices(LODIndex));
 	}
 
-	TArray<FName> FClothSimulationMesh::GetWeightMapNames() const
+	TArray<FName> FClothSimulationMesh::GetWeightMapNames(int32 LODIndex) const
 	{
 		TArray<FName> WeightMapNames;
-		if (ClothSimulationModel.ClothSimulationLodModels.Num())
+		if (ClothSimulationModel.ClothSimulationLodModels.IsValidIndex(LODIndex))
 		{
-			ClothSimulationModel.ClothSimulationLodModels[0].WeightMaps.GetKeys(WeightMapNames);
+			ClothSimulationModel.ClothSimulationLodModels[LODIndex].WeightMaps.GetKeys(WeightMapNames);
 		}
 		return WeightMapNames;
 	}
 
-	TMap<FString, int32> FClothSimulationMesh::GetWeightMapIndices() const
+	TMap<FString, int32> FClothSimulationMesh::GetWeightMapIndices(int32 LODIndex) const
 	{
 		TMap<FString, int32> WeightMapIndices;
 
 		// Retrieve weight map names for this cloth
-		const TArray<FName> WeightMapNames = GetWeightMapNames();
+		const TArray<FName> WeightMapNames = GetWeightMapNames(LODIndex);
 		WeightMapIndices.Reserve(WeightMapNames.Num());
 
 		for (int32 WeightMapIndex = 0; WeightMapIndex < WeightMapNames.Num(); ++WeightMapIndex)
@@ -108,7 +108,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<TConstArrayView<::Chaos::FRealSingle>> WeightMaps;
 
 		// Retrieve weight map names for this cloth
-		const TArray<FName> WeightMapNames = GetWeightMapNames();
+		const TArray<FName> WeightMapNames = GetWeightMapNames(LODIndex);
 		WeightMaps.Reserve(WeightMapNames.Num());
 
 		for (int32 WeightMapIndex = 0; WeightMapIndex < WeightMapNames.Num(); ++WeightMapIndex)

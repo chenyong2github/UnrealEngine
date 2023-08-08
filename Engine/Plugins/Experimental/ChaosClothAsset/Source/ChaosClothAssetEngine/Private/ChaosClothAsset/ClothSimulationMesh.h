@@ -38,8 +38,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		virtual TConstArrayView<uint32> GetIndices(int32 LODIndex) const override;
 		virtual TConstArrayView<uint32> GetPatternIndices(int32 LODIndex) const override;
 		virtual TConstArrayView<uint32> GetPatternToWeldedIndices(int32 LODIndex) const override;
-		virtual TArray<FName> GetWeightMapNames() const override;
-		virtual TMap<FString, int32> GetWeightMapIndices() const override;
+		virtual TArray<FName> GetWeightMapNames(int32 LODIndex) const override;
+		UE_DEPRECATED(5.3, "Use LODIndex version.")
+		virtual TArray<FName> GetWeightMapNames() const override { return GetWeightMapNames(0); }
+		virtual TMap<FString, int32> GetWeightMapIndices(int32 LODIndex) const override;
+		UE_DEPRECATED(5.3, "Use LODIndex version.")
+		virtual TMap<FString, int32> GetWeightMapIndices() const override { return GetWeightMapIndices(0); }
 		virtual TArray<TConstArrayView<::Chaos::FRealSingle>> GetWeightMaps(int32 LODIndex) const override;
 		// Note: there is only one set of tethers stored on ClothSimulationMesh assets
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool /*bUseGeodesicTethers*/) const override;

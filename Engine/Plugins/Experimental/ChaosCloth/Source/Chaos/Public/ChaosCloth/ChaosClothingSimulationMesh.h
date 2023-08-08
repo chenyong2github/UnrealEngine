@@ -65,8 +65,12 @@ namespace Chaos
 		virtual TConstArrayView<uint32> GetIndices(int32 LODIndex) const;
 		virtual TConstArrayView<uint32> GetPatternIndices(int32 LODIndex) const;
 		virtual TConstArrayView<uint32> GetPatternToWeldedIndices(int32 LODIndex) const;
-		virtual TArray<FName> GetWeightMapNames() const;
-		virtual TMap<FString, int32> GetWeightMapIndices() const;
+		virtual TArray<FName> GetWeightMapNames(int32 LODIndex) const;
+		UE_DEPRECATED(5.3, "Use LODIndex version.")
+		virtual TArray<FName> GetWeightMapNames() const { return GetWeightMapNames(0); }
+		virtual TMap<FString, int32> GetWeightMapIndices(int32 LODIndex) const;
+		UE_DEPRECATED(5.3, "Use LODIndex version.")
+		virtual TMap<FString, int32> GetWeightMapIndices() const { return GetWeightMapIndices(0); }
 		virtual TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const;
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const;
 		virtual int32 GetReferenceBoneIndex() const;
@@ -116,9 +120,13 @@ namespace Chaos
 		virtual TConstArrayView<uint32> GetPatternToWeldedIndices(int32 LODIndex) const = 0;
 
 		/* Return all weight maps associated with this mesh returned in the same order as GetWeightMaps. */
+		virtual TArray<FName> GetWeightMapNames(int32 LODIndex) const = 0;
+		UE_DEPRECATED(5.3, "Use LODIndex version.")
 		virtual TArray<FName> GetWeightMapNames() const = 0;
 
 		/* Return a map of all weight map names associated with this mesh to the index in the array returned by GetWeightMaps. */
+		virtual TMap<FString, int32> GetWeightMapIndices(int32 LODIndex) const = 0;
+		UE_DEPRECATED(5.3, "Use LODIndex version.")
 		virtual TMap<FString, int32> GetWeightMapIndices() const = 0;
 
 		/* Return the specified LOD's weight map. */

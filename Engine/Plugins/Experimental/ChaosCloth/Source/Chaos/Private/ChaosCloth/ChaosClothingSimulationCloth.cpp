@@ -543,26 +543,25 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 {
 	Mesh = InMesh;
-
-	// Build weight map index lookup
-	const TMap<FString, int32> WeightMapIndices = Mesh ? Mesh->GetWeightMapIndices() : TMap<FString, int32>();
-
+	
 	// Reset LODs
 	const int32 NumLODs = Mesh ? Mesh->GetNumLODs() : 0;
 	LODData.Reset(NumLODs);
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
 		// Regenerate LOD weight maps lookup map
+		const TArray<FName> WeightMapNames = Mesh->GetWeightMapNames(LODIndex);
 		TMap<FString, TConstArrayView<FRealSingle>> WeightMaps;
-		WeightMaps.Reserve(WeightMapIndices.Num());
+		WeightMaps.Reserve(WeightMapNames.Num());
 
 		const TArray<TConstArrayView<FRealSingle>> WeightMapArray = Mesh->GetWeightMaps(LODIndex);
+		ensure(WeightMapArray.Num() == WeightMapNames.Num());
 
-		for (const TPair<FString, int32>& WeightMapIndex : WeightMapIndices)
+		for (int32 WeightMapIndex = 0; WeightMapIndex < WeightMapNames.Num(); ++WeightMapIndex)
 		{
-			WeightMaps.Add(WeightMapIndex.Key,
-				WeightMapArray.IsValidIndex(WeightMapIndex.Value) ?
-					WeightMapArray[WeightMapIndex.Value] :
+			WeightMaps.Add(WeightMapNames[WeightMapIndex].ToString(),
+				WeightMapArray.IsValidIndex(WeightMapIndex) ?
+					WeightMapArray[WeightMapIndex] :
 					TConstArrayView<FRealSingle>());
 		}
 
