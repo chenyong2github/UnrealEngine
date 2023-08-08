@@ -708,6 +708,10 @@ public:
 	********************************************************************************************* */
 public:	
 	ENGINE_API void Montage_SetEndDelegate(FOnMontageEnded & InOnMontageEnded, UAnimMontage* Montage = NULL);
+
+	/** Get pointer to Ended delegate for Montage.
+	    If Montage reference is NULL, it will pick the first active montage found.*/
+	ENGINE_API FOnMontageEnded* Montage_GetEndedDelegate(UAnimMontage* Montage = nullptr);
 	
 	ENGINE_API void Montage_SetBlendingOutDelegate(FOnMontageBlendingOutStarted & InOnMontageBlendingOut, UAnimMontage* Montage = NULL);
 	
