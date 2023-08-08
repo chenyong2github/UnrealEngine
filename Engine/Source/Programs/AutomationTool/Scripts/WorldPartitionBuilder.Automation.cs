@@ -40,7 +40,7 @@ namespace AutomationScripts.Automation
 			{
 				CommandletArgs += " -AutoSubmit";
 
-				if (SubmitTags.Length != 0)
+				if (!String.IsNullOrEmpty(SubmitTags))
 				{
 					CommandletArgs += " -AutoSubmitTags=\"" + SubmitTags + "\"";
 				}
