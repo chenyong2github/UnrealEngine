@@ -67,6 +67,7 @@ public:
 	virtual void GetCurveAttributes(FCurveAttributes& OutCurveAttributes) const override;
 	virtual void SetCurveAttributes(const FCurveAttributes& InCurveAttributes) override;
 	virtual void GetValueRange(double& MinValue, double& MaxValue) const override;
+	virtual void GetValueRange(double InMinTime, double InMaxTime, double& MinValue, double& MaxValue) const override;
 
 protected:
 	// FChannelCurveModel

@@ -138,6 +138,16 @@ public:
 	*/
 	virtual void GetValueRange(double& MinValue, double& MaxValue) const = 0;
 
+	/** Get range of output value based on specified input times. By default will just get the range
+	* without a specified time
+	* @param MinTime Minimum Time
+	* @param MaxTime Maximium Time
+	* @param MinValue Minimum Value
+	* @param MaxValue Minimum Value
+	*/
+	virtual void GetValueRange(double InMinTime, double InMaxTime, double& MinValue, double& MaxValue) const { GetValueRange(MinValue, MaxValue); }
+
+
 	/** Get the number of keys
 	* @param The number of keys
 	*/

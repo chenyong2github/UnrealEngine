@@ -464,10 +464,10 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::FeaturePointM
 	}
 }
 
-template<typename ChannelType, typename ChannelValue, typename KeyType> 
-void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetValueRange(double& MinValue, double& MaxValue) const
+template<typename ChannelType, typename ChannelValue, typename KeyType>
+void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetValueRange(double InMinTime, double InMaxTime, double& MinValue, double& MaxValue) const
 {
-	ChannelType* Channel    	= this->GetChannelHandle().Get();
+	ChannelType* Channel = this->GetChannelHandle().Get();
 	UMovieSceneSection* Section = Cast<UMovieSceneSection>(this->GetOwningObject());
 
 	if (Channel && Section && Section->GetTypedOuter<UMovieScene>())
@@ -485,26 +485,53 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetValueRange
 			FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 			double ToTime = TickResolution.AsInterval();
 			int32 LastKeyIndex = Values.Num() - 1;
-			MinValue = MaxValue = Values[0].Value;
+			MinValue = DBL_MAX;
+			MaxValue = DBL_MIN;
 
 			for (int32 i = 0; i < Values.Num(); i++)
 			{
+				double KeyTime = static_cast<double>(Times[i].Value) * ToTime;
+				if (KeyTime < InMinTime)
+				{
+					continue;
+				}
+				else if (KeyTime > InMaxTime)
+				{
+					break;
+				}
 				const ChannelValue& Key = Values[i];
 
-				MinValue = FMath::Min(MinValue,(double) Key.Value);
+				MinValue = FMath::Min(MinValue, (double)Key.Value);
 				MaxValue = FMath::Max(MaxValue, (double)Key.Value);
 
 				if (Key.InterpMode == RCIM_Cubic && i != LastKeyIndex)
 				{
 					const ChannelValue& NextKey = Values[i + 1];
-					double KeyTime = static_cast<double>(Times[i].Value) *ToTime;
-					double NextTime = static_cast<double>(Times[i +1].Value) *ToTime;
+					double NextTime = static_cast<double>(Times[i + 1].Value) * ToTime;
 					double TimeStep = (NextTime - KeyTime) * 0.2f;
 					FeaturePointMethod(KeyTime, NextTime, Key.Value, TimeStep, 0, 3, MaxValue, MinValue);
 				}
 			}
 		}
 	}
+	//if nothing found just set to zero
+	if (MinValue == DBL_MAX)
+	{
+		MinValue = 0.0;
+	}
+	if (MaxValue == DBL_MIN)
+	{
+		MaxValue = 0.0;
+	}
+}
+
+
+template<typename ChannelType, typename ChannelValue, typename KeyType> 
+void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetValueRange(double& MinValue, double& MaxValue) const
+{
+	const double InMinTime = DBL_MIN;
+	const double InMaxtime = DBL_MAX;
+	GetValueRange(InMinTime, InMaxtime, MinValue, MaxValue);
 }
 
 template<typename ChannelType, typename ChannelValue, typename KeyType> 

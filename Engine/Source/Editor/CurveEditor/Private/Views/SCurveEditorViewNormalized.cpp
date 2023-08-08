@@ -153,7 +153,7 @@ void SCurveEditorViewNormalized::FrameVertical(double InOutputMin, double InOutp
 	OutputMax = 1.1;;
 }
 
-void SCurveEditorViewNormalized::UpdateViewToTransformCurves() 
+void SCurveEditorViewNormalized::UpdateViewToTransformCurves(double InputMin, double InputMax) 
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (!CurveEditor)
@@ -170,7 +170,7 @@ void SCurveEditorViewNormalized::UpdateViewToTransformCurves()
 		}
 
 		double CurveOutputMin = 0, CurveOutputMax = 1;
-		Curve->GetValueRange(CurveOutputMin, CurveOutputMax);
+		Curve->GetValueRange(InputMin, InputMax, CurveOutputMin, CurveOutputMax);
 
 		It->Value.ViewToCurveTransform = CalculateViewToCurveTransform(OutputMin, OutputMax, CurveOutputMin, CurveOutputMax);
 	}
@@ -188,7 +188,9 @@ void SCurveEditorViewNormalized::Tick(const FGeometry& AllottedGeometry, const d
 	if (!CurveEditor->AreBoundTransformUpdatesSuppressed())
 	{
 		bFixedOutputBounds = false;
-		UpdateViewToTransformCurves();
+		double InputMin = 0, InputMax = 1;
+		GetInputBounds(InputMin, InputMax);
+		UpdateViewToTransformCurves(InputMin, InputMax);
 	}
 
 	SInteractiveCurveEditorView::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);

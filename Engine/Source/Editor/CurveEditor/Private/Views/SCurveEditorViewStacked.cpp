@@ -379,9 +379,8 @@ void SCurveEditorViewStacked::DrawBufferedCurves(const FGeometry& AllottedGeomet
 	}
 }
 
-void SCurveEditorViewStacked::UpdateViewToTransformCurves()
+void SCurveEditorViewStacked::UpdateViewToTransformCurves(double InputMin, double InputMax)
 {
-
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (!CurveEditor)
 	{
@@ -403,7 +402,7 @@ void SCurveEditorViewStacked::UpdateViewToTransformCurves()
 		const double ValueOffset = -CurveIndexFromBottom - PaddingToBottomOfView;
 
 		double CurveOutputMin = 0, CurveOutputMax = 1;
-		Curve->GetValueRange(CurveOutputMin, CurveOutputMax);
+		Curve->GetValueRange(InputMin, InputMax, CurveOutputMin, CurveOutputMax);
 
 		It->Value.ViewToCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax, ValueOffset);
 	}
@@ -422,7 +421,10 @@ void SCurveEditorViewStacked::Tick(const FGeometry& AllottedGeometry, const doub
 
 	if (!CurveEditor->AreBoundTransformUpdatesSuppressed())
 	{
-		UpdateViewToTransformCurves();
+		// Get the Min/Max values on the X axis, for Time
+		double InputMin = 0, InputMax = 1;
+		GetInputBounds(InputMin, InputMax);
+		UpdateViewToTransformCurves(InputMin, InputMax);
 	}
 
 	SInteractiveCurveEditorView::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);

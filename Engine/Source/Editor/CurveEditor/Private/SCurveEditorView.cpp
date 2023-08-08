@@ -158,8 +158,6 @@ void SCurveEditorView::ZoomAround(const FVector2D& Amount, double InputOrigin, d
 
 void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) 
 {
-	//make sure the transform is set up
-	UpdateViewToTransformCurves();
 
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (!CurveEditor)
@@ -170,6 +168,9 @@ void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParam
 	// Get the Min/Max values on the X axis, for Time
 	double InputMin = 0, InputMax = 1;
 	GetInputBounds(InputMin, InputMax);
+
+	//make sure the transform is set up
+	UpdateViewToTransformCurves(InputMin,InputMax);
 
 	OutDrawParams.Reset(CurveInfoByID.Num());
 

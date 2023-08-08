@@ -29,7 +29,7 @@ public:
 	/** Tools should use vertical snapping since grid lines to snap to will usually be visible */
 	virtual bool IsValueSnapEnabled() const override { return true; }
 
-	virtual void UpdateViewToTransformCurves() override;
+	virtual void UpdateViewToTransformCurves(double InputMin, double InputMax) override;
 
 protected:
 
