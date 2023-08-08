@@ -392,6 +392,11 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraSystemEditorDocumentsViewM
 		{
 			for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchScriptViewModel : ScratchViewModel->GetScriptViewModels())
 			{
+				if(ScratchScriptViewModel->IsValid() == false)
+				{
+					continue;
+				}
+				
 				UNiagaraScript* EditScript = ScratchScriptViewModel->GetGraphViewModel()->GetScriptSource()->GetTypedOuter<UNiagaraScript>();
 				if (EditScript == Script)
 				{

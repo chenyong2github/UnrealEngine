@@ -82,6 +82,11 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script, UNiag
 	ParameterPaneViewModel->Init(UIContext);
 }
 
+bool FNiagaraScratchPadScriptViewModel::IsValid() const
+{
+	return EditScript.Script != nullptr && GraphViewModel->GetScriptSource() != nullptr;
+}
+
 void FNiagaraScratchPadScriptViewModel::OnGraphSubObjectSelectionChanged(const UObject* Obj)
 {
 	OnGraphSelectionChanged().Broadcast(Obj);

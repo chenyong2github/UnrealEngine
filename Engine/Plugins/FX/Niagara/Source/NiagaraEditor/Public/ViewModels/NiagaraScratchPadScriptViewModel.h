@@ -27,6 +27,8 @@ public:
 
 	NIAGARAEDITOR_API void Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<class FNiagaraSystemViewModel> InSystemViewModel);
 
+	NIAGARAEDITOR_API bool IsValid() const;
+	
 	NIAGARAEDITOR_API void TransferFromOldWhenDoingApply(TSharedPtr< FNiagaraScratchPadScriptViewModel> InOldScriptVM);
 
 	NIAGARAEDITOR_API void Finalize();
