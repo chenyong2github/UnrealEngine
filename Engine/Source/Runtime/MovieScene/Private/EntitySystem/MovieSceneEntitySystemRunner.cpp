@@ -11,6 +11,7 @@
 #include "IMovieScenePlayer.h"
 #include "MovieSceneSequence.h"
 #include "Algo/Reverse.h"
+#include "Algo/Sort.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 DECLARE_CYCLE_STAT(TEXT("Runner Flush"), 				MovieSceneEval_RunnerFlush, 				STATGROUP_MovieSceneEval);
@@ -671,6 +672,8 @@ bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSce
 				MarkForUpdate(Request.Params.InstanceHandle, Request.Params.UpdateFlags);
 			}
 		}
+
+		Algo::SortBy(DissectedUpdates, &FDissectedUpdate::Order);
 	}
 	else
 	{
@@ -1101,6 +1104,7 @@ void FMovieSceneEntitySystemRunner::GameThread_PostEvaluationPhase(UMovieSceneEn
 	if (TmpDissectedUpdates.Num() > 0)
 	{
 		DissectedUpdates.Append(TmpDissectedUpdates);
+		// Important: we do not sort the Dissected updates here to ensure that the previously populated entries are evaluated first
 	}
 
 	// If we have any pending updates, we need to run another evaluation.
