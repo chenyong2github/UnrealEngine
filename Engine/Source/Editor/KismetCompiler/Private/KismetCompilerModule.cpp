@@ -51,7 +51,6 @@ public:
 	virtual void OverrideBPGCTypeForBPType(TSubclassOf<UBlueprint> BlueprintType, TSubclassOf<UBlueprintGeneratedClass> BPGCType) override;
 	virtual void ValidateBPAndClassType(UBlueprint* BP, FCompilerResultsLog& OutResults) override;
 	virtual void GetBlueprintTypesForClass(UClass* ParentClass, UClass*& OutBlueprintClass, UClass*& OutBlueprintGeneratedClass) const override;
-	virtual void GetSubclassesWithDifferingBlueprintTypes(UClass* Class, TSet<const UClass*>& OutMismatchedSubclasses) const override;
 	// End implementation
 
 	static TSubclassOf<UBlueprint> FindBlueprintType(UClass* ForClass, const TMap<UClass*, TSubclassOf<UBlueprint>>& FromMap);
@@ -384,26 +383,6 @@ void FKismet2CompilerModule::GetBlueprintTypesForClass(UClass* ParentClass, UCla
 
 	OutBlueprintClass = UBlueprint::StaticClass();
 	OutBlueprintGeneratedClass = UBlueprintGeneratedClass::StaticClass();
-}
-
-void FKismet2CompilerModule::GetSubclassesWithDifferingBlueprintTypes(UClass* Class, TSet<const UClass*>& OutMismatchedSubclasses) const
-{
-	UClass* BPClass;
-	UClass* BPGeneratedClass;
-	GetBlueprintTypesForClass(Class, BPClass, BPGeneratedClass);
-	
-	auto CheckClassToBPTypeMap = [](const TMap<UClass*, TSubclassOf<UBlueprint>>& Map, const UClass* Class, const UClass* BPClass, TSet<const UClass*>& Result)
-	{
-		for (const auto&[SupportedClass, OtherBPClass] : Map)
-		{
-			if (OtherBPClass != BPClass && SupportedClass->IsChildOf(Class))
-			{
-				Result.Add(SupportedClass);
-			}
-		}
-	};
-	CheckClassToBPTypeMap(ClassToBPType, Class, BPClass, OutMismatchedSubclasses);
-	CheckClassToBPTypeMap(ClassToEditorBPType, Class, BPClass, OutMismatchedSubclasses);
 }
 
 TSubclassOf<UBlueprint> FKismet2CompilerModule::FindBlueprintType(UClass* ForClass, const TMap<UClass*, TSubclassOf<UBlueprint>>& FromMap)

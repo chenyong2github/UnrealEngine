@@ -8574,12 +8574,6 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 		{
 			Filter->DisallowedClasses.Add(Blueprint->GeneratedClass);
 		}
-
-		// Disallow reparenting to any sub-class that has a different blueprint type.
-		// for example, reparenting AActor to AEditorUtilityActor is illegal because AActor uses UBlueprint while
-		// AEditorUtilityActor uses UEditorUtilityBlueprint
-		const IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
-		KismetCompilerModule.GetSubclassesWithDifferingBlueprintTypes(Blueprint->ParentClass, Filter->DisallowedChildrenOfClasses);
 	}
 
 	return FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, OnPicked);

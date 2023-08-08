@@ -107,7 +107,6 @@ public:
 	 * blueprint is a normal UBlueprint, like UUserWidget blueprints should be UWidgetBlueprints.
 	 */
 	virtual void GetBlueprintTypesForClass(UClass* ParentClass, UClass*& OutBlueprintClass, UClass*& OutBlueprintGeneratedClass) const = 0;
-	virtual void GetSubclassesWithDifferingBlueprintTypes(UClass* Class, TSet<const UClass*>& OutMismatchedSubclasses) const = 0;
 
 	// @todo: BP2CPP_remove
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
