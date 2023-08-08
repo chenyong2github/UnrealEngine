@@ -9,8 +9,12 @@ public class UnrealFrontendTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		AdditionalPlugins.Add("UdpMessaging");
 		LaunchModuleName = "UnrealFrontend";
+		
+		// Stats are required even in Shipping
+		GlobalDefinitions.Add("FORCE_USE_STATS=1");
 
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;
