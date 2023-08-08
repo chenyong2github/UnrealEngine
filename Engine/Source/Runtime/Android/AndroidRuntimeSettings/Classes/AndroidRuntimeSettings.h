@@ -284,6 +284,14 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Use display cutout region?"))
 	bool bUseDisplayCutout;
 
+	// Allow resizing of the window on Android devices with splitscreen
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Allow splitscreen resizing?"))
+	bool bAllowResizing;
+
+	// Allow support for size change when foldable and flip devices change screen or layout on Android 10+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Allow fold/flip size changes?"))
+	bool bSupportSizeChanges;
+
 	// Should we restore scheduled local notifications on reboot? This will add a receiver for boot complete and a permission to the manifest.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Restore scheduled notifications on reboot"))
 	bool bRestoreNotificationsOnReboot;

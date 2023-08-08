@@ -2499,6 +2499,10 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bFullScreen", out EnableFullScreen);
 			bool bUseDisplayCutout;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bUseDisplayCutout", out bUseDisplayCutout);
+			bool bAllowResizing;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bAllowResizing", out bAllowResizing);
+			bool bSupportSizeChanges;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSupportSizeChanges", out bSupportSizeChanges);
 			bool bRestoreNotificationsOnReboot = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bRestoreNotificationsOnReboot", out bRestoreNotificationsOnReboot);
 			List<string>? ExtraManifestNodeTags;
@@ -2714,7 +2718,7 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t          android:launchMode=\"singleTask\"");
 				if (SDKLevelInt >= 24)
 				{
-					Text.AppendLine("\t\t          android:resizeableActivity=\"false\"");
+					Text.AppendLine("\t\t          android:resizeableActivity=\"{0}\"", bAllowResizing ? "true" : "false");
 				}
 				Text.AppendLine(String.Format("\t\t          android:screenOrientation=\"{0}\"", Orientation));
 				Text.AppendLine(String.Format("\t\t          android:debuggable=\"{0}\">", bIsForDistribution ? "false" : "true"));
@@ -2742,7 +2746,7 @@ namespace UnrealBuildTool
 			}
 			if (SDKLevelInt >= 24)
 			{
-				Text.AppendLine("\t\t          android:resizeableActivity=\"false\"");
+				Text.AppendLine("\t\t          android:resizeableActivity=\"{0}\"", bAllowResizing ? "true" : "false");
 			}
 			Text.AppendLine("\t\t          android:launchMode=\"singleTask\"");
 			Text.AppendLine(String.Format("\t\t          android:screenOrientation=\"{0}\"", Orientation));
@@ -2828,6 +2832,10 @@ namespace UnrealBuildTool
 			Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.bSupportsVulkan\" android:value=\"{0}\"/>", bSupportsVulkan ? "true" : "false"));
 			Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.PropagateAlpha\" android:value=\"{0}\"/>", PropagateAlpha));
 			Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.StartupPermissions\" android:value=\"{0}\"/>", StartupPermissions));
+			if (TargetSDKVersion >= 29)
+			{
+				Text.AppendLine(String.Format("\t\t<meta-data android:name=\"android.supports_size_changes\" android:value=\"{0}\"/>", bSupportSizeChanges ? "true" : "false"));
+			}
 			Text.AppendLine("\t\t<meta-data android:name=\"com.google.android.gms.games.APP_ID\"");
 			Text.AppendLine("\t\t           android:value=\"@string/app_id\" />");
 			Text.AppendLine("\t\t<meta-data android:name=\"com.google.android.gms.version\"");
