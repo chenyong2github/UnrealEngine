@@ -532,18 +532,47 @@ bool FSkeletalAnimationTrackEditMode::HandleClick(FEditorViewportClient* InViewp
 
 			if (Sequencer.IsValid())
 			{
+				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown() == false &&
+					FSlateApplication::Get().GetModifierKeys().IsControlDown() == false)
+				{
+					SelectedRootData.Empty();
+					if (GEditor)
+					{
+						GEditor->Exec(GetWorld(), TEXT("SELECT NONE"));
+					}
+				}
 				UMovieSceneSkeletalAnimationSection* Section = Proxy->AnimSection.Get();
 				USkeletalMeshComponent* Comp = Proxy->SkelMeshComp.Get();
+
 				if (Section && Comp)
 				{
 					FSelectedRootData RootData(Section, Comp);
-					SelectedRootData.Add(RootData);
+
+					if (FSlateApplication::Get().GetModifierKeys().IsControlDown() == true)
+					{
+						if (SelectedRootData.Contains(RootData))
+						{
+							SelectedRootData.Remove(RootData);
+						}
+						else
+						{
+							SelectedRootData.Add(RootData);
+						}
+					}
+					else
+					{
+						if (SelectedRootData.Contains(RootData) == false)
+						{
+							SelectedRootData.Add(RootData);
+						}
+					}
 				}
 			}
 		}
 	}
 	return false;
 }
+
 FSelectedRootData::FSelectedRootData(UMovieSceneSkeletalAnimationSection* InSection, USkeletalMeshComponent* InComp) : 
 	SelectedSection(InSection), SelectedMeshComp(InComp)
 {
@@ -592,25 +621,8 @@ void FSkeletalAnimationTrackEditMode::SelectNone()
 
 void FSkeletalAnimationTrackEditMode::OnKeySelected(FViewport* Viewport, HMovieSceneSkeletalAnimationRootHitProxy* Proxy)
 {
-	if (!Proxy)
-	{
-		SelectedRootData.Empty();
-		return;
-	}
-
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	if (Sequencer.IsValid())
-	{
-		UMovieSceneSkeletalAnimationSection* Section = Proxy->AnimSection.Get();
-		USkeletalMeshComponent* Comp = Proxy->SkelMeshComp.Get();
-		SelectedRootData.Empty();
-
-		if (Section && Comp)
-		{
-			FSelectedRootData RootData(Section, Comp);
-			SelectedRootData.Add(RootData);
-		}
-	}
+	//something changed but this is no longer needed in 5.3
+	return;
 }
 
 bool FSkeletalAnimationTrackEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
@@ -642,7 +654,6 @@ bool FSkeletalAnimationTrackEditMode::InputDelta(FEditorViewportClient* InViewpo
 					CurrentRotation = (InRot.Quaternion() * CurrentRotation);
 					CurrentTransform.SetRotation(CurrentRotation);
 				}
-
 				if (bDoTranslation)
 				{
 					FVector CurrentLocation = CurrentTransform.GetLocation();
@@ -710,3 +721,5 @@ bool FSkeletalAnimationTrackEditMode::IsCompatibleWith(FEditorModeID OtherModeID
 
 
 #undef LOCTEXT_NAMESPACE
+
+
