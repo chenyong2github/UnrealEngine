@@ -8574,6 +8574,12 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 		{
 			Filter->DisallowedClasses.Add(Blueprint->GeneratedClass);
 		}
+
+		// Disallow reparenting to any sub-class that has a different blueprint type.
+		// for example, reparenting AActor to AEditorUtilityActor is illegal because AActor uses UBlueprint while
+		// AEditorUtilityActor uses UEditorUtilityBlueprint
+		const IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
+		KismetCompilerModule.GetSubclassesWithDifferingBlueprintTypes(Blueprint->ParentClass, Filter->DisallowedChildrenOfClasses);
 	}
 
 	return FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, OnPicked);
@@ -10466,18 +10472,38 @@ void FBlueprintEditorUtils::SanitizeRestrictedContent(UBlueprint* BP)
 	{
 		// Remove any restricted nodes and/or graphs (note: in restricted mode, it is implied that
 		// restricted items are not also user-facing, so any removals here should be opaque to users).
+		TSet<UEdGraph*> NodeSubgraphs;
 		TSet<UEdGraph*> GraphsToRemove;
 		for (UEdGraphNode* Node : RestrictedNodes)
 		{
+			// If we've already handled the node's graph/subgraph, no need to remove it again here.
+			const UEdGraph* NodeGraph = Node->GetGraph();
+			if (GraphsToRemove.Contains(NodeGraph)
+				|| NodeSubgraphs.Contains(NodeGraph))
+			{
+				continue;
+			}
+
 			// Remove the entire graph if this node represents an entry point for an event/function.
 			if (Node->IsA<UK2Node_Event>()
 				|| Node->IsA<UK2Node_FunctionEntry>())
 			{
 				GraphsToRemove.Add(Node->GetGraph());
 			}
-			
-			// Defer updating the skeleton class since we're going to do a full recompile below.
-			RemoveNode(BP, Node, /*bDontRecompile =*/ true);
+			else
+			{
+				// This may remove a subset of restricted nodes, so keep track of removed subgraphs.
+				NodeSubgraphs.Append(Node->GetSubGraphs());
+
+				// Defer updating the skeleton class since we're going to do a full recompile below.
+				RemoveNode(BP, Node, /*bDontRecompile =*/ true);
+
+				// Exclude any subgraphs that were not removed above from the set that we're tracking.
+				for (UEdGraph* SubGraph : Node->GetSubGraphs())
+				{
+					NodeSubgraphs.Remove(SubGraph);
+				}
+			}
 		}
 
 		// Note: On removal, graphs will be renamed and outered to the package containing the Blueprint.
