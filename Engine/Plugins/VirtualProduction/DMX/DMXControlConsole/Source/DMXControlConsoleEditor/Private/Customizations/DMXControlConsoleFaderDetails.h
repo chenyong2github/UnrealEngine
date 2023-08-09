@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
+enum class EDMXFixtureSignalFormat : uint8;
 class IPropertyUtilities;
+class UDMXControlConsoleFaderBase;
 
 
 namespace UE::DMXControlConsole
@@ -41,11 +43,23 @@ namespace UE::DMXControlConsole
 		/** Called when selected faders Max Value property value is changed */
 		void OnSelectedFadersMaxValueChanged() const;
 
+		/** Returns the visibility of the MaxValue property's reset to default button */
+		bool GetMaxValueResetToDefaultVisibility() const;
+
+		/** Called when the MaxValue property's reset to default button was clicked */
+		void OnMaxValueResetToDefaultClicked();
+
 		/** Called when selected faders UniverseID property value is changed */
 		void OnSelectedFadersUniverseIDChanged() const;
 
 		/** Called when selected faders DataType property value is changed */
 		void OnSelectedFadersDataTypeChanged() const;
+
+		/** Returns the max value for specified signal format */
+		uint32 GetMaxValueForSignalFormat(EDMXFixtureSignalFormat SignalFormat) const;
+
+		/** Returns the faders being edited in these details. Only returns currently valid objects. */
+		TArray<UDMXControlConsoleFaderBase*> GetValidFadersBeingEdited() const;
 
 		/** Property Utilities for this Details Customization layout */
 		TSharedPtr<IPropertyUtilities> PropertyUtilities;
