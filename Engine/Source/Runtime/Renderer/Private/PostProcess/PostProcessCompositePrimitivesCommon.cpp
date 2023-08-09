@@ -266,7 +266,8 @@ void PopulateDepthPass(FRDGBuilder& GraphBuilder,
 	PassParameters->DepthTexture = InSceneDepth.Texture;
 	PassParameters->DepthSampler = PointClampSampler;
 	PassParameters->DepthTextureJitter = SceneDepthJitter;
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutPopColor, ERenderTargetLoadAction::ELoad);
+	const ERenderTargetLoadAction ColorLoadAction = View.IsPrimarySceneView() ? ERenderTargetLoadAction::ENoAction : ERenderTargetLoadAction::ELoad;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutPopColor, ColorLoadAction);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutPopDepth, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 	FPopulateCompositeDepthPS::FPermutationDomain PermutationVector;
