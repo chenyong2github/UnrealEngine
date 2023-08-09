@@ -9,6 +9,7 @@
 #include "PCGGraph.h"
 #include "PCGModule.h"
 #include "PCGPin.h"
+#include "PCGSubgraph.h"
 #include "PCGSubsystem.h"
 #include "Helpers/PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
@@ -603,6 +604,16 @@ bool UPCGSettings::IsPropertyOverriddenByPin(const FProperty* InProperty) const
 	}
 
 	return false;
+}
+
+void UPCGSettings::PostPaste()
+{
+	// Graph parameter overrides are not properly built when importing from pasted text (because param
+	// Properties are transient/unserialized), so for subgraphs we should reinitialize in post
+	if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(this))
+	{
+		SubgraphSettings->InitializeCachedOverridableParams(/*bReset=*/true);
+	}
 }
 
 void UPCGSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)

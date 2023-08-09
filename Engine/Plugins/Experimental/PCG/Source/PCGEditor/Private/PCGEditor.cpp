@@ -1961,6 +1961,11 @@ void FPCGEditor::PasteNodesHere(const FVector2D& Location)
 		if (UPCGNode* PastedPCGNode = PastedPCGGraphNode ? PastedPCGGraphNode->GetPCGNode() : nullptr)
 		{
 			PastedPCGGraphNode->PostPaste();
+
+			if (UPCGSettings* Settings = PastedPCGNode->GetSettings())
+			{
+				Settings->PostPaste();
+			}
 		}
 	}
 

@@ -274,6 +274,9 @@ public:
 
 	/* If there are preconfigured info, we can skip the default settings and only expose pre-configured actions in the editor palette */
 	virtual bool OnlyExposePreconfiguredSettings() const { return false; }
+
+	/* Perform post-operations when an editor node is copied */
+	virtual void PostPaste();
 #endif
 
 	virtual void ApplyPreconfiguredSettings(const FPCGPreConfiguredSettingsInfo& PreconfigureInfo) {}
