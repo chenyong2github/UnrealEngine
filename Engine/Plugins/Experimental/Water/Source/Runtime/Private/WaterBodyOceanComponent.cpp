@@ -503,6 +503,19 @@ FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToW
 	return FBoxSphereBounds(RelativeLocationToZone, FVector(OceanExtentScaled.X, OceanExtentScaled.Y, GetChannelDepth()), FMath::Max(OceanExtentScaled.X, OceanExtentScaled.Y)).TransformBy(LocalToWorld);
 }
 
+void UWaterBodyOceanComponent::OnPostActorCreated()
+{
+	Super::OnPostActorCreated();
+
+#if WITH_EDITOR
+	if (UWorld* World = GetWorld(); World && World->IsGameWorld() == false)
+	{
+		UpdateWaterZones();
+		FillWaterZoneWithOcean();
+	}
+#endif // WITH_EDITOR
+}
+
 #if WITH_EDITOR
 
 void UWaterBodyOceanComponent::OnWaterBodyRenderDataUpdated()

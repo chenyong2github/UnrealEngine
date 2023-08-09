@@ -50,6 +50,8 @@ protected:
 	virtual void OnPostRegisterAllComponents() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 
+	virtual void OnPostActorCreated() override;
+
 #if WITH_EDITOR
 	virtual void OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams) override;
 

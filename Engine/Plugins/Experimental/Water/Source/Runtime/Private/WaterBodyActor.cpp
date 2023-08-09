@@ -711,6 +711,8 @@ void AWaterBody::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) con
 
 void AWaterBody::PostActorCreated()
 {
+	Super::PostActorCreated();
+
 	FOnWaterBodyChangedParams Params;
 
 	Params.PropertyChangedEvent.ChangeType = EPropertyChangeType::ValueSet;
@@ -718,6 +720,8 @@ void AWaterBody::PostActorCreated()
 	Params.bUserTriggered = false;
 	
 	WaterBodyComponent->OnWaterBodyChanged(Params);
+
+	WaterBodyComponent->OnPostActorCreated();
 }
 
 #endif // WITH_EDITOR

@@ -473,6 +473,9 @@ protected:
 	/** Computes the attenuation factor to apply to the raw wave perturbation. Attenuates : normal/wave height/max wave height. */
 	virtual float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth) const;
 
+	/** Called by the owning actor when it receives a PostActorCreated callback */
+	virtual void OnPostActorCreated() {}
+
 #if WITH_EDITOR
 	/** Called by UWaterBodyComponent::PostEditChangeProperty. */
 	UE_DEPRECATED(5.1, "Use the version of the function taking FOnWaterBodyChangedParams")
