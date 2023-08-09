@@ -125,6 +125,13 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	HasBeenInitialized = true;
 }
 
+void ADMXFixtureActor::UpdateSpotLightIntensity()
+{
+	const float SterdianRatio = UE_PI * 2.f * (1.f - SpotLight->GetCosHalfConeAngle());
+
+	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale * (1.f / SterdianRatio));
+}
+
 void ADMXFixtureActor::FeedFixtureData()
 {
 	// BeamQuality and ZoomQuality modulate the "stepSize" for the raymarch beam shader
@@ -170,7 +177,7 @@ void ADMXFixtureActor::FeedFixtureData()
 	}
 
 	// Set lights
-	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale);
+	UpdateSpotLightIntensity();
 	SpotLight->SetTemperature(LightColorTemp);
 	SpotLight->SetCastShadows(LightCastShadow);
 	SpotLight->SetAttenuationRadius(LightDistanceMax);
@@ -234,7 +241,7 @@ void ADMXFixtureActor::SetSpotlightIntensityScale(float NewSpotlightIntensitySca
 		DynamicMaterialLens->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
 	}
 
-	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale);
+	UpdateSpotLightIntensity();
 }
 
 void ADMXFixtureActor::SetPointlightIntensityScale(float NewPointlightIntensityScale)

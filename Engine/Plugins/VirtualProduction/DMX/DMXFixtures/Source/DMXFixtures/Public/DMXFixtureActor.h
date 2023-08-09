@@ -88,6 +88,14 @@ public:
 	virtual void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap) override;
 	
 public:
+	/** 
+	 * Updates the spotlight intensity. 
+	 * Considers light intensity max, the spotlight intensity scale and the cone angle to compute the intensity. 
+	 * Should be used instead of setting the intensity of the spotlight directly.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void UpdateSpotLightIntensity();
+
 	/** Sets the a new max light intensity */
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void SetLightIntensityMax(float NewLightIntensityMax);
@@ -111,7 +119,6 @@ public:
 	/** Sets if the light should cast shadows */
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void SetLightCastShadow(bool bLightShouldCastShadow);
-
 
 	// PARAMETERS---------------------------------
 
