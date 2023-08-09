@@ -647,6 +647,12 @@ void UAjaMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
 	}
 }
 
+bool UAjaMediaCapture::SupportsAnyThreadCapture() const
+{
+	// AnyThread is not supported with GPUDirect since calling dvpMapBufferEnd on a different thread will crash.
+	return !ShouldCaptureRHIResource();
+}
+
 void UAjaMediaCapture::OnFrameCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_AnyThread);

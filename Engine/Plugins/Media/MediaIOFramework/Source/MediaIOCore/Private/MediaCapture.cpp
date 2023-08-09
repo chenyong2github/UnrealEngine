@@ -346,7 +346,7 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 	}
 	else if (!SupportsAnyThreadCapture())
 	{
-		UE_LOG(LogMediaIOCore, Display, TEXT("AnyThread Capture was disabled because the media capture implementation does not have a AnyThread callback."));
+		UE_LOG(LogMediaIOCore, Display, TEXT("AnyThread Capture was disabled because the media capture implementation does not have a AnyThread callback or explicitly disabled AnyThread capture."));
 	}
 
 	return bInitialized;

@@ -57,10 +57,7 @@ protected:
 	virtual void OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) override;
 	virtual void LockDMATexture_RenderThread(FTextureRHIRef InTexture) override;
 	virtual void UnlockDMATexture_RenderThread(FTextureRHIRef InTexture) override;
-	virtual bool SupportsAnyThreadCapture() const override
-	{
-		return true;
-	}
+	virtual bool SupportsAnyThreadCapture() const override;
 	virtual const FMatrix& GetRGBToYUVConversionMatrix() const override;
 
 private:
