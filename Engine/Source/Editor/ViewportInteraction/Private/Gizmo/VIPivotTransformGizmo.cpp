@@ -40,55 +40,35 @@ APivotTransformGizmo::APivotTransformGizmo() :
 	AimingAtGizmoScaleAlpha(0.0f),
 	LastDraggingHandle(nullptr)
 {
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
 	bIsEditorOnlyActor = true;
-
-	TStrongObjectPtr<const UViewportInteractionAssetContainer> AssetContainer(UViewportWorldInteraction::LoadAssetContainer()); 
-	UMaterialInterface* GizmoMaterial = AssetContainer->TransformGizmoMaterial;
-	UMaterialInterface* TranslucentGizmoMaterial = AssetContainer->TranslucentTransformGizmoMaterial;
 
 	UniformScaleGizmoHandleGroup = CreateDefaultSubobject<UUniformScaleGizmoHandleGroup>( TEXT( "UniformScaleHandles" ), true );
 	UniformScaleGizmoHandleGroup->SetOwningTransformGizmo(this);
-	UniformScaleGizmoHandleGroup->SetTranslucentGizmoMaterial( TranslucentGizmoMaterial );
-	UniformScaleGizmoHandleGroup->SetGizmoMaterial( GizmoMaterial );
 	UniformScaleGizmoHandleGroup->SetupAttachment( SceneComponent );
 	AllHandleGroups.Add( UniformScaleGizmoHandleGroup );
 
 	TranslationGizmoHandleGroup = CreateDefaultSubobject<UPivotTranslationGizmoHandleGroup>(TEXT("TranslationHandles"), true);
 	TranslationGizmoHandleGroup->SetOwningTransformGizmo(this);
-	TranslationGizmoHandleGroup->SetTranslucentGizmoMaterial(TranslucentGizmoMaterial);
-	TranslationGizmoHandleGroup->SetGizmoMaterial(GizmoMaterial);
 	TranslationGizmoHandleGroup->SetupAttachment( SceneComponent );
 	AllHandleGroups.Add(TranslationGizmoHandleGroup);
 
 	ScaleGizmoHandleGroup = CreateDefaultSubobject<UPivotScaleGizmoHandleGroup>( TEXT( "ScaleHandles" ), true );
 	ScaleGizmoHandleGroup->SetOwningTransformGizmo(this);
-	ScaleGizmoHandleGroup->SetTranslucentGizmoMaterial( TranslucentGizmoMaterial );
-	ScaleGizmoHandleGroup->SetGizmoMaterial( GizmoMaterial );
 	ScaleGizmoHandleGroup->SetupAttachment( SceneComponent );
 	AllHandleGroups.Add( ScaleGizmoHandleGroup );
 
 	PlaneTranslationGizmoHandleGroup = CreateDefaultSubobject<UPivotPlaneTranslationGizmoHandleGroup>( TEXT( "PlaneTranslationHandles" ), true );
 	PlaneTranslationGizmoHandleGroup->SetOwningTransformGizmo(this);
-	PlaneTranslationGizmoHandleGroup->SetTranslucentGizmoMaterial( TranslucentGizmoMaterial );
-	PlaneTranslationGizmoHandleGroup->SetGizmoMaterial( GizmoMaterial );
 	PlaneTranslationGizmoHandleGroup->SetupAttachment( SceneComponent );
 	AllHandleGroups.Add( PlaneTranslationGizmoHandleGroup );
 
 	RotationGizmoHandleGroup = CreateDefaultSubobject<UPivotRotationGizmoHandleGroup>( TEXT( "RotationHandles" ), true );
 	RotationGizmoHandleGroup->SetOwningTransformGizmo(this);
-	RotationGizmoHandleGroup->SetTranslucentGizmoMaterial( TranslucentGizmoMaterial );
-	RotationGizmoHandleGroup->SetGizmoMaterial( GizmoMaterial );
 	RotationGizmoHandleGroup->SetupAttachment( SceneComponent );
 	AllHandleGroups.Add( RotationGizmoHandleGroup );
 
 	StretchGizmoHandleGroup = CreateDefaultSubobject<UStretchGizmoHandleGroup>( TEXT( "StretchHandles" ), true );
 	StretchGizmoHandleGroup->SetOwningTransformGizmo(this);
-	StretchGizmoHandleGroup->SetTranslucentGizmoMaterial( TranslucentGizmoMaterial );
-	StretchGizmoHandleGroup->SetGizmoMaterial( GizmoMaterial );
 	StretchGizmoHandleGroup->SetShowOnUniversalGizmo( false );
 	StretchGizmoHandleGroup->SetupAttachment( SceneComponent );
 	AllHandleGroups.Add( StretchGizmoHandleGroup );

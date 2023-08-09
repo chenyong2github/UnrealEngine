@@ -7,6 +7,7 @@
 #include "VIBaseTransformGizmo.h"
 #include "ViewportWorldInteraction.h"
 #include "ViewportDragOperation.h"
+#include "ViewportInteractionAssetContainer.h"
 #include "VIGizmoHandleMeshComponent.h"
 
 UGizmoHandleGroup::UGizmoHandleGroup()
@@ -169,11 +170,23 @@ void UGizmoHandleGroup::UpdateHandleColor( const int32 AxisIndex, FGizmoHandle& 
 
 	if ( !HandleMesh->GetMaterial( 0 )->IsA( UMaterialInstanceDynamic::StaticClass() ) )
 	{
+		if (!GizmoMaterial)
+		{
+			const UViewportInteractionAssetContainer* AssetContainer = UViewportWorldInteraction::LoadAssetContainer();
+			GizmoMaterial = AssetContainer->TransformGizmoMaterial;
+		}
+
 		UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create( GizmoMaterial, this );
 		HandleMesh->SetMaterial( 0, MID );
 	}
 	if ( !HandleMesh->GetMaterial( 1 )->IsA( UMaterialInstanceDynamic::StaticClass() ) )
 	{
+		if (!TranslucentGizmoMaterial)
+		{
+			const UViewportInteractionAssetContainer* AssetContainer = UViewportWorldInteraction::LoadAssetContainer();
+			TranslucentGizmoMaterial = AssetContainer->TranslucentTransformGizmoMaterial;
+		}
+
 		UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create( TranslucentGizmoMaterial, this );
 		HandleMesh->SetMaterial( 1, MID );
 	}
