@@ -50,6 +50,10 @@ public:
 	virtual FPCGAttributePropertyInputSelector GetCachedLastSelector() const { return FPCGAttributePropertyInputSelector{}; }
 	virtual void SetLastSelector(const FPCGAttributePropertySelector& InSelector) {};
 
+	// ~Begin UObject interface
+	virtual void PostDuplicate(bool bDuplicateForPIE) override { InitUID(); }
+	// ~End UObject interface
+
 protected:
 	/** Computes Crc for this and any connected data. */
 	virtual FPCGCrc ComputeCrc(bool bFullDataCrc) const;
@@ -61,6 +65,8 @@ protected:
 	bool PropagateCrcThroughBooleanData() const;
 
 private:
+	void InitUID();
+
 	/** Serves unique ID values to instances of this object. */
 	static inline std::atomic<uint64> UIDCounter{ 1 };
 };

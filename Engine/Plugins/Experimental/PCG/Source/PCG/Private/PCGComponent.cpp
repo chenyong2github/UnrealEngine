@@ -1522,6 +1522,10 @@ void UPCGComponent::StoreInspectionData(const FPCGStack* InStack, const UPCGNode
 
 			FPCGDataCollection PinDataCollection;
 			PinDataCollection.TaggedData = InData.GetInputsByPin(Pin->Properties.Label);
+			// The data collection for each pin is given the Crc from the data collection. This is to enable inspecting the normal node output Crc
+			// when cache debugging is enabled.
+			PinDataCollection.Crc = InData.Crc;
+
 			if (!PinDataCollection.TaggedData.IsEmpty())
 			{
 				InOutInspectionCache.Add(Stack, PinDataCollection);

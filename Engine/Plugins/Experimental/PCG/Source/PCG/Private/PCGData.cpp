@@ -85,7 +85,7 @@ UPCGData::UPCGData(const FObjectInitializer& ObjectInitializer)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		UID = ++UIDCounter;
+		InitUID();
 	}
 }
 
@@ -124,6 +124,11 @@ bool UPCGData::PropagateCrcThroughBooleanData() const
 void UPCGData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const
 {
 	Action(this);
+}
+
+void UPCGData::InitUID()
+{
+	UID = ++UIDCounter;
 }
 
 bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
