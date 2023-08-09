@@ -373,21 +373,7 @@ void URigHierarchy::ResetToDefault()
 	{
 		if(URigHierarchy* DefaultHierarchy = DefaultHierarchyPtr.Get())
 		{
-			const TArray<FRigElementKey> PreviousSelection = OrderedSelection;
 			CopyHierarchy(DefaultHierarchy);
-
-			// reestablish the selection
-			check(OrderedSelection.IsEmpty());
-			for(const FRigElementKey& Key : PreviousSelection)
-			{
-				if(FRigBaseElement* Element = Find(Key))
-				{
-					check(!Element->bSelected);
-					Element->bSelected = true;
-					OrderedSelection.Add(Element->GetKey());
-					Notify(ERigHierarchyNotification::ElementSelected, Element);
-				}
-			}
 			return;
 		}
 	}
