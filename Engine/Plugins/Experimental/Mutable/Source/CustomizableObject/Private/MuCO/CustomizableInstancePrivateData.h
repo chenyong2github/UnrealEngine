@@ -103,6 +103,7 @@ struct FReferencedSkeletons
 	GENERATED_USTRUCT_BODY();
 
 	// Merged skeleton if found in the cache
+	UPROPERTY()
 	TObjectPtr<USkeleton> Skeleton;
 
 	UPROPERTY()
