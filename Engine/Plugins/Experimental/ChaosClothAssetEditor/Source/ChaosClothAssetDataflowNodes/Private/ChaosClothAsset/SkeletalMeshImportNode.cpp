@@ -2,6 +2,7 @@
 
 #include "ChaosClothAsset/SkeletalMeshImportNode.h"
 #include "ChaosClothAsset/ClothDataflowTools.h"
+#include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Animation/Skeleton.h"
 #include "Dataflow/DataflowInputOutput.h"
@@ -81,10 +82,19 @@ void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Contex
 			{
 				ClothFacade.SetPhysicsAssetPathName(PhysicsAsset->GetPathName());
 			}
+
 			if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
 				ClothFacade.SetSkeletonAssetPathName(Skeleton->GetPathName());
 			}
+			else
+			{
+				static const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
+				ClothFacade.SetSkeletonAssetPathName(DefaultSkeletonPathName);
+			}
+
+			// Must be bound to root bone by default
+			FClothGeometryTools::BindMeshToRootBone(ClothCollection, bImportSimMesh, bImportRenderMesh);
 		}
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}

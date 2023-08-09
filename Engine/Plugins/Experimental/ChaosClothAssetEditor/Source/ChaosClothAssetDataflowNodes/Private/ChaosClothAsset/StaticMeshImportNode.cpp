@@ -170,6 +170,9 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 
 				// Set a default skeleton
 				ClothFacade.SetSkeletonAssetPathName(DefaultSkeletonPathName);
+				
+				// Bind to root bone by default
+				FClothGeometryTools::BindMeshToRootBone(ClothCollection, bImportAsSimMesh, bImportAsRenderMesh);
 			}
 			else
 			{
