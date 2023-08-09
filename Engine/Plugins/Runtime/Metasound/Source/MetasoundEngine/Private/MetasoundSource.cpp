@@ -191,10 +191,12 @@ void UMetaSoundSource::PostEditChangeOutputFormat()
 
 	EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
 	{
-
 		const UMetaSoundBuilderSubsystem& BuilderSubsystem = UMetaSoundBuilderSubsystem::GetConstChecked();
+
 		UMetaSoundSourceBuilder* SourceBuilder = BuilderSubsystem.AttachSourceBuilderToAsset(this);
+		check(SourceBuilder);
 		SourceBuilder->SetFormat(OutputFormat, Result);
+
 		// TODO: Once builders are notified of controller changes and can be safely persistent, this
 		// can be removed so builders can be shared and not have to be created for each change output
 		// format mutation transaction.
@@ -1063,21 +1065,24 @@ Metasound::SourcePrivate::FParameterRouter& UMetaSoundSource::GetParameterRouter
 	return Router;
 }
 
-TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> UMetaSoundSource::EnableDynamicGenerators(bool bInIsEnabled)
+TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> UMetaSoundSource::SetDynamicGeneratorEnabled(bool bInIsEnabled)
 {
 	using namespace Metasound;
 	using namespace Metasound::DynamicGraph;
 
-	if (bInIsEnabled && (!DynamicTransactor.IsValid()))
+	if (bInIsEnabled)
 	{
-		TSharedPtr<FGraph> CurrentGraph = GetRuntimeData().Graph;
-		if (CurrentGraph.IsValid())
+		if (!DynamicTransactor.IsValid())
 		{
-			DynamicTransactor = MakeShared<FDynamicOperatorTransactor>(*CurrentGraph);
-		}
-		else
-		{
-			DynamicTransactor = MakeShared<FDynamicOperatorTransactor>();
+			TSharedPtr<FGraph> CurrentGraph = GetRuntimeData().Graph;
+			if (CurrentGraph.IsValid())
+			{
+				DynamicTransactor = MakeShared<FDynamicOperatorTransactor>(*CurrentGraph);
+			}
+			else
+			{
+				DynamicTransactor = MakeShared<FDynamicOperatorTransactor>();
+			}
 		}
 	}
 	else

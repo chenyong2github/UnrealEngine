@@ -953,7 +953,7 @@ void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioCo
 	AudioComponent->SetSound(AuditionSound.Get());
 
 	const bool bEnableDynamicGenerators = bLiveUpdatesEnabled;
-	AuditionSound->EnableDynamicGenerators(bEnableDynamicGenerators);
+	AuditionSound->SetDynamicGeneratorEnabled(bEnableDynamicGenerators);
 
 	if (CreateGenerator.IsBound())
 	{

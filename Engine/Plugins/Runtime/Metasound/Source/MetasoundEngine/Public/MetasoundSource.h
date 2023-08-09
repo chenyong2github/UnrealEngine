@@ -253,19 +253,19 @@ private:
 	void TrackGenerator(uint64 Id, TSharedPtr<Metasound::FMetasoundGenerator> Generator);
 	void ForgetGenerator(ISoundGeneratorPtr Generator);
 
-	/** Enable dynamic generator. 
+	/** Enable/disable dynamic generator.
 	 *
 	 * Once a dynamic generator is enabled, all changes to the MetaSound should be applied to the
 	 * FDynamicOperatorTransactor in order to keep parity between the document and active graph.
 	 *
 	 * Note: Disabling the dynamic generator will sever the communication between any active generators
-	 * even if the dynamic generator is re-enabled. 
+	 * even if the dynamic generator is re-enabled during the lifetime of the active generators
 	 */
-	TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> EnableDynamicGenerators(bool bInIsEnabled);
+	TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> SetDynamicGeneratorEnabled(bool bInIsEnabled);
 
 	/** Get dynamic transactor
 	 *
-	 * If dynamic generators are enabled, this will return a valid pointer to a dynamic transactor. 
+	 * If dynamic generators are enabled, this will return a valid pointer to a dynamic transactor.
 	 * Changes to this transactor will be forwarded to any active Dynamic MetaSound Generators.
 	 */
 	TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> GetDynamicGeneratorTransactor() const;
