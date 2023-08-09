@@ -1101,7 +1101,16 @@ void SPCGEditorGraphAttributeListView::RefreshSorting()
 				if constexpr (PCG::Private::MetadataTraits<ValueType>::CanCompare)
 				{
 					TArray<ValueType> CachedValues;
-					CachedValues.SetNumUninitialized(ListViewItems.Num());
+					// Strings need initialized values for later assignment
+					if constexpr (PCG::Private::MetadataTraits<ValueType>::NeedsConstruction)
+					{
+						CachedValues.SetNum(ListViewItems.Num());
+					}
+					else
+					{
+						CachedValues.SetNumUninitialized(ListViewItems.Num());
+					}
+
 					ColumnData->DataAccessor->GetRange(TArrayView<ValueType>(CachedValues), 0, *ColumnData->DataKeys);
 
 					auto SortAscending = [&CachedValues] (const PCGListviewItemPtr& LHS, const PCGListviewItemPtr& RHS)

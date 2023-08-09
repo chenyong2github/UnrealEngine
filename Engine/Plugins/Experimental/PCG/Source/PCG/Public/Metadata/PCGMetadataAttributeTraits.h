@@ -325,6 +325,7 @@ namespace PCG
 		{
 			enum { CompressData = false };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 		};
 
 		template<>
@@ -332,6 +333,7 @@ namespace PCG
 		{
 			enum { CompressData = false };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static bool Equal(const float& A, const float& B)
 			{
@@ -344,6 +346,7 @@ namespace PCG
 		{
 			enum { CompressData = false };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static bool Equal(const double& A, const double& B)
 			{
@@ -361,6 +364,7 @@ namespace PCG
 			enum { CanInterpolate = false };
 			enum { CanCompare = true };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static bool ZeroValue()
 			{
@@ -422,6 +426,7 @@ namespace PCG
 			enum { CanInterpolate = true };
 			enum { CanCompare = true };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static T ZeroValue()
 			{
@@ -557,6 +562,7 @@ namespace PCG
 			enum { CanInterpolate = true };
 			enum { CanCompare = false };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static bool Equal(const FQuat& A, const FQuat& B)
 			{
@@ -611,6 +617,7 @@ namespace PCG
 			enum { CanInterpolate = true };
 			enum { CanCompare = false };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static bool Equal(const FRotator& A, const FRotator& B)
 			{
@@ -660,6 +667,7 @@ namespace PCG
 			enum { CanInterpolate = true };
 			enum { CanCompare = false };
 			enum { CanSearchString = false };
+			enum { NeedsConstruction = false };
 
 			static bool Equal(const FTransform& A, const FTransform& B)
 			{
@@ -711,6 +719,7 @@ namespace PCG
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
 			enum { CanSearchString = true };
+			enum { NeedsConstruction = true };
 
 			static bool Equal(const FString& A, const FString& B)
 			{
@@ -743,6 +752,7 @@ namespace PCG
 			enum { CanInterpolate = false };
 			enum { CanCompare = true };
 			enum { CanSearchString = true };
+			enum { NeedsConstruction = false };
 
 			static bool Equal(const FName& A, const FName& B)
 			{
