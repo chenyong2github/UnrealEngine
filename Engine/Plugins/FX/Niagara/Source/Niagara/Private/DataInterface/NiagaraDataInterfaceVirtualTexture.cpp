@@ -46,6 +46,18 @@ namespace NDIVirtualTextureLocal
 	const FName		SampleRVTName("SampleRVT");
 	constexpr int32	MaxRVTLayers = 3;
 
+	struct FNDIFunctionVersion
+	{
+		enum Type
+		{
+			InitialVersion = 0,
+			AddInsideVolumeToSampleRVT = 1,
+
+			VersionPlusOne,
+			LatestVersion = VersionPlusOne - 1
+		};
+	};
+
 	struct FNDIInstanceData_GameThread
 	{
 		TWeakObjectPtr<URuntimeVirtualTexture> CurrentTexture = nullptr;
@@ -96,7 +108,7 @@ UNiagaraDataInterfaceVirtualTexture::UNiagaraDataInterfaceVirtualTexture(FObject
 
 	Proxy.Reset(new FNDIProxy());
 
-	FNiagaraTypeDefinition Def(URuntimeVirtualTexture::StaticClass());
+	FNiagaraTypeDefinition Def(UObject::StaticClass());
 	TextureUserParameter.Parameter.SetType(Def);
 }
 
@@ -174,6 +186,7 @@ void UNiagaraDataInterfaceVirtualTexture::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
 		Sig.bExperimental = true;
+		Sig.SetFunctionVersion(FNDIFunctionVersion::LatestVersion);
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("BaseColorValid"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SpecularValid"));
@@ -191,8 +204,10 @@ void UNiagaraDataInterfaceVirtualTexture::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
 		Sig.bExperimental = true;
+		Sig.SetFunctionVersion(FNDIFunctionVersion::LatestVersion);
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetPositionDef(), TEXT("WorldPosition"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("InsideVolume"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("BaseColor"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Specular"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Roughness"));
@@ -325,6 +340,24 @@ bool UNiagaraDataInterfaceVirtualTexture::GetFunctionHLSL(const FNiagaraDataInte
 	};
 
 	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
+}
+
+bool UNiagaraDataInterfaceVirtualTexture::UpgradeFunctionCall(FNiagaraFunctionSignature& Sig)
+{
+	using namespace NDIVirtualTextureLocal;
+
+	bool bModified = false;
+	if (Sig.FunctionVersion < FNDIFunctionVersion::AddInsideVolumeToSampleRVT)
+	{
+		if (Sig.Name == SampleRVTName)
+		{
+			Sig.Outputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("InsideVolume")), 0);
+			bModified = true;
+		}
+	}
+
+	Sig.SetFunctionVersion(FNDIFunctionVersion::LatestVersion);
+	return bModified;
 }
 #endif
 

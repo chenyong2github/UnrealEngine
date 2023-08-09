@@ -76,8 +76,9 @@ float4 SampleRVTLayer_{ParameterName}(float2 SampleUV, Texture2D InTexture, Text
 	return TextureVirtualSample(InTexture, {ParameterName}_SharedSampler, PageTable, 0, VTUniform_Unpack(InTextureUniforms));
 }
 
-void SampleRVT_{ParameterName}(in float3 WorldPosition, out float3 BaseColor, out float Specular, out float Roughness, out float3 Normal, out float WorldHeight, out float Mask)
+void SampleRVT_{ParameterName}(in float3 WorldPosition, out bool bInsideVolume, out float3 BaseColor, out float Specular, out float Roughness, out float3 Normal, out float WorldHeight, out float Mask)
 {
+	bInsideVolume = false;
 	BaseColor = float3(0.0f, 0.0f, 0.0f);
 	Specular = 0.5f;
 	Roughness = 0.5f;
@@ -90,6 +91,9 @@ void SampleRVT_{ParameterName}(in float3 WorldPosition, out float3 BaseColor, ou
 	FLWCVector3 LWCUVOrigin = MakeLWCVector3({ParameterName}_SystemLWCTile, {ParameterName}_UVUniforms[0].xyz);
 
 	float2 SampleUV = VirtualTextureWorldToUV(LWCWorldPosition, LWCUVOrigin, {ParameterName}_UVUniforms[1].xyz, {ParameterName}_UVUniforms[2].xyz);
+
+	// Test to see if we are inside the volume, but still take the samples as it will clamp to the edge
+	bInsideVolume = all(SampleUV >- 0.0f) && all(SampleUV < 1.0f);
 
 	// Sample Textures
 	float4 LayerSample[3];

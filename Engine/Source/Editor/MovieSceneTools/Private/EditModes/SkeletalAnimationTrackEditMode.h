@@ -16,8 +16,9 @@ struct HMovieSceneSkeletalAnimationRootHitProxy;
 struct FSelectedRootData
 {
 	FSelectedRootData(UMovieSceneSkeletalAnimationSection* InSection, USkeletalMeshComponent* InComp);
-
+	bool operator == (const FSelectedRootData& InData) const { return (InData.SelectedSection == SelectedSection && InData.SelectedMeshComp == SelectedMeshComp); }
 	void CalcTransform(const FFrameTime& Frametime, FTransform& OutTransform, FTransform& OutParentTransform);
+
 	TWeakObjectPtr<UMovieSceneSkeletalAnimationSection> SelectedSection;
 	TWeakObjectPtr<USkeletalMeshComponent> SelectedMeshComp;
 };

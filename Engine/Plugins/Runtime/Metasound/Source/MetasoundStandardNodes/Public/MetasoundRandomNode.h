@@ -440,6 +440,9 @@ namespace Metasound
 				{
 					EvaluateSeedChanges();
 					RandomStream.Reset();
+
+					*OutputValue = TRandomNodeSpecialization<ValueType>::GetNextValue(RandomStream, *MinValue, *MaxValue);
+
 					TriggerOutOnReset->TriggerFrame(StartFrame);
 				}
 			);

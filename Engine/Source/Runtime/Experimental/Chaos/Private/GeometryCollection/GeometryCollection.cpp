@@ -178,7 +178,10 @@ void FGeometryCollection::SetDefaults(FName Group, uint32 StartSize, uint32 NumE
 int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, int32 MaterialIDOffset, bool ReindexAllMaterials, const FTransform& TransformRoot)
 {
 	// until we support a transform hierarchy this is just one.
-	check(Element.NumElements(FGeometryCollection::TransformGroup) > 0);
+	if (Element.NumElements(FGeometryCollection::TransformGroup) == 0)
+	{
+		return INDEX_NONE;
+	}
 
 	int NumTransforms = NumElements(FTransformCollection::TransformGroup);
 	int NumNewTransforms = Element.NumElements(FTransformCollection::TransformGroup);

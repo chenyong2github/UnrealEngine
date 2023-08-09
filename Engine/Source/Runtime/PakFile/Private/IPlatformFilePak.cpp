@@ -7113,7 +7113,7 @@ void FPakFile::ValidateDirectorySearch(const TSet<FString>& FullFoundFiles, cons
 
 bool FPakFile::RecreatePakReaders(IPlatformFile* LowerLevel)
 {
-	FScopeLock ScopedLock(&CriticalSection);
+	FScopeLock ScopedLock(&ReadersCriticalSection);
 
 	if (CurrentlyUsedReaders > 0)
 	{
@@ -7150,7 +7150,7 @@ FSharedPakReader FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 	LLM_SCOPE_BYTAG(PakSharedReaders);
 	FArchive* PakReader = nullptr;
 	{
-		FScopeLock ScopedLock(&CriticalSection);
+		FScopeLock ScopedLock(&ReadersCriticalSection);
 		if (Readers.Num())
 		{
 			FArchiveAndLastAccessTime Reader = Readers.Pop();
@@ -7174,29 +7174,35 @@ FSharedPakReader FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 
 void FPakFile::ReturnSharedReader(FArchive* Archive)
 {
-	FScopeLock ScopedLock(&CriticalSection);
+	FScopeLock ScopedLock(&ReadersCriticalSection);
 	--CurrentlyUsedReaders;
 	Readers.Push(FArchiveAndLastAccessTime{ TUniquePtr<FArchive>{Archive }, FPlatformTime::Seconds()});
 }
 
 void FPakFile::ReleaseOldReaders(double MaxAgeSeconds)
 {
-	FScopeLock ScopedLock(&CriticalSection);
-	double SearchTime = FPlatformTime::Seconds() - MaxAgeSeconds;
-	for (int32 i = Readers.Num() - 1; i >= 0; --i)
+	if (ReadersCriticalSection.TryLock())
 	{
-		const FArchiveAndLastAccessTime& Reader = Readers[i];
-		if (Reader.LastAccessTime <= SearchTime)
+		ON_SCOPE_EXIT
 		{
-			// Remove this and all readers older than it (pushed before it)
-			Readers.RemoveAt(0, i + 1);
-			break;
+			ReadersCriticalSection.Unlock();
+		};
+		double SearchTime = FPlatformTime::Seconds() - MaxAgeSeconds;
+		for (int32 i = Readers.Num() - 1; i >= 0; --i)
+		{
+			const FArchiveAndLastAccessTime& Reader = Readers[i];
+			if (Reader.LastAccessTime <= SearchTime)
+			{
+				// Remove this and all readers older than it (pushed before it)
+				Readers.RemoveAt(0, i + 1);
+				break;
+			}
 		}
-	}
 
-	if (Readers.Num() == 0 && CurrentlyUsedReaders == 0)
-	{
-		Decryptor.Reset();
+		if (Readers.Num() == 0 && CurrentlyUsedReaders == 0)
+		{
+			Decryptor.Reset();
+		}
 	}
 }
 
@@ -7703,9 +7709,9 @@ void FPakPlatformFile::ReleaseOldReaders()
 		return;
 	}
 
-	FScopeLock ScopedLock(&PakListCritical);
-
-	for (FPakListEntry& Entry : PakFiles)
+	TArray<FPakListEntry> LocalPaks;
+	GetMountedPaks(LocalPaks);
+	for (FPakListEntry& Entry : LocalPaks)
 	{
 		Entry.PakFile->ReleaseOldReaders(GPakReaderReleaseDelay);
 	}

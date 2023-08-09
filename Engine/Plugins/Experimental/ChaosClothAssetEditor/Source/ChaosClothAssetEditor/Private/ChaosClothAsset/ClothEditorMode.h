@@ -181,9 +181,10 @@ private:
 	* @param NewNodeTypeName The type of node to create, by name
 	* @param UpstreamNode Node to connect the new node to
 	* @param ConnectionTypeName The type of output of the upstream node to connect our new node to
+	* @param NewNodeConnectionName The name of the input/output connection on our new node that will be connected
 	* @return The newly-created node
 	*/
-	UEdGraphNode* CreateAndConnectNewNode(const FName& NewNodeTypeName,	UEdGraphNode& UpstreamNode,	const FName& ConnectionTypeName);
+	UEdGraphNode* CreateAndConnectNewNode(const FName& NewNodeTypeName,	UEdGraphNode& UpstreamNode,	const FName& ConnectionTypeName, const FName& NewNodeConnectionName);
 
 
 	void InitializeContextObject();

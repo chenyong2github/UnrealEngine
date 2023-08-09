@@ -577,6 +577,7 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 			Section->AddCategory("Materials");
 			Section->AddCategory("Mobile");
 			Section->AddCategory("Ray Tracing");
+			Section->AddCategory("Path Tracing");
 			Section->AddCategory("Rendering");
 			Section->AddCategory("Texture Streaming");
 			Section->AddCategory("Virtual Texture");

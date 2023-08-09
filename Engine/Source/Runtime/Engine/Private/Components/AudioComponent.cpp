@@ -816,6 +816,19 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 
 	NewActiveSound.MaxDistance = MaxDistance;
 
+	// Setup the submix and bus sends that may have been set before playing
+	for (FSoundSubmixSendInfo& SubmixSendInfo : PendingSubmixSends)
+	{
+		NewActiveSound.SetSubmixSend(SubmixSendInfo);
+	}
+	PendingSubmixSends.Reset();
+
+	for (FPendingSourceBusSendInfo& PendingBusSend : PendingBusSends)
+	{
+		NewActiveSound.SetSourceBusSend(PendingBusSend.BusSendType, PendingBusSend.BusSendInfo);
+	}
+	PendingBusSends.Reset();
+
 	Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
 	Fader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
 	Fader.StartFade(InPlayRequestData.FadeVolumeLevel, InPlayRequestData.FadeInDuration, static_cast<Audio::EFaderCurve>(InPlayRequestData.FadeCurve));
@@ -1441,36 +1454,52 @@ void UAudioComponent::AdjustAttenuation(const FSoundAttenuationSettings& InAtten
 
 void UAudioComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 {
-	if (FAudioDevice* AudioDevice = GetAudioDevice())
+	FSoundSubmixSendInfo SendInfo;
+	SendInfo.SoundSubmix = Submix;
+	SendInfo.SendLevel = SendLevel;
+
+	if (IsPlaying())
 	{
-		const uint64 MyAudioComponentID = AudioComponentID;
-
-		FSoundSubmixSendInfo SendInfo;
-		SendInfo.SoundSubmix = Submix;
-		SendInfo.SendLevel = SendLevel;
-
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AudioSetSubmixSend"), STAT_SetSubmixSend, STATGROUP_AudioThreadCommands);
-		AudioDevice->SendCommandToActiveSounds(AudioComponentID, [SendInfo](FActiveSound& ActiveSound)
+		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
-			ActiveSound.SetSubmixSend(SendInfo);
-		}, GET_STATID(STAT_SetSubmixSend));
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AudioSetSubmixSend"), STAT_SetSubmixSend, STATGROUP_AudioThreadCommands);
+			AudioDevice->SendCommandToActiveSounds(AudioComponentID, [SendInfo](FActiveSound& ActiveSound)
+			{
+				ActiveSound.SetSubmixSend(SendInfo);
+			}, GET_STATID(STAT_SetSubmixSend));
+		}
+	}
+	else
+	{
+		PendingSubmixSends.Add(SendInfo);
 	}
 }
 
 void UAudioComponent::SetBusSendEffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType)
 {
-	if (FAudioDevice* AudioDevice = GetAudioDevice())
+	FSoundSourceBusSendInfo BusSendInfo;
+	BusSendInfo.SoundSourceBus = InSourceBus;
+	BusSendInfo.AudioBus = InAudioBus;
+	BusSendInfo.SendLevel = SendLevel;
+
+	if (IsPlaying())
 	{
-
-		FSoundSourceBusSendInfo SourceBusSendInfo;
-		SourceBusSendInfo.SoundSourceBus = InSourceBus;
-		SourceBusSendInfo.AudioBus = InAudioBus;
-		SourceBusSendInfo.SendLevel = SendLevel;
-
-		AudioDevice->SendCommandToActiveSounds(AudioComponentID, [InBusSendType, SourceBusSendInfo](FActiveSound& ActiveSound)
+		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
-			ActiveSound.SetSourceBusSend(InBusSendType, SourceBusSendInfo);
-		});
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AudioSetBusSend"), STAT_SetBusSend, STATGROUP_AudioThreadCommands);
+			AudioDevice->SendCommandToActiveSounds(AudioComponentID, [InBusSendType, BusSendInfo](FActiveSound& ActiveSound)
+			{
+				ActiveSound.SetSourceBusSend(InBusSendType, BusSendInfo);
+			}, GET_STATID(STAT_SetBusSend));
+		}
+	}
+	else
+	{
+		FPendingSourceBusSendInfo NewPendingSourceBusInfo;
+		NewPendingSourceBusInfo.BusSendInfo = BusSendInfo;
+		NewPendingSourceBusInfo.BusSendType = InBusSendType;
+
+		PendingBusSends.Add(NewPendingSourceBusInfo);
 	}
 }
 
