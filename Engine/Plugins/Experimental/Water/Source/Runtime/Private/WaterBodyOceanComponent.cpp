@@ -12,6 +12,7 @@
 #include "Operations/InsetMeshRegion.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Curve/PolygonOffsetUtils.h"
+#include "Engine/World.h"
 
 #if WITH_EDITOR
 #include "Misc/UObjectToken.h"
