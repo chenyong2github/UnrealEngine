@@ -787,6 +787,16 @@ namespace UsdStageImporterImpl
 		// We probably never want to make them public or standalone if they aren't already though
 		TArray<UObject*> Subobjects;
 		MovedAsset->GetDefaultSubobjects( Subobjects );
+		if (UMaterialInterface* Material = Cast<UMaterialInterface>(MovedAsset))
+		{
+			// Materials in particular have EditorOnlyData which behaves like a default subobject but kind of isn't flagged as one...
+			// Not sure at this point whether we should force non-transient on all subobjects of the asset, as that could also have edge cases that
+			// don't do what we expect.
+			if (UMaterialInterfaceEditorOnlyData* EditorOnlyData = Material->GetEditorOnlyData())
+			{
+				Subobjects.Add(EditorOnlyData);
+			}
+		}
 		for ( UObject* Subobject : Subobjects )
 		{
 			Subobject->ClearFlags( EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient | EObjectFlags::RF_NonPIEDuplicateTransient );
