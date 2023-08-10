@@ -1684,7 +1684,7 @@ public:
 			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 			{
 				FName StatName = MinimalNameToName(StatMinimalName);
-				FCpuProfilerTrace::OutputBeginDynamicEventWithId(StatName, WCHAR_TO_TCHAR(InStatId.GetStatDescriptionWIDE()));
+				FCpuProfilerTrace::OutputBeginDynamicEventWithId(StatName, InStatId.GetStatDescriptionWIDE());
 				EmittedEvent |= TraceEvent;
 			}
 #endif
