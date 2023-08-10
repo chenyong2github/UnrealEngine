@@ -203,6 +203,8 @@ void UMediaPlateComponent::OnUnregister()
 	Super::OnUnregister();
 
 	UnregisterWithMediaTextureTracker();
+
+	Close();
 }
 
 UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
