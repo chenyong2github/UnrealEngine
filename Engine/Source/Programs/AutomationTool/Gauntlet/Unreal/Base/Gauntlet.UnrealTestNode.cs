@@ -431,7 +431,9 @@ namespace Gauntlet
 			{
 				return string.Empty;
 			}
-			var Config = GetConfiguration();
+			// Using CachedConfiguration so GetConfiguration does not get looped over. If it has not been cached
+			// yet, will call test's GetConfiguration method.
+			var Config = GetCachedConfiguration();
 			return (Config is UnrealTestConfiguration) ? Context.GetRoleContext(Config.GetMainRequiredRole().Type).ToString() : Context.ToString();
 		}
 
