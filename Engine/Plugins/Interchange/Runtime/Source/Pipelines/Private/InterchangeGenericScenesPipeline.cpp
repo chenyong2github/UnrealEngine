@@ -529,6 +529,12 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 			}
 
 			MeshActorFactoryNode->AddFactoryDependencyUid(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(MeshNode->GetUniqueID()));
+
+			FTransform GeometricTransform;
+			if (SceneNode->GetCustomGeometricTransform(GeometricTransform))
+			{
+				MeshActorFactoryNode->SetCustomGeometricTransform(GeometricTransform);
+			}
 		}
 	}
 	else if (const UInterchangeBaseLightNode* BaseLightNode = Cast<UInterchangeBaseLightNode>(TranslatedAssetNode))

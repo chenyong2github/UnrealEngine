@@ -49,7 +49,11 @@ namespace UE
 				if (MeshNode)
 				{
 					UnrealSceneNode->SetCustomAssetInstanceUid(MeshNode->GetUniqueID());
-					UnrealSceneNode->SetCustomGeometricTransform(GeometricTransform);
+
+					if (!GeometricTransform.Equals(FTransform::Identity))
+					{
+						UnrealSceneNode->SetCustomGeometricTransform(GeometricTransform);
+					}
 
 					// @todo: Nothing is using the SceneInstanceUid in the MeshNode. Do we even need to support it?
 					// For the moment an ugly const_cast so we can mutate it (it was fetched from the NodeContainer and is hence const).

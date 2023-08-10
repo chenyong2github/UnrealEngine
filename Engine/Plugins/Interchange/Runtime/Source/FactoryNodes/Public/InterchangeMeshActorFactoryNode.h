@@ -58,9 +58,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool GetCustomAnimationAssetUidToPlay(FString& AttributeValue) const;
 
+	/** Get the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool GetCustomGeometricTransform(FTransform& AttributeValue) const;
+
+	/** Set the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool SetCustomGeometricTransform(const FTransform& AttributeValue);
+
 private:
 	UE::Interchange::TMapAttributeHelper<FString, FString> SlotMaterialDependencies;
 
 	//A scene node can reference an animation asset on top of base asset:
 	const UE::Interchange::FAttributeKey Macro_CustomAnimationAssetUidToPlayKey = UE::Interchange::FAttributeKey(TEXT("AnimationAssetUidToPlay"));
+
+	//A scene node can have a transform apply to the mesh it reference.
+	const UE::Interchange::FAttributeKey Macro_CustomGeometricTransformKey = UE::Interchange::FAttributeKey(TEXT("GeometricTransform"));
 };

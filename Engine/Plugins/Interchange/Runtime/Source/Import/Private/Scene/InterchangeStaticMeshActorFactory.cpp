@@ -29,7 +29,72 @@ UObject* UInterchangeStaticMeshActorFactory::ProcessActor(AActor& SpawnedActor, 
 
 	if (UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent())
 	{
-		StaticMeshComponent->UnregisterComponent();
+		bool bHasGeometricTransform = false;
+		FTransform GeometricTransform;
+		if (FactoryNode.IsA(UInterchangeMeshActorFactoryNode::StaticClass()))
+		{
+			const UInterchangeMeshActorFactoryNode& MeshActorFactoryNode = static_cast<const UInterchangeMeshActorFactoryNode&>(FactoryNode);
+
+			if (MeshActorFactoryNode.GetCustomGeometricTransform(GeometricTransform))
+			{
+				bHasGeometricTransform = true;
+			}
+		}
+
+
+		if (bHasGeometricTransform)
+		{
+			UStaticMeshComponent* GeometricTransformMeshComponent = nullptr;
+			if (StaticMeshComponent->GetNumChildrenComponents() > 0)
+			{
+				USceneComponent* ChildSceneComponent = StaticMeshComponent->GetChildComponent(0);
+				if (ChildSceneComponent->IsA(UStaticMeshComponent::StaticClass()))
+				{
+					AActor* ParentActor = ChildSceneComponent->GetAttachParentActor();
+					if (ParentActor == StaticMeshActor)
+					{
+						GeometricTransformMeshComponent = Cast<UStaticMeshComponent>(ChildSceneComponent);
+					}
+				}
+			}
+
+			if (GeometricTransformMeshComponent == nullptr)
+			{
+				StaticMeshActor->UnregisterAllComponents();
+
+				GeometricTransformMeshComponent = NewObject<UStaticMeshComponent>(StaticMeshActor->GetRootComponent(), TEXT("GeometricTransform"));
+
+#if WITH_EDITORONLY_DATA
+				GeometricTransformMeshComponent->bVisualizeComponent = true;
+#endif
+				StaticMeshActor->AddInstanceComponent(GeometricTransformMeshComponent);
+
+				GeometricTransformMeshComponent->SetMobility(StaticMeshComponent->Mobility);
+				
+				if (const UInterchangeFactoryBaseNode* MeshNode = ActorHelper::FindAssetInstanceFactoryNode(&NodeContainer, &FactoryNode))
+				{
+					FSoftObjectPath ReferenceObject;
+					MeshNode->GetCustomReferenceObject(ReferenceObject);
+					if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ReferenceObject.TryLoad()))
+					{
+						if (StaticMesh != GeometricTransformMeshComponent->GetStaticMesh())
+						{
+							GeometricTransformMeshComponent->SetStaticMesh(StaticMesh);
+						}
+					}
+				}
+
+				GeometricTransformMeshComponent->SetupAttachment(StaticMeshComponent);
+
+				StaticMeshActor->ReregisterAllComponents();
+
+				GeometricTransformMeshComponent->SetRelativeTransform(GeometricTransform);
+
+				return StaticMeshComponent;
+			}
+		}
+
+		StaticMeshComponent->UnregisterComponent();		
 
 		if (const UInterchangeFactoryBaseNode* MeshNode = ActorHelper::FindAssetInstanceFactoryNode(&NodeContainer, &FactoryNode))
 		{

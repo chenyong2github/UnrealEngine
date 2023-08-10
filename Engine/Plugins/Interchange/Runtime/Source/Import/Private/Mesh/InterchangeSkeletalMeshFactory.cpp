@@ -1237,7 +1237,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::Imp
 					FTransform SceneNodeGeometricTransform;
 					if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))
 					{
-						SceneNodeTransform *= SceneNodeGeometricTransform;
+						SceneNodeTransform = SceneNodeGeometricTransform * SceneNodeTransform;
 					}
 					MeshReference.SceneGlobalTransform = SceneNodeTransform;
 				}
