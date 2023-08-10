@@ -723,7 +723,7 @@ public:
 			BoundaryIndices[0]++;
 		}
 
-		if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[1]], InBoundary.Max, (double)DOUBLE_SMALL_NUMBER))
+		if (BoundaryIndices[1]> 0 && FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[1]], InBoundary.Max, (double)DOUBLE_SMALL_NUMBER))
 		{
 			BoundaryIndices[1]--;
 		}
