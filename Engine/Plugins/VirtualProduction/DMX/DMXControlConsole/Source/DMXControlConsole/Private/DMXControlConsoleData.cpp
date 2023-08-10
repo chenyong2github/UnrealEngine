@@ -323,6 +323,8 @@ void UDMXControlConsoleData::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, SoftDMXLibraryPtr))
 	{
 		CachedWeakDMXLibrary = Cast<UDMXLibrary>(SoftDMXLibraryPtr.ToSoftObjectPath().TryLoad());
+
+		OnDMXLibraryChanged.Broadcast();
 	}
 }
 #endif // WITH_EDITOR

@@ -90,6 +90,11 @@ public:
 	/** Gets a reference to OnFaderGroupRemoved delegate */
 	FDMXControlConsoleFaderGroupDelegate& GetOnFaderGroupRemoved() { return OnFaderGroupRemoved; }
 
+#if WITH_EDITOR
+	/** Called when the DMX Library has been changed */
+	FSimpleMulticastDelegate& GetOnDMXLibraryChanged() { return OnDMXLibraryChanged; }
+#endif // WITH_EDITOR 
+
 #if WITH_EDITORONLY_DATA
 	/** The current editor filter string */
 	UPROPERTY()
@@ -104,7 +109,7 @@ protected:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
+#endif // WITH_EDITOR 
 	//~ End UObject interface
 
 	// ~ Begin FTickableGameObject interface
@@ -121,6 +126,11 @@ private:
 
 	/** Called when a Fader Group is removed from the Control Console */
 	FDMXControlConsoleFaderGroupDelegate OnFaderGroupRemoved;
+
+#if WITH_EDITOR
+	/** Called when the DMX Library has been changed */
+	FSimpleMulticastDelegate OnDMXLibraryChanged;
+#endif // WITH_EDITOR 
 
 	/** Library used to generate Fader Groups */
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "DMX Library", ShowDisplayNames), Category = "DMX Control Console")

@@ -163,6 +163,12 @@ private:
 	/** Refreshes Control Console */
 	void ForceRefresh();
 
+	/** Binds Editor Model to the current DMX Library changes */
+	void BindToDMXLibraryChanges();
+
+	/** Unbinds Editor Model from the current DMX Library changes */
+	void UnbindFromDMXLibraryChanges();
+
 	/** Initializes current Control Console's Editor Layouts, if not valid */
 	void InitializeEditorLayouts();
 
@@ -170,7 +176,7 @@ private:
 	void RegisterEditorLayouts();
 
 	/** Unregisters current Editor Layouts from DMX Library delegates */
-	void UnregisterEditorlayouts();
+	void UnregisterEditorLayouts();
 
 	/** Saves the current editor console to config */
 	void SaveConsoleToConfig();
@@ -189,6 +195,9 @@ private:
 
 	/** Prompts user to specify a console package name to save to. Returns true if a valid package name was acquired. */
 	[[nodiscard]] bool PromptSaveConsolePackage(FString& OutSavePackagePath, FString& OutSaveAssetName) const;
+
+	/** Called when the DMX Library of the current Control Console has been changed */
+	void OnDMXLibraryChanged();
 
 	/** Called at the very end of engine initialization, right before the engine starts ticking. */
 	void OnFEngineLoopInitComplete();

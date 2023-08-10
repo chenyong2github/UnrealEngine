@@ -8,14 +8,7 @@
 #include "DMXControlConsoleData.h"
 #include "Editor.h"
 #include "IPropertyUtilities.h"
-#include "Layouts/DMXControlConsoleEditorGlobalLayoutBase.h"
-#include "Layouts/DMXControlConsoleEditorGlobalLayoutDefault.h"
-#include "Layouts/DMXControlConsoleEditorGlobalLayoutUser.h"
-#include "Layouts/DMXControlConsoleEditorLayouts.h"
-#include "Models/DMXControlConsoleEditorModel.h"
 #include "PropertyHandle.h"
-#include "ScopedTransaction.h"
-#include "TimerManager.h"
 #include "Widgets/SDMXControlConsoleEditorLayoutPicker.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -27,8 +20,6 @@ void FDMXControlConsoleDataDetails::CustomizeDetails(IDetailLayoutBuilder& InDet
 	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 	
 	const TSharedPtr<IPropertyHandle> DMXLibraryHandle = InDetailLayout.GetProperty(UDMXControlConsoleData::GetDMXLibraryPropertyName());
-	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::OnDMXLibraryChanged));
-	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::OnDMXLibraryChanged));
 	InDetailLayout.AddPropertyToCategory(DMXLibraryHandle);
 
 	// Layout Mode selection section
@@ -54,61 +45,6 @@ void FDMXControlConsoleDataDetails::ForceRefresh() const
 	}
 	
 	PropertyUtilities->ForceRefresh();
-}
-
-void FDMXControlConsoleDataDetails::OnDMXLibraryChanged() const
-{
-	const FScopedTransaction ClearPatchedFaderGroupsTransaction(LOCTEXT("ClearPatchedFaderGroupsTransaction", "Clear Patched Fader Groups"));
-
-	const UDMXControlConsoleEditorModel* EditorModel = GetDefault<UDMXControlConsoleEditorModel>();
-	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorModel->GetEditorConsoleLayouts();
-	if (EditorConsoleLayouts)
-	{
-		const TArray<UDMXControlConsoleEditorGlobalLayoutUser*> UserLayouts = EditorConsoleLayouts->GetUserLayouts();
-		for (UDMXControlConsoleEditorGlobalLayoutUser* UserLayout : UserLayouts)
-		{
-			if (!UserLayout)
-			{
-				continue;
-			}
-
-			UserLayout->PreEditChange(nullptr);
-			UserLayout->ClearAllPatchedFaderGroups();
-			UserLayout->ClearEmptyLayoutRows();
-			UserLayout->PostEditChange();
-		}
-	}
-
-	UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData();
-	if (EditorConsoleData)
-	{
-		EditorConsoleData->PreEditChange(nullptr);
-		EditorConsoleData->ClearPatchedFaderGroups();
-		EditorConsoleData->PostEditChange();
-
-		const UDMXLibrary* DMXLibrary = EditorConsoleData->GetDMXLibrary();
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::UpdateControlConsole));
-	}
-}
-
-void FDMXControlConsoleDataDetails::UpdateControlConsole() const
-{
-	const FScopedTransaction UpdateControlConsoleTransaction(LOCTEXT("UpdateControlConsoleTransaction", "Update Control Console"));
-	UDMXControlConsoleEditorModel* EditorModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData();
-	UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorModel->GetEditorConsoleLayouts();
-	if (EditorConsoleData && EditorConsoleLayouts)
-	{
-		EditorConsoleData->PreEditChange(nullptr);
-		EditorConsoleData->GenerateFromDMXLibrary();
-		EditorConsoleData->PostEditChange();
-
-		EditorConsoleLayouts->PreEditChange(nullptr);
-		EditorConsoleLayouts->UpdateDefaultLayout(EditorConsoleData);
-		EditorConsoleLayouts->PostEditChange();
-
-		EditorModel->RequestRefresh();
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

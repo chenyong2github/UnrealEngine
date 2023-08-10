@@ -27,12 +27,6 @@ private:
 	/** Forces a refresh on the entire Details View */
 	void ForceRefresh() const;
 
-	/** Called whenever DMX Library changes */
-	void OnDMXLibraryChanged() const;
-
-	/** Updates the control console state */
-	void UpdateControlConsole() const;
-
 	/** Property Utilities for this Details Customization layout */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };
