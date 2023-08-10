@@ -434,9 +434,8 @@ namespace PCGHelpers
 		}
 		else
 		{
-			ensure(false);
-			OutGridSizes.Add(PCGHiGenGrid::UninitializedGridSize());
-			return false;
+			OutGridSizes.Add(PCGHiGenGrid::UnboundedGridSize());
+			return true;
 		}
 	}
 
