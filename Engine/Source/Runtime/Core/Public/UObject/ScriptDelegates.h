@@ -394,7 +394,7 @@ public:
 		return static_cast< const UObject* >( Object.GetEvenIfUnreachable() );
 	}
 
-	WeakPtrType& GetUObjectRefEvenIfUnreachable()
+	WeakPtrType& GetUObjectRef()
 	{
 		return Object;
 	}
@@ -945,7 +945,7 @@ public:
 		TArray<UObject*> Result;
 		for (auto* Ref : GetAllObjectRefsEvenIfUnreachable())
 		{
-			Result.Add(*Ref);
+			Result.Add(Ref->GetEvenIfUnreachable());
 		}
 		return Result;
 	}
@@ -957,8 +957,8 @@ public:
 		TArray< WeakPtrType* > OutputList;
 		for( typename InvocationListType::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 		{
-			WeakPtrType& CurObject = CurDelegate->GetUObjectRefEvenIfUnreachable();
-			if( CurObject != nullptr )
+			WeakPtrType& CurObject = CurDelegate->GetUObjectRef();
+			if( CurObject.GetEvenIfUnreachable() != nullptr )
 			{
 				OutputList.Add( &CurObject );
 			}

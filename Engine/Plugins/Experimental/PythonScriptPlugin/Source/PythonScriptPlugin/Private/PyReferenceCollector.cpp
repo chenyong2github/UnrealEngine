@@ -188,8 +188,9 @@ void FPyReferenceCollector::AddReferencedObjectsFromDelegate(FReferenceCollector
 {
 	// Keep the delegate object alive if it's using a Python proxy instance
 	// We have to use the EvenIfUnreachable variant here as the objects are speculatively marked as unreachable during GC
-	if (auto& Ptr = InDelegate.GetUObjectRefEvenIfUnreachable(); Cast<UPythonCallableForDelegate>(Ptr.GetEvenIfUnreachable()))
+	if (UPythonCallableForDelegate* PythonCallableForDelegate = Cast<UPythonCallableForDelegate>(InDelegate.GetUObjectEvenIfUnreachable()))
 	{
+		TWeakObjectPtr<UPythonCallableForDelegate> Ptr{PythonCallableForDelegate};
 		InCollector.AddReferencedObject(Ptr);
 	}
 }
@@ -198,11 +199,12 @@ void FPyReferenceCollector::AddReferencedObjectsFromMulticastDelegate(FReference
 {
 	// Keep the delegate objects alive if they're using a Python proxy instance
 	// We have to use the EvenIfUnreachable variant here as the objects are speculatively marked as unreachable during GC
-	for (auto* DelegateObj : InDelegate.GetAllObjectRefsEvenIfUnreachable())
+	for (UObject* DelegateObj : InDelegate.GetAllObjectsEvenIfUnreachable())
 	{
-		if (Cast<UPythonCallableForDelegate>(DelegateObj->Get()))
+		if (UPythonCallableForDelegate* PythonCallableForDelegate = Cast<UPythonCallableForDelegate>(DelegateObj))
 		{
-			InCollector.AddReferencedObject(*DelegateObj);
+			TWeakObjectPtr<UPythonCallableForDelegate> Ptr{PythonCallableForDelegate};
+			InCollector.AddReferencedObject(Ptr);
 		}
 	}
 }
