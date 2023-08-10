@@ -2219,6 +2219,16 @@ void FPCGEditor::OnClose()
 
 	FAssetEditorToolkit::OnClose();
 
+	if (PCGComponentBeingInspected.IsValid())
+	{
+		PCGComponentBeingInspected->DisableInspection();
+
+		if (PCGGraphBeingEdited)
+		{
+			PCGGraphBeingEdited->DisableInspection();
+		}
+	}
+
 	if (PCGGraphBeingEdited)
 	{
 		if (PCGGraphBeingEdited->NotificationsForEditorArePausedByUser())

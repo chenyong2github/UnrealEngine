@@ -226,9 +226,9 @@ public:
 	const TArray<TObjectPtr<UObject>>& GetExtraEditorNodes() const { return ExtraEditorNodes; }
 	void SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
 
-	bool IsInspecting() const;
-	void EnableInspection();
-	void DisableInspection();
+	bool IsInspecting() const { return bIsInspecting; }
+	void EnableInspection() { bIsInspecting = true; }
+	void DisableInspection() { bIsInspecting = false; }
 	bool DebugFlagAppliesToIndividualComponents() const { return bDebugFlagAppliesToIndividualComponents; }
 #endif
 
@@ -310,7 +310,7 @@ private:
 	bool bIsNotifying = false;
 	bool bUserPausedNotificationsInGraphEditor = false;
 	int32 NumberOfUserParametersPreEdit = 0;
-	int32 InspectionCounter = 0;
+	bool bIsInspecting = false;
 #endif // WITH_EDITOR
 };
 

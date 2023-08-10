@@ -792,29 +792,6 @@ void UPCGGraph::SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InN
 	}
 }
 
-bool UPCGGraph::IsInspecting() const
-{
-	return InspectionCounter > 0;
-}
-
-void UPCGGraph::EnableInspection()
-{
-	if (!ensure(InspectionCounter >= 0))
-	{
-		InspectionCounter = 0;
-	}
-
-	++InspectionCounter;
-}
-
-void UPCGGraph::DisableInspection()
-{
-	if (ensure(InspectionCounter > 0))
-	{
-		--InspectionCounter;
-	}
-};
-
 FPCGActorSelectionKeyToSettingsMap UPCGGraph::GetTrackedActorKeysToSettings() const
 {
 	FPCGActorSelectionKeyToSettingsMap TagsToSettings;
