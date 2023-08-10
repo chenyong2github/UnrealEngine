@@ -492,8 +492,6 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	}
 	else
 	{
-		InHierarchy->UpdateAllCachedChildren();
-		
 		// remove the superfluous elements
 		for(int32 ElementIndex = Elements.Num() - 1; ElementIndex >= InHierarchy->Elements.Num(); ElementIndex--)
 		{
@@ -521,13 +519,6 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 			Target->CachedChildren.Reset();
 			Target->bSelected = false;
 
-			// fast-pass for update children
-			Target->CachedChildren.SetNumZeroed(Source->CachedChildren.Num());
-			for(int32 ChildIndex = 0; ChildIndex < Target->CachedChildren.Num(); ChildIndex++)
-			{
-				Target->CachedChildren[ChildIndex] = Elements[Source->CachedChildren[ChildIndex]->Index];
-			}
-
 			Target->TopologyVersion = InHierarchy->GetTopologyVersion();
 		}
 
@@ -545,11 +536,7 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	TopologyVersion = InHierarchy->GetTopologyVersion();
 	MetadataVersion = InHierarchy->GetMetadataVersion();
 
-	if(bReallocateElements)
-	{
-		UpdateAllCachedChildren();
-	}
-	
+	UpdateAllCachedChildren();
 	EnsureCacheValidity();
 }
 
