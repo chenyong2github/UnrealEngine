@@ -322,7 +322,8 @@ struct FGatherSkeletalAnimations
 
 	void PreTask() const
 	{
-		SystemData->SkeletalAnimations.Reset();
+		// Start fresh every frame, gathering all active skeletal animations.
+		SystemData->ResetSkeletalAnimations();
 	}
 
 	void ForEachAllocation(
@@ -1023,9 +1024,6 @@ void UMovieSceneSkeletalAnimationSystem::OnRun(FSystemTaskPrerequisites& InPrere
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
-
-	// Start fresh every frame, gathering all active skeletal animations.
-	SystemData.ResetSkeletalAnimations();
 
 	FGraphEventRef GatherTask = FEntityTaskBuilder()
 	.ReadEntityIDs()
