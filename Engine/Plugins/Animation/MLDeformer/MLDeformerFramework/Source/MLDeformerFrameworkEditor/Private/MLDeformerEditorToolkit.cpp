@@ -36,6 +36,9 @@ namespace UE::MLDeformer
 	const FName MLDeformerEditorModes::Editor("MLDeformerEditorMode");
 	const FName MLDeformerEditorAppName = FName(TEXT("MLDeformerEditorApp"));
 
+	TArray<TUniquePtr<FToolsMenuExtender>> FMLDeformerEditorToolkit::ToolsMenuExtenders;
+	FCriticalSection FMLDeformerEditorToolkit::ExtendersMutex;
+
 	FMLDeformerEditorToolkit::~FMLDeformerEditorToolkit()
 	{
 		ActiveModel.Reset();
@@ -228,6 +231,19 @@ namespace UE::MLDeformer
 
 			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnModelChanged, UnsortedModelIndex, false));
 			MenuBuilder.AddMenuEntry(FText::FromString(ModelNames[ModelIndex]), TAttribute<FText>(), FSlateIcon(), ItemAction);
+		}
+
+		return MenuBuilder.MakeWidget();
+	}
+
+	TSharedRef<SWidget> FMLDeformerEditorToolkit::GenerateToolsMenuContents(TSharedRef<FUICommandList> InCommandList)
+	{
+		const bool bShouldCloseWindowAfterMenuSelection = true;
+		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
+
+		for (const TUniquePtr<FToolsMenuExtender>& Extender : ToolsMenuExtenders)
+		{
+			MenuBuilder.AddMenuEntry(Extender->GetMenuEntry(*this));
 		}
 
 		return MenuBuilder.MakeWidget();
@@ -482,6 +498,27 @@ namespace UE::MLDeformer
 			);
 		}
 		ToolbarBuilder.EndSection();
+
+		if (!ToolsMenuExtenders.IsEmpty())
+		{
+			ToolbarBuilder.BeginSection("Tools");
+			{
+				TSharedPtr<FUICommandList> CommandList = GetToolkitCommands();
+				ToolbarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateRaw(this, &FMLDeformerEditorToolkit::GenerateToolsMenuContents, CommandList.ToSharedRef()),
+					TAttribute<FText>::CreateLambda(
+						[this]()
+						{
+							return LOCTEXT("ToolsMenu", "Tools");
+						}
+					),
+					LOCTEXT("ToolsMenuTooltip", "Tools"),
+					FSlateIcon(FMLDeformerEditorStyle::Get().GetStyleSetName(), "MLDeformer.VizSettings.TabIcon")
+				);
+			}
+			ToolbarBuilder.EndSection();
+		}
 	}
 
 	bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained, bool bSuppressDialogs, bool& bOutSuccess)
@@ -903,6 +940,18 @@ namespace UE::MLDeformer
 
 		OnModelChanged(Index, bForceChange);
 		return true;
+	}
+
+	void FMLDeformerEditorToolkit::AddToolsMenuExtender(TUniquePtr<FToolsMenuExtender> Extender)
+	{
+		FScopeLock Lock(&ExtendersMutex);
+		ToolsMenuExtenders.Emplace_GetRef(MoveTemp(Extender));
+	}
+
+	TConstArrayView<TUniquePtr<FToolsMenuExtender>> FMLDeformerEditorToolkit::GetToolsMenuExtenders()
+	{
+		FScopeLock Lock(&ExtendersMutex);
+		return ToolsMenuExtenders;
 	}
 }	// namespace UE::MLDeformer
 

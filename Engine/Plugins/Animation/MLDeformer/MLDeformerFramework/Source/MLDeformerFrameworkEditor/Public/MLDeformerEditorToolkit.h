@@ -11,9 +11,12 @@
 #include "IPersonaViewport.h"
 #include "PersonaAssetEditorToolkit.h"
 #include "EditorUndoClient.h"
+#include "Framework/MultiBox/MultiBox.h"
 #include "Math/Color.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+struct FMenuEntryParams;
+class FTabManager;
 class IDetailsView;
 class UMLDeformerAsset;
 class SSimpleTimeSlider;
@@ -27,6 +30,15 @@ namespace UE::MLDeformer
 	{
 		extern const FName Editor;
 	}
+
+	class FMLDeformerEditorToolkit;
+	class MLDEFORMERFRAMEWORKEDITOR_API FToolsMenuExtender
+	{
+	public:
+		virtual ~FToolsMenuExtender() {}
+		virtual FMenuEntryParams GetMenuEntry(FMLDeformerEditorToolkit& Toolkit) const = 0;
+		virtual TSharedPtr<FWorkflowTabFactory> GetTabSummoner(const TSharedRef<FMLDeformerEditorToolkit>& Toolkit) const { return nullptr; }
+	};
 
 	/**
 	 * The ML Deformer asset editor toolkit.
@@ -117,6 +129,8 @@ namespace UE::MLDeformer
 		bool IsTrainButtonEnabled() const;
 		bool IsTraining() const;
 
+		static void AddToolsMenuExtender(TUniquePtr<FToolsMenuExtender> Extender);
+		static TConstArrayView<TUniquePtr<FToolsMenuExtender>> GetToolsMenuExtenders();
 	private:
 		UE_DEPRECATED(5.3, "Please use the OnModelChanged that takes two parameters instead.")
 		void OnModelChanged(int Index);
@@ -148,6 +162,7 @@ namespace UE::MLDeformer
 
 		TSharedRef<SWidget> GenerateModelButtonContents(TSharedRef<FUICommandList> InCommandList);
 		TSharedRef<SWidget> GenerateVizModeButtonContents(TSharedRef<FUICommandList> InCommandList);
+		TSharedRef<SWidget> GenerateToolsMenuContents(TSharedRef<FUICommandList> InCommandList);
 
 	private:
 		/** The persona toolkit. */	
@@ -178,5 +193,11 @@ namespace UE::MLDeformer
 
 		/** Are we currently in a training process? */
 		bool bIsTraining = false;
+
+		/** Extenders for Tools menu */
+		static TArray<TUniquePtr<FToolsMenuExtender>> ToolsMenuExtenders;
+
+		/** Mutex for adding extenders */
+		static FCriticalSection ExtendersMutex;
 	};
 }	// namespace UE::MLDeformer

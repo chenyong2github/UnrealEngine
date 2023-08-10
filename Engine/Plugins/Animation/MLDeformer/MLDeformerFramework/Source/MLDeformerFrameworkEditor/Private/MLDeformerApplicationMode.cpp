@@ -40,6 +40,13 @@ namespace UE::MLDeformer
 		// Register custom tabs.
 		TabFactories.RegisterFactory(MakeShared<FMLDeformerVizSettingsTabSummoner>(MLDeformerEditor));
 		TabFactories.RegisterFactory(MakeShared<FMLDeformerTimelineTabSummoner>(MLDeformerEditor));
+		for (const TUniquePtr<FToolsMenuExtender>& Extender : FMLDeformerEditorToolkit::GetToolsMenuExtenders())
+		{
+			if (TSharedPtr<FWorkflowTabFactory> Factory = Extender->GetTabSummoner(MLDeformerEditor); Factory.IsValid())
+			{
+				TabFactories.RegisterFactory(Factory.ToSharedRef());
+			}
+		}
 
 		// Create tab layout.
 		TabLayout = FTabManager::NewLayout("Standalone_MLDeformerEditor_Layout_v5.3.001")
