@@ -10,16 +10,11 @@ void* FOsAllocator::Malloc(SIZE_T Size, uint32 Alignment)
 		FMemory::Free(FMemory::Malloc(0));
 		check(GMalloc);
 	}
-	void* Pointer = GMalloc->Malloc(Size, Alignment);
-	MemoryTrace_Alloc(uint64(Pointer), Size, Alignment, EMemoryTraceRootHeap::SystemMemory);
-	MemoryTrace_MarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
-	return Pointer;
+	return GMalloc->Malloc(Size, Alignment);
 }
 
 void FOsAllocator::Free(void* Pointer, SIZE_T Size)
 {
-	MemoryTrace_UnmarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
-	MemoryTrace_Free(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
 	GMalloc->Free(Pointer);
 }
 
