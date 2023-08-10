@@ -128,6 +128,9 @@ public:
 	/** Gets all visible Fixture Patches from the list */
 	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> GetVisibleFixturePatchRefs() const;
 
+	/** Gets the current Show Mode of the list */
+	EDMXReadOnlyFixturePatchListShowMode GetShowMode() const { return ShowMode; }
+
 	/** Gets the a descriptor for the current parameters for this list */
 	FDMXReadOnlyFixturePatchListDescriptor MakeListDescriptor() const;
 
@@ -136,6 +139,9 @@ public:
 
 	/** Sets the displayed DMX library */
 	void SetDMXLibrary(UDMXLibrary* InDMXLibrary);
+
+	/** Sets the selection state of the given item, if valid */
+	void SetItemSelection(const TSharedPtr<FDMXEntityFixturePatchRef> SelectedItem, bool bSelected);
 
 	/** Sets the excluded fixture patches */
 	void SetExcludedFixturePatches(const TArray<FDMXEntityFixturePatchRef>& NewExcludedFixturePatches);

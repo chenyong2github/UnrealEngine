@@ -94,34 +94,7 @@ TSharedRef<ITableRow> SDMXControlConsoleReadOnlyFixturePatchList::OnGenerateRow(
 
 EVisibility SDMXControlConsoleReadOnlyFixturePatchList::GetRowVisibility(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
 {
-	const bool bIsEnabled = IsRowEnabled(InFixturePatchRef);
-	bool bIsVisible = IsRowVisibleDelegate.IsBound() ? IsRowVisibleDelegate.Execute(InFixturePatchRef) : true;
-
-	const UDMXEntityFixturePatch* FixturePatch = InFixturePatchRef.IsValid() ? InFixturePatchRef->GetFixturePatch() : nullptr;
-	if (FixturePatch)
-	{
-		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
-		if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
-		{
-			const UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
-			if (FaderGroup)
-			{
-				const bool bIsMuted = FaderGroup->IsMuted();
-				switch (ShowMode)
-				{
-				case EDMXReadOnlyFixturePatchListShowMode::All:
-					break;
-				case EDMXReadOnlyFixturePatchListShowMode::Active:
-					bIsVisible &= !bIsMuted;
-					break;
-				case EDMXReadOnlyFixturePatchListShowMode::Inactive:
-					bIsVisible &= bIsMuted;
-					break;
-				}
-			}
-		}
-	}
-
+	const bool bIsVisible = IsRowVisibleDelegate.IsBound() ? IsRowVisibleDelegate.Execute(InFixturePatchRef) : true;
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 

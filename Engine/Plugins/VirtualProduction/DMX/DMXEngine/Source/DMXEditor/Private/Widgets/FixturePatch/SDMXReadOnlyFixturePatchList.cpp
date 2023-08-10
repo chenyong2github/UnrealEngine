@@ -153,6 +153,14 @@ void SDMXReadOnlyFixturePatchList::SetDMXLibrary(UDMXLibrary* InDMXLibrary)
 	RequestListRefresh();
 }
 
+void SDMXReadOnlyFixturePatchList::SetItemSelection(const TSharedPtr<FDMXEntityFixturePatchRef> SelectedItem, bool bSelected)
+{
+	if (ListView.IsValid() && SelectedItem.IsValid())
+	{
+		ListView->SetItemSelection(SelectedItem, bSelected);
+	}
+}
+
 void SDMXReadOnlyFixturePatchList::SetExcludedFixturePatches(const TArray<FDMXEntityFixturePatchRef>& NewExcludedFixturePatches)
 {
 	ExcludedFixturePatches = NewExcludedFixturePatches;

@@ -83,6 +83,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::Construct(const FArguments
 				.IsChecked(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::IsListChecked)
 				.IsRowChecked(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowChecked)
 				.IsRowEnabled(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowEnabled)
+				.IsRowVisibile(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowVisible)
 			]
 		];
 }
@@ -363,6 +364,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 	}
 
 	const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedItems = FixturePatchList->GetSelectedFixturePatchRefs();
+	const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> VisibleItems = FixturePatchList->GetVisibleFixturePatchRefs();
 	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 	TArray<UObject*> FaderGroupsToAddToSelection;
 	TArray<UObject*> FaderGroupsToRemoveFromSelection;
@@ -374,13 +376,21 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 		}
 
 		const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
-		const bool bIsFixturePatchSelected = SelectedItems.ContainsByPredicate([FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
+		const TSharedPtr<FDMXEntityFixturePatchRef>* FixturePatchRefPtr = Algo::FindByPredicate(SelectedItems, [FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
 			{
 				return FixturePatchRef.IsValid() && FixturePatchRef->GetFixturePatch() == FixturePatch;
 			});
 
-		FaderGroup->SetIsActive(bIsFixturePatchSelected);
-		if (bIsFixturePatchSelected)
+		const bool bIsFixturePatchSelected = FixturePatchRefPtr && FixturePatchRefPtr->IsValid();
+		const bool bIsFixturePatchVisible = VisibleItems.ContainsByPredicate([FixturePatch](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
+			{
+				return FixturePatchRef.IsValid() && FixturePatchRef->GetFixturePatch() == FixturePatch;
+			});
+
+		// Set fader group active if is selected and visible
+		const bool bIsFaderGroupActive = bIsFixturePatchSelected && bIsFixturePatchVisible;
+		FaderGroup->SetIsActive(bIsFaderGroupActive);
+		if (bIsFaderGroupActive)
 		{
 			DefaultLayout->AddToActiveFaderGroups(FaderGroup);
 			const bool bAutoSelect = EditorConsoleModel->GetAutoSelectActivePatches();
@@ -394,6 +404,10 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 		{
 			DefaultLayout->RemoveFromActiveFaderGroups(FaderGroup);
 			FaderGroupsToRemoveFromSelection.Add(FaderGroup);
+			if (bIsFixturePatchSelected)
+			{
+				FixturePatchList->SetItemSelection(*FixturePatchRefPtr, false);
+			}
 		}
 	}
 
@@ -894,6 +908,98 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowEnabl
 	}
 	
 	return !IsValid(CurrentLayout->FindFaderGroupByFixturePatch(FixturePatch));
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowVisible(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
+{
+	if (!InFixturePatchRef.IsValid())
+	{
+		return true;
+	}
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel->GetEditorConsoleLayouts();
+	if (!EditorConsoleLayouts)
+	{
+		return true;
+	}
+
+	const UDMXControlConsoleEditorGlobalLayoutBase* CurrentLayout = EditorConsoleLayouts->GetActiveLayout();
+	if (CurrentLayout && CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutDefault::StaticClass())
+	{
+		return IsRowVisibleInDefaultLayout(InFixturePatchRef);
+	}
+	else if (CurrentLayout && CurrentLayout->GetClass() == UDMXControlConsoleEditorGlobalLayoutUser::StaticClass())
+	{
+		return IsRowVisibleInUserLayout(InFixturePatchRef);
+	}
+
+	return true;
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowVisibleInDefaultLayout(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
+{
+	const UDMXEntityFixturePatch* FixturePatch = InFixturePatchRef.IsValid() ? InFixturePatchRef->GetFixturePatch() : nullptr;
+	if (!FixturePatch)
+	{
+		return true;
+	}
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
+	if (!EditorConsoleData)
+	{
+		return true;
+	}
+
+	const UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
+	if (!FaderGroup)
+	{
+		return true;
+	}
+
+	const bool bIsMuted = FaderGroup->IsMuted();
+	const EDMXReadOnlyFixturePatchListShowMode ShowMode = FixturePatchList.IsValid() ? FixturePatchList->GetShowMode() : EDMXReadOnlyFixturePatchListShowMode::All;
+	switch (ShowMode)
+	{
+	case EDMXReadOnlyFixturePatchListShowMode::Active:
+		return !bIsMuted;
+		break;
+	case EDMXReadOnlyFixturePatchListShowMode::Inactive:
+		return bIsMuted;
+		break;
+	default:
+		return true;
+	}
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowVisibleInUserLayout(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
+{
+	if (!InFixturePatchRef.IsValid())
+	{
+		return true;
+	}
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
+	if (!EditorConsoleData)
+	{
+		return true;
+	}
+
+	const bool bIsEnabled = IsFixturePatchListRowEnabled(InFixturePatchRef);
+	const EDMXReadOnlyFixturePatchListShowMode ShowMode = FixturePatchList.IsValid() ? FixturePatchList->GetShowMode() : EDMXReadOnlyFixturePatchListShowMode::All;
+	switch (ShowMode)
+	{
+	case EDMXReadOnlyFixturePatchListShowMode::Active:
+		return bIsEnabled;
+		break;
+	case EDMXReadOnlyFixturePatchListShowMode::Inactive:
+		return !bIsEnabled;
+		break;
+	default:
+		return true;
+	}
 }
 
 bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsAddAllPatchesButtonEnabled() const

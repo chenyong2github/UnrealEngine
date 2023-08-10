@@ -93,8 +93,17 @@ private:
 	/** Gets wheter any Fader Group is muted/unmuted */
 	bool IsAnyFaderGroupsMuted(bool bMute, bool bOnlyActive = false) const;
 
-	/** Gets for each FixturePatchList row if they should be enabled or not */
+	/** Gets whether the given FixturePatchRef should be enabled or not */
 	bool IsFixturePatchListRowEnabled(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
+
+	/** Gets whether the given FixturePatchRef should be visible or not */
+	bool IsFixturePatchListRowVisible(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
+
+	/** True if a FixturePatchList row is visble in Default Layout */
+	bool IsRowVisibleInDefaultLayout(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
+
+	/** True if a FixturePatchList row is visble in User Layout */
+	bool IsRowVisibleInUserLayout(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
 
 	/** Gets enable state for Add All Patches button when a DMX Library is selected */
 	bool IsAddAllPatchesButtonEnabled() const;
