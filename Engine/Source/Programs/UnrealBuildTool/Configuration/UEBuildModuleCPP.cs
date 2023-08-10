@@ -722,14 +722,6 @@ namespace UnrealBuildTool
 
 				PrecompiledManifest Manifest = new PrecompiledManifest();
 				Manifest.OutputFiles.AddRange(LinkInputFiles.Select(x => x.Location));
-				foreach (FileItem NatvisSourceFile in NatvisFiles)
-				{
-					FileItem? Item = ToolChain.LinkDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory);
-					if (Item != null)
-					{
-						Manifest.OutputFiles.Add(Item.Location);
-					}
-				}	
 				Manifest.WriteIfModified(PrecompiledManifestLocation);
 			}
 
