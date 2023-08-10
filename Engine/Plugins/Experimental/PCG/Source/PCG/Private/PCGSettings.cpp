@@ -608,12 +608,9 @@ bool UPCGSettings::IsPropertyOverriddenByPin(const FProperty* InProperty) const
 
 void UPCGSettings::PostPaste()
 {
-	// Graph parameter overrides are not properly built when importing from pasted text (because param
-	// Properties are transient/unserialized), so for subgraphs we should reinitialize in post
-	if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(this))
-	{
-		SubgraphSettings->InitializeCachedOverridableParams(/*bReset=*/true);
-	}
+	// Params are not properly built when importing from pasted text (because param
+	// Properties are transient/unserialized), so we should reinitialize in post
+	InitializeCachedOverridableParams(/*bReset=*/true);
 }
 
 void UPCGSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)

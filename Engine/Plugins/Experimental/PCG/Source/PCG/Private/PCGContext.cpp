@@ -155,7 +155,11 @@ void FPCGContext::OverrideSettings()
 
 	for (const FPCGSettingsOverridableParam& Param : OriginalSettings->OverridableParams())
 	{
-		check(!Param.Properties.IsEmpty());
+		if (!ensure(!Param.Properties.IsEmpty()))
+		{
+			PCGE_LOG_C(Error, GraphAndLog, this, FText::Format(LOCTEXT("ParamPropertyIsEmpty", "Override pin '{0}' has no property set, we can't override it."), FText::FromName(Param.Label)));
+			continue;
+		}
 
 		// Verification that container is valid and we have the right class.
 		void* Container = nullptr;
