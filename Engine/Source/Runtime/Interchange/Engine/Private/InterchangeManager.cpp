@@ -1431,9 +1431,11 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		Pipeline->AdjustSettingsForContext(Context, TaskData.ReimportObject);
 	};
 
-	FDateTime CurrentDateTime(FDateTime::Now());
-	const FString TransientPackageBasePath = GetTransientPackage()->GetPathName();
-	const FString PackageName = FString::Printf(TEXT("InterchangePipelinePackage_%llu"), CurrentDateTime.GetTicks());
+	// Use counter to guarantee uniqueness of packages on each call to ImportInternal
+	static uint64 ImportCounter = 0;
+	static FString TransientPackageBasePath = GetTransientPackage()->GetPathName();
+
+	const FString PackageName = FString::Printf(TEXT("InterchangePipelinePackage-%llu"), ++ImportCounter);
 	AsyncHelper->PipelineInstancesPackageName = TransientPackageBasePath / PackageName;
 
 	UPackage* PipelineInstancesPackage = CreatePackage(*AsyncHelper->PipelineInstancesPackageName);
