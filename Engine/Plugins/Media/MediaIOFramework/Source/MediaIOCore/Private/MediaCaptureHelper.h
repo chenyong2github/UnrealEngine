@@ -32,7 +32,7 @@ namespace UE::MediaCaptureData
 		static void AddSyncPointPass(FRDGBuilder& GraphBuilder, UMediaCapture* MediaCapture, TSharedPtr<UE::MediaCaptureData::FCaptureFrame> CapturingFrame, FRDGViewableResource* OutputResource)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(MediaCaptureSyncPoint);
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCaptureSyncPoint_%d"), CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread));
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCaptureSyncPoint_%d"), CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread % 10));
 
 			// Initialize sync handlers only the first time. 
 			if (MediaCapture->bSyncHandlersInitialized == false)

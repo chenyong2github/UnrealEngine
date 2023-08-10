@@ -28,6 +28,7 @@ namespace UE::RivermaxCore::Private
 	{
 		FrameIdentifier = InvalidIdentifier;
 		bIsVideoBufferReady = false;
+		bCaughtTimingIssue = false;
 		ReadyTimestamp = 0;
 		Clear();
 	}

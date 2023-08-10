@@ -32,4 +32,10 @@ namespace UE::RivermaxCore::Private::Utils
 
 	/** Convert a set of streaming option to its SDP description. Currently only support video type. */
 	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxOutputStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription);
+
+	/**
+	 * Converts a timestamp in MediaClock period units to a frame number for a given frame rate
+	 * 2110-20 streams uses a standard media clock rate of 90kHz
+	 */
+	uint32 TimestampToFrameNumber(uint32 Timestamp, const FFrameRate& FrameRate);
 }

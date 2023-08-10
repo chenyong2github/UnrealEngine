@@ -17,6 +17,7 @@
 #include "RivermaxMediaTextureSample.h"
 #include "RivermaxMediaUtils.h"
 #include "RivermaxPTPUtils.h"
+#include "RivermaxTracingUtils.h"
 #include "RivermaxTypes.h"
 #include "Stats/Stats2.h"
 #include "Tasks/Task.h"
@@ -711,8 +712,7 @@ namespace UE::RivermaxMedia
 			OutExpectation.FrameIndex = HighestTimestampIndex;
 
 			// Make the ones skipped available for reception again
-			const FString TraceName = FString::Format(TEXT("RmaxInput::Selected {0}"), { OutExpectation.FrameNumber });
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxInSelectedFrameTraceEvents[OutExpectation.FrameNumber % 10]);
 
 			for (const TSharedPtr<FRivermaxSampleWrapper>& Frame : SamplePool)
 			{
@@ -990,6 +990,7 @@ namespace UE::RivermaxMedia
 			FPlatformProcess::SleepNoStats(SleepTimeSeconds);
 			if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
 			{
+				UE_LOG(LogRivermaxMedia, Warning, TEXT("Timed out waiting for pendings tasks to finish."));
 				break;
 			}
 		}

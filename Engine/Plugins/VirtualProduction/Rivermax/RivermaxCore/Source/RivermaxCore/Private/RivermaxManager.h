@@ -53,6 +53,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Verify if all prerequesites to go through Rivermax initialization have been met */
 		bool VerifyPrerequesites();
+
+		/** Initializes maps of strings used in various trace events to avoid allocating them continuously */
+		void InitializeTraceMarkupStrings();
 	private:
 
 		/** True when manager has been initialized */

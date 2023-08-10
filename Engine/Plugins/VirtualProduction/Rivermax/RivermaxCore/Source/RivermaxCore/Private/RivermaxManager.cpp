@@ -11,6 +11,7 @@
 #include "Misc/CoreDelegates.h"
 #include "RivermaxDeviceFinder.h"
 #include "RivermaxLog.h"
+#include "RivermaxTracingUtils.h"
 
 #include <chrono>
 
@@ -31,6 +32,16 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "RivermaxManager"
+
+namespace UE::RivermaxCore
+{
+	TMap<uint8, FString> FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents;
+	TMap<uint8, FString> FRivermaxTracingUtils::RmaxOutSendingFrameTraceEvents;
+	TMap<uint8, FString> FRivermaxTracingUtils::RmaxOutFrameReadyTraceEvents;
+	TMap<uint8, FString> FRivermaxTracingUtils::RmaxInStartingFrameTraceEvents;
+	TMap<uint8, FString> FRivermaxTracingUtils::RmaxInReceivedFrameTraceEvents;
+	TMap<uint8, FString> FRivermaxTracingUtils::RmaxInSelectedFrameTraceEvents;
+}
 
 namespace UE::RivermaxCore::Private
 {
@@ -294,6 +305,8 @@ namespace UE::RivermaxCore::Private
 						{
 							VerifyGPUDirectCapability();
 						}
+
+						InitializeTraceMarkupStrings();
 
 						bIsLibraryInitialized = true;
 						const TCHAR* GPUDirectSupport = bIsGPUDirectSupported ? TEXT("with GPUDirect support.") : TEXT("without GPUDirect support.");
@@ -668,6 +681,21 @@ namespace UE::RivermaxCore::Private
 			}
 
 			DynamicHeaderUsers.Remove(Interface);
+		}
+	}
+
+	void FRivermaxManager::InitializeTraceMarkupStrings()
+	{
+		constexpr uint8 MarkupCount = 10;
+
+		for (uint8 Index = 0; Index < MarkupCount; ++Index)
+		{
+			FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents.Add(Index, FString::Printf(TEXT("MediaCapturePipe: %u"), Index));
+			FRivermaxTracingUtils::RmaxOutSendingFrameTraceEvents.Add(Index, FString::Printf(TEXT("RmaxOut Sending: %u"), Index));
+			FRivermaxTracingUtils::RmaxOutFrameReadyTraceEvents.Add(Index, FString::Printf(TEXT("RmaxOut FrameReady: %u"), Index));
+			FRivermaxTracingUtils::RmaxInStartingFrameTraceEvents.Add(Index, FString::Printf(TEXT("RmaxIn Starting: %u"), Index));
+			FRivermaxTracingUtils::RmaxInReceivedFrameTraceEvents.Add(Index, FString::Printf(TEXT("RmaxIn Received: %u"), Index));
+			FRivermaxTracingUtils::RmaxInSelectedFrameTraceEvents.Add(Index, FString::Printf(TEXT("RmaxIn Selected: %u"), Index));
 		}
 	}
 

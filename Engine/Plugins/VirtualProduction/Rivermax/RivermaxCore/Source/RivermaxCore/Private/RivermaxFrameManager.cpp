@@ -5,6 +5,7 @@
 #include "IRivermaxCoreModule.h"
 #include "IRivermaxManager.h"
 #include "RivermaxLog.h"
+#include "RivermaxTracingUtils.h"
 
 namespace UE::RivermaxCore::Private
 {
@@ -238,9 +239,8 @@ namespace UE::RivermaxCore::Private
 				AvailableFrame->bIsVideoBufferReady = true;
 				if (AvailableFrame->IsReadyToBeSent())
 				{
-					const FString TraceName = FString::Format(TEXT("Rmax::FrameReady {0}"), { AvailableFrame->FrameIndex });
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %u"), AvailableFrame->FrameIdentifier));
+					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxOutFrameReadyTraceEvents[AvailableFrame->FrameIndex % 10]);
+					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents[AvailableFrame->FrameIdentifier % 10]);
 
 					MarkAsReady(AvailableFrame);
 				}

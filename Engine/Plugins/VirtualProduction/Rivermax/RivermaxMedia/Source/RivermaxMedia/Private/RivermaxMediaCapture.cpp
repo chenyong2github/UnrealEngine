@@ -12,6 +12,7 @@
 #include "RivermaxMediaOutput.h"
 #include "RivermaxMediaUtils.h"
 #include "RivermaxShaders.h"
+#include "RivermaxTracingUtils.h"
 #include "Slate/SceneViewport.h"
 #include "Widgets/SViewport.h"
 
@@ -270,7 +271,7 @@ void URivermaxMediaCapture::AddFrameReservationPass(FRDGBuilder& GraphBuilder)
 	GraphBuilder.RHICmdList.EnqueueLambda([Capturer, FrameCounter = GFrameCounterRenderThread](FRHICommandList& RHICmdList)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(RmaxFrameReservation);
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %llu"), FrameCounter));
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*UE::RivermaxCore::FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents[FrameCounter % 10]);
 
 		if (Capturer->bIsActive)
 		{
@@ -302,7 +303,7 @@ void URivermaxMediaCapture::OnRHIResourceCaptured_AnyThread(const FCaptureBaseDa
 	using namespace UE::RivermaxCore;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(URivermaxMediaCapture::OnRHIResourceCaptured_AnyThread);
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %u"), InBaseData.SourceFrameNumberRenderThread));
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents[InBaseData.SourceFrameNumberRenderThread % 10]);
 
 	FRivermaxOutputVideoFrameInfo NewFrame;
 	NewFrame.FrameIdentifier = InBaseData.SourceFrameNumberRenderThread;
@@ -318,7 +319,7 @@ void URivermaxMediaCapture::OnFrameCaptured_AnyThread(const FCaptureBaseData& In
 	using namespace UE::RivermaxCore;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(URivermaxMediaCapture::OnFrameCaptured_AnyThread);
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %u"), InBaseData.SourceFrameNumberRenderThread));
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents[InBaseData.SourceFrameNumberRenderThread % 10]);
 	
 	FRivermaxOutputVideoFrameInfo NewFrame;
 	NewFrame.Height = InResourceData.Height;
@@ -380,8 +381,7 @@ void URivermaxMediaCapture::OnCustomCapture_RenderingThread(FRDGBuilder& GraphBu
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Rmax_Capture)
 	TRACE_CPUPROFILER_EVENT_SCOPE(URivermaxMediaCapture::OnCustomCapture_RenderingThread);
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %llu"), GFrameCounterRenderThread));
-
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*UE::RivermaxCore::FRivermaxTracingUtils::RmaxOutMediaCapturePipeTraceEvents[GFrameCounterRenderThread % 10]);
 
 	using namespace UE::RivermaxShaders;
 	URivermaxMediaOutput* RivermaxOutput = CastChecked<URivermaxMediaOutput>(MediaOutput);

@@ -2,11 +2,17 @@
 
 #include "RivermaxUtils.h"
 
+#include "HAL/IConsoleManager.h"
 #include "RivermaxTypes.h"
 
 
 namespace UE::RivermaxCore::Private::Utils
 {
+	static TAutoConsoleVariable<float> CVarRivermaxOutputFrameRateMultiplier(
+		TEXT("Rivermax.Output.FrameRateMultiplier"), 1.00,
+		TEXT("Multiplier applied to desired output frame rate in order to reduce time it takes to send out a frame and slowly correct misalignment that could happen."),
+		ECVF_Default);
+
 	FString PixelFormatToSamplingDesc(ESamplingType SamplingType)
 	{
 		switch (SamplingType)
@@ -90,14 +96,22 @@ namespace UE::RivermaxCore::Private::Utils
 		// Basic SDP string creation from a set of options. At some point, having a proper SDP loader / creator would be useful.
 		// Refer to https://datatracker.ietf.org/doc/html/rfc4570
 
+		// Apply desired multiplier, if any, to the desired output frame rate.
+		const float FrameRateMultiplier = FMath::Clamp(CVarRivermaxOutputFrameRateMultiplier.GetValueOnAnyThread(), 1.0, 1.2);
 		FString FrameRateDescription;
-		if (FMath::IsNearlyZero(FMath::Frac(Options.FrameRate.AsDecimal())) == false)
+		if (!FMath::IsNearlyEqual(FrameRateMultiplier, 1.0f))
+		{
+			// When a multiplier is involved, always write out frame rate using decimals
+			const double AdjustedFrameRate = Options.FrameRate.AsDecimal() * CVarRivermaxOutputFrameRateMultiplier.GetValueOnAnyThread();
+			FrameRateDescription = FString::Printf(TEXT("%0.9f"), AdjustedFrameRate);
+		}
+		else if (FMath::IsNearlyZero(FMath::Frac(Options.FrameRate.AsDecimal())) == false)
 		{
 			FrameRateDescription = FString::Printf(TEXT("%d/%d"), Options.FrameRate.Numerator, Options.FrameRate.Denominator);
 		}
 		else
 		{
-			FrameRateDescription = FString::Printf(TEXT("%d"), (uint32)Options.FrameRate.AsDecimal());
+			FrameRateDescription = FString::Printf(TEXT("%d"), (int32)Options.FrameRate.AsDecimal());
 		}
 
 
@@ -115,5 +129,13 @@ namespace UE::RivermaxCore::Private::Utils
 			, Options.AlignedResolution.Y
 			, *FrameRateDescription
 			, *PixelFormatToBitDepth(Options.PixelFormat));
+	}
+
+	uint32 TimestampToFrameNumber(uint32 Timestamp, const FFrameRate& FrameRate)
+	{
+		using namespace UE::RivermaxCore::Private::Utils;
+		const double MediaFrameTime = Timestamp / MediaClockSampleRate;
+		const uint32 FrameNumber = FMath::Floor(MediaFrameTime * FrameRate.AsDecimal());
+		return FrameNumber;
 	}
 }

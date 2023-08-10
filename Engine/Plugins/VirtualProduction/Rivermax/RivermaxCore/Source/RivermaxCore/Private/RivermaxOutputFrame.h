@@ -53,8 +53,8 @@ namespace UE::RivermaxCore::Private
 		uint32 ChunkNumber = 0;
 		uint32 BytesSent = 0;
 
-		/** Timestamp of this frame  */
-		double TimestampTicks = 0.0;
+		/** Timestamp of this frame used for RTP headers  */
+		uint32 MediaTimestamp = 0;
 
 		/** Payload (data) pointer retrieved from Rivermax for the next chunk */
 		void* PayloadPtr = nullptr;
@@ -73,6 +73,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Time at which this frame was made available to be sent */
 		uint64 ReadyTimestamp = 0;
+
+		/** Whether timing issues were detected while sending frame out. If yes, we skip the next frame boundary */
+		bool bCaughtTimingIssue = false;
 	};
 }
 

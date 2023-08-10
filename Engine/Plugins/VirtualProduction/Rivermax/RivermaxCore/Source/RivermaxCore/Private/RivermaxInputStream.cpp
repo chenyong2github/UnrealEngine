@@ -9,6 +9,7 @@
 #include "IRivermaxManager.h"
 #include "Misc/ByteSwap.h"
 #include "RivermaxLog.h"
+#include "RivermaxTracingUtils.h"
 #include "RivermaxUtils.h"
 #include "RTPHeader.h"
 
@@ -29,18 +30,6 @@ namespace UE::RivermaxCore::Private
 		1500,
 		TEXT("Expected payload size used to initialize rivermax stream."),
 		ECVF_Default);
-
-	/** 
-	 * Converts a timestamp in MediaClock period units to a frame number for a given frame rate 
-	 * 2110-20 streams uses a standard media clock rate of 90kHz
-	 */
-	uint32 TimestampToFrameNumber(uint32 Timestamp, const FFrameRate& FrameRate)
-	{
-		using namespace UE::RivermaxCore::Private::Utils;
-		const double MediaFrameTime = Timestamp / MediaClockSampleRate;
-		const uint32 FrameNumber = FMath::Floor(MediaFrameTime * FrameRate.AsDecimal());
-		return FrameNumber;
-	}
 
 	void FFrameDescriptionTrackingData::ResetSingleFrameTracking()
 	{
@@ -382,8 +371,8 @@ namespace UE::RivermaxCore::Private
 					// Add trace for the first packet of a frame to help visualize reception of a full frame in time
 					if (bIsFirstPacketReceived == false)
 					{
-						const FString TraceName = FString::Format(TEXT("RmaxInput::StartingFrame {0}"), { RTPHeader.Timestamp });
-						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+						const uint32 FrameNumber = Utils::TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
+						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxInStartingFrameTraceEvents[FrameNumber % 10]);
 						bIsFirstPacketReceived = true;
 					}
 
@@ -861,14 +850,13 @@ namespace UE::RivermaxCore::Private
 		Descriptor.Timestamp = RTPHeader.Timestamp;
 		const uint32 PixelCount = StreamResolution.X * StreamResolution.Y;
 		Descriptor.VideoBufferSize = PixelCount / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
-		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
+		Descriptor.FrameNumber = Utils::TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
 
 		if (StreamData.ReceivedSize == StreamData.ExpectedSize)
 		{
 			++StreamStats.FramesReceived;
 			
-			const FString TraceName = FString::Format(TEXT("RmaxReceivedFrame {0}|{1}"), { RTPHeader.Timestamp, Descriptor.FrameNumber });
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FRivermaxTracingUtils::RmaxInReceivedFrameTraceEvents[Descriptor.FrameNumber % 10]);
 
 			if (bIsUsingGPUDirect)
 			{
@@ -1022,7 +1010,7 @@ namespace UE::RivermaxCore::Private
 		const uint32 PixelCount = StreamResolution.X * StreamResolution.Y;
 		const uint32 FrameSize = PixelCount / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
 		Descriptor.VideoBufferSize = FrameSize;
-		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
+		Descriptor.FrameNumber = Utils::TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
 
 		const uint64 LastSequenceNumberIncremented = StreamData.LastSequenceNumber + 1;
 

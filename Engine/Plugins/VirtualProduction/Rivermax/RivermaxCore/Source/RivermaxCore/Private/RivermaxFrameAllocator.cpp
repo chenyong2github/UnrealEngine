@@ -11,12 +11,12 @@
 namespace UE::RivermaxCore::Private
 {
 	static TAutoConsoleVariable<int32> CVarRivermaxOutputEnableParallelCopy(
-		TEXT("Rivermax.Output.EnableParallelCopy"), 0,
+		TEXT("Rivermax.Output.EnableParallelCopy"), 1,
 		TEXT("Parallel"),
 		ECVF_Default);
 
 	static TAutoConsoleVariable<int32> CVarRivermaxOutputParallelCopyThreadCount(
-		TEXT("Rivermax.Output.ParallelCopyThreadCount"), 8,
+		TEXT("Rivermax.Output.ParallelCopyThreadCount"), 4,
 		TEXT("Parallel"),
 		ECVF_Default);
 

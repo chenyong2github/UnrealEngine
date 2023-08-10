@@ -25,43 +25,102 @@ namespace UE::RivermaxCore::Private
 	using UE::RivermaxCore::FRivermaxOutputStreamOptions;
 	using UE::RivermaxCore::FRivermaxOutputVideoFrameInfo;
 
+
+	/** Struct holding configuration information with regards to stream memory and packetization */
 	struct FRivermaxOutputStreamMemory
 	{
+		/** Size of each data payload packet that will be used */
 		uint16 PayloadSize = 0;
+
+		/** Number of pixel group per packet */
 		uint32 PixelGroupPerPacket = 0;
+
+		/** Number of pixels per packet */
 		uint32 PixelsPerPacket = 0;
+
+		/** Number of pixels per frame */
 		uint32 PixelsPerFrame = 0;
 
+		/** Stride of RTP header data. */
 		uint32 HeaderStrideSize = 20;
+
+		/** Number of lines packed inside a chunk. Can be controlled with cvar */
 		uint32 LinesInChunk = 4;
 
+		/** Number of packets per line.  */
 		uint32 PacketsInLine = 0;
+
+		/** Number of packets per chunk. Depends on LinesInChunk */
 		uint32 PacketsPerChunk = 0;
 
+		/** Number of frames per memory block. */
 		uint32 FramesFieldPerMemoryBlock = 0;
-		uint32 PacketsPerFrame = 0;
-		uint32 PacketsPerMemoryBlock = 0;
-		uint32 ChunksPerFrameField = 0;
-		uint32 ChunksPerMemoryBlock = 0;
-		uint32 MemoryBlockCount = 0; 
 
+		/** Number of packets per frame */
+		uint32 PacketsPerFrame = 0;
+
+		/** Number of packets per memory block */
+		uint32 PacketsPerMemoryBlock = 0;
+
+		/**Number of chunks per frame  */
+		uint32 ChunksPerFrameField = 0;
+
+		/** Number of chunks per memory block */
+		uint32 ChunksPerMemoryBlock = 0;
+
+		/** Number of memory block */
+		uint32 MemoryBlockCount = 0; 
+		
+		/** Whether intermediate buffer is used and captured frame has to be copied over again. */
+		bool bUseIntermediateBuffer = false;
+
+		/** Number of slices we split frame data into when copying it into intermediate buffer */
+		uint32 FrameMemorySliceCount = 1;
+
+		/** Chunk committed between each memcopy of frame data. Helps respect timing. */
+		uint32 ChunkSpacingBetweenMemcopies = 1;
+
+		/** Memory blocks given to Rivermax which where data is located */
 		TArray<rmax_mem_block> MemoryBlocks;
-		TArray<uint16_t> PayloadSizes; //Array describing stride payload size
-		TArray<uint16_t> HeaderSizes; //Array describing header payload size
-		TArray<TArray<FRawRTPHeader>> RTPHeaders; //RTP Headers per memblock
+
+		/** Array with each packet size */
+		TArray<uint16_t> PayloadSizes; 
+
+		/** Array with each RTP header size */
+		TArray<uint16_t> HeaderSizes;
+
+		/** Contains RTP headers per memory block */
+		TArray<TArray<FRawRTPHeader>> RTPHeaders;
+
+		/** Start addresses of each buffer in memblock */
+		TArray<void*> BufferAddresses;
 	};
 
 	struct FRivermaxOutputStreamStats
 	{
+		/** Chunk retries that were required since stream was started */
 		uint32 TotalChunkRetries = 0;
+		
+		/** Chunk retries that happened during last frame */
 		uint32 LastFrameChunkRetries = 0;
+		
+		/** Chunk skipping retries that happened since stream was started */
 		uint32 ChunkSkippingRetries = 0;
-		uint32 TotalStrides = 0;
-		uint32 ChunkWait = 0;
-		uint32 CommitWaits = 0;
+		
+		/** Total packets that have been sent since stream was started */
+		uint32 TotalPacketSent = 0;
+		
+		/** Number of retries that were required when committing and queue was full since stream was started */
 		uint32 CommitRetries = 0;
+
+		/** Immediate commits that were done because we got there too close to scheduling time */
 		uint32 CommitImmediate = 0;
+
+		/** Number of frames that were sent since stream was started */
 		uint64 FramesSentCounter = 0;
+
+		/** Frames that had timing issues since stream was started */
+		uint64 TimingIssueCount = 0;
 	};
 
 	struct FRivermaxOutputStreamData
@@ -70,8 +129,8 @@ namespace UE::RivermaxCore::Private
 		uint32 SequenceNumber = 0;
 		double FrameFieldTimeIntervalNs = 0.0;
 		
-		/** RTP header index we are expected to use. Used to validate returned header pointer by Rivermax. */
-		uint8 RTPHeaderFrameIndex = 0;
+		/** Data and RTP frame index expected to be used for next frame */
+		uint8 ExpectedFrameIndex = 0;
 
 		/** Used to detect misalignment between chunk being sent and frame memory we are writing in */
 		bool bHasFrameFirstChunkBeenFetched = false;
@@ -98,6 +157,9 @@ namespace UE::RivermaxCore::Private
 	/** Struct holding various cached cvar values that can't be changed once stream has been created and to avoid calling anythread getters continuously */
 	struct FOutputStreamCachedCVars
 	{
+		/** Whether timing protection is active and next frame interval is skipped if it happens */
+		bool bEnableCommitTimeProtection = true;
+
 		/** Time padding from scheduling time required to avoid skipping it */
 		uint64 SkipSchedulingTimeNanosec = 0;
 
@@ -107,15 +169,21 @@ namespace UE::RivermaxCore::Private
 		 * gets to actually comitting it. 
 		 */
 		uint64 ForceCommitImmediateTimeNanosec = 0;
-
-		/** Number of slices we split frame data into when copying it into intermediate buffer */
-		uint32 FrameMemorySliceCount = 1;
-		
-		/** Whether intermediate buffer is used and captured frame has to be copied over again. */
-		bool bUseIntermediateBuffer = true;
 		
 		/** Tentative optimization recommended for SDK where a single big memblock is allocated. When false, a memblock per frame is configured. */
 		bool bUseSingleMemblock = true;
+
+		/** Whether to bump output thread priority to time critical */
+		bool bEnableTimeCriticalThread = true;
+
+		/** Whether to show output stats at regular interval in logs */
+		bool bShowOutputStats = false;
+
+		/** Interval in seconds at which to display output stats */
+		float ShowOutputStatsIntervalSeconds = 1.0f;
+
+		/** Whether to prefill RTP header memory with known data at initialization time instead of during sending */
+		bool bPrefillRTPHeaders = true;
 	};
 
 	class FRivermaxOutputStream : public UE::RivermaxCore::IRivermaxOutputStream, public FRunnable
@@ -166,8 +234,8 @@ namespace UE::RivermaxCore::Private
 		/** Destroys rivermax stream. Will wait until it's ready to be destroyed */
 		void DestroyStream();
 
-		/** Waits for the next point in time to send out a new frame */
-		void WaitForNextRound();
+		/** Waits for the next point in time to send out a new frame. Returns true if it exited earlier with the next frame ready to be processed */
+		bool WaitForNextRound();
 
 		/** Calculate next frame scheduling time for alignment points mode */
 		void CalculateNextScheduleTime_AlignementPoints(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber);
@@ -175,20 +243,22 @@ namespace UE::RivermaxCore::Private
 		/** Calculate next frame scheduling time for frame creation mode */
 		void CalculateNextScheduleTime_FrameCreation(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber);
 
-		/** Validates timing post waiting to be sure it is good moving forward with the next frame */
-		bool CanProceedWithScheduling() const;
+		/** Validates timing on every commit to see if we are respecting alignment */
+		bool IsChunkOnTime() const;
 		
-		/** Scheduling verification for frame creation mode. Always valid for now. */
-		bool CanProceedWithScheduling_FrameCreation() const;
+		/** Validates timing for frame creation alignment which always returns true. */
+		bool IsChunkOnTime_FrameCreation() const;
 		
-		/** Scheduling verification for alignment points which validates current timing is ok with alignment points */
-		bool CanProceedWithScheduling_AlignmentPoints() const;
+		/** Validates timing to make sure chunk to be committed are on time. 
+		 *  Once a chunk is late, timings are at risk and next frame will be skipped
+		 */
+		bool IsChunkOnTime_AlignmentPoints() const;
 
 		/** Query rivermax library for the next chunk to work with */
 		void GetNextChunk();
 
 		/** Copies part of frame memory in next memblock's chunk to be sent out */
-		void CopyFrameData();
+		bool CopyFrameData(const TSharedPtr<FRivermaxOutputFrame>& SourceFrame, uint8* DestinationBase);
 
 		/** Fills RTP header for all packets to be sent for this chunk */
 		void SetupRTPHeaders();
@@ -204,6 +274,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Returns next frame to send for alignement point method. Can return nullptr */
 		void PrepareNextFrame_AlignmentPoint();
+
+		/** Uses time before next frame interval to copy data from next ready frame to intermediate buffer */
+		void PreprocessNextFrame();
 
 		/** If enabled, print stats related to this stream */
 		void ShowStats();
@@ -231,6 +304,18 @@ namespace UE::RivermaxCore::Private
 
 		/** Called back when copy request was completed by allocator */
 		void OnMemoryChunksCopied(const TSharedPtr<FBaseDataCopySideCar>& Sidecar);
+
+		/** Called when delay request cvar has been changed */
+		void OnCVarRandomDelayChanged(IConsoleVariable* Var);
+
+		/** Update frame's timestamp to be used when setting every RTP headers */
+		void CalculateFrameTimestamp();
+
+		/** Tells Rivermax to skip a certain number of chunks in memory. Can be zero to just reset internals */
+		void SkipChunks(uint64 ChunkCount);
+
+		/** Go through all chunks of current frame and commit them to Rivermax to send them at the next desired time */
+		void SendFrame();
 
 	private:
 
@@ -303,11 +388,12 @@ namespace UE::RivermaxCore::Private
 		/** Cached cvar values */
 		FOutputStreamCachedCVars CachedCVars;
 
-		/** Time to sleep when waiting for an operation to complete */
-		static constexpr double SleepTimeSeconds = 50.0 * 1E-6;
-
 		/* Pointer to the rivermax API to avoid virtual calls in a hot loop. */ 
 		const UE::RivermaxCore::Private::RIVERMAX_API_FUNCTION_LIST* CachedAPI = nullptr;
+		/** Whether to trigger a delay in the output thread loop next time it ticks */
+		bool bTriggerRandomDelay = false;
+
+		friend struct FRTPHeaderPrefiller;
 	};
 }
 
