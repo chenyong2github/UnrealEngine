@@ -495,14 +495,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 			{
 				USoundSubmix* SoundSubmix = this;
 
-				TSet<TObjectPtr<USoundModulatorBase>> NewVolumeMod = OutputVolumeModulation.Modulators;
-				TSet<TObjectPtr<USoundModulatorBase>> NewWetLevelMod = WetLevelModulation.Modulators;
-				TSet<TObjectPtr<USoundModulatorBase>> NewDryLevelMod = DryLevelModulation.Modulators;
-
-				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, VolMod = MoveTemp(NewVolumeMod), WetMod = MoveTemp(NewWetLevelMod), DryMod = MoveTemp(NewDryLevelMod)](Audio::FDeviceId Id, FAudioDevice* Device) mutable
-				{
-					Device->UpdateSubmixModulationSettings(SoundSubmix, VolMod, WetMod, DryMod);
-				});
+				PushModulationChanges();
 
 				float NewVolumeModBase = OutputVolumeModulation.Value;
 				float NewWetModBase = WetLevelModulation.Value;
@@ -524,6 +517,39 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+void USoundSubmix::SetOutputVolumeModulation(const FSoundModulationDestinationSettings& InVolMod)
+{
+	OutputVolumeModulation = InVolMod;
+	PushModulationChanges();
+}
+
+void USoundSubmix::SetWetVolumeModulation(const FSoundModulationDestinationSettings& InVolMod)
+{
+	WetLevelModulation = InVolMod;
+	PushModulationChanges();
+}
+
+void USoundSubmix::SetDryVolumeModulation(const FSoundModulationDestinationSettings& InVolMod)
+{
+	DryLevelModulation = InVolMod;
+	PushModulationChanges();
+}
+
+void USoundSubmix::PushModulationChanges()
+{
+	if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+	{
+		// Send the changes to the Modulation System
+		TSet<TObjectPtr<USoundModulatorBase>> NewVolumeMod = OutputVolumeModulation.Modulators;
+		TSet<TObjectPtr<USoundModulatorBase>> NewWetLevelMod = WetLevelModulation.Modulators;
+		TSet<TObjectPtr<USoundModulatorBase>> NewDryLevelMod = DryLevelModulation.Modulators;
+		AudioDeviceManager->IterateOverAllDevices([SoundSubmix = this, VolMod = MoveTemp(NewVolumeMod), WetMod = MoveTemp(NewWetLevelMod), DryMod = MoveTemp(NewDryLevelMod)](Audio::FDeviceId Id, FAudioDevice* Device) mutable
+		{
+			Device->UpdateSubmixModulationSettings(SoundSubmix, VolMod, WetMod, DryMod);
+		});
+	}
+}
 
 FString USoundSubmixBase::GetDesc()
 {
