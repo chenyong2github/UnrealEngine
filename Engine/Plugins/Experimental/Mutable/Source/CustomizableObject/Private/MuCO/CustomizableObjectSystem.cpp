@@ -1166,6 +1166,7 @@ void UCustomizableObjectSystem::PurgePendingReleaseSkeletalMesh()
 	}
 }
 
+
 void UCustomizableObjectSystem::AddPendingReleaseSkeletalMesh(USkeletalMesh* SkeletalMesh)
 {
 	check(SkeletalMesh != nullptr);
@@ -2926,6 +2927,91 @@ UDefaultImageProvider& UCustomizableObjectSystem::GetOrCreateDefaultImageProvide
 	return *DefaultImageProvider;
 }
 
+static bool bRevertCacheTextureParameters = false;
+static FAutoConsoleVariableRef CVarRevertCacheTextureParameters(
+	TEXT("mutable.RevertCacheTextureParameters"), bRevertCacheTextureParameters,
+	TEXT("If true, FMutableOperation will not cache/uncache texture parameters. If false, FMutableOperation will add an additional reference to the TextureParameters being used in the update."));
+
+void CacheTexturesParameters(const TArray<FName>& TextureParameters)
+{
+	if (bRevertCacheTextureParameters)
+	{
+		return;
+	}
+
+	if (!TextureParameters.IsEmpty() && UCustomizableObjectSystem::IsCreated())
+	{
+		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
+		check(ImageProvider);
+
+		for (const FName& TextureParameter : TextureParameters)
+		{
+			ImageProvider->CacheImage(TextureParameter, false);
+		}
+	}
+}
+
+
+void UnCacheTexturesParameters(const TArray<FName>& TextureParameters)
+{
+	if (bRevertCacheTextureParameters)
+	{
+		return;
+	}
+
+	if (!TextureParameters.IsEmpty() && UCustomizableObjectSystem::IsCreated())
+	{
+		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
+		check(ImageProvider);
+
+		for (const FName& TextureParameter : TextureParameters)
+		{
+			ImageProvider->UnCacheImage(TextureParameter, false);
+		}
+	}
+}
+
+
+FMutableOperation::FMutableOperation(const FMutableOperation& Other)
+{
+	bNeverStream = Other.bNeverStream;
+	MipsToSkip = Other.MipsToSkip;
+	CustomizableObjectInstance = Other.CustomizableObjectInstance;
+	InstanceDescriptorRuntimeHash = Other.InstanceDescriptorRuntimeHash;
+	bStarted = Other.bStarted;
+	bBuildParameterRelevancy = Other.bBuildParameterRelevancy;
+	Parameters = Other.Parameters;
+	TextureParameters = Other.TextureParameters;
+	UpdateCallback = Other.UpdateCallback;
+
+	CacheTexturesParameters(TextureParameters);
+}
+
+
+FMutableOperation& FMutableOperation::operator=(const FMutableOperation& Other)
+{
+	bNeverStream = Other.bNeverStream;
+	MipsToSkip = Other.MipsToSkip;
+	CustomizableObjectInstance = Other.CustomizableObjectInstance;
+	InstanceDescriptorRuntimeHash = Other.InstanceDescriptorRuntimeHash;
+	bStarted = Other.bStarted;
+	bBuildParameterRelevancy = Other.bBuildParameterRelevancy;
+	Parameters = Other.Parameters;
+	TextureParameters = Other.TextureParameters;
+	UpdateCallback = Other.UpdateCallback;
+
+	CacheTexturesParameters(TextureParameters);
+
+	return *this;
+}
+
+
+FMutableOperation::~FMutableOperation()
+{
+	// Uncache Texture Parameters
+	UnCacheTexturesParameters(TextureParameters);
+}
+
 
 FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectInstance* InCustomizableObjectInstance, bool bInNeverStream, int32 InMipsToSkip, const FInstanceUpdateDelegate* UpdateCallback)
 {
@@ -2941,6 +3027,7 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.bStarted = false;
 	Op.bBuildParameterRelevancy = InCustomizableObjectInstance->GetBuildParameterRelevancy();
 	Op.Parameters = InCustomizableObjectInstance->GetDescriptor().GetParameters();
+	Op.TextureParameters = InCustomizableObjectInstance->GetPrivate()->UpdateTextureParameters;
 
 	if (UpdateCallback)
 	{
@@ -2954,6 +3041,8 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 		// Cancel the update because the parameters aren't valid, probably because the object is not compiled
 		Op.CustomizableObjectInstance = nullptr;
 	}
+
+	CacheTexturesParameters(Op.TextureParameters);
 
 	return Op;
 }

@@ -537,7 +537,7 @@ void FUnrealMutableImageProvider::CacheImage(FName Id, bool bUser)
 					UnrealDeferredTexture ? 1 : 0,
 					ImageProviders.Num());
 
-				pResult = CreateDummy();
+				return;
 			}
 			
 			FUnrealMutableImageInfo ImageInfo(pResult, UnrealDeferredTexture);

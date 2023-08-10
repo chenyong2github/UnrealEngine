@@ -35,6 +35,8 @@ class FMutableOperation
 	/** Instance parameters at the time of the operation request. */
 	mu::ParametersPtr Parameters; 
 	
+	TArray<FName> TextureParameters;
+
 	bool bBuildParameterRelevancy = false;
 	bool bMeshNeedsUpdate = false;
 
@@ -43,6 +45,12 @@ class FMutableOperation
 
 public:
 
+	FMutableOperation(const FMutableOperation&);
+	FMutableOperation(FMutableOperation&&) = default;
+	FMutableOperation& operator=(const FMutableOperation&);
+	FMutableOperation& operator=(FMutableOperation&&) = default;
+
+	~FMutableOperation();
 
 	static FMutableOperation CreateInstanceUpdate(UCustomizableObjectInstance* COInstance, bool bInNeverStream, int32 MipsToSkip, const FInstanceUpdateDelegate* UpdateCallback);
 
