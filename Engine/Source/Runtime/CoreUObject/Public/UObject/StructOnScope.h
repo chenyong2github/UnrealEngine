@@ -7,6 +7,8 @@
 #include "Templates/Casts.h"
 #include "Templates/RemoveReference.h"
 
+class FReferenceCollector;
+
 class FStructOnScope
 {
 protected:
@@ -126,6 +128,10 @@ public:
 		ScriptStruct = InScriptStruct;
 		Initialize();
 	}
+	
+	// If the struct definition is still available and there is struct memory to read from,
+	// add any object references in the struct data to the collector
+	COREUOBJECT_API void AddReferencedObjects(FReferenceCollector& Collector);
 };
 
 /**

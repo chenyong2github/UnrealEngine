@@ -49,3 +49,19 @@ void FStructOnScope::SetPackage(UPackage* InPackage)
 {
 	Package = InPackage;
 }
+
+void FStructOnScope::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (!SampleStructMemory)
+	{
+		return;
+	}
+	
+	// Unused result of cast just to confirm type
+	// Must use GetEvenIfUnreachable to resolve not-yet-scanned structures during GC where all objects are initially marked unreachable.
+	if (const UScriptStruct* ResolvedPtr = CastChecked<UScriptStruct>(ScriptStruct.GetEvenIfUnreachable()))
+	{
+		TWeakObjectPtr<const UScriptStruct>& StructPointer = reinterpret_cast<TWeakObjectPtr<const UScriptStruct>&>(ScriptStruct);
+		Collector.AddReferencedObjects(StructPointer, SampleStructMemory);	
+	}
+}
