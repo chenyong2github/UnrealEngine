@@ -32,6 +32,11 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorModel"
 
+UDMXControlConsoleData* UDMXControlConsoleEditorModel::GetEditorConsoleData() const
+{ 
+	return EditorConsole ? EditorConsole->GetControlConsoleData() : nullptr;
+}
+
 UDMXControlConsoleEditorLayouts* UDMXControlConsoleEditorModel::GetEditorConsoleLayouts() const
 {
 	return EditorConsole ? Cast<UDMXControlConsoleEditorLayouts>(EditorConsole->ControlConsoleEditorLayouts) : nullptr;

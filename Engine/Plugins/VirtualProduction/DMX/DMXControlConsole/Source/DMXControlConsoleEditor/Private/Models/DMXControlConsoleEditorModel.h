@@ -48,7 +48,7 @@ public:
 	UDMXControlConsole* GetEditorConsole() const { return EditorConsole; }
 
 	/** Returns the edited console data */
-	UDMXControlConsoleData* GetEditorConsoleData() const { return EditorConsole->GetControlConsoleData(); }
+	UDMXControlConsoleData* GetEditorConsoleData() const; 
 
 	/** Returns the edited console layouts */
 	UDMXControlConsoleEditorLayouts* GetEditorConsoleLayouts() const;
