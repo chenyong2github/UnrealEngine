@@ -90,6 +90,9 @@ FString FRigElementHierarchyDragDropOp::GetJoinedElementNames() const
 
 ///////////////////////////////////////////////////////////
 
+const FName SRigHierarchy::ContextMenuName = TEXT("ControlRigEditor.RigHierarchy.ContextMenu");
+const FName SRigHierarchy::DragDropMenuName = TEXT("ControlRigEditor.RigHierarchy.DragDropMenu");
+
 SRigHierarchy::~SRigHierarchy()
 {
 	const FControlRigEditor* Editor = ControlRigEditor.IsValid() ? ControlRigEditor.Pin().Get() : nullptr;
@@ -1033,8 +1036,15 @@ void SRigHierarchy::OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, 
 	TreeView->SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
-void SRigHierarchy::CreateDragDropMenu() const
+void SRigHierarchy::CreateDragDropMenu()
 {
+	static bool bCreatedMenu = false;
+	if(bCreatedMenu)
+	{
+		return;
+	}
+	bCreatedMenu = true;
+
 	const FName MenuName = DragDropMenuName;
 	UToolMenus* ToolMenus = UToolMenus::Get();
 
@@ -1043,10 +1053,8 @@ void SRigHierarchy::CreateDragDropMenu() const
 		return;
 	}
 
-	if (!ToolMenus->IsMenuRegistered(MenuName))
+	if (UToolMenu* Menu = ToolMenus->ExtendMenu(MenuName))
 	{
-		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
-
 		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
 				UToolMenus* ToolMenus = UToolMenus::Get();
@@ -1118,8 +1126,15 @@ UToolMenu* SRigHierarchy::GetDragDropMenu(const TArray<FRigElementKey>& DraggedK
 	return Menu;
 }
 
-void SRigHierarchy::CreateContextMenu() const
+void SRigHierarchy::CreateContextMenu()
 {
+	static bool bCreatedMenu = false;
+	if(bCreatedMenu)
+	{
+		return;
+	}
+	bCreatedMenu = true;
+	
 	const FName MenuName = ContextMenuName;
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -1129,21 +1144,10 @@ void SRigHierarchy::CreateContextMenu() const
 		return;
 	}
 
-	static bool bCreatedContextMenu = false;
-	if (!ToolMenus->IsMenuRegistered(MenuName) || !bCreatedContextMenu)
+	if (UToolMenu* Menu = ToolMenus->ExtendMenu(MenuName))
 	{
-		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
-		bCreatedContextMenu = true;
-		
-		TWeakPtr<const SRigHierarchy> WeakRigHierarchyWidget = SharedThis(this).ToWeakPtr();
-		
-		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([WeakRigHierarchyWidget](UToolMenu* InMenu)
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
-				if(!WeakRigHierarchyWidget.IsValid())
-				{
-					return;
-				}
-			
 				UControlRigContextMenuContext* MainContext = InMenu->FindContext<UControlRigContextMenuContext>();
 				
 				if (SRigHierarchy* RigHierarchyPanel = MainContext->GetRigHierarchyPanel())
@@ -1180,24 +1184,20 @@ void SRigHierarchy::CreateContextMenu() const
 					ElementsSection.AddMenuEntry(Commands.RenameItem);
 					ElementsSection.AddMenuEntry(Commands.MirrorItem);
 
-					if(RigHierarchyPanel->IsProceduralElementSelected() && WeakRigHierarchyWidget.Pin()->ControlRigBlueprint.IsValid())
+					if(RigHierarchyPanel->IsProceduralElementSelected() && RigHierarchyPanel->ControlRigBlueprint.IsValid())
 					{
 						ElementsSection.AddMenuEntry(
 							"SelectSpawnerNode",
 							LOCTEXT("SelectSpawnerNode", "Select Spawner Node"),
 							LOCTEXT("SelectSpawnerNode_Tooltip", "Selects the node that spawn / added this element."),
 							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([WeakRigHierarchyWidget]() {
-								if(!WeakRigHierarchyWidget.IsValid())
+							FUIAction(FExecuteAction::CreateLambda([RigHierarchyPanel]() {
+								if(!RigHierarchyPanel->ControlRigBlueprint.IsValid())
 								{
 									return;
 								}
-								if(!WeakRigHierarchyWidget.Pin()->ControlRigBlueprint.IsValid())
-								{
-									return;
-								}
-								const UControlRigBlueprint* CurrentControlRigBlueprint = WeakRigHierarchyWidget.Pin()->ControlRigBlueprint.Get();
-								const TArray<const FRigBaseElement*> Elements = WeakRigHierarchyWidget.Pin()->GetHierarchy()->GetSelectedElements();
+								const UControlRigBlueprint* CurrentControlRigBlueprint = RigHierarchyPanel->ControlRigBlueprint.Get();
+								const TArray<const FRigBaseElement*> Elements = RigHierarchyPanel->GetHierarchy()->GetSelectedElements();
 								for(const FRigBaseElement* Element : Elements)
 								{
 									if(Element->IsProcedural())

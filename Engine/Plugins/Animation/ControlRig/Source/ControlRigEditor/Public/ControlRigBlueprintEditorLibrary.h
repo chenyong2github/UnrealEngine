@@ -20,7 +20,7 @@ enum class ECastToControlRigBlueprintCases : uint8
 	CastFailed
 };
 
-UCLASS(meta=(ScriptName="ControlRigBlueprintLibrary"))
+UCLASS(BlueprintType, meta=(ScriptName="ControlRigBlueprintLibrary"))
 class CONTROLRIGEDITOR_API UControlRigBlueprintEditorLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
@@ -68,5 +68,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
 	static URigHierarchyController* GetHierarchyController(UControlRigBlueprint* InRigBlueprint);
+
+	UFUNCTION(BlueprintCallable, BlueprintCallable, Category = "Control Rig Blueprint")
+	static void SetupAllEditorMenus();
 };
 

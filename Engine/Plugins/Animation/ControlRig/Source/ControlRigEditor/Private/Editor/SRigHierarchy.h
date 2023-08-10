@@ -151,13 +151,13 @@ private:
 	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 
-	const FName ContextMenuName = TEXT("ControlRigEditor.RigHierarchy.ContextMenu");
-	void CreateContextMenu() const;
+	static const FName ContextMenuName;
+	static void CreateContextMenu();
 	UToolMenu* GetContextMenu();
 	TSharedPtr<FUICommandList> GetContextMenuCommands() const;
 	
-	const FName DragDropMenuName = TEXT("ControlRigEditor.RigHierarchy.DragDropMenu");
-	void CreateDragDropMenu() const;
+	static const FName DragDropMenuName;
+	static void CreateDragDropMenu();
 	UToolMenu* GetDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey);
 
 	/** Our owning control rig editor */
@@ -244,4 +244,5 @@ public:
 
 	friend class FRigTreeElement;
 	friend class SRigHierarchyItem;
+	friend class UControlRigBlueprintEditorLibrary;
 };

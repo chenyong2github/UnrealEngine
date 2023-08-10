@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigBlueprintEditorLibrary.h"
+#include "Editor/SRigHierarchy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprintEditorLibrary)
 
@@ -114,5 +115,11 @@ URigHierarchyController* UControlRigBlueprintEditorLibrary::GetHierarchyControll
 		return nullptr;
 	}
 	return InRigBlueprint->GetHierarchyController();
+}
+
+void UControlRigBlueprintEditorLibrary::SetupAllEditorMenus()
+{
+	SRigHierarchy::CreateContextMenu();
+	SRigHierarchy::CreateDragDropMenu();
 }
 
