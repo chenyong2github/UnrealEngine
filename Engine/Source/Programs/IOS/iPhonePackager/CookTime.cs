@@ -67,12 +67,14 @@ namespace iPhonePackager
 			// Open up the zip file
 			ZipFile Stub = ZipFile.Read(WorkIPAPath);
 
+			// modern xcode uses Foo-IOS-Config style .app directories, so don't assume GameName, pull it out of of the zip
+			Config.AppDirectoryInZIP = FileOperations.ZipFileSystem.FindRootPathInIPA(Stub);
+
 			// Do a few quick spot checks to catch problems that may have occurred earlier
 			bool bHasCodeSignature = Stub[Config.AppDirectoryInZIP + "/_CodeSignature/CodeResources"] != null;
-			bool bHasMobileProvision = Stub[Config.AppDirectoryInZIP + "/embedded.mobileprovision"] != null;
-			if (!bHasCodeSignature || !bHasMobileProvision)
+			if (!bHasCodeSignature)
 			{
-				Program.Error("Stub IPA does not appear to be signed correctly (missing mobileprovision or CodeResources)");
+				Program.Error("Stub IPA does not appear to be signed correctly (missing _CodeSignature/CodeResources)");
 				Program.ReturnCode = (int)ErrorCodes.Error_StubNotSignedCorrectly;
 			}
 
@@ -223,10 +225,7 @@ namespace iPhonePackager
 				return;
 			}
 
-			string ZipWorkingDir = String.Format("Payload/{0}{1}.app/", Config.GetTargetName(), Program.Architecture);
-
-			FileOperations.ZipFileSystem FileSystem = new FileOperations.ZipFileSystem(Zip, ZipWorkingDir);
-
+			FileOperations.ZipFileSystem FileSystem = new FileOperations.ZipFileSystem(Zip);
 			// Check for a staged plist that needs to be merged into the main one
 			{
 				// Determine if there is a staged one we should try to use instead
@@ -244,7 +243,9 @@ namespace iPhonePackager
 						byte[] StubPListBytes = FileSystem.ReadAllBytes("Info.plist");
 						Utilities.PListHelper StubInfo = new Utilities.PListHelper(Encoding.UTF8.GetString(StubPListBytes));
 
-						StubInfo.MergePlistIn(StageInfoString);
+						// don't overwrite the Exe name in the plist, because we may be merging in Development staged data
+						// with a Shipping binary (or whatever combination), and modern uses different-named executables for each config
+						StubInfo.MergePlistIn(StageInfoString, new HashSet<string> { "CFBundleExecutable" } );
 
 						// Write it back to the cloned stub, where it will be used for all subsequent actions
 						byte[] MergedPListBytes = Encoding.UTF8.GetBytes(StubInfo.SaveToString());
@@ -315,9 +316,8 @@ namespace iPhonePackager
 					string AbsoluteFilename = Path.GetFullPath(Filename);
 					string RelativeFilename = AbsoluteFilename.Substring(SourceDir.Length + 1).Replace('\\', '/');
 
-					string ZipAbsolutePath = String.Format("Payload/{0}{1}.app/{2}",
-						Config.GetTargetName(),
-						Program.Architecture,
+					string ZipAbsolutePath = String.Format("{0}/{1}",
+						Config.AppDirectoryInZIP,
 						RelativeFilename);
 
 					Stream FileContents = File.OpenRead(AbsoluteFilename);

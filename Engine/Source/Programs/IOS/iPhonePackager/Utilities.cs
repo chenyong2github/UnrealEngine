@@ -396,7 +396,7 @@ namespace iPhonePackager
 			/// Merge two plists together.  Whenever both have the same key, the value in the dominant source list wins.
 			/// This is special purpose code, and only handles things inside of the <dict> tag
 			/// </summary>
-			public void MergePlistIn(string DominantPlist)
+			public void MergePlistIn(string DominantPlist, HashSet<string> WeakKeysToKeep=null)
 			{
 				if (bReadOnly)
 				{
@@ -422,7 +422,8 @@ namespace iPhonePackager
 						DictionaryNode.AppendChild(Doc.ImportNode(StrongKeyNode, true));
 						DictionaryNode.AppendChild(Doc.ImportNode(StrongKeyNode.NextSibling, true));
 					}
-					else
+					// don't overwrite values we want to keep
+					else if (WeakKeysToKeep == null || !WeakKeysToKeep.Contains(StrongKey))
 					{
 						// Remove the existing value node from the weak file
 						WeakNode.ParentNode.RemoveChild(WeakNode.NextSibling);

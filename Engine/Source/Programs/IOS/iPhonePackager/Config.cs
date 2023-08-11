@@ -427,8 +427,10 @@ namespace iPhonePackager
 		/// </summary>
 		public static string AppDirectoryInZIP
 		{
-			get { return String.Format("Payload/{0}{1}.app", GetTargetName(), Program.Architecture); }
+			get { return _AppDirectoryInZIP != null ? _AppDirectoryInZIP : String.Format("Payload/{0}{1}.app", GetTargetName(), Program.Architecture); }
+			set { _AppDirectoryInZIP = value.TrimEnd("/".ToCharArray()); }
 		}
+		private static string _AppDirectoryInZIP = null;
 
 		/// <summary>
 		/// If the requirements blob is present in the existing executable when code signing, should it be carried forward
