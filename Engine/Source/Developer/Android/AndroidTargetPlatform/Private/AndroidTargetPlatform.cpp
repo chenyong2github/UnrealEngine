@@ -468,7 +468,7 @@ void FAndroidTargetPlatform::GetPlatformSpecificProjectAnalytics( TArray<FAnalyt
 		TEXT("SupportsES31"), SupportsES31()
 	);
 
-	AppendAnalyticsEventConfigArray(AnalyticsParamArray, TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bPackageForMetaQuest"), GEngineIni);
+	AppendAnalyticsEventConfigBool(AnalyticsParamArray, TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bPackageForMetaQuest"), GEngineIni);
 }
 
 #if WITH_ENGINE
