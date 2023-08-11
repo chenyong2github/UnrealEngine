@@ -32,6 +32,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bSupportsIPad = true;
 	bSupportsIPhone = true;
 	bEnableSplitView = false;
+	bEnableSimulatorSupport = false;
 	MinimumiOSVersion = EIOSVersion::IOS_Minimum;
     bBuildAsFramework = true;
 	bGeneratedSYMFile = false;

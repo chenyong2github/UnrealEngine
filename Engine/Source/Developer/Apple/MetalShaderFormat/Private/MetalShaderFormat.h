@@ -33,6 +33,7 @@ static FName NAME_SF_METAL_TVOS(TEXT("SF_METAL_TVOS"));
 static FName NAME_SF_METAL_MRT_TVOS(TEXT("SF_METAL_MRT_TVOS"));
 static FName NAME_SF_METAL_SM5(TEXT("SF_METAL_SM5"));
 static FName NAME_SF_METAL_SM6(TEXT("SF_METAL_SM6"));
+static FName NAME_SF_METAL_SIM(TEXT("SF_METAL_SIM"));
 static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
 static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));
 
@@ -137,7 +138,7 @@ public:
 	// True if Platform indicates a mobile (ios, tvos) platform
 	static bool IsMobile(const EShaderPlatform Platform)
 	{
-		return (Platform == SP_METAL || Platform == SP_METAL_MRT || Platform == SP_METAL_TVOS || Platform == SP_METAL_MRT_TVOS);
+		return (Platform == SP_METAL || Platform == SP_METAL_MRT || Platform == SP_METAL_SIM || Platform == SP_METAL_TVOS || Platform == SP_METAL_MRT_TVOS);
 	}
 
 	// True if Format is the FName of a mobile shader format (ios, tvos)

@@ -516,6 +516,7 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 void FIOSTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const
 {
 	static FName NAME_SF_METAL(TEXT("SF_METAL"));
+	static FName NAME_SF_METAL_SIM(TEXT("SF_METAL_SIM"));
 	static FName NAME_SF_METAL_MRT(TEXT("SF_METAL_MRT"));
 	static FName NAME_SF_METAL_TVOS(TEXT("SF_METAL_TVOS"));
 	static FName NAME_SF_METAL_MRT_TVOS(TEXT("SF_METAL_MRT_TVOS"));
@@ -539,6 +540,13 @@ void FIOSTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormats 
 		if (SupportsMetal())
 		{
 			OutFormats.AddUnique(NAME_SF_METAL);
+
+			bool bEnableSimulatorSupport = false;
+			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableSimulatorSupport"), bEnableSimulatorSupport, GEngineIni);
+			if (bEnableSimulatorSupport)
+			{
+				OutFormats.AddUnique(NAME_SF_METAL_SIM);
+			}
 		}
 
 		if (SupportsMetalMRT())
@@ -662,6 +670,9 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		}
 	}
 
+	bool bEnableSimulatorSupport = false;
+	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableSimulatorSupport"), bEnableSimulatorSupport, GEngineIni);
+
 	for (FName& TextureFormatName : OutFormats.Last())
 	{
 		if (Texture->GetTextureClass() == ETextureClass::Cube) 
@@ -673,6 +684,14 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 			{
 				TextureFormatName = FName(TEXT("ETC2_RGBA"));
 			}
+		}
+
+		// Currently (Xcode14), the iOS Simulator does not support compressed Volume textures.
+		if (bEnableSimulatorSupport && Texture->GetTextureClass() == ETextureClass::Volume)
+		{
+			FTextureFormatSettings FormatSettings;
+			Texture->GetDefaultFormatSettings(FormatSettings);
+			TextureFormatName = FName(TEXT("RGB8"));
 		}
 	}
 }

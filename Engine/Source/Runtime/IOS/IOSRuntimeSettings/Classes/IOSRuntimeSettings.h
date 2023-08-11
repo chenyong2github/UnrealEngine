@@ -270,6 +270,10 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Enable iPad Split View"))
     bool bEnableSplitView;
     
+    // Whether or not iOS Simulator support should be enabled for this project (Experimental)
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Enable iOS Simulator Support (Experimental)", ConfigRestartRequired = true))
+    bool bEnableSimulatorSupport;
+    
     /** Set the maximum frame rate to save on power consumption */
     UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
     EPowerUsageFrameRateLock FrameRateLock;

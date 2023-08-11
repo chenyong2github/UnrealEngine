@@ -18,13 +18,13 @@
 #if PLATFORM_TVOS
 #define SHADER_PLATFORM_METAL_MRT	SP_METAL_MRT_TVOS
 #define SHADER_PLATFORM_METAL		SP_METAL_TVOS
-
-#else // PLATFORM_TVOS
+#elif WITH_IOS_SIMULATOR
+#define SHADER_PLATFORM_METAL		SP_METAL_SIM
+#define SHADER_PLATFORM_METAL_MRT	SP_METAL_MRT
+#else
 #define SHADER_PLATFORM_METAL_MRT	SP_METAL_MRT
 #define SHADER_PLATFORM_METAL		SP_METAL
-
-#endif // PLATFORM_TVOS
-
+#endif
 
 //------------------------------------------------------------------------------
 // MARK: - iOS/tvOS Platform Dynamic RHI Routines
