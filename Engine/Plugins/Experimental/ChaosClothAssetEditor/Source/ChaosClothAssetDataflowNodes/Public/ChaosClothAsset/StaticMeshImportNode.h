@@ -24,23 +24,23 @@ public:
 	TObjectPtr<const UStaticMesh> StaticMesh;
 
 	/* Which static mesh Lod to import.*/
-	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (ClampMin = "0"))
-	int32 LodIndex = 0;
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (ClampMin = "0", DisplayName = "LOD Index"))
+	int32 LODIndex = 0;
 
 	/* Import static mesh data as a simulation mesh data.*/
 	UPROPERTY(EditAnywhere, Category = "Static Mesh Import")
-	bool bImportAsSimMesh = true;
+	bool bImportSimMesh = true;
 
 	/* Import static mesh data as render mesh data.*/
 	UPROPERTY(EditAnywhere, Category = "Static Mesh Import")
-	bool bImportAsRenderMesh = true;
+	bool bImportRenderMesh = true;
 
 	/* UV Channel used to populate Sim Mesh positions */
-	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", meta = (ClampMin = "-1", EditCondition = "bImportAsSimMesh"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", meta = (ClampMin = "-1", EditCondition = "bImportSimMesh"))
 	int32 UVChannel = 0;
 
 	/* Apply this scale to the UVs when populating Sim Mesh positions. */
-	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (AllowPreserveRatio, EditCondition = "bImportAsSimMesh && (UVChannel >= 0)"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (AllowPreserveRatio, EditCondition = "bImportSimMesh && (UVChannel >= 0)"))
 	FVector2f UVScale = { 1.f, 1.f };
 
 	FChaosClothAssetStaticMeshImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());

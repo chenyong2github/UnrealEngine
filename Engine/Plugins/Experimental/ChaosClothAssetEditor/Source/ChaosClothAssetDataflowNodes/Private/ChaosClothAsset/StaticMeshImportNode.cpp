@@ -133,15 +133,15 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		ClothFacade.DefineSchema();
 
-		if (StaticMesh && (bImportAsSimMesh || bImportAsRenderMesh))
+		if (StaticMesh && (bImportSimMesh || bImportRenderMesh))
 		{
 			const int32 NumLods = StaticMesh->GetNumSourceModels();
-			if (LodIndex < NumLods)
+			if (LODIndex < NumLods)
 			{
-				const FMeshDescription* const MeshDescription = StaticMesh->GetMeshDescription(LodIndex);
+				const FMeshDescription* const MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 				check(MeshDescription);
 
-				if (bImportAsSimMesh)
+				if (bImportSimMesh)
 				{
 					FMeshDescriptionToDynamicMesh Converter;
 					Converter.bPrintDebugMessages = false;
@@ -153,10 +153,10 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 					constexpr bool bAppend = false;
 					FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannel, UVScale, bAppend);
 				}
-				if (bImportAsRenderMesh)
+				if (bImportRenderMesh)
 				{
 					// Add render data into a single pattern for now
-					if (!InitializeDataFromMeshDescription(MeshDescription, StaticMesh->GetSourceModel(LodIndex).BuildSettings, StaticMesh->GetStaticMaterials(), ClothCollection))
+					if (!InitializeDataFromMeshDescription(MeshDescription, StaticMesh->GetSourceModel(LODIndex).BuildSettings, StaticMesh->GetStaticMaterials(), ClothCollection))
 					{
 						FClothDataflowTools::LogAndToastWarning(*this,
 							LOCTEXT("InvalidRenderMeshHeadline", "Invalid render mesh."),
@@ -167,17 +167,17 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 				}
 				
 				// Bind to root bone by default
-				FClothGeometryTools::BindMeshToRootBone(ClothCollection, bImportAsSimMesh, bImportAsRenderMesh);
+				FClothGeometryTools::BindMeshToRootBone(ClothCollection, bImportSimMesh, bImportRenderMesh);
 			}
 			else
 			{
 				FClothDataflowTools::LogAndToastWarning(*this,
-					LOCTEXT("InvalidLodIndexHeadline", "Invalid LOD index."),
-					FText::Format(LOCTEXT("InvalidLodIndexDetails",
+					LOCTEXT("InvalidLODIndexHeadline", "Invalid LOD index."),
+					FText::Format(LOCTEXT("InvalidLODIndexDetails",
 						"{0} is not a valid LOD index for static mesh {1}.\n"
 						"This static mesh has {2} LOD(s)."),
 						FText::FromString(StaticMesh->GetName()),
-						LodIndex,
+						LODIndex,
 						NumLods));
 			}
 		}

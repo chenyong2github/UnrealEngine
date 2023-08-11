@@ -24,7 +24,7 @@ public:
 	TObjectPtr<const USkeletalMesh> SkeletalMesh;
 
 	/** The skeletal mesh LOD to import. */
-	UPROPERTY(VisibleAnywhere, Category = "Skeletal Mesh Import", Meta = (ClampMin = "0"))
+	UPROPERTY(VisibleAnywhere, Category = "Skeletal Mesh Import", Meta = (ClampMin = "0", DisplayName = "LOD Index"))
 	int32 LODIndex = 0;
 
 	/** The skeletal mesh LOD section to import. */
