@@ -13,6 +13,7 @@
 #include "FbxScene.h"
 #include "InterchangeTextureNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeFbxParser"
 
@@ -99,13 +100,10 @@ namespace UE
 
 				bool bStatus = SDKImporter->Import(SDKScene);
 
-				const FbxGlobalSettings& GlobalSettings = SDKScene->GetGlobalSettings();
-				FbxTime::EMode TimeMode = GlobalSettings.GetTimeMode();
-				//Set the original framerate from the current fbx file
-				float FbxFramerate = FbxTime::GetFrameRate(TimeMode);
-
 				//We always convert scene to UE axis and units
 				FFbxConvert::ConvertScene(SDKScene);
+
+				FrameRate = FbxTime::GetFrameRate(SDKScene->GetGlobalSettings().GetTimeMode());
 
 				return true;
 			}
@@ -202,7 +200,22 @@ namespace UE
 				}
 
 				//////////////////////////////////////////////////////////////////////////
-				// Scene conversion
+				// Esnure Node Name Validity (uniqueness)
+				TSet<FString> NodeNames;
+				for (int32 NodeIndex = 0; NodeIndex < SDKScene->GetNodeCount(); ++NodeIndex)
+				{
+					FbxNode* Node = SDKScene->GetNode(NodeIndex);
+
+					FString NodeName = Node->GetName();
+					FString NodeUniqueID = GetFbxHelper()->GetFbxNodeHierarchyName(Node);
+
+					if (NodeNames.Contains(NodeName))
+					{
+						NodeName += TEXT("_") + FMD5::HashAnsiString(*NodeUniqueID);
+						Node->SetName(TCHAR_TO_UTF8(*NodeName));
+					}
+					NodeNames.Add(NodeName);
+				}
 			}
 		} //ns Private
 	} //ns Interchange

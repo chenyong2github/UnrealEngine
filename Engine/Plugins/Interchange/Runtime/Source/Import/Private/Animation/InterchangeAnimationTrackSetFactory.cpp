@@ -638,7 +638,14 @@ namespace UE::Interchange::Private
 				SceneValue.Value = CurveKey.Value;
 			}
 
-			Channel->Set(FrameNumbers, MovieSceneDoubleValues);
+			if (!MovieSceneDoubleValues.IsEmpty())
+			{
+				Channel->Set(FrameNumbers, MovieSceneDoubleValues);
+			}
+			else
+			{
+				Channel->RemoveDefault();
+			}
 		};
 
 		CopyToChannel(Channels[IndexOffset + 0], Curves[IndexOffset + 0]);

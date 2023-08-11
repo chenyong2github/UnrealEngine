@@ -694,7 +694,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, con
 				int32 PolygonVertexCount = Mesh->GetPolygonSize(PolygonIndex);
 				//Verify if the polygon is degenerate, in this case do not add them
 				{
-					float ComparisonThreshold = SMALL_NUMBER;
+					float ComparisonThreshold = 1.e-12f; //SMALL_NUMBER (1.e-8f)  was not small enough, it produced missing/partial geometry on Drone from UE-192178
 					P.Reset();
 					P.AddUninitialized(PolygonVertexCount);
 					bool bAllCornerValid = true;

@@ -242,9 +242,11 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator:
 		ResultParser.FromJson(JsonResult);
 		FString StaticMeshPayloadFilename = ResultParser.GetResultFilename();
 
-		if (!ensure(FPaths::FileExists(StaticMeshPayloadFilename)))
+		//Mesh payload file generation can fail due to invalid Mesh (for ep No Polygons/Only Degenerate Polygons)
+		if (!FPaths::FileExists(StaticMeshPayloadFilename))
 		{
-			// TODO log an error saying the payload file does not exist even if the get payload command succeeded
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Expected mesh payload file does not exist for PayloadKey: %s"), *PayLoadKey.UniqueId);
+
 			Promise->SetValue(TOptional<UE::Interchange::FMeshPayloadData>());
 			return;
 		}

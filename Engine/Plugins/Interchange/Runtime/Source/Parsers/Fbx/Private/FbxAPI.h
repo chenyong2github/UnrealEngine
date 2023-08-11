@@ -78,6 +78,8 @@ namespace UE
 
 				FbxScene* GetSDKScene() { return SDKScene; }
 
+				double GetFrameRate() { return FrameRate; }
+
 				/**
 				 * Critical section to avoid getting multiple payload in same time.
 				 * The FBX evaluator use a cache mechanism for evaluating global transform that is not thread safe.
@@ -96,6 +98,9 @@ namespace UE
 				FString SourceFilename;
 				TMap<FString, TSharedPtr<FPayloadContextBase>> PayloadContexts;
 				TSharedPtr<FFbxHelper> FbxHelper;
+
+				//For PivotReset and Animation Conversion:
+				double FrameRate = 30.0;
 			};
 		}//ns Private
 	}//ns Interchange

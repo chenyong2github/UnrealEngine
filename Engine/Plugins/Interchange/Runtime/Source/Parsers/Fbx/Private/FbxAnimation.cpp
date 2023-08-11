@@ -26,7 +26,7 @@
 
 namespace UE::Interchange::Private
 {
-	bool ImportCurve(const FbxAnimCurve* SourceFloatCurves, const float Offset, const float ScaleValue, TArray<FInterchangeCurveKey>& DestinationFloatCurve)
+	bool ImportCurve(const FbxAnimCurve* SourceFloatCurves, const float ScaleValue, TArray<FInterchangeCurveKey>& DestinationFloatCurve)
 	{
 		if (!SourceFloatCurves)
 		{
@@ -41,7 +41,7 @@ namespace UE::Interchange::Private
 			FbxAnimCurveKey Key = SourceFloatCurves->KeyGet(KeyIndex);
 			FbxTime KeyTime = Key.GetTime();
 			const float KeyTimeValue = static_cast<float>(KeyTime.GetSecondDouble());
-			float Value = (Key.GetValue() * ScaleValue) + Offset;
+			float Value = Key.GetValue() * ScaleValue;
 			FInterchangeCurveKey& InterchangeCurveKey = DestinationFloatCurve.AddDefaulted_GetRef();
 			InterchangeCurveKey.Time = KeyTimeValue;
 			InterchangeCurveKey.Value = Value;
@@ -648,7 +648,7 @@ namespace UE::Interchange::Private
 					{
 						if (FbxAnimCurve* CurrentAnimCurve = FetchPayloadData.AnimCurves->GetCurve(ChannelIndex, CurveIndex))
 						{
-							ImportCurve(CurrentAnimCurve, 0.0f, 1.0f, InterchangeCurves.AddDefaulted_GetRef().Keys);
+							ImportCurve(CurrentAnimCurve, 1.0f, InterchangeCurves.AddDefaulted_GetRef().Keys);
 						}
 					}
 				}
@@ -670,7 +670,7 @@ namespace UE::Interchange::Private
 			//Fetch TArray<FInterchangeCurve> which are float curves with interpolation
 			TArray<FInterchangeCurve> InterchangeCurves;
 
-			auto ParseInterchangeCurveCurve = [&InterchangeCurves](FbxAnimCurveNode* AnimCurveNode, const char* pChannelName, float Offset = 0.0f, float Scale = 1.0f)
+			auto ParseInterchangeCurveCurve = [&InterchangeCurves](FbxAnimCurveNode* AnimCurveNode, const char* pChannelName, float Scale = 1.0f)
 			{
 				bool bInterchangeCurveAdded = false;
 				if (AnimCurveNode)
@@ -680,7 +680,7 @@ namespace UE::Interchange::Private
 					{
 						if (FbxAnimCurve* CurrentAnimCurve = AnimCurveNode->GetCurve(ChannelIndex))
 						{
-							ImportCurve(CurrentAnimCurve, Offset, Scale, InterchangeCurves.AddDefaulted_GetRef().Keys);
+							ImportCurve(CurrentAnimCurve, Scale, InterchangeCurves.AddDefaulted_GetRef().Keys);
 							bInterchangeCurveAdded = true;
 						}
 					}
@@ -689,32 +689,55 @@ namespace UE::Interchange::Private
 				if (!bInterchangeCurveAdded) InterchangeCurves.AddDefaulted_GetRef();
 			};
 
-			//As the hierarchical transforms are calculated based on 'EvaluateGlobalTransform'
-			//we calculate the difference between Evaluation and Local values
-			//As the FbxAnimCurve Values do not take into account Pre/Post rotations, offsets, pivots
-			//Note: This is not the utmost ideal scenario as Interchange does not have support for Pre/Post changes nor Pivots
-			//		However, this still prooved to provide the most precise outcome.
-			FbxDouble3 TranslationOffset;
-			FbxDouble3 RotationOffset;
+			auto ResetPivotsPrePostRotationsAndSetRotationOrder = [](FbxNode* Node, double FrameRate)
 			{
-				FbxAMatrix LocalFbxMatrix = FetchPayloadData.Node->EvaluateGlobalTransform();
-				if (fbxsdk::FbxNode* ParentNode = FetchPayloadData.Node->GetParent())
+				//This function now clears out all pivots, post and pre rotations and set's the
+				//RotationOrder to XYZ.
+				//Updated per the latest documentation
+				//https://help.autodesk.com/view/FBX/2017/ENU/?guid=__files_GUID_C35D98CB_5148_4B46_82D1_51077D8970EE_htm
+
+				if (!ensure(Node))
 				{
-					FbxAMatrix GlobalFbxParentMatrix = ParentNode->EvaluateGlobalTransform();
-					LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * LocalFbxMatrix;
+					return;
 				}
 
-				TranslationOffset = LocalFbxMatrix.GetT() - FetchPayloadData.Node->LclTranslation.Get();
-				RotationOffset = LocalFbxMatrix.GetR() - FetchPayloadData.Node->LclRotation.Get();
+				// Activate pivot converting 
+				Node->SetPivotState(FbxNode::eSourcePivot, FbxNode::ePivotActive);
+				Node->SetPivotState(FbxNode::eDestinationPivot, FbxNode::ePivotActive);
+
+				FbxVector4 Zero(0, 0, 0);
+
+				// We want to set all these to 0 and bake them into the transforms. 
+				Node->SetPostRotation(FbxNode::eDestinationPivot, Zero);
+				Node->SetPreRotation(FbxNode::eDestinationPivot, Zero);
+				Node->SetRotationOffset(FbxNode::eDestinationPivot, Zero);
+				Node->SetScalingOffset(FbxNode::eDestinationPivot, Zero);
+				Node->SetRotationPivot(FbxNode::eDestinationPivot, Zero);
+				Node->SetScalingPivot(FbxNode::eDestinationPivot, Zero);
+
+				Node->SetRotationOrder(FbxNode::eDestinationPivot, eEulerXYZ);
+				//When  we support other orders do this.
+				//EFbxRotationOrder ro;
+				//Node->GetRotationOrder(FbxNode::eSourcePivot, ro);
+				//Node->SetRotationOrder(FbxNode::eDestinationPivot, ro);
+
+				//Most DCC's don't have this but 3ds Max does
+				Node->SetGeometricTranslation(FbxNode::eDestinationPivot, Zero);
+				Node->SetGeometricRotation(FbxNode::eDestinationPivot, Zero);
+				Node->SetGeometricScaling(FbxNode::eDestinationPivot, Zero);
+				//NOTE THAT ConvertPivotAnimationRecursive did not seem to work when getting the local transform values!!!
+				Node->ConvertPivotAnimationRecursive(nullptr, FbxNode::eDestinationPivot, FrameRate);
 			};
 
-			ParseInterchangeCurveCurve(FetchPayloadData.TranlsationCurveNode, FBXSDK_CURVENODE_COMPONENT_X, TranslationOffset[0]);
-			ParseInterchangeCurveCurve(FetchPayloadData.TranlsationCurveNode, FBXSDK_CURVENODE_COMPONENT_Y, TranslationOffset[1], -1.0f); //FBX to UE conversion with scale -1.0
-			ParseInterchangeCurveCurve(FetchPayloadData.TranlsationCurveNode, FBXSDK_CURVENODE_COMPONENT_Z, TranslationOffset[2]);
+			ResetPivotsPrePostRotationsAndSetRotationOrder(FetchPayloadData.Node, FetchPayloadData.FrameRate);
 
-			ParseInterchangeCurveCurve(FetchPayloadData.RotationCurveNode, FBXSDK_CURVENODE_COMPONENT_X, RotationOffset[0]);
-			ParseInterchangeCurveCurve(FetchPayloadData.RotationCurveNode, FBXSDK_CURVENODE_COMPONENT_Y, RotationOffset[1], -1.0f); //FBX to UE conversion with scale -1.0
-			ParseInterchangeCurveCurve(FetchPayloadData.RotationCurveNode, FBXSDK_CURVENODE_COMPONENT_Z, RotationOffset[2], -1.0f); //FBX to UE conversion with scale -1.0
+			ParseInterchangeCurveCurve(FetchPayloadData.TranlsationCurveNode, FBXSDK_CURVENODE_COMPONENT_X);
+			ParseInterchangeCurveCurve(FetchPayloadData.TranlsationCurveNode, FBXSDK_CURVENODE_COMPONENT_Y, -1.0f); //FBX to UE conversion with scale -1.0
+			ParseInterchangeCurveCurve(FetchPayloadData.TranlsationCurveNode, FBXSDK_CURVENODE_COMPONENT_Z);
+
+			ParseInterchangeCurveCurve(FetchPayloadData.RotationCurveNode, FBXSDK_CURVENODE_COMPONENT_X);
+			ParseInterchangeCurveCurve(FetchPayloadData.RotationCurveNode, FBXSDK_CURVENODE_COMPONENT_Y, -1.0f); //FBX to UE conversion with scale -1.0
+			ParseInterchangeCurveCurve(FetchPayloadData.RotationCurveNode, FBXSDK_CURVENODE_COMPONENT_Z, -1.0f); //FBX to UE conversion with scale -1.0
 
 			ParseInterchangeCurveCurve(FetchPayloadData.ScaleCurveNode, FBXSDK_CURVENODE_COMPONENT_X);
 			ParseInterchangeCurveCurve(FetchPayloadData.ScaleCurveNode, FBXSDK_CURVENODE_COMPONENT_Y);
@@ -760,7 +783,7 @@ namespace UE::Interchange::Private
 		//Morph target curve in fbx are between 0 and 100, in Unreal we are between 0 and 1, so we must scale
 		//The curve with 0.01
 		constexpr float ScaleCurve = 0.01f;
-		ImportCurve(AnimCurve, 0.0f, ScaleCurve, InterchangeCurves.AddDefaulted_GetRef().Keys);
+		ImportCurve(AnimCurve, ScaleCurve, InterchangeCurves.AddDefaulted_GetRef().Keys);
 		{
 			FLargeMemoryWriter Ar;
 			Ar << InterchangeCurves;
@@ -843,6 +866,7 @@ namespace UE::Interchange::Private
 		{
 			TSharedPtr<FAnimationPayloadContextTransform> AnimPayload = MakeShared<FAnimationPayloadContextTransform>();
 			FAttributeNodeTransformFetchPayloadData FetchPayloadData;
+			FetchPayloadData.FrameRate = Parser.GetFrameRate();
 			FetchPayloadData.Node = Node;
 			FetchPayloadData.TranlsationCurveNode = TranslationCurveNode;
 			FetchPayloadData.RotationCurveNode = RotationCurveNode;

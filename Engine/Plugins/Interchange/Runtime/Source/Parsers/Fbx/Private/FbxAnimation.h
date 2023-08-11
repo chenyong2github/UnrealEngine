@@ -39,6 +39,7 @@ namespace UE::Interchange::Private
 	//Rigid Animation
 	struct FAttributeNodeTransformFetchPayloadData
 	{
+		double FrameRate = 30.0;
 		FbxNode* Node = nullptr;
 		FbxAnimCurveNode* TranlsationCurveNode = nullptr;
 		FbxAnimCurveNode* RotationCurveNode = nullptr;
