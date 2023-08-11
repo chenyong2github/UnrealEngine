@@ -40,6 +40,10 @@
 #include "DefaultStereoLayers.h"
 #include "FBFoveationImageGenerator.h"
 
+#if PLATFORM_ANDROID
+#include "Android/AndroidApplication.h"
+#endif
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -3387,6 +3391,12 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 		}
 
 		UE_LOG(LogHMD, VeryVerbose, TEXT("Presenting frame predicted to be displayed at %lld"), PipelinedFrameStateRHI.FrameState.predictedDisplayTime);
+
+#if PLATFORM_ANDROID
+		// Android OpenXR runtimes frequently need access to the JNIEnv, so we need to attach the submitting
+		// thread. We have to do this per-frame because we can detach if app loses focus.
+		FAndroidApplication::GetJavaEnv();
+#endif
 
 		XR_ENSURE(xrEndFrame(Session, &EndInfo));
 	}
