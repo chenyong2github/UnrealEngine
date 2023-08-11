@@ -80,6 +80,15 @@ public abstract class ApplePlatform : Platform
 		base.PreBuildAgenda(Build, Agenda, Params);
 	}
 
+	private string MakeContentOnlyTargetName(TargetReceipt Target, string GameName)
+	{
+		// for a BP project, with a uproject, where the TargetName is one of the Unreal targets, the xcode project actually makes
+		// a <ProjectName><Type> scheme/target, so we need to use it for the -SingleTarget param, and the scheme we xcodebuild
+		// note: this must match the code in ProjectFileGenerator.cs / AddProjectsForAllTargets, like this:
+		// ProjectFile = FindOrAddProject(GetProjectLocation($"{ProjectName}{EngineTarget.TargetRules!.Type}"), ContentOnlyGameProject.Directory, ...
+		// in the "if (bAllowContentOnlyProjects)" block
+		return $"{GameName}{Target.TargetType}";
+	}
 
 	public override void PostStagingFileCopy(ProjectParams Params, DeploymentContext SC)
 	{
@@ -96,14 +105,21 @@ public abstract class ApplePlatform : Platform
 					$"EFFECTIVE_PLATFORM_NAME={SC.StageDirectory.GetDirectoryName()} " +
 					// set where the stage directory is
 					$"UE_OVERRIDE_STAGE_DIR=\"{SC.StageDirectory}\"";
+
+				string TargetName = Target.TargetName;
 				if (!Params.IsCodeBasedProject)
 				{
 					// instead of staging an UnrealGame.app, stage something with the project name, like say MyProjectClient-IOS-Shipping.app
 					string ProductName = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Target.Platform, Target.Configuration, Target.Architectures, UnrealTargetConfiguration.Development, null);
 					ExtraOptions += $" PRODUCT_NAME={ProductName}";
+
+					if (Params.RawProjectPath != null)
+					{
+						TargetName = MakeContentOnlyTargetName(Target, Params.ShortProjectName);
+					}
 				}
 
-				AppleExports.BuildWithStubXcodeProject(SC.RawProjectPath, Target.Platform, Target.Architectures, Target.Configuration, Target.TargetName, AppleExports.XcodeBuildMode.Stage, Logger, ExtraOptions);
+				AppleExports.BuildWithStubXcodeProject(SC.RawProjectPath, Target.Platform, Target.Architectures, Target.Configuration, TargetName, AppleExports.XcodeBuildMode.Stage, Logger, ExtraOptions);
 			}
 		}
 	}
@@ -182,6 +198,7 @@ public abstract class ApplePlatform : Platform
 			foreach (StageTarget Target in SC.StageTargets)
 			{
 				TargetReceipt Receipt = Target.Receipt;
+				string TargetName = Receipt.TargetName;
 
 				string ExtraOptions =
 					// set where the stage directory is
@@ -191,6 +208,11 @@ public abstract class ApplePlatform : Platform
 					// override where the .app will be located and named
 					ExtraOptions += $" SYMROOT=\"{SC.ProjectRoot}/Binaries\"";
 					ExtraOptions += $" PRODUCT_NAME={Params.ShortProjectName}";
+
+					if (Params.RawProjectPath != null)
+					{
+						TargetName = MakeContentOnlyTargetName(Receipt, Params.ShortProjectName);
+					}
 				}
 
 
@@ -198,7 +220,7 @@ public abstract class ApplePlatform : Platform
 				// the archive will be created in the standard Archives location accessible via Xcode. Using -archive will copy it out into
 				// the specified location for use as needed
 				AppleExports.XcodeBuildMode BuildMode = Params.Distribution ? AppleExports.XcodeBuildMode.Distribute : AppleExports.XcodeBuildMode.Package;
-				if (AppleExports.BuildWithStubXcodeProject(Params.RawProjectPath, Receipt.Platform, Receipt.Architectures, Receipt.Configuration, Receipt.TargetName, BuildMode, Logger, ExtraOptions) == 0)
+				if (AppleExports.BuildWithStubXcodeProject(Params.RawProjectPath, Receipt.Platform, Receipt.Architectures, Receipt.Configuration, TargetName, BuildMode, Logger, ExtraOptions) == 0)
 				{
 					Logger.LogInformation("=====================================================================================");
 					if (Params.Distribution)

@@ -588,7 +588,9 @@ namespace UnrealBuildTool
 				// this could be improved if ProjectFileGenerator constructor took a Arguments param, and it could parse it there instead of the GenerateProjectFilesMode
 				Generator.SingleTargetName = SingleTargetName;
 				// don't need the editor data since these are stub projects
+				ProjectFileGenerator.Current = Generator;
 				bool bSucces = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, bCacheDataForEditor: false, Logger);
+				ProjectFileGenerator.Current = null;
 				XcodeProjectFile = Generator.XCWorkspace;
 				return bSucces;
 			}
@@ -784,8 +786,14 @@ namespace UnrealBuildTool
 				return 0;
 			}
 
+			// for mobile builds (which need real codesigning to be able to run), we use dummy codesigning when making a .stub (which will
+			// be sent to Windows an re-codesigned), or when making UnrealGame.app without a .uproject (we will always make a .app
+			// again with a .uproject on the commandline to be able to get the staged data that will be pulled in to the app - we can't run 
+			// without a Staged directory, so this dummy codesigned .app won't be used directly)
+			bool bUseDummySigning = Target.Platform != UnrealTargetPlatform.Mac && (Target.bCreateStubIPA || Target.ProjectFile == null);
+
 			int ExitCode = AppleExports.BuildWithStubXcodeProject(Target.ProjectFile, Target.Platform, Target.Architectures, Target.Configuration, Target.TargetName, 
-				AppleExports.XcodeBuildMode.PostBuildSync, Logger, "", bForceDummySigning:Target.bCreateStubIPA);
+				AppleExports.XcodeBuildMode.PostBuildSync, Logger, "", bForceDummySigning: bUseDummySigning);
 			if (ExitCode != 0)
 			{
 				Logger.LogError("ERROR: Failed to finalize the .app with Xcode. Check the log for more information");
