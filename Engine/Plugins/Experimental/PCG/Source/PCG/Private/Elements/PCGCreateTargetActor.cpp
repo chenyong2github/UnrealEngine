@@ -82,6 +82,8 @@ void UPCGCreateTargetActor::TeardownBlueprintEvent()
 
 void UPCGCreateTargetActor::PreEditChange(FProperty* PropertyAboutToChange)
 {
+	Super::PreEditChange(PropertyAboutToChange);
+
 	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGCreateTargetActor, TemplateActorClass))
 	{
 		TeardownBlueprintEvent();

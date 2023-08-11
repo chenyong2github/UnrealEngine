@@ -388,6 +388,8 @@ void UPCGBlueprintSettings::BeginDestroy()
 #if WITH_EDITOR
 void UPCGBlueprintSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
+	Super::PreEditChange(PropertyAboutToChange);
+
 	if (PropertyAboutToChange)
 	{
 		if (PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGBlueprintSettings, BlueprintElementType))
