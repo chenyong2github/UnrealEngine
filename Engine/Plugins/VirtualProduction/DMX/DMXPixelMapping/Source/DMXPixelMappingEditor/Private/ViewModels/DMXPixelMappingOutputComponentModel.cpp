@@ -166,7 +166,8 @@ FLinearColor FDMXPixelMappingOutputComponentModel::GetColor() const
 			}
 			else
 			{
-				return OutputComponent->GetEditorColor().CopyWithNewOpacity(0.75f);
+				const float Opacity = OutputComponent->GetEditorColor().A * .75f;
+				return OutputComponent->GetEditorColor().CopyWithNewOpacity(Opacity);
 			}
 		}
 	}

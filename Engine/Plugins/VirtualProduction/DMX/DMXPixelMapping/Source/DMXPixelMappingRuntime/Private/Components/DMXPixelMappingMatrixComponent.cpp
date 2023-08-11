@@ -408,7 +408,7 @@ FString UDMXPixelMappingMatrixComponent::GetUserName() const
 	const UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch();
 	if (Patch && UserName.IsEmpty())
 	{
-		return FString::Printf(TEXT("Fixture Matrix: %s"), *Patch->GetDisplayName());
+		return FString::Printf(TEXT("%s"), *Patch->GetDisplayName());
 	}
 	else
 	{

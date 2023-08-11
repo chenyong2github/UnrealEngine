@@ -55,6 +55,7 @@ void IDMXPixelMappingOutputComponentWidgetInterface::RemoveFromCanvas()
 	ParentCanvas.Reset();
 }
 
+
 void SDMXPixelMappingOutputComponent::Construct(const FArguments& InArgs, const TSharedRef<FDMXPixelMappingToolkit>& InToolkit, TWeakObjectPtr<UDMXPixelMappingOutputComponent> OutputComponent)
 {
 	if (!OutputComponent.IsValid())
@@ -64,9 +65,6 @@ void SDMXPixelMappingOutputComponent::Construct(const FArguments& InArgs, const 
 
 	WeakToolkit = InToolkit;
 	Model = MakeShared<FDMXPixelMappingOutputComponentModel>(InToolkit, OutputComponent);
-
-	BorderBrush.DrawAs = ESlateBrushDrawType::Border;
-	BorderBrush.Margin = FMargin(1.f);
 
 	ChildSlot
 	[
@@ -125,6 +123,7 @@ TSharedRef<SWidget> SDMXPixelMappingOutputComponent::CreateContent()
 {
 	const TSharedRef<SBorder> Content =
 		SNew(SBorder)
+		.BorderImage(FDMXPixelMappingEditorStyle::Get().GetBrush("DMXPixelMappingEditor.ComponentBorder"))
 		.BorderBackgroundColor_Lambda([this]()
 			{
 				return Model->GetColor();
@@ -350,14 +349,10 @@ public:
 		Universe = InArgs._Universe;
 		StartingChannel = InArgs._StartingChannel;
 
-		BorderBrush.DrawAs = ESlateBrushDrawType::Border;
-		BorderBrush.Margin = FMargin(1.f);
-		BorderBrush.TintColor = FLinearColor::White.CopyWithNewOpacity(.4f);
-
 		ChildSlot
 			[
 				SAssignNew(ContentBorder, SBorder)
-				.BorderImage(&BorderBrush)
+				.BorderImage(FDMXPixelMappingEditorStyle::Get().GetBrush("DMXPixelMappingEditor.ComponentBorder"))
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 			];
@@ -434,9 +429,6 @@ private:
 
 	/** Border to hold contents of the widget */
 	TSharedPtr<SBorder> ContentBorder;
-
-	/** The brush used for the border */
-	FSlateBrush BorderBrush;
 
 	/** The model used by this widget */
 	TSharedPtr<FDMXPixelMappingScreenComponentModel> Model;
@@ -624,9 +616,6 @@ void SDMXPixelMappingScreenComponent::Construct(const FArguments& InArgs, const 
 	WeakToolkit = InToolkit;
 	Model = MakeShared<FDMXPixelMappingScreenComponentModel>(InToolkit, ScreenComponent);
 
-	BorderBrush.DrawAs = ESlateBrushDrawType::Border;
-	BorderBrush.Margin = FMargin(1.f);
-
 	ChildSlot
 	[
 		SNew(SBox)
@@ -651,10 +640,10 @@ void SDMXPixelMappingScreenComponent::Construct(const FArguments& InArgs, const 
 			+ SOverlay::Slot() // Required to correctly draw the color around the grid
 			[
 				SNew(SBorder)
-				.BorderImage_Lambda([this]()
+				.BorderImage(FDMXPixelMappingEditorStyle::Get().GetBrush("DMXPixelMappingEditor.ComponentBorder"))
+				.BorderBackgroundColor_Lambda([this]()
 					{
-						BorderBrush.TintColor = Model->GetColor();
-						return &BorderBrush;
+						return Model->GetColor();
 					})
 			]
 		]

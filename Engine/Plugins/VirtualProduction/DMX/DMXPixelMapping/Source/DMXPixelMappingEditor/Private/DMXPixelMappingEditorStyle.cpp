@@ -7,6 +7,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "Rendering/SlateRenderer.h"
+#include "Styling/SlateBrush.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyle.h"
 
@@ -31,13 +32,13 @@ void FDMXPixelMappingEditorStyle::Shutdown()
 
 FName FDMXPixelMappingEditorStyle::GetStyleSetName()
 {
-	static FName StyleSetName(TEXT("DMXPixelMappingEditorStyle"));
+	const FName StyleSetName(TEXT("DMXPixelMappingEditorStyle"));
 	return StyleSetName;
 }
 
 FString RelativePathToPluginPath(const FString& RelativePath, const ANSICHAR* Extension)
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("DMXPixelMapping"))->GetContentDir();
+	const FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("DMXPixelMapping"))->GetContentDir();
 	return (ContentDir / RelativePath) + Extension;
 }
 
@@ -50,16 +51,17 @@ FString RelativePathToPluginPath(const FString& RelativePath, const ANSICHAR* Ex
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
-const FVector2D Icon8x8(8.0f, 8.0f);
-const FVector2D Icon12x12(12.0f, 12.0f);
-const FVector2D Icon16x16(16.0f, 16.0f);
-const FVector2D Icon20x20(20.0f, 20.0f);
-const FVector2D Icon40x40(40.0f, 40.0f);
-const FVector2D Icon64x64(64.0f, 64.0f);
-
 TSharedRef<FSlateStyleSet> FDMXPixelMappingEditorStyle::Create()
 {
-	TSharedRef<FSlateStyleSet> Style = MakeShareable(new FSlateStyleSet("DMXPixelMappingEditorStyle"));
+	const FVector2D Icon8x8(8.0f, 8.0f);
+	const FVector2D Icon12x12(12.0f, 12.0f);
+	const FVector2D Icon16x16(16.0f, 16.0f);
+	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon40x40(40.0f, 40.0f);
+	const FVector2D Icon64x64(64.0f, 64.0f);
+
+
+	const TSharedRef<FSlateStyleSet> Style = MakeShareable(new FSlateStyleSet("DMXPixelMappingEditorStyle"));
 
 	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("DMXPixelMapping"));
 	if (Plugin.IsValid())
@@ -83,6 +85,13 @@ TSharedRef<FSlateStyleSet> FDMXPixelMappingEditorStyle::Create()
 	Style->Set("DMXPixelMappingEditor.PlayDMX.Small", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_PlayDMX_40x", Icon20x20));
 	Style->Set("DMXPixelMappingEditor.StopPlayingDMX", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_StopPlayingDMX_40x", Icon40x40));
 	Style->Set("DMXPixelMappingEditor.StopPlayingDMX.Small", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_StopPlayingDMX_40x", Icon20x20));
+
+	// Component border style
+	FSlateBrush* ComponentBorderBrush = new FSlateBrush();
+	ComponentBorderBrush->Margin = FMargin(1.f);
+	ComponentBorderBrush->DrawAs = ESlateBrushDrawType::Border;
+	ComponentBorderBrush->TintColor = FLinearColor::White;
+	Style->Set("DMXPixelMappingEditor.ComponentBorder", ComponentBorderBrush);
 
 	return Style;
 }

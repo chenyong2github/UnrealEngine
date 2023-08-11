@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
-#include "Styling/SlateBrush.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
@@ -93,9 +92,6 @@ private:
 	/** Creates the child slot that displays info about the patch such as Addresses or the Fixture ID */
 	void CreatePatchInfoChildSlot();
 
-	/** Brush for the outermost Bborder */
-	FSlateBrush BorderBrush;
-
 	/** The box that is shown */
 	TSharedPtr<SBox> ComponentBox;
 
@@ -160,9 +156,6 @@ private:
 
 	/** The canvas slot of the component widget */
 	SConstraintCanvas::FSlot* Slot = nullptr;
-
-	/** Brush for the outermost Bborder */
-	FSlateBrush BorderBrush;
 
 	/** Border that holds the content */
 	TSharedPtr<SBorder> ContentBorder;
