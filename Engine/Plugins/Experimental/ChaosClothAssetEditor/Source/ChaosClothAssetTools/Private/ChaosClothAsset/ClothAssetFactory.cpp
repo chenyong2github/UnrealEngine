@@ -23,15 +23,5 @@ UObject* UChaosClothAssetFactory::FactoryCreateNew(UClass* Class, UObject* Paren
 	UChaosClothAsset* const ClothAsset = NewObject<UChaosClothAsset>(Parent, Class, Name, Flags | RF_Transactional | RF_Public | RF_Standalone);
 	ClothAsset->MarkPackageDirty();
 
-	// Add an empty default LOD, to avoid LOD mismatch with render data
-	TArray<TSharedRef<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
-	TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
-
-	FCollectionClothFacade ClothFacade(ClothCollection);
-	ClothFacade.DefineSchema();
-
-	// Set the default skeleton on this new LOD and rebuild the static data models (which is done by default with this override)
-	ClothAsset->SetSkeleton(nullptr);
-
 	return ClothAsset;
 }

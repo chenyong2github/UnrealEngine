@@ -539,15 +539,11 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 			}
 		}
 
-		// Set a default skeleton
-		constexpr bool bRebuildModels = false;
-		ClothAsset->SetSkeleton(nullptr, bRebuildModels);
-
 		// Set the render mesh to duplicate the sim mesh
 		ClothAsset->CopySimMeshToRenderMesh();
 
-		// Rebuild static data
-		ClothAsset->Build();
+		// Set a default skeleton and rebuild the asset
+		ClothAsset->SetReferenceSkeleton(nullptr);  // This creates a default reference skeleton, redo the bindings, and rebuild the asset
 
 		ImportContext.ImportedClothes.Add(ClothElement, ClothAsset);
 

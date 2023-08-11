@@ -470,7 +470,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			FDynamicMesh3 SourceDynamicMesh;
 			SkeletalMeshToDynamicMesh(SkeletalMesh, LodIndex, SourceDynamicMesh);
 			MeshTransforms::ApplyTransform(SourceDynamicMesh, Transform, true);
-			const FReferenceSkeleton& TargetRefSkeleton = SkeletalMesh->GetSkeleton()->GetReferenceSkeleton();
+			const FReferenceSkeleton& TargetRefSkeleton = SkeletalMesh->GetRefSkeleton();
 
 			//
 			// Setup the bone weight transfer operator for the source mesh.
@@ -484,7 +484,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			// Transfer the bone weights from the source Skeletal mesh to the Cloth asset.
 			//
 			FCollectionClothFacade ClothFacade(ClothCollection);
-			ClothFacade.SetSkeletonAssetPathName(SkeletalMesh->GetSkeleton()->GetPathName());
+			ClothFacade.SetSkeletalMeshPathName(SkeletalMesh->GetPathName());
 
 			bool bTransferResult = false;
 			if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights)

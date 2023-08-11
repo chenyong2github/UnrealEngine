@@ -141,13 +141,12 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 	// Assign the physics asset if any (must be done after having added the LODs)
 	ClothAsset->SetPhysicsAsset(ClothingAssetCommon->PhysicsAsset);
 
-	// Set the skeleton from the skeletal mesh (must be done after having added the LODs)
-	constexpr bool bRebuildModels = false;  // Build is called last
+	// Set the reference skeleton from the skeletal mesh and rebuild the asset (must be done after having added the LODs)
 	USkeletalMesh* const SkeletalMesh = CastChecked<USkeletalMesh>(ClothingAssetCommon->GetOuter());
-	ClothAsset->SetSkeleton(SkeletalMesh->GetSkeleton(), bRebuildModels);
+	ClothAsset->SetReferenceSkeleton(&SkeletalMesh->GetRefSkeleton());
 
-	// Build the asset, since it is already loaded, it won't rebuild on load
-	ClothAsset->Build();
+	// Save the USkeleton for completion, although this is not being used and might mismatch the skeletal mesh's reference skeleton
+	ClothAsset->SetSkeleton(SkeletalMesh->GetSkeleton());
 }
 
 #undef LOCTEXT_NAMESPACE

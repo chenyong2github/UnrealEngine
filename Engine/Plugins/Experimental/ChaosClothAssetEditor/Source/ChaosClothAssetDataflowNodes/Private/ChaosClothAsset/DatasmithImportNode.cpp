@@ -22,8 +22,21 @@ FChaosClothAssetDatasmithImportNode::FChaosClothAssetDatasmithImportNode(const D
 
 void FChaosClothAssetDatasmithImportNode::Serialize(FArchive& Archive)
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	::Chaos::FChaosArchive ChaosArchive(Archive);
 	ImportCache.Serialize(ChaosArchive);
+	if (Archive.IsLoading())
+	{
+		// Make sure to always have a valid cloth collection on reload, some new attributes could be missing from the cached collection
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(ImportCache));
+		FCollectionClothFacade ClothFacade(ClothCollection);
+		if (!ClothFacade.IsValid())
+		{
+			ClothFacade.DefineSchema();
+		}
+		ImportCache = MoveTemp(*ClothCollection);
+	}
 	Archive << ImportHash;
 }
 

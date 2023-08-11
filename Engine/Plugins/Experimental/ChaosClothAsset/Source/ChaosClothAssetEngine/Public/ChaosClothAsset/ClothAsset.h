@@ -9,12 +9,13 @@
 
 class FSkeletalMeshRenderData;
 class FSkeletalMeshModel;
+class FSkinnedAssetCompilationContext;
+class USkeletalMesh;
+class UDataflow;
 struct FChaosClothSimulationModel;
 struct FSkeletalMeshLODInfo;
 struct FManagedArrayCollection;
 struct FChaosClothAssetLodTransitionDataCache;
-class FSkinnedAssetCompilationContext;
-class UDataflow;
 
 UENUM()
 enum class EClothAssetAsyncProperties : uint64
@@ -75,9 +76,9 @@ public:
 	virtual TArray<class USkeletalMeshSocket*> GetActiveSocketList() const override { static TArray<class USkeletalMeshSocket*> Dummy; return Dummy; }
 	virtual USkeletalMeshSocket* FindSocket(FName InSocketName) const override	{ return nullptr; }
 	virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const override { return nullptr; }
-	virtual USkeleton* GetSkeleton() override									{ return Skeleton; }
+	virtual USkeleton* GetSkeleton() override									{ return Skeleton; }  // Note: The USkeleton isn't a reliable source of reference skeleton
 	virtual const USkeleton* GetSkeleton() const override						{ return Skeleton; }
-	virtual void SetSkeleton(USkeleton* InSkeleton) override					{ constexpr bool bRebuildModels = true; SetSkeleton(InSkeleton, bRebuildModels); }
+	virtual void SetSkeleton(USkeleton* InSkeleton) override					{ Skeleton = InSkeleton; }
 	virtual UMeshDeformer* GetDefaultMeshDeformer() const override				{ return nullptr; }
 	virtual class UMaterialInterface* GetOverlayMaterial() const override		{ return nullptr; }
 	virtual float GetOverlayMaterialMaxDrawDistance() const override			{ return 0.f; }
@@ -123,37 +124,39 @@ public:
 	void SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset);
 
 	/**
-	 * Set the skeleton asset and bone hierachy to use for this cloth.
-	 * @param InSkeleton The skeleton asset to use for this cloth, or nullptr to setup a default skeleton asset.
-	 * @param bRebuildModels Whether to rebuild the simulation and rendering models (editor builds only).
-	 */
-	void SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels);
-
-	/**
-	 * Set the skeleton asset using the LOD0 skeleton specified in the cloth collection, or load a default skeleton if it is invalid.
+	 * Set the skeleton asset using the LOD0 reference skeleton of the skeletal mesh specified in the cloth collection, or set a default reference skeleton if there isn't any.
 	 * @param bRebuildModels Whether to rebuild the simulation and rendering models (editor builds only).
 	 */
 	void UpdateSkeletonFromCollection(bool bRebuildModels);
 
+	/**
+	 * Set the specified reference skeleton for this cloth, and rebuild the models.
+	 * Use nullptr to set to a default single bone root reference skeleton.
+	 * @param bRebuildModels Whether to rebuild the mesh static models. This is always required, but could be skipped if done soon after.
+	 * @param bRebindMeshes Bindings could be invalid after a change of reference skeleton, use this option to clear the existing binding and bind the sim and render meshes to the root bone.
+	 */
+	void SetReferenceSkeleton(const FReferenceSkeleton* ReferenceSkeleton, bool bRebuildModels = true, bool bRebindMeshes = true);
+
 	/** Set the bone hierachy to use for this cloth. */
-	UE_DEPRECATED(5.3, "Use SetSkeleton instead")
+	UE_DEPRECATED(5.3, "Use SetReferenceSkeleton(const FReferenceSkeleton*, bool, bool) instead")
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void SetReferenceSkeleton(const FReferenceSkeleton& InReferenceSkeleton, bool bRebuildClothSimulationModel = true) { RefSkeleton = InReferenceSkeleton; UpdateSkeleton(bRebuildClothSimulationModel); }
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Set the skinning weights for all of the sim vertices to be bound to the root node of the reference skeleton. */
-	UE_DEPRECATED(5.3, "Use SetSkeleton instead")
+	UE_DEPRECATED(5.3, "Use FClothGeometryTools::BindMeshToRootBone or SetReferenceSkeleton(const FReferenceSkeleton*, bool, bool) instead.")
 	void BindSimMeshToRootBone();
 
 	//
 	// Dataflow
 	//
+	UE_DEPRECATED(5.3, "Do not use. Will be made private in 5.4")
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	TObjectPtr<UDataflow> DataflowAsset;
 
+	UE_DEPRECATED(5.3, "Do not use. Will be made private in 5.4")
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	FString DataflowTerminal = "ClothAssetTerminal";
-
 
 private:
 	//~ Begin USkinnedAsset interface
@@ -217,13 +220,12 @@ private:
 	/** Reregister all components using this asset to reset the simulation in case anything has changed. */
 	void ReregisterComponents();
 
-	// TODO: determine if it should be serialized or transient
 	/** List of materials for this cloth asset. */
 	UPROPERTY(EditAnywhere, Category = Materials)
 	TArray<FSkeletalMaterial> Materials;
 
-	/** Skeleton asset used at import time. */
-	UPROPERTY(EditAnywhere, NoClear, Setter = SetSkeleton, Category = Skeleton)
+	/** Skeleton asset used at creation time. This is of limited use since this USkeleton's reference skeleton might not necessarily match the one created for this asset. */
+	UPROPERTY(EditAnywhere, Setter = SetSkeleton, Category = Skeleton)
 	TObjectPtr<USkeleton> Skeleton;
 
 	/** Physics asset used for collision. */

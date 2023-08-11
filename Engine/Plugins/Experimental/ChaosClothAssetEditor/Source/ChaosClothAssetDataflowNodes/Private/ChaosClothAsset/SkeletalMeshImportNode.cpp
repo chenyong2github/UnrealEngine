@@ -83,15 +83,7 @@ void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Contex
 				ClothFacade.SetPhysicsAssetPathName(PhysicsAsset->GetPathName());
 			}
 
-			if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
-			{
-				ClothFacade.SetSkeletonAssetPathName(Skeleton->GetPathName());
-			}
-			else
-			{
-				static const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
-				ClothFacade.SetSkeletonAssetPathName(DefaultSkeletonPathName);
-			}
+			ClothFacade.SetSkeletalMeshPathName(SkeletalMesh->GetPathName());
 
 			// Must be bound to root bone by default
 			FClothGeometryTools::BindMeshToRootBone(ClothCollection, bImportSimMesh, bImportRenderMesh);

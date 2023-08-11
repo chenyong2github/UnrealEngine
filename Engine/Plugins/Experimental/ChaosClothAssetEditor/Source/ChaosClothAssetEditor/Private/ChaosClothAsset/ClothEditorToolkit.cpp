@@ -532,7 +532,9 @@ void FChaosClothAssetEditorToolkit::OnAssetsSavedAs(const TArray<UObject*>& Save
 
 	if (NewClothAsset && NewDataflowAsset)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: Don't use public property, and have Getter/Setter API instead
 		NewClothAsset->DataflowAsset = NewDataflowAsset;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Now save the new Cloth asset again since we've updated its Property
 		const TArray<UPackage*> PackagesToSave{NewClothAsset->GetOutermost()};

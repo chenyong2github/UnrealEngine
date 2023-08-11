@@ -19,11 +19,11 @@ namespace UE::Chaos::ClothAsset::Private
 
 	// Lods Group
 	static const FName PhysicsAssetPathNameAttribute(TEXT("PhysicsAssetPathName"));
-	static const FName SkeletonAssetPathNameAttribute(TEXT("SkeletonAssetPathName"));
+	static const FName SkeletalMeshPathNameAttribute(TEXT("SkeletalMeshPathName"));
 	static const TArray<FName> LodsGroupAttributes =
 	{
 		PhysicsAssetPathNameAttribute,
-		SkeletonAssetPathNameAttribute
+		SkeletalMeshPathNameAttribute
 	};
 
 	// Seam Group
@@ -176,7 +176,7 @@ namespace UE::Chaos::ClothAsset
 
 		// LODs Group
 		PhysicsAssetPathName = ManagedArrayCollection->FindAttribute<FString>(PhysicsAssetPathNameAttribute, LodsGroup);
-		SkeletonAssetPathName = ManagedArrayCollection->FindAttribute<FString>(SkeletonAssetPathNameAttribute, LodsGroup);
+		SkeletalMeshPathName = ManagedArrayCollection->FindAttribute<FString>(SkeletalMeshPathNameAttribute, LodsGroup);
 
 		// Seam Group
 		SeamStitchStart = ManagedArrayCollection->FindAttribute<int32>(SeamStitchStartAttribute, SeamsGroup);
@@ -236,7 +236,7 @@ namespace UE::Chaos::ClothAsset
 		return 
 			// LODs Group
 			PhysicsAssetPathName &&
-			SkeletonAssetPathName &&
+			SkeletalMeshPathName &&
 
 			// Seam Group
 			SeamStitchStart &&
@@ -307,7 +307,7 @@ namespace UE::Chaos::ClothAsset
 
 		// LODs Group
 		PhysicsAssetPathName = &ManagedArrayCollection->AddAttribute<FString>(PhysicsAssetPathNameAttribute, LodsGroup);
-		SkeletonAssetPathName = &ManagedArrayCollection->AddAttribute<FString>(SkeletonAssetPathNameAttribute, LodsGroup);
+		SkeletalMeshPathName = &ManagedArrayCollection->AddAttribute<FString>(SkeletalMeshPathNameAttribute, LodsGroup);
 
 		// Seams Group
 		SeamStitchStart = &ManagedArrayCollection->AddAttribute<int32>(SeamStitchStartAttribute, SeamsGroup, SeamStitchesDependency);

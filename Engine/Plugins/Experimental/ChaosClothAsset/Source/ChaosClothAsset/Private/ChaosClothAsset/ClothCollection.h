@@ -159,7 +159,7 @@ namespace UE::Chaos::ClothAsset
 
 		//~ LODs Group (There should be only one LOD per ClothCollection)
 		const TManagedArray<FString>* GetPhysicsAssetPathName() const { return PhysicsAssetPathName; }
-		const TManagedArray<FString>* GetSkeletonAssetPathName() const { return SkeletonAssetPathName; }
+		const TManagedArray<FString>* GetSkeletalMeshPathName() const { return SkeletalMeshPathName; }
 
 		//~ Seam Group
 		const TManagedArray<int32>* GetSeamStitchStart() const { return SeamStitchStart; }
@@ -215,7 +215,7 @@ namespace UE::Chaos::ClothAsset
 
 		//~ LODs Group (There should be only one LOD per ClothCollection)
 		TManagedArray<FString>* GetPhysicsAssetPathName(){ return PhysicsAssetPathName; }
-		TManagedArray<FString>* GetSkeletonAssetPathName(){ return SkeletonAssetPathName; }
+		TManagedArray<FString>* GetSkeletalMeshPathName() { return SkeletalMeshPathName; }
 
 		//~ Seam Group
 		TManagedArray<int32>* GetSeamStitchStart() { return SeamStitchStart; }
@@ -275,7 +275,7 @@ namespace UE::Chaos::ClothAsset
 
 		//~ LODs Group
 		TManagedArray<FString>* PhysicsAssetPathName;
-		TManagedArray<FString>* SkeletonAssetPathName;
+		TManagedArray<FString>* SkeletalMeshPathName;
 
 		//~ Seam Group
 		TManagedArray<int32>* SeamStitchStart;

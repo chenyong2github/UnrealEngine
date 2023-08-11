@@ -110,7 +110,8 @@ UChaosClothAsset::UChaosClothAsset(const FObjectInitializer& ObjectInitializer)
 
 	// Set default skeleton (must be done after having added the LOD)
 	constexpr bool bRebuildModels = false;
-	SetSkeleton(nullptr, bRebuildModels);
+	constexpr bool bRebindMeshes = false;
+	SetReferenceSkeleton(nullptr, bRebuildModels, bRebindMeshes);
 }
 
 UChaosClothAsset::UChaosClothAsset(FVTableHelper& Helper)
@@ -118,7 +119,9 @@ UChaosClothAsset::UChaosClothAsset(FVTableHelper& Helper)
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UChaosClothAsset::~UChaosClothAsset() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FSkeletalMeshLODInfo* UChaosClothAsset::GetLODInfo(int32 Index)
 {
@@ -158,11 +161,6 @@ void UChaosClothAsset::Serialize(FArchive& Ar)
 	UE::Chaos::ClothAsset::Private::Serialize(ChaosArchive, ClothCollections);
 
 	Ar << GetRefSkeleton();
-	if (Ar.IsLoading())
-	{
-		constexpr bool bRebuildNameMap = false;
-		GetRefSkeleton().RebuildRefSkeleton(GetSkeleton(), bRebuildNameMap);
-	}
 
 	if (bCooked && !IsTemplate() && !Ar.IsCountingMemory())
 	{
@@ -214,7 +212,8 @@ void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Conte
 		ClothFacade.DefineSchema();
 		bAnyInvalidLods = true;
 	}
-	for(int32 LODIndex = 0; LODIndex < ClothCollections.Num(); ++LODIndex)
+	bool bAnyInvalidSkeletons = false;
+	for (int32 LODIndex = 0; LODIndex < ClothCollections.Num(); ++LODIndex)
 	{
 		TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections[LODIndex];
 
@@ -226,13 +225,22 @@ void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Conte
 			ClothFacade = UE::Chaos::ClothAsset::FCollectionClothFacade(ClothCollection);
 			ClothFacade.DefineSchema();
 			bAnyInvalidLods = true;
+			bAnyInvalidSkeletons = true;
+		}
+		else if (ClothFacade.GetSkeletalMeshPathName().IsEmpty())
+		{
+			bAnyInvalidSkeletons = true;
 		}
 	}
 	if (bAnyInvalidLods)
 	{
-		constexpr bool bRebuildModels = false;
-		SetSkeleton(Skeleton, bRebuildModels);  // Re-update the collection with the skeleton information if any
 		SetPhysicsAsset(PhysicsAsset);  // Re-update the collection with the physics asset information if any
+	}
+	if (bAnyInvalidSkeletons)
+	{
+		constexpr bool bRebuildModels = false;
+		constexpr bool bRebindMeshes = true;  // Best to rebind the mesh when reloading broken data
+		SetReferenceSkeleton(nullptr, bRebuildModels, bRebindMeshes);
 	}
 
 	BuildClothSimulationModel();  // TODO: Cache ClothSimulationModel?
@@ -689,27 +697,43 @@ void UChaosClothAsset::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
 	}
 }
 
-void UChaosClothAsset::SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels)
+void UChaosClothAsset::SetReferenceSkeleton(const FReferenceSkeleton* ReferenceSkeleton, bool bRebuildModels, bool bRebindMeshes)
 {
 	using namespace UE::Chaos::ClothAsset;
-	check(ClothCollections.Num());
 
-	const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
-	Skeleton = InSkeleton ?
-		InSkeleton :
-		LoadObject<USkeleton>(nullptr, DefaultSkeletonPathName, nullptr, LOAD_None, nullptr);
-
-	RefSkeleton = Skeleton->GetReferenceSkeleton();
-
-	for (TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
+	// Update the reference skeleton
+	if (ReferenceSkeleton)
 	{
-		constexpr bool bBindSimMesh = true;
-		constexpr bool bBindRenderMesh = true;
-		FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
-
-		FCollectionClothFacade Cloth(ClothCollection);
-		Cloth.SetSkeletonAssetPathName(Skeleton->GetPathName());
+		RefSkeleton = *ReferenceSkeleton;
 	}
+	else
+	{
+		// Create a default reference skeleton
+		RefSkeleton.Empty(1);
+		FReferenceSkeletonModifier ReferenceSkeletonModifier(RefSkeleton, nullptr);
+
+		FMeshBoneInfo MeshBoneInfo;
+		constexpr const TCHAR* RootName = TEXT("Root");
+		MeshBoneInfo.ParentIndex = INDEX_NONE;
+#if WITH_EDITORONLY_DATA
+		MeshBoneInfo.ExportName = RootName;
+#endif
+		MeshBoneInfo.Name = FName(RootName);
+		ReferenceSkeletonModifier.Add(MeshBoneInfo, FTransform::Identity);
+
+		bRebindMeshes = true; // Force the binding when a default reference skeleton is being created 
+	}
+
+	// Rebind the meshes
+	if (bRebindMeshes)
+	{
+		for (TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
+		{
+			FClothGeometryTools::BindMeshToRootBone(ClothCollection, true, true);
+		}
+	}
+
+	// Rebind the models
 	if (bRebuildModels)
 	{
 		Build();
@@ -724,24 +748,14 @@ void UChaosClothAsset::UpdateSkeletonFromCollection(bool bRebuildModels)
 	FCollectionClothConstFacade ClothFacade(ClothCollections[0]);
 	check(ClothFacade.IsValid());
 
-	USkeleton* InSkeleton = nullptr;
-	const FString& SkeletonAssetPathName = ClothFacade.GetSkeletonAssetPathName();
-	InSkeleton = LoadObject<USkeleton>(nullptr, *SkeletonAssetPathName, nullptr, LOAD_None, nullptr);
+	const FString& SkeletalMeshPathName = ClothFacade.GetSkeletalMeshPathName();
+	USkeletalMesh* const SkeletalMesh = SkeletalMeshPathName.IsEmpty() ? nullptr :
+		LoadObject<USkeletalMesh>(nullptr, *SkeletalMeshPathName, nullptr, LOAD_None, nullptr);
 
-	if (!InSkeleton)
-	{
-		SetSkeleton(nullptr, bRebuildModels);
-	}
-	else
-	{
-		Skeleton = InSkeleton;
-		RefSkeleton = Skeleton->GetReferenceSkeleton();
+	SetSkeleton(SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr); // For completion only, this is not being used and might mismatch the skeletal mesh's reference skeleton
 
-		if (bRebuildModels)
-		{
-			Build();
-		}
-	}
+	constexpr bool bRebindMeshes = false;  // The collection should contain the correct binding at the time SkeletalMeshPathName was set
+	SetReferenceSkeleton(SkeletalMesh ? &SkeletalMesh->GetRefSkeleton() : nullptr, bRebuildModels, bRebindMeshes);
 }
 
 void UChaosClothAsset::CopySimMeshToRenderMesh(UMaterialInterface* Material)

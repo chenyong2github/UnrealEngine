@@ -39,7 +39,7 @@ namespace UE::Chaos::ClothAsset
 		/** Return the physics asset path names used for this collection. */
 		const FString& GetPhysicsAssetPathName() const;
 		/** Return the skeleton asset path names used for this collection. */
-		const FString& GetSkeletonAssetPathName() const;
+		const FString& GetSkeletalMeshPathName() const;
 
 		//~ Sim Vertices 2D Group
 		/** Return the total number of 2D simulation vertices for this collection. */
@@ -165,8 +165,8 @@ namespace UE::Chaos::ClothAsset
 		//~ LOD (single per collection) Group
 		/** Set the physics asset path name. */
 		void SetPhysicsAssetPathName(const FString& PathName);
-		/** Set the skeleton asset path name. */
-		void SetSkeletonAssetPathName(const FString& PathName);
+		/** Set the skeletal mesh asset path name and the reference skeleton that will be used with this asset. */
+		void SetSkeletalMeshPathName(const FString& PathName);
 
 		//~ Pattern Sim Vertices 2D Group
 		/** SetNumSimVertices2D per pattern within pattern facade. */

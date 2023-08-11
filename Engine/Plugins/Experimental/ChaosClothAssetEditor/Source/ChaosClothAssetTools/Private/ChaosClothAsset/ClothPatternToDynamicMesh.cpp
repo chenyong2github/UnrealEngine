@@ -6,11 +6,11 @@
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
-#include "ToDynamicMesh.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
+#include "Engine/SkeletalMesh.h"
 #include "SkeletalMeshAttributes.h"
-#include "Animation/Skeleton.h"
+#include "ToDynamicMesh.h"
 
 namespace UE::Chaos::ClothAsset
 {
@@ -220,11 +220,11 @@ public:
 		}
 
 		// Set the reference skeleton if available
-		const FString& SkeletonPathName = Cloth.GetSkeletonAssetPathName();
-		const USkeleton* const Skeleton = !SkeletonPathName.IsEmpty() ?
-			LoadObject<USkeleton>(nullptr, *SkeletonPathName, nullptr, LOAD_None, nullptr) :
+		const FString& SkeletalMeshPathName = ClothFacade.GetSkeletalMeshPathName();
+		const USkeletalMesh* const SkeletalMesh = !SkeletalMeshPathName.IsEmpty() ?
+			LoadObject<USkeletalMesh>(nullptr, *SkeletalMeshPathName, nullptr, LOAD_None, nullptr) :
 			nullptr;
-		RefSkeleton = Skeleton ? &Skeleton->GetReferenceSkeleton() : nullptr;
+		RefSkeleton = SkeletalMesh ? &SkeletalMesh->GetRefSkeleton() : nullptr;
 	}
 
 	int32 NumTris() const

@@ -128,8 +128,6 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		static const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
-
 		// Evaluate out collection
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>();
 		FCollectionClothFacade ClothFacade(ClothCollection);
@@ -167,9 +165,6 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 								FText::FromString(StaticMesh->GetName())));
 					}
 				}
-
-				// Set a default skeleton
-				ClothFacade.SetSkeletonAssetPathName(DefaultSkeletonPathName);
 				
 				// Bind to root bone by default
 				FClothGeometryTools::BindMeshToRootBone(ClothCollection, bImportAsSimMesh, bImportAsRenderMesh);

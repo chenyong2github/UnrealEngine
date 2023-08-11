@@ -29,10 +29,10 @@ namespace UE::Chaos::ClothAsset
 		return ClothCollection->GetPhysicsAssetPathName() && ClothCollection->GetNumElements(FClothCollection::LodsGroup) > 0 ? (*ClothCollection->GetPhysicsAssetPathName())[0] : EmptyString;
 	}
 
-	const FString& FCollectionClothConstFacade::GetSkeletonAssetPathName() const
+	const FString& FCollectionClothConstFacade::GetSkeletalMeshPathName() const
 	{
 		static const FString EmptyString;
-		return ClothCollection->GetSkeletonAssetPathName() && ClothCollection->GetNumElements(FClothCollection::LodsGroup) > 0 ? (*ClothCollection->GetSkeletonAssetPathName())[0] : EmptyString;
+		return ClothCollection->GetSkeletalMeshPathName() && ClothCollection->GetNumElements(FClothCollection::LodsGroup) > 0 ? (*ClothCollection->GetSkeletalMeshPathName())[0] : EmptyString;
 	}
 
 	int32 FCollectionClothConstFacade::GetNumSimVertices2D() const
@@ -308,7 +308,7 @@ namespace UE::Chaos::ClothAsset
 
 		// LODs Group
 		SetPhysicsAssetPathName(Other.GetPhysicsAssetPathName());
-		SetSkeletonAssetPathName(Other.GetSkeletonAssetPathName());
+		SetSkeletalMeshPathName(Other.GetSkeletalMeshPathName());
 		
 		Append(Other);
 	}
@@ -388,11 +388,11 @@ namespace UE::Chaos::ClothAsset
 		}
 
 	}
-	void FCollectionClothFacade::SetSkeletonAssetPathName(const FString& PathName)
+	void FCollectionClothFacade::SetSkeletalMeshPathName(const FString& PathName)
 	{
 		if (ClothCollection->GetNumElements(FClothCollection::LodsGroup))
 		{
-			(*GetClothCollection()->GetSkeletonAssetPathName())[0] = PathName;
+			(*GetClothCollection()->GetSkeletalMeshPathName())[0] = PathName;
 		}
 	}
 
