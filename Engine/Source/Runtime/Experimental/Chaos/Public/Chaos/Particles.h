@@ -220,7 +220,7 @@ namespace Chaos
 		Count
 	};
 
-	enum EChaosCollisionTraceFlag
+	enum class EChaosCollisionTraceFlag : int8
 	{
 		/** Use project physics settings (DefaultShapeComplexity) */
 		Chaos_CTF_UseDefault,

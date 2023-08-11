@@ -2086,9 +2086,9 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 
 		// make the node
 		FTrimeshBVH::FNode& NewNode = FastBVH.Nodes.Emplace_GetRef();
-		NewNode.Children[0].SetChildOrFaceIndex(0);
-		NewNode.Children[0].SetFaceCount(Leaf.Elems.Num());
-		NewNode.Children[0].SetBounds(BoundingBox());
+		NewNode.Children.SetChildOrFaceIndex(0, 0);
+		NewNode.Children.SetFaceCount(0, Leaf.Elems.Num());
+		NewNode.Children.SetBounds(0, BoundingBox());
 		for (const TPayloadBoundsElement<int32, FRealSingle>& LeafPayload: Leaf.Elems)
 		{
 			FastBVH.FaceBounds.Add(FAABBVectorized(LeafPayload.Bounds));
@@ -2154,12 +2154,12 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 			for (int32 ChildIndex=1; ChildIndex>=0; --ChildIndex)
 			{
 				// common infos
-				FTrimeshBVH::FChildData& ChildData = NewNode.Children[ChildIndex];
-				ChildData.SetBounds(Node.ChildrenBounds[ChildIndex]);
+				FTrimeshBVH::FChildData& ChildData = NewNode.Children;
+				ChildData.SetBounds(ChildIndex, Node.ChildrenBounds[ChildIndex]);
 				const int32 ChildNodeIndex = Node.ChildrenNodes[ChildIndex];
 				// index in the original BVH space, remapping is done at the end of the process
 				// this may be overwritten if the child is a leaf
-				ChildData.SetChildOrFaceIndex(ChildNodeIndex);
+				ChildData.SetChildOrFaceIndex(ChildIndex, ChildNodeIndex);
 
 				if (Nodes.IsValidIndex(ChildNodeIndex))
 				{
@@ -2170,9 +2170,9 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 						const LeafType& Leaf = Leaves[*LeafIndex];
 
 						// store face range in the node 
-						ChildData.SetChildOrFaceIndex(FaceNum);
-						ChildData.SetFaceCount(Leaf.Elems.Num());
-						check(ChildData.GetFaceCount() > 0);
+						ChildData.SetChildOrFaceIndex(ChildIndex, FaceNum);
+						ChildData.SetFaceCount(ChildIndex, Leaf.Elems.Num());
+						check(ChildData.GetFaceCount(ChildIndex) > 0);
 
 						TMap<int32, int32> VertexReuse;
 						// copy indices in the linear face array
@@ -2209,15 +2209,15 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 		FTrimeshBVH::FNode& Node = FastBVH.Nodes[NodeIndex];
 		for (int32 ChildIndex=0; ChildIndex<2; ++ChildIndex)
 		{
-			FTrimeshBVH::FChildData& ChildData = Node.Children[ChildIndex];
-			const bool bHasFaces = ChildData.GetFaceCount() > 0;
+			FTrimeshBVH::FChildData& ChildData = Node.Children;
+			const bool bHasFaces = ChildData.GetFaceCount(ChildIndex) > 0;
 			if (!bHasFaces)
 			{
-				const int32 ChildNodeIndex = ChildData.GetChildOrFaceIndex();
+				const int32 ChildNodeIndex = ChildData.GetChildOrFaceIndex(ChildIndex);
 				const int32* FixedChildNodeIndex = BVHToFastBVHNodeIndexMap.Find(ChildNodeIndex);
 				if (ensure(FixedChildNodeIndex))
 				{
-					ChildData.SetChildOrFaceIndex( *FixedChildNodeIndex);
+					ChildData.SetChildOrFaceIndex(ChildIndex, *FixedChildNodeIndex);
 				}
 			}
 		}

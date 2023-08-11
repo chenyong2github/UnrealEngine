@@ -35,7 +35,7 @@ namespace Chaos
 	class FPerShapeData
 	{
 	protected:
-		enum class EPerShapeDataType : uint8
+		enum class EPerShapeDataType : uint32
 		{
 			Proxy,
 			Sim,
@@ -190,9 +190,10 @@ namespace Chaos
 
 		virtual void SerializeMaterials(FChaosArchive& Ar) = 0;
 
-		EPerShapeDataType Type;
-		uint8 bIsSingleMaterial : 1;	// For use by FShapeInstance (here because the space is available for free)
-		int32 ShapeIdx;
+		EPerShapeDataType Type : 2;
+		uint32 bIsSingleMaterial : 1;	// For use by FShapeInstance (here because the space is available for free)
+		uint32 ShapeIdx : 29;
+		FShapeDirtyFlags DirtyFlags;	// For use by FShapeInstanceProxy as there's 4 bytes of padding here
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 	};
@@ -434,7 +435,6 @@ namespace Chaos
 		explicit FShapeInstanceProxy(int32 InShapeIdx)
 			: FPerShapeData(EPerShapeDataType::Proxy, InShapeIdx)
 			, Proxy(nullptr)
-			, DirtyFlags()
 			, CollisionData()
 			, Materials()
 		{
@@ -443,7 +443,6 @@ namespace Chaos
 		FShapeInstanceProxy(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
 			: FPerShapeData(EPerShapeDataType::Proxy, InShapeIdx, InGeometry)
 			, Proxy(nullptr)
-			, DirtyFlags()
 			, CollisionData()
 			, Materials()
 		{
@@ -453,7 +452,6 @@ namespace Chaos
 
 
 		IPhysicsProxyBase* Proxy;
-		FShapeDirtyFlags DirtyFlags;
 
 		TShapeProperty<FCollisionData, EShapeProperty::CollisionData> CollisionData;
 		TShapeProperty<FMaterialData, EShapeProperty::Materials> Materials;

@@ -50,53 +50,56 @@ namespace Chaos
 		struct alignas(16) FChildData
 		{
 			FChildData()
-				: ChildOrFaceIndex(INDEX_NONE)
-				, FaceCount(0)
+				: ChildOrFaceIndex{ INDEX_NONE, INDEX_NONE }
+				, FaceCount{ 0, 0 }
 			{
 			}
 
-			FORCEINLINE int32 GetChildOrFaceIndex() const
+			FORCEINLINE int32 GetChildOrFaceIndex(int ChildIndex) const
 			{
-				return ChildOrFaceIndex;
+				return ChildOrFaceIndex[ChildIndex];
 			}
 
-			FORCEINLINE int32 GetFaceCount() const
+			FORCEINLINE int32 GetFaceCount(int ChildIndex) const
 			{
-				return FaceCount;
+				return FaceCount[ChildIndex];
 			}
 
-			FORCEINLINE void SetChildOrFaceIndex(int32 InChildOrFaceIndex)
+			FORCEINLINE void SetChildOrFaceIndex(int ChildIndex, int32 InChildOrFaceIndex)
 			{
-				ChildOrFaceIndex = InChildOrFaceIndex;
+				ChildOrFaceIndex[ChildIndex] = InChildOrFaceIndex;
 			}
 
-			FORCEINLINE void SetFaceCount(int32 InFaceCount)
+			FORCEINLINE void SetFaceCount(int ChildIndex, int32 InFaceCount)
 			{
-				FaceCount = InFaceCount;
+				FaceCount[ChildIndex] = InFaceCount;
 			}
 
-			FORCEINLINE void SetBounds(const FAABB3& AABB)
+			FORCEINLINE void SetBounds(int ChildIndex, const FAABB3& AABB)
 			{
-				Bounds = FAABBVectorized(AABB);
+				Bounds[ChildIndex] = FAABBVectorized(AABB);
 			}
-			FORCEINLINE void SetBounds(const TAABB<FRealSingle, 3>& AABB)
+			FORCEINLINE void SetBounds(int ChildIndex, const TAABB<FRealSingle, 3>& AABB)
 			{
-				Bounds = FAABBVectorized(AABB);
+				Bounds[ChildIndex] = FAABBVectorized(AABB);
 			}
 
-			const FAABBVectorized& GetBounds() const { return Bounds; }
+			const FAABBVectorized& GetBounds(int ChildIndex) const { return Bounds[ChildIndex]; }
 
 			void Serialize(FArchive& Ar)
 			{
-				Ar << Bounds;
-				Ar << ChildOrFaceIndex;
-				Ar << FaceCount;
+				Ar << Bounds[0];
+				Ar << ChildOrFaceIndex[0];
+				Ar << FaceCount[0];
+				Ar << Bounds[1];
+				Ar << ChildOrFaceIndex[1];
+				Ar << FaceCount[1];
 			}
 
 		private:
-			FAABBVectorized Bounds;
-			int32 ChildOrFaceIndex;
-			int32 FaceCount;
+			FAABBVectorized Bounds[2];
+			int32 ChildOrFaceIndex[2];
+			int32 FaceCount[2];
 		};
 		
 		struct FNode
@@ -105,10 +108,9 @@ namespace Chaos
 
 			void Serialize(FArchive& Ar)
 			{
-				Children[0].Serialize(Ar);
-				Children[1].Serialize(Ar);
+				Children.Serialize(Ar);
 			}
-			FChildData Children[2];
+			FChildData Children;
 		};
 
 		template <typename SQVisitor>
@@ -242,13 +244,13 @@ namespace Chaos
 
 				for (int32 ChildIndex = 0; ChildIndex < 2; ++ChildIndex)
 				{
-					const FChildData& ChildData = Node.Children[ChildIndex]; 
-					const int32 FaceIndex = ChildData.GetChildOrFaceIndex();
+					const FChildData& ChildData = Node.Children; 
+					const int32 FaceIndex = ChildData.GetChildOrFaceIndex(ChildIndex);
 					if (FaceIndex != INDEX_NONE)
 					{
-						if (BoundsFilter(ChildData.GetBounds()) == EFilterResult::Keep)
+						if (BoundsFilter(ChildData.GetBounds(ChildIndex)) == EFilterResult::Keep)
 						{
-							const uint32 FaceCount = ChildData.GetFaceCount();
+							const uint32 FaceCount = ChildData.GetFaceCount(ChildIndex);
 							if (FaceCount > 0)
 							{
 								if (EVisitorResult::Stop == VisitFaces(FaceIndex, FaceCount, BoundsFilter, FaceVisitor))

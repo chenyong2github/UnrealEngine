@@ -22,7 +22,12 @@
 /**
 * Single item in the UObject array.
 */
-struct FUObjectItem
+struct
+#if !STATS && !ENABLE_STATNAMEDEVENTS_UOBJECT
+	// Packing avoids 20% mem waste and improves perf
+	GCC_PACK(4)
+#endif
+	FUObjectItem
 {
 	// Pointer to the allocated object
 	class UObjectBase* Object;

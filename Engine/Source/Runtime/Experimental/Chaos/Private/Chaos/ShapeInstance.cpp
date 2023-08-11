@@ -6,6 +6,8 @@
 
 namespace Chaos
 {
+	static_assert(sizeof(FShapeInstanceProxy) <= 192, "FShapeInstanceProxy was optimized to fit into 192b bin of MB3 to prevent excess memory waste");
+
 	// Create or reuse the shapes in the shapes array and populate them with the Geometry.
 	// If we have a Union it will be unpacked into the ShapesArray.
 	// On the Physics Thread we set bAllowCachedLeafInfo which caches the shapes world space state to optimize collision detection,
