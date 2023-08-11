@@ -3,6 +3,7 @@
 #include "ConcertClientPresenceActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineGlobals.h"
+#include "UObject/Package.h"
 #include "UObject/StructOnScope.h"
 #include "Engine/Scene.h"
 #include "ConcertPresenceEvents.h"

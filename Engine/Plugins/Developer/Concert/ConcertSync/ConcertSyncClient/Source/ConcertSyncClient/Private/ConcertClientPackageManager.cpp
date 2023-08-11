@@ -15,6 +15,8 @@
 #include "ConcertSyncSettings.h"
 #include "ConcertUtil.h"
 
+#include "Algo/Find.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "UObject/Package.h"

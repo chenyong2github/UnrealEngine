@@ -45,6 +45,7 @@
 #include "Misc/FeedbackContext.h"
 #include "RenderingThread.h"
 #include "Modules/ModuleManager.h"
+#include "Serialization/MemoryReader.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "Backends/JsonStructDeserializerBackend.h"
