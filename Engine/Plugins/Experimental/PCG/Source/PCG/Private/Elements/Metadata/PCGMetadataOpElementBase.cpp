@@ -508,13 +508,14 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		else
 		{
 			// In case of property or attribute with extra accessor, we need to validate that the property/attribute can accept the output type.
-			// Verify this before duplicating.
-			OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
+			// Verify this before duplicating, because an extra allocation is certainly less costly than duplicating the data.
+			// Do it with a const accessor, since OutputData.Data is still pointing on the const input data.
+			TUniquePtr<const IPCGAttributeAccessor> TempConstAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(Cast<const UPCGData>(OutputData.Data), OutputTarget);
 
-			if (OperationData.OutputAccessors[OutputIndex].IsValid())
+			if (TempConstAccessor.IsValid())
 			{
 				// We matched an attribute/property, check if the output type is valid.
-				if (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<AttributeType>::Id, OperationData.OutputAccessors[OutputIndex]->GetUnderlyingType()))
+				if (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<AttributeType>::Id, TempConstAccessor->GetUnderlyingType()))
 				{
 					PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeTypeBroadcastFailed", "Attribute/Property '{0}' cannot be broadcasted to match types for input"), FText::FromName(OutputName)));
 					return false;

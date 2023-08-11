@@ -258,9 +258,12 @@ FPCGAttributePropertyInputSelector FPCGAttributePropertyInputSelector::CopyAndFi
 {
 	if (Selection == EPCGAttributePropertySelection::Attribute)
 	{
+		// For each case, append extra names to the newly created selector.
 		if (AttributeName == PCGMetadataAttributeConstants::LastAttributeName && InData && InData->HasCachedLastSelector())
 		{
-			return InData->GetCachedLastSelector();
+			FPCGAttributePropertyInputSelector Selector = InData->GetCachedLastSelector();
+			Selector.ExtraNames.Append(ExtraNames);
+			return Selector;
 		}
 		else if (AttributeName == PCGMetadataAttributeConstants::LastCreatedAttributeName && InData)
 		{
@@ -268,6 +271,7 @@ FPCGAttributePropertyInputSelector FPCGAttributePropertyInputSelector::CopyAndFi
 			{
 				FPCGAttributePropertyInputSelector Selector;
 				Selector.SetAttributeName(Metadata->GetLatestAttributeNameOrNone());
+				Selector.ExtraNames.Append(ExtraNames);
 				return Selector;
 			}
 		}
@@ -307,14 +311,18 @@ FPCGAttributePropertyOutputSelector FPCGAttributePropertyOutputSelector::CopyAnd
 {
 	if (Selection == EPCGAttributePropertySelection::Attribute)
 	{
+		// For each case, append extra names to the newly created selector.
 		if (AttributeName == PCGMetadataAttributeConstants::SourceAttributeName && InSourceSelector)
 		{
-			return FPCGAttributePropertySelector::CreateFromOtherSelector<FPCGAttributePropertyOutputSelector>(*InSourceSelector);
+			FPCGAttributePropertyOutputSelector Selector = FPCGAttributePropertySelector::CreateFromOtherSelector<FPCGAttributePropertyOutputSelector>(*InSourceSelector);
+			Selector.ExtraNames.Append(ExtraNames);
+			return Selector;
 		}
 		else if (AttributeName == PCGMetadataAttributeConstants::SourceNameAttributeName && InSourceSelector)
 		{
 			FPCGAttributePropertyOutputSelector Selector;
 			Selector.SetAttributeName(InSourceSelector->GetName());
+			Selector.ExtraNames.Append(ExtraNames);
 			return Selector;
 		}
 		// Only for deprecation
@@ -324,6 +332,7 @@ FPCGAttributePropertyOutputSelector FPCGAttributePropertyOutputSelector::CopyAnd
 			{
 				FPCGAttributePropertyOutputSelector Selector;
 				Selector.SetAttributeName(Metadata->GetLatestAttributeNameOrNone());
+				Selector.ExtraNames.Append(ExtraNames);
 				return Selector;
 			}
 		}
