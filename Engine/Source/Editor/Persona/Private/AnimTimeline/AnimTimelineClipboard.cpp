@@ -280,6 +280,13 @@ void FAnimTimelineClipboardUtilities::OverwriteOrAddCurvesFromClipboardContent(c
 		    else
 		    {
 			    FAnimationCurveIdentifier CurveIdentifier = InCurveCopyObj->GetAnimationCurveIdentifier();
+
+		    	// Create curve with clipboard information if needed
+		    	if (!Controller.GetModel()->FindCurve(CurveIdentifier))
+		    	{
+		    		Controller.AddCurve(CurveIdentifier);
+		    	}
+		    	
 			    if (InCurveCopyObj->CurveType == ERawCurveTrackTypes::RCT_Float)
 			    {
 				    const UFloatCurveCopyObject* FloatCopyObject = Cast<UFloatCurveCopyObject>(InCurveCopyObj);
