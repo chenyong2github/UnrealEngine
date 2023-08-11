@@ -115,7 +115,10 @@ enum class ETargetPlatformFeatures
 	NormalmapLAEncodingMode,
 
 	/** All devices of this platform should be grouped under one platform group */
-	ShowAsPlatformGroup
+	ShowAsPlatformGroup,
+
+	/** Does the platform allow various connection types to be used (ie: wifi and usb) */
+	SupportsMultipleConnectionTypes
 };
 
 enum class EPlatformAuthentication

@@ -977,7 +977,9 @@ static FSlateIcon MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr
 	}
 	else
 	{
-		if (DeviceProxy != nullptr && !DeviceProxy->GetConnectionType().IsEmpty())
+		const ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(IniPlatformName);
+		if ((DeviceProxy != nullptr) && (Platform != nullptr) && !DeviceProxy->GetConnectionType().IsEmpty() &&
+			Platform->SupportsFeature(ETargetPlatformFeatures::SupportsMultipleConnectionTypes))
 		{
 			FSlateIcon Icon;
 			if (DeviceProxy->GetConnectionType().Contains(TEXT("Network")))
