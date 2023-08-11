@@ -15,6 +15,7 @@ class SBorder;
 class SDMXPixelMappingFixturePatchList;
 class SHorizontalBox;
 class STextBlock;
+class SWidgetSwitcher;
 class UDMXEntity;
 class UDMXLibrary;
 class UDMXPixelMapping;
@@ -96,11 +97,14 @@ private:
 	/** Text block displaying the selected fixture group name */
 	TSharedPtr<STextBlock> FixtureGroupNameTextBlock;
 
-	/** Text block displaying 'all patches added' when no patches are available to add from the dmx library */
-	TSharedPtr<STextBlock> AllPatchesAddedTextBlock;
+	/** Switches between the list and the all patches added text blocok */
+	TSharedPtr<SWidgetSwitcher> ListOrAllPatchesAddedSwitcher;
 
 	/** List of fixture patches the user can select from */
 	TSharedPtr<SDMXPixelMappingFixturePatchList> FixturePatchList;
+
+	/** Text block displaying 'all patches added' when no patches are available to add from the dmx library */
+	TSharedPtr<STextBlock> AllPatchesAddedTextBlock;
 
 	/** Horizontal box containing the 'add selected patches' and 'add all patches' buttons */
 	TSharedPtr<SHorizontalBox> AddPatchesHorizontalBox;

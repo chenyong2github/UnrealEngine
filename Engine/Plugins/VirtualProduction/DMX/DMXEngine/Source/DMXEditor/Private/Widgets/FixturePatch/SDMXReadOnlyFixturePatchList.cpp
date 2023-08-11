@@ -115,7 +115,6 @@ void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 
 			// ListView section
 			+ SVerticalBox::Slot()
-			.AutoHeight()
 			[
 				SAssignNew(ListView, SListView<TSharedPtr<FDMXEntityFixturePatchRef>>)
 				.HeaderRow(GenerateHeaderRow())
