@@ -3049,7 +3049,7 @@ bool UPrimitiveComponent::SweepComponent(FHitResult& OutHit, const FVector Start
 		ChaosInterface::SetFlags(BestHit, EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position | EHitFlags::FaceIndex);
 
 		bool bHasHit = false;
-		ConvertTraceResults<ChaosInterface::FSweepHit>(bHasHit, GetWorld(), 1, &BestHit, (End - Start).Size(), QueryFilter, OutHit, Start, End, Geometry, FTransform{ ShapeWorldRotation, Start }, 0.f, Params.bReturnFaceIndex, Params.bReturnPhysicalMaterial);
+		ConvertTraceResults<ChaosInterface::FSweepHit>(bHasHit, GetWorld(), 1, &BestHit, (End - Start).Size(), QueryFilter, OutHit, Start, End, &Geometry, FTransform{ ShapeWorldRotation, Start }, 0.f, Params.bReturnFaceIndex, Params.bReturnPhysicalMaterial);
 		return bHasHit;
 	}
 
