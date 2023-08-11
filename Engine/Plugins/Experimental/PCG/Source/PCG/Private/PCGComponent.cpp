@@ -2420,7 +2420,7 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		// Note that we only do this if we are not currently loading
 		if (!SourceComponent || !SourceComponent->HasAllFlags(RF_WasLoaded))
 		{
-			PCGComponent->Refresh(/*bIsStructural=*/true);
+			PCGComponent->Refresh();
 		}
 #endif // WITH_EDITOR
 	}

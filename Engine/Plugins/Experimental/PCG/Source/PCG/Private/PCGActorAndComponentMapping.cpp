@@ -149,6 +149,12 @@ bool UPCGActorAndComponentMapping::RegisterOrUpdatePCGComponent(UPCGComponent* I
 		bHasChanged = RegisterOrUpdateNonPartitionedPCGComponent(InComponent);
 	}
 
+	// If the component was previously marked as to be unregistered, remove it here.
+	{
+		FScopeLock Lock(&DelayedComponentToUnregisterLock);
+		DelayedComponentToUnregister.Remove(InComponent);
+	}
+
 	// And finally handle the tracking. Only do it when the component is registered for the first time.
 #if WITH_EDITOR
 	if (!bWasAlreadyRegistered && bHasChanged)
@@ -822,10 +828,17 @@ void UPCGActorAndComponentMapping::OnActorAdded(AActor* InActor)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorAdded);
 
 	// We have to make sure to not create a infinite loop
-	if (!InActor || InActor->IsA<APCGWorldActor>() || !PCGSubsystem)
+	if (!InActor || InActor->IsA<APCGWorldActor>() || !PCGSubsystem || InActor->GetWorld() != PCGSubsystem->GetWorld())
 	{
 		return;
 	}
+
+#if WITH_EDITOR
+	if (InActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
 
 	// If the subsystem is not initialized, wait for it to be, and store all the actors to check
 	if (!PCGSubsystem->IsInitialized())
@@ -844,10 +857,17 @@ void UPCGActorAndComponentMapping::OnActorAdded(AActor* InActor)
 bool UPCGActorAndComponentMapping::AddOrUpdateTrackedActor(AActor* InActor)
 {
 	// We have to make sure to not create a infinite loop
-	if (!InActor || InActor->IsA<APCGWorldActor>() || !PCGSubsystem || !PCGSubsystem->FindPCGWorldActor())
+	if (!InActor || InActor->IsA<APCGWorldActor>() || !PCGSubsystem || !PCGSubsystem->FindPCGWorldActor() || InActor->GetWorld() != PCGSubsystem->GetWorld())
 	{
 		return false;
 	}
+
+#if WITH_EDITOR
+	if (InActor->bIsEditorPreviewActor)
+	{
+		return false;
+	}
+#endif
 
 	// Gather all components, and check if they want to track this one
 	TSet<UPCGComponent*> AllComponents = GetAllRegisteredComponents();
@@ -921,7 +941,6 @@ void UPCGActorAndComponentMapping::RegisterActor(AActor* InActor)
 
 	if (!PCGWorldActor->CachedTrackedActors.Contains(InActor))
 	{
-		PCGWorldActor->Modify();
 		PCGWorldActor->CachedTrackedActors.Add(InActor);
 	}
 
@@ -950,7 +969,6 @@ bool UPCGActorAndComponentMapping::UnregisterActor(AActor* InActor)
 
 	if (PCGWorldActor->CachedTrackedActors.Contains(InActor))
 	{
-		PCGWorldActor->Modify();
 		PCGWorldActor->CachedTrackedActors.Remove(InActor);
 		TrackedActorToPositionMap.Remove(InActor);
 		CulledTrackedActorsToComponentsMap.Remove(InActor);
@@ -974,8 +992,20 @@ void UPCGActorAndComponentMapping::OnActorDeleted(AActor* InActor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorDeleted);
 
-	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
-	if (!PCGWorldActor || !InActor || !PCGWorldActor->CachedTrackedActors.Contains(InActor))
+	if (!InActor || !PCGSubsystem || InActor->GetWorld() != PCGSubsystem->GetWorld())
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	if (InActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
+
+	APCGWorldActor* PCGWorldActor = PCGSubsystem->FindPCGWorldActor();
+	if (!PCGWorldActor || !PCGWorldActor->CachedTrackedActors.Contains(InActor))
 	{
 		return;
 	}
@@ -992,10 +1022,17 @@ void UPCGActorAndComponentMapping::OnActorMoved(AActor* InActor)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorMoved);
 
 	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
-	if (!PCGWorldActor || !InActor || !PCGWorldActor->CachedTrackedActors.Contains(InActor))
+	if (!PCGWorldActor || !InActor || (PCGSubsystem && InActor->GetWorld() != PCGSubsystem->GetWorld()) || !PCGWorldActor->CachedTrackedActors.Contains(InActor))
 	{
 		return;
 	}
+
+#if WITH_EDITOR
+	if (InActor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
 
 	// Notify all components
 	OnActorChanged(InActor, /*bInHasMoved=*/ true);
@@ -1014,10 +1051,17 @@ void UPCGActorAndComponentMapping::OnPreObjectPropertyChanged(UObject* InObject,
 	FProperty* MemberProperty = InEditPropertyChain.GetActiveMemberNode() ? InEditPropertyChain.GetActiveMemberNode()->GetValue() : nullptr;
 	AActor* Actor = Cast<AActor>(InObject);
 
-	if (!Actor || !MemberProperty || MemberProperty->GetFName() != GET_MEMBER_NAME_CHECKED(AActor, Tags))
+	if (!Actor || (PCGSubsystem && Actor->GetWorld() != PCGSubsystem->GetWorld()) || !MemberProperty || MemberProperty->GetFName() != GET_MEMBER_NAME_CHECKED(AActor, Tags))
 	{
 		return;
 	}
+
+#if WITH_EDITOR
+	if (Actor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
 
 	TempTrackedActorTags = TSet<FName>(Actor->Tags);
 }
@@ -1080,6 +1124,18 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 		return;
 	}
 
+	if (PCGSubsystem && Actor->GetWorld() != PCGSubsystem->GetWorld())
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	if (Actor->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
+
 	// Check if we are not tracking it or is a tag change.
 	bool bShouldChange = true;
 	if (!PCGWorldActor->CachedTrackedActors.Contains(Actor) || bActorTagChange)
@@ -1103,6 +1159,7 @@ void UPCGActorAndComponentMapping::OnActorChanged(AActor* InActor, bool bInHasMo
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorChanged);
 
 	check(InActor);
+	ensure(!PCGSubsystem || InActor->GetWorld() == PCGSubsystem->GetWorld());
 	TSet<UPCGComponent*> DirtyComponents;
 
 	EPCGComponentDirtyFlag DirtyFlag = EPCGComponentDirtyFlag::Actor;

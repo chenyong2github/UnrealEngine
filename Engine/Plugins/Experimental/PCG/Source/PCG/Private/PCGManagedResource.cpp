@@ -385,7 +385,10 @@ void UPCGManagedISMComponent::MarkAsUsed()
 		}
 
 		// Reset the rotation/scale to be identity otherwise if the root component transform has changed, the final transform will be wrong
+		// Since this is technically 'moving' the ISM, we need to unregister it before moving otherwise we could get a warning that we're moving a component with static mobility
+		ISMC->UnregisterComponent();
 		ISMC->SetWorldTransform(FTransform(FQuat::Identity, RootLocation, FVector::OneVector));
+		ISMC->RegisterComponent();
 	}
 }
 
@@ -406,7 +409,10 @@ void UPCGManagedISMComponent::MarkAsReused()
 			}
 		}
 
+		// Since this is technically 'moving' the ISM, we need to unregister it before moving otherwise we could get a warning that we're moving a component with static mobility
+		ISMC->UnregisterComponent();
 		ISMC->SetWorldTransform(FTransform(FQuat::Identity, TentativeRootLocation, FVector::OneVector));
+		ISMC->RegisterComponent();
 	}
 }
 
@@ -420,7 +426,16 @@ UInstancedStaticMeshComponent* UPCGManagedISMComponent::GetComponent() const
 {
 	if (!CachedRawComponentPtr)
 	{
-		CachedRawComponentPtr = Cast<UInstancedStaticMeshComponent>(GeneratedComponent.Get());
+		UInstancedStaticMeshComponent* GeneratedComponentPtr = Cast<UInstancedStaticMeshComponent>(GeneratedComponent.Get());
+
+		// Implementation note:
+		// There is no surefire way to make sure that we can use the raw pointer UNLESS it is from the same owner
+		if (GeneratedComponentPtr && Cast<UPCGComponent>(GetOuter()) && GeneratedComponentPtr->GetOwner() == Cast<UPCGComponent>(GetOuter())->GetOwner())
+		{
+			CachedRawComponentPtr = GeneratedComponentPtr;
+		}
+
+		return GeneratedComponentPtr;
 	}
 
 	return CachedRawComponentPtr;
