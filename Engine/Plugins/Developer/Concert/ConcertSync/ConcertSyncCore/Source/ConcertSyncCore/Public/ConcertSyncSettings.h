@@ -104,6 +104,12 @@ public:
 	TArray<TFieldPath<FProperty>> AllowedTransientProperties;
 
 	/**
+	 * Array of class properties that we should filtered out.
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Transaction Settings", meta=(AllowedClasses="/Script/CoreUObject.Property"))
+	TArray<TFieldPath<FProperty>> ExcludedProperties;
+
+	/**
 	 * Array of package class filter.
 	 * Packages that matches those filters, will be excluded from propagating to the server when saved.
 	 */
