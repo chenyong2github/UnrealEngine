@@ -93,7 +93,7 @@ namespace PCGDebugElement
 				continue;
 			}
 
-			AActor* TargetActor = InTargetActor ? InTargetActor : Context->GetTargetActor(SpatialData);
+			AActor* TargetActor = InTargetActor ? InTargetActor : Context->GetTargetActor(nullptr);
 
 			if (!TargetActor)
 			{
