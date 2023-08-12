@@ -12,11 +12,7 @@
 #if WITH_CEF3 && PLATFORM_MAC
 #  include "include/wrapper/cef_library_loader.h"
 #  define CEF3_BIN_DIR TEXT("Binaries/ThirdParty/CEF3")
-#  if PLATFORM_MAC_ARM64
-#    define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework arm64.framework")
-#  else
-#    define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework x86.framework")
-#  endif
+#  define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework.framework")
 #  define CEF3_FRAMEWORK_EXE CEF3_FRAMEWORK_DIR TEXT("/Chromium Embedded Framework")
 
 #  define CEF3_BUNDLE_DIR TEXT("../Frameworks/Chromium Embedded Framework.framework")

@@ -96,48 +96,27 @@ public class CEF3 : ModuleRules
 				
 				PublicAdditionalLibraries.Add(WrapperPath);
 
-				if (AppleExports.UseModernXcode(Target.ProjectFile))
+				DirectoryReference FrameworkLocation = DirectoryReference.Combine(new DirectoryReference(Target.UEThirdPartyBinariesDirectory), "CEF3/Mac/Chromium Embedded Framework.framework");
+				// point to the framework in the Binaries/ThirdParty, _outside_ of the .app, for the editor (and for legacy, just to
+				// maintain compatibility)
+				if (Target.LinkType == TargetLinkType.Modular || !AppleExports.UseModernXcode(Target.ProjectFile))
 				{
-					FileReference ZipFile = FileReference.Combine(new DirectoryReference(Target.UEThirdPartyBinariesDirectory), "CEF3/Mac/Chromium Embedded Framework.framework.zip");
+					// Add contents of framework directory as runtime dependencies
+					foreach (string FilePath in Directory.EnumerateFiles(FrameworkLocation.FullName, "*", SearchOption.AllDirectories))
+					{
+						RuntimeDependencies.Add(FilePath);
+					}
+				}
+				// for modern 
+				else
+				{
+					FileReference ZipFile = new FileReference(FrameworkLocation.FullName + ".zip");
 					// this is relative to module dir
 					string FrameworkPath = ZipFile.MakeRelativeTo(new DirectoryReference(ModuleDirectory));
 
 					PublicAdditionalFrameworks.Add(
 						new Framework("Chromium Embedded Framework", FrameworkPath, Framework.FrameworkMode.Copy, null)
 						);
-				}
-				else
-				{
-					// we have separate frameworks for x86 and arm64 because they are so large, some single-architecture builds don't want
-					// to pay the cost of both of them (ideally we would make this universal, and then remove the unused architectures during staging)
-					string FrameworkPathX86 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework x86.framework";
-					string FrameworkPathArm64 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework arm64.framework";
-
-					if (Directory.Exists(LibraryPath + "/locale"))
-					{
-						var LocaleFolders = Directory.GetFileSystemEntries(LibraryPath + "/locale", "*.lproj");
-						foreach (var FolderName in LocaleFolders)
-						{
-							AdditionalBundleResources.Add(new BundleResource(FolderName, bShouldLog: false));
-						}
-					}
-
-					if (Target.Architectures.Contains(UnrealArch.Arm64))
-					{
-						// Add contents of framework directory as runtime dependencies
-						foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathArm64, "*", SearchOption.AllDirectories))
-						{
-							RuntimeDependencies.Add(FilePath);
-						}
-					}
-					if (Target.Architectures.Contains(UnrealArch.X64))
-					{
-						// Add contents of framework directory as runtime dependencies
-						foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathX86, "*", SearchOption.AllDirectories))
-						{
-							RuntimeDependencies.Add(FilePath);
-						}
-					}
 				}
 
 			}
