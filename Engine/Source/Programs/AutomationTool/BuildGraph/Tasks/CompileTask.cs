@@ -226,6 +226,7 @@ namespace AutomationTool.Tasks
 			BuildProducts.UnionWith(Builder.BuildProductFiles.Select(x => new FileReference(x)));
 			return Task.CompletedTask;
 		}
+	}
 
 	/// <summary>
 	/// Compiles a target with UnrealBuildTool.
