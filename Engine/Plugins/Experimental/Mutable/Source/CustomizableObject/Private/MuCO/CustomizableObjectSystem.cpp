@@ -891,7 +891,9 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	Instance.BeginUpdateDelegate.Broadcast(&Instance);
 	Instance.BeginUpdateNativeDelegate.Broadcast(&Instance);
 
-	if (UpdateDescriptorHash.IsSubset(Instance.GetDescriptorRuntimeHash()))
+	if (UpdateDescriptorHash.IsSubset(Instance.GetDescriptorRuntimeHash()) &&
+		!(CurrentMutableOperation &&
+			&Instance == CurrentMutableOperation->CustomizableObjectInstance)) // This condition is necessary because even if the descriptor is a subset, it will be replaced by the CurrentMutableOperation
 	{
 		Instance.SkeletalMeshStatus = ESkeletalMeshState::Correct; // TODO FutureGMT MTBL-1033 should not be here. Move to UCustomizableObjectInstance::Updated
 		UpdateSkeletalMesh(Instance, Instance.GetDescriptorRuntimeHash(), EUpdateResult::Success, UpdateCallback);
