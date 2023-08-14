@@ -236,7 +236,7 @@ void SPCGEditorGraphDebugObjectTree::SelectedDebugObject_OnClicked() const
 	if (UPCGComponent* PCGComponent = PCGEditor.Pin()->GetPCGComponentBeingInspected())
 	{
 		AActor* Actor = PCGComponent->GetOwner();
-		if (Actor && GEditor && GUnrealEd)
+		if (Actor && GEditor && GUnrealEd && GEditor->CanSelectActor(Actor, /*bInSelected=*/true))
 		{
 			GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true, /*WarnAboutManyActors=*/false);
 			GEditor->SelectActor(Actor, /*bInSelected=*/true, /*bNotify=*/true, /*bSelectEvenIfHidden=*/true);
@@ -382,7 +382,7 @@ void SPCGEditorGraphDebugObjectTree::RefreshTree()
 	
 	for (UObject* PCGComponentObject : PCGComponents)
 	{
-		if (!IsValid(PCGComponentObject))
+		if (!IsValid(PCGComponentObject) || PCGComponentObject->HasAnyFlags(RF_Transient))
 		{
 			continue;
 		}

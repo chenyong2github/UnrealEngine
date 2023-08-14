@@ -89,6 +89,7 @@ namespace PCGDeterminismTests
 		PCGActorCopy->SetFlags(RF_Transient);
 		UPCGComponent* PCGComponentCopy = PCGActorCopy->FindComponentByClass<UPCGComponent>();
 		check(PCGComponentCopy);
+		PCGComponentCopy->SetFlags(RF_Transient);
 		PCGComponentCopy->SetIsPartitioned(false);
 
 		FPCGGraphExecutor Executor = FPCGGraphExecutor(PCGComponentCopy);
