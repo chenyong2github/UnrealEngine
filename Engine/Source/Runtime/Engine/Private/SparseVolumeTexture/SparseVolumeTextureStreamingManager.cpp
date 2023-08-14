@@ -548,7 +548,8 @@ public:
 					PassParameters->CopyTexureMask |= FormatSizeA > 0 ? 0x1u : 0x0u;
 					PassParameters->CopyTexureMask |= FormatSizeB > 0 ? 0x2u : 0x0u;
 
-					const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GSVTStreamingAsyncCompute != 0);
+					// Disable async compute for streaming systems when MGPU is active, to work around GPU hangs
+					const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GSVTStreamingAsyncCompute != 0) && (GNumExplicitGPUsForRendering == 1);
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
@@ -682,8 +683,9 @@ public:
 
 			if (NumWrittenUpdates > 0)
 			{
+				// Disable async compute for streaming systems when MGPU is active, to work around GPU hangs
+				const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GSVTStreamingAsyncCompute != 0) && (GNumExplicitGPUsForRendering == 1);
 				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSparseVolumeTextureUpdatePageTableCS>();
-				const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GSVTStreamingAsyncCompute != 0);
 
 				uint32 UpdatesOffset = 0;
 				for (const FBatch& Batch : Batches)
@@ -782,8 +784,9 @@ public:
 				GraphBuilder.RHICmdList.UnlockBuffer(UpdatesUploadBuffer->GetRHI());
 			}
 
+			// Disable async compute for streaming systems when MGPU is active, to work around GPU hangs
+			const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GSVTStreamingAsyncCompute != 0) && (GNumExplicitGPUsForRendering == 1);
 			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSparseVolumeTextureUpdateStreamingInfoBufferCS>();
-			const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GSVTStreamingAsyncCompute != 0);
 
 			uint32 UpdatesOffset = 0;
 			for (const FBatch& Batch : Batches)

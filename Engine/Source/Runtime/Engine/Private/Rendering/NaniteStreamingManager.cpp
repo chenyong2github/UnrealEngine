@@ -479,7 +479,8 @@ public:
 
 		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FTranscodePageToGPU_CS>();
 
-		const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GNaniteStreamingAsyncCompute != 0);
+		// Disable async compute for streaming systems when MGPU is active, to work around GPU hangs
+		const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GNaniteStreamingAsyncCompute != 0) && (GNumExplicitGPUsForRendering == 1);
 		const uint32 NumPasses = NumInstalledPagesPerPass.Num();
 		uint32 StartPageIndex = 0;
 		for (uint32 PassIndex = 0; PassIndex < NumPasses; PassIndex++)
