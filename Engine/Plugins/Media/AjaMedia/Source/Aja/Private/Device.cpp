@@ -228,6 +228,11 @@ namespace AJA
 					Info->bIsAutoDetected = bInIsAutoDetected;
 					Info->bGenlockChannel = bInAsGenlock;
 
+					// Spawn a sync thread if there is more than 1 connection that can potentially wait on the same event
+					Info->SyncThread.reset(new SyncThreadInfoThread(&Connection, Info));
+					Info->SyncThread->SetPriority(AJA_ThreadPriority_High);
+					Info->SyncThread->Start();
+
 					{
 						AJAAutoLock AutoLock(&Connection.ChannelInfoLock);
 						ConnectionChannelInfos.push_back(Info);
@@ -238,9 +243,10 @@ namespace AJA
 			{
 				ChannelInfo* FoundChannel = *FoundIterator;
 
-				if (bReinitialize)
+				// If channel was used for Genlock, reinitialize channel since routing wasn't done.
+				if (bReinitialize || (FoundChannel->bGenlockChannel && !bInAsGenlock))
 				{
-					if (!FoundChannel->bIsAutoDetected)
+					if (!FoundChannel->bIsAutoDetected && !(FoundChannel->bGenlockChannel && !bInAsGenlock))
 					{
 						UE_LOG(LogAjaCore, Warning,  TEXT("Device: Autodetect reinitialized channel '%d' on device '%S' but the channel was not in autodetect mode.\n")
 							, uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str());
@@ -319,14 +325,6 @@ namespace AJA
 					if (bInAsOwner)
 					{
 						FoundChannel->bIsOwned = bInAsOwner;
-					}
-
-					// Spawn a sync thread if there is more than 1 connection that can potentially wait on the same event
-					if (!FoundChannel->SyncThread)
-					{
-						FoundChannel->SyncThread.reset(new SyncThreadInfoThread(&Connection, FoundChannel));
-						FoundChannel->SyncThread->SetPriority(AJA_ThreadPriority_High);
-						FoundChannel->SyncThread->Start();
 					}
 				}
 			}
@@ -649,11 +647,23 @@ namespace AJA
 			return true;
 		}
 
-		void DeviceConnection::CommandList::UnregisterReference()
+		void DeviceConnection::CommandList::UnregisterReference(NTV2Channel InChannel)
 		{
 			AJAAutoLock Lock(&Connection.ChannelLock);
+			auto Found = std::find_if(std::begin(Connection.ChannelInfos), std::end(Connection.ChannelInfos), [=](const ChannelInfo* Info) { return Info->Channel == InChannel; });
+			
+			if (Found == std::end(Connection.ChannelInfos))
+			{
+				Connection.bOutputReferenceSet = false;
+				return;
+			}
 
-			Connection.bOutputReferenceSet = false;
+			const ChannelInfo* FoundChannel = *Found;
+			const bool bOutputChannelUsingRefPin = FoundChannel->RefCounter > 1 && Connection.OutputReferenceType == AJA::EAJAReferenceType::EAJA_REFERENCETYPE_EXTERNAL;
+			if (!bOutputChannelUsingRefPin)
+			{
+				Connection.bOutputReferenceSet = false;
+			}
 		}
 
 		/* Device implementation
@@ -755,7 +765,8 @@ namespace AJA
 				}
 				else
 				{
-					bResult = SyncThreadInfoThread::WaitForVerticalInterrupt(this, FoundChannel);
+					bResult = false;
+					ensureAlwaysMsgf(false, TEXT("Expected a sync thread but there was none."));
 				}
 
 				bool bDoAnotherWaitForField = false;
@@ -807,7 +818,8 @@ namespace AJA
 				}
 				else
 				{
-					bResult = SyncThreadInfoThread::WaitForVerticalInterrupt(this, FoundChannel);
+					bResult = false;
+					ensureAlwaysMsgf(false, TEXT("Expected a sync thread but there was none."));
 				}
 
 				if (bResult)

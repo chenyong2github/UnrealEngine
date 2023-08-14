@@ -214,7 +214,7 @@ namespace AJA
 
 				if (bRegisteredReference)
 				{
-					InCommandList.UnregisterReference();
+					InCommandList.UnregisterReference(Channel);
 				}
 
 				if (bRegisteredChannel)

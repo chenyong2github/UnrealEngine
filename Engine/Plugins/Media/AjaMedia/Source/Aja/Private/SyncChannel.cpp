@@ -180,7 +180,7 @@ namespace AJA
 			{
 				if (bRegisterReference)
 				{
-					InCommandList.UnregisterReference();
+					InCommandList.UnregisterReference(Channel);
 				}
 
 				if (bRegisterChannel)

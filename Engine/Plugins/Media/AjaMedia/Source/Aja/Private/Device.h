@@ -52,7 +52,7 @@ namespace AJA
 				volatile bool bWaitResult;
 
 			public:
-				static bool WaitForVerticalInterrupt(DeviceConnection* InDeviceConnection, ChannelInfo* InChannelInfo);
+				bool WaitForVerticalInterrupt(DeviceConnection* InDeviceConnection, ChannelInfo* InChannelInfo);
 				static bool IsCurrentField(DeviceConnection* InDeviceConnection, ChannelInfo* InChannelInfo, NTV2FieldID InFieldId = NTV2_FIELD0);
 				bool Wait_ExternalThread();
 				virtual bool ThreadLoop() override;
@@ -133,7 +133,7 @@ namespace AJA
 				void UnregisterAnalogLtc(bool bUseReferencePin);
 
 				bool RegisterReference(EAJAReferenceType OutputReferenceType, NTV2Channel InChannel);
-				void UnregisterReference();
+				void UnregisterReference(NTV2Channel InChannel);
 
 			private:
 				DeviceConnection& Connection;
