@@ -10,7 +10,8 @@ public class IoStoreOnDemand : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[] { "HTTP", "Json" });
 		bAllowConfidentialPlatformDefines = true;
 
-		if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) &&
+			(Target.Type == TargetType.Editor || Target.Type == TargetType.Program))
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "S3Client", "RSA" });
 		}

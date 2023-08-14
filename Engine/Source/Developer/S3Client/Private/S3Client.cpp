@@ -8,12 +8,6 @@
 
 #if (IS_PROGRAM || WITH_EDITOR)
 
-#if PLATFORM_MICROSOFT
-	#include "Microsoft/WindowsHWrapper.h"
-	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
-	#include "Microsoft/HideMicrosoftPlatformTypes.h"
-#endif
-
 #include "Containers/StringConv.h"
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
@@ -21,8 +15,17 @@
 #include "String/BytesToHex.h"
 #include "XmlParser.h"
 
-//TODO: Switch from Curl to CoreHttp
+#if PLATFORM_MICROSOFT
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+#endif
+#ifdef PLATFORM_CURL_INCLUDE
+#include PLATFORM_CURL_INCLUDE
+#else
 #include "curl/curl.h"
+#endif
+#if PLATFORM_MICROSOFT
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
+#endif
 
 #if WITH_SSL
 #include "Ssl.h"
