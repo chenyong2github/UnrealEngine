@@ -1317,7 +1317,7 @@ private:
 private:
 	FString GenerateConcertServerCommandLine(TOptional<FServerLaunchOverrides> LaunchOverrides) const
 	{
-		// @note FH: Those settings are UDP Messaging specific
+		// @note: Those settings are UDP/QUIC Messaging specific
 
 		FString CmdLine;
 		FConfigFile* EngineConfig = GConfig ? GConfig->FindConfigFileWithBaseName(FName(TEXT("Engine"))) : nullptr;
@@ -1364,6 +1364,11 @@ private:
 				}
 			}
 
+			// Set the Quic unicast endpoint
+			FString QuicUnicastEndpoint;
+			EngineConfig->GetString(TEXT("/Script/QuicMessaging.QuicMessagingSettings"), TEXT("UnicastEndpoint"), QuicUnicastEndpoint);
+			CmdLine += TEXT(" -QUICMESSAGING_TRANSPORT_UNICAST=") + QuicUnicastEndpoint;
+
 			if (LaunchOverrides)
 			{
 				if (!LaunchOverrides->ServerName.IsEmpty())
@@ -1372,6 +1377,10 @@ private:
 				}
 			}
 		}
+
+		// Set Quic to operate in server mode
+		CmdLine += TEXT(" -QUICMESSAGING_TRANSPORT_ISCLIENT=False");
+
 		return CmdLine;
 	}
 
