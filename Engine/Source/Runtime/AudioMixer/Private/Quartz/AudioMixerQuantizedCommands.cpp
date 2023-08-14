@@ -189,7 +189,10 @@ namespace Audio
 
 	void FQuantizedTransportReset::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
-		OwningClockPtr->ResetTransport();
+		// todo: guard against multiple reset commands executing in the same clock tick
+		// OwningClockPtr->ResetTransport(InNumFramesLeft - 1); // - 1 to triggering events w/o double trigger of events on the last frame
+		OwningClockPtr->ResetTransport(0);
+		OwningClockPtr->AddToTickDelay(InNumFramesLeft); // next metronome tick will be less by InNumFramesLeft
 	}
 
 	static const FName TransportResetCommandName("Transport Reset Command");

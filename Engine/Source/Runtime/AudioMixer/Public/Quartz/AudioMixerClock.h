@@ -130,7 +130,7 @@ namespace Audio
 
 		AUDIOMIXER_API void SetSampleRate(float InNewSampleRate);
 
-		AUDIOMIXER_API void ResetTransport();
+		AUDIOMIXER_API void ResetTransport(const int32 NumFramesToTickBeforeReset = 0);
 
 		// (used for StartOtherClock command to handle the sub-tick as the target clock)
 		AUDIOMIXER_API void AddToTickDelay(int32 NumFramesOfDelayToAdd);

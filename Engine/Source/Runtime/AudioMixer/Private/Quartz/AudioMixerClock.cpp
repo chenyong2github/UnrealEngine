@@ -289,7 +289,6 @@ namespace Audio
 		
 		PreTickCommands->PumpCommandQueue(this);
 
-		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::TickInternal);
 		if (!bIsRunning)
 		{
 			return;
@@ -302,23 +301,19 @@ namespace Audio
 		}
 
 		const int32 FramesOfLatency = (ThreadLatencyInMilliseconds / 1000) * Metronome.GetTickRate().GetSampleRate();
+		int32 FramesToTick = InNumFramesUntilNextTick - TickDelayLengthInFrames;
 
-		if (TickDelayLengthInFrames == 0)
-		{
-			TickInternal(InNumFramesUntilNextTick, ClockAlteringPendingCommands, FramesOfLatency); // (process things like BPM changes first)
-			TickInternal(InNumFramesUntilNextTick, PendingCommands, FramesOfLatency);
-			Metronome.Tick(InNumFramesUntilNextTick, FramesOfLatency);
-		}
-		else
-		{
-			const int32 FramesToTick = InNumFramesUntilNextTick - TickDelayLengthInFrames; 
-			TickInternal(FramesToTick, ClockAlteringPendingCommands, FramesOfLatency, TickDelayLengthInFrames);
-			TickInternal(FramesToTick, PendingCommands, FramesOfLatency, TickDelayLengthInFrames);
-			Metronome.Tick(FramesToTick, FramesOfLatency);
+        // commands executed in TickInternal may alter "TickDelayLengthInFrames" for the metronome's benefit
+        // for the 2nd TickInternal() call we want to use the unmodified value (OriginalTickDelayLengthInFrames).
+        const int32 OriginalTickDelayLengthInFrames = TickDelayLengthInFrames;
+        TickInternal(FramesToTick, ClockAlteringPendingCommands, FramesOfLatency, OriginalTickDelayLengthInFrames);
+        TickInternal(FramesToTick, PendingCommands, FramesOfLatency, OriginalTickDelayLengthInFrames);
 
-			TickDelayLengthInFrames = 0;
-		}
+		// FramesToTick may have been updated by TickInternal, recalculate
+		FramesToTick = InNumFramesUntilNextTick - TickDelayLengthInFrames;
+		Metronome.Tick(FramesToTick, FramesOfLatency);
 
+		TickDelayLengthInFrames = 0;
 
 		UpdateCachedState();
 	}
@@ -335,6 +330,7 @@ namespace Audio
 
 	void FQuartzClock::TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency, int32 FramesOfDelay)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::TickInternal);
 		bool bHaveCommandsToRemove = false;
 
 		// Update all pending commands
@@ -685,8 +681,13 @@ namespace Audio
 		return nullptr;
 	}
 
-	void FQuartzClock::ResetTransport()
+	void FQuartzClock::ResetTransport(const int32 NumFramesToTickBeforeReset)
 	{
+		if (NumFramesToTickBeforeReset != 0)
+		{
+			Metronome.Tick(NumFramesToTickBeforeReset);
+		}
+		
 		Metronome.ResetTransport();
 	}
 

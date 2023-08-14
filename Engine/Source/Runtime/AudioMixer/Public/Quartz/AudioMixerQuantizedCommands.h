@@ -104,7 +104,7 @@ namespace Audio
 
 		AUDIOMIXER_API virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
-		virtual bool IsClockAltering() override { return false; }
+		virtual bool IsClockAltering() override { return true; }
 
 		AUDIOMIXER_API virtual FName GetCommandName() const override;
 		virtual EQuartzCommandType GetCommandType() const { return EQuartzCommandType::TransportReset; };
