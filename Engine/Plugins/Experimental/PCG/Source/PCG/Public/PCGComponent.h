@@ -418,15 +418,6 @@ private:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	TArray<TSoftObjectPtr<ALandscapeProxy>> TrackedLandscapes_DEPRECATED;
-#endif
-
-#if WITH_EDITORONLY_DATA
-	// Cached tracked actors list is serialized because we can't get it at postload time
-	UPROPERTY()
-	TSet<TWeakObjectPtr<AActor>> CachedTrackedActors_DEPRECATED;
-
 	UPROPERTY(Transient)
 	TMap<FPCGStack, FPCGDataCollection> InspectionCache;
 #endif

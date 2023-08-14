@@ -126,10 +126,6 @@ private:
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	void OnPCGGraphGeneratedOrCleaned(UPCGComponent* InComponent);
 
-	/** For deprecation only, register tracked actors from serialized components */
-	template <typename ActorContainer>
-	void AddSerializedTrackedActorsForDeprecation(const ActorContainer& InActors);
-
 	/** Remap the tracking in case of BP components. */
 	void RemapTracking(const UPCGComponent* InOldComponent, UPCGComponent* InNewComponent);
 
@@ -144,6 +140,8 @@ private:
 
 	/** Update dependencies for a given tracked actor. */
 	void UpdateActorDependencies(AActor* InActor);
+
+	bool IsActorTracked(const AActor* InActor) const;
 #endif // WITH_EDITOR
 
 private:
@@ -192,21 +190,3 @@ private:
 	/** Transient list of tags, kept when there is a tag change on a tracked Actor. */
 	TSet<FName> TempTrackedActorTags;
 };
-
-#if WITH_EDITOR
-template <typename ActorContainer>
-void UPCGActorAndComponentMapping::AddSerializedTrackedActorsForDeprecation(const ActorContainer& InActors)
-{
-	using PointerType = typename ActorContainer::ElementType;
-	using ElementType = typename PointerType::ElementType;
-	static_assert(std::is_base_of_v<AActor, ElementType>);
-
-	for (auto ActorPtr : InActors)
-	{
-		if (AActor* Actor = ActorPtr.Get())
-		{
-			OnActorAdded(Actor);
-		}
-	}
-}
-#endif // WITH_EDITOR

@@ -605,13 +605,6 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 		return;
 	}
 
-	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->GetPCGWorldActor() : nullptr;
-
-	if (!PCGWorldActor)
-	{
-		return;
-	}
-
 	// Components owner needs to be always tracked
 	RegisterActor(ComponentOwner);
 	TSet<UPCGComponent*>& AllComponents = AlwaysTrackedActorsToComponentsMap.FindOrAdd(ComponentOwner);
@@ -623,7 +616,7 @@ void UPCGActorAndComponentMapping::RegisterOrUpdateTracking(UPCGComponent* InCom
 	// And we also need to find all actors that should be tracked
 	if (UPCGGraph* PCGGraph = InComponent->GetGraph())
 	{
-		auto FindActorsAndTrack = [this, InComponent, PCGWorldActor, bInShouldDirtyActors](const FPCGActorSelectionKey& InKey, const TArray<FPCGSettingsAndCulling>& InSettingsAndCulling)
+		auto FindActorsAndTrack = [this, InComponent, bInShouldDirtyActors](const FPCGActorSelectionKey& InKey, const TArray<FPCGSettingsAndCulling>& InSettingsAndCulling)
 		{
 			// InKey provide the info for selecting a given actor.
 			// We reconstruct the selector settings from this key, and we also force it to SelectMultiple, since
@@ -810,17 +803,6 @@ void UPCGActorAndComponentMapping::AddActorsPostInit()
 	}
 
 	DelayedAddedActors.Empty();
-
-	// Also add the one tracked by the World Actor
-	if (APCGWorldActor* PCGWorldActor = PCGSubsystem->FindPCGWorldActor())
-	{
-		// Making a copy, since CachedTrackedActors can be modified (if an actor is no longer tracked)
-		TSet<TWeakObjectPtr<AActor>> CachedTrackedActorsCopy = PCGWorldActor->CachedTrackedActors;
-		for (TWeakObjectPtr<AActor>& ActorPtr : CachedTrackedActorsCopy)
-		{
-			AddOrUpdateTrackedActor(ActorPtr.Get());
-		}
-	}
 }
 
 void UPCGActorAndComponentMapping::OnActorAdded(AActor* InActor)
@@ -857,7 +839,7 @@ void UPCGActorAndComponentMapping::OnActorAdded(AActor* InActor)
 bool UPCGActorAndComponentMapping::AddOrUpdateTrackedActor(AActor* InActor)
 {
 	// We have to make sure to not create a infinite loop
-	if (!InActor || InActor->IsA<APCGWorldActor>() || !PCGSubsystem || !PCGSubsystem->FindPCGWorldActor() || InActor->GetWorld() != PCGSubsystem->GetWorld())
+	if (!InActor || InActor->IsA<APCGWorldActor>() || !PCGSubsystem || InActor->GetWorld() != PCGSubsystem->GetWorld())
 	{
 		return false;
 	}
@@ -917,7 +899,7 @@ bool UPCGActorAndComponentMapping::AddOrUpdateTrackedActor(AActor* InActor)
 		RegisterActor(InActor);
 		return true;
 	}
-	else if (CulledTrackedActorsToComponentsMap.Contains(InActor) || AlwaysTrackedActorsToComponentsMap.Contains(InActor))
+	else if (IsActorTracked(InActor))
 	{
 		// Do some cleanup if the actor was tracked. 
 		// We will force the refresh here, so return false to make sure we don't refresh it twice.
@@ -933,15 +915,9 @@ bool UPCGActorAndComponentMapping::AddOrUpdateTrackedActor(AActor* InActor)
 
 void UPCGActorAndComponentMapping::RegisterActor(AActor* InActor)
 {
-	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
-	if (!PCGWorldActor || !InActor)
+	if (!InActor)
 	{
 		return;
-	}
-
-	if (!PCGWorldActor->CachedTrackedActors.Contains(InActor))
-	{
-		PCGWorldActor->CachedTrackedActors.Add(InActor);
 	}
 
 	if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(InActor))
@@ -961,15 +937,13 @@ void UPCGActorAndComponentMapping::RegisterActor(AActor* InActor)
 
 bool UPCGActorAndComponentMapping::UnregisterActor(AActor* InActor)
 {
-	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
-	if (!PCGWorldActor || !InActor)
+	if (!InActor)
 	{
 		return false;
 	}
 
-	if (PCGWorldActor->CachedTrackedActors.Contains(InActor))
+	if (IsActorTracked(InActor))
 	{
-		PCGWorldActor->CachedTrackedActors.Remove(InActor);
 		TrackedActorToPositionMap.Remove(InActor);
 		CulledTrackedActorsToComponentsMap.Remove(InActor);
 		AlwaysTrackedActorsToComponentsMap.Remove(InActor);
@@ -1004,8 +978,7 @@ void UPCGActorAndComponentMapping::OnActorDeleted(AActor* InActor)
 	}
 #endif
 
-	APCGWorldActor* PCGWorldActor = PCGSubsystem->FindPCGWorldActor();
-	if (!PCGWorldActor || !PCGWorldActor->CachedTrackedActors.Contains(InActor))
+	if (!IsActorTracked(InActor))
 	{
 		return;
 	}
@@ -1021,8 +994,7 @@ void UPCGActorAndComponentMapping::OnActorMoved(AActor* InActor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorAndComponentMapping::OnActorMoved);
 
-	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
-	if (!PCGWorldActor || !InActor || (PCGSubsystem && InActor->GetWorld() != PCGSubsystem->GetWorld()) || !PCGWorldActor->CachedTrackedActors.Contains(InActor))
+	if (!InActor || (PCGSubsystem && InActor->GetWorld() != PCGSubsystem->GetWorld()) || !IsActorTracked(InActor))
 	{
 		return;
 	}
@@ -1087,13 +1059,6 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 		return;
 	}
 
-	APCGWorldActor* PCGWorldActor = PCGSubsystem ? PCGSubsystem->FindPCGWorldActor() : nullptr;
-
-	if (!PCGWorldActor)
-	{
-		return;
-	}
-
 	// First check if it is an actor
 	AActor* Actor = Cast<AActor>(InObject);
 
@@ -1138,7 +1103,7 @@ void UPCGActorAndComponentMapping::OnObjectPropertyChanged(UObject* InObject, FP
 
 	// Check if we are not tracking it or is a tag change.
 	bool bShouldChange = true;
-	if (!PCGWorldActor->CachedTrackedActors.Contains(Actor) || bActorTagChange)
+	if (!IsActorTracked(Actor) || bActorTagChange)
 	{
 		bShouldChange = AddOrUpdateTrackedActor(Actor);
 	}
@@ -1357,6 +1322,11 @@ void UPCGActorAndComponentMapping::OnPCGGraphGeneratedOrCleaned(UPCGComponent* I
 	}
 
 	OnActorChanged(InComponent->GetOwner(), /*bInHasMoved=*/false, InComponent);
+}
+
+bool UPCGActorAndComponentMapping::IsActorTracked(const AActor* InActor) const
+{
+	return InActor && (CulledTrackedActorsToComponentsMap.Contains(InActor) || AlwaysTrackedActorsToComponentsMap.Contains(InActor));
 }
 
 #endif // WITH_EDITOR

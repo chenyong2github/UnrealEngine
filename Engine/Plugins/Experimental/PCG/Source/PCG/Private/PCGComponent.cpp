@@ -1119,18 +1119,6 @@ void UPCGComponent::PostLoad()
 		Graph_DEPRECATED = nullptr;
 	}
 
-	if (!CachedTrackedActors_DEPRECATED.IsEmpty() || !TrackedLandscapes_DEPRECATED.IsEmpty())
-	{
-		if (UPCGSubsystem* Subsystem = GetSubsystem())
-		{
-			Subsystem->AddSerializedTrackedActorsForDeprecation(CachedTrackedActors_DEPRECATED);
-			Subsystem->AddSerializedTrackedActorsForDeprecation(TrackedLandscapes_DEPRECATED);
-		}
-
-		CachedTrackedActors_DEPRECATED.Empty();
-		TrackedLandscapes_DEPRECATED.Empty();
-	}
-
 	SetupCallbacksOnCreation();
 #endif
 }
