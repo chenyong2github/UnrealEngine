@@ -126,3 +126,18 @@ void FRigVMDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext,
 	Result = AdaptResult(Result, InContext);
 }
 
+// duplicate the code here so that the FRigVMDispatch_CoreNotEquals has it's own static variables
+// to store the types are registration time.
+const TArray<FRigVMTemplateArgument>& FRigVMDispatch_CoreNotEquals::GetArguments() const
+{
+	static const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
+		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
+		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
+	};
+	static const TArray<FRigVMTemplateArgument> Arguments = {
+		FRigVMTemplateArgument(AName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(BName, ERigVMPinDirection::Input, ValueCategories),
+		FRigVMTemplateArgument(ResultName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool)
+	};
+	return Arguments;
+}

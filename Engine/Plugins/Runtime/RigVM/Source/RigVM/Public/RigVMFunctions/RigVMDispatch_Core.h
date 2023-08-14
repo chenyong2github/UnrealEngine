@@ -100,6 +100,8 @@ struct RIGVM_API FRigVMDispatch_CoreNotEquals : public FRigVMDispatch_CoreEquals
 		FactoryScriptStruct = StaticStruct();
 	}
 
+	virtual const TArray<FRigVMTemplateArgument>& GetArguments() const override;
+
 	// we are inheriting everything from the equals dispatch,
 	// and due to the check of the factory within FRigVMDispatch_CoreEquals::Execute we can
 	// rely on that completely. we only need this class for the displayname and
