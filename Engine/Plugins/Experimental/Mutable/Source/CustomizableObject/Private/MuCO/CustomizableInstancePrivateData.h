@@ -50,6 +50,7 @@ enum ECOInstanceFlags
 	
 	// Generation
 	ForceGenerateAllLODs			= 1 << 12,	// If set, Requested LOD Levels will be ignored and all LODs in between the current min/max lod will be generated
+	ForceGenerateMipTail			= 1 << 13,	// If set, SkipGenerateResidentMips will be ignored and the mip tail will be generated
 };
 
 ENUM_CLASS_FLAGS(ECOInstanceFlags);

@@ -614,6 +614,9 @@ public:
 	// It will only work if the textures aren't compressed, so set the instance to a Mutable state with texture compression disabled
 	// WARNING! If texture reuse is enabled, do NOT keep external references to the textures of the instance. The instance owns the textures.
 	void SetReuseInstanceTextures(bool bTextureReuseEnabled);
+	
+	// If enabled, low-priority textures will generate resident mipmaps too.
+	void SetForceGenerateResidentMips(bool bForceGenerateResidentMips);
 
 	// Adds/removes a texture channel coverage query to the instance update process. Every material updated by mutable with a channel named TextureName will be checked
 	// It only works properly when the Instance is in a state with texture compression disabled.

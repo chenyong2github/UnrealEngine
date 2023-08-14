@@ -2437,7 +2437,11 @@ namespace impl
 		CurrentOperationData->State = CandidateInstance->GetState();
 		CurrentOperationData->UpdateResult = EUpdateResult::Success;
 		CurrentOperationData->UpdateCallback = Operation->UpdateCallback;
-		CustomizableObject->GetLowPriorityTextureNames(CurrentOperationData->LowPriorityTextures);
+
+		if (!CandidateInstancePrivateData->HasCOInstanceFlags(ForceGenerateMipTail))
+		{
+			CustomizableObject->GetLowPriorityTextureNames(CurrentOperationData->LowPriorityTextures);
+		}
 
 		if (System->IsOnlyGenerateRequestedLODsEnabled() && System->CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() && 
 			!Operation->bForceGenerateAllLODs)

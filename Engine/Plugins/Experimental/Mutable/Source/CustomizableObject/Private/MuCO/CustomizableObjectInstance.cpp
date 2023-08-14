@@ -6166,6 +6166,12 @@ void UCustomizableObjectInstance::SetReuseInstanceTextures(bool bTextureReuseEna
 }
 
 
+void UCustomizableObjectInstance::SetForceGenerateResidentMips(bool bForceGenerateResidentMips)
+{
+	bForceGenerateResidentMips ? GetPrivate()->SetCOInstanceFlags(ForceGenerateMipTail) : GetPrivate()->ClearCOInstanceFlags(ForceGenerateMipTail);
+}
+
+
 void UCustomizableObjectInstance::AddQueryTextureCoverage(const FString& TextureName, const FString* MaskOutChannelName)
 {
 	FTextureCoverageQueryData& QueryData = GetPrivate()->TextureCoverageQueries.FindOrAdd(TextureName);
