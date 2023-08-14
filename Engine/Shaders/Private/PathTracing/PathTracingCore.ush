@@ -614,7 +614,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 			if (UseAnalyticTransmittance)
 			{
 				// analytically handle the transmittance to the next surface (which will be higher quality than the transmittance implicitly computed above and prevent noise with emissive surfaces in volumes)
-				PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.PathRoughness, PathState.RandSequence);
+				PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.RandSequence);
 			}
 
 			// Update our current volume intersection list to reflect the fact that we have made it to the end of this interval
@@ -817,7 +817,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, int Bounce, float PathRoughne
 		}
 		if (VolumeIsectList.HitVolume())
 		{
-			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, PathRoughness, RandSequence);
+			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
 		}
 		// add in the medium extinction
 		Throughput *= exp(-max(PackedPayload.GetTau(), 0.0));
@@ -1467,7 +1467,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			{
 				// Account for the transmittance up to the current point within the current slice of volume
 				VolumeSegment.Interval.VolumeTMax = EquiAngularT;
-				VolumeSegment.Throughput = VolumeGetTransmittance(VolumeSegment.Throughput, Ro, Rd, VolumeSegment.Interval, PathState.PathRoughness, PathState.RandSequence);
+				VolumeSegment.Throughput = VolumeGetTransmittance(VolumeSegment.Throughput, Ro, Rd, VolumeSegment.Interval, PathState.RandSequence);
 
 				float3 Contrib = VolumeSegment.Throughput * SigmaS;
 
@@ -1645,7 +1645,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 				float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
-				const bool bCastShadows = CastsShadow(LightId);
+				const bool bCastShadows = bIsVolumeSample ? CastsVolumeShadow(LightId) : CastsShadow(LightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
 				LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, Bounce, AvgRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 
@@ -1812,7 +1812,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			{
 				FRayDesc LightRay = PathState.Ray;
 				LightRay.TMax = LightResult.HitT;
-				const bool bCastShadows = CastsShadow(LightId);
+				const bool bCastShadows = bIsVolumeSample ? CastsVolumeShadow(LightId) : CastsShadow(LightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
 				LightContrib *= TraceTransparentVisibilityRay(LightRay, Bounce, ShadowRayRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 				// the light made some contribution, and there was nothing along the shadow ray

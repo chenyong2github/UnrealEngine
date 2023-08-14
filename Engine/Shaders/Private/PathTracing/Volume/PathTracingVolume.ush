@@ -75,7 +75,7 @@ FVolumeShadedResult VolumeGetDensity(float3 TranslatedWorldPos, FVolumeIntersect
 
 
 // Return the transmittance along a ray segment
-float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, float PathRoughness, inout RandomSequence RandSequence)
+float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, inout RandomSequence RandSequence)
 {
 	float3 Throughput = StartThroughput;
 	for (int Index = 0; Index < Interval.Num; Index++)
@@ -84,14 +84,14 @@ float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, f
 		{
 			case VOLUMEID_ATMOSPHERE:            Throughput *= AtmosphereGetTransmittance(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax); break;
 			case VOLUMEID_FOG:                   Throughput *= FogGetTransmittance(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax); break;
-			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax, PathRoughness, RandSequence); break;
+			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput = HeterogeneousVolumesGetTransmittance(Throughput, Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax, RandSequence); break;
 		}
 	}
 	return Throughput;
 }
 
 // Return the transmittance along a whole intersection list
-float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, float PathRoughness, inout RandomSequence RandSequence)
+float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, inout RandomSequence RandSequence)
 {
 	float3 Throughput = StartThroughput;
 	for (int Index = 0; Index < IntersectionList.Num; Index++)
@@ -102,7 +102,7 @@ float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, f
 		{
 			case VOLUMEID_ATMOSPHERE:            Throughput *= AtmosphereGetTransmittance(Origin, Direction, TMin, TMax); break;
 			case VOLUMEID_FOG:                   Throughput *= FogGetTransmittance(Origin, Direction, TMin, TMax); break;
-			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, TMin, TMax, PathRoughness, RandSequence); break;
+			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput = HeterogeneousVolumesGetTransmittance(Throughput, Origin, Direction, TMin, TMax, RandSequence); break;
 		}
 	}
 	return Throughput;
@@ -150,7 +150,7 @@ float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, f
 
 
 // The returned value factors in the initial throughput. This is used to avoid sampling too much if throughput reaches 0.
-float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, int Bounce, inout RandomSequence RandSequence)
+float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, inout RandomSequence RandSequence)
 {
 	float3 Throughput = StartThroughput;
 	for (int Index = 0; Index < Interval.Num; Index++)
@@ -171,8 +171,7 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 			}
 			case VOLUMEID_HETEROGENEOUS_VOLUMES:
 			{
-				float PathRoughness = 0;
-				Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, TMin, TMax, PathRoughness, RandSequence);
+				Throughput = HeterogeneousVolumesGetTransmittance(Throughput, Origin, Direction, TMin, TMax, RandSequence);
 				break;
 			}
 		}
@@ -181,7 +180,7 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 
 }
 
-float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, int Bounce, inout RandomSequence RandSequence)
+float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, inout RandomSequence RandSequence)
 {
 	float3 Throughput = StartThroughput;
 	for (int Index = 0; Index < IntersectionList.Num; Index++)
@@ -202,8 +201,7 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 			}
 			case VOLUMEID_HETEROGENEOUS_VOLUMES:
 			{
-				float PathRoughness = 0;
-				Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, TMin, TMax, PathRoughness, RandSequence);
+				Throughput = HeterogeneousVolumesGetTransmittance(Throughput, Origin, Direction, TMin, TMax, RandSequence);
 				break;
 			}
 		}
@@ -213,24 +211,24 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 #undef PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP
 }
 
-float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, int Bounce, inout RandomSequence RandSequence)
+float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, inout RandomSequence RandSequence)
 {
 	if (UseAnalyticTransmittance)
 	{
-		return VolumeGetTransmittanceAnalytical(StartThroughput, Origin, Direction, Interval, Bounce, RandSequence);
+		return VolumeGetTransmittanceAnalytical(StartThroughput, Origin, Direction, Interval, RandSequence);
 	}
 
-	return VolumeGetTransmittanceNullTracking(StartThroughput, Origin, Direction, Interval, Bounce, RandSequence);
+	return VolumeGetTransmittanceNullTracking(StartThroughput, Origin, Direction, Interval, RandSequence);
 }
 
-float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, int Bounce, inout RandomSequence RandSequence)
+float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, inout RandomSequence RandSequence)
 {
 	if (UseAnalyticTransmittance)
 	{
-		return VolumeGetTransmittanceAnalytical(StartThroughput, Origin, Direction, IntersectionList, Bounce, RandSequence);
+		return VolumeGetTransmittanceAnalytical(StartThroughput, Origin, Direction, IntersectionList, RandSequence);
 	}
 
-	return VolumeGetTransmittanceNullTracking(StartThroughput, Origin, Direction, IntersectionList, Bounce, RandSequence);
+	return VolumeGetTransmittanceNullTracking(StartThroughput, Origin, Direction, IntersectionList, RandSequence);
 }
 
 FVolumeTrackingResult VolumeSampleDistance(float3 PathThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, bool bIsCameraRay, inout RandomSequence RandSequence)

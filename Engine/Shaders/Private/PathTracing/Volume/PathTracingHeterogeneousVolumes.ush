@@ -44,10 +44,7 @@ FVolumeIntersection HeterogeneousVolumesIntersect(float3 Origin, float3 Directio
 				TranslatedWorldBoundsMax
 			);
 
-			if (RayHitT.y > RayHitT.x)
-			{
-				return CreateVolumeIntersection(RayHitT.x, RayHitT.y);
-			}
+			return CreateVolumeIntersection(RayHitT.x, RayHitT.y);
 		}
 	}
 
@@ -444,7 +441,7 @@ FVolumeTrackingResult HeterogeneousVolumesDeltaTracking(float3 PathThroughput, f
 		float RandValue = RandomSequence_GenerateSample1D(RandSequence);
 #define SAMPLE_ACHROMATIC 0
 #if SAMPLE_ACHROMATIC
-		float DeltaT = -log(RandValue) / Sample.SigmaBar.x;
+		float DeltaT = -log(1.0 - RandValue) / Sample.SigmaBar.x;
 #else
 		float DeltaT = SampleSpectralTransmittance(RandValue, Sample.SigmaBar, PathThroughput);
 		if (DeltaT < 0)
@@ -491,7 +488,7 @@ FVolumeTrackingResult HeterogeneousVolumesRatioTracking(float3 PathThroughput, f
 	{
 		float RandValue = RandomSequence_GenerateSample1D(RandSequence);
 #if SAMPLE_ACHROMATIC
-		float DeltaT = -log(RandValue) / Sample.SigmaBar.x;
+		float DeltaT = -log(1.0 - RandValue) / Sample.SigmaBar.x;
 #else
 		float DeltaT = SampleSpectralTransmittance(RandValue, Sample.SigmaBar, PathThroughput);
 		if (DeltaT < 0)
@@ -641,17 +638,16 @@ FVolumeTrackingResult HeterogeneousVolumesMajorantBasedTracking(float3 PathThrou
 	return Result;
 }
 
-float3 HeterogeneousVolumesGetTransmittance(float3 PathThroughput, float3 Origin, float3 Direction, float TMin, float TMax, float PathRoughness, inout RandomSequence RandSequence)
+float3 HeterogeneousVolumesGetTransmittance(float3 PathThroughput, float3 Origin, float3 Direction, float TMin, float TMax, inout RandomSequence RandSequence)
 {
-	float3 Transmittance = 1.0;
 	if (EnableHeterogeneousVolumes)
 	{
 		bool bTransmittanceOnly = true;
 		FMajorantData EmptyOverlappingMajorant = CreateMajorantData();
-		Transmittance = HeterogeneousVolumesMajorantBasedTracking(PathThroughput, Origin, Direction, TMin, TMax, bTransmittanceOnly, EmptyOverlappingMajorant, RandSequence).Throughput;
+		return HeterogeneousVolumesMajorantBasedTracking(PathThroughput, Origin, Direction, TMin, TMax, bTransmittanceOnly, EmptyOverlappingMajorant, RandSequence).Throughput;
 	}
 
-	return Transmittance;
+	return PathThroughput;
 }
 
 FVolumeTrackingResult HeterogeneousVolumesSampleDistance(float3 PathThroughput, float3 Origin, float3 Direction, float TMin, float TMax, FMajorantData OverlappingMajorant, inout RandomSequence RandSequence)
