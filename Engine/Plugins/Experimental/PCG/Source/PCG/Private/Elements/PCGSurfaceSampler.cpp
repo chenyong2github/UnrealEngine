@@ -201,6 +201,10 @@ namespace PCGSurfaceSampler
 				return false;
 			}
 
+			// Set physical properties that are needed for the bounding shape checks, etc.
+			OutPoint.SetExtents(LoopData.PointExtents);
+			OutPoint.Steepness = LoopData.PointSteepness;
+
 			// Now run gauntlet of shape network (if there is one) to accept or reject the point.
 			if (InBoundingShape)
 			{
@@ -219,9 +223,7 @@ namespace PCGSurfaceSampler
 			}
 
 			// Apply final parameters on the point
-			OutPoint.SetExtents(LoopData.PointExtents);
 			OutPoint.Density *= (LoopData.bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f);
-			OutPoint.Steepness = LoopData.PointSteepness;
 			OutPoint.Seed = RandomSource.GetCurrentSeed();
 
 			return true;
