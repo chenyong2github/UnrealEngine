@@ -22,6 +22,25 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 
 	PCGGraph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGEditorGraph::OnGraphUserParametersChanged);
 
+	ReconstructGraph();
+}
+
+void UPCGEditorGraph::ReconstructGraph()
+{
+	check(PCGGraph);
+
+	// If there are already some nodes, remove all of them.
+	if (!Nodes.IsEmpty())
+	{
+		Modify();
+
+		TArray<TObjectPtr<class UEdGraphNode>> NodesCopy = Nodes;
+		for (UEdGraphNode* Node : NodesCopy)
+		{
+			RemoveNode(Node);
+		}
+	}
+
 	TMap<UPCGNode*, UPCGEditorGraphNodeBase*> NodeLookup;
 	const bool bSelectNewNode = false;
 

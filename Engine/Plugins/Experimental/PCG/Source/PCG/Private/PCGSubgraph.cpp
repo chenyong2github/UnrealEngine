@@ -83,6 +83,9 @@ void UPCGBaseSubgraphSettings::SetSubgraph(UPCGGraphInterface* InGraph)
 		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGBaseSubgraphSettings::OnSubgraphChanged);
 	}
 #endif // WITH_EDITOR
+
+	// Also, reconstruct overrides
+	InitializeCachedOverridableParams(/*bReset=*/true);
 }
 
 void UPCGBaseSubgraphSettings::BeginDestroy()

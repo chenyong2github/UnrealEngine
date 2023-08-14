@@ -13,7 +13,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
-#include "Algo/AnyOf.h"
+#include "Helpers/PCGSubgraphHelpers.h"
 #include "Rendering/SlateRenderer.h"
 #include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
@@ -52,6 +52,7 @@
 #include "ToolMenuSection.h"
 #include "ToolMenus.h"
 #include "UnrealEdGlobals.h"
+#include "Algo/AnyOf.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
@@ -892,27 +893,9 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 		return;
 	}
 
-	// 1. Gather all nodes that will be included in the subgraph, and the extra nodes
-	// Also keep track of all node positions to know where to spawn our subgraph node
-	FVector2D AveragePosition = FVector2D::ZeroVector;
-	int32 MinX = std::numeric_limits<int32>::max();
-	int32 MaxX = std::numeric_limits<int32>::min();
-
-	// We keep track of all the PCG nodes that will go into the subgraph
-	TArray<TObjectPtr<UPCGEditorGraphNodeBase>> PCGEditorGraphNodes;
-	// Also move the extra nodes (like comments)
-	TArray<TObjectPtr<UEdGraphNode>> ExtraGraphNodes;
-
-	// Those 3 sets are used to keep track of the subgraph pins
-	// and will be used to extract pins that will be outside the subgraph
-	// and will need special treatment.
-	TSet<TObjectPtr<UPCGPin>> InputFromSubgraphPins;
-	TSet<TObjectPtr<UPCGPin>> OutputToSubgraphPins;
-	TSet<TObjectPtr<UPCGPin>> AllSubgraphPins;
-
-	// Also keep track of all the edges in the subgraph. Use a set to be able to add the
-	// same edge twice without duplicates.
-	TSet<TObjectPtr<UPCGEdge>> PCGGraphEdges;
+	// Gather all nodes that will be included in the subgraph, and the extra nodes
+	TArray<UPCGNode*> NodesToCollapse;
+	TArray<UObject*> ExtraNodesToCollapse;
 
 	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 	{
@@ -928,314 +911,60 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 		{
 			UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 			check(PCGNode);
-
-			// For each pin of the subgraph, gather all its edges in a set and store the other pin of
-			// the edge as an input from or output to the subgraph. It will be useful for tracking pins
-			// that are outside the subgraph.
-			for (UPCGPin* InputPin : PCGNode->GetInputPins())
-			{
-				check(InputPin);
-
-				for (UPCGEdge* Edge : InputPin->Edges)
-				{
-					check(Edge);
-					PCGGraphEdges.Add(Edge);
-					OutputToSubgraphPins.Add(Edge->InputPin);
-				}
-
-				AllSubgraphPins.Add(InputPin);
-			}
-
-			for (UPCGPin* OutputPin : PCGNode->GetOutputPins())
-			{
-				check(OutputPin);
-
-				for (UPCGEdge* Edge : OutputPin->Edges)
-				{
-					check(Edge);
-					PCGGraphEdges.Add(Edge);
-					InputFromSubgraphPins.Add(Edge->OutputPin);
-				}
-
-				AllSubgraphPins.Add(OutputPin);
-			}
-
-			PCGEditorGraphNodes.Add(PCGEditorGraphNode);
-
-			// And do all the computation to get the min, max and mean position.
-			AveragePosition.X += PCGEditorGraphNode->NodePosX;
-			AveragePosition.Y += PCGEditorGraphNode->NodePosY;
-			MinX = FMath::Min(MinX, PCGEditorGraphNode->NodePosX);
-			MaxX = FMath::Max(MaxX, PCGEditorGraphNode->NodePosX);
+			NodesToCollapse.Add(PCGNode);
 		}
 		else if (UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object))
 		{
-			ExtraGraphNodes.Add(GraphNode);
+			ExtraNodesToCollapse.Add(GraphNode);
 		}
 	}
 
 	// If we have at most 1 node to collapse, just exit
-	if (PCGEditorGraphNodes.Num() <= 1)
+	if (NodesToCollapse.Num() <= 1)
 	{
 		UE_LOG(LogPCGEditor, Warning, TEXT("There were less than 2 PCG nodes selected, abort"));
 		return;
 	}
 
-	// Compute the average position
-	AveragePosition /= PCGEditorGraphNodes.Num();
-
-	// 2. Create a new subgraph, by creating a new PCGGraph asset.
-	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	TObjectPtr<UPCGGraphFactory> Factory = NewObject<UPCGGraphFactory>();
-
-	FString NewPackageName;
-	FString NewAssetName;
-	PCGEditorUtils::GetParentPackagePathAndUniqueName(PCGGraph, LOCTEXT("NewPCGSubgraphAsset", "NewPCGSubgraph").ToString(), NewPackageName, NewAssetName);
-
-	TObjectPtr<UPCGGraph> NewPCGGraph = Cast<UPCGGraph>(AssetTools.CreateAssetWithDialog(NewAssetName, NewPackageName, PCGGraph->GetClass(), Factory, "PCGEditor_CollapseInSubgraph"));
-
-	if (NewPCGGraph == nullptr)
+	// Create a new subgraph, by creating a new PCGGraph asset.
+	TObjectPtr<UPCGGraph> NewPCGGraph = nullptr;
 	{
-		UE_LOG(LogPCGEditor, Warning, TEXT("Subgraph asset creation was aborted or failed, abort."));
-		return;
+		FScopedTransaction Transaction(LOCTEXT("PCGCollapseInSubgraphMessage", "[PCG] Collapse into Subgraph"));
+
+		IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		TObjectPtr<UPCGGraphFactory> Factory = NewObject<UPCGGraphFactory>();
+
+		FString NewPackageName;
+		FString NewAssetName;
+		PCGEditorUtils::GetParentPackagePathAndUniqueName(PCGGraph, LOCTEXT("NewPCGSubgraphAsset", "NewPCGSubgraph").ToString(), NewPackageName, NewAssetName);
+
+		NewPCGGraph = Cast<UPCGGraph>(AssetTools.CreateAssetWithDialog(NewAssetName, NewPackageName, PCGGraph->GetClass(), Factory, "PCGEditor_CollapseInSubgraph"));
+
+		if (NewPCGGraph == nullptr)
+		{
+			UE_LOG(LogPCGEditor, Warning, TEXT("Subgraph asset creation was aborted or failed, abort."));
+			Transaction.Cancel();
+			return;
+		}
+
+		NewPCGGraph = FPCGSubgraphHelpers::CollapseIntoSubgraph(PCGGraph, NodesToCollapse, ExtraNodesToCollapse, NewPCGGraph);
+
+		if (NewPCGGraph == nullptr)
+		{
+			UE_LOG(LogPCGEditor, Warning, TEXT("Subgraph collapse failed, abort."));
+			return;
+		}
+
+		// Force a refresh
+		PCGEditorGraph->ReconstructGraph();
 	}
-
-	// Do some clean-up on input/output nodes
-	constexpr int32 Padding = 200;
-	NewPCGGraph->GetInputNode()->PositionX = MinX - Padding;
-	NewPCGGraph->GetInputNode()->PositionY = AveragePosition.Y;
-	NewPCGGraph->GetOutputNode()->PositionX = MaxX + Padding;
-	NewPCGGraph->GetOutputNode()->PositionY = AveragePosition.Y;
-
-	// 3. Define some lambdas to create/adapt pins on the new subgraph.
-
-	// Gather the pins that are outside the subgraph
-	InputFromSubgraphPins = InputFromSubgraphPins.Difference(AllSubgraphPins);
-	OutputToSubgraphPins = OutputToSubgraphPins.Difference(AllSubgraphPins);
-
-	// Function that will create a new pin in the input/output node of the subgraph, with a unique name that will
-	// be the related to the pin passed as argument. It will be formatted like this:
-	// "{NodeName} {PinName} {OptionalIndex}"
-	TMap<FString, int> NameCollisionMapping;
-	auto CreateNewCustomPin = [&NewPCGGraph, &NameCollisionMapping](UPCGPin* Pin, bool bIsInput)
-	{
-		TObjectPtr<UPCGNode> NewInputOutputNode = bIsInput ? NewPCGGraph->GetInputNode() : NewPCGGraph->GetOutputNode();
-		TObjectPtr<UPCGGraphInputOutputSettings> NewInputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(NewInputOutputNode->GetSettings());
-		FString NewName = Pin->Node->GetNodeTitle().ToString() + " " + Pin->Properties.Label.ToString();
-		if (NameCollisionMapping.Contains(NewName))
-		{
-			NewName += " " + FString::FormatAsNumber(++NameCollisionMapping[NewName]);
-		}
-		else
-		{
-			NameCollisionMapping.Emplace(NewName, 1);
-		}
-
-		FPCGPinProperties NewProperties = Pin->Properties;
-		NewProperties.Label = FName(NewName);
-		NewProperties = NewInputOutputSettings->AddCustomPin(NewProperties);
-		NewInputOutputNode->UpdateAfterSettingsChangeDuringCreation();
-		return NewProperties.Label;
-	};
-
-	// 4. Duplicate all the nodes, and keep a mapping between the old pins and new pins
-	TMap<TObjectPtr<UPCGPin>, TObjectPtr<UPCGPin>> PinMapping;
-	for (UPCGEditorGraphNodeBase* PCGEditorGraphNode : PCGEditorGraphNodes)
-	{
-		const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-		check(PCGNode);
-
-		// Reconstruct a new node, same as PCGNode, but without any edges in the new graph 
-		TObjectPtr<UPCGNode> NewNode = NewPCGGraph->ReconstructNewNode(PCGNode);
-
-		// Safeguard: We should have a 1 for 1 matching between pins labels between the original node
-		// and the copied node. If for some reason we don't (perhaps the node was not updated correctly after pins were added/removed)
-		// we will log an error and try to connect as best as we can (probably breaking some edges on the process).
-
-		auto Mapping = [&PinMapping, PCGNode](const TArray<UPCGPin*>& OriginalPins, const TArray<UPCGPin*>& NewPins)
-		{
-			TSet<FName> UnmatchedOriginal;
-			TMap<FName, UPCGPin*> NewMapping;
-
-			for (UPCGPin* NewPin : NewPins)
-			{
-				NewMapping.Emplace(NewPin->Properties.Label, NewPin);
-			}
-
-			for (UPCGPin* OriginalPin : OriginalPins)
-			{
-				FName PinLabel = OriginalPin->Properties.Label;
-				if (UPCGPin** NewPinPtr = NewMapping.Find(PinLabel))
-				{
-					PinMapping.Emplace(OriginalPin, *NewPinPtr);
-				}
-				else if (OriginalPin->IsConnected())
-				{
-					// It is only problematic if the pin was connected
-					UE_LOG(LogPCG, Error, TEXT("[CollapseInSubgraph - %s] %s pin %s does not exist anymore. Edges will be broken."),
-						*PCGNode->GetNodeTitle().ToString(), (OriginalPin->IsOutputPin() ? TEXT("Output") : TEXT("Input")), *PinLabel.ToString());
-				}
-			}
-		};
-		
-		Mapping(PCGNode->GetInputPins(), NewNode->GetInputPins());
-		Mapping(PCGNode->GetOutputPins(), NewNode->GetOutputPins());
-	}
-
-	// Also duplicate the extra nodes and assign them to the new graph
-	TArray<TObjectPtr<const UObject>> NewExtraGraphNodes;
-	for (const UEdGraphNode* ExtraNode : ExtraGraphNodes)
-	{
-		NewExtraGraphNodes.Add(DuplicateObject(ExtraNode, NewPCGGraph));
-	}
-
-	NewPCGGraph->SetExtraEditorNodes(NewExtraGraphNodes);
-
-	// 5. Iterate over all the edges and create edges "placeholders"
-	// Most of them will already be complete, but for those that needs to be connected to the new
-	// subgraph nodes, the pins don't exist yet. Therefore we identify them with their pin labels.
-	//
-	// The logic behind the new pins is this:
-	// -> If the pin is connected to the simple pin of the input/output node, let it like this
-	// -> If the pin is part of the original input/output advanced pins, we will trigger the advanced pins flag on the input/output node in the subgraph
-	// -> Otherwise, we add a new custom pin, with the name of the node, the name of the pin and a number if there is name collision
-	struct EdgePlaceholder
-	{
-		TObjectPtr<UPCGPin> InputPin = nullptr;
-		TObjectPtr<UPCGPin> OutputPin = nullptr;
-		FName InputPinLabel;
-		FName OutputPinLabel;
-	};
-
-	TArray<EdgePlaceholder> EdgePlaceholders;
-	for (UPCGEdge* Edge : PCGGraphEdges)
-	{
-		const TObjectPtr<UPCGPin>* InPin = PinMapping.Find(Edge->InputPin);
-		const TObjectPtr<UPCGPin>* OutPin = PinMapping.Find(Edge->OutputPin);
-
-		check(InPin || OutPin)
-
-		if (InPin == nullptr)
-		{
-			// The edge comes from outside the graph.
-			// If it is from the input node, we have a special behavior
-			EdgePlaceholder OutsideSubgraphEdge;
-			EdgePlaceholder InsideSubgraphEdge;
-			bool bProcessed = false;
-
-			OutsideSubgraphEdge.InputPin = Edge->InputPin;
-			InsideSubgraphEdge.OutputPin = *OutPin;
-
-			if (Edge->InputPin->Node == PCGGraph->GetInputNode())
-			{
-				const UPCGGraphInputOutputSettings* Settings = Cast<const UPCGGraphInputOutputSettings>(Edge->InputPin->Node->GetSettings());
-
-				if (Settings && !Settings->IsCustomPin(Edge->InputPin))
-				{
-					OutsideSubgraphEdge.OutputPinLabel = Edge->InputPin->Properties.Label;
-					InsideSubgraphEdge.InputPin = NewPCGGraph->GetInputNode()->GetOutputPin(Edge->InputPin->Properties.Label);
-					bProcessed = true;
-				}
-			}
-
-			if (!bProcessed)
-			{
-				FName NewPinName = CreateNewCustomPin(Edge->OutputPin, true);
-				OutsideSubgraphEdge.OutputPinLabel = NewPinName;
-				InsideSubgraphEdge.InputPin = NewPCGGraph->GetInputNode()->GetOutputPin(NewPinName);
-			}
-
-			EdgePlaceholders.Add(OutsideSubgraphEdge);
-			EdgePlaceholders.Add(InsideSubgraphEdge);
-		}
-		else if (OutPin == nullptr)
-		{
-			// The edge comes from outside the graph.
-			// If it is from the output node, we have a special behavior
-			EdgePlaceholder OutsideSubgraphEdge;
-			EdgePlaceholder InsideSubgraphEdge;
-			bool bProcessed = false;
-
-			OutsideSubgraphEdge.OutputPin = Edge->OutputPin;
-			InsideSubgraphEdge.InputPin = *InPin;
-
-			if (Edge->OutputPin->Node == PCGGraph->GetOutputNode())
-			{
-				const UPCGGraphInputOutputSettings* Settings = Cast<const UPCGGraphInputOutputSettings>(Edge->OutputPin->Node->GetSettings());
-
-				if (Settings && !Settings->IsCustomPin(Edge->OutputPin))
-				{
-					OutsideSubgraphEdge.InputPinLabel = Edge->OutputPin->Properties.Label;
-					InsideSubgraphEdge.OutputPin = NewPCGGraph->GetOutputNode()->GetInputPin(Edge->OutputPin->Properties.Label);
-					bProcessed = true;
-				}
-			}
-
-			if (!bProcessed)
-			{
-				FName NewPinName = CreateNewCustomPin(Edge->InputPin, false);
-				OutsideSubgraphEdge.InputPinLabel = NewPinName;
-				InsideSubgraphEdge.OutputPin = NewPCGGraph->GetOutputNode()->GetInputPin(NewPinName);
-			}
-
-			EdgePlaceholders.Add(OutsideSubgraphEdge);
-			EdgePlaceholders.Add(InsideSubgraphEdge);
-		}
-		else
-		{
-			// Both nodes are inside
-			EdgePlaceholders.Add(EdgePlaceholder{*InPin, *OutPin});
-		}
-	}
-
-	// 6. Create subgraph and delete old nodes
-	// Done within a transaction to be undoable (subgraph will stay though)
-	TObjectPtr<UPCGEditorGraphNodeBase> SubgraphEditorNode;
-	TObjectPtr<UPCGNode> SubgraphNode;
-	{
-		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorCollapseInSubgraphMessage", "PCG Editor: Collapse into Subgraph"), nullptr);
-
-		DeleteSelectedNodes();
-
-		FPCGEditorGraphSchemaAction_NewSubgraphElement SubgraphAddAction;
-		SubgraphAddAction.SubgraphObjectPath = NewPCGGraph->GetPathName();
-		SubgraphEditorNode = Cast<UPCGEditorGraphNodeBase>(SubgraphAddAction.PerformAction(PCGEditorGraph, nullptr, AveragePosition, true));
-		SubgraphNode = SubgraphEditorNode->GetPCGNode();
-	}
-
-	// 7. Connect all the edges
-	TSet<UPCGNode*> TouchedNodes;
-	for (EdgePlaceholder& Edge : EdgePlaceholders)
-	{
-		if (Edge.InputPin == nullptr)
-		{
-			SubgraphNode->GetOutputPin(Edge.InputPinLabel)->AddEdgeTo(Edge.OutputPin, &TouchedNodes);
-		}
-		else if (Edge.OutputPin == nullptr)
-		{
-			Edge.InputPin->AddEdgeTo(SubgraphNode->GetInputPin(Edge.OutputPinLabel), &TouchedNodes);
-		}
-		else
-		{
-			Edge.InputPin->AddEdgeTo(Edge.OutputPin, &TouchedNodes);
-		}
-	}
-
-	// 8. Finalize the operation
-	SubgraphEditorNode->ReconstructNode();
 
 	// Save the new asset
 	UEditorAssetLibrary::SaveLoadedAsset(NewPCGGraph);
 
-	// And notify everyone
+	// Notify the widget
 	GraphEditorWidget->NotifyGraphChanged();
-	PCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
-	NewPCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
-	for (UPCGNode* TouchedNode : TouchedNodes)
-	{
-		TouchedNode->OnNodeChangedDelegate.Broadcast(TouchedNode, EPCGChangeType::Node);
-	}
 }
 
 bool FPCGEditor::CanExportNodes() const

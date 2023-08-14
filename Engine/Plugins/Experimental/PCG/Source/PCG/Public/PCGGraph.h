@@ -24,7 +24,8 @@ enum class EPCGGraphParameterEvent
 	Removed,
 	PropertyModified,
 	ValueModifiedLocally,
-	ValueModifiedByParent
+	ValueModifiedByParent,
+	MultiplePropertiesAdded
 };
 
 #if WITH_EDITOR
@@ -95,6 +96,10 @@ public:
 
 	virtual const FInstancedPropertyBag* GetUserParametersStruct() const PURE_VIRTUAL(UPCGGraphInterface::GetUserParametersStruct, return nullptr;)
 
+	// Mutable version should not be used outside of testing, since there are callbacks fired when parameters changes.
+	// TODO: Make it safe to change parameters from the outside.
+	FInstancedPropertyBag* GetMutableUserParametersStruct_Unsafe() const { return const_cast<FInstancedPropertyBag*>(GetUserParametersStruct()); }
+
 	bool IsInstance() const;
 
 	/** A graph interface is equivalent to another graph interface if they are the same (same ptr), or if they have the same graph. Will be overridden when graph instance supports overrides. */
@@ -113,6 +118,7 @@ class PCG_API UPCGGraph : public UPCGGraphInterface
 {
 #if WITH_EDITOR
 	friend class FPCGEditor;
+	friend class FPCGSubgraphHelpers;
 #endif // WITH_EDITOR
 
 	GENERATED_BODY()
@@ -163,6 +169,9 @@ public:
 	/** Creates a default node based on the settings class wanted. Returns the newly created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph, meta=(DeterminesOutputType = "InSettingsClass", DynamicOutputParam = "DefaultNodeSettings"))
 	UPCGNode* AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& DefaultNodeSettings);
+
+	template <typename T, typename = typename std::enable_if_t<std::is_base_of_v<UPCGSettings, T>>>
+	UPCGNode* AddNodeOfType(T*& DefaultNodeSettings);
 
 	/** Creates a node containing an instance to the given settings. Returns the created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph)
@@ -230,6 +239,7 @@ public:
 	void EnableInspection() { bIsInspecting = true; }
 	void DisableInspection() { bIsInspecting = false; }
 	bool DebugFlagAppliesToIndividualComponents() const { return bDebugFlagAppliesToIndividualComponents; }
+	void RemoveExtraEditorNode(const UObject* InNode);
 #endif
 
 #if WITH_EDITOR
@@ -295,6 +305,12 @@ protected:
 
 public:
 	virtual const FInstancedPropertyBag* GetUserParametersStruct() const override { return &UserParameters; }
+
+	// Add new user parameters using an array of descriptors. Can also provide an original graph to copy the values.
+	// Original Graph needs to have the properties.
+	// Be careful if there is any overlap between existing parameters, that also exists in the original graph, they will be overridden by the original.
+	// Best used on a brand new PCG Graph.
+	void AddUserParameters(const TArray<FPropertyBagPropertyDesc>& InDescs, const UPCGGraph* InOptionalOriginalGraph = nullptr);
 
 #if WITH_EDITOR
 private:
@@ -375,6 +391,15 @@ private:
 	UPCGGraphInterface* UndoRedoGraphCache = nullptr;
 #endif // WITH_EDITORONLY_DATA
 };
+
+template <typename T, typename>
+UPCGNode* UPCGGraph::AddNodeOfType(T*& DefaultNodeSettings)
+{
+	UPCGSettings* TempSettings = DefaultNodeSettings;
+	UPCGNode* Node = AddNodeOfType(T::StaticClass(), TempSettings);
+	DefaultNodeSettings = Cast<T>(TempSettings);
+	return Node;
+}
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"

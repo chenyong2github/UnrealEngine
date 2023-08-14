@@ -792,6 +792,11 @@ void UPCGGraph::SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InN
 	}
 }
 
+void UPCGGraph::RemoveExtraEditorNode(const UObject* InNode)
+{
+	ExtraEditorNodes.Remove(const_cast<UObject*>(InNode));
+}
+
 FPCGActorSelectionKeyToSettingsMap UPCGGraph::GetTrackedActorKeysToSettings() const
 {
 	FPCGActorSelectionKeyToSettingsMap TagsToSettings;
@@ -1141,6 +1146,22 @@ uint32 UPCGGraph::CalculateNodeGridSizeRecursive_Unsafe(const UPCGNode* InNode, 
 	}
 
 	return GridSize;
+}
+
+void UPCGGraph::AddUserParameters(const TArray<FPropertyBagPropertyDesc>& InDescs, const UPCGGraph* InOptionalOriginalGraph)
+{
+	UserParameters.AddProperties(InDescs);
+	if (InOptionalOriginalGraph)
+	{
+		if (const FInstancedPropertyBag* OriginalPropertyBag = InOptionalOriginalGraph->GetUserParametersStruct())
+		{
+			UserParameters.CopyMatchingValuesByID(*OriginalPropertyBag);
+		}
+	}
+
+#if WITH_EDITOR
+	OnGraphParametersChanged(EPCGGraphParameterEvent::MultiplePropertiesAdded, NAME_None);
+#endif // WITH_EDITOR
 }
 
 /****************************
@@ -1568,7 +1589,10 @@ bool FPCGOverrideInstancedPropertyBag::RefreshParameters(const FInstancedPropert
 		}
 		break;
 	}
-	case EPCGGraphParameterEvent::GraphPostLoad:
+	// Do the same thing in case of post load and multiple properties added.
+	// We have 2 enums to avoid puzzling someone that wonders why we would call GraphPostLoad when we add multiple properties.
+	case EPCGGraphParameterEvent::GraphPostLoad: // fall-through
+	case EPCGGraphParameterEvent::MultiplePropertiesAdded:
 	{
 		// Check if the property struct mismatch. If so, do the migration
 		if (Parameters.GetPropertyBagStruct() != ParentUserParameters->GetPropertyBagStruct())

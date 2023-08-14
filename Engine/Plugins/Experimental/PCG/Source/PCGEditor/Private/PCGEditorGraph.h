@@ -26,6 +26,9 @@ public:
 	/** Initialize the editor graph from a PCGGraph */
 	void InitFromNodeGraph(UPCGGraph* InPCGGraph);
 
+	/** If the underlying graph changed without UI interaction, use this function to reconstruct the UI elements. */
+	void ReconstructGraph();
+
 	/** When the editor is closing */
 	void OnClose();
 
