@@ -248,7 +248,7 @@ void MainPopulateSceneDepthPS(
 	out float4 OutColor : SV_Target0,
 	out float OutDepth : SV_DEPTH)
 {
-	float2 ViewportUV = (SvPosition.xy - Color_ViewportMin) * Color_ViewportSizeInverse;
+	float2 ViewportUV = (SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw;
 	
 	float2 DepthUV = clamp(
 		(Depth_ViewportMin + ViewportUV * Depth_ViewportSize - DepthTextureJitter) * Depth_ExtentInverse,
