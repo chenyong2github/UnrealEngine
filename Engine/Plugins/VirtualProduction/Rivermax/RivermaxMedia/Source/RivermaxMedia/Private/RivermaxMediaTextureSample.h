@@ -113,7 +113,7 @@ private:
 	FIntPoint Dimension = FIntPoint::ZeroValue;
 
 	/** Sample format. */
-	EMediaTextureSampleFormat SampleFormat;
+	EMediaTextureSampleFormat SampleFormat = EMediaTextureSampleFormat::CharBGRA;
 
 	/** Format in the rivermax realm */
 	ERivermaxMediaSourcePixelFormat InputFormat;
