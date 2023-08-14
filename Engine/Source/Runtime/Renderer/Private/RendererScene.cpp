@@ -6356,7 +6356,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		});
 	}
 	
-	CreateLightPrimitiveInteractionsTask = LaunchSceneRenderTask(TEXT("CreateLightPrimitiveInteractionsTask"), [this, &SceneInfosWithAddToScene]
+	CreateLightPrimitiveInteractionsTask = GraphBuilder.AddSetupTask([this, &SceneInfosWithAddToScene]
 	{
 		SCOPED_NAMED_EVENT(CreateLightPrimitiveInteractions, FColor::Emerald);
 
@@ -6371,19 +6371,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	{
 		const bool bLaunchAsyncTask = EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands) && GRHISupportsMultithreadedShaderCreation;
 
-		CacheMeshDrawCommandsTask = LaunchSceneRenderTask(TEXT("CacheMeshDrawCommandsTask"), [this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
+		CacheMeshDrawCommandsTask = GraphBuilder.AddSetupTask([this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
 		{
 			FPrimitiveSceneInfo::CacheMeshDrawCommands(this, SceneInfosWithStaticDrawListUpdate);
 
-		}, IsMobilePlatform(GetShaderPlatform()) ? CreateLightPrimitiveInteractionsTask : UE::Tasks::FTask(), bLaunchAsyncTask);
+		}, IsMobilePlatform(GetShaderPlatform()) ? CreateLightPrimitiveInteractionsTask : UE::Tasks::FTask(), UE::Tasks::ETaskPriority::High, bLaunchAsyncTask);
 
-		CacheNaniteDrawCommandsTask = LaunchSceneRenderTask(TEXT("CacheNaniteDrawCommands"), [this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
+		CacheNaniteDrawCommandsTask = GraphBuilder.AddSetupTask([this, &SceneInfosWithStaticDrawListUpdate, bLaunchAsyncTask]()
 		{
 			FPrimitiveSceneInfo::CacheNaniteDrawCommands(this, SceneInfosWithStaticDrawListUpdate);
 		}, bLaunchAsyncTask);
 
 #if RHI_RAYTRACING
-		CacheRayTracingPrimitivesTask = LaunchSceneRenderTask(TEXT("CacheRayTracingPrimitivesTask"), [this, &SceneInfosWithStaticDrawListUpdate]()
+		CacheRayTracingPrimitivesTask = GraphBuilder.AddSetupTask([this, &SceneInfosWithStaticDrawListUpdate]()
 		{
 			FPrimitiveSceneInfo::CacheRayTracingPrimitives(this, SceneInfosWithStaticDrawListUpdate);
 		}, bLaunchAsyncTask);
