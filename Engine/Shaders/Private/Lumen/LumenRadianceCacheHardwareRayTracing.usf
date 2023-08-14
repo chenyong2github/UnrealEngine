@@ -156,7 +156,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 				/*NearFieldMaxTraceDistanceDitherScale*/ 0.0f);
 
 			Ray.TMin = max(max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex)), TraceHitDistance - PullbackBias);
-			Ray.TMax = max(ClippedNearFieldMaxTraceDistance - PullbackBias, 0.0f);
+			Ray.TMax = max(ClippedNearFieldMaxTraceDistance - PullbackBias, Ray.TMin);
 			#if ENABLE_FAR_FIELD_TRACING
 			{
 				Ray.TMin = max(Ray.TMin, FarFieldBias);
