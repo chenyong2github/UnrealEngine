@@ -606,6 +606,22 @@ public:
 	/** Process the frame's input events given the current input component stack. */
 	ENGINE_API virtual void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused);
 
+protected:
+	
+	/**
+	 * Evaluates the current state of the KeyStateMap this tick.
+	 * Should only be called from UPlayerInput::ProcessInputStack
+	 */
+	ENGINE_API virtual void EvaluateKeyMapState(const float DeltaTime, const bool bGamePaused, OUT TArray<TPair<FKey, FKeyState*>>& KeysWithEvents);
+
+	/**
+	 * Evaluates the state of any bound input delegates on the given Input Component Stack.
+	 * This should only be called from UPlayerInput::ProcessInputStack
+	 */
+	ENGINE_API virtual void EvaluateInputDelegates(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused, const TArray<TPair<FKey, FKeyState*>>& KeysWithEvents);
+	
+public:
+
 	/** Rather than processing input, consume it and discard without doing anything useful with it.  Like calling ProcessInputStack() and ignoring all results. */
 	ENGINE_API void DiscardPlayerInput();
 
@@ -756,8 +772,11 @@ private:
 	/* Returns the summed values of all the components of this axis this frame
 	 * @param AxisBinding - the action to determine if it ocurred
 	 * @param KeysToConsume - array to collect the keys associated with this binding that should be consumed
+	 * @param bHadAnyNonConsumedKeys - If false, then all keys related to the axis binding have been consumed and there were none that could be used to determine the value
+	 *
+	 * @return The value of the axis based on the all the key mappings to it added together
 	 */
-	ENGINE_API float DetermineAxisValue(const FInputAxisBinding& AxisBinding, const bool bGamePaused, TArray<FKey>& KeysToConsume);
+	ENGINE_API float DetermineAxisValue(const FInputAxisBinding& AxisBinding, const bool bGamePaused, TArray<FKey>& KeysToConsume, OUT bool& bHadAnyNonConsumedKeys) const;
 
 	/** Utility function to ensure the key mapping cache maps are built */
 	FORCEINLINE void ConditionalBuildKeyMappings() const

@@ -27,6 +27,18 @@ struct FInjectedInput
 };
 
 USTRUCT()
+struct FKeyConsumptionOptions
+{
+	GENERATED_BODY()
+	
+	/** Keys that should be consumed if the trigger state is reached */
+	TArray<FKey> KeysToConsume;
+		
+	/** A bitmask of trigger events that when reached, should cause the key to be marked as consumed. */
+	ETriggerEvent EventsToCauseConsumption = ETriggerEvent::None;
+};
+
+USTRUCT()
 struct FInjectedInputArray
 {
 	GENERATED_BODY()
@@ -75,6 +87,9 @@ public:
 	float GetEffectiveTimeDilation() const;
 	
 protected:
+
+	virtual void EvaluateKeyMapState(const float DeltaTime, const bool bGamePaused, OUT TArray<TPair<FKey, FKeyState*>>& KeysWithEvents) override;
+	virtual void EvaluateInputDelegates(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused, const TArray<TPair<FKey, FKeyState*>>& KeysWithEvents) override;
 	
 	// Causes key to be consumed if it is affecting an action.
 	virtual bool IsKeyHandledByAction(FKey Key) const override;
@@ -84,7 +99,10 @@ protected:
 
 	/** This player's version of the Action Mappings */
 	const TArray<FEnhancedActionKeyMapping>& GetEnhancedActionMappings() const { return EnhancedActionMappings; }
-	
+
+	/** Array of data that represents what keys should be consumed if an enhanced input action is in a specific triggered state */
+	UPROPERTY()
+	TMap<TObjectPtr<const UInputAction>, FKeyConsumptionOptions> KeyConsumptionData;
 
 private:
 
@@ -165,6 +183,9 @@ private:
 
 protected:
 
+	// We need to grab the down states of all keys before calling Super::ProcessInputStack as it will leave bDownPrevious in the same state as bDown (i.e. this frame, not last).
+	TMap<FKey, bool> KeyDownPrevious;
+	
 	/** 
 	* If true, then FlushPressedKeys has been called and the input key state map has been flushed.
 	* 

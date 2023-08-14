@@ -277,48 +277,48 @@ float UEnhancedPlayerInput::GetEffectiveTimeDilation() const
 	return 1.0f;
 }
 
-void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
+void UEnhancedPlayerInput::EvaluateKeyMapState(const float DeltaTime, const bool bGamePaused, OUT TArray<TPair<FKey, FKeyState*>>& KeysWithEvents)
 {
-	// We need to grab the down states of all keys before calling Super::ProcessInputStack as it will leave bDownPrevious in the same state as bDown (i.e. this frame, not last).
-	static TMap<FKey, bool> KeyDownPrevious;
+	TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_KeyDownPrev);
+
+	const UEnhancedInputDeveloperSettings* Settings = GetDefault<UEnhancedInputDeveloperSettings>();
+	bool bWasAnyKeyDownLastFrame = false;
+
+	KeyDownPrevious.Reset();
+	KeyDownPrevious.Reserve(GetKeyStateMap().Num());
+	for (TPair<FKey, FKeyState>& KeyPair : GetKeyStateMap())
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_KeyDownPrev);
+		const FKeyState& KeyState = KeyPair.Value;
+		// TODO: Can't just use bDownPrevious as paired axis event edges may not fire due to axial deadzoning/missing axis properties. Need to change how this is detected in PlayerInput.cpp.
+		bool bWasDown = KeyState.bDownPrevious || KeyState.EventCounts[IE_Pressed].Num() || KeyState.EventCounts[IE_Repeat].Num();
+		bWasDown |= KeyPair.Key.IsAnalog() && KeyState.RawValue.SizeSquared() != 0;	// Analog inputs should pulse every (non-zero) tick to retain compatibility with UE4.
 
-		const UEnhancedInputDeveloperSettings* Settings = GetDefault<UEnhancedInputDeveloperSettings>();
-		bool bWasAnyKeyDownLastFrame = false;
+		// When UPlayerInput::FlushPressedKeys is called any keys that are down will have their RawValue set to 0, and their bDown/bDownPrevious state will be reset to false.
+		// However, their "Value" will not be reset until UPlayerInput::ProcessInputStack. We need to detect if this key was down previously after a flush
+		// so that the Enhanced Input action will correctly fire the triggered values.
+		const bool bKeyWasJustFlushed = 
+			bIsFlushingInputThisFrame && 
+			Settings->bSendTriggeredEventsWhenInputIsFlushed && 
+			!KeyState.Value.IsZero() && 
+			KeyState.RawValue.IsZero() && 
+			!KeyState.bDown;
 
-		KeyDownPrevious.Reset();
-		KeyDownPrevious.Reserve(GetKeyStateMap().Num());
-		for (TPair<FKey, FKeyState>& KeyPair : GetKeyStateMap())
-		{
-			const FKeyState& KeyState = KeyPair.Value;
-			// TODO: Can't just use bDownPrevious as paired axis event edges may not fire due to axial deadzoning/missing axis properties. Need to change how this is detected in PlayerInput.cpp.
-			bool bWasDown = KeyState.bDownPrevious || KeyState.EventCounts[IE_Pressed].Num() || KeyState.EventCounts[IE_Repeat].Num();
-			bWasDown |= KeyPair.Key.IsAnalog() && KeyState.RawValue.SizeSquared() != 0;	// Analog inputs should pulse every (non-zero) tick to retain compatibility with UE4.
-
-			// When UPlayerInput::FlushPressedKeys is called any keys that are down will have their RawValue set to 0, and their bDown/bDownPrevious state will be reset to false.
-			// However, their "Value" will not be reset until UPlayerInput::ProcessInputStack. We need to detect if this key was down previously after a flush
-			// so that the Enhanced Input action will correctly fire the triggered values.
-			const bool bKeyWasJustFlushed = 
-				bIsFlushingInputThisFrame && 
-				Settings->bSendTriggeredEventsWhenInputIsFlushed && 
-				!KeyState.Value.IsZero() && 
-				KeyState.RawValue.IsZero() && 
-				!KeyState.bDown;
-
-			bWasDown |= bKeyWasJustFlushed;
+		bWasDown |= bKeyWasJustFlushed;
 			
-			// Keep track of the state of every key so that when we are done iterating we can have a meaningful value for EKeys::AnyKey
-			bWasAnyKeyDownLastFrame |= bWasDown;
+		// Keep track of the state of every key so that when we are done iterating we can have a meaningful value for EKeys::AnyKey
+		bWasAnyKeyDownLastFrame |= bWasDown;
 
-			KeyDownPrevious.Emplace(KeyPair.Key, bWasDown);
-		}
-
-		KeyDownPrevious.Emplace(EKeys::AnyKey, bWasAnyKeyDownLastFrame);
+		KeyDownPrevious.Emplace(KeyPair.Key, bWasDown);
 	}
 
-	Super::ProcessInputStack(InputComponentStack, DeltaTime, bGamePaused);
+	KeyDownPrevious.Emplace(EKeys::AnyKey, bWasAnyKeyDownLastFrame);
+	
+	
+	Super::EvaluateKeyMapState(DeltaTime, bGamePaused, KeysWithEvents);
+}
 
+void UEnhancedPlayerInput::EvaluateInputDelegates(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused, const TArray<TPair<FKey, FKeyState*>>& KeysWithEvents)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_Main);
 
 	// Process Action bindings
@@ -601,6 +601,18 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 				// Search for the action instance data a second time as a previous delegate call may have deleted it.
 				if (const FInputActionInstance* ActionData = FindActionInstanceData(DelegateAction))
 				{
+					// If this enhanced input delegate has triggered and is flagged to consume legacy keys, then mark it as such.
+					if (const FKeyConsumptionOptions* ConsumptionData = KeyConsumptionData.Find(ActionData->GetSourceAction()))
+					{
+						if (static_cast<uint8>(ConsumptionData->EventsToCauseConsumption & Delegate->GetTriggerEvent()) != 0)
+						{
+							// Consume all keys that are mapped to this input action with the proper trigger values
+							for (const FKey& KeyToConsume : ConsumptionData->KeysToConsume)
+							{
+								ConsumeKey(KeyToConsume);	
+							}
+						}
+					}
 					Delegate->Execute(*ActionData);
 				}
 			}
@@ -719,6 +731,13 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	LastFrameTime = CurrentTime;
 	KeysPressedThisTick.Reset();
 	bIsFlushingInputThisFrame = false;
+
+	Super::EvaluateInputDelegates(InputComponentStack, DeltaTime, bGamePaused, KeysWithEvents);
+}
+
+void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
+{
+	Super::ProcessInputStack(InputComponentStack, DeltaTime, bGamePaused);
 }
 
 void UEnhancedPlayerInput::FlushPressedKeys()

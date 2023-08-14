@@ -85,18 +85,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Description")
 	FText ActionDescription = FText::GetEmpty();
 
+	// Should this action be able to trigger whilst the game is paused - Replaces bExecuteWhenPaused
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
+    bool bTriggerWhenPaused = false;
+	
 	// Should this action swallow any inputs bound to it or allow them to pass through to affect lower priority bound actions?
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Action)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Consumption", meta=(DisplayName="Consume Lower Priority Enhanced Input Mappings"))
 	bool bConsumeInput = true;
 
-	// Should this action be able to trigger whilst the game is paused - Replaces bExecuteWhenPaused
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
-	bool bTriggerWhenPaused = false;
+	/**
+	 * Should this Input Action consume any legacy Action and Axis key mappings?
+	 * If true, then any key mapping to this input action will consume(aka block) the legacy key
+	 * mapping from firing delegates.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Consumption")
+	bool bConsumesActionAndAxisMappings = false;
 
 	// This action's mappings are not intended to be automatically overridden by higher priority context mappings. Users must explicitly remove the mapping first. NOTE: It is the responsibility of the author of the mapping code to enforce this!
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
 	bool bReserveAllMappings = false;	// TODO: Need something more complex than this?
 
+	/** A bitmask of trigger events that, when reached, will consume any FKeys mapped to this input action. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Consumption", meta=(EditCondition = "bConsumesActionAndAxisMappings", Bitmask, BitmaskEnum="/Script/EnhancedInput.ETriggerEvent"))
+	int32 TriggerEventsThatConsumeLegacyKeys;
+	
 	// The type that this action returns from a GetActionValue query or action event
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action, AssetRegistrySearchable)
 	EInputActionValueType ValueType = EInputActionValueType::Boolean;

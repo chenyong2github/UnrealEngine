@@ -37,6 +37,17 @@ const TArray<FInputAxisKeyMapping> UPlayerInput::NoAxisMappings;
 TArray<FInputActionKeyMapping> UPlayerInput::EngineDefinedActionMappings;
 TArray<FInputAxisKeyMapping> UPlayerInput::EngineDefinedAxisMappings;
 
+namespace UE
+{
+	namespace Input
+	{
+		static bool AxisEventsCanBeConsumed = true;
+		static FAutoConsoleVariableRef CVarShouldOnlyTriggerLastActionInChord(TEXT("Input.AxisEventsCanBeConsumed"),
+			AxisEventsCanBeConsumed,
+			TEXT("If true and all FKey's for a given Axis Event are consumed, then the axis delegate will not fire."));
+	}
+}
+
 /** Runtime struct that gathers up the different kinds of delegates that might be issued */
 struct FDelegateDispatchDetails
 {
@@ -1024,11 +1035,12 @@ void UPlayerInput::GetChordForKey(const FInputKeyBinding& KeyBinding, const bool
 	}
 }
 
-float UPlayerInput::DetermineAxisValue(const FInputAxisBinding& AxisBinding, const bool bGamePaused, TArray<FKey>& KeysToConsume)
+float UPlayerInput::DetermineAxisValue(const FInputAxisBinding& AxisBinding, const bool bGamePaused, TArray<FKey>& KeysToConsume, OUT bool& bHadAnyNonConsumedKeys) const
 {
 	ConditionalBuildKeyMappings();
 
-	float AxisValue = 0.f;
+	float AxisValue = 0.0f;
+	bHadAnyNonConsumedKeys = false;
 
 	FAxisKeyDetails* KeyDetails = AxisKeyMap.Find(AxisBinding.AxisName);
 	if (KeyDetails)
@@ -1047,6 +1059,7 @@ float UPlayerInput::DetermineAxisValue(const FInputAxisBinding& AxisBinding, con
 				{
 					KeysToConsume.AddUnique(KeyMapping.Key);
 				}
+				bHadAnyNonConsumedKeys = true;
 			}
 		}
 
@@ -1092,41 +1105,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 {
 	ConditionalBuildKeyMappings();
 
-	// We collect axis contributions by delegate, so we can sum up
-	// contributions from multiple bindings.
-	struct FAxisDelegateDetails
-	{
-		FInputAxisUnifiedDelegate Delegate;
-		float Value;
-
-		FAxisDelegateDetails(FInputAxisUnifiedDelegate InDelegate, const float InValue)
-			: Delegate(MoveTemp(InDelegate))
-			, Value(InValue)
-		{
-		}
-	};
-	struct FVectorAxisDelegateDetails
-	{
-		FInputVectorAxisUnifiedDelegate Delegate;
-		FVector Value;
-
-		FVectorAxisDelegateDetails(FInputVectorAxisUnifiedDelegate InDelegate, const FVector InValue)
-			: Delegate(MoveTemp(InDelegate))
-			, Value(InValue)
-		{
-		}
-	};
-
-	static TArray<FAxisDelegateDetails> AxisDelegates;
-	static TArray<FVectorAxisDelegateDetails> VectorAxisDelegates;
-	static TArray<FDelegateDispatchDetails> NonAxisDelegates;
-	static TArray<FKey> KeysToConsume;
-	static TArray<FDelegateDispatchDetails> FoundChords;
 	static TArray<TPair<FKey, FKeyState*>> KeysWithEvents;
-	static TArray<TSharedPtr<FInputActionBinding>> PotentialActions;
-
-	// must be called non-recursively and on the game thread
-	check(IsInGameThread() && !AxisDelegates.Num() && !VectorAxisDelegates.Num() && !NonAxisDelegates.Num() && !KeysToConsume.Num() && !FoundChords.Num() && !EventIndices.Num() && !KeysWithEvents.Num() && !PotentialActions.Num());
 
 	// @todo, if input is coming in asynchronously, we should buffer anything that comes in during playerinput() and not include it
 	// in this processing batch
@@ -1136,7 +1115,29 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 	{
 		PlayerController->PreProcessInput(DeltaTime, bGamePaused);
 	}
+	
+	// Evaluate the current state of the key map. This will take the event accumulators and put them into the actual values of the key state map.
+	EvaluateKeyMapState(DeltaTime, bGamePaused, OUT KeysWithEvents);
+	
+	// Determine potential delegates
+	EvaluateInputDelegates(InputComponentStack, DeltaTime, bGamePaused, KeysWithEvents);
 
+	if (PlayerController)
+	{
+		PlayerController->PostProcessInput(DeltaTime, bGamePaused);
+	}
+	
+	FinishProcessingPlayerInput();
+
+	TouchEventLocations.Reset();
+	KeysWithEvents.Reset();
+}
+
+void UPlayerInput::EvaluateKeyMapState(const float DeltaTime, const bool bGamePaused, OUT TArray<TPair<FKey, FKeyState*>>& KeysWithEvents)
+{
+	// Must be called non-recursively on the game thread
+	check(IsInGameThread() && !KeysWithEvents.Num());
+	
 	// copy data from accumulators to the real values
 	for (TMap<FKey,FKeyState>::TIterator It(KeyStateMap); It; ++It)
 	{
@@ -1210,7 +1211,35 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		KeyState->PairSampledAxes = 0;
 	}
 	EventCount = 0;
+}
 
+void UPlayerInput::EvaluateInputDelegates(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused, const TArray<TPair<FKey, FKeyState*>>& KeysWithEvents)
+{
+	// We collect axis contributions by delegate, so we can sum up
+	// contributions from multiple bindings.
+	struct FAxisDelegateDetails
+	{
+		FInputAxisUnifiedDelegate Delegate;
+		float Value;
+
+		FAxisDelegateDetails(FInputAxisUnifiedDelegate InDelegate, const float InValue)
+			: Delegate(MoveTemp(InDelegate))
+			, Value(InValue)
+		{
+		}
+	};
+	struct FVectorAxisDelegateDetails
+	{
+		FInputVectorAxisUnifiedDelegate Delegate;
+		FVector Value;
+
+		FVectorAxisDelegateDetails(FInputVectorAxisUnifiedDelegate InDelegate, const FVector InValue)
+			: Delegate(MoveTemp(InDelegate))
+			, Value(InValue)
+		{
+		}
+	};
+	
 	struct FDelegateDispatchDetailsSorter
 	{
 		bool operator()( const FDelegateDispatchDetails& A, const FDelegateDispatchDetails& B ) const
@@ -1218,6 +1247,17 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 			return (A.EventIndex == B.EventIndex ? A.FoundIndex < B.FoundIndex : A.EventIndex < B.EventIndex);
 		}
 	};
+
+	
+	static TArray<FAxisDelegateDetails> AxisDelegates;
+	static TArray<FVectorAxisDelegateDetails> VectorAxisDelegates;
+	static TArray<FDelegateDispatchDetails> NonAxisDelegates;
+	static TArray<FKey> KeysToConsume;
+	static TArray<FDelegateDispatchDetails> FoundChords;	
+	static TArray<TSharedPtr<FInputActionBinding>> PotentialActions;
+
+	// must be called non-recursively and on the game thread
+	check(IsInGameThread() && !AxisDelegates.Num() && !VectorAxisDelegates.Num() && !NonAxisDelegates.Num() && !KeysToConsume.Num() && !FoundChords.Num() && !EventIndices.Num() && !PotentialActions.Num());
 
 	int32 StackIndex = InputComponentStack.Num()-1;
 
@@ -1343,11 +1383,15 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 				EventIndices.Reset();
 			}
 
+			// A flag that is set in DetermineAxisValue. If false, then all keys related to the axis binding have been consumed.
+			bool bHadAnyKeys = false;
+			
 			// Run though game axis bindings and accumulate axis values
 			for (FInputAxisBinding& AB : IC->AxisBindings)
 			{
-				AB.AxisValue = DetermineAxisValue(AB, bGamePaused, KeysToConsume);
-				if (AB.AxisDelegate.IsBound())
+				AB.AxisValue = DetermineAxisValue(AB, bGamePaused, KeysToConsume, bHadAnyKeys); 
+				
+				if ((bHadAnyKeys || !UE::Input::AxisEventsCanBeConsumed) && AB.AxisDelegate.IsBound())
 				{
 					AxisDelegates.Emplace(FAxisDelegateDetails(AB.AxisDelegate, AB.AxisValue));
 				}
@@ -1473,17 +1517,9 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		}
 	}
 
-	if (PlayerController)
-	{
-		PlayerController->PostProcessInput(DeltaTime, bGamePaused);
-	}
-	
-	FinishProcessingPlayerInput();
 	AxisDelegates.Reset();
 	VectorAxisDelegates.Reset();
 	NonAxisDelegates.Reset();
-	TouchEventLocations.Reset();
-	KeysWithEvents.Reset();
 }
 
 void UPlayerInput::DiscardPlayerInput()
@@ -2016,11 +2052,8 @@ void UPlayerInput::Tick(float DeltaTime)
 
 void UPlayerInput::ConsumeKey(FKey Key)
 {
-	FKeyState* const KeyState = KeyStateMap.Find(Key);
-	if (KeyState)
-	{
-		KeyState->bConsumed = true;
-	}
+	FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
+	KeyState.bConsumed = true;
 }
 
 bool UPlayerInput::KeyEventOccurred(FKey Key, EInputEvent Event, TArray<uint32>& InEventIndices, const FKeyState* KeyState) const
