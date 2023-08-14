@@ -229,6 +229,11 @@ struct FLandscapeComponentDataInterfaceBase
 		return FVector(LocalX * ScaleFactor , LocalY * ScaleFactor, LandscapeDataAccess::GetLocalHeight(GetHeight(LocalX, LocalY, HeightAndNormals)));
 	}
 
+	float GetLocalHeight(int32 LocalX, int32 LocalY, const TArray<FColor>& HeightAndNormals) const
+	{
+		return LandscapeDataAccess::GetLocalHeight(GetHeight(LocalX, LocalY, HeightAndNormals));
+	}
+
 	const FColor* GetHeightData(int32 LocalX, int32 LocalY, const TArray<FColor>& HeightAndNormals) const
 	{
 #if LANDSCAPE_VALIDATE_DATA_ACCESS
