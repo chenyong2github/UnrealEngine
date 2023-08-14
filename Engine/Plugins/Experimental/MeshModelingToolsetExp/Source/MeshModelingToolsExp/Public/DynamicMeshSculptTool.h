@@ -348,6 +348,9 @@ private:
 	TObjectPtr<UPreviewMesh> BrushIndicatorMesh;
 
 	UPROPERTY()
+	TObjectPtr<AInternalToolFrameworkActor> PreviewMeshActor = nullptr;
+
+	UPROPERTY()
 	TObjectPtr<UOctreeDynamicMeshComponent> DynamicMeshComponent;
 
 	UPROPERTY()

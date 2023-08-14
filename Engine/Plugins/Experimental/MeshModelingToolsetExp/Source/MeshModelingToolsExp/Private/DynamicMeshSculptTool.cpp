@@ -3,6 +3,7 @@
 #include "DynamicMeshSculptTool.h"
 #include "Containers/Map.h"
 #include "Async/Async.h"
+#include "Engine/World.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
@@ -101,9 +102,12 @@ void UDynamicMeshSculptTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "DynaSculpt"));
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	FActorSpawnParameters SpawnInfo;
+	PreviewMeshActor = TargetWorld->SpawnActor<AInternalToolFrameworkActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(PreviewMeshActor);
 	DynamicMeshComponent->SetShadowsEnabled(false);
-	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
+	DynamicMeshComponent->SetupAttachment(PreviewMeshActor->GetRootComponent());
+	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	DynamicMeshComponent->RegisterComponent();
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(DynamicMeshComponent, Target); 
 
@@ -325,6 +329,12 @@ void UDynamicMeshSculptTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent->UnregisterComponent();
 		DynamicMeshComponent->DestroyComponent();
 		DynamicMeshComponent = nullptr;
+	}
+
+	if (PreviewMeshActor != nullptr)
+	{
+		PreviewMeshActor->Destroy();
+		PreviewMeshActor = nullptr;
 	}
 
 	BrushProperties->SaveProperties(this);
