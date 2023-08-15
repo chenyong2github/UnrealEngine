@@ -1682,60 +1682,6 @@ static void IntersectBoneIndexArrays(TArray<FBoneIndexType>& Output, const TArra
 	}
 }
 
-/** Takes sorted array Base and then adds any elements from sorted array Insert which is missing from it, preserving order.
- * this assumes both arrays are sorted and contain unique bone indices. */
-/*static*/ void USkeletalMeshComponent::MergeInBoneIndexArrays(TArray<FBoneIndexType>& BaseArray, const TArray<FBoneIndexType>& InsertArray)
-{
-	// Then we merge them into the array of required bones.
-	int32 BaseBonePos = 0;
-	int32 InsertBonePos = 0;
-
-	// Iterate over each of the bones we need.
-	while( InsertBonePos < InsertArray.Num() )
-	{
-		// Find index of physics bone
-		FBoneIndexType InsertBoneIndex = InsertArray[InsertBonePos];
-
-		// If at end of BaseArray array - just append.
-		if( BaseBonePos == BaseArray.Num() )
-		{
-			BaseArray.Add(InsertBoneIndex);
-			BaseBonePos++;
-			InsertBonePos++;
-		}
-		// If in the middle of BaseArray, merge together.
-		else
-		{
-			// Check that the BaseArray array is strictly increasing, otherwise merge code does not work.
-			check( BaseBonePos == 0 || BaseArray[BaseBonePos-1] < BaseArray[BaseBonePos] );
-
-			// Get next required bone index.
-			FBoneIndexType BaseBoneIndex = BaseArray[BaseBonePos];
-
-			// We have a bone in BaseArray not required by Insert. Thats ok - skip.
-			if( BaseBoneIndex < InsertBoneIndex )
-			{
-				BaseBonePos++;
-			}
-			// Bone required by Insert is in 
-			else if( BaseBoneIndex == InsertBoneIndex )
-			{
-				BaseBonePos++;
-				InsertBonePos++;
-			}
-			// Bone required by Insert is missing - insert it now.
-			else // BaseBoneIndex > InsertBoneIndex
-			{
-				BaseArray.InsertUninitialized(BaseBonePos);
-				BaseArray[BaseBonePos] = InsertBoneIndex;
-
-				BaseBonePos++;
-				InsertBonePos++;
-			}
-		}
-	}
-}
-
 // this is optimized version of updating only curves
 // if you call RecalcRequiredBones, curve should be refreshed
 void USkeletalMeshComponent::RecalcRequiredCurves()
@@ -1845,35 +1791,6 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	MergeInBoneIndexArrays(OutRequiredBones, SkeletalMesh->GetRefSkeleton().GetRequiredVirtualBones());
 }
 
-/*static*/ void USkeletalMeshComponent::GetPhysicsRequiredBones(const USkeletalMesh* SkeletalMesh, const UPhysicsAsset* PhysicsAsset, TArray<FBoneIndexType>& OutRequiredBones)
-{
-	check(SkeletalMesh != nullptr);
-	check(PhysicsAsset != nullptr);
-
-	// If we have a PhysicsAsset, we also need to make sure that all the bones used by it are always updated, as its used
-	// by line checks etc. We might also want to kick in the physics, which means having valid bone transforms.
-	TArray<FBoneIndexType> PhysAssetBones;
-	PhysAssetBones.Reserve(PhysicsAsset->SkeletalBodySetups.Num());
-	for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); i++)
-	{
-		if (!ensure(PhysicsAsset->SkeletalBodySetups[i]))
-		{
-			continue;
-		}
-		int32 PhysBoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
-		if (PhysBoneIndex != INDEX_NONE)
-		{
-			PhysAssetBones.Add(PhysBoneIndex);
-		}
-	}
-
-	// Then sort array of required bones in hierarchy order
-	PhysAssetBones.Sort();
-
-	// Make sure all of these are in RequiredBones.
-	MergeInBoneIndexArrays(OutRequiredBones, PhysAssetBones);
-}
-
 /*static*/ void USkeletalMeshComponent::ExcludeHiddenBones(const USkeletalMeshComponent* SkeletalMeshComponent, const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones)
 {
 	check(SkeletalMeshComponent != nullptr);
@@ -1913,36 +1830,6 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 
 /*static*/ void USkeletalMeshComponent::GetMirroringRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones)
 {
-}
-
-/*static*/ void USkeletalMeshComponent::GetSocketRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& NeededBonesForFillComponentSpaceTransforms)
-{
-	check(SkeletalMesh != nullptr);
-
-	TArray<FBoneIndexType> ForceAnimatedSocketBones;
-	TArray<USkeletalMeshSocket*> ActiveSocketList = SkeletalMesh->GetActiveSocketList();
-	ForceAnimatedSocketBones.Reserve(ActiveSocketList.Num());
-	for (const USkeletalMeshSocket* Socket : ActiveSocketList)
-	{
-		int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(Socket->BoneName);
-		if (BoneIndex != INDEX_NONE)
-		{
-			if (Socket->bForceAlwaysAnimated)
-			{
-				ForceAnimatedSocketBones.AddUnique(BoneIndex);
-			}
-			else
-			{
-				NeededBonesForFillComponentSpaceTransforms.AddUnique(BoneIndex);
-			}
-		}
-	}
-
-	// Then sort array of required bones in hierarchy order
-	ForceAnimatedSocketBones.Sort();
-
-	// Make sure all of these are in OutRequiredBones.
-	MergeInBoneIndexArrays(OutRequiredBones, ForceAnimatedSocketBones);
 }
 
 /*static*/ void USkeletalMeshComponent::GetShadowShapeRequiredBones(const USkeletalMeshComponent* SkeletalMeshComponent, TArray<FBoneIndexType>& OutRequiredBones)

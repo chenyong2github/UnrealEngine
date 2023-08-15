@@ -5,6 +5,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditor)
 
+DEFINE_LOG_CATEGORY(LogChaosClothAssetEditor);
+
 TSharedPtr<FBaseAssetToolkit> UChaosClothAssetEditor::CreateToolkit()
 {
 	using namespace UE::Chaos::ClothAsset;

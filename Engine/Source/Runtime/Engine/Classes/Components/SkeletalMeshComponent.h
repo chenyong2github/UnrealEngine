@@ -1655,9 +1655,6 @@ public:
 	// Get the required virtual bones from the SkeletalMesh Reference Skeleton
 	static ENGINE_API void GetRequiredVirtualBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones);
 
-	// Get the bones used by the physics asset (if any), as these have to be updated even if LODed out
-	static ENGINE_API void GetPhysicsRequiredBones(const USkeletalMesh* SkeletalMesh, const UPhysicsAsset* PhysicsAsset, TArray<FBoneIndexType>& OutRequiredBones);
-
 	// Removes the bones expicitly hidden or hiden by parent
 	static ENGINE_API void ExcludeHiddenBones(const USkeletalMeshComponent* SkeletalMeshComponent, const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones);
 
@@ -1665,18 +1662,8 @@ public:
 	UE_DEPRECATED(5.3, "This method has been deprecated. Please use UMirrorDataTable for mirroring support.")
 	static ENGINE_API void GetMirroringRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones);
 
-	// Get the bones that are used by sockets
-	// OutRequiredBones : the bones used by sockets that are set as always animate
-	// NeededBonesForFillComponentSpaceTransforms : the rest of bones used by sockets (that are not set to always animate)
-	static ENGINE_API void GetSocketRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& NeededBonesForFillComponentSpaceTransforms);
-
 	// Get the bones required for shadow shapes
 	static ENGINE_API void GetShadowShapeRequiredBones(const USkeletalMeshComponent* SkeletalMeshComponent, TArray<FBoneIndexType>& OutRequiredBones);
-
-	/** Takes sorted array Base and then adds any elements from sorted array Insert which is missing from it, preserving order.
-	 * this assumes both arrays are sorted and contain unique bone indices.
-	 */
-	static ENGINE_API void MergeInBoneIndexArrays(TArray<FBoneIndexType>& BaseArray, const TArray<FBoneIndexType>& InsertArray);
 
 	/**
 	* Recalculates the AnimCurveUids array in RequiredBone of this SkeletalMeshComponent based on current required bone set

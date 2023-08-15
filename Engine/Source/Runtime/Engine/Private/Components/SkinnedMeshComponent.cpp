@@ -4705,6 +4705,119 @@ void USkinnedMeshComponent::HandleFeatureLevelChanged(ERHIFeatureLevel::Type InF
 }
 #endif
 
+/** Takes sorted array Base and then adds any elements from sorted array Insert which is missing from it, preserving order.
+ * this assumes both arrays are sorted and contain unique bone indices. */
+/*static*/ void USkinnedMeshComponent::MergeInBoneIndexArrays(TArray<FBoneIndexType>& BaseArray, const TArray<FBoneIndexType>& InsertArray)
+{
+	// Then we merge them into the array of required bones.
+	int32 BaseBonePos = 0;
+	int32 InsertBonePos = 0;
+
+	// Iterate over each of the bones we need.
+	while (InsertBonePos < InsertArray.Num())
+	{
+		// Find index of physics bone
+		FBoneIndexType InsertBoneIndex = InsertArray[InsertBonePos];
+
+		// If at end of BaseArray array - just append.
+		if (BaseBonePos == BaseArray.Num())
+		{
+			BaseArray.Add(InsertBoneIndex);
+			BaseBonePos++;
+			InsertBonePos++;
+		}
+		// If in the middle of BaseArray, merge together.
+		else
+		{
+			// Check that the BaseArray array is strictly increasing, otherwise merge code does not work.
+			check(BaseBonePos == 0 || BaseArray[BaseBonePos - 1] < BaseArray[BaseBonePos]);
+
+			// Get next required bone index.
+			FBoneIndexType BaseBoneIndex = BaseArray[BaseBonePos];
+
+			// We have a bone in BaseArray not required by Insert. Thats ok - skip.
+			if (BaseBoneIndex < InsertBoneIndex)
+			{
+				BaseBonePos++;
+			}
+			// Bone required by Insert is in 
+			else if (BaseBoneIndex == InsertBoneIndex)
+			{
+				BaseBonePos++;
+				InsertBonePos++;
+			}
+			// Bone required by Insert is missing - insert it now.
+			else // BaseBoneIndex > InsertBoneIndex
+			{
+				BaseArray.InsertUninitialized(BaseBonePos);
+				BaseArray[BaseBonePos] = InsertBoneIndex;
+
+				BaseBonePos++;
+				InsertBonePos++;
+			}
+		}
+	}
+}
+
+void USkinnedMeshComponent::GetPhysicsRequiredBones(const USkinnedAsset* SkinnedAsset, const UPhysicsAsset* PhysicsAsset, TArray<FBoneIndexType>& OutRequiredBones)
+{
+	check(SkinnedAsset != nullptr);
+	check(PhysicsAsset != nullptr);
+
+	// If we have a PhysicsAsset, we also need to make sure that all the bones used by it are always updated, as its used
+	// by line checks etc. We might also want to kick in the physics, which means having valid bone transforms.
+	TArray<FBoneIndexType> PhysAssetBones;
+	PhysAssetBones.Reserve(PhysicsAsset->SkeletalBodySetups.Num());
+	for (int32 i = 0; i < PhysicsAsset->SkeletalBodySetups.Num(); ++i)
+	{
+		if (!ensure(PhysicsAsset->SkeletalBodySetups[i]))
+		{
+			continue;
+		}
+		const int32 PhysBoneIndex = SkinnedAsset->GetRefSkeleton().FindBoneIndex(PhysicsAsset->SkeletalBodySetups[i]->BoneName);
+		if (PhysBoneIndex != INDEX_NONE)
+		{
+			PhysAssetBones.Add(PhysBoneIndex);
+		}
+	}
+
+	// Then sort array of required bones in hierarchy order
+	PhysAssetBones.Sort();
+
+	// Make sure all of these are in RequiredBones.
+	MergeInBoneIndexArrays(OutRequiredBones, PhysAssetBones);
+}
+
+void USkinnedMeshComponent::GetSocketRequiredBones(const USkinnedAsset* SkinnedAsset, TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& NeededBonesForFillComponentSpaceTransforms)
+{
+	check(SkinnedAsset != nullptr);
+
+	TArray<FBoneIndexType> ForceAnimatedSocketBones;
+	const TArray<USkeletalMeshSocket*> ActiveSocketList = SkinnedAsset->GetActiveSocketList();
+	ForceAnimatedSocketBones.Reserve(ActiveSocketList.Num());
+	for (const USkeletalMeshSocket* Socket : ActiveSocketList)
+	{
+		const int32 BoneIndex = SkinnedAsset->GetRefSkeleton().FindBoneIndex(Socket->BoneName);
+		if (BoneIndex != INDEX_NONE)
+		{
+			if (Socket->bForceAlwaysAnimated)
+			{
+				ForceAnimatedSocketBones.AddUnique(BoneIndex);
+			}
+			else
+			{
+				NeededBonesForFillComponentSpaceTransforms.AddUnique(BoneIndex);
+			}
+		}
+	}
+
+	// Then sort array of required bones in hierarchy order
+	ForceAnimatedSocketBones.Sort();
+
+	// Make sure all of these are in OutRequiredBones.
+	MergeInBoneIndexArrays(OutRequiredBones, ForceAnimatedSocketBones);
+}
+
 void FAnimUpdateRateParameters::SetTrailMode(float DeltaTime, uint8 UpdateRateShift, int32 NewUpdateRate, int32 NewEvaluationRate, bool bNewInterpSkippedFrames)
 {
 	OptimizeMode = TrailMode;

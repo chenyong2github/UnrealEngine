@@ -1859,6 +1859,26 @@ public:
 
 	friend class FRenderStateRecreator;
 	friend class FSkeletalMeshStreamOut;
+
+	//
+	// Animation required bones
+	//
+
+	/** Get the bones used by the physics asset (if any), as these have to be updated even if LODed out. */
+	static ENGINE_API void GetPhysicsRequiredBones(const USkinnedAsset* SkinnedAsset, const UPhysicsAsset* PhysicsAsset, TArray<FBoneIndexType>& OutRequiredBones);
+
+	/**
+	 * Get the bones that are used by sockets.
+	 * @param OutRequiredBones - the bones used by sockets that are set as always animate
+	 * @param NeededBonesForFillComponentSpaceTransforms - the rest of bones used by sockets (that are not set to always animate)
+	 */ 
+	static ENGINE_API void GetSocketRequiredBones(const USkinnedAsset* SkinnedAsset, TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& NeededBonesForFillComponentSpaceTransforms);
+
+	/** 
+	 * Takes sorted array Base and then adds any elements from sorted array Insert which is missing from it, preserving order.
+	 * This assumes both arrays are sorted and contain unique bone indices.
+	 */
+	static ENGINE_API void MergeInBoneIndexArrays(TArray<FBoneIndexType>& BaseArray, const TArray<FBoneIndexType>& InsertArray);
 };
 
 class FRenderStateRecreator

@@ -27,3 +27,5 @@ public:
 
 	virtual TSharedPtr<FBaseAssetToolkit> CreateToolkit() override;
 };
+
+DECLARE_LOG_CATEGORY_EXTERN(LogChaosClothAssetEditor, Log, All);
