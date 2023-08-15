@@ -107,6 +107,7 @@ class DeviceWidget(QtWidgets.QWidget):
         self.device_icon.setAlignment(QtCore.Qt.AlignCenter)
 
         self.name_validator = None
+        self.help_tool_tip = QtWidgets.QToolTip()
 
         # Device name
         self.name_line_edit = FramelessQLineEdit()
@@ -160,8 +161,6 @@ class DeviceWidget(QtWidgets.QWidget):
         self.control_buttons: Dict[str, sb_widgets.ControlQPushButton] = {}
 
         self._add_control_buttons()
-
-        self.help_tool_tip = QtWidgets.QToolTip()
 
     def add_widget_to_layout(self, widget):
         ''' Adds a widget to the layout '''
