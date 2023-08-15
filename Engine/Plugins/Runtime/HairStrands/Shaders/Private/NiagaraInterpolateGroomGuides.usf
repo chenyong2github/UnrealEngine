@@ -132,7 +132,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		
 		const uint4 Packed = RestPositionBuffer[DispatchThreadId.x];
 		const float3 LocalTrianglePosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, 
-					UnpackHairControlPointPosition(Packed, RestPositionOffset) + LocalPointDisplace);
+					UnpackHairControlPointPosition(Packed, RestPositionOffset)) + LocalPointDisplace;
 		
 		const float3 LocalComponentPosition = DIHairStrands_TriangleWorldPosition(DeformedTrianglePosition, DeformedTriangleOrientation, LocalTrianglePosition) - DeformedPositionOffset[0].xyz;
 		DeformedPositionBuffer[DispatchThreadId.x] = PackHairControlPointPosition(Packed, LocalComponentPosition);
