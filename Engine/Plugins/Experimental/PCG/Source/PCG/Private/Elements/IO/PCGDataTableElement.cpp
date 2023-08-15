@@ -98,7 +98,8 @@ bool FPCGLoadDataTableElement::PrepareLoad(FPCGExternalDataContext* Context) con
 		if (PointPropertySelector.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
 			// Create attribute with the appropriate type
-			PointMetadata->CreateAttributeFromProperty(FName(FieldName), RowStruct, *FieldIt);
+			const void* FirstRow = DataTable->GetRowMap().CreateConstIterator().Value();
+			PointMetadata->CreateAttributeFromDataProperty(FName(FieldName), FirstRow, *FieldIt);
 		}
 
 		TUniquePtr<IPCGAttributeAccessor> PointPropertyAccessor = PCGAttributeAccessorHelpers::CreateAccessor(PointData, PointPropertySelector);
