@@ -347,7 +347,9 @@ const UStateTreeState* UStateTreeState::GetNextSiblingState() const
 		if (Parent->Children[ChildIdx] == this)
 		{
 			const int NextIdx = ChildIdx + 1;
-			if (NextIdx < Parent->Children.Num())
+
+			// Select the next enabled sibling
+			if (NextIdx < Parent->Children.Num() && Parent->Children[NextIdx]->bEnabled)
 			{
 				return Parent->Children[NextIdx];
 			}
@@ -372,9 +374,12 @@ const UStateTreeState* UStateTreeState::GetNextSelectableSiblingState() const
 	
 	for (int32 ChildIdx = StartChildIndex + 1; ChildIdx < Parent->Children.Num(); ChildIdx++)
 	{
-		if (Parent->Children[ChildIdx]->SelectionBehavior != EStateTreeStateSelectionBehavior::None)
+		// Select the next enabled and selectable sibling
+		const UStateTreeState* State =Parent->Children[ChildIdx];
+		if (State->SelectionBehavior != EStateTreeStateSelectionBehavior::None
+			&& State->bEnabled)
 		{
-			return Parent->Children[ChildIdx];
+			return State;
 		}
 	}
 	

@@ -765,9 +765,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 		const FStateTreeStateHandle PreviousHandle = Transition.CurrentActiveStates.GetStateSafe(Index);
 		const FCompactStateTreeState& State = StateTree.States[CurrentHandle.Index];
 
-		ensureMsgf(State.bEnabled, TEXT("Should never enter disabled state. This indicates an unhandled case."));
-		
-		if (!Exec.ActiveStates.Push(CurrentHandle))
+		// Add only enabled States to the list of active States
+		if (State.bEnabled && !Exec.ActiveStates.Push(CurrentHandle))
 		{
 			STATETREE_LOG(Error, TEXT("%hs: Reached max execution depth when trying to enter state '%s'.  '%s' using StateTree '%s'."),
 				__FUNCTION__, *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
@@ -786,7 +785,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 
 		bOnTargetBranch = bOnTargetBranch || CurrentHandle == Transition.TargetState;
 		const bool bWasActive = PreviousHandle == CurrentHandle;
-		const bool bIsEnteringState = !bWasActive || bOnTargetBranch;
+
+		// Do not enter a disabled State tasks but maintain property bindings
+		const bool bIsEnteringState = (!bWasActive || bOnTargetBranch) && State.bEnabled;
 
 		CurrentTransition.CurrentState = CurrentHandle;
 		CurrentTransition.ChangeType = bWasActive ? EStateTreeStateChangeType::Sustained : EStateTreeStateChangeType::Changed;
@@ -1662,7 +1663,11 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 			const FStateTreeStateHandle StateHandle = Exec.ActiveStates[StateIndex];
 			const FCompactStateTreeState& State = StateTree.States[StateHandle.Index];
 
-			ensureMsgf(State.bEnabled, TEXT("Should never try to transition to a disabled state. This indicates an unhandled case."));
+			// Do not process any transitions from a disabled state
+			if (!State.bEnabled)
+			{
+				continue;
+			}
 
 			FCurrentlyProcessedStateScope StateScope(*this, StateHandle);
 			STATETREE_TRACE_SCOPED_STATE(StateHandle);
