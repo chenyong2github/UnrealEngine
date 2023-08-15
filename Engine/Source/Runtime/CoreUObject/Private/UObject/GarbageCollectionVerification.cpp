@@ -30,9 +30,33 @@
 -----------------------------------------------------------------------------*/
 
 /**
-* If set and VERIFY_DISREGARD_GC_ASSUMPTIONS is true, we verify GC assumptions about "Disregard For GC" objects.
+* If set and VERIFY_DISREGARD_GC_ASSUMPTIONS is true, we verify GC assumptions about "Disregard For GC" objects and clusters.
 */
-COREUOBJECT_API bool	GShouldVerifyGCAssumptions = !(UE_BUILD_SHIPPING != 0 && WITH_EDITOR != 0);
+COREUOBJECT_API bool	GShouldVerifyGCAssumptions = !UE_BUILD_SHIPPING && !UE_BUILD_TEST && !WITH_EDITOR;
+static FAutoConsoleVariableRef CVarShouldVerifyGCAssumptions(
+	TEXT("gc.VerifyAssumptions"),
+	GShouldVerifyGCAssumptions,
+	TEXT("Whether to verify GC assumptions (disregard for GC, clustering) on each GC."),
+	ECVF_Default
+);
+
+/** If set and VERIFY_DISREGARD_GC_ASSUMPTIONS is set, we verify GC assumptions when performing a full (blocking) purge */
+COREUOBJECT_API bool	GShouldVerifyGCAssumptionsOnFullPurge = !UE_BUILD_SHIPPING && !WITH_EDITOR;
+static FAutoConsoleVariableRef CVarShouldVerifyGCAssumptionsOnFullPurge(
+	TEXT("gc.VerifyAssumptionsOnFullPurge"),
+	GShouldVerifyGCAssumptions,
+	TEXT("Whether to verify GC assumptions (disregard for GC, clustering) on full purge GCs."),
+	ECVF_Default
+);
+
+/** If > 0 and VERIFY_DISREGARD_GC_ASSUMPTIONS is set, we verify GC assumptions on that fraction of GCs. */
+COREUOBJECT_API float	GVerifyGCAssumptionsChance = 0.0f;
+static FAutoConsoleVariableRef CVarVerifyGCAssumptionsChance (
+	TEXT("gc.VerifyAssumptionsChance"),
+	GVerifyGCAssumptionsChance,
+	TEXT("Chance (0-1) to randomly verify GC assumptions on each GC."),
+	ECVF_Default
+);
 
 #if VERIFY_DISREGARD_GC_ASSUMPTIONS
 
@@ -320,9 +344,9 @@ void VerifyClustersAssumptions()
 				UE::GC::FWorkerContext Context;
 				Context.SetInitialObjectsUnpadded(ObjectsToSerialize);
 				CollectReferences(Processor, Context);
-				NumErrors.Add(Processor.GetErrorCount());
 			}			
 		}		
+		NumErrors.Add(Processor.GetErrorCount());
 	});
 
 

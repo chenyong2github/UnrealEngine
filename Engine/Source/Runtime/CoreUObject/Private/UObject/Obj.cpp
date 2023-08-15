@@ -5006,13 +5006,16 @@ void StaticUObjectInit()
 	GObjTransientPkg = NewObject<UPackage>(nullptr, TEXT("/Engine/Transient"), RF_Transient);
 	GObjTransientPkg->AddToRoot();
 
-	if( FParse::Param( FCommandLine::Get(), TEXT("VERIFYGC") ) )
+	if (IConsoleVariable* CVarVerifyGCAssumptions = IConsoleManager::Get().FindConsoleVariable(TEXT("gc.VerifyAssumptions")))
 	{
-		GShouldVerifyGCAssumptions = true;
-	}
-	if( FParse::Param( FCommandLine::Get(), TEXT("NOVERIFYGC") ) )
-	{
-		GShouldVerifyGCAssumptions = false;
+		if( FParse::Param( FCommandLine::Get(), TEXT("VERIFYGC") ) )
+		{
+			CVarVerifyGCAssumptions->Set(true, ECVF_SetByCommandline);
+		}
+		if( FParse::Param( FCommandLine::Get(), TEXT("NOVERIFYGC") ) )
+		{
+			CVarVerifyGCAssumptions->Set(false, ECVF_SetByCommandline);
+		}
 	}
 
 	UE_LOG(LogInit, Log, TEXT("Object subsystem initialized") );
