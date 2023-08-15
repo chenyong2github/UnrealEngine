@@ -40,7 +40,7 @@ public:
 public:
 
 	/** Root component, gives the Actor a transform */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Calibration")
 	TObjectPtr<USceneComponent> Root;
 
 	/** TopLeft calibration point */
