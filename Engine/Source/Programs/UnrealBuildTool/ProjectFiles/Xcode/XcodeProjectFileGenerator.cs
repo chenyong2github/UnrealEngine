@@ -320,7 +320,7 @@ namespace UnrealBuildTool
 							foreach (XcodeProjectXcconfig.XcodeProjectFile XcodeProject in SupportedProjects)
 							{
 								// if we are only generating a single target project, skip any others now
-								if (!String.IsNullOrEmpty(SingleTargetName) && !XcodeProject.ProjectTargets.Any(x => x.TargetRules?.Name == SingleTargetName))
+								if (!String.IsNullOrEmpty(SingleTargetName) && XcodeProject.ProjectFilePath.GetFileNameWithoutAnyExtensions() != SingleTargetName)
 								{
 									continue;
 								}
