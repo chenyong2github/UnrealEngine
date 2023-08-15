@@ -87,20 +87,23 @@ bool UE::Interchange::FTextureTranslatorUtilities::GenericTextureLightProfileTra
 void UE::Interchange::FTextureTranslatorUtilities::LogError(const UInterchangeTranslatorBase& TextureTranslator, FText&& ErrorText)
 {
 	UInterchangeResultError_Generic* ErrorMessage = TextureTranslator.AddMessage<UInterchangeResultError_Generic>();
-	ErrorMessage->AssetType = TextureTranslator.GetClass();
-
-	if (TextureTranslator.GetSourceData())
+	if (ensure(ErrorMessage))
 	{
-		const FString Filename = TextureTranslator.GetSourceData()->GetFilename();
-		ErrorMessage->SourceAssetName = Filename;
-		ErrorMessage->InterchangeKey = FPaths::GetBaseFilename(Filename);
-	}
-	else
-	{
-		ErrorMessage->InterchangeKey = TEXT("Undefined");
-	}
+		ErrorMessage->AssetType = TextureTranslator.GetClass();
 
-	ErrorMessage->Text = MoveTemp(ErrorText);
+		if (TextureTranslator.GetSourceData())
+		{
+			const FString Filename = TextureTranslator.GetSourceData()->GetFilename();
+			ErrorMessage->SourceAssetName = Filename;
+			ErrorMessage->InterchangeKey = FPaths::GetBaseFilename(Filename);
+		}
+		else
+		{
+			ErrorMessage->InterchangeKey = TEXT("Undefined");
+		}
+
+		ErrorMessage->Text = MoveTemp(ErrorText);
+	}
 }
 
 bool UE::Interchange::FTextureTranslatorUtilities::IsTranslatorValid(const UInterchangeTranslatorBase& TextureTranslator, const TCHAR* Format)

@@ -201,6 +201,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePa
 	}
 
 	AlternateTexturePath = PayLoadKey;
+	SourceTranslator->SetResultsContainer(Results);
 
 	return TextureTranslator->GetTexturePayloadData(PayLoadKey, AlternateTexturePath);
 }
