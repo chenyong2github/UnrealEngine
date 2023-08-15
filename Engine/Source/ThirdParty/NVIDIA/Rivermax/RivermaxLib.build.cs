@@ -28,9 +28,6 @@ public class RivermaxLib : ModuleRules
 
 			if (File.Exists(RivermaxDllPath))
 			{
-				//This is required because dll is not staged otherwise and won't be part of the package
-				RuntimeDependencies.Add(RivermaxDllPath);
-				
 				//This is required because Rivermax depends on other drivers / dll to be installed for mellanox. We will manually load the dll and gracefully fail instead of 
 				//failing to load the module entirely.
 				PublicDelayLoadDLLs.Add("rivermax.dll");
