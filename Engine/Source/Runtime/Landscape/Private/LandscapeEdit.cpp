@@ -706,7 +706,10 @@ void ULandscapeComponent::PostEditUndo()
 		// Updating the bounds after undo will re-sync CachedLocalBox with the heightmap data. This is necessary because ULandscapeComponent might be part of 
 		//  the transaction buffer, but the final heightmaps aren't, so undoing might desynchronize them. If the heightmap update that is requested right after 
 		//  ends up modifying heightmap data, then CachedLocalBox will get updated properly again so this is a 'safe' way to fix the issue
-		UpdateCachedBounds();
+		if (IsValid(this))
+		{
+			UpdateCachedBounds();
+		}
 
 		const bool bUpdateAll = true;
 		RequestHeightmapUpdate(bUpdateAll);
