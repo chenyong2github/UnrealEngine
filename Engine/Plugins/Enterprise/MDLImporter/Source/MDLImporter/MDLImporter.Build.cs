@@ -22,9 +22,10 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "Analytics",
-                    "Core",
-                    "RenderCore",
+					"Analytics",
+					"AssetTools",
+					"Core",
+					"RenderCore",
 					"RHI",
                     "ImageCore",
                     "CoreUObject",
