@@ -2380,7 +2380,7 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		// Reconnect callbacks
 		if (PCGComponent->GraphInstance)
 		{
-			PCGComponent->GraphInstance->FixCallbacks();
+			PCGComponent->GraphInstance->SetupCallbacks();
 			PCGComponent->GraphInstance->OnGraphChangedDelegate.RemoveAll(PCGComponent);
 			PCGComponent->GraphInstance->OnGraphChangedDelegate.AddUObject(PCGComponent, &UPCGComponent::OnGraphChanged);
 		}

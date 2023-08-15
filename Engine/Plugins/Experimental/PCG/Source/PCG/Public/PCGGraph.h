@@ -342,6 +342,8 @@ public:
 
 	// ~Begin UObject interface
 	virtual void PostLoad() override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void PostEditImport() override;
 	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
@@ -352,9 +354,7 @@ public:
 	virtual void PostEditUndo() override;
 	// ~End UObject interface
 
-	// Reconstruction script specific, to fix callbacks on reconstructed component
-	// and teardown callback on trashed component.
-	void FixCallbacks();
+	void SetupCallbacks();
 	void TeardownCallbacks();
 #endif
 

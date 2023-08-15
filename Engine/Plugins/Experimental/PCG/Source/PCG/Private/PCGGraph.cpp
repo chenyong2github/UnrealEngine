@@ -1180,27 +1180,35 @@ void UPCGGraphInstance::PostLoad()
 	RefreshParameters(EPCGGraphParameterEvent::GraphPostLoad);
 
 #if WITH_EDITOR
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
-		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
-		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
-	}
+	SetupCallbacks();
 #endif // WITH_EDITOR
 }
 
 void UPCGGraphInstance::BeginDestroy()
 {
 #if WITH_EDITOR
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
-		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
-		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
-	}
+	TeardownCallbacks();
 #endif // WITH_EDITOR
 
 	Super::BeginDestroy();
+}
+
+void UPCGGraphInstance::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+#if WITH_EDITOR
+	SetupCallbacks();
+#endif // WITH_EDITOR
+}
+
+void UPCGGraphInstance::PostEditImport()
+{
+	Super::PostEditImport();
+
+#if WITH_EDITOR
+	SetupCallbacks();
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -1215,9 +1223,7 @@ void UPCGGraphInstance::PreEditChange(FProperty* InProperty)
 
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
 	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
-		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
-		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
+		TeardownCallbacks();
 	}
 }
 
@@ -1232,9 +1238,7 @@ void UPCGGraphInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
 	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
-		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
-		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
+		SetupCallbacks();
 
 		RefreshParameters(EPCGGraphParameterEvent::GraphChanged);
 	}
@@ -1248,12 +1252,7 @@ void UPCGGraphInstance::PreEditUndo()
 {
 	Super::PreEditUndo();
 
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
-		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
-		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
-	}
+	TeardownCallbacks();
 
 	UndoRedoGraphCache = Graph;
 }
@@ -1262,12 +1261,7 @@ void UPCGGraphInstance::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
-		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
-		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
-	}
+	SetupCallbacks();
 
 	// Since we don't know what happened, we need to notify any changes
 	NotifyGraphParametersChanged(EPCGGraphParameterEvent::GraphChanged, NAME_None);
@@ -1319,12 +1313,9 @@ void UPCGGraphInstance::TeardownCallbacks()
 	}
 }
 
-void UPCGGraphInstance::FixCallbacks()
+void UPCGGraphInstance::SetupCallbacks()
 {
-	// Start from a clean state.
-	TeardownCallbacks();
-
-	if (Graph)
+	if (Graph && !Graph->OnGraphChangedDelegate.IsBoundToObject(this))
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
 		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
@@ -1348,23 +1339,13 @@ void UPCGGraphInstance::SetGraph(UPCGGraphInterface* InGraph)
 	}
 
 #if WITH_EDITOR
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.RemoveAll(this);
-		Graph->OnGraphGridSizesChangedDelegate.RemoveAll(this);
-		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
-	}
+	TeardownCallbacks();
 #endif // WITH_EDITOR
 
 	Graph = InGraph;
 
 #if WITH_EDITOR
-	if (Graph)
-	{
-		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
-		Graph->OnGraphGridSizesChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphGridSizesChanged);
-		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
-	}
+	SetupCallbacks();
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
