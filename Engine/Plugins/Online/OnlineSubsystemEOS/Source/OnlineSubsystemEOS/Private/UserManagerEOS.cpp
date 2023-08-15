@@ -1866,7 +1866,7 @@ FOnlineFriendEOSRef FUserManagerEOS::AddFriend(int32 LocalUserNum, EOS_EpicAccou
 	FriendRef->SetInviteStatus(ToEInviteStatus(Status));
 
 	// Add this friend as a remote player if we haven't already (this will grab user info)
-	if (!FUniqueNetIdEOSRegistry::Find(EpicAccountId))
+	if (!UniqueNetIdToAttributeAccessMap.Contains(FriendNetId))
 	{
 		AddRemotePlayer(LocalUserNum, EpicAccountId, FriendRef);
 	}
@@ -2775,6 +2775,12 @@ void FUserManagerEOS::ReadUserInfo(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 			const FUniqueNetIdEOSRef EOSId = FUniqueNetIdEOSRegistry::FindChecked(Data->TargetUserId);
 			IAttributeAccessInterfaceRef AttributeAccessRef = UniqueNetIdToAttributeAccessMap[EOSId];
 			UpdateUserInfo(AttributeAccessRef, Data->LocalUserId, Data->TargetUserId);
+
+			FLocalUserEOS& LocalUser = GetLocalUserChecked(LocalUserNum);
+			if (FOnlineFriendEOSPtr FriendPtr = LocalUser.FriendsList->GetByNetId(EOSId))
+			{
+				FriendPtr->UpdateInternalAttributes(AttributeAccessRef->GetInternalAttributes());
+			}
 		}
 
 		// We mark this player as processed

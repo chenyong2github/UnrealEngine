@@ -127,6 +127,15 @@ private:
 class IAttributeAccessInterface
 {
 public:
+	virtual TMap<FString, FString> GetInternalAttributes() const
+	{
+		return TMap<FString, FString>();
+	}
+
+	virtual void UpdateInternalAttributes(const TMap<FString, FString>& InternalAttributes)
+	{
+	}
+
 	virtual void SetInternalAttribute(const FString& AttrName, const FString& AttrValue)
 	{
 	}
@@ -149,6 +158,8 @@ class TOnlineUserEOS
 	, public AttributeAccessClass
 {
 public:
+	friend class FUserManagerEOS;
+
 	TOnlineUserEOS(const FUniqueNetIdEOSRef& InNetIdRef)
 		: UserIdRef(InNetIdRef)
 	{
@@ -187,6 +198,15 @@ public:
 		return false;
 	}
 //~FOnlineUser
+	virtual TMap<FString, FString> GetInternalAttributes() const override
+	{
+		return UserAttributes;
+	}
+
+	virtual void UpdateInternalAttributes(const TMap<FString, FString>& InternalAttributes) override
+	{
+		UserAttributes.Append(InternalAttributes);
+	}
 
 	virtual void SetInternalAttribute(const FString& AttrName, const FString& AttrValue)
 	{
