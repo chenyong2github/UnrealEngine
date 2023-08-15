@@ -546,7 +546,10 @@ void USoundSubmix::PushModulationChanges()
 		TSet<TObjectPtr<USoundModulatorBase>> NewDryLevelMod = DryLevelModulation.Modulators;
 		AudioDeviceManager->IterateOverAllDevices([SoundSubmix = this, VolMod = MoveTemp(NewVolumeMod), WetMod = MoveTemp(NewWetLevelMod), DryMod = MoveTemp(NewDryLevelMod)](Audio::FDeviceId Id, FAudioDevice* Device) mutable
 		{
-			Device->UpdateSubmixModulationSettings(SoundSubmix, VolMod, WetMod, DryMod);
+		    if (Device)
+		    {
+		    	Device->UpdateSubmixModulationSettings(SoundSubmix, VolMod, WetMod, DryMod);
+			}
 		});
 	}
 }

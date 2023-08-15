@@ -1488,13 +1488,18 @@ namespace Audio
 
 		if (IsModulationPluginEnabled() && ModulationInterface.IsValid())
 		{
-			FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+			TWeakObjectPtr<USoundSubmix> SubmixWeakPtr = InSoundSubmix;
+			FMixerSubmixWeakPtr MixerSubmixWeakPtr = GetSubmixInstance(InSoundSubmix);
 
-			if (MixerSubmixPtr.IsValid())
+			if (SubmixWeakPtr.IsValid())
 			{
-				AudioRenderThreadCommand([MixerSubmixPtr, VolumeMod = InOutputModulation, WetMod = InOutputModulation, DryMod = InOutputModulation]()
+				AudioRenderThreadCommand([MixerSubmixWeakPtr, VolumeMod = InOutputModulation, WetMod = InOutputModulation, DryMod = InOutputModulation]()
 				{
-					MixerSubmixPtr->UpdateModulationSettings(VolumeMod, WetMod, DryMod);
+					FMixerSubmixPtr MixerSubmixPtr = MixerSubmixWeakPtr.Pin();
+				    if (MixerSubmixPtr.IsValid())
+				    {
+						MixerSubmixPtr->UpdateModulationSettings(VolumeMod, WetMod, DryMod);
+					}
 				});
 			}
 		}
