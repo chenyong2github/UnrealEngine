@@ -10,11 +10,12 @@
 #include "AbcPolyMesh.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/ParallelFor.h"
-#include "MaterialDomain.h"
-#include "MeshUtilities.h"
 #include "GeometryCacheMeshData.h"
-#include "Materials/Material.h"
 #include "Logging/TokenizedMessage.h"
+#include "MaterialDomain.h"
+#include "Materials/Material.h"
+#include "MeshUtilities.h"
+#include "PackageTools.h"
 #include "RenderMath.h"
 #include "UObject/Package.h"
 
@@ -1688,36 +1689,40 @@ UMaterialInterface* AbcImporterUtilities::RetrieveMaterial(FAbcFile& AbcFile, co
 	if (CachedMaterial)
 	{
 		Material = *CachedMaterial;
+
+		// Setup package name next to InParent
+		FString NewPackageName = FPackageName::GetLongPackagePath(InParent->GetOutermost()->GetPathName()) + TEXT("/") + MaterialName;
+		NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
+
 		// Material could have been deleted if we're overriding/reimporting an asset
 		if (Material->IsValidLowLevel())
 		{
 			if (Material->GetOuter() == GetTransientPackage())
 			{
-				UMaterial* ExistingTypedObject = FindObject<UMaterial>(InParent, *MaterialName);
-				if (!ExistingTypedObject)
+				UPackage* Package = CreatePackage(*NewPackageName);
+				UObject* ExistingObject = FindObject<UObject>(Package, *MaterialName);
+				if (ExistingObject)
 				{
-					// This is in for safety, as we do not expect this to happen
-					UObject* ExistingObject = FindObject<UObject>(InParent, *MaterialName);
-					if (ExistingObject)
-					{
-						return nullptr;
-					}
+					return Cast<UMaterial>(ExistingObject);
+				}
 
-					Material->Rename(*MaterialName, InParent);				
-					Material->SetFlags(Flags);
-					FAssetRegistryModule::AssetCreated(Material);
-				}
-				else
-				{
-					ExistingTypedObject->PreEditChange(nullptr);
-					Material = ExistingTypedObject;
-				}
+				Material->Rename(*MaterialName, Package);				
+				Material->SetFlags(Flags);
+				FAssetRegistryModule::AssetCreated(Material);
 			}
 		}
 		else
 		{
+			// #ueent_todo: Revisit this code path
 			// In this case recreate the material
-			Material = NewObject<UMaterial>(InParent, *MaterialName);
+			UPackage* Package = CreatePackage(*NewPackageName);
+			UObject* ExistingObject = FindObject<UObject>(Package, *MaterialName);
+			if (ExistingObject)
+			{
+				return Cast<UMaterial>(ExistingObject);
+			}
+
+			Material = NewObject<UMaterial>(Package, *MaterialName);
 			Material->SetFlags(Flags);
 			FAssetRegistryModule::AssetCreated(Material);
 		}

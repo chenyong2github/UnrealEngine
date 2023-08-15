@@ -156,12 +156,12 @@ const EAbcImportError FAbcImporter::ImportTrackData(const int32 InNumThreads, UA
 template<typename T>
 T* FAbcImporter::CreateObjectInstance(UObject*& InParent, const FString& ObjectName, const EObjectFlags Flags)
 {
-	// Parent package to place new mesh
+	// Parent package to place new asset
 	UPackage* Package = nullptr;
 	FString NewPackageName;
 
 	// Setup package name and create one accordingly
-	NewPackageName = FPackageName::GetLongPackagePath(InParent->GetOutermost()->GetName() + TEXT("/") + ObjectName);
+	NewPackageName = FPackageName::GetLongPackagePath(InParent->GetOutermost()->GetPathName()) + TEXT("/") + ObjectName;
 	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
 	Package = CreatePackage(*NewPackageName);
 
@@ -848,6 +848,12 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues, IAnimationDataController& Controller)
 {
+	// Need curve metadata for the AnimSequence to playback. Can be either on the Skeleton or SKelMesh,
+	// but by default for FBX import it's on the Skeleton so do the same for Alembic
+	const bool bMaterialCurve = false;
+	const bool bMorphTargetCurve = true;
+	Skeleton->AccumulateCurveMetaData(ConstCurveName, bMaterialCurve, bMorphTargetCurve);
+
 	FAnimationCurveIdentifier CurveId(ConstCurveName, ERawCurveTrackTypes::RCT_Float);
 	Controller.AddCurve(CurveId);
 
