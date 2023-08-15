@@ -99,14 +99,15 @@ namespace UnrealBuildTool
 		/// Returns true if this project is a Hybrid content only project that requires it to be built as code
 		/// </summary>
 		/// <param name="UProjectFile"></param>
+		/// <param name="TargetPlatforms">The target platforms we are asking about.</param>
 		/// <param name="Reason">Contains a description of the reason the project is hybrid</param>
 		/// <param name="Logger"></param>
 		/// <returns></returns>
-		public static bool IsHybridContentOnlyProject(FileReference UProjectFile, [NotNullWhen(true)] out string? Reason, ILogger Logger)
+		public static bool IsHybridContentOnlyProject(FileReference UProjectFile, List<UnrealTargetPlatform> TargetPlatforms, [NotNullWhen(true)] out string? Reason, ILogger Logger)
 		{
 			return RequiresTempTarget(
 				UProjectFile,
-				new List<UnrealTargetPlatform>() { BuildHostPlatform.Current.Platform },
+				TargetPlatforms,
 				new List<UnrealTargetConfiguration>() { UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping },
 				out Reason,
 				Logger);
@@ -116,12 +117,13 @@ namespace UnrealBuildTool
 		/// Creates temporary target files, if needed, for a hybrid content only project
 		/// </summary>
 		/// <param name="UProjectFile"></param>
+		/// <param name="TargetPlatforms"></param>
 		/// <param name="Logger"></param>
 		/// <returns>True if the project is hybrid</returns>
-		public static bool ConditionalMakeTempTargetForHybridProject(FileReference UProjectFile, ILogger Logger)
+		public static bool ConditionalMakeTempTargetForHybridProject(FileReference UProjectFile, List<UnrealTargetPlatform> TargetPlatforms, ILogger Logger)
 		{
 			string? Reason;
-			bool bIsHybrid = IsHybridContentOnlyProject(UProjectFile, out Reason, Logger);
+			bool bIsHybrid = IsHybridContentOnlyProject(UProjectFile, TargetPlatforms, out Reason, Logger);
 
 			DirectoryReference TempDir = DirectoryReference.Combine(UProjectFile.Directory, "Intermediate", "Source");
 

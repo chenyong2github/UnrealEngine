@@ -253,7 +253,7 @@ namespace AutomationTool
 					}
 				}
 
-				if (NativeProjects.ConditionalMakeTempTargetForHybridProject(RawProjectPath, Logger))
+				if (NativeProjects.ConditionalMakeTempTargetForHybridProject(RawProjectPath, TargetPlatforms, Logger))
 				{
 					Properties.bWasGenerated = true;
 					string TempTargetDir = CommandUtils.CombinePaths(Path.GetDirectoryName(RawProjectPath.FullName), "Intermediate", "Source");

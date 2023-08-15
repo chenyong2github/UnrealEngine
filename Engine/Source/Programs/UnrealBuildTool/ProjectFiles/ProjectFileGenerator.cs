@@ -961,7 +961,7 @@ namespace UnrealBuildTool
 			{
 				foreach (FileReference GameUProjectFile in AllGameProjects)
 				{
-					NativeProjects.ConditionalMakeTempTargetForHybridProject(GameUProjectFile, Logger);
+					NativeProjects.ConditionalMakeTempTargetForHybridProject(GameUProjectFile, new List<UnrealTargetPlatform>(1) { BuildHostPlatform.Current.Platform }, Logger);
 				}
 
 				// they are created in a temp location, which we need to scan
