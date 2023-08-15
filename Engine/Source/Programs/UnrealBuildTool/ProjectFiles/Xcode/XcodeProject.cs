@@ -1450,11 +1450,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			string AssetsAltSubPath = $"Resources/{Platform}/Assets.xcassets";
 
 			//default to IOS path for other platforms (eg VisionOS)
-			if (Platform != UnrealTargetPlatform.TVOS ||
-			Platform != UnrealTargetPlatform.IOS ||
+			if (Platform != UnrealTargetPlatform.TVOS &&
+			Platform != UnrealTargetPlatform.IOS &&
 			Platform != UnrealTargetPlatform.Mac)
 			{
-				AssetsSubPath = $"Platforms/IOS/Build/Resources/Assets.xcassets";
+				AssetsSubPath = $"Build/IOS/Resources/Assets.xcassets";
 			}
 			string AssetsPath = UnrealData.ProjectOrEnginePath(AssetsSubPath, false, AssetsAltSubPath);
 			ResourcesBuildPhase.AddResource(new FileReference(AssetsPath));
@@ -1463,6 +1463,21 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			if (StoryboardPath != null)
 			{
 				ResourcesBuildPhase.AddResource(new FileReference(StoryboardPath));
+			}
+
+			if (Platform == UnrealTargetPlatform.IOS)
+			{
+				List<string> LaunchImagePaths = new List<string>()
+				{
+					"$(Project)/Build/$(Platform)/Resources/Graphics/LaunchScreenIOS.png",
+					"$(Engine)/Build/$(Platform)/Resources/Graphics/LaunchScreenIOS.png",
+				};
+
+				string? LaunchImagePath = UnrealData.FindFile(LaunchImagePaths, UnrealTargetPlatform.IOS, false);
+				if (LaunchImagePath != null)
+				{
+					ResourcesBuildPhase.AddResource(new FileReference(LaunchImagePath));
+				}
 			}
 		}
 		protected void ProcessFrameworks(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project, XcodeProjectFile ProjectFile, ILogger Logger)

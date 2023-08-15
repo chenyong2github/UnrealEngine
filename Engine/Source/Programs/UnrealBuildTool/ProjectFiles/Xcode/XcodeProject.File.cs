@@ -123,6 +123,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			".xcframework",
 			".framework",
 			".lproj",
+			".png",
 			// no extensions will be folders, like "cookeddata" that we want to copy as a resource
 			"",
 		};
