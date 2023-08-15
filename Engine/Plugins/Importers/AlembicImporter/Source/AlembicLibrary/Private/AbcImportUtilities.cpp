@@ -15,6 +15,7 @@
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "MeshUtilities.h"
+#include "Misc/PackageName.h"
 #include "PackageTools.h"
 #include "RenderMath.h"
 #include "UObject/Package.h"
