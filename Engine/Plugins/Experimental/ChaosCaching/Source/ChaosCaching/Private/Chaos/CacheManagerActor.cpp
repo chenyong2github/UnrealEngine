@@ -75,6 +75,7 @@ AChaosCacheManager::AChaosCacheManager(const FObjectInitializer& ObjectInitializ
 	, StartMode(EStartMode::Timed)
 	, bCanRecord(true)
 	, bIsSimulating(false)
+	, StartTimeAtBeginPlay(0)
 {
 	// This actor will tick, just not normally. There needs to be a tick-like event both before physics simulation
 	// and after physics simulation, we bind to some physics scene events in BeginPlay to handle this.
@@ -249,6 +250,7 @@ void AChaosCacheManager::BeginPlay()
 
 	Super::BeginPlay();
 
+	StartTimeAtBeginPlay = StartTime;
 	BeginEvaluate();
 }
 
@@ -451,6 +453,13 @@ void AChaosCacheManager::BeginEvaluate()
 		FSlateNotificationManager::Get().AddNotification(Info);
 #endif
 	}
+	else
+	{
+		if (CacheMode != ECacheMode::Record)
+		{
+			OnStartFrameChanged(StartTime);
+		}
+	}
 }
 
 void AChaosCacheManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -458,6 +467,11 @@ void AChaosCacheManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 
 	EndEvaluate();
+
+	if (StartTimeAtBeginPlay != StartTime)
+	{
+		SetStartTime(StartTimeAtBeginPlay);
+	}
 }
 
 void AChaosCacheManager::EndEvaluate()

@@ -359,6 +359,9 @@ private:
 	/** Lists of currently open caches that need to be closed when complete */
 	TArray<TTuple<FCacheUserToken, UChaosCache*>> OpenRecordCaches;
 	TArray<TTuple<FCacheUserToken, UChaosCache*>> OpenPlaybackCaches;
+
+	// since the object persists
+	float StartTimeAtBeginPlay;
 };
 
 UCLASS(Experimental, MinimalAPI)
