@@ -441,6 +441,7 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 		ScalabilityGroupsWidget = ButtonMatrix;
 	}
 
+#if WITH_SERVER_CODE
 	// PIE 3D resolution.
 	TSharedPtr<SWidget> ResolutionSliderWidget;
 	{
@@ -513,6 +514,7 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 
 		ResolutionSliderWidget = ButtonMatrix;
 	}
+#endif // WITH_SERVER_CODE
 
 	const UGameViewportClient* ViewportClient = GEngine->GameViewport;
 
@@ -548,6 +550,7 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 				]
 			]
 
+#if WITH_SERVER_CODE
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(5.f, 15.f, 5.f, 2.f)
@@ -621,7 +624,7 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 			[
 				ResolutionSliderWidget.ToSharedRef()
 			]
-
+#endif // WITH_SERVER_CODE
 		];
 }
 
