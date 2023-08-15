@@ -273,8 +273,14 @@ bool FPCGActorSelectionKey::operator==(const FPCGActorSelectionKey& InOther) con
 		return Tag == InOther.Tag;
 	case EPCGActorSelection::ByClass:
 		return ActorSelectionClass == InOther.ActorSelectionClass;
+	case EPCGActorSelection::Unknown: // Fall-through
+	case EPCGActorSelection::ByName:
+		return true;
 	default:
-		return false;
+	{
+		checkNoEntry();
+		return true;
+	}
 	}
 }
 
