@@ -44,7 +44,7 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 		void OnScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup);
 
 		/** Gets the visibility for each FaderGroupView widget in this row */
-		EVisibility GetFaderGroupViewVisibility(UDMXControlConsoleFaderGroup* FaderGroup) const;
+		EVisibility GetFaderGroupViewVisibility(TWeakObjectPtr<UDMXControlConsoleFaderGroup> FaderGroup) const;
 
 		/** Gets the add button visibility */
 		EVisibility GetAddButtonVisibility() const;

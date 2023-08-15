@@ -284,9 +284,9 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 		}
 	}
 
-	EVisibility SDMXControlConsoleEditorHorizontalLayout::GetFaderGroupViewVisibility(UDMXControlConsoleFaderGroup* FaderGroup) const
+	EVisibility SDMXControlConsoleEditorHorizontalLayout::GetFaderGroupViewVisibility(TWeakObjectPtr<UDMXControlConsoleFaderGroup> FaderGroup) const
 	{
-		if (!FaderGroup)
+		if (!FaderGroup.IsValid())
 		{
 			return EVisibility::Collapsed;
 		}

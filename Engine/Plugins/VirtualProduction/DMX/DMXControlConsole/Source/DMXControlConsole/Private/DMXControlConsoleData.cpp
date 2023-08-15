@@ -30,6 +30,11 @@ namespace UE::DMXControlConsole::DMXControlConsoleData::Private
 	};
 }
 
+
+#if WITH_EDITOR
+FSimpleMulticastDelegate UDMXControlConsoleData::OnDMXLibraryChanged;
+#endif // WITH_EDITOR
+
 UDMXControlConsoleFaderGroupRow* UDMXControlConsoleData::AddFaderGroupRow(const int32 RowIndex = 0)
 {
 	if (!ensureMsgf(RowIndex >= 0, TEXT("Invalid index. Cannot add new fader group row to '%s' correctly."), *GetName()))

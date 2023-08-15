@@ -92,7 +92,7 @@ public:
 
 #if WITH_EDITOR
 	/** Called when the DMX Library has been changed */
-	FSimpleMulticastDelegate& GetOnDMXLibraryChanged() { return OnDMXLibraryChanged; }
+	static FSimpleMulticastDelegate& GetOnDMXLibraryChanged() { return OnDMXLibraryChanged; }
 #endif // WITH_EDITOR 
 
 #if WITH_EDITORONLY_DATA
@@ -129,7 +129,7 @@ private:
 
 #if WITH_EDITOR
 	/** Called when the DMX Library has been changed */
-	FSimpleMulticastDelegate OnDMXLibraryChanged;
+	static FSimpleMulticastDelegate OnDMXLibraryChanged;
 #endif // WITH_EDITOR 
 
 	/** Library used to generate Fader Groups */

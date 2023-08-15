@@ -80,6 +80,8 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	EditorConsoleModel.GetOnConsoleSaved().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleSaved);
 	EditorConsoleModel.GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleRefreshed);
 
+	UDMXControlConsoleData::GetOnDMXLibraryChanged().AddSP(this, &SDMXControlConsoleEditorView::OnDMXLibraryChanged);
+
 	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = EditorConsoleModel.GetEditorConsoleLayouts())
 	{
 		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
@@ -1044,6 +1046,26 @@ void SDMXControlConsoleEditorView::OnConsoleRefreshed()
 	{
 		Layout->RequestRefresh();
 	}
+}
+
+void SDMXControlConsoleEditorView::OnDMXLibraryChanged()
+{
+	RequestUpdateDetailsViews();
+	UpdateLayout();
+	UpdateFixturePatchVerticalBox();
+
+	if (UDMXControlConsoleEditorLayouts* EditorConsoleLayouts = GetControlConsoleLayouts())
+	{
+		EditorConsoleLayouts->GetOnActiveLayoutChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+		EditorConsoleLayouts->GetOnLayoutModeChanged().AddSP(this, &SDMXControlConsoleEditorView::UpdateLayout);
+	}
+
+	if (GEditor && GEditor->IsTimerManagerValid())
+	{
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXControlConsoleEditorView::RestoreGlobalFilter));
+	}
+
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 void SDMXControlConsoleEditorView::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)

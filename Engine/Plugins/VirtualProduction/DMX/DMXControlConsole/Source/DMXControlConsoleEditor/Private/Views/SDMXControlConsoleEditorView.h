@@ -148,6 +148,9 @@ private:
 	/** Called when a console was refreshed */
 	void OnConsoleRefreshed();
 
+	/** Called when the DMX Library in use changed */
+	void OnDMXLibraryChanged();
+
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 

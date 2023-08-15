@@ -48,7 +48,7 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 		void OnScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup);
 
 		/** Gets visibility for each LayoutRowView widget */
-		EVisibility GetLayoutRowViewVisibility(UDMXControlConsoleEditorGlobalLayoutRow* LayoutRow) const;
+		EVisibility GetLayoutRowViewVisibility(TWeakObjectPtr<UDMXControlConsoleEditorGlobalLayoutRow> LayoutRow) const;
 
 		/** Gets add button visibility */
 		EVisibility GetAddButtonVisibility() const;

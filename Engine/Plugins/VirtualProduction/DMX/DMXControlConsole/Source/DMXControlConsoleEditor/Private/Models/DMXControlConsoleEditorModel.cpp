@@ -348,7 +348,7 @@ void UDMXControlConsoleEditorModel::LoadConsole(const FAssetData& AssetData)
 	UnregisterEditorLayouts();
 	UnbindFromDMXLibraryChanges();
 
-	UDMXControlConsoleData* CurrentControlConsoleData = EditorConsole->GetControlConsoleData();
+	UDMXControlConsoleData* CurrentControlConsoleData = EditorConsole ? EditorConsole->GetControlConsoleData() : nullptr;
 	if (CurrentControlConsoleData)
 	{
 		CurrentControlConsoleData->StopSendingDMX();

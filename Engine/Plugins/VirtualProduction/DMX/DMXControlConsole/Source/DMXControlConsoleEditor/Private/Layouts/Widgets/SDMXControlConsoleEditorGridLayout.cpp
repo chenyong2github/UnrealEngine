@@ -341,9 +341,9 @@ namespace UE::DMXControlConsoleEditor::Layout::Private
 		}
 	}
 
-	EVisibility SDMXControlConsoleEditorGridLayout::GetLayoutRowViewVisibility(UDMXControlConsoleEditorGlobalLayoutRow* LayoutRow) const
+	EVisibility SDMXControlConsoleEditorGridLayout::GetLayoutRowViewVisibility(TWeakObjectPtr<UDMXControlConsoleEditorGlobalLayoutRow> LayoutRow) const
 	{
-		if (!LayoutRow)
+		if (!LayoutRow.IsValid())
 		{
 			return EVisibility::Collapsed;
 		}
