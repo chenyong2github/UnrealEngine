@@ -170,7 +170,7 @@ protected:
 	HEADMOUNTEDDISPLAY_API bool GetLinearAcceleration(FVector& OutLinearAcceleration) const;
 
 
-private:
+protected:
 
 	/** Whether or not this component had a valid tracked controller associated with it this frame*/
 	bool bTracked;
@@ -222,7 +222,7 @@ private:
 		virtual int32 GetPriority() const override { return -10; }
 		virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const;
 
-	private:
+	protected:
 		friend class UMotionControllerComponent;
 
 		/** Motion controller component associated with this view extension */
