@@ -17,9 +17,12 @@ public:
 	FSlateMaterialResource(const UMaterialInterface& InMaterialResource, const FVector2f InImageSize, FSlateShaderResource* InTextureMask = nullptr );
 	~FSlateMaterialResource();
 
+	//~ Begin FSlateShaderResource Interface.
 	virtual uint32 GetWidth() const override { return Width; }
 	virtual uint32 GetHeight() const override { return Height; }
 	virtual ESlateShaderResource::Type GetType() const override { return ESlateShaderResource::Material; }
+	virtual bool IsResourceValid() const override;
+	//~ End FSlateShaderResource Interface.
 
 	void UpdateMaterial(const UMaterialInterface& InMaterialResource, const FVector2f InImageSize, FSlateShaderResource* InTextureMask );
 	void ResetMaterial();

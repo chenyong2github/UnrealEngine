@@ -64,6 +64,11 @@ public:
 	 */
 	virtual ESlateShaderResource::Type GetType() const = 0;
 
+	/**
+	 * Additional validation that can vary per resource type
+	 */
+	virtual bool IsResourceValid() const { return true; };
+
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
 	virtual void CheckForStaleResources() const { }
 	bool Debug_IsDestroyed() const { return DestroyState != 0x21; }

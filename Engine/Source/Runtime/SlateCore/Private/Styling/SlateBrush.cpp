@@ -161,6 +161,17 @@ void FSlateBrush::UpdateRenderingResource(FVector2f LocalSize, float DrawScale) 
 		{
 			ResourceHandle = FSlateApplicationBase::Get().GetRenderer()->GetResourceHandle(*this, LocalSize, DrawScale);
 		}
+		else if (ResourceHandle.IsValid())
+		{
+			// Test the resource itself
+			if (FSlateShaderResource* Resource = ResourceHandle.GetResourceProxy()->Resource)
+			{
+				if (!Resource->IsResourceValid())
+				{
+					ResourceHandle = FSlateApplicationBase::Get().GetRenderer()->GetResourceHandle(*this, LocalSize, DrawScale);
+				}
+			}
+		}
 	}
 
 }

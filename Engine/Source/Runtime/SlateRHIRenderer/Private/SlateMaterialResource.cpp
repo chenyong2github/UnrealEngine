@@ -101,6 +101,17 @@ FSlateMaterialResource::~FSlateMaterialResource()
 	}
 }
 
+bool FSlateMaterialResource::IsResourceValid() const
+{
+	if (MaterialProxy && MaterialObject)
+	{
+		// Conservatively only return invalid in scenarios where proxy is mismatched
+		return MaterialProxy == MaterialObject->GetRenderProxy();
+	}
+
+	return true;
+}
+
 void FSlateMaterialResource::UpdateMaterial(const UMaterialInterface& InMaterialResource, const FVector2f InImageSize, FSlateShaderResource* InTextureMask)
 {
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
