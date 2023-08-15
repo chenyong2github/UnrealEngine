@@ -315,7 +315,11 @@ public:
 		checkSlow(Alignment >= 1 && FMath::IsPowerOfTwo(Alignment));
 		if constexpr (!SupportsFastPath)
 		{
-			Alignment = (Alignment < alignof(FAllocationHeader)) ? alignof(FAllocationHeader) : Alignment;
+			Alignment = (Alignment < alignof(FAllocationHeader)) ? alignof(FAllocationHeader) : Alignment; 
+#if IS_ASAN_ENABLED
+			// Make sure FAllocationHeader is 8 bytes aligned so poison / unpoison doesnt end up as false positive
+			Alignment = Align(Alignment, 8);
+#endif
 		}
 
 		static thread_local FBlockHeader* Header;
