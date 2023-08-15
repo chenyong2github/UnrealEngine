@@ -1457,7 +1457,10 @@ void UPlayerInput::EvaluateInputDelegates(const TArray<UInputComponent*>& InputC
 			// we do this after finishing the whole component, so we don't consume a key while there might be more bindings to it
 			for (int32 KeyIndex=0; KeyIndex<KeysToConsume.Num(); ++KeyIndex)
 			{
-				ConsumeKey(KeysToConsume[KeyIndex]);
+				if (FKeyState* KeyState = KeyStateMap.Find(KeysToConsume[KeyIndex]))
+				{
+					KeyState->bConsumed = true;	
+				}
 			}
 			KeysToConsume.Reset();
 			FoundChords.Reset();
