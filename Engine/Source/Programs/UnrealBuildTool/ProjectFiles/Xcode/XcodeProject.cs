@@ -1422,19 +1422,19 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// look for Assets
 			string? StoryboardPath;
-			if (Platform == UnrealTargetPlatform.Mac)
-			{
-				string AssetsPath = UnrealData.ProjectOrEnginePath("Build/Mac/Resources/Assets.xcassets", false);
-				ResourcesBuildPhase.AddResource(new FileReference(AssetsPath));
-				StoryboardPath = UnrealData.FindFile(StoryboardPaths, UnrealTargetPlatform.Mac, false);
-			}
-			else
-			{
-				string AssetsPath = UnrealData.ProjectOrEnginePath("Build/IOS/Resources/Assets.xcassets", false);
-				ResourcesBuildPhase.AddResource(new FileReference(AssetsPath));
-				StoryboardPath = UnrealData.FindFile(StoryboardPaths, UnrealTargetPlatform.IOS, false);
-			}
+			string AssetsSubPath = $"Build/{Platform}/Resources/Assets.xcassets";
 
+			//default to IOS path for other platforms (eg VisionOS)
+			if (Platform != UnrealTargetPlatform.TVOS ||
+			Platform != UnrealTargetPlatform.IOS ||
+			Platform != UnrealTargetPlatform.Mac)
+			{
+				AssetsSubPath = $"Platforms/IOS/Build/Resources/Assets.xcassets";
+			}
+			string AssetsPath = UnrealData.ProjectOrEnginePath(AssetsSubPath, false);
+			ResourcesBuildPhase.AddResource(new FileReference(AssetsPath));
+			StoryboardPath = UnrealData.FindFile(StoryboardPaths, Platform, false);
+			
 			if (StoryboardPath != null)
 			{
 				ResourcesBuildPhase.AddResource(new FileReference(StoryboardPath));
