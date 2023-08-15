@@ -66,6 +66,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = -1, UIMax = 180, ClampMin = -1, ClampMax = 180, EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
 	double NormalThreshold = 30;
 
+	/** 
+	 * If true, when the closest point doesn't pass the normal threshold test, will try again with a flipped normal. 
+	 * This helps with layered meshes where the "inner" and "outer" layers are close to each other but whose normals 
+	 * are pointing in the opposite directions.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (DisplayName = "Layered Mesh Support", EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
+	bool LayeredMeshSupport = true;
+
 	/** The number of smoothing iterations applied to the vertices whose weights were automatically computed. */
 	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = 0, UIMax = 100, ClampMin = 0, ClampMax = 100, DisplayName = "Smoothing Iterations", EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
 	int32 NumSmoothingIterations = 10;

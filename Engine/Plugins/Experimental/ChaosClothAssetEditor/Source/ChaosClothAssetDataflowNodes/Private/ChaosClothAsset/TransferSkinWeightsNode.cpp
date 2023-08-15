@@ -253,6 +253,7 @@ namespace UE::Chaos::ClothAsset::Private
 		const FReferenceSkeleton& TargetRefSkeleton,
 		const double NormalThreshold,
 		const double RadiusPercentage,
+		const bool LayeredMeshSupport,
 		const int32 NumSmoothingIterations,
 		const double SmoothingStrength,
 		bool bUseParallel,
@@ -279,7 +280,7 @@ namespace UE::Chaos::ClothAsset::Private
 		TransferBoneWeights.SearchRadius = RadiusPercentage * WeldedSimMesh.GetBounds().DiagonalLength();
 		TransferBoneWeights.NumSmoothingIterations = NumSmoothingIterations;
 		TransferBoneWeights.SmoothingStrength = SmoothingStrength;
-		TransferBoneWeights.LayeredMeshSupport = true; // multilayerd clothing
+		TransferBoneWeights.LayeredMeshSupport = LayeredMeshSupport; // multilayerd clothing
 		TransferBoneWeights.ForceInpaintWeightMapName = InpaintMaskWeightMapName;
 
 		if (!ensure(TransferBoneWeights.Validate() == EOperationValidationResult::Ok))
@@ -304,6 +305,7 @@ namespace UE::Chaos::ClothAsset::Private
 		const FReferenceSkeleton& TargetRefSkeleton,
 		const double NormalThreshold,
 		const double RadiusPercentage,
+		const bool LayeredMeshSupport,
 		const int32 NumSmoothingIterations,
 		const double SmoothingStrength,
 		bool bUseParallel,
@@ -318,7 +320,7 @@ namespace UE::Chaos::ClothAsset::Private
 		// Convert cloth sim mesh LOD to the welded dynamic sim mesh and transfer weights.
 		//
 		FDynamicMesh3 WeldedSimMesh;
-		if (!TransferInpaintWeightsToSim(TargetRefSkeleton, NormalThreshold, RadiusPercentage, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, InpaintMaskWeightMapName, TransferBoneWeights, WeldedSimMesh))
+		if (!TransferInpaintWeightsToSim(TargetRefSkeleton, NormalThreshold, RadiusPercentage, LayeredMeshSupport, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, InpaintMaskWeightMapName, TransferBoneWeights, WeldedSimMesh))
 		{
 			return false;
 		}
@@ -335,7 +337,7 @@ namespace UE::Chaos::ClothAsset::Private
 		if (FCollectionClothFacade(UserTransferCollection).IsValid())
 		{
 			FDynamicMesh3 TransferWeightSimMesh;
-			if (TransferInpaintWeightsToSim(TargetRefSkeleton, NormalThreshold, RadiusPercentage, NumSmoothingIterations, SmoothingStrength, bUseParallel, UserTransferCollection, InpaintMaskWeightMapName, TransferBoneWeights, TransferWeightSimMesh))
+			if (TransferInpaintWeightsToSim(TargetRefSkeleton, NormalThreshold, RadiusPercentage, LayeredMeshSupport, NumSmoothingIterations, SmoothingStrength, bUseParallel, UserTransferCollection, InpaintMaskWeightMapName, TransferBoneWeights, TransferWeightSimMesh))
 			{
 				WeldedSimMesh = MoveTemp(TransferWeightSimMesh); 
 			}
@@ -492,7 +494,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 				FManagedArrayCollection TransferWeightsManagedCollection = GetValue<FManagedArrayCollection>(Context, &TransferWeightsCollection);
 				const TSharedRef<FManagedArrayCollection> ClothTransferWeightCollection = MakeShared<FManagedArrayCollection>(MoveTemp(TransferWeightsManagedCollection));
 				const FString& InpainMaskWeightMapName = GetValue<FString>(Context, &InpaintMask.WeightMap);
-				bTransferResult = TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, ClothTransferWeightCollection, FName(InpainMaskWeightMapName), TransferBoneWeights);
+				bTransferResult = TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, LayeredMeshSupport, NumSmoothingIterations, SmoothingStrength, bUseParallel, ClothCollection, ClothTransferWeightCollection, FName(InpainMaskWeightMapName), TransferBoneWeights);
 			}
 			else if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::ClosestPointOnSurface)
 			{
