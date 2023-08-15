@@ -96,11 +96,6 @@ bool FTCPTransport::HasPendingPayload()
 #endif
 }
 
-FString FTCPTransport::GetHostName() const
-{
-	return HostName;
-}
-
 void FTCPTransport::Disconnect()
 {
 #if USE_MCSOCKET_FOR_NFS

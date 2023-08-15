@@ -59,15 +59,28 @@ public:
 			UE_LOG(LogCotfServerConnection, Fatal, TEXT("Couldn't handshake with server"));
 			return;
 		}
+		FString ZenHostName;
 		ResponsePayload << PlatformName;
 		ResponsePayload << ZenProjectName;
 		ResponsePayload << ZenHostName;
 		ResponsePayload << ZenHostPort;
 
-		// If our server is running its zenserver locally, we get "localhost" as a reply and we should use the same host for the zenserver
+		// If our server is running its zenserver locally, we get "localhost" as a reply and need to read the remote host name
 		if (ZenHostName == "localhost")
 		{
-			ZenHostName = Transport->GetHostName();
+			int32 NumRemoteHostNames = 0;
+			ResponsePayload << NumRemoteHostNames;
+			ZenHostNames.Reserve(NumRemoteHostNames);
+			for (int32 RemoteHostIndex = 0; RemoteHostIndex < NumRemoteHostNames; RemoteHostIndex++)
+			{
+				FString RemoteHostName;
+				ResponsePayload << RemoteHostName;
+				ZenHostNames.Add(RemoteHostName);
+			}
+		}
+		else
+		{
+			ZenHostNames.Add(ZenHostName);
 		}
 
 		FCoreDelegates::OnEnginePreExit.AddRaw(this, &FCookOnTheFlyServerConnection::OnEnginePreExit);
@@ -101,9 +114,9 @@ public:
 		return ZenProjectName;
 	}
 
-	virtual const FString& GetZenHostName() const override
+	virtual const TArray<FString> GetZenHostNames() const override
 	{
-		return ZenHostName;
+		return ZenHostNames;
 	}
 
 	virtual const uint16 GetZenHostPort() const override
@@ -325,7 +338,7 @@ private:
 	const bool bIsSingleThreaded;
 	FString PlatformName;
 	FString ZenProjectName;
-	FString ZenHostName;
+	TArray<FString> ZenHostNames;
 	uint16 ZenHostPort;
 
 	FCriticalSection RequestsCriticalSection;

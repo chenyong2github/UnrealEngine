@@ -22,7 +22,6 @@ public:
 	virtual bool SendPayload(const TArray<uint8>& Payload) override;
 	virtual bool ReceivePayload(FArrayReader& Payload) override;
 	virtual bool HasPendingPayload() override;
-	virtual FString GetHostName() const override;
 	virtual void Disconnect() override;
 	//~ End ICookOnTheFlyServerTransport interface
 
