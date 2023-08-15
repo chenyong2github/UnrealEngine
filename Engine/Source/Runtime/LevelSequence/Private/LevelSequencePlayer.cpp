@@ -267,6 +267,45 @@ TTuple<EViewTargetBlendFunction, float> BuiltInEasingTypeToBlendFunction(EMovieS
 	return Return(EViewTargetBlendFunction::VTBlend_Linear, 1.f);
 }
 
+void ULevelSequencePlayer::ValidateLastViewTarget(UObject* CameraObject, AActor* ViewTarget)
+{
+	if (!LastViewTarget.IsValid())
+	{
+		// If we had another level sequence playing before us, we don't want to cache its last camera. Let's see if
+		// we can instead ask it what its LastViewTarget was, so that we get what the actual previous view target was
+		// before any sequence started to play.
+		TArray<IMovieScenePlayer*> ActivePlayers;
+		const bool bOnlyEvaluatingPlayers = true;
+		IMovieScenePlayer::Get(ActivePlayers, bOnlyEvaluatingPlayers);
+		for (IMovieScenePlayer* ActivePlayer : ActivePlayers)
+		{
+			UObject* PlayerObject = ActivePlayer->AsUObject();
+			if (!PlayerObject)
+			{
+				continue;
+			}
+
+
+			ULevelSequencePlayer* PreviousLevelSequencePlayer = Cast<ULevelSequencePlayer>(PlayerObject);
+			if (!PreviousLevelSequencePlayer || PreviousLevelSequencePlayer == this)
+			{
+				continue;
+			}
+
+			if (PreviousLevelSequencePlayer->LastViewTarget.IsValid())
+			{
+				LastViewTarget = PreviousLevelSequencePlayer->LastViewTarget;
+				break;
+			}
+		}
+	}
+
+	if (!LastViewTarget.IsValid() || (ViewTarget != nullptr && ViewTarget != CameraObject && ViewTarget != LastCameraObject))
+	{
+		LastViewTarget = ViewTarget;
+	}
+}
+
 void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams)
 {
 	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraObject);
@@ -328,6 +367,12 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 				MotionVectorSim->SimulateAllTransforms();
 			}
 		}
+
+		// If we just started a new sequence that happens to give control to the same camera actor as
+		// the previous sequence, we end up here for an early out, but we also miss on setting out LastViewTarget,
+		// so let's check we have a valid one.
+		ValidateLastViewTarget(CameraObject, ViewTarget);
+
 		return;
 	}
 
@@ -349,9 +394,10 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 	if (CameraActor == nullptr)
 	{
 		CameraActor = LastViewTarget.Get();
-		bRestoreAspectRatioConstraint = true;
+		CameraObject = CameraActor;
 
 		// Skip if the last view target is the same as the current view target so that there's no additional camera cut
+		// In this case, restore the aspect ratio axis constraint right away before exiting.
 		if (CameraActor == ViewTarget)
 		{
 			if (LocalPlayer && LastAspectRatioAxisConstraint.IsSet())
@@ -360,44 +406,13 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 			}
 			return;
 		}
+		// Otherwise, remember to restore the aspect ratio axis constraint later in this function.
+		bRestoreAspectRatioConstraint = true;
 	}
 
 	// Save the last view target/aspect ratio constraint/etc. so that it can all be restored when the camera object is null.
-	if (!LastViewTarget.IsValid())
-	{
-		// If we had another level sequence playing before us, we don't want to cache its last camera. Let's see if
-		// we can instead ask it what its LastViewTarget was, so that we get what the actual previous view target was
-		// before any sequence started to play.
-		TArray<IMovieScenePlayer*> ActivePlayers;
-		const bool bOnlyEvaluatingPlayers = true;
-		IMovieScenePlayer::Get(ActivePlayers, bOnlyEvaluatingPlayers);
-		for (IMovieScenePlayer* ActivePlayer : ActivePlayers)
-		{
-			UObject* PlayerObject = ActivePlayer->AsUObject();
-			if (!PlayerObject)
-			{
-				continue;
-			}
+	ValidateLastViewTarget(CameraObject, ViewTarget);
 
-
-			ULevelSequencePlayer* PreviousLevelSequencePlayer = Cast<ULevelSequencePlayer>(PlayerObject);
-			if (!PreviousLevelSequencePlayer || PreviousLevelSequencePlayer == this)
-			{
-				continue;
-			}
-
-			if (PreviousLevelSequencePlayer->LastViewTarget.IsValid())
-			{
-				LastViewTarget = PreviousLevelSequencePlayer->LastViewTarget;
-				break;
-			}
-		}
-
-		if (!LastViewTarget.IsValid() && (ViewTarget != CameraObject && ViewTarget != LastCameraObject))
-		{
-			LastViewTarget = ViewTarget;
-		}
-	}
 	if (!LastLocalPlayer.IsValid() || (LocalPlayer != LastLocalPlayer))
 	{
 		LastLocalPlayer = LocalPlayer;

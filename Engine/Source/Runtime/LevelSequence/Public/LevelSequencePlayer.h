@@ -161,6 +161,9 @@ private:
 
 	LEVELSEQUENCE_API void EnableCinematicMode(bool bEnable);
 
+	// Save the last view target, so that it can all be restored when the camera object is null.
+	void ValidateLastViewTarget(UObject* CameraObject, AActor* ViewTarget);
+
 private:
 
 	/** The world this player will spawn actors in, if needed */
