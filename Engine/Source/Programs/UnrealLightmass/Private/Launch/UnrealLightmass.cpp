@@ -98,6 +98,7 @@ int LightmassMain(int argc, ANSICHAR* argv[])
 	FModuleManager::LoadModuleChecked<IMessagingModule>("Messaging");
 	FModuleManager::Get().LoadModule(TEXT("Settings"));
 	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PreDefault);
+	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostDefault);
 
 	ON_SCOPE_EXIT
 	{
