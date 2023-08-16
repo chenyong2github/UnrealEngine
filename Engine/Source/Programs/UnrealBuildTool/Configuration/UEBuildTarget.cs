@@ -1101,10 +1101,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		Default,
 		/// <summary>
-		/// Generate clang database environment is non unity but uses the standard intermediate directory
-		/// </summary>
-		GenerateClangDatabase,
-		/// <summary>
 		/// Include what you use
 		/// </summary>
 		IWYU,
@@ -1133,7 +1129,6 @@ namespace UnrealBuildTool
 			switch (Environment)
 			{
 				case UnrealIntermediateEnvironment.IWYU:
-				case UnrealIntermediateEnvironment.GenerateClangDatabase:
 				case UnrealIntermediateEnvironment.NonUnity:
 					return false;
 			}
