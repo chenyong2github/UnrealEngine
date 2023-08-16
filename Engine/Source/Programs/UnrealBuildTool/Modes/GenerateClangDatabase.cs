@@ -146,6 +146,7 @@ namespace UnrealBuildTool
 				{
 					// Disable PCHs and unity builds for the target
 					TargetDescriptor.bUseUnityBuild = false;
+					TargetDescriptor.IntermediateEnvironment = UnrealIntermediateEnvironment.GenerateClangDatabase;
 					TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { "-NoPCH" });
 
 					// Create a makefile for the target
