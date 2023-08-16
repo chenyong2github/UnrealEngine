@@ -112,6 +112,18 @@ namespace UE::RivermaxCore::Private
 		TEXT("Optimization used to prefill every RTP headers with known data."),
 		ECVF_Default);
 
+
+	static TAutoConsoleVariable<bool> CVarRivermaxOutputForceSkip(
+		TEXT("Rivermax.Output.ForceSkip"), true,
+		TEXT("Used to prevent enforced blank window when multiplier is used to prevent timing issues.")
+		TEXT("Only affects alignment point method."),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<float> CVarRivermaxOutputFrameRateMultiplier(
+		TEXT("Rivermax.Output.FrameRateMultiplier"), 1.05,
+		TEXT("Multiplier applied to desired output frame rate in order to reduce time it takes to send out a frame and slowly correct misalignment that could happen."),
+		ECVF_Default);
+
 	bool FindPayloadSize(const FRivermaxOutputStreamOptions& InOptions, uint32 InBytesPerLine, const FVideoFormatInfo& FormatInfo, uint16& OutPayloadSize)
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
@@ -501,13 +513,15 @@ namespace UE::RivermaxCore::Private
 			return false;
 		}
 
+		InitializeTimingProtections();
+
 		// Enable frame boundary monitoring
 		MonitoringGuid = RivermaxModule->GetRivermaxBoundaryMonitor().StartMonitoring(Options.FrameRate);
 
 		InitializationFuture = Async(EAsyncExecution::TaskGraph, [this]()
 		{
 			TAnsiStringBuilder<2048> SDPDescription;
-			UE::RivermaxCore::Private::Utils::StreamOptionsToSDPDescription(Options, SDPDescription);
+			UE::RivermaxCore::Private::Utils::StreamOptionsToSDPDescription(Options, StreamMemory.FrameRateMultiplier, SDPDescription);
 
 			// Create Rivermax stream using memory configuration
 			{
@@ -672,7 +686,10 @@ namespace UE::RivermaxCore::Private
 				if (CurrentFrame->bCaughtTimingIssue)
 				{
 					++Stats.TimingIssueCount;
-					
+				}
+
+				if (CurrentFrame->bCaughtTimingIssue || StreamMemory.bAlwaysSkipChunk)
+				{
 					constexpr uint64 ChunksToSkip = 0;
 					SkipChunks(ChunksToSkip);
 				}
@@ -1990,5 +2007,29 @@ namespace UE::RivermaxCore::Private
 		Stats.FramesSentCounter++;
 		StreamData.ExpectedFrameIndex = (StreamData.ExpectedFrameIndex + 1) % Options.NumberOfBuffers;
 	}
+
+	void FRivermaxOutputStream::InitializeTimingProtections()
+	{
+		switch (Options.AlignmentMode)
+		{
+			case ERivermaxAlignmentMode::FrameCreation:
+			{
+				StreamMemory.bAlwaysSkipChunk = false;
+				StreamMemory.FrameRateMultiplier = 1.0f;
+				break;
+			}
+			case ERivermaxAlignmentMode::AlignmentPoint:
+			{
+				StreamMemory.bAlwaysSkipChunk = CVarRivermaxOutputForceSkip.GetValueOnAnyThread();
+				StreamMemory.FrameRateMultiplier = FMath::Clamp(CVarRivermaxOutputFrameRateMultiplier.GetValueOnAnyThread(), 1.0, 2.0);
+				break;
+			}
+			default:
+			{
+				checkNoEntry();
+			}
+		}
+	}
+
 }
 

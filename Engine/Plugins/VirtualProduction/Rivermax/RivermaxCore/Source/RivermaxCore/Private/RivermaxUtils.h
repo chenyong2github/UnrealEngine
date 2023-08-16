@@ -31,7 +31,7 @@ namespace UE::RivermaxCore::Private::Utils
 	static constexpr float SleepTimeSeconds = 50 * 1E-6;
 
 	/** Convert a set of streaming option to its SDP description. Currently only support video type. */
-	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxOutputStreamOptions& Options, FAnsiStringBuilderBase& OutSDPDescription);
+	void StreamOptionsToSDPDescription(const UE::RivermaxCore::FRivermaxOutputStreamOptions& Options, float RateMultiplier, FAnsiStringBuilderBase& OutSDPDescription);
 
 	/**
 	 * Converts a timestamp in MediaClock period units to a frame number for a given frame rate

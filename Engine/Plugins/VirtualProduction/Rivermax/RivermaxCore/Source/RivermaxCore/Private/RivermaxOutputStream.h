@@ -80,6 +80,19 @@ namespace UE::RivermaxCore::Private
 		/** Chunk committed between each memcopy of frame data. Helps respect timing. */
 		uint32 ChunkSpacingBetweenMemcopies = 1;
 
+		/** 
+		 * Whether we skip zero chunk, to reset rivermax's stream internal timings, vblank verification, etc...
+		 * Alignment point method will default to true and be configurable through cvar and frame creation will never use it.
+		 * Usage is to make sure Tro is respected when frame rate multiplier is involved.
+		 */
+		bool bAlwaysSkipChunk = true;
+
+		/** 
+		 * Multiplier applied to desired frame rate when creating Rivermax stream to add margin in case of packet timings not being respected
+		 * This will break compliance with standard but if receiver can tolerate it, more stable stream timings are expected.
+		 */
+		float FrameRateMultiplier = 1.00;
+
 		/** Memory blocks given to Rivermax which where data is located */
 		TArray<rmax_mem_block> MemoryBlocks;
 
@@ -218,6 +231,9 @@ namespace UE::RivermaxCore::Private
 		
 		/** Initializes timing setup for this stream. TRO, frame interval etc... */
 		void InitializeStreamTimingSettings();
+
+		/** Configures settings related to timing protection dependant on cvars */
+		void InitializeTimingProtections();
 
 		/** Sets up frame management taking care of allocation, special cuda handling, etc... */
 		bool SetupFrameManagement();
