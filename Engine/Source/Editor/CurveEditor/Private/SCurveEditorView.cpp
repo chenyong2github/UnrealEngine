@@ -231,6 +231,9 @@ void SCurveEditorView::GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor,c
 	TArray<FKeyHandle> VisibleKeys;
 	CurveModel->GetKeys(*CurveEditor, InputMin, InputMax, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), VisibleKeys);
 
+	// Always reset the points to cover case going from 1 to 0 keys
+	Params.Points.Reset(VisibleKeys.Num());
+	
 	if (VisibleKeys.Num())
 	{
 		ECurveEditorTangentVisibility TangentVisibility = CurveEditor->GetSettings()->GetTangentVisibility();
@@ -240,7 +243,6 @@ void SCurveEditorView::GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor,c
 
 		AllKeyPositions.SetNum(VisibleKeys.Num());
 		AllKeyAttributes.SetNum(VisibleKeys.Num());
-		Params.Points.Reset(VisibleKeys.Num());
 
 		CurveModel->GetKeyPositions(VisibleKeys, AllKeyPositions);
 		CurveModel->GetKeyAttributes(VisibleKeys, AllKeyAttributes);
