@@ -95,7 +95,7 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(MediaCaptureExtensionCallback);
 
 		FScreenPassTexture SceneColor = InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor);
-		InOutInputs.Validate();
+		check(SceneColor.IsValid());
 
 		if (FRDGTextureRef TextureRef = SceneColor.Texture)
 		{
