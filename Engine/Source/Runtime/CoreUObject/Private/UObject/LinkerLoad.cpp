@@ -181,6 +181,15 @@ static FAutoConsoleVariableRef CEnforcePackageCompatibleVersionCheck(
 	ECVF_Default
 );
 
+/** 
+ * Required to load packages saved from the editor domain between UE 5.0 and 5.2, the cvar is only provided in case the fix causes
+ * unintended problems so that it can be disabled quickly.
+ */
+static TAutoConsoleVariable<bool> CVarApplyBulkDataFix(
+	TEXT("Serialization.ApplyBulkDataOffsetFix"),
+	true,
+	TEXT("When true, we will try to fix potentially bad bulkdata offsets"));
+
 /**
 * Test whether the given package index is a valid import or export in this package
 */
@@ -6739,7 +6748,34 @@ bool FLinkerLoad::SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializ
 		// to be adjusted to the start of non-inline bulk data in the .uasset file. 
 		if (Meta.HasAnyFlags(BULKDATA_WorkspaceDomainPayload) == false)
 		{
-			Meta.SetOffset(Meta.GetOffset() + Summary.BulkDataStartOffset);
+			if (CVarApplyBulkDataFix.GetValueOnAnyThread())
+			{
+				// In theory we should never see the 'BULKDATA_NoOffsetFixUp' flag at this point, but for a time there was a bug that allowed
+				// packages saved to the workspace domain to have the flag so we cannot assume that the offset is relative and need to check.
+				// The outcome of this bug actually changed in the 'EUnrealEngineObjectUE5Version::DATA_RESOURCES' refactor which makes the 
+				// following checks more involved.
+
+				// If 'BULKDATA_NoOffsetFixUp' is not set then we know that the offset is always relative and needs to be converted to absolute
+				if (!Meta.HasAnyFlags(BULKDATA_NoOffsetFixUp))
+				{
+					Meta.SetOffset(Meta.GetOffset() + Summary.BulkDataStartOffset);
+				}
+				else
+				{
+					// If 'BULKDATA_NoOffsetFixUp' is set and the package was written after the 'EUnrealEngineObjectUE5Version::DATA_RESOURCES'
+					// refactor then we know the offset is relative and needs to be converted. If the package was written before the refactor
+					// and has the flag then we know the offset is already in absolute format and can be left unmodified.
+					if (Summary.GetFileVersionUE() >= EUnrealEngineObjectUE5Version::DATA_RESOURCES)
+					{
+						Meta.SetOffset(Meta.GetOffset() + Summary.BulkDataStartOffset);
+					}
+				}
+			}
+			else
+			{
+				// Previous behavior before an attempted fix for bad data was added.
+				Meta.SetOffset(Meta.GetOffset() + Summary.BulkDataStartOffset);
+			}
 		}
 
 		if (bLazyLoadable == false)
