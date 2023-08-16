@@ -12,6 +12,11 @@
 
 #define LOCTEXT_NAMESPACE "PCGComponentDetails"
 
+static TAutoConsoleVariable<bool> CVarBroadcastComponentChanged(
+		TEXT("pcg.ComponentDetails.BroadcastComponentChanged"),
+		false,
+		TEXT("Controls whether we should broadcast component changes to the level editor"));
+
 TSharedRef<IDetailCustomization> FPCGComponentDetails::MakeInstance()
 {
 	return MakeShareable(new FPCGComponentDetails());
@@ -208,8 +213,11 @@ void FPCGComponentDetails::OnGraphChanged(UPCGComponent* InComponent)
 	}
 
 	// Notify editor that some components might have changed
-	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditor.BroadcastComponentsEdited();
+	if (CVarBroadcastComponentChanged.GetValueOnGameThread())
+	{
+		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.BroadcastComponentsEdited();
+	}
 }
 
 FReply FPCGComponentDetails::OnCleanupClicked()
