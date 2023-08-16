@@ -596,7 +596,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildUI()
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("CalibrateCameraPose", "Calibrate Nodal Offset"))
-					.ToolTipText(LOCTEXT("UseExtrinsicsGuessTooltip", "If checked, the final camera pose computed by the solver will be used to save the nodal offset to the Lens File."))
+					.ToolTipText(LOCTEXT("CalibrateNodalOffsetTooltip", "If checked, the final camera pose computed by the solver will be used to save the nodal offset to the Lens File."))
 				]
 
 			+ SHorizontalBox::Slot()
