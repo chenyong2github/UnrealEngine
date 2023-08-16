@@ -49,6 +49,17 @@ static TAutoConsoleVariable<int32> CVarOutputRemapShaderType(
 	,ECVF_RenderThreadSafe
 );
 
+// Enable/Disable ClearTexture for OutputRemap RTT
+static TAutoConsoleVariable<int32> CVarClearOutputRemapClearRTT(
+	TEXT("nDisplay.render.output_remap.clear_rtt"),
+	1,
+	TEXT("Enables OutputRemap RTT clearing before postprocessing.\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_RenderThreadSafe
+);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FOutputRemapVertexShaderParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
@@ -137,6 +148,8 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 
 	bool bResult = false;
 
+	const bool bClearTextureEnabled = CVarClearOutputRemapClearRTT.GetValueOnRenderThread() != 0;
+
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_PostProcess_OutputRemap);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_PostProcess_OutputRemap);
 
@@ -147,6 +160,12 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 	{
 		const FIntPoint TargetSizeXY = InRenderTargetableDestTexture->GetSizeXY();
 		RHICmdList.SetViewport(0, 0, 0.0f, TargetSizeXY.X, TargetSizeXY.Y, 1.0f);
+
+		if (bClearTextureEnabled)
+		{
+			// Clean the texture of the output frame before remapping the whole frame
+			DrawClearQuad(RHICmdList, FLinearColor::Black);
+		}
 
 		const ERHIFeatureLevel::Type RenderFeatureLevel = GMaxRHIFeatureLevel;
 		const auto GlobalShaderMap = GetGlobalShaderMap(RenderFeatureLevel);
