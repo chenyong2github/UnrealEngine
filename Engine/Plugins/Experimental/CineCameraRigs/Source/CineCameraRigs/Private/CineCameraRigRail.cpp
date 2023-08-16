@@ -213,9 +213,10 @@ void ACineCameraRigRail::UpdateSplineMeshMID()
 		if (IsValid(SplineMeshMaterial))
 		{
 			int32 const NumSplinePoints = RailSplineComponent->GetNumberOfSplinePoints();
-			if (SplineMeshMIDs.Num() > NumSplinePoints - 1)
+			int32 const NumNeededMIDs = FMath::Max(0, NumSplinePoints - 1);
+			if (SplineMeshMIDs.Num() > NumNeededMIDs)
 			{
-				int32 const NumToRemove = SplineMeshMIDs.Num() - (NumSplinePoints - 1);
+				int32 const NumToRemove = SplineMeshMIDs.Num() - NumNeededMIDs;
 				for (int32 Index = 0; Index < NumToRemove; ++Index)
 				{
 					SplineMeshMIDs.Pop();
@@ -223,7 +224,7 @@ void ACineCameraRigRail::UpdateSplineMeshMID()
 			}
 			else
 			{
-				int32 const NumToAdd = (NumSplinePoints - 1) - SplineMeshMIDs.Num();
+				int32 const NumToAdd = NumNeededMIDs - SplineMeshMIDs.Num();
 				for (int Index = 0; Index < NumToAdd; ++Index)
 				{
 					UMaterialInstanceDynamic* SplineMeshMID = UMaterialInstanceDynamic::Create(SplineMeshMaterial, nullptr, MakeUniqueObjectName(GetTransientPackage(), UMaterialInstanceDynamic::StaticClass(), TEXT("SplineMeshMID")));
@@ -232,7 +233,7 @@ void ACineCameraRigRail::UpdateSplineMeshMID()
 				}
 			}
 			
-			for(int32 Index = 0; Index < NumSplinePoints - 1; ++Index)
+			for(int32 Index = 0; Index < NumNeededMIDs; ++Index)
 			{
 				UMaterialInstanceDynamic* SplineMeshMID = SplineMeshMIDs[Index];
 				if (!IsValid(SplineMeshMID) || (SplineMeshMID->Parent != SplineMeshMaterial))

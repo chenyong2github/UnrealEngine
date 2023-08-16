@@ -88,7 +88,7 @@ void ACameraRig_Rail::UpdatePreviewMeshes()
 		if (PreviewRailStaticMesh)
 		{
 			int32 const NumSplinePoints = RailSplineComponent->GetNumberOfSplinePoints();
-			int32 const NumNeededPreviewMeshes = NumSplinePoints - 1;
+			int32 const NumNeededPreviewMeshes = FMath::Max(0, NumSplinePoints - 1);
 
 			// make sure our preview mesh array is correctly sized and populated
 			{
