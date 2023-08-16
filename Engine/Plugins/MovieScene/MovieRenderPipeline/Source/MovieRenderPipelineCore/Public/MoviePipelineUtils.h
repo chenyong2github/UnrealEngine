@@ -124,6 +124,9 @@ namespace UE
 	{
 		MOVIERENDERPIPELINECORE_API TArray<UClass*> FindMoviePipelineSettingClasses(UClass* InBaseClass);
 		MOVIERENDERPIPELINECORE_API EAntiAliasingMethod GetEffectiveAntiAliasingMethod(const UMoviePipelineAntiAliasingSetting* InSetting);
+		
+		UE_DEPRECATED(5.3, "Do not use, this is here as a temporary workaround for another issue.")
+		MOVIERENDERPIPELINECORE_API uint64 GetRendererFrameCount();
 	}
 
 	namespace MoviePipeline

@@ -89,6 +89,7 @@ UMoviePipeline::UMoviePipeline()
 	, bShutdownRequested(false)
 	, bIsTransitioningState(false)
 	, AccumulatedTickSubFrameDeltas(0.f)
+	, bHasRenderedFirstViewThisFrame(false)
 	, CurrentJob(nullptr)
 {
 	CustomTimeStep = CreateDefaultSubobject<UMoviePipelineCustomTimeStep>("MoviePipelineCustomTimeStep");

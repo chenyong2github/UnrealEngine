@@ -427,6 +427,9 @@ public:
 	UE_DEPRECATED(5.1, "Use SetViewportInitArgs instead.")
 	UPROPERTY(Transient)
 	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClass;
+	
+	/** Used to track first-render submissions (for 3d renders) to set the correct flags on the renderer module. */
+	bool bHasRenderedFirstViewThisFrame;
 
 private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */

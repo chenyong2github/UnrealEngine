@@ -2836,6 +2836,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // TOptional can't be deprecated without emitting warnings in destructor
 FSceneViewFamily::~FSceneViewFamily()
 {
 	// If a screen percentage was given for the view family, delete it since any new copy of a view family will Fork it.
@@ -2862,6 +2863,7 @@ FSceneViewFamily::~FSceneViewFamily()
 		delete reinterpret_cast<ISceneViewFamilyExtention*>(SecondarySpatialUpscalerInterface);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 ERHIFeatureLevel::Type FSceneViewFamily::GetFeatureLevel() const
 {

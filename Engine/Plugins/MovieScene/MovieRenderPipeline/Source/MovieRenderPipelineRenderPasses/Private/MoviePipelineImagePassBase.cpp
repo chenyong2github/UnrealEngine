@@ -194,6 +194,26 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	OutViewFamily->bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	OutViewFamily->ViewMode = ViewModeIndex;
 	OutViewFamily->bOverrideVirtualTextureThrottle = true;
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	OutViewFamily->OverrideFrameCounter = UE::MovieRenderPipeline::GetRendererFrameCount();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	// Kept as an if/else statement to avoid the confusion with setting all of these values to some permutation of !/!!bHasRenderedFirstViewThisFrame.
+	if (!GetPipeline()->bHasRenderedFirstViewThisFrame)
+	{
+		GetPipeline()->bHasRenderedFirstViewThisFrame = true;
+		
+		OutViewFamily->bIsFirstViewInMultipleViewFamily = true;
+		OutViewFamily->bIsMultipleViewFamily = true;
+		OutViewFamily->bAdditionalViewFamily = false;
+	}
+	else
+	{
+		OutViewFamily->bIsFirstViewInMultipleViewFamily = false;
+		OutViewFamily->bAdditionalViewFamily = true;
+		OutViewFamily->bIsMultipleViewFamily = true;
+	}
 
 	const bool bIsPerspective = true;
 	ApplyViewMode(OutViewFamily->ViewMode, bIsPerspective, OutViewFamily->EngineShowFlags);

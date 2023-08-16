@@ -250,6 +250,9 @@ void UMoviePipeline::RenderFrame()
 
 	TArray<UMoviePipelineRenderPass*> InputBuffers = FindSettingsForShot<UMoviePipelineRenderPass>(ActiveShotList[CurrentShotIndex]);
 
+	// Reset our flag for this frame.
+	bHasRenderedFirstViewThisFrame = false;
+
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.IsFirstTemporalSample())
 	{

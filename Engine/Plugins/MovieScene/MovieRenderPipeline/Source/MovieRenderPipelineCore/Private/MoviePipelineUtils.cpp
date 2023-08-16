@@ -128,6 +128,23 @@ namespace UE
 
 			return AntiAliasingMethod;
 		}
+
+		uint64 GetRendererFrameCount()
+		{
+			// The rendering module relies on GFrameCounter during submission to line several things up that need to happen once per engine-tick.
+			// Unfortunately by the time the Movie Render Queue code gets called (in FCoreDelegates::OnEndFrame) GFrameCounter has already been
+			// incremented compared to the Tick() that frame that Skeletal Meshes, etc. may have used. To solve this, we manually override which
+			// tick the renderer thinks this frame is for.
+
+#if WITH_EDITORONLY_DATA
+			if (GIsEditor)
+			{
+				return GFrameCounter - 1;
+			}
+#endif
+			return GFrameCounter;
+		}
+
 	}
 }
 
