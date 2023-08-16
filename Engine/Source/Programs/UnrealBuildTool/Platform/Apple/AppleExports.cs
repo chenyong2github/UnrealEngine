@@ -74,8 +74,16 @@ namespace UnrealBuildTool
 			{
 				return FileReference.Combine(ProductDirectory, FilePath.Substring(6));
 			}
-
-			return new FileReference(FilePath);
+			else if (FilePath.StartsWith("/", StringComparison.OrdinalIgnoreCase))
+			{
+				// Absolute path
+				return new FileReference(FilePath);
+			}
+			else
+			{
+				// UE-193103, using the file selector in UE will set the path relative to /Engine/Binaries/Mac
+				return FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Mac", FilePath);
+			}
 		}
 
 		/// <summary>
