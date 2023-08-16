@@ -415,19 +415,20 @@ void USmartObjectSubsystem::AbortAll(const FSmartObjectHandle Handle, FSmartObje
 
 bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
-	if (SmartObjectComponent.GetDefinition() == nullptr)
+	const USmartObjectDefinition* Definition = SmartObjectComponent.GetDefinition();
+	if (Definition == nullptr)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset is not set. Bailing out."),
 			*GetFullNameSafe(&SmartObjectComponent));
 		return false;
 	}
 
-	TOptional<bool> bIsValid = SmartObjectComponent.GetDefinition()->IsValid();
+	TOptional<bool> bIsValid = Definition->IsValid();
 	if (bIsValid.IsSet() == false)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset has not been Validated. Validating now."),
 			*GetFullNameSafe(&SmartObjectComponent));
-		bIsValid = SmartObjectComponent.GetDefinition()->Validate();
+		bIsValid = Definition->Validate();
 	}
 	
 	if (bIsValid.GetValue() == false)
@@ -435,7 +436,15 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."
 													" Resave asset %s to see the errors and fix the problem."),
 			*GetFullNameSafe(&SmartObjectComponent),
-			*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+			*GetFullNameSafe(Definition));
+		return false;
+	}
+
+	if (Definition->GetSlots().IsEmpty())
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset doesn't contain any slots. Bailing out."),
+			*GetFullNameSafe(&SmartObjectComponent),
+			*GetFullNameSafe(Definition));
 		return false;
 	}
 

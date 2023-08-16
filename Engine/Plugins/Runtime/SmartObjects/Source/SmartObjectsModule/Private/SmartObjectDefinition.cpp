@@ -41,7 +41,7 @@ EDataValidationResult USmartObjectDefinition::IsDataValid(FDataValidationContext
 		Context.AddError(Error);
 	}
 	
-	return CombineDataValidationResults(Result, bValid ? EDataValidationResult::Valid : EDataValidationResult::Invalid);
+	return CombineDataValidationResults(Result, bValid.GetValue() ? EDataValidationResult::Valid : EDataValidationResult::Invalid);
 }
 
 TSubclassOf<USmartObjectSlotValidationFilter> USmartObjectDefinition::GetPreviewValidationFilterClass() const
@@ -89,17 +89,6 @@ TSubclassOf<USmartObjectSlotValidationFilter> USmartObjectDefinition::GetPreview
 bool USmartObjectDefinition::Validate(TArray<FText>* ErrorsToReport) const
 {
 	bValid = false;
-	if (Slots.Num() == 0)
-	{
-		if (ErrorsToReport)
-		{
-			ErrorsToReport->Emplace(LOCTEXT("MissingSlotError", "Need to provide at least one slot definition"));
-		}
-		else
-		{
-			return false;
-		}
-	}
 
 	// Detect null entries in default definitions
 	int32 NullEntryIndex;
@@ -152,8 +141,8 @@ bool USmartObjectDefinition::Validate(TArray<FText>* ErrorsToReport) const
 		}
 	}
 
-	bValid = true;
-	return true;
+	bValid = ErrorsToReport == nullptr || ErrorsToReport->IsEmpty();
+	return bValid.GetValue();
 }
 
 FBox USmartObjectDefinition::GetBounds() const
