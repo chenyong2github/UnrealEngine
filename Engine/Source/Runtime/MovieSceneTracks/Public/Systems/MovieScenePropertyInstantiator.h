@@ -226,20 +226,26 @@ private:
 			TArrayView<const UE::MovieScene::FPropertyCompositeDefinition> Composites,
 			UE::MovieScene::FComponentMask& OutComponentType) const;
 	};
-	MOVIESCENETRACKS_API void DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties);
-	MOVIESCENETRACKS_API void UpgradeFloatToDoubleProperties(const TBitArray<>& InvalidatedProperties);
-	MOVIESCENETRACKS_API void ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties);
-	MOVIESCENETRACKS_API void UpdatePropertyInfo(const FPropertyParameters& Params);
-	MOVIESCENETRACKS_API void InitializeFastPath(const FPropertyParameters& Params);
-	MOVIESCENETRACKS_API void InitializeBlendPath(const FPropertyParameters& Params);
 
-	MOVIESCENETRACKS_API FSetupBlenderSystemResult SetupBlenderSystem(const FPropertyParameters& Params);
+	void DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties);
+	void DiscoverExpiredProperties(TBitArray<>& OutInvalidatedProperties);
+	void DiscoverNewProperties(TBitArray<>& OutInvalidatedProperties);
+	void UpgradeFloatToDoubleProperties(const TBitArray<>& InvalidatedProperties);
+	void ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties);
+	void UpdatePropertyInfo(const FPropertyParameters& Params);
+	void InitializeFastPath(const FPropertyParameters& Params);
+	void InitializeBlendPath(const FPropertyParameters& Params);
 
-	MOVIESCENETRACKS_API int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex);
+	void DestroyStaleProperty(int32 PropertyIndex);
+	void PostDestroyStaleProperties();
 
-	MOVIESCENETRACKS_API UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
+	FSetupBlenderSystemResult SetupBlenderSystem(const FPropertyParameters& Params);
 
-	MOVIESCENETRACKS_API void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+	int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex);
+
+	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
+
+	void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 private:
 
@@ -258,6 +264,7 @@ private:
 
 	UE::MovieScene::FComponentMask CleanFastPathMask;
 
+	TBitArray<> PendingInvalidatedProperties;
 	TBitArray<> InitializePropertyMetaDataTasks;
 	TBitArray<> SaveGlobalStateTasks;
 

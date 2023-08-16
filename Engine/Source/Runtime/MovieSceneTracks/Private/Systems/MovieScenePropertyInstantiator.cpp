@@ -126,14 +126,43 @@ void UMovieScenePropertyInstantiatorSystem::OnUnlink()
 
 void UMovieScenePropertyInstantiatorSystem::OnCleanTaggedGarbage()
 {
-	using namespace UE::MovieScene;
+	// Only process expired properties for this GC pass to ensure we don't end up creating any new entities
+	DiscoverExpiredProperties(PendingInvalidatedProperties);
 
-	TBitArray<> InvalidatedProperties;
-	DiscoverInvalidatedProperties(InvalidatedProperties);
-
-	if (InvalidatedProperties.Num() != 0)
+	bool bAnyDestroyed = false;
+	// Look through our resolved properties to detect any outputs that have been destroyed
+	for (int32 Index = 0; Index < ResolvedProperties.GetMaxIndex(); ++Index)
 	{
-		ProcessInvalidatedProperties(InvalidatedProperties);
+		if (!ResolvedProperties.IsAllocated(Index))
+		{
+			continue;
+		}
+
+		FObjectPropertyInfo& PropertyInfo = ResolvedProperties[Index];
+
+		// If the final output entity is being destroyed, clean up the property info and blender so it can be re-created next time if necessary
+		if (
+			(PropertyInfo.FinalBlendOutputID && Linker->EntityManager.HasComponent(PropertyInfo.FinalBlendOutputID, BuiltInComponents->Tags.NeedsUnlink)) ||
+			(PropertyInfo.PreviousFastPathID && Linker->EntityManager.HasComponent(PropertyInfo.PreviousFastPathID, BuiltInComponents->Tags.NeedsUnlink))
+			)
+		{
+			// Really we shouldn't have any contributors any more if the output is being destroyed
+			ensure(!Contributors.Contains(FContributorKey(Index)));
+
+			DestroyStaleProperty(Index);
+			bAnyDestroyed = true;
+
+			if (PendingInvalidatedProperties.IsValidIndex(Index) && PendingInvalidatedProperties[Index] == true)
+			{
+				// This property index is no longer valid at all
+				PendingInvalidatedProperties[Index] = false;
+			}
+		}
+	}
+
+	if (bAnyDestroyed)
+	{
+		PostDestroyStaleProperties();
 	}
 }
 
@@ -141,13 +170,15 @@ void UMovieScenePropertyInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPr
 {
 	using namespace UE::MovieScene;
 
-	TBitArray<> InvalidatedProperties;
-	DiscoverInvalidatedProperties(InvalidatedProperties);
+	// Discover any newly created or expiring property entities
+	DiscoverInvalidatedProperties(PendingInvalidatedProperties);
 
-	if (InvalidatedProperties.Num() != 0)
+	if (PendingInvalidatedProperties.Num() != 0)
 	{
-		UpgradeFloatToDoubleProperties(InvalidatedProperties);
-		ProcessInvalidatedProperties(InvalidatedProperties);
+		UpgradeFloatToDoubleProperties(PendingInvalidatedProperties);
+		ProcessInvalidatedProperties(PendingInvalidatedProperties);
+
+		PendingInvalidatedProperties.Empty();
 	}
 
 	if (InitializePropertyMetaDataTasks.Find(true) != INDEX_NONE)
@@ -165,11 +196,19 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 
 	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_DiscoverInvalidatedProperties);
 
-	TBitArray<> InvalidatedProperties;
-
 	TArrayView<const FPropertyDefinition> Properties = this->BuiltInComponents->PropertyRegistry.GetProperties();
 
 	PropertyStats.SetNum(Properties.Num());
+
+	DiscoverNewProperties(OutInvalidatedProperties);
+	DiscoverExpiredProperties(OutInvalidatedProperties);
+}
+
+void UMovieScenePropertyInstantiatorSystem::DiscoverNewProperties(TBitArray<>&OutInvalidatedProperties)
+{
+	using namespace UE::MovieScene;
+
+	TArrayView<const FPropertyDefinition> Properties = this->BuiltInComponents->PropertyRegistry.GetProperties();
 
 	auto VisitNewProperties = [this, Properties, &OutInvalidatedProperties](FEntityAllocationIteratorItem AllocationItem, const FMovieSceneEntityID* EntityIDs, UObject* const * ObjectPtrs, const FMovieScenePropertyBinding* PropertyPtrs, const int16* HierarchicalBiases)
 	{
@@ -224,7 +263,11 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 	.FilterNone({ BuiltInComponents->BlendChannelOutput })
 	.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 	.Iterate_PerAllocation(&Linker->EntityManager, VisitNewProperties);
+}
 
+void UMovieScenePropertyInstantiatorSystem::DiscoverExpiredProperties(TBitArray<>& OutInvalidatedProperties)
+{
+	using namespace UE::MovieScene;
 
 	auto VisitExpiredEntities = [this, &OutInvalidatedProperties](FMovieSceneEntityID EntityID)
 	{
@@ -429,44 +472,53 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 	{
 		for (TConstSetBitIterator<> It(StaleProperties); It; ++It)
 		{
-			const int32 PropertyIndex = It.GetIndex();
-			FObjectPropertyInfo* PropertyInfo = &ResolvedProperties[PropertyIndex];
-
-			if (PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL)
-			{
-				if (UMovieSceneBlenderSystem* Blender = PropertyInfo->Blender.Get())
-				{
-					const FMovieSceneBlendChannelID BlendChannelID(Blender->GetBlenderSystemID(), PropertyInfo->BlendChannel);
-					Blender->ReleaseBlendChannel(BlendChannelID);
-				}
-				Linker->EntityManager.AddComponents(PropertyInfo->FinalBlendOutputID, BuiltInComponents->FinishedMask);
-			}
-
-			if (PropertyInfo->bIsPartiallyAnimated)
-			{
-				--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumPartialProperties;
-			}
-
-			--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumProperties;
-			ResolvedProperties.RemoveAt(PropertyIndex);
-
-			// PropertyInfo is now garbage
+			DestroyStaleProperty(It.GetIndex());
 		}
 
-		// @todo: If perf is a real issue with this look, we could call ObjectPropertyToResolvedIndex.Remove(MakeTuple(PropertyInfo->BoundObject, PropertyInfo->PropertyBinding.PropertyPath));
-		// In the loop above, but it is possible that BoundObject no longer relates to a valid object at that point
-		for (auto It = ObjectPropertyToResolvedIndex.CreateIterator(); It; ++It)
-		{
-			if (!ResolvedProperties.IsAllocated(It.Value()))
-			{
-				It.RemoveCurrent();
-			}
-		}
-
-		ResolvedProperties.Shrink();
+		PostDestroyStaleProperties();
 	}
 
 	NewContributors.Empty();
+}
+
+void UMovieScenePropertyInstantiatorSystem::DestroyStaleProperty(int32 PropertyIndex)
+{
+	FObjectPropertyInfo* PropertyInfo = &ResolvedProperties[PropertyIndex];
+
+	if (PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL)
+	{
+		if (UMovieSceneBlenderSystem* Blender = PropertyInfo->Blender.Get())
+		{
+			const FMovieSceneBlendChannelID BlendChannelID(Blender->GetBlenderSystemID(), PropertyInfo->BlendChannel);
+			Blender->ReleaseBlendChannel(BlendChannelID);
+		}
+		Linker->EntityManager.AddComponents(PropertyInfo->FinalBlendOutputID, BuiltInComponents->FinishedMask);
+	}
+
+	if (PropertyInfo->bIsPartiallyAnimated)
+	{
+		--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumPartialProperties;
+	}
+
+	--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumProperties;
+	ResolvedProperties.RemoveAt(PropertyIndex);
+
+	// PropertyInfo is now garbage
+}
+
+void UMovieScenePropertyInstantiatorSystem::PostDestroyStaleProperties()
+{
+	// @todo: If perf is a real issue with this look, we could call ObjectPropertyToResolvedIndex.Remove(MakeTuple(PropertyInfo->BoundObject, PropertyInfo->PropertyBinding.PropertyPath));
+	// In the loop above, but it is possible that BoundObject no longer relates to a valid object at that point
+	for (auto It = ObjectPropertyToResolvedIndex.CreateIterator(); It; ++It)
+	{
+		if (!ResolvedProperties.IsAllocated(It.Value()))
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	ResolvedProperties.Shrink();
 }
 
 void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(const FPropertyParameters& Params)
@@ -719,6 +771,8 @@ void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(const FPropertyPa
 	// If this was previously blended, destroy the blend output
 	if (Params.PropertyInfo->FinalBlendOutputID)
 	{
+		check(!Linker->EntityManager.HasComponent(Params.PropertyInfo->FinalBlendOutputID, BuiltInComponents->BlendChannelInput));
+
 		UMovieSceneBlenderSystem* Blender = Params.PropertyInfo->Blender.Get();
 		if (Blender && Params.PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL)
 		{
@@ -852,6 +906,8 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 			.MutateExisting(&Linker->EntityManager, ContributorIt.Value());
 		}
 
+		check(!Linker->EntityManager.HasComponent(Params.PropertyInfo->FinalBlendOutputID, BuiltInComponents->BlendChannelInput));
+
 		// Nothing more to do
 		return;
 	}
@@ -940,7 +996,6 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		.Add(BuiltInComponents->BlendChannelOutput,      NewBlendChannel)
 		.Add(BuiltInComponents->PropertyBinding,         Params.PropertyInfo->PropertyBinding)
 		.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
-		.Add(BuiltInComponents->BlendChannelOutput,      NewBlendChannel)
 		.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->HierarchicalMetaData.bWantsRestoreState)
 		.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
 		.AddTag(BuiltInComponents->Tags.NeedsLink)
@@ -986,6 +1041,8 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		// The property entity ID is now the blend output entity
 		Params.PropertyInfo->FinalBlendOutputID = NewOutputEntityID;
 		Params.PropertyInfo->PreviousFastPathID = FMovieSceneEntityID();
+
+		check(!Linker->EntityManager.HasComponent(Params.PropertyInfo->FinalBlendOutputID, BuiltInComponents->BlendChannelInput));
 	}
 
 	// Change *all* contributors (not just new ones because the old ones will have the old blender's channel and tag on them)
@@ -1002,6 +1059,8 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
 		.MutateExisting(&Linker->EntityManager, Contributor, InputMutation);
 	}
+
+	check(!Linker->EntityManager.HasComponent(Params.PropertyInfo->FinalBlendOutputID, BuiltInComponents->BlendChannelInput));
 }
 
 int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex)
