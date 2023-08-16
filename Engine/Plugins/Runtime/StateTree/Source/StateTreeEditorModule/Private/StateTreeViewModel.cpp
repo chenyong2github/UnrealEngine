@@ -905,6 +905,8 @@ void FStateTreeViewModel::SetSelectedStatesEnabled(const bool bEnable)
 			State->Modify();
 			State->bEnabled = bEnable;
 		}
+
+		OnAssetChanged.Broadcast();
 	}
 }
 

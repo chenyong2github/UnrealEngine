@@ -168,6 +168,9 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 	StateTreeViewModel->Init(EditorData);
 
 	StateTreeViewModel->GetOnAssetChanged().AddSP(this, &FStateTreeEditor::HandleModelAssetChanged);
+	StateTreeViewModel->GetOnStateAdded().AddSPLambda(this, [this](UStateTreeState* , UStateTreeState*){ UpdateAsset(); });
+	StateTreeViewModel->GetOnStatesRemoved().AddSPLambda(this, [this](const TSet<UStateTreeState*>&){ UpdateAsset(); });
+	StateTreeViewModel->GetOnStatesMoved().AddSPLambda(this, [this](const TSet<UStateTreeState*>&, const TSet<UStateTreeState*>&){ UpdateAsset(); });
 	StateTreeViewModel->GetOnSelectionChanged().AddSP(this, &FStateTreeEditor::HandleModelSelectionChanged);
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
