@@ -42,18 +42,6 @@ namespace Generator
 			return nullptr;
 		}
 
-		if (!ensure(Source))
-		{
-			LogWarning(TEXT("Not supported texture format '") + FPaths::GetExtension(Property.Path) + TEXT("' for ") + Property.Path);
-			return nullptr;
-		}
-
-		if (!ensure(Source->GetWidth() > 4 && Source->GetHeight() > 4))
-		{
-			LogWarning(TEXT("Not supported texture size for ") + Property.Path);
-			return nullptr;
-		}
-
 		// save texture settings if texture exists
 		Factory->SuppressImportOverwriteDialog();
 		UpdateTextureFactorySettings(Factory, Property);
@@ -101,6 +89,18 @@ namespace Generator
 		}
 		else
 		{
+			if (!ensure(Source))
+			{
+				LogWarning(TEXT("Not supported texture format '") + FPaths::GetExtension(Property.Path) + TEXT("' for ") + Property.Path);
+				return nullptr;
+			}
+
+			if (!ensure(Source->GetWidth() > 4 && Source->GetHeight() > 4))
+			{
+				LogWarning(TEXT("Not supported texture size for ") + Property.Path);
+				return nullptr;
+			}
+
 			Texture = Factory->CreateTexture2D(Package, *TextureName, Flags);
 			Texture->Source.Init(*Source);
 			Texture->Source.Compress();
