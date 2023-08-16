@@ -8,11 +8,17 @@
 #define LIGHTING_CACHE_INSCATTERING 1
 
 uint3 LightingCacheResolution;
+float LightingCacheVoxelBias;
 Texture3D LightingCacheTexture;
 
 uint3 GetLightingCacheResolution()
 {
 	return LightingCacheResolution;
+}
+
+float GetLightingCacheVoxelBias()
+{
+	return LightingCacheVoxelBias;
 }
 
 float3 SampleLightingCache(float3 UVW, float MipLevel)

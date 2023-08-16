@@ -28,6 +28,7 @@ public:
 	// Lighting
 	virtual float GetStepFactor() const = 0;
 	virtual float GetShadowStepFactor() const = 0;
+	virtual float GetShadowBiasFactor() const = 0;
 	virtual float GetLightingDownsampleFactor() const = 0;
 };
 
@@ -43,6 +44,7 @@ public:
 		, MinimumVoxelSize(0.1)
 		, StepFactor(1.0)
 		, ShadowStepFactor(8.0)
+		, ShadowBiasFactor(0.0)
 		, LightingDownsampleFactor(1.0)
 	{}
 	virtual ~FHeterogeneousVolumeData() {}
@@ -63,6 +65,7 @@ public:
 	// Lighting
 	virtual float GetStepFactor() const { return StepFactor; }
 	virtual float GetShadowStepFactor() const { return ShadowStepFactor; }
+	virtual float GetShadowBiasFactor() const { return ShadowBiasFactor; }
 	virtual float GetLightingDownsampleFactor() const { return LightingDownsampleFactor; }
 
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
@@ -71,5 +74,6 @@ public:
 	float MinimumVoxelSize;
 	float StepFactor;
 	float ShadowStepFactor;
+	float ShadowBiasFactor;
 	float LightingDownsampleFactor;
 };

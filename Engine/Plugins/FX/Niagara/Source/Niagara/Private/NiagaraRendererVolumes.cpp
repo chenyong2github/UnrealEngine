@@ -50,6 +50,7 @@ namespace NiagaraRendererVolumesLocal
 		FVector3f				VolumeWorldSpaceSize = UNiagaraVolumeRendererProperties::GetDefaultVolumeWorldSpaceSize();
 		float					StepFactor = UNiagaraVolumeRendererProperties::GetDefaultStepFactor();
 		float					ShadowStepFactor = UNiagaraVolumeRendererProperties::GetDefaultShadowStepFactor();
+		float					ShadowBiasFactor = UNiagaraVolumeRendererProperties::GetDefaultShadowBiasFactor();
 		float					LightingDownsampleFactor = UNiagaraVolumeRendererProperties::GetDefaultLightingDownsampleFactor();
 	};
 
@@ -224,6 +225,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererVolumes::GenerateDynamicData(const FNia
 	VolumeDynamicData->VolumeWorldSpaceSize = ParameterStore.GetParameterValueOrDefault(RendererProperties->VolumeWorldSpaceSizeBinding.GetParamMapBindableVariable(), DefaultVolumeWorldSpaceSize);
 	VolumeDynamicData->StepFactor = RendererProperties->StepFactor;
 	VolumeDynamicData->ShadowStepFactor = RendererProperties->ShadowStepFactor;
+	VolumeDynamicData->ShadowBiasFactor = RendererProperties->ShadowBiasFactor;
 	VolumeDynamicData->LightingDownsampleFactor = RendererProperties->LightingDownsampleFactor;
 
 	return VolumeDynamicData;
@@ -357,6 +359,7 @@ void FNiagaraRendererVolumes::GetDynamicMeshElements(const TArray<const FSceneVi
 			HeterogeneousVolumeData->VoxelResolution = VolumeResolution;
 			HeterogeneousVolumeData->StepFactor = VolumeDynamicData->StepFactor;
 			HeterogeneousVolumeData->ShadowStepFactor = VolumeDynamicData->ShadowStepFactor;
+			HeterogeneousVolumeData->ShadowBiasFactor = VolumeDynamicData->ShadowBiasFactor;
 			HeterogeneousVolumeData->LightingDownsampleFactor = VolumeDynamicData->LightingDownsampleFactor;
 			BatchElement.UserData = HeterogeneousVolumeData;
 

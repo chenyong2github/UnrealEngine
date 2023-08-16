@@ -119,6 +119,7 @@ END_UNIFORM_BUFFER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightingCacheParameters, )
 	SHADER_PARAMETER(FIntVector, LightingCacheResolution)
+	SHADER_PARAMETER(float, LightingCacheVoxelBias)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, LightingCacheTexture)
 END_SHADER_PARAMETER_STRUCT()
 

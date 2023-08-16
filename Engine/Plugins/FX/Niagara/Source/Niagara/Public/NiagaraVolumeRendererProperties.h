@@ -79,6 +79,7 @@ public:
 	static FVector3f GetDefaultVolumeWorldSpaceSize() { return FVector3f::ZeroVector; }
 	static float GetDefaultStepFactor() { return 1.0f; }
 	static float GetDefaultShadowStepFactor() { return 8.0f; }
+	static float GetDefaultShadowBiasFactor() { return 0.5f; }
 	static float GetDefaultLightingDownsampleFactor() { return 2.0f; }
 
 	/** What material to use for the volume. */
@@ -111,6 +112,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
 	float ShadowStepFactor = 8.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
+	float ShadowBiasFactor = 0.5f;
 
 	/** Position binding for the center of the volume. */
 	//-TODO: Unhind when binding is supported

@@ -55,6 +55,9 @@ class UHeterogeneousVolumeComponent : public UMeshComponent
 	float ShadowStepFactor;
 
 	UPROPERTY(EditAnywhere, Category = Lighting)
+	float ShadowBiasFactor;
+
+	UPROPERTY(EditAnywhere, Category = Lighting)
 	float LightingDownsampleFactor;
 
 	UPROPERTY(Transient)

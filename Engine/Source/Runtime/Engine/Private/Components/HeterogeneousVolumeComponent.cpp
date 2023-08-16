@@ -83,6 +83,7 @@ FHeterogeneousVolumeSceneProxy::FHeterogeneousVolumeSceneProxy(UHeterogeneousVol
 
 	HeterogeneousVolumeData.StepFactor = InComponent->StepFactor;
 	HeterogeneousVolumeData.ShadowStepFactor = InComponent->ShadowStepFactor;
+	HeterogeneousVolumeData.ShadowBiasFactor = InComponent->ShadowBiasFactor;
 	HeterogeneousVolumeData.LightingDownsampleFactor = InComponent->LightingDownsampleFactor;
 
 	// Initialize vertex buffer data for a quad
@@ -234,6 +235,7 @@ UHeterogeneousVolumeComponent::UHeterogeneousVolumeComponent(const FObjectInitia
 	EndFrame = 0;
 	StepFactor = 1.0f;
 	ShadowStepFactor = 8.0f;
+	ShadowBiasFactor = 0.0f;
 	LightingDownsampleFactor = 2.0f;
 	MipLevel = 0;
 	bIssueBlockingRequests = false;
