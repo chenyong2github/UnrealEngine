@@ -772,6 +772,11 @@ void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 
 			if (!Resource || Resource->Release(bRemoveComponents, ActorsToDelete))
 			{
+				if (Resource)
+				{
+					Resource->Rename(nullptr, nullptr, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+				}
+
 				GeneratedResources.RemoveAtSwap(ResourceIndex);
 			}
 		}
@@ -860,6 +865,11 @@ FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray
 
 				if (!Resource || Resource->Release(bRemoveComponents, Context->ActorsToDelete))
 				{
+					if (Resource)
+					{
+						Resource->Rename(nullptr, nullptr, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+					}
+
 					ThisComponent->GeneratedResources.RemoveAtSwap(Context->ResourceIndex);
 				}
 
@@ -969,6 +979,11 @@ void UPCGComponent::CleanupUnusedManagedResources()
 
 			if (!Resource || Resource->ReleaseIfUnused(ActorsToDelete))
 			{
+				if (Resource)
+				{
+					Resource->Rename(nullptr, nullptr, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+				}
+
 				GeneratedResources.RemoveAtSwap(ResourceIndex);
 			}
 		}

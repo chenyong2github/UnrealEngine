@@ -206,13 +206,14 @@ bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGManagedComponent::Release);
 
 	const bool bSupportsComponentReset = SupportsComponentReset();
-	const bool bDeleteComponent = bHardRelease || !bSupportsComponentReset;
+	bool bDeleteComponent = bHardRelease || !bSupportsComponentReset;
 
 	if (GeneratedComponent.IsValid())
 	{
 		if (bDeleteComponent)
 		{
 			GeneratedComponent->DestroyComponent();
+			ForgetComponent();
 		}
 		else
 		{
@@ -220,6 +221,11 @@ bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor
 			bIsMarkedUnused = true;
 			GeneratedComponent->ComponentTags.Add(PCGHelpers::MarkedForCleanupPCGTag);
 		}
+	}
+	else
+	{
+		// Dead component reference - clear it out.
+		bDeleteComponent = true;
 	}
 
 	return bDeleteComponent;
