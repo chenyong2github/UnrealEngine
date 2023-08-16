@@ -782,19 +782,19 @@ FSlateIcon FControlRigEditor::GetEventQueueIcon(const TArray<FName>& InEventQueu
 {
 	if(InEventQueue == ConstructionEventQueue)
 	{
-		return FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "ControlRig.ConstructionMode");
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ConstructionMode");
 	}
 	if(InEventQueue == ForwardsSolveEventQueue)
 	{
-		return FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "ControlRig.ForwardsSolveEvent");
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ForwardsSolveEvent");
 	}
 	if(InEventQueue == BackwardsSolveEventQueue)
 	{
-		return FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsSolveEvent");
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsSolveEvent");
 	}
 	if(InEventQueue == BackwardsAndForwardsSolveEventQueue)
 	{
-		return FSlateIcon(FRigVMEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsAndForwardsSolveEvent");
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsAndForwardsSolveEvent");
 	}
 
 	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
