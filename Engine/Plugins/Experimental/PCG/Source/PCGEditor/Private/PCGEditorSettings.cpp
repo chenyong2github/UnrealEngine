@@ -23,9 +23,8 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	SubgraphNodeColor = FLinearColor(1.0f, 0.05f, 0.05f);
 	ParamDataNodeColor = FLinearColor(1.0f, 0.38f, 0.02f);
 	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
-	ControlFlowNodeColor = FLinearColor(0.66f, .6f, 0.15f);
-	// HiGen are also a subset of Control Flow
-	HierarchicalGenerationNodeColor = ControlFlowNodeColor;
+	ControlFlowNodeColor = FLinearColor(0.0f, 1.0f, 0.0f);
+	HierarchicalGenerationNodeColor = FLinearColor(1.0f, 0.132868f, 0.0f);
 
 	DefaultPinColor = FLinearColor(0.29f, 0.29f, 0.29f);
 	SpatialDataPinColor = FLinearColor(1.0f, 1.0f, 1.0f);

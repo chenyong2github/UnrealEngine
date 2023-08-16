@@ -54,12 +54,14 @@ namespace UnrealBuildTool.Rules
 					"KismetWidgets",
 					"PCG",
 					"PropertyEditor",
-					"StructUtils",
-					"StructUtilsEditor",
 					"Slate",
 					"SlateCore",
 					"SourceControl",
+					"StructUtils",
+					"StructUtilsEditor",
 					"ToolMenus",
+					"TypedElementFramework",
+					"TypedElementRuntime",
 					"UnrealEd",
 				}
 			);

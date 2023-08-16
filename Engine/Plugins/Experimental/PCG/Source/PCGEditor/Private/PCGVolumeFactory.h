@@ -6,6 +6,9 @@
 
 #include "PCGVolumeFactory.generated.h"
 
+struct FPlacementOptions;
+struct FTypedElementHandle;
+
 UCLASS(MinimalAPI, config=Editor)
 class UPCGVolumeFactory : public UActorFactoryBoxVolume
 {
@@ -16,6 +19,6 @@ public:
 
 	//~ Begin UActorFactory Interface
 	virtual bool CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg) override;
-	virtual void PostSpawnActor(UObject* Asset, AActor* NewActor) override;
+	virtual void PostPlaceAsset(TArrayView<const FTypedElementHandle> InElementHandles, const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions) override;
 	//~ End UActorFactory Interface
 };
