@@ -9681,6 +9681,8 @@ void FSequencer::ToggleMarkAtPlayPosition()
 		FocusedMovieScene->Modify();
 		FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(TickFrameNumber));
 	}
+
+	ViewModel->GetSelection()->MarkedFrames.Empty();
 }
 
 void FSequencer::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
@@ -9759,6 +9761,8 @@ void FSequencer::DeleteMarkedFrame(int32 InMarkIndex)
 
 		FocusedMovieScene->Modify();
 		FocusedMovieScene->DeleteMarkedFrame(InMarkIndex);
+
+		ViewModel->GetSelection()->MarkedFrames.Empty();
 	}
 }
 
@@ -9786,6 +9790,8 @@ void FSequencer::DeleteAllMarkedFrames()
 
 	FocusedMovieScene->Modify();
 	FocusedMovieScene->DeleteMarkedFrames();
+
+	ViewModel->GetSelection()->MarkedFrames.Empty();
 }
 
 void FSequencer::StepToNextMark()
