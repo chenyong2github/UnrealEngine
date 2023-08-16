@@ -156,11 +156,6 @@ void UPCGSubsystem::PostInitialize()
 			});
 		}
 	}
-
-#if WITH_EDITOR
-	// When the PCGWorldActor is loaded, we can add delayed actors.
-	ActorAndComponentMapping.AddActorsPostInit();
-#endif // WITH_EDITOR
 }
 
 UPCGSubsystem* UPCGSubsystem::GetInstance(UWorld* World)

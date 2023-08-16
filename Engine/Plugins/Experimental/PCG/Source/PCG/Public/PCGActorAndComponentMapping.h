@@ -48,7 +48,7 @@ public:
 	void RegisterTrackingCallbacks();
 	void TeardownTrackingCallbacks();
 
-	void AddActorsPostInit();
+	void AddDelayedActors();
 
 	/** Will register/update tracking if a component was registered/updated. */
 	void RegisterOrUpdateTracking(UPCGComponent* InComponent, bool bInShouldDirtyActors);
@@ -119,6 +119,7 @@ private:
 	bool UnregisterActor(AActor* InActor);
 
 	void OnActorAdded(AActor* InActor);
+	void OnActorAdded_Internal(AActor* InActor, bool bShouldDirty = true);
 	void OnActorDeleted(AActor* InActor);
 	void OnActorMoved(AActor* InActor);
 	void OnLandscapeChanged(ALandscapeProxy* InLandscape, const FLandscapeProxyComponentDataChangedParams& InChangeParams);
@@ -182,7 +183,8 @@ private:
 
 	mutable FRWLock TrackedComponentsLock;
 
-	TSet<TObjectKey<AActor>> DelayedAddedActors;
+	// Keep track of actors that aren't yet ready (or if the subsystem is not yet ready) and add them in next tick.
+	TSet<TTuple<TObjectKey<AActor>, bool>> DelayedAddedActors;
 
 	/** Keep a mapping between tracked actors and their dependencies. */
 	TMap<TObjectKey<AActor>, TSet<TObjectPtr<UObject>>> TrackedActorsToDependenciesMap;
