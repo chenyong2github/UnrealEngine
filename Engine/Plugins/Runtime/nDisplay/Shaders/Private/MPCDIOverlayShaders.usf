@@ -176,7 +176,7 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 			CameraColor.w = GetInnerCameraSoftEdgeAlpha(CameraUV, InnerCameraSoftEdge);
 
 			// **** disable incamera render inside overlapped areas
-			#if !INNER_CAMERA_OVERLAP
+			#if ENABLE_INNER_CAMERA_OVERLAP && !INNER_CAMERA_OVERLAP
 			if(OverlappedInnerCamerasNum > 0 && CameraColor.w < 1)
 			{
 				for(uint OverlappedCameraIndex = 0; OverlappedCameraIndex < OverlappedInnerCamerasNum; OverlappedCameraIndex++)
@@ -226,7 +226,7 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 				#endif
 
 				// ********* When camera overlap we render chromakey **********
-				#if INNER_CAMERA_OVERLAP
+				#if ENABLE_INNER_CAMERA_OVERLAP && INNER_CAMERA_OVERLAP
 					if(CameraColor.w >= 0)
 					{
 						OverlayChromakeyColor.w = 0;

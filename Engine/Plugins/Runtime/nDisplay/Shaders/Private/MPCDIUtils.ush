@@ -42,9 +42,15 @@ float4x4 InnerCameraProjectionMatrix;
 // The total number of InCameras, which are rendered below.
 int OverlappedInnerCamerasNum;
 
+#ifdef MAX_INNER_CAMERAS_AMOUNT
+#define ENABLE_INNER_CAMERA_OVERLAP 1
+
 // Matrices and SoftEdges for InCameras, which are rendered below.
 float4x4 OverlappedInnerCamerasProjectionMatrices[MAX_INNER_CAMERAS_AMOUNT];
 float4 OverlappedInnerCameraSoftEdges[MAX_INNER_CAMERAS_AMOUNT];
+#else
+#define ENABLE_INNER_CAMERA_OVERLAP 0
+#endif
 
 float AlphaEmbeddedGamma;
 
