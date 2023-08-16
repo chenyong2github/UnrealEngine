@@ -69,32 +69,41 @@ namespace Metasound::Engine
 
 FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::AddGraphInputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorInput)
 {
+	using namespace Metasound::Frontend;
+
 	FMetaSoundBuilderNodeOutputHandle NewHandle;
 
-	const FMetasoundFrontendNode* Node = Builder.FindGraphInputNode(Name);
-	if (Node)
+	if (IDataTypeRegistry::Get().FindDataTypeRegistryEntry(DataType) == nullptr)
 	{
-		UE_LOG(LogMetaSound, Warning, TEXT("AddGraphInputNode Failed: Input Node already exists with name '%s'; returning handle to existing node which may or may not match requested DataType '%s'"), *Name.ToString(), *DataType.ToString());
+		UE_LOG(LogMetaSound, Error, TEXT("AddGraphInputNode Failed on builder '%s' when attempting to add '%s': '%s' is not a registered DataType"), *GetName(), *Name.ToString(), *DataType.ToString());
 	}
 	else
 	{
-		FMetasoundFrontendClassInput Description;
-		Description.Name = Name;
-		Description.TypeName = DataType;
-		Description.NodeID = FGuid::NewGuid();
-		Description.VertexID = FGuid::NewGuid();
-		Description.DefaultLiteral = static_cast<FMetasoundFrontendLiteral>(DefaultValue);
-		Description.AccessType = bIsConstructorInput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
-		Node = Builder.AddGraphInput(Description);
-	}
+		const FMetasoundFrontendNode* Node = Builder.FindGraphInputNode(Name);
+		if (Node)
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("AddGraphInputNode Failed: Input Node already exists with name '%s'; returning handle to existing node which may or may not match requested DataType '%s'"), *Name.ToString(), *DataType.ToString());
+		}
+		else
+		{
+			FMetasoundFrontendClassInput Description;
+			Description.Name = Name;
+			Description.TypeName = DataType;
+			Description.NodeID = FGuid::NewGuid();
+			Description.VertexID = FGuid::NewGuid();
+			Description.DefaultLiteral = static_cast<FMetasoundFrontendLiteral>(DefaultValue);
+			Description.AccessType = bIsConstructorInput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
+			Node = Builder.AddGraphInput(Description);
+		}
 
-	if (Node)
-	{
-		const TArray<FMetasoundFrontendVertex>& Outputs = Node->Interface.Outputs;
-		checkf(!Outputs.IsEmpty(), TEXT("Node should be initialized and have one output."));
+		if (Node)
+		{
+			const TArray<FMetasoundFrontendVertex>& Outputs = Node->Interface.Outputs;
+			checkf(!Outputs.IsEmpty(), TEXT("Node should be initialized and have one output."));
 
-		NewHandle.NodeID = Node->GetID();
-		NewHandle.VertexID = Outputs.Last().VertexID;
+			NewHandle.NodeID = Node->GetID();
+			NewHandle.VertexID = Outputs.Last().VertexID;
+		}
 	}
 
 	OutResult = NewHandle.IsSet() ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
@@ -103,33 +112,43 @@ FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::AddGraphInputNode(FName
 
 FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::AddGraphOutputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorOutput)
 {
+	using namespace Metasound::Frontend;
+
 	FMetaSoundBuilderNodeInputHandle NewHandle;
-	const FMetasoundFrontendNode* Node = Builder.FindGraphOutputNode(Name);
-	if (Node)
+
+	if (IDataTypeRegistry::Get().FindDataTypeRegistryEntry(DataType) == nullptr)
 	{
-		UE_LOG(LogMetaSound, Warning, TEXT("AddGraphOutputNode Failed: Output Node already exists with name '%s'; returning handle to existing node which may or may not match requested DataType '%s'"), *Name.ToString(), *DataType.ToString());
+		UE_LOG(LogMetaSound, Error, TEXT("AddGraphOutputNode Failed on builder '%s' when attempting to add '%s': '%s' is not a registered DataType"), *GetName(), *Name.ToString(), *DataType.ToString());
 	}
 	else
 	{
-		FMetasoundFrontendClassOutput Description;
-		Description.Name = Name;
-		Description.TypeName = DataType;
-		Description.NodeID = FGuid::NewGuid();
-		Description.VertexID = FGuid::NewGuid();
-		Description.AccessType = bIsConstructorOutput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
-		Node = Builder.AddGraphOutput(Description);
-	}
-
-	if (Node)
-	{
-		const TArray<FMetasoundFrontendVertex>& Inputs = Node->Interface.Inputs;
-		checkf(!Inputs.IsEmpty(), TEXT("Node should be initialized and have one input."));
-
-		const FGuid& VertexID = Inputs.Last().VertexID;
-		if (Builder.SetNodeInputDefault(Node->GetID(), VertexID, DefaultValue))
+		const FMetasoundFrontendNode* Node = Builder.FindGraphOutputNode(Name);
+		if (Node)
 		{
-			NewHandle.NodeID = Node->GetID();
-			NewHandle.VertexID = VertexID;
+			UE_LOG(LogMetaSound, Warning, TEXT("AddGraphOutputNode Failed: Output Node already exists with name '%s'; returning handle to existing node which may or may not match requested DataType '%s'"), *Name.ToString(), *DataType.ToString());
+		}
+		else
+		{
+			FMetasoundFrontendClassOutput Description;
+			Description.Name = Name;
+			Description.TypeName = DataType;
+			Description.NodeID = FGuid::NewGuid();
+			Description.VertexID = FGuid::NewGuid();
+			Description.AccessType = bIsConstructorOutput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
+			Node = Builder.AddGraphOutput(Description);
+		}
+
+		if (Node)
+		{
+			const TArray<FMetasoundFrontendVertex>& Inputs = Node->Interface.Inputs;
+			checkf(!Inputs.IsEmpty(), TEXT("Node should be initialized and have one input."));
+
+			const FGuid& VertexID = Inputs.Last().VertexID;
+			if (Builder.SetNodeInputDefault(Node->GetID(), VertexID, DefaultValue))
+			{
+				NewHandle.NodeID = Node->GetID();
+				NewHandle.VertexID = VertexID;
+			}
 		}
 	}
 
@@ -1070,13 +1089,15 @@ void UMetaSoundSourceBuilder::OnEdgeAdded(int32 EdgeIndex) const
 	});
 }
 
-TOptional<Metasound::FAnyDataReference> UMetaSoundSourceBuilder::CreateDataReference(const Metasound::FOperatorSettings& InOperatorSettings, const Metasound::FLiteral& InLiteral, Metasound::EDataReferenceAccessType AccessType)
+TOptional<Metasound::FAnyDataReference> UMetaSoundSourceBuilder::CreateDataReference(
+	const Metasound::FOperatorSettings& InOperatorSettings,
+	FName DataType,
+	const Metasound::FLiteral& InLiteral,
+	Metasound::EDataReferenceAccessType AccessType)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	// TODO: move to TFunctionRef
-	const FName DataType = GetMetasoundDataTypeName<float>();
 	return IDataTypeRegistry::Get().CreateDataReference(DataType, AccessType, InLiteral, InOperatorSettings);
 };
 
@@ -1093,7 +1114,7 @@ void UMetaSoundSourceBuilder::OnInputAdded(int32 InputIndex) const
 		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
 		const FMetasoundFrontendClassInput& NewInput = GraphClass.Interface.Inputs[InputIndex];
 		const FLiteral NewInputLiteral = NewInput.DefaultLiteral.ToLiteral(NewInput.TypeName);
-		Transactor.AddInputDataDestination(NewInput.NodeID, NewInput.Name, NewInputLiteral, &UMetaSoundSourceBuilder::CreateDataReference);
+		Transactor.AddInputDataDestination(NewInput.NodeID, NewInput.Name, NewInput.TypeName, NewInputLiteral, &UMetaSoundSourceBuilder::CreateDataReference);
 		return true;
 	});
 }

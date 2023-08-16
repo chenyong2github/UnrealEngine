@@ -26,7 +26,7 @@ namespace Metasound
 		enum class EAudioFadeType : uint8;
 
 		using FLiteralAssignmentFunction = void(*)(const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef);
-		using FReferenceCreationFunction = TOptional<FAnyDataReference>(*)(const FOperatorSettings& InSettings, const FLiteral& InLiteral, EDataReferenceAccessType InAccessType);
+		using FReferenceCreationFunction = TOptional<FAnyDataReference>(*)(const FOperatorSettings& InSettings, FName DataType, const FLiteral& InLiteral, EDataReferenceAccessType InAccessType);
 		using FOnInputVertexUpdated = TFunction<void(const FVertexName&, const FInputVertexInterfaceData&)>;
 		using FOnOutputVertexUpdated = TFunction<void(const FVertexName&, const FOutputVertexInterfaceData&)>;
 
@@ -91,7 +91,7 @@ namespace Metasound
 			 * @param InNode - Node which receives the data.
 			 * @param InVertexName - Key for input vertex on InNode.
 			 */
-			void AddInputDataDestination(const FGuid& InNode, const FVertexName& InVertexName, const FLiteral& InDefaultLiteral, FReferenceCreationFunction InFunc);
+			void AddInputDataDestination(const FGuid& InNode, const FVertexName& InVertexName, FName InDataType, const FLiteral& InDefaultLiteral, FReferenceCreationFunction InFunc);
 
 			/** Remove an exposed input from the graph. */
 			void RemoveInputDataDestination(const FVertexName& InVertexName);
