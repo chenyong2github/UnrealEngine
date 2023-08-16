@@ -1755,12 +1755,12 @@ static bool ImportFBXTransformToChannels(FString NodeName, const UMovieSceneUser
 		{
 			FloatChannels[i]->SetDefault(DefaultTransformValues[i]);
 			ChannelEnumIndex = (int)FControlRigChannelEnum::PositionX;
-			bool bNegate = i == 1 || i == 4 || i == 5;
+			bool bNegate = false;
 			const FControlRigChannelEnum ChannelEnum = (FControlRigChannelEnum)(ChannelEnumIndex + i);
 			if (const FControlToTransformMappings* ChannelMapping = ImportFBXControlRigSettings->ControlChannelMappings.FindByPredicate(
 				[ChannelEnum](const FControlToTransformMappings& Mapping) { return ChannelEnum == Mapping.ControlChannel; }))
 			{
-				bNegate = ChannelMapping->bNegate ? !bNegate : bNegate;
+				bNegate = ChannelMapping->bNegate;
 			}
 			ImportTransformChannelToFloat(Transform[i], FloatChannels[i], FrameRate, bNegate, false, StartFrame, bNegate);
 		}
@@ -2609,7 +2609,8 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannelsWithDialog(const TSha
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(TitleText)
 		.HasCloseButton(true)
-		.SizingRule(ESizingRule::Autosized)
+		.SizingRule(ESizingRule::UserSized)
+		.ClientSize(FVector2D(500.f, 700.f))
 		.AutoCenter(EAutoCenter::PreferredWorkArea)
 		.SupportsMinimize(false);
 
@@ -2692,7 +2693,8 @@ bool MovieSceneToolHelpers::ExportFBXFromControlRigChannelsWithDialog(const TSha
 	const TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(TitleText)
 		.HasCloseButton(true)
-		.SizingRule(ESizingRule::Autosized)
+		.SizingRule(ESizingRule::UserSized)
+		.ClientSize(FVector2D(450.0f, 300.0f))
 		.AutoCenter(EAutoCenter::PreferredWorkArea)
 		.SupportsMinimize(false);
 
