@@ -126,7 +126,7 @@ public:
 	/**
 	 * The Key ID for your App Store Connect generated API key, a 32 hex-character string, including dashes
 	 */
-	UPROPERTY(EditAnywhere, config, Category="Code Signing", meta = (EditCondition="bUseModernXcode && bUseAutomaticCodeSigning && bUseAppStoreConnect", DisplayName = "App Store Connect: Issuer ID"))
+	UPROPERTY(EditAnywhere, config, Category="Code Signing", meta = (EditCondition="bUseModernXcode && bUseAutomaticCodeSigning && bUseAppStoreConnect", DisplayName = "App Store Connect: Key ID"))
 	FString AppStoreConnectKeyID;
 	
 	/**

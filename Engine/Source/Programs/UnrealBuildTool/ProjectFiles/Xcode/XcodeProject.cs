@@ -1853,7 +1853,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					}
 					else if (!bAutomaticSigning && SigningIdentity != null)
 					{
-						Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = \"{SigningIdentity}\"");
+						Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = {SigningIdentity}");
 					}
 				}
 				else
@@ -1868,7 +1868,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 						}
 						if (SigningIdentity != null)
 						{
-							Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = \"{SigningIdentity}\"");
+							Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = {SigningIdentity}");
 						}
 					}
 				}

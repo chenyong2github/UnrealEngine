@@ -1373,10 +1373,17 @@ public class IOSPlatform : ApplePlatform
 
 					var TargetConfiguration = SC.StageTargetConfigurations[0];
 
+					DirectoryReference ProjectRoot = SC.ProjectRoot;
+					// keep old logic for BP projects with legacy
+					if (!AppleExports.UseModernXcode(SC.RawProjectPath) && !SC.IsCodeBasedProject)
+					{
+						ProjectRoot = DirectoryReference.Combine(SC.LocalRoot, "Engine");
+					}
+
 					DeployGeneratePList(
 							SC.RawProjectPath,
 							TargetConfiguration,
-							(SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")),
+							ProjectRoot,
 							!SC.IsCodeBasedProject,
 							(SC.IsCodeBasedProject ? TargetName : "UnrealGame"),
 							SC.IsCodeBasedProject ? false : Params.Client, // Code based projects will have Client in their executable name already
@@ -1384,9 +1391,12 @@ public class IOSPlatform : ApplePlatform
 							DirectoryReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : DirectoryReference.Combine(SC.LocalRoot, "Engine")), "Binaries", PlatformName, "Payload", (SC.IsCodeBasedProject ? SC.ShortProjectName : "UnrealGame") + ".app"),
 							SC.StageExecutables[0]);
 
-					// copy the plist to the stage dir
-					SC.StageFile(StagedFileType.SystemNonUFS, TargetPListFile, new StagedFileReference("Info.plist"));
-				}
+					if (!AppleExports.UseModernXcode(SC.RawProjectPath))
+					{
+						// copy the plist to the stage dir
+						SC.StageFile(StagedFileType.SystemNonUFS, TargetPListFile, new StagedFileReference("Info.plist"));
+					}
+				}	
 
 				// copy the udebugsymbols if they exist
 				{
