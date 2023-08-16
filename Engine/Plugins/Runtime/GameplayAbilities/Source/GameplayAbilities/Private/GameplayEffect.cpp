@@ -319,13 +319,13 @@ void UGameplayEffect::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 
 	// Move any data from deprecated properties into components, create components as needed
 	ConvertAbilitiesComponent();
+	ConvertRemoveOtherComponent(); // This should come before AdditionalEffects for legacy compatibility
 	ConvertAdditionalEffectsComponent();
 	ConvertAssetTagsComponent();
 	ConvertBlockByTagsComponent();
 	ConvertChanceToApplyComponent();
 	ConvertCustomCanApplyComponent();
 	ConvertImmunityComponent();
-	ConvertRemoveOtherComponent();
 	ConvertTagRequirementsComponent();
 	ConvertTargetTagsComponent();
 	ConvertUIComponent();
@@ -748,6 +748,19 @@ void UGameplayEffect::OnExecuted(FActiveGameplayEffectsContainer& ActiveGEContai
 		if (GEComponent)
 		{
 			GEComponent->OnGameplayEffectExecuted(ActiveGEContainer, GESpec, PredictionKey);
+		}
+	}
+}
+
+void UGameplayEffect::OnApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
+{
+	UE_VLOG(ActiveGEContainer.Owner, LogAbilitySystem, Verbose, TEXT("GameplayEffect %s applied"), *GetNameSafe(GESpec.Def));
+
+	for (const UGameplayEffectComponent* GEComponent : GEComponents)
+	{
+		if (GEComponent)
+		{
+			GEComponent->OnGameplayEffectApplied(ActiveGEContainer, GESpec, PredictionKey);
 		}
 	}
 }

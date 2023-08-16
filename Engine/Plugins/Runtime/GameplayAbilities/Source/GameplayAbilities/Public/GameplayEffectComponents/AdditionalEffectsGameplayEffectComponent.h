@@ -14,15 +14,14 @@ class GAMEPLAYABILITIES_API UAdditionalEffectsGameplayEffectComponent : public U
 
 public:
 	/**
-     * Called when a Gameplay Effect is Added to the ActiveGameplayEffectsContainer.  GE's are added to that container when they have duration (or are predicting locally)
-     * Return if the effect should remain active, or false to inhibit.  Note: Inhibit does not remove the effect (it remains added but dormant, waiting to unhibit).
+     * Called when a Gameplay Effect is Added to the ActiveGameplayEffectsContainer.  We register a callback to execute the OnComplete Gameplay Effects.
      */
 	virtual bool OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& GEContainer, FActiveGameplayEffect& ActiveGE) const override;
 
 	/**
-	 * Called when a Gameplay Effect is executed.  GE's can only Execute on ROLE_Authority.  GE's only Execute when they're instant (otherwise they're added to the ActiveGameplayEffectsContainer).
+	 * Called when a Gameplay Effect is applied.  This executes the OnApplication Gameplay Effects.
 	 */
-	virtual void OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const override;
+	virtual void OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const override;
 
 #if WITH_EDITOR
 	/**
@@ -33,11 +32,6 @@ public:
 
 
 protected:
-	/** 
-	 * Define our own Applied which gets called in both cases (Added or Executed).
-	 */
-	void OnGameplayEffectApplied(UAbilitySystemComponent& AppliedToASC, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const;
-
 	/**
 	 * Whenever the ActiveGE gets removed, we want to apply the configured OnComplete GameplayEffects
 	 */

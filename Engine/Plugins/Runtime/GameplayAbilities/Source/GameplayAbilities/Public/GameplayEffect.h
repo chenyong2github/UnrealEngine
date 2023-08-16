@@ -2093,6 +2093,12 @@ public:
      */
 	void OnExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const;
 
+	/**
+	 * Receive a notify that this GameplayEffect has been applied (this GE is either previously added to the container or executed in such cases).
+	 * However, this also encompasses cases where a GE was added to a container previously and then applied again to 'stack'.  It does not happen for periodic executions of a duration GE.
+	 */
+	void OnApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const;
+
 	/** Returns all tags that this GE *has* and *does not* grant to any Actor. */
 	const FGameplayTagContainer& GetAssetTags() const { return CachedAssetTags; }
 

@@ -13,27 +13,19 @@ URemoveOtherGameplayEffectComponent::URemoveOtherGameplayEffectComponent()
 #endif
 }
 
-bool URemoveOtherGameplayEffectComponent::OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& ActiveGEContainer, FActiveGameplayEffect& ActiveGE) const
+void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
 {
-	if (ActiveGEContainer.OwnerIsNetAuthority)
+	if (!ActiveGEContainer.OwnerIsNetAuthority)
 	{
-		OnGameplayEffectApplied(ActiveGEContainer, ActiveGE.Handle);
+		return;
 	}
-	return true;
-}
 
-void URemoveOtherGameplayEffectComponent::OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
-{
-	const bool bInstantEffect = (GetOwner()->DurationPolicy == EGameplayEffectDurationType::Instant);
-	if (bInstantEffect && ActiveGEContainer.OwnerIsNetAuthority)
-	{
-		FActiveGameplayEffectHandle InvalidHandle;
-		OnGameplayEffectApplied(ActiveGEContainer, InvalidHandle);
-	}
-}
+	FGameplayEffectQuery FindOwnerQuery;
+	FindOwnerQuery.EffectDefinition = GetOwner() ? GetOwner()->GetClass() : nullptr;
 
-void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, const FActiveGameplayEffectHandle& ActiveGEHandle) const
-{
+	// We need to keep track to ensure we never remove ourselves
+	TArray<FActiveGameplayEffectHandle> ActiveGEHandles = ActiveGEContainer.GetActiveEffects(FindOwnerQuery);
+
 	constexpr int32 RemoveAllStacks = -1;
 	for (const FGameplayEffectQuery& RemoveQuery : RemoveGameplayEffectQueries)
 	{
@@ -41,7 +33,7 @@ void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGamepla
 		{
 			// If we have an ActiveGEHandle, make sure we never remove ourselves.
 			// If we don't, there's no need to make a copy.
-			if (!ActiveGEHandle.IsValid())
+			if (ActiveGEHandles.IsEmpty())
 			{
 				// Faster path: No copy needed
 				ActiveGEContainer.RemoveActiveEffects(RemoveQuery, RemoveAllStacks);
@@ -49,7 +41,7 @@ void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGamepla
 			else
 			{
 				FGameplayEffectQuery MutableRemoveQuery = RemoveQuery;
-				MutableRemoveQuery.IgnoreHandles.Add(ActiveGEHandle);
+				MutableRemoveQuery.IgnoreHandles = MoveTemp(ActiveGEHandles);
 
 				ActiveGEContainer.RemoveActiveEffects(MutableRemoveQuery, RemoveAllStacks);
 			}

@@ -33,12 +33,6 @@ bool UTargetTagRequirementsGameplayEffectComponent::CanGameplayEffectApply(const
 	return true;
 }
 
-void UTargetTagRequirementsGameplayEffectComponent::OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
-{
-	const bool bInstantEffect = (GetOwner()->DurationPolicy == EGameplayEffectDurationType::Instant);
-	UE_CLOG(bInstantEffect && !OngoingTagRequirements.IsEmpty(), LogGameplayEffects, Warning, TEXT("%s is instant but has tag requirements. Tag requirements can only be used with gameplay effects that have a duration. Tag requirements will be ignored."), *GetOwner()->GetPathName());
-}
-
 // UTargetTagRequirementsGameplayEffectComponent lives on an asset.  This doesn't get instanced at runtime, so this is NOT A UNIQUE INSTANCE (it is a shared instance for any GEContainer/ActiveGE that wants to use it).
 bool UTargetTagRequirementsGameplayEffectComponent::OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& GEContainer, FActiveGameplayEffect& ActiveGE) const
 {

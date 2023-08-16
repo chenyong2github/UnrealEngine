@@ -18,11 +18,10 @@ public:
 	/** Constructor to set EditorFriendlyName */
 	URemoveOtherGameplayEffectComponent();
 
-	/** Once we've applied, we need to register for ongoing requirements */
-	virtual bool OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& GEContainer, FActiveGameplayEffect& ActiveGE) const override;
-
-	/** If we're only executed, it's an indication something has gone wrong and we should log it */
-	virtual void OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const override;
+	/**
+	 * We will re-run RemoveGameplayEffectQueries every time the owning Gameplay Effect is applied.
+	 */
+	virtual void OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const override;
 
 #if WITH_EDITOR
 	/**
@@ -30,9 +29,6 @@ public:
 	 */
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
-
-private:
-	void OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, const FActiveGameplayEffectHandle& ActiveGEHandle) const;
 
 public:
 	/** On Application of the owning Gameplay Effect, any Active GameplayEffects that *match* these queries will be removed. */

@@ -926,7 +926,10 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 		// This is a non-predicted instant effect (it never gets added to ActiveGameplayEffects)
 		ExecuteGameplayEffect(*OurCopyOfSpec, PredictionKey);
 	}
-	
+
+	// Notify the Gameplay Effect (and its Components) that it has been successfully applied
+	Spec.Def->OnApplied(ActiveGameplayEffects, *OurCopyOfSpec, PredictionKey);
+
 	UAbilitySystemComponent* InstigatorASC = Spec.GetContext().GetInstigatorAbilitySystemComponent();
 
 	// Send ourselves a callback	

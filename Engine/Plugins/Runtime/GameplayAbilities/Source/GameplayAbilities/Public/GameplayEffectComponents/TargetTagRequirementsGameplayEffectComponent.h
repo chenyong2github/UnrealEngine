@@ -24,9 +24,6 @@ public:
 	/** Once we've applied, we need to register for ongoing requirements */
 	virtual bool OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& GEContainer, FActiveGameplayEffect& ActiveGE) const override;
 
-	/** If we're only executed, it's an indication something has gone wrong and we should log it */
-	virtual void OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const override;
-
 #if WITH_EDITOR
 	/**
 	 * Validate incompatible configurations

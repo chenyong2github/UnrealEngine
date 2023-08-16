@@ -942,9 +942,9 @@ FAutoConsoleCommand DebugAbilitySystemEffectListActiveCommand(TEXT("AbilitySyste
 			if (const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(ActiveGEHandle))
 			{
 				const UGameplayEffect* GESpecDef = ActiveGE->Spec.Def;
-				const TCHAR* ActiveState = ActiveGE->bIsInhibited ? TEXT("Inhibited") : TEXT("Active");
+				const FString ActiveState = ActiveGE->bIsInhibited ? FString(TEXT("Inhibited")) : FString::Printf(TEXT("Active (Stack: %d)"), ActiveGE->Spec.GetStackCount());
 
-				OutputDevice.Logf(TEXT(" [%u] %s: %s"), GetTypeHash(ActiveGEHandle), *GetNameSafe(GESpecDef), ActiveState);
+				OutputDevice.Logf(TEXT(" [%u] %s: %s"), GetTypeHash(ActiveGEHandle), *GetNameSafe(GESpecDef), *ActiveState);
 			}
 		}
 	}), ECVF_Cheat);

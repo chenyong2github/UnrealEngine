@@ -9,12 +9,6 @@
 
 bool UAdditionalEffectsGameplayEffectComponent::OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& ActiveGEContainer, FActiveGameplayEffect& ActiveGE) const
 {
-	UAbilitySystemComponent* ASC = ActiveGEContainer.Owner;
-	if (ensure(ASC))
-	{
-		OnGameplayEffectApplied(*ASC, ActiveGE.Spec, ActiveGE.PredictionKey);
-	}
-
 	// We don't allow prediction of expiration (on removed) effects
 	if (ActiveGEContainer.IsNetAuthority())
 	{
@@ -25,20 +19,13 @@ bool UAdditionalEffectsGameplayEffectComponent::OnActiveGameplayEffectAdded(FAct
 	return true;
 }
 
-void UAdditionalEffectsGameplayEffectComponent::OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
+void UAdditionalEffectsGameplayEffectComponent::OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
 {
-	if (GetOwner()->DurationPolicy == EGameplayEffectDurationType::Instant)
+	if (!ensureMsgf(ActiveGEContainer.Owner, TEXT("OnGameplayEffectApplied is passed an ActiveGEContainer which lives within an ASC but that ASC was somehow null")))
 	{
-		UAbilitySystemComponent* ASC = ActiveGEContainer.Owner;
-		if (ensure(ASC))
-		{
-			OnGameplayEffectApplied(*ASC, GESpec, PredictionKey);
-		}
+		return;
 	}
-}
 
-void UAdditionalEffectsGameplayEffectComponent::OnGameplayEffectApplied(UAbilitySystemComponent& AppliedToASC, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
-{
 	const float GELevel = GESpec.GetLevel();
 	const FGameplayEffectContextHandle& GEContextHandle = GESpec.GetEffectContext();
 
@@ -79,6 +66,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TargetEffectSpecs.Append(GESpec.TargetEffectSpecs);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	UAbilitySystemComponent& AppliedToASC = *ActiveGEContainer.Owner;
 	for (const FGameplayEffectSpecHandle& TargetSpec : TargetEffectSpecs)
 	{
 		if (TargetSpec.IsValid())
