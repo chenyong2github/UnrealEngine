@@ -71,16 +71,24 @@ float GetFeatherAlpha(float2 EdgeOffset, float Feather)
 {
 	float Alpha = 1;
 
-	Alpha *= smoothstep(0, Feather, EdgeOffset.x); // horizontal component
-	Alpha *= smoothstep(0, Feather, EdgeOffset.y); // vertical component
+	// do not change the alpha within an in-camera frame
+	if (EdgeOffset.x < 1)
+	{
+		Alpha *= smoothstep(0, Feather, EdgeOffset.x); // horizontal component
+	}
+	
+	// do not change the alpha within an in-camera frame
+	if (EdgeOffset.y < 1)
+	{
+		Alpha *= smoothstep(0, Feather, EdgeOffset.y); // vertical component
+	}
 
 	return Alpha;
 }
 
 float GetInnerCameraSoftEdgeAlpha(float2 CameraUV, float4 InInnerCameraSoftEdge)
 {
-
-	float2 EdgeOffset = float2(1,1);
+	float2 EdgeOffset = float2(1, 1);
 
 	// InInnerCameraSoftEdge.x values are used to pass left/right soft edge values
 	if(CameraUV.x < InInnerCameraSoftEdge.x) // left 

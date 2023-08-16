@@ -272,34 +272,35 @@ FVector4 FDisplayClusterConfigurationICVFX_CameraSettings::GetCameraSoftEdge(con
 	// Z for new parameter Feather
 	ResultSoftEdge.Z = SoftEdge.Feather;
 
-	const float CameraBufferRatio = GetCameraBufferRatio(InStageSettings);
-
-	// default - percents
-	const float ConvertToPercent = 0.01f;
-
-	float Left = ClampPercent(CustomFrustum.Left * ConvertToPercent);
-	float Right = ClampPercent(CustomFrustum.Right * ConvertToPercent);
-	float Top = ClampPercent(CustomFrustum.Top * ConvertToPercent);
-	float Bottom = ClampPercent(CustomFrustum.Bottom * ConvertToPercent);
-
-	if (CustomFrustum.Mode == EDisplayClusterConfigurationViewportCustomFrustumMode::Pixels)
+	// Custom frustum made changes to soft edges
+	if (CustomFrustum.bEnable)
 	{
-		const FIntPoint FrameSize = GetCameraFrameSize(InStageSettings);
+		// default - percents
+		const float ConvertToPercent = 0.01f;
 
-		const float  FrameWidth = FrameSize.X * CameraBufferRatio;
-		const float FrameHeight = FrameSize.Y * CameraBufferRatio;
+		float Left = ClampPercent(CustomFrustum.Left * ConvertToPercent);
+		float Right = ClampPercent(CustomFrustum.Right * ConvertToPercent);
+		float Top = ClampPercent(CustomFrustum.Top * ConvertToPercent);
+		float Bottom = ClampPercent(CustomFrustum.Bottom * ConvertToPercent);
 
-		Left = ClampPercent(CustomFrustum.Left / FrameWidth);
-		Right = ClampPercent(CustomFrustum.Right / FrameWidth);
-		Top = ClampPercent(CustomFrustum.Top / FrameHeight);
-		Bottom = ClampPercent(CustomFrustum.Bottom / FrameHeight);
+		if (CustomFrustum.Mode == EDisplayClusterConfigurationViewportCustomFrustumMode::Pixels)
+		{
+			const float CameraBufferRatio = GetCameraBufferRatio(InStageSettings);
+			const FIntPoint FrameSize = GetCameraFrameSize(InStageSettings);
+
+			const float  FrameWidth = FrameSize.X * CameraBufferRatio;
+			const float FrameHeight = FrameSize.Y * CameraBufferRatio;
+
+			Left = ClampPercent(CustomFrustum.Left / FrameWidth);
+			Right = ClampPercent(CustomFrustum.Right / FrameWidth);
+			Top = ClampPercent(CustomFrustum.Top / FrameHeight);
+			Bottom = ClampPercent(CustomFrustum.Bottom / FrameHeight);
+		}
+
+		// recalculate soft edge related offsets based on frustum
+		ResultSoftEdge.X /= (1 + Left + Right);
+		ResultSoftEdge.Y /= (1 + Top + Bottom);
 	}
-
-	// recalculate soft edge related offsets based on frustum
-	ResultSoftEdge.X /= (1 + Left + Right);
-	ResultSoftEdge.Y /= (1 + Top + Bottom);
-	ResultSoftEdge.Z /= (1 + Left + Right);
-	ResultSoftEdge.W /= (1 + Top + Bottom);
 
 	return ResultSoftEdge;
 }
