@@ -421,6 +421,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::TransferBoneWeight
 				TransferBoneWeights.NumSmoothingIterations = Options.NumSmoothingIterations;
 				TransferBoneWeights.SmoothingStrength = Options.SmoothingStrength;
 				TransferBoneWeights.LayeredMeshSupport = Options.LayeredMeshSupport;
+				TransferBoneWeights.ForceInpaintWeightMapName = Options.InpaintMask;
 			}
 
 			if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)

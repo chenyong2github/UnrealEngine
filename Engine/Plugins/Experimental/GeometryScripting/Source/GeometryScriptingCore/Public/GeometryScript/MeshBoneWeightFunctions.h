@@ -152,6 +152,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTransferBoneWeightsOptions
 	/** The strength of each post-processing smoothing iteration. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (UIMin = 0, UIMax = 1, ClampMin = 0, ClampMax = 1, EditCondition = "TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
 	float SmoothingStrength = 0.0f;
+
+    /** Optional weight attribute name where a non-zero value indicates that we want the skinning weights for the vertex to be computed automatically instead of it being copied over from the source mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (EditCondition = "TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
+	FName InpaintMask;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName = "Bone Info"))
