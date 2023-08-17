@@ -13,21 +13,29 @@ namespace UE::Chooser
 {
 	bool ResolvePropertyChain(FChooserEvaluationContext& Context, const FChooserPropertyBinding& PropertyBinding, const void*& OutContainer, const UStruct*& OutStructType)
 	{
-		if (OutStructType == nullptr)
-		{
-			return false;
-		}
 		if (Context.Params.IsValidIndex(PropertyBinding.ContextIndex))
 		{
 			if (FChooserEvaluationInputObject* ObjectParam = Context.Params[PropertyBinding.ContextIndex].GetMutablePtr<FChooserEvaluationInputObject>())
 			{
 				OutContainer = ObjectParam->Object;
-				OutStructType = ObjectParam->Object->GetClass();
+				if (OutContainer)
+				{
+					OutStructType = ObjectParam->Object->GetClass();
+				}
+				else
+				{
+					OutStructType = nullptr;
+				}
 			}
 			else
 			{
 				OutContainer = Context.Params[PropertyBinding.ContextIndex].GetMutableMemory();
 				OutStructType = Context.Params[PropertyBinding.ContextIndex].GetScriptStruct();
+			}
+
+			if (OutContainer == nullptr || OutStructType == nullptr)
+			{
+				return false;
 			}
 
 			return ResolvePropertyChain(OutContainer, OutStructType, PropertyBinding.PropertyBindingChain);
