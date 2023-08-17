@@ -6,6 +6,7 @@
 #include "Containers/UnrealString.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundGraph.h"
+#include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "Templates/Function.h"
@@ -91,7 +92,7 @@ namespace Metasound
 			 * @param InNode - Node which receives the data.
 			 * @param InVertexName - Key for input vertex on InNode.
 			 */
-			void AddInputDataDestination(const FGuid& InNode, const FVertexName& InVertexName, FName InDataType, const FLiteral& InDefaultLiteral, FReferenceCreationFunction InFunc);
+			void AddInputDataDestination(const FGuid& InNode, const FVertexName& InVertexName, const FLiteral& InDefaultLiteral, FReferenceCreationFunction InFunc);
 
 			/** Remove an exposed input from the graph. */
 			void RemoveInputDataDestination(const FVertexName& InVertexName);
@@ -132,6 +133,7 @@ namespace Metasound
 
 			void EnqueueTransformOnOperatorQueues(FCreateTransformFunctionRef InFunc);
 
+			FOperatorBuilder OperatorBuilder;
 			FGraph Graph;
 
 			struct FDynamicOperatorInfo

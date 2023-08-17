@@ -1114,7 +1114,7 @@ void UMetaSoundSourceBuilder::OnInputAdded(int32 InputIndex) const
 		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
 		const FMetasoundFrontendClassInput& NewInput = GraphClass.Interface.Inputs[InputIndex];
 		const FLiteral NewInputLiteral = NewInput.DefaultLiteral.ToLiteral(NewInput.TypeName);
-		Transactor.AddInputDataDestination(NewInput.NodeID, NewInput.Name, NewInput.TypeName, NewInputLiteral, &UMetaSoundSourceBuilder::CreateDataReference);
+		Transactor.AddInputDataDestination(NewInput.NodeID, NewInput.Name, NewInputLiteral, &UMetaSoundSourceBuilder::CreateDataReference);
 		return true;
 	});
 }
