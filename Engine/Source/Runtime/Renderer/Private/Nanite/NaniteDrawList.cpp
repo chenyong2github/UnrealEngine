@@ -460,7 +460,15 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 	TArray<FPSOPrecacheData>& PSOInitializers
 )
 {
-	// Only support for the nanite vertex factory type
+	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+
+	// Make sure Nanite rendering is supported.
+	if (!UseNanite(ShaderPlatform))
+	{
+		return;
+	}
+
+	// Only support the Nanite vertex factory type.
 	if (VertexFactoryData.VertexFactoryType != &Nanite::FVertexFactory::StaticType)
 	{
 		return;
@@ -487,7 +495,6 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 		CollectPSOInitializersForSkyLight(SceneTexturesConfig, NaniteVertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
 	}
 
-	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
 	Nanite::CollectRasterPSOInitializers(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, PSOInitializers);
 }
 

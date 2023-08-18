@@ -476,14 +476,16 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 	const FPSOPrecacheParams& PreCacheParams,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
-	// Make sure nanite rendering is supported
-	if (!SupportsNaniteRendering(VertexFactoryData.VertexFactoryType, Material, FeatureLevel))
+	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+
+	// Make sure Nanite rendering is supported.
+	if (!UseNanite(ShaderPlatform) || !SupportsNaniteRendering(VertexFactoryData.VertexFactoryType, Material, FeatureLevel))
 	{
 		return;
 	}
 
 	if (!Nanite::IsSupportedBlendMode(Material) || Material.GetMaterialDomain() ||
-		!Lumen::ShouldPrecachePSOs(GetFeatureLevelShaderPlatform(FeatureLevel)))
+		!Lumen::ShouldPrecachePSOs(ShaderPlatform))
 	{
 		return;
 	}

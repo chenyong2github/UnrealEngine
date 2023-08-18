@@ -300,7 +300,7 @@ extern RHI_API FRHIComputePipelineState* ExecuteSetComputePipelineState(FCompute
 extern RHI_API FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(FGraphicsPipelineState* GraphicsPipelineState);
 
 // Prints out information about a failed compilation from Init.
-// This is fatal unless the compilation request is from the PSO cache preload.
+// This is fatal unless the compilation request is coming from the precaching system.
 static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitializer& Init)
 {
 	UE_LOG(LogRHI, Error, TEXT("Failed to create GraphicsPipeline"));
@@ -343,15 +343,15 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 		// Let the cache know so it hopefully won't give out this one again
 		FPipelineFileCacheManager::RegisterPSOCompileFailure(GetTypeHash(Init), Init);
 	}
-	else
+	else if(!Init.bPSOPrecache)
 	{
 		UE_LOG(LogRHI, Fatal, TEXT("Shader compilation failures are Fatal."));
 	}
 }
 
 // Prints out information about a failed compute pipeline compilation.
-// This is fatal unless the compilation request is from the PSO file cache preload.
-static void HandlePipelineCreationFailure(const FRHIComputeShader* ComputeShader, bool bFromPSOFileCache)
+// This is fatal unless the compilation request is coming from the precaching system.
+static void HandlePipelineCreationFailure(const FRHIComputeShader* ComputeShader, bool bPrecache)
 {
 	UE_LOG(LogRHI, Error, TEXT("Failed to create ComputePipeline"));
 
@@ -359,8 +359,9 @@ static void HandlePipelineCreationFailure(const FRHIComputeShader* ComputeShader
 	UE_LOG(LogRHI, Error, TEXT("Shader: %s"), ComputeShader->GetShaderName());
 #endif
 
-	if (!bFromPSOFileCache)
+	if (!bPrecache)
 	{
+		// Same as above, precache failures are not fatal.
 		UE_LOG(LogRHI, Fatal, TEXT("Shader compilation failures are Fatal."));
 	}
 }
@@ -1791,7 +1792,7 @@ public:
 
 			if (!ComputePipeline->RHIPipeline)
 			{
-				HandlePipelineCreationFailure(ComputePipeline->ComputeShader, Initializer.bFromPSOFileCache);
+				HandlePipelineCreationFailure(ComputePipeline->ComputeShader, Initializer.bFromPSOFileCache || Initializer.bPSOPrecache);
 			}
 
 			if (Initializer.bPSOPrecache)
