@@ -59,7 +59,11 @@
 //		...
 // }
 #if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
-	#define Strata_for(X,Y,Z) for(X;Y;Z)
+	#if COMPILER_FXC
+		#define Strata_for(X,Y,Z) [loop] for(X;Y;Z)
+	#else
+		#define Strata_for(X,Y,Z) for(X;Y;Z)
+	#endif
 #else
 	#define Strata_for(X,Y,Z) X; if(Y)
 #endif
