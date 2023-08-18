@@ -18,6 +18,14 @@
 			</false>
 		</if>		
 	</init>
+	
+	<resourceCopies>
+		<if condition="bSupported">
+			<true>
+				<copyFile src="$S(PluginDir)/EOSSDK_strings.xml" dst="$S(BuildDir)/res/values/EOSSDK_strings.xml" />
+			</true>
+		</if>
+	</resourceCopies>
 
 	<buildGradleAdditions>
 		<if condition="bSupported">
