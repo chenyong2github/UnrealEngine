@@ -220,6 +220,7 @@ namespace UnrealBuildTool
 			// need to clear out some caches now that we've added a Target
 			ClearCache();
 			Rules.InvalidateRulesFileCache(UProjectFile.Directory.FullName);
+			Rules.InvalidateRulesFileCache(TempDir.FullName);
 			DirectoryItem.ResetCachedInfo(UProjectFile.Directory.FullName);
 			DirectoryItem.ResetCachedInfo(TempDir.FullName);
 
