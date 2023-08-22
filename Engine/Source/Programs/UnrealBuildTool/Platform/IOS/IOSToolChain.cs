@@ -775,7 +775,7 @@ namespace UnrealBuildTool
 			return OutputFile;
 		}
 
-		public static void PackageStub(string BinaryPath, string GameName, string ExeName, bool bUseModernXcode)
+		public static void PackageStub(string BinaryPath, string GameName, string ExeName, bool bUseModernXcode, bool bPerformDummySigning=false)
 		{
 			// create the ipa
 			string IPAName = BinaryPath + "/" + ExeName + ".stub";
@@ -796,7 +796,7 @@ namespace UnrealBuildTool
 			string ZipWorkingDir = bUseModernXcode ? $"Payload/{ExeName}.app/" : $"Payload/{GameName}.app/";
 			string ZipSourceDir = bUseModernXcode ? $"{BinaryPath}/{ExeName}.app" : $"{BinaryPath}/Payload/{GameName}.app";
 
-			if (bUseModernXcode)
+			if (bPerformDummySigning)
 			{
 				// with modern, we don't codesign when building the source .app due to keychain issues over ssh and Xcode wants provision setup, even if using the - identity
 				// so, now codesign right at the end with the dummy signature so that there is signature at all, which IPP on windows will replace
@@ -805,6 +805,15 @@ namespace UnrealBuildTool
 				if (ExitCode != 0)
 				{
 					throw new BuildException($"Failed to codesign with dummy identity, which should never happen [ExitCode = {ExitCode}, output = {Output}");
+				}
+				// also codesign the frameworks
+				foreach (string FrameworkDir in Directory.EnumerateDirectories(Path.Combine(ZipSourceDir, "Frameworks")))
+				{
+					Output = Utils.RunLocalProcessAndReturnStdOut("/bin/sh", $"-c 'codesign -f -s - \"{FrameworkDir}\"", null, out ExitCode);
+					if (ExitCode != 0)
+					{
+						throw new BuildException($"Failed to codesign with dummy identity, which should never happen [ExitCode = {ExitCode}, output = {Output}");
+					}
 				}
 			}
 

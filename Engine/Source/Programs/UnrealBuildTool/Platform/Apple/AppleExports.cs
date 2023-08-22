@@ -172,6 +172,13 @@ namespace UnrealBuildTool
 				ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
 				bool bUseAutomaticCodeSigning;
 				SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bUseAutomaticCodeSigning);
+
+				// disable automatic signing, if some extra options imply manual
+				if (ExtraOptions.Contains("CODE_SIGN_IDENTITY"))
+				{
+					bUseAutomaticCodeSigning = false;
+				}
+
 				if (bUseAutomaticCodeSigning)
 				{
 					ExtraOptions += " -allowProvisioningUpdates";
