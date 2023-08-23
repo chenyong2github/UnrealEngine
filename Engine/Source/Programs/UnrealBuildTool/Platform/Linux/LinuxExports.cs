@@ -18,7 +18,15 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile, ILogger Logger)
 		{
-			LinuxToolChain ToolChain = new LinuxToolChain(LinuxPlatform.DefaultHostArchitecture, new LinuxPlatformSDK(Logger), ClangToolChainOptions.None, Logger);
+			LinuxPlatformSDK? LinuxSDK = UEBuildPlatformSDK.GetSDKForPlatform("Linux") as LinuxPlatformSDK;
+
+			if (LinuxSDK == null)
+			{
+				LinuxSDK = new LinuxPlatformSDK(Logger);
+				UEBuildPlatformSDK.RegisterSDKForPlatform(LinuxSDK, "Linux", true);
+			}
+
+			LinuxToolChain ToolChain = new LinuxToolChain(LinuxPlatform.DefaultHostArchitecture, LinuxSDK, ClangToolChainOptions.None, Logger);
 			ToolChain.StripSymbols(SourceFile, TargetFile, Logger);
 		}
 	}
