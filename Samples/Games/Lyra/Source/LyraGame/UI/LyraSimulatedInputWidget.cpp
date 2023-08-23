@@ -74,7 +74,19 @@ UEnhancedPlayerInput* ULyraSimulatedInputWidget::GetPlayerInput() const
 
 void ULyraSimulatedInputWidget::InputKeyValue(const FVector& Value)
 {
-	if (UEnhancedPlayerInput* Input = GetPlayerInput())
+	// If we have an associated input action then we can use it
+	if (AssociatedAction)
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* System = GetEnhancedInputSubsystem())
+		{
+			// We don't want to apply any modifiers or triggers to this action, but they are required for the function signature
+			TArray<UInputModifier*> Modifiers;
+			TArray<UInputTrigger*> Triggers;
+			System->InjectInputVectorForAction(AssociatedAction, Value, Modifiers, Triggers);
+		}
+	}
+	// In case there is no associated input action, we can attempt to simulate input on the fallback key
+	else if (UEnhancedPlayerInput* Input = GetPlayerInput())
 	{
 		if(KeyToSimulate.IsValid())
 		{
