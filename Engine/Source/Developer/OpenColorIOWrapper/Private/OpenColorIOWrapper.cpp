@@ -503,6 +503,9 @@ FOpenColorIOWrapperProcessor FOpenColorIOWrapperProcessor::CreateTransformToWork
 	using namespace OCIO_NAMESPACE;
 	using namespace UE::Color;
 
+	static FCriticalSection BuiltInConfigCriticalSection;
+	FScopeLock Lock(&BuiltInConfigCriticalSection);
+
 	if (BuiltInConfig.Pimpl->Config->getNamedTransform(StringCast<ANSICHAR>(*TransformName).Get()) == nullptr)
 	{
 		GroupTransformRcPtr TransformToWCS = GroupTransform::Create();
