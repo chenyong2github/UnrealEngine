@@ -804,9 +804,10 @@ namespace UnrealBuildTool
 
 			// NOTE: Actually for _now_ we are using legacy-style signing with temp keychain because IPhonePackager cannot codesign
 			// Frameworks, so we have to do full non-dummy signing of stubs until we get IPP working
-			bool bUseDummySigning = Target.Platform != UnrealTargetPlatform.Mac && (/*Target.bCreateStubIPA ||*/ Target.ProjectFile == null);
+			bool bUseDummySigning = Target.Platform != UnrealTargetPlatform.Mac && (Target.ProjectFile == null);
 			bool bCreateStub = Target.Platform.IsInGroup(UnrealPlatformGroup.IOS) && Target.bCreateStubIPA;
-			bool bUseLegacyStubSigning = bCreateStub && true;
+			// if we want dummy signing (no project at all) then we don't want to use legacy signing - that is only used for remote builds from Windows
+			bool bUseLegacyStubSigning = bCreateStub && !bUseDummySigning;
 
 			if (bUseLegacyStubSigning)
 			{

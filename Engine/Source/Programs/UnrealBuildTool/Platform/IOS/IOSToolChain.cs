@@ -807,12 +807,16 @@ namespace UnrealBuildTool
 					throw new BuildException($"Failed to codesign with dummy identity, which should never happen [ExitCode = {ExitCode}, output = {Output}");
 				}
 				// also codesign the frameworks
-				foreach (string FrameworkDir in Directory.EnumerateDirectories(Path.Combine(ZipSourceDir, "Frameworks")))
+				string FrameworksDir = Path.Combine(ZipSourceDir, "Frameworks");
+				if (Directory.Exists(FrameworksDir))
 				{
-					Output = Utils.RunLocalProcessAndReturnStdOut("/bin/sh", $"-c 'codesign -f -s - \"{FrameworkDir}\"", null, out ExitCode);
-					if (ExitCode != 0)
+					foreach (string FrameworkDir in Directory.EnumerateDirectories(FrameworksDir))
 					{
-						throw new BuildException($"Failed to codesign with dummy identity, which should never happen [ExitCode = {ExitCode}, output = {Output}");
+						Output = Utils.RunLocalProcessAndReturnStdOut("/bin/sh", $"-c 'codesign -f -s - \"{FrameworkDir}\"", null, out ExitCode);
+						if (ExitCode != 0)
+						{
+							throw new BuildException($"Failed to codesign with dummy identity, which should never happen [ExitCode = {ExitCode}, output = {Output}");
+						}
 					}
 				}
 			}
