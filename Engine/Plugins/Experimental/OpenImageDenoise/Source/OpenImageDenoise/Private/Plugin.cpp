@@ -8,6 +8,7 @@
 #include "RHICommandList.h"
 #include "RHIResources.h"
 #include "RHITypes.h"
+#include "RHIGPUReadback.h"
 
 #include "OpenImageDenoise/oidn.hpp"
 
@@ -125,16 +126,20 @@ static OIDNState DenoiserState;
 template <typename PixelType>
 static void CopyTextureFromGPUToCPU(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FIntPoint Size, TArray<PixelType>& DstArray)
 {
-	uint32_t SrcStride = 0;
-	const PixelType* SrcBuffer = static_cast<PixelType*>(RHICmdList.LockTexture2D(SrcTexture, 0, RLM_ReadOnly, SrcStride, false));
-	SrcStride /= sizeof(PixelType);
+	FRHIGPUTextureReadback Readback(TEXT("DenoiserReadback"));
+	Readback.EnqueueCopy(RHICmdList, SrcTexture, FIntVector::ZeroValue, 0, FIntVector(Size.X, Size.Y, 1));
+	RHICmdList.BlockUntilGPUIdle();
+
+	int32_t SrcStride = 0;
+	const PixelType* SrcBuffer = static_cast<PixelType*>(Readback.Lock(SrcStride, nullptr));
+
 	PixelType* DstBuffer = DstArray.GetData();
 	for (int Y = 0; Y < Size.Y; Y++, DstBuffer += Size.X, SrcBuffer += SrcStride)
 	{
 		FPlatformMemory::Memcpy(DstBuffer, SrcBuffer, Size.X * sizeof(PixelType));
 
 	}
-	RHICmdList.UnlockTexture2D(SrcTexture, 0, false);
+	Readback.Unlock();
 }
 
 template <typename PixelType>

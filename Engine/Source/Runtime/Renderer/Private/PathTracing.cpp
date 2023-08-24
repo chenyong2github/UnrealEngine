@@ -2899,12 +2899,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 		FRDGTexture* NewRadianceTexture = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.RadianceUnswizzled"));
+		FRDGTexture* NewNormalTexture = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.NormalUnswizzled"));
 		FRDGTexture* NewAlbedoTexture = NeedsDenoise ? GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.AlbedoUnswizzled")) : nullptr;
-		FRDGTexture* NewNormalTexture = NeedsDenoise ? GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.NormalUnswizzled")) : nullptr;
 
-		FRDGTexture* InputTextures[3] = { RadianceTexture, AlbedoTexture, NormalTexture };
-		FRDGTexture* OutputTextures[3] = { NewRadianceTexture, NewAlbedoTexture, NewNormalTexture };
-		for (int Index = 0, Num = NeedsDenoise ? 3 : 1; Index < Num; Index++)
+		FRDGTexture* InputTextures[3] = { RadianceTexture, NormalTexture, AlbedoTexture};
+		FRDGTexture* OutputTextures[3] = { NewRadianceTexture, NewNormalTexture, NewAlbedoTexture};
+		for (int Index = 0, Num = NeedsDenoise ? 3 : 2; Index < Num; Index++)
 		{
 			FPathTracingSwizzleScanlinesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSwizzleScanlinesCS::FParameters>();
 			PassParameters->DispatchDim.X = DispatchResX;
@@ -2924,8 +2924,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 		// let the remaining code operate on the unswizzled textures
 		RadianceTexture = NewRadianceTexture;
-		AlbedoTexture = NewAlbedoTexture;
 		NormalTexture = NewNormalTexture;
+		AlbedoTexture = NewAlbedoTexture;
 	}
 #endif
 
