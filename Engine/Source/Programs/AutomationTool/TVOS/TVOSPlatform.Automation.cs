@@ -111,10 +111,17 @@ public class TVOSPlatform : IOSPlatform
 
                     var TargetConfiguration = SC.StageTargetConfigurations[0];
 
-                    DeployGeneratePList(
+					DirectoryReference ProjectRoot = SC.ProjectRoot;
+					// keep old logic for BP projects with legacy
+					if (!AppleExports.UseModernXcode(SC.RawProjectPath) && !SC.IsCodeBasedProject)
+					{
+						ProjectRoot = DirectoryReference.Combine(SC.LocalRoot, "Engine");
+					}
+
+					DeployGeneratePList(
 						SC.RawProjectPath,
 						TargetConfiguration,
-						(SC.IsCodeBasedProject ? SC.ProjectRoot : SC.EngineRoot),
+						ProjectRoot,
 						!SC.IsCodeBasedProject,
 						(SC.IsCodeBasedProject ? TargetName : "UnrealGame"),
 						Params.Client,
@@ -129,26 +136,31 @@ public class TVOSPlatform : IOSPlatform
                 }
 
 
-            // copy the udebugsymbols if they exist
-            {
-                ConfigHierarchy PlatformGameConfig;
-                bool bIncludeSymbols = false;
-                if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
+                // copy the udebugsymbols if they exist
                 {
-                    PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateCrashReportSymbols", out bIncludeSymbols);
-                }
-                if (bIncludeSymbols)
-                {
-                    FileReference SymbolFileName = FileReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : SC.EngineRoot), "Binaries", "TVOS", SC.StageExecutables[0] + ".udebugsymbols");
-                    if (FileReference.Exists(SymbolFileName))
+                    ConfigHierarchy PlatformGameConfig;
+                    bool bIncludeSymbols = false;
+                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
                     {
-                        SC.StageFile(StagedFileType.NonUFS, SymbolFileName, new StagedFileReference((Params.ShortProjectName + ".udebugsymbols").ToLowerInvariant()));
+                        PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateCrashReportSymbols", out bIncludeSymbols);
+                    }
+                    if (bIncludeSymbols)
+                    {
+                        FileReference SymbolFileName = FileReference.Combine((SC.IsCodeBasedProject ? SC.ProjectRoot : SC.EngineRoot), "Binaries", "TVOS", SC.StageExecutables[0] + ".udebugsymbols");
+                        if (FileReference.Exists(SymbolFileName))
+                        {
+                            SC.StageFile(StagedFileType.NonUFS, SymbolFileName, new StagedFileReference((Params.ShortProjectName + ".udebugsymbols").ToLowerInvariant()));
+                        }
                     }
                 }
-            }
-                SC.StageFile(StagedFileType.SystemNonUFS, TargetPListFile, new StagedFileReference("Info.plist"));
-            }
-        }
+
+				if (!AppleExports.UseModernXcode(SC.RawProjectPath))
+				{
+					// copy the plist to the stage dir
+					SC.StageFile(StagedFileType.SystemNonUFS, TargetPListFile, new StagedFileReference("Info.plist"));
+				}
+			}
+		}
 
         // copy the movies from the project
         {

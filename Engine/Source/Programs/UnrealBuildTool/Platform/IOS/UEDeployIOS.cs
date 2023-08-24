@@ -426,6 +426,13 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t</dict>");
 			}
 
+			// add a TVOS setting since they share this file
+			Text.AppendLine("\t<key>TVTopShelfImage</key>");
+			Text.AppendLine("\t<dict>");
+			Text.AppendLine("\t\t<key>TVTopShelfPrimaryImageWide</key>");
+			Text.AppendLine("\t\t<string>Top Shelf Image Wide</string>");
+			Text.AppendLine("\t</dict>");
+
 			if (!String.IsNullOrEmpty(ExtraData))
 			{
 				ExtraData = ExtraData.Replace("\\n", "\n");
