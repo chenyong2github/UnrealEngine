@@ -31,6 +31,12 @@ public:
 		TargetPlatforms.Add(new TGenericMacTargetPlatform<false, true, false>());
 		// Client TP
 		TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, true>());
+
+#if PLATFORM_WINDOWS
+		// we added Mac to Windows so that the Xcode Project settings show up, but we don't
+		// want to see the Mac in the Platforms dropdown
+		FDataDrivenPlatformInfoRegistry::SetPlatformHiddenFromUI("Mac");
+#endif
 	}
 
 

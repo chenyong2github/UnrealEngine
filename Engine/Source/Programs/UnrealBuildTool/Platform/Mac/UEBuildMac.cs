@@ -418,6 +418,15 @@ namespace UnrealBuildTool
 			{
 				return;
 			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.Type == TargetType.Editor)
+			{
+				// because remote IOS building needs the new XcodeProject Settings to show up in the editor, we bring in the Mac bits that expose it
+				if (ModuleName == "Engine")
+				{
+					Rules.DynamicallyLoadedModuleNames.AddAll("MacTargetPlatform", "MacPlatformEditor");
+				}
+			}
 		}
 
 		public override DirectoryReference? GetBundleDirectory(ReadOnlyTargetRules Rules, List<FileReference> OutputFiles)
