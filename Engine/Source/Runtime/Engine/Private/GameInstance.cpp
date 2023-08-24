@@ -824,9 +824,7 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(FPlatformUserId UserId, FString& 
 			for (int32 Id = 0; Id < MaxSplitscreenPlayers; ++Id)
 			{
 				// Iterate until we find a null player. We want the next available platform user ID
-				FInputDeviceId DummyDevice;
-				FPlatformUserId DummyId;
-				IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(Id, OUT DummyId, OUT DummyDevice);
+				FPlatformUserId DummyId = IPlatformInputDeviceMapper::Get().GetPlatformUserForUserIndex(Id);
 
 				if (DummyId.IsValid())
 				{
