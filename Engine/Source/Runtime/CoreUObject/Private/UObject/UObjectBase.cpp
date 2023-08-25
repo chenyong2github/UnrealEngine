@@ -256,9 +256,6 @@ UPackage* UObjectBase::GetExternalPackage() const
 	if ((GetFlags() & RF_HasExternalPackage) != 0)
 	{
 		ExternalPackage = GetObjectExternalPackageThreadSafe(this);
-		// if the flag is set there should be an override set.
-		ensureMsgf(ExternalPackage, TEXT("Object %s ExternalPackage is invalid: RF_ExternalPackage is set, but ExternalPackage is nullptr."),
-			*static_cast<const UObjectBaseUtility*>(this)->GetPathName());
 	}
 	return ExternalPackage;
 }

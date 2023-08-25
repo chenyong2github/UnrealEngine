@@ -1592,6 +1592,7 @@ void HashObjectExternalPackage(UObjectBase* Object, UPackage* Package)
 			}
 			AddToPackageMap(ThreadHash, Object, Package);
 		}
+		Object->AtomicallySetFlags(RF_HasExternalPackage);
 	}
 	else
 	{
@@ -1604,8 +1605,8 @@ void UnhashObjectExternalPackage(class UObjectBase* Object)
 	LLM_SCOPE_BYTAG(UObjectHash);
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	FHashTableLock LockHash(ThreadHash);
-	UPackage* Package = UnassignExternalPackageFromObject(ThreadHash, Object);
-	if (Package)
+	Object->AtomicallyClearFlags(RF_HasExternalPackage);
+	if (UPackage* Package = UnassignExternalPackageFromObject(ThreadHash, Object))
 	{
 		RemoveFromPackageMap(ThreadHash, Object, Package);
 	}
@@ -1615,7 +1616,9 @@ UPackage* GetObjectExternalPackageThreadSafe(const UObjectBase* Object)
 {
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	FHashTableLock LockHash(ThreadHash);
-	return ThreadHash.ObjectToPackageMap.FindRef(Object);
+	UPackage* ExternalPackage = ThreadHash.ObjectToPackageMap.FindRef(Object);
+	UE_CLOG(!ExternalPackage && ((Object->GetFlags() & RF_HasExternalPackage) != 0), LogUObjectHash, Warning, TEXT("Object %s ExternalPackage is invalid: RF_HasExternalPackage is set, but ExternalPackage is nullptr."), *static_cast<const UObjectBaseUtility*>(Object)->GetPathName());
+	return ExternalPackage;
 }
 
 UPackage* GetObjectExternalPackageInternal(const UObjectBase* Object)
