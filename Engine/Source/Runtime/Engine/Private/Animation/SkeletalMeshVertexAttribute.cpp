@@ -130,7 +130,7 @@ void FSkeletalMeshVertexAttributeRenderData::Serialize(FArchive& Ar)
 		int32 Count;
 		Ar << Count;
 		Buffers.Reset();
-		for (int32 Index = 0; Index < Count; Index++)
+		for (int32 Index = 0; Index < Count && !Ar.IsError(); Index++)
 		{
 			FName Name;
 			Ar << Name;

@@ -194,8 +194,34 @@ void FSkeletalMeshAttributeVertexBuffer::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
+		bool bValid;
+		switch (PixelFormat)
+		{
+		case PF_R8:
+			bValid = ComponentStride == 1;
+			break;
+		case PF_R16F:
+			bValid = ComponentStride == 2;
+			break;
+		case PF_R32_FLOAT:
+			bValid = ComponentStride == 4;
+			break;
+		default:
+			bValid = false;
+			break;
+		}
+
+		if (!bValid)
+		{
+			Ar.SetError();
+			return;
+		}
+
 		Allocate();
 	}
 
-	ValueData->Serialize(Ar);
+	if (ValueData)
+	{
+		ValueData->Serialize(Ar);
+	}
 }
