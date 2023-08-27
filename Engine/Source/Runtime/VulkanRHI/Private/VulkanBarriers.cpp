@@ -946,7 +946,7 @@ static void DowngradeBarrier(VkImageMemoryBarrier& OutBarrier, const VkImageMemo
 	OutBarrier.subresourceRange = InBarrier.subresourceRange;
 
 	// Last minute conversion if both aspects are on the same sync2 layout then we can do the simple conversion (workaround for InitialLayout)
-	if (OutBarrier.subresourceRange.aspectMask == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
+	if (VKHasAnyFlags(OutBarrier.subresourceRange.aspectMask, (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)))
 	{
 		if (OutBarrier.newLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL)
 		{
