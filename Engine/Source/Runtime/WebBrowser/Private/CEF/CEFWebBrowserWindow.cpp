@@ -1413,6 +1413,13 @@ bool FCEFWebBrowserWindow::OnJSDialog(CefJSDialogHandler::JSDialogType DialogTyp
 	return Retval;
 }
 
+bool FCEFWebBrowserWindow::OnFileDialog(CefDialogHandler::FileDialogMode Mode, const CefString& DialogTitle, const CefString& DefaultFilePath, const std::vector<CefString>& AcceptFilters, int SelectedAcceptFilter, CefRefPtr<CefFileDialogCallback> Callback)
+{
+	// This would prevent a file dialog from opening.
+	UE_LOG(LogWebBrowser, Error, TEXT("FileDialogs are prevented."));
+	return true;
+}
+
 bool FCEFWebBrowserWindow::OnBeforeUnloadDialog(const CefString& MessageText, bool IsReload, CefRefPtr<CefJSDialogCallback> Callback)
 {
 	bool Retval = false;

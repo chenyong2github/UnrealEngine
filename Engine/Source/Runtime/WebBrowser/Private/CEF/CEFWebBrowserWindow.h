@@ -424,6 +424,11 @@ private:
 	bool OnJSDialog(CefJSDialogHandler::JSDialogType DialogType, const CefString& MessageText, const CefString& DefaultPromptText, CefRefPtr<CefJSDialogCallback> Callback, bool& OutSuppressMessage);
 
 	/**
+	 * Handle showing the file select / upload dialogs
+	 */
+	bool OnFileDialog(CefDialogHandler::FileDialogMode Mode, const CefString& DialogTitle, const CefString& DefaultFilePath, const std::vector<CefString>& AcceptFilters, int SelectedAcceptFilter, CefRefPtr<CefFileDialogCallback> Callback);
+
+	/**
 	 * Handle showing unload confirmation dialogs
 	 */
 	bool OnBeforeUnloadDialog(const CefString& MessageText, bool IsReload, CefRefPtr<CefJSDialogCallback> Callback);

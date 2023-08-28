@@ -38,6 +38,7 @@ class FCEFBrowserHandler
 	, public CefResourceRequestHandler
 	, public CefRequestContextHandler
 	, public CefCookieAccessFilter
+	, public CefDialogHandler
 {
 public:
 
@@ -108,6 +109,11 @@ public:
 	}
 
 	virtual CefRefPtr<CefDragHandler> GetDragHandler() override
+	{
+		return this;
+	}
+
+	virtual CefRefPtr<CefDialogHandler> GetDialogHandler() override
 	{
 		return this;
 	}
@@ -316,6 +322,17 @@ public:
 		CefRefPtr<CefBrowser> Browser,
 		CefRefPtr<CefFrame> frame, 
 		const std::vector<CefDraggableRegion>& Regions) override;
+
+public:
+	// CefDialogHandler interface
+
+	virtual bool OnFileDialog(CefRefPtr<CefBrowser> Browser,
+		FileDialogMode Mode,
+		const CefString& Title,
+		const CefString& DefaultFilePath,
+		const std::vector<CefString>& AcceptFilters,
+		int SelectedAcceptFilter,
+		CefRefPtr<CefFileDialogCallback> Callback) override;
 
 public:
 

@@ -838,6 +838,24 @@ void FCEFBrowserHandler::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> Browser
 	}
 }
 
+bool FCEFBrowserHandler::OnFileDialog(CefRefPtr<CefBrowser> Browser,
+	FileDialogMode Mode,
+	const CefString& Title,
+	const CefString& DefaultFilePath,
+	const std::vector<CefString>& AcceptFilters,
+	int SelectedAcceptFilter,
+	CefRefPtr<CefFileDialogCallback> Callback)
+{
+	bool Retval = false;
+	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
+	if (BrowserWindow.IsValid())
+	{
+		Retval = BrowserWindow->OnFileDialog(Mode, Title, DefaultFilePath, AcceptFilters, SelectedAcceptFilter, Callback);
+	}
+
+	return Retval;
+}	
+
 CefRefPtr<CefCookieAccessFilter> FCEFBrowserHandler::GetCookieAccessFilter(
 	CefRefPtr<CefBrowser> Browser,
 	CefRefPtr<CefFrame> Frame,
