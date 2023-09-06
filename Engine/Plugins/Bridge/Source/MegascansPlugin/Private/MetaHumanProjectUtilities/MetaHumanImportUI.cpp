@@ -443,6 +443,10 @@ namespace UE::MetaHumanImportUI::Private
 				.FixedWidth(120.0f)
 				.HAlignCell(HAlign_Right);
 
+			const FText ContinueButtonLabel = ExistingMetaHumans.Num() == 1 ? LOCTEXT("ContinueButtonSingleUpgrade", "Continue With Import") : LOCTEXT("ContinueButton", "Continue With Single Import");
+			const FButtonStyle* ContinueButtonStyle = &FAppStyle::Get().GetWidgetStyle<FButtonStyle>(ExistingMetaHumans.Num() == 1 ? "PrimaryButton" : "Button");
+			const EVisibility UpdateButtonVisibility = ExistingMetaHumans.Num() == 1 ? EVisibility::Collapsed : EVisibility::Visible;
+
 			ChildSlot
 			[
 				SNew(SVerticalBox)
@@ -486,6 +490,7 @@ namespace UE::MetaHumanImportUI::Private
 						SNew(SPrimaryButton)
 						.Text(LOCTEXT("UpdateButton", "Update All MetaHumans in Project..."))
 						.OnClicked(this, &SOverwriteDialog::HandleExportAll)
+						.Visibility(UpdateButtonVisibility)
 					]
 					+ SHorizontalBox::Slot()
 					.HAlign(HAlign_Fill)
@@ -494,7 +499,9 @@ namespace UE::MetaHumanImportUI::Private
 					.Padding(DefaultPadding, 0.0f)
 					[
 						SNew(SButton)
-						.Text(LOCTEXT("ContinueButton", "Continue With Single Import"))
+						.ButtonStyle(ContinueButtonStyle)
+						.ForegroundColor(FSlateColor::UseStyle())
+						.Text(ContinueButtonLabel)
 						.HAlign(HAlign_Center)
 						.OnClicked(this, &SOverwriteDialog::HandleYes)
 					]
@@ -664,7 +671,9 @@ EImportOperationUserResponse DisplayUpgradeWarning(const FSourceMetaHuman& Sourc
 	}
 
 	// Build the text and data structures representing the updated assets
-	const FText Header = LOCTEXT("MainDialogText", "You are importing a MetaHuman that has a Major version mismatch with existing MetaHumans in your project. Continuing import will break functionality on these existing MetaHumans unless you update all MetaHumans in the project.");
+	const FText Header = IncompatibleCharacters.Num() == 1 ?
+		LOCTEXT("MainDialogTextSingleUpgrade", "You are importing a MetaHuman that has a Major version mismatch with the existing MetaHuman in your project."):
+		LOCTEXT("MainDialogText", "You are importing a MetaHuman that has a Major version mismatch with existing MetaHumans in your project. Continuing import will break functionality on these existing MetaHumans unless you update all MetaHumans in the project.");
 	TArray<TSharedRef<FFileChangeData>> UpdateList;
 	for (int i = 0; i < AssetOperations.Update.Num(); i++)
 	{

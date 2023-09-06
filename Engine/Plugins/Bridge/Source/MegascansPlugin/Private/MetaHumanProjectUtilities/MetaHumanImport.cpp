@@ -101,7 +101,7 @@ namespace UE::MetaHumanImport::Private
 		const FMetaHumanVersion& SourceVersion = SourceMetaHuman.GetVersion();
 		for (const FInstalledMetaHuman& InstalledMetaHuman : InstalledMetaHumans)
 		{
-			if (InstalledMetaHuman.GetName() != SourceMetaHuman.GetName() && !SourceVersion.IsCompatible(InstalledMetaHuman.GetVersion()))
+			if (!SourceVersion.IsCompatible(InstalledMetaHuman.GetVersion()))
 			{
 				IncompatibleCharacters.Emplace(InstalledMetaHuman.GetName());
 			}
