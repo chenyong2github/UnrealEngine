@@ -2227,7 +2227,7 @@ int32 SAssetTileItem::GetGenericThumbnailSize() const
 EVisibility SAssetTileItem::GetSCCIconVisibility() const
 {
 	// Hide the scc state icon when there is no brush or in tiny size since there isn't enough space
-	return bHasCCStateBrush &&  CurrentThumbnailSize.Get() != EThumbnailSize::Tiny ? EVisibility::Visible : EVisibility::Collapsed;
+	return bHasCCStateBrush && CurrentThumbnailSize.Get() != EThumbnailSize::Tiny && ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 
