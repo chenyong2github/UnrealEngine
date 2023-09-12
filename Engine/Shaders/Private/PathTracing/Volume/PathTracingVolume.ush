@@ -243,10 +243,16 @@ FVolumeTrackingResult VolumeSampleDistance(float3 PathThroughput, float3 Origin,
 		SigmaBar *= bIsCameraRay ? 2 : 1;
 	}
 
-	FVolumeTrackingResult TrackingResult;
-	if (EnableHeterogeneousVolumes)
+	bool bIntervalHasHeterogeneousVolume = false;
+	for (int Index = 0; Index < Interval.Num; ++Index)
 	{
-		FMajorantData OverlappingMajorant = CreateMajorantData(VolumeDensityBounds.SigmaMin, VolumeDensityBounds.SigmaMax);
+		bIntervalHasHeterogeneousVolume |= (Interval.VolumeID[Index] == VOLUMEID_HETEROGENEOUS_VOLUMES);
+	}
+
+	FVolumeTrackingResult TrackingResult;
+	if (bIntervalHasHeterogeneousVolume)
+	{
+		FMajorantData OverlappingMajorant = CreateMajorantData(VolumeDensityBounds.SigmaMin, SigmaBar);
 		TrackingResult = HeterogeneousVolumesSampleDistance(PathThroughput, Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax, OverlappingMajorant, RandSequence);
 	}
 	else
@@ -275,5 +281,6 @@ FVolumeTrackingResult VolumeSampleDistance(float3 PathThroughput, float3 Origin,
 			TrackingResult.Pdf = Evaluation.w;
 		}
 	}
+
 	return TrackingResult;
 }
