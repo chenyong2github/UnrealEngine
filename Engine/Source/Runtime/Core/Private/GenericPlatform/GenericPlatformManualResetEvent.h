@@ -79,10 +79,8 @@ public:
 	 */
 	void Notify()
 	{
-		{
-			std::unique_lock SelfLock(Lock);
-			bWait = false;
-		}
+		std::unique_lock SelfLock(Lock);
+		bWait = false;
 		Condition.notify_one();
 	}
 
