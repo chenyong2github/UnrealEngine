@@ -44,6 +44,9 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
+#if RHI_RAYTRACING
+	virtual bool IsRayTracingRelevant() const override  { return true; }
+#endif // RHI_RAYTRACING
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSize(); }
 	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 	//~ End FPrimitiveSceneProxy Interface.
