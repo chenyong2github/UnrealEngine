@@ -23,9 +23,30 @@ public:
 	
 	/**
 	 * Enable modernized Xcode, when building from Xcode, use native Xcode for bundle generation and archiving instead of UBT
+     * Restart required to apply this setting
 	 */
-	UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "Modernized Xcode"))
+	UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "Modernized Xcode", ConfigRestartRequired = true))
 	bool bUseModernXcode;
+    
+    UFUNCTION()
+    static bool ShouldDisableIOSSettings()
+    {
+#if PLATFORM_MAC
+        auto DefaultObject = Cast<UXcodeProjectSettings>(UXcodeProjectSettings::StaticClass()->GetDefaultObject());
+        if (DefaultObject)
+        {
+            // Some iOS build settings no longer functional under Modern Xcode
+            return DefaultObject->bUseModernXcode;
+        }
+        else
+        {
+            return false;
+        }
+#else
+        // On PC, even after turning on Modern Xcode for remote Mac, should let user config local iOS related settings
+        return false;
+#endif
+    }
 	
 	/**
 	 * Team ID used for native Xcode code signing. This must be the 10 letters/numbers ID found in Membership Details tab found in https://developer.apple.com/account

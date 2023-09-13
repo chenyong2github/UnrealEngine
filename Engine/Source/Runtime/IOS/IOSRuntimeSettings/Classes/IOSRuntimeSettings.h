@@ -412,8 +412,8 @@ public:
 	 * copied to the bundle app and the Launch screen image above will not be included in the app.
 	 * When using assets in your custom LaunchScreen.storyboard, add them in Build/IOS/Resources/Interface/Assets and they will be included.
 	 */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = LaunchScreen, meta = (DisplayName = "Custom Launchscreen Storyboard (experimental)"))
-	bool bCustomLaunchscreenStoryboard;
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = LaunchScreen, meta = (DisplayName = "Custom Launchscreen Storyboard (experimental)", EditCondition = "!MacTargetPlatform.XcodeProjectSettings.ShouldDisableIOSSettings"))
+    bool bCustomLaunchscreenStoryboard;
 
 	// Whether the app supports Facebook
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
@@ -434,7 +434,7 @@ public:
 	FString SigningCertificate;
 	
 	// Whether to use automatic signing through Xcode
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (EditCondition = "!MacTargetPlatform.XcodeProjectSettings.ShouldDisableIOSSettings"))
 	bool bAutomaticSigning;
 
 	// The team ID of the apple developer account to be used to autmatically sign IOS builds.
