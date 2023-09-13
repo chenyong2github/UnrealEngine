@@ -90,15 +90,15 @@ TArray<FXrCompositionLayerUnion> FOpenXRLayer::CreateOpenXRLayer(FTransform InvT
 
 	if (Desc.HasShape<FQuadLayer>())
 	{
-		CreateOpenXRQuadLayer(bIsStereo, bNoAlpha, InvTrackingToWorld, WorldToMeters, Space, Headers);
+		CreateOpenXRQuadLayer(bIsStereo, bNoAlpha, PositionTransform, WorldToMeters, Space, Headers);
 	}
 	else if (Desc.HasShape<FCylinderLayer>())
 	{
-		CreateOpenXRCylinderLayer(bIsStereo, bNoAlpha, InvTrackingToWorld, WorldToMeters, Space, Headers);
+		CreateOpenXRCylinderLayer(bIsStereo, bNoAlpha, PositionTransform, WorldToMeters, Space, Headers);
 	}
 	else if (Desc.HasShape<FEquirectLayer>())
 	{
-		CreateOpenXREquirectLayer(bIsStereo, bNoAlpha, InvTrackingToWorld, WorldToMeters, Space, Headers);
+		CreateOpenXREquirectLayer(bIsStereo, bNoAlpha, PositionTransform, WorldToMeters, Space, Headers);
 	}
 
 	return Headers;
