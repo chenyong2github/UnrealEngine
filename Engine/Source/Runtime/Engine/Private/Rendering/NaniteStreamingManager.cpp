@@ -1217,7 +1217,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 						}
 
 						Resources->NumResidentClusters -= ResidentPageFixupChunks[GPUPageIndex]->Header.NumClusters;
-						check(Resources->NumResidentClusters > 0 && Resources->NumResidentClusters <= Resources->NumClusters);
+						check(Resources->NumResidentClusters > 0);
+						//check(Resources->NumResidentClusters <= Resources->NumClusters); // Temporary workaround: NumClusters from cooked data is not always correct for Geometry Collections: UE-194917
 						ModifiedResources.Add(ResidentPage.Key.RuntimeResourceID, Resources->NumResidentClusters);
 					}
 					HierarchyDepthManager.Remove(ResidentPage.MaxHierarchyDepth);
@@ -1310,7 +1311,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				FMemory::Memcpy(FixupChunk, SrcPtr, FixupChunkSize);
 
 				Resources->NumResidentClusters += FixupChunk->Header.NumClusters;
-				check(Resources->NumResidentClusters > 0 && Resources->NumResidentClusters <= Resources->NumClusters);
+				check(Resources->NumResidentClusters > 0);
+				//check(Resources->NumResidentClusters <= Resources->NumClusters); // Temporary workaround: NumClusters from cooked data is not always correct for Geometry Collections UE-194917
 				ModifiedResources.Add(PendingPage.InstallKey.RuntimeResourceID, Resources->NumResidentClusters);
 
 				// Build list of GPU page dependencies

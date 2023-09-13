@@ -394,7 +394,8 @@ namespace Nanite
 			{
 				FInternalData& Data = *Geometries[GeometryId];
 
-				check(Data.NumResidentClustersUpdate > 0 && Data.NumResidentClustersUpdate <= Data.NumClusters);
+				check(Data.NumResidentClustersUpdate > 0);
+ 				//check(Data.NumResidentClustersUpdate <= Data.NumClusters); // Temporary workaround: NumClusters from cooked data is not always correct for Geometry Collections: UE-194917
 
 				const uint64 NewNumAuxiliaryDataEntries = NumAuxiliaryDataEntries + CalculateAuxiliaryDataSizeInUints(Data.NumResidentClustersUpdate * NANITE_MAX_CLUSTER_TRIANGLES);
 				const uint64 NewAuxiliaryDataBufferSize = NewNumAuxiliaryDataEntries * sizeof(uint32);
