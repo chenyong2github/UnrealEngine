@@ -1,23 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TimingExporter.h"
+
 #include "HAL/PlatformFileManager.h"
 #include "Logging/MessageLog.h"
+
+// TraceServices
+#include "Common/ProviderLock.h"
 #include "TraceServices/Model/Bookmarks.h"
 #include "TraceServices/Model/Counters.h"
+#include "TraceServices/Model/Regions.h"
 #include "TraceServices/Model/Threads.h"
 
-// Insights
+// TraceInsights
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Log.h"
-#include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/TimingProfilerManager.h"
-#include "TraceServices/Model/Regions.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
+
+#define LOCTEXT_NAMESPACE "FTimingExporter"
 
 namespace Insights
 {
-
-#define LOCTEXT_NAMESPACE "FTimingExporter"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTimingExporter
@@ -580,14 +584,13 @@ int32 FTimingExporter::ExportTimerStatisticsAsText(const FString& Filename, FExp
 			TArray<FString> NamePatterns;
 		};
 		FRegionNameSpec RegionNameSpec(Params.Region);
-		
+
 		TMap<FString, TraceServices::FTimeRegion> Regions;
 
 		// Detect regions
 		{
-			TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
-
 			const TraceServices::IRegionProvider& RegionProvider = TraceServices::ReadRegionProvider(Session);
+			TraceServices::FProviderReadScopeLock RegionProviderScopedLock(RegionProvider);
 
 			UE_LOG(TraceInsights, Log, TEXT("Looking for regions: '%s'"), *Params.Region);
 
@@ -598,7 +601,7 @@ int32 FTimingExporter::ExportTimerStatisticsAsText(const FString& Filename, FExp
 					{
 						return true;
 					}
-					
+
 					// Handle duplicate region names, individual regions may appear multiple times
 					// we append numbers to allow for unique export filenames.
 					FString RegionName = InRegion.Text;
@@ -1128,6 +1131,6 @@ int32 FTimingExporter::ExportCounterAsText(const FString& Filename, uint32 Count
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#undef LOCTEXT_NAMESPACE
-
 } // namespace Insights
+
+#undef LOCTEXT_NAMESPACE

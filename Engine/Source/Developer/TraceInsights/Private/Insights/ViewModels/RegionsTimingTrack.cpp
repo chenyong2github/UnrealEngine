@@ -2,24 +2,27 @@
 
 #include "RegionsTimingTrack.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-#include "TimingViewDrawHelper.h"
+// TraceServices
 #include "Common/ProviderLock.h"
+#include "TraceServices/Model/Regions.h"
+
+// TraceInsights
+#include "Insights/Common/InsightsMenuBuilder.h"
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/Log.h"
 #include "Insights/TimingProfilerCommon.h"
-#include "Insights/Common/InsightsMenuBuilder.h"
-#include "Insights/Common/TimeUtils.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/Widgets/STimingView.h"
-#include "TraceServices/Model/Regions.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "RegionsTimingTrack"
 
@@ -214,7 +217,7 @@ void FTimingRegionsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Bui
 
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
-	
+
 	// whe're counting only non-empty lanes, so we can collapse empty ones in the visualization.
 	int32 CurDepth = 0;
 	RegionProvider.EnumerateLanes([this, Viewport, &CurDepth, &Builder](const TraceServices::FRegionLane& Lane, const int32 Depth)
@@ -323,7 +326,7 @@ void FTimingRegionsTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuil
 							{
 								Builder.AddEvent(Region.BeginTime, Region.EndTime, CurDepth, Region.Text);
 							}
-							
+
 							return true;
 						});
 
@@ -384,12 +387,12 @@ bool FTimingRegionsTrack::FindRegionEvent(const FTimingEventSearchParameters& In
 		RegionProvider.EnumerateRegions(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](const TraceServices::FTimeRegion& Region)
 		{
 			InContext.Check(Region.BeginTime, Region.EndTime, Region.Depth, Region);
-			
+
 			if (!InContext.ShouldContinueSearching())
 			{
 				return false;
 			}
-			
+
 			return true;
 		});
 	},
