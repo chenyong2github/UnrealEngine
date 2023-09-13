@@ -257,6 +257,8 @@ bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor, const AActor
 	bool bDetached = false;
 	bool bAttached = false;
 
+	GeneratedComponent->UnregisterComponent();
+
 	// Need to change owner first to avoid that the PCG Component will react to this component changes.
 	GeneratedComponent->Rename(nullptr, NewActor);
 
@@ -278,6 +280,8 @@ bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor, const AActor
 
 		NewActor->AddInstanceComponent(GeneratedComponent.Get());
 	}
+
+	GeneratedComponent->RegisterComponent();
 
 	ForgetComponent();
 
