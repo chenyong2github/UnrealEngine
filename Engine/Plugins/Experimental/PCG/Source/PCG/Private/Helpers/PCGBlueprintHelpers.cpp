@@ -165,7 +165,12 @@ TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandsca
 		return {};
 	}
 
+#if WITH_EDITOR
 	const FVector LocalPoint = Landscape->GetTransform().InverseTransformPosition(Location);
+#else
+	// In non-editor, the landscape proxy transform is not the one of the landscape actor, so we need to use this version instead
+	const FVector LocalPoint = Landscape->LandscapeActorToWorld().InverseTransformPosition(Location);
+#endif
 	const FIntPoint ComponentMapKey(FMath::FloorToInt(LocalPoint.X / LandscapeInfo->ComponentSizeQuads), FMath::FloorToInt(LocalPoint.Y / LandscapeInfo->ComponentSizeQuads));
 
 #if WITH_EDITOR
