@@ -859,8 +859,7 @@ void FVulkanDynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
 
 static void AddSubresourceTransitions(TArray<VkImageMemoryBarrier>& Barriers, VkPipelineStageFlags& SrcStageMask, const VkImageMemoryBarrier TemplateBarrier, VkImage ImageHandle, FVulkanImageLayout& CurrentLayout, VkImageLayout DstLayout)
 {
-	const uint32 FirstPlane = 0;
-	const uint32 LastPlane = CurrentLayout.NumPlanes;
+	const bool bIsDepthStencil = VKHasAnyFlags(TemplateBarrier.subresourceRange.aspectMask, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
 
 	const uint32 FirstLayer = TemplateBarrier.subresourceRange.baseArrayLayer;
 	const uint32 LastLayer = FirstLayer + CurrentLayout.GetSubresRangeLayerCount(TemplateBarrier.subresourceRange);
@@ -868,43 +867,45 @@ static void AddSubresourceTransitions(TArray<VkImageMemoryBarrier>& Barriers, Vk
 	const uint32 FirstMip = TemplateBarrier.subresourceRange.baseMipLevel;
 	const uint32 LastMip = FirstMip + CurrentLayout.GetSubresRangeMipCount(TemplateBarrier.subresourceRange);
 
-	for (uint32 PlaneIdx = FirstPlane; PlaneIdx < LastPlane; ++PlaneIdx)
+	for (uint32 LayerIdx = FirstLayer; LayerIdx < LastLayer; ++LayerIdx)
 	{
-		for (uint32 LayerIdx = FirstLayer; LayerIdx < LastLayer; ++LayerIdx)
+		VkImageMemoryBarrier* PrevMipBarrier = nullptr;
+
+		for (uint32 MipIdx = FirstMip; MipIdx < LastMip; ++MipIdx)
 		{
-			VkImageMemoryBarrier* PrevMipBarrier = nullptr;
-
-			for (uint32 MipIdx = FirstMip; MipIdx < LastMip; ++MipIdx)
+			VkImageLayout SrcLayout = CurrentLayout.GetSubresLayout(LayerIdx, MipIdx, 0);
+			if (bIsDepthStencil)
 			{
-				VkImageLayout SrcLayout = CurrentLayout.GetSubresLayout(LayerIdx, MipIdx, PlaneIdx);
+				const VkImageLayout OtherLayout = (CurrentLayout.NumPlanes == 1) ? SrcLayout : CurrentLayout.GetSubresLayout(LayerIdx, MipIdx, 1);
+				SrcLayout = GetMergedDepthStencilLayout(SrcLayout, OtherLayout);
+			}
 
-				// Merge with the previous transition if the previous mip was in the same state as this mip.
-				if (PrevMipBarrier && PrevMipBarrier->oldLayout == SrcLayout)
+			// Merge with the previous transition if the previous mip was in the same state as this mip.
+			if (PrevMipBarrier && PrevMipBarrier->oldLayout == SrcLayout)
+			{
+				PrevMipBarrier->subresourceRange.levelCount += 1;
+			}
+			else
+			{
+				if (SrcLayout == DstLayout)
 				{
-					PrevMipBarrier->subresourceRange.levelCount += 1;
+					continue;
 				}
-				else
-				{
-					if (SrcLayout == DstLayout)
-					{
-						continue;
-					}
 
-					SrcStageMask |= GetVkStageFlagsForLayout(SrcLayout);
+				SrcStageMask |= GetVkStageFlagsForLayout(SrcLayout);
 
-					VkImageMemoryBarrier& Barrier = Barriers.AddDefaulted_GetRef();
-					Barrier = TemplateBarrier;
-					Barrier.srcAccessMask = GetVkAccessMaskForLayout(SrcLayout);
-					Barrier.oldLayout = SrcLayout;
-					Barrier.newLayout = DstLayout;
-					Barrier.image = ImageHandle;
-					Barrier.subresourceRange.baseMipLevel = MipIdx;
-					Barrier.subresourceRange.levelCount = 1;
-					Barrier.subresourceRange.baseArrayLayer = LayerIdx;
-					Barrier.subresourceRange.layerCount = 1;
+				VkImageMemoryBarrier& Barrier = Barriers.AddDefaulted_GetRef();
+				Barrier = TemplateBarrier;
+				Barrier.srcAccessMask = GetVkAccessMaskForLayout(SrcLayout);
+				Barrier.oldLayout = SrcLayout;
+				Barrier.newLayout = bIsDepthStencil ? GetMergedDepthStencilLayout(DstLayout, DstLayout) : DstLayout;
+				Barrier.image = ImageHandle;
+				Barrier.subresourceRange.baseMipLevel = MipIdx;
+				Barrier.subresourceRange.levelCount = 1;
+				Barrier.subresourceRange.baseArrayLayer = LayerIdx;
+				Barrier.subresourceRange.layerCount = 1;
 
-					PrevMipBarrier = &Barrier;
-				}
+				PrevMipBarrier = &Barrier;
 			}
 		}
 	}
@@ -944,19 +945,6 @@ static void DowngradeBarrier(VkImageMemoryBarrier& OutBarrier, const VkImageMemo
 	OutBarrier.dstQueueFamilyIndex = InBarrier.dstQueueFamilyIndex;
 	OutBarrier.image = InBarrier.image;
 	OutBarrier.subresourceRange = InBarrier.subresourceRange;
-
-	// Last minute conversion if both aspects are on the same sync2 layout then we can do the simple conversion (workaround for InitialLayout)
-	if (VKHasAnyFlags(OutBarrier.subresourceRange.aspectMask, (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)))
-	{
-		if (OutBarrier.newLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL)
-		{
-			OutBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		}
-		else if (OutBarrier.newLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL)
-		{
-			OutBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		}
-	}
 }
 
 template <typename DstArrayType, typename SrcArrayType>
@@ -969,6 +957,35 @@ static void DowngradeBarrierArray(DstArrayType& TargetArray, const SrcArrayType&
 		DowngradeBarrier(DstBarrier, SrcBarrier);
 		MergedSrcStageMask |= SrcBarrier.srcStageMask;
 		MergedDstStageMask |= SrcBarrier.dstStageMask;
+	}
+}
+
+// Legacy manual barriers inside the RHI with FVulkanPipelineBarrier don't have access to tracking, assume same layout for both aspects
+template <typename BarrierArrayType>
+static void MergeDepthStencilLayouts(BarrierArrayType& TargetArray)
+{
+	for (auto& Barrier : TargetArray)
+	{
+		if (VKHasAnyFlags(Barrier.subresourceRange.aspectMask, (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)))
+		{
+			if (Barrier.newLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL)
+			{
+				Barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+			}
+			else if (Barrier.newLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL)
+			{
+				Barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			}
+
+			if (Barrier.oldLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL)
+			{
+				Barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+			}
+			else if (Barrier.oldLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL)
+			{
+				Barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			}
+		}
 	}
 }
 
@@ -1181,7 +1198,7 @@ void FTransitionProcessor<VkMemoryBarrier, VkBufferMemoryBarrier, VkImageMemoryB
 	// For Depth/Stencil formats where only one of the aspects is transitioned, look ahead for other barriers on the same resource
 	if (Texture->IsDepthOrStencilAspect() && (Texture->GetFullAspectMask() != ImageBarrier->subresourceRange.aspectMask))
 	{
-		check((ImageBarrier->subresourceRange.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT) || (ImageBarrier->subresourceRange.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT));
+		check(VKHasAnyFlags(ImageBarrier->subresourceRange.aspectMask, VK_IMAGE_ASPECT_DEPTH_BIT |VK_IMAGE_ASPECT_STENCIL_BIT));
 		if ((ImageBarrier->oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) && (!RemainingExtras->IsAliasingBarrier))
 		{
 			ImageBarrier->oldLayout = Layout.GetSubresLayout(ImageBarrier->subresourceRange.baseArrayLayer, ImageBarrier->subresourceRange.baseMipLevel, (VkImageAspectFlagBits)ImageBarrier->subresourceRange.aspectMask);
@@ -1216,10 +1233,22 @@ void FTransitionProcessor<VkMemoryBarrier, VkBufferMemoryBarrier, VkImageMemoryB
 
 		Layout.Set(ImageBarrier->newLayout, ImageBarrier->subresourceRange);
 
-		// Fix up the barrier to include both layouts
+		// Merge the layout with its other half and set it in the barrier
+		if (OtherAspectMask == VK_IMAGE_ASPECT_STENCIL_BIT)
+		{
 		ImageBarrier->oldLayout = GetMergedDepthStencilLayout(ImageBarrier->oldLayout, OtherAspectOldLayout);
         ImageBarrier->newLayout = GetMergedDepthStencilLayout(ImageBarrier->newLayout, OtherAspectNewLayout);
+		}
+		else
+		{
+			ImageBarrier->oldLayout = GetMergedDepthStencilLayout(OtherAspectOldLayout, ImageBarrier->oldLayout);
+			ImageBarrier->newLayout = GetMergedDepthStencilLayout(OtherAspectNewLayout, ImageBarrier->newLayout);
+		}
         ImageBarrier->subresourceRange.aspectMask |= OtherAspectMask;
+
+		// Once we're done downgrading the barrier, make sure there are no sync2 states left
+		check((ImageBarrier->oldLayout != VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL) && (ImageBarrier->oldLayout != VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL));
+		check((ImageBarrier->newLayout != VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL) && (ImageBarrier->newLayout != VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL));
 	}
 	else
 	{
@@ -1245,6 +1274,15 @@ void FTransitionProcessor<VkMemoryBarrier, VkBufferMemoryBarrier, VkImageMemoryB
 			checkSlow(RemainingExtras->IsAliasingBarrier || Layout.AreSubresourcesSameLayout(ImageBarrier->oldLayout, ImageBarrier->subresourceRange));
 		}
 
+		const VkImageLayout TrackedNewLayout = ImageBarrier->newLayout;
+		if (Texture->IsDepthOrStencilAspect())
+		{
+			// The only way we end up here is if the barrier transitions every aspect of the depth(-stencil) texture
+			check(Texture->GetFullAspectMask() == ImageBarrier->subresourceRange.aspectMask);
+			ImageBarrier->oldLayout = GetMergedDepthStencilLayout(ImageBarrier->oldLayout, ImageBarrier->oldLayout);
+			ImageBarrier->newLayout = GetMergedDepthStencilLayout(ImageBarrier->newLayout, ImageBarrier->newLayout);
+		}
+
 		MergedDstStageMask |= GetVkStageFlagsForLayout(ImageBarriers[TargetIndex].newLayout);
 
 		if (!IsCrossPipe)
@@ -1265,7 +1303,11 @@ void FTransitionProcessor<VkMemoryBarrier, VkBufferMemoryBarrier, VkImageMemoryB
 			}
 		}
 
-		Layout.Set(ImageBarrier->newLayout, ImageBarrier->subresourceRange);
+		// Make sure these new barriers are downgraded (since we're already past that step by the time we apply tracking)
+		check((ImageBarrier->oldLayout != VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL) && (ImageBarrier->oldLayout != VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL));
+		check((ImageBarrier->newLayout != VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL) && (ImageBarrier->newLayout != VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL));
+
+		Layout.Set(TrackedNewLayout, ImageBarrier->subresourceRange);
 	}
 
 	LayoutManager.SetFullLayout(*Texture, Layout);
@@ -1521,6 +1563,26 @@ void FVulkanPipelineBarrier::AddMemoryBarrier(VkAccessFlags InSrcAccessFlags, Vk
 // Methods used when the RHI itself needs to perform a layout transition. The public API functions do not call these,
 // they fill in the fields of FVulkanPipelineBarrier using their own logic, based on the ERHIAccess flags.
 //
+
+void FVulkanPipelineBarrier::AddFullImageLayoutTransition(const FVulkanTexture& Texture, VkImageLayout SrcLayout, VkImageLayout DstLayout)
+{
+	const VkPipelineStageFlags SrcStageMask = GetVkStageFlagsForLayout(SrcLayout);
+	const VkPipelineStageFlags DstStageMask = GetVkStageFlagsForLayout(DstLayout);
+
+	const VkAccessFlags SrcAccessFlags = GetVkAccessMaskForLayout(SrcLayout);
+	const VkAccessFlags DstAccessFlags = GetVkAccessMaskForLayout(DstLayout);
+
+	const VkImageSubresourceRange SubresourceRange = MakeSubresourceRange(Texture.GetFullAspectMask());
+	if (Texture.IsDepthOrStencilAspect())
+	{
+		SrcLayout = GetMergedDepthStencilLayout(SrcLayout, SrcLayout);
+		DstLayout = GetMergedDepthStencilLayout(DstLayout, DstLayout);
+	}
+
+	VkImageMemoryBarrier2& ImgBarrier = ImageBarriers.AddDefaulted_GetRef();
+	SetupImageBarrier(ImgBarrier, Texture.Image, SrcStageMask, DstStageMask, SrcAccessFlags, DstAccessFlags, SrcLayout, DstLayout, SubresourceRange);
+}
+
 void FVulkanPipelineBarrier::AddImageLayoutTransition(VkImage Image, VkImageLayout SrcLayout, VkImageLayout DstLayout, const VkImageSubresourceRange& SubresourceRange)
 {
 	const VkPipelineStageFlags SrcStageMask = GetVkStageFlagsForLayout(SrcLayout);
@@ -1693,6 +1755,7 @@ void FVulkanPipelineBarrier::Execute(VkCommandBuffer CmdBuffer)
 
 		TArray<VkImageMemoryBarrier, TInlineAllocator<2>> TempImageBarriers;
 		DowngradeBarrierArray(TempImageBarriers, ImageBarriers, SrcStageMask, DstStageMask);
+		MergeDepthStencilLayouts(TempImageBarriers);
 
 		VulkanRHI::vkCmdPipelineBarrier(CmdBuffer, SrcStageMask, DstStageMask, 0, TempMemoryBarriers.Num(), TempMemoryBarriers.GetData(), 
 			TempBufferBarriers.Num(), TempBufferBarriers.GetData(), TempImageBarriers.Num(), TempImageBarriers.GetData());
@@ -1801,6 +1864,14 @@ void FVulkanImageLayout::CollapseSubresLayoutsIfSame()
 
 void FVulkanImageLayout::Set(VkImageLayout Layout, const VkImageSubresourceRange& SubresourceRange)
 {
+	checkf(
+		(Layout != VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL) &&
+		(Layout != VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL) &&
+		(Layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) &&
+		(Layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL),
+		TEXT("Layout tracking should always use separate depth and stencil layouts.")
+	);
+
 	const uint32 FirstPlane = (SubresourceRange.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) ? NumPlanes - 1 : 0;
 	const uint32 LastPlane = (SubresourceRange.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) ? NumPlanes : 1;
 

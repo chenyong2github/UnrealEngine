@@ -803,18 +803,37 @@ namespace VulkanRHI
 			return VK_IMAGE_LAYOUT_UNDEFINED;
 		}
 
+		// Depth formats used on textures that aren't targets (like GBlackTextureDepthCube)
+		if ((DepthLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) && (StencilLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))
+		{
+			return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
+
+		auto IsMergedLayout = [](VkImageLayout Layout)
+		{
+			return	(Layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ||
+					(Layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) ||
+					(Layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL) ||
+					(Layout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL);
+		};
+
+		if (IsMergedLayout(DepthLayout) || IsMergedLayout(StencilLayout))
+		{
+			checkf(StencilLayout == DepthLayout,
+				TEXT("Layouts were already merged but they are mismatched (%s != %s)."),
+				VK_TYPE_TO_STRING(VkImageLayout, DepthLayout), VK_TYPE_TO_STRING(VkImageLayout, StencilLayout));
+			return DepthLayout;
+		}
+
 		if (DepthLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL)
 		{
-			// :todo-jn:  barrier downgrades from sync2 to sync1 happen before the tracking is updated sometimes, which causes the StencilLayout to contain an older sync1 value. 
-			// temporarily accept those values until we fix it at the source.
-			// see FORT-645241
-			if ((StencilLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL) || (StencilLayout == VK_IMAGE_LAYOUT_UNDEFINED) || (StencilLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL))
+			if ((StencilLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL) || (StencilLayout == VK_IMAGE_LAYOUT_UNDEFINED))
 			{
 				return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			}
 			else
 			{
-				check(StencilLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL || StencilLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+				check(StencilLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
 				return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL;
 			}
 		}
