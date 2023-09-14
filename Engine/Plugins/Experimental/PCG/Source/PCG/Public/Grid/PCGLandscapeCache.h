@@ -77,7 +77,6 @@ private:
 	void SerializeFromBulkData() const;
 
 	// Serialized data
-	TWeakObjectPtr<const ULandscapeComponent> Component = nullptr;
 	TArray<FName> LayerDataNames;
 	FVector PointHalfSize = FVector::One();
 	int32 Stride = 0;

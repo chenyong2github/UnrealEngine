@@ -9,7 +9,26 @@
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
+#include "LandscapeProxy.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
+
+#if WITH_EDITOR
+#include "UObject/UObjectHash.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/ActorPartition/PartitionActorDesc.h"
+#endif
+
+static TAutoConsoleVariable<bool> CVarForceRegisterOnCookData(
+	TEXT("pcg.ForceRegisterOnCookData"),
+	true,
+	TEXT("Controls whether we will call register/unregister automatically when building the landscape cache."));
+
+static TAutoConsoleVariable<bool> CVarLoadLandscapeInWPOnCookData(
+	TEXT("pcg.LoadLandscapeInWPOnCookData"),
+	true,
+	TEXT("Controls whether we will build the cache from all landscapes in a WP map."));
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGWorldActor)
 
@@ -30,10 +49,66 @@ void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* Targ
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 	check(LandscapeCacheObject);
-	LandscapeCacheObject->PrimeCache();
+
+	if (GetWorld())
+	{
+		// Implementation note: actor references gathered from the world partition helpers will register on creation and unregister on deletion
+		// which is why we need to manage this only in the non-WP case.
+		TSet<FWorldPartitionReference> ActorRefs;
+		UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
+
+		if (WorldPartition && CVarLoadLandscapeInWPOnCookData.GetValueOnAnyThread())
+		{
+			FWorldPartitionHelpers::ForEachActorDesc<ALandscapeProxy>(WorldPartition, [WorldPartition, &ActorRefs](const FWorldPartitionActorDesc* ActorDesc)
+			{
+				ActorRefs.Add(FWorldPartitionReference(WorldPartition, ActorDesc->GetGuid()));
+				return true;
+			});
+		}
+		
+		TArray<ALandscapeProxy*> ProxiesToRegisterAndUnregister;
+		if (!WorldPartition && CVarForceRegisterOnCookData.GetValueOnAnyThread())
+		{
+			// Since we're not in a WP map, the proxies should be outered to this world.
+			// Important note: registering the landscape proxies can create objects, which can and will cause issues with the ForEachWithOuter, hence the second loop in which we do the register
+			ForEachObjectWithOuter(GetWorld(), [&ProxiesToRegisterAndUnregister](UObject* Object)
+			{
+				if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Object))
+				{
+					bool bHasUnregisteredComponents = false;
+					LandscapeProxy->ForEachComponent(/*bIncludeFromChildActors=*/false, [&bHasUnregisteredComponents](const UActorComponent* Component)
+					{
+						if (Component && !Component->IsRegistered())
+						{
+							bHasUnregisteredComponents = true;
+						}
+					});
+
+					if (bHasUnregisteredComponents)
+					{
+						ProxiesToRegisterAndUnregister.Add(LandscapeProxy);
+					}
+				}
+			});
+
+			for (ALandscapeProxy* ProxyToRegister : ProxiesToRegisterAndUnregister)
+			{
+				ProxyToRegister->RegisterAllComponents();
+			}
+		}
+
+		LandscapeCacheObject->PrimeCache();
+
+		if (!WorldPartition && CVarForceRegisterOnCookData.GetValueOnAnyThread())
+		{
+			for (ALandscapeProxy* ProxyToUnregister : ProxiesToRegisterAndUnregister)
+			{
+				ProxyToUnregister->UnregisterAllComponents();
+			}
+		}
+	}
 }
 #endif
-
 
 void APCGWorldActor::PostInitProperties()
 {

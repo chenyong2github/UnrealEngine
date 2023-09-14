@@ -84,7 +84,6 @@ FPCGLandscapeCacheEntry* FPCGLandscapeCacheEntry::CreateCacheEntry(ULandscapeInf
 
 	FPCGLandscapeCacheEntry *Result = new FPCGLandscapeCacheEntry();
 
- 	Result->Component = InComponent;
 	Result->PointHalfSize = InComponent->GetComponentTransform().GetScale3D() * 0.5;
 	Result->Stride = Stride;
 
@@ -425,7 +424,10 @@ void FPCGLandscapeCacheEntry::Serialize(FArchive& Archive, UObject* Owner, int32
 		SerializeToBulkData();
 	}
 
-	Archive << Component;
+	// 5.3.1 serialization change to be binary compatible
+	TWeakObjectPtr<const ULandscapeComponent> DummyComponent = nullptr;
+
+	Archive << DummyComponent;
 	Archive << PointHalfSize;
 	Archive << Stride;
 	Archive << LayerDataNames;
