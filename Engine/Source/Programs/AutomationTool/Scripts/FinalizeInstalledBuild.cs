@@ -20,6 +20,7 @@ namespace AutomationTool
 	[Help("<Platform>Architectures=<ArchitectureList>)", "List of architectures that are used for a given platform (optional)")]
 	[Help("<Platform>GPUArchitectures=<GPUArchitectureList>)", "List of GPU architectures that are used for a given platform (optional)")]
 	[Help("AnalyticsTypeOverride=<TypeName>", "Name to give this build for analytics purposes (optional)")]
+	[Help("BuildId=<BuildIdentifier>", "Unique identifier for this build (optional)")]
 	class FinalizeInstalledBuild : BuildCommand
 	{
 		/// <summary>
@@ -31,11 +32,18 @@ namespace AutomationTool
 			List<UnrealTargetPlatform> Platforms = ParsePlatformsParamValue("Platforms");
 			List<UnrealTargetPlatform> ContentOnlyPlatforms = ParsePlatformsParamValue("ContentOnlyPlatforms");
 			string AnalyticsTypeOverride = ParseParamValue("AnalyticsTypeOverride");
+			string BuildId = ParseOptionalStringParam("BuildId");
 
 			// Write InstalledBuild.txt to indicate Engine is installed
 			string InstalledBuildFile = CommandUtils.CombinePaths(OutputDir, "Engine/Build/InstalledBuild.txt");
 			CommandUtils.CreateDirectory(CommandUtils.GetDirectoryName(InstalledBuildFile));
-			CommandUtils.WriteAllText(InstalledBuildFile, Guid.NewGuid().ToString().ToUpper());
+
+			// Write build Identifier into InstalledBuild.txt
+			if(String.IsNullOrWhiteSpace(BuildId))
+			{
+				BuildId = Guid.NewGuid().ToString().ToUpper();
+			}
+			CommandUtils.WriteAllText(InstalledBuildFile, BuildId);
 
 			// Write InstalledBuild.txt to indicate Engine is installed
 			string Project = ParseParamValue("Project");

@@ -17,6 +17,7 @@ public:
 
 	virtual bool RegisterEngineInstallation(const FString &RootDir, FString &OutIdentifier) override;
 	virtual void EnumerateEngineInstallations(TMap<FString, FString> &OutInstallations) override;
+	virtual void EnumerateLauncherEngineInstallations(TMap<FString, FString> &OutInstallations) override;
 
 	virtual bool IsSourceDistribution(const FString &RootDir) override;
 

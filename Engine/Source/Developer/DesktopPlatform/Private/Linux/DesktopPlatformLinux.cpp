@@ -142,8 +142,9 @@ bool FDesktopPlatformLinux::RegisterEngineInstallation(const FString &RootDir, F
 		if(File)
 		{
 			FFileHelper::LoadFileToString(OutIdentifier, *File);
+			OutIdentifier.TrimEndInline();
 			FGuid GuidCheck(OutIdentifier);
-			if(!GuidCheck.IsValid())
+			if(!GuidCheck.IsValid() && !OutIdentifier.StartsWith(TEXT("UE_")))
 			{
 				OutIdentifier = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 			}
@@ -157,6 +158,7 @@ bool FDesktopPlatformLinux::RegisterEngineInstallation(const FString &RootDir, F
 		}
 
 		Section.AddUnique(*OutIdentifier, RootDir);
+		OutIdentifier.RemoveFromStart(TEXT("UE_"));
 
 		ConfigFile.Dirty = true;
 		ConfigFile.Write(ConfigPath);
@@ -192,9 +194,9 @@ void FDesktopPlatformLinux::EnumerateEngineInstallations(TMap<FString, FString> 
 	TArray<FName> KeysToRemove;
 	for (auto It : Section)
 	{
-		const FString& EngineDir = It.Value.GetValue();
+		const FString& RootDir = It.Value.GetValue();
 		// We remove entries pointing to a folder that doesn't exist or was using the wrong path.
-		if (EngineDir.Contains(FPaths::EngineDir()) || !IFileManager::Get().DirectoryExists(*EngineDir))
+		if (RootDir.Contains(FPaths::EngineDir()) || !IFileManager::Get().DirectoryExists(*RootDir))
 		{
 			KeysToRemove.Add(It.Key);
 			ConfigFile.Dirty = true;
@@ -210,15 +212,15 @@ void FDesktopPlatformLinux::EnumerateEngineInstallations(TMap<FString, FString> 
 	// Iterate through all entries.
 	for (auto It : Section)
 	{
-		FString EngineDir = It.Value.GetValue();
-		FPaths::NormalizeDirectoryName(EngineDir);
-		FPaths::CollapseRelativeDirectories(EngineDir);
+		FString NormalizedRootDir = It.Value.GetValue();
+		FPaths::NormalizeDirectoryName(NormalizedRootDir);
+		FPaths::CollapseRelativeDirectories(NormalizedRootDir);
 
 		FString EngineId;
-		const FName* Key = Section.FindKey(EngineDir);
+		const FName* Key = Section.FindKey(NormalizedRootDir);
 		if (Key == nullptr)
 		{
-			Key = SectionsToAdd.FindKey(EngineDir);
+			Key = SectionsToAdd.FindKey(NormalizedRootDir);
 		}
 
 		if (Key)
@@ -229,17 +231,19 @@ void FDesktopPlatformLinux::EnumerateEngineInstallations(TMap<FString, FString> 
 		}
 		else
 		{
-			if (!OutInstallations.FindKey(EngineDir))
+			if (!OutInstallations.FindKey(NormalizedRootDir))
 			{
 				EngineId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
-				SectionsToAdd.AddUnique(*EngineId, EngineDir);
+				SectionsToAdd.AddUnique(*EngineId, NormalizedRootDir);
 
 				ConfigFile.Dirty = true;
 			}
 		}
-		if (!EngineId.IsEmpty() && !OutInstallations.Find(EngineId))
+
+		// local builds only, don't add entries that start with "UE_" which signifies a released build
+		if (!EngineId.IsEmpty() && !OutInstallations.Find(EngineId) && !EngineId.StartsWith(TEXT("UE_")))
 		{
-			OutInstallations.Add(EngineId, EngineDir);
+			OutInstallations.Add(EngineId, NormalizedRootDir);
 		}
 	}
 
@@ -251,6 +255,63 @@ void FDesktopPlatformLinux::EnumerateEngineInstallations(TMap<FString, FString> 
 	ConfigFile.Write(ConfigPath);
 
 	IFileManager::Get().Delete(*UProjectPath);
+}
+
+void FDesktopPlatformLinux::EnumerateLauncherEngineInstallations(TMap<FString, FString> &OutInstallations)
+{
+	FConfigFile ConfigFile;
+	FString ConfigPath = FString(FPlatformProcess::ApplicationSettingsDir()) / FString(TEXT("UnrealEngine")) / FString(TEXT("Install.ini"));
+	ConfigFile.Read(ConfigPath);
+	
+	FConfigSection &Section = ConfigFile.FindOrAdd(TEXT("Installations"));
+
+	FString InstallationIdPath = FString(FPaths::EngineDir() / "Build" / "InstalledBuild.txt");
+	FArchive* File = IFileManager::Get().CreateFileReader(*InstallationIdPath, FILEREAD_Silent);
+	if (File)
+	{
+		FString NormalizedRootDir = FPaths::RootDir();
+		FPaths::NormalizeDirectoryName(NormalizedRootDir);
+		FPaths::CollapseRelativeDirectories(NormalizedRootDir);
+
+		FString Id;
+		FFileHelper::LoadFileToString(Id, *File);
+		Id.TrimEndInline();
+
+		// if the user unzipped a new installed build into a previously registered directory, we need to fix up the key
+		const FName* OldKey = Section.FindKey(NormalizedRootDir);
+		if(OldKey && Id != OldKey->ToString())
+		{
+			Section.Remove(*OldKey);
+			Section.Add(*Id, *NormalizedRootDir);
+			ConfigFile.Dirty = true;
+			ConfigFile.Write(ConfigPath);
+		}
+		File->Close();
+		delete File;
+	}
+
+	// now fill OutInstallations with only released builds
+	for (auto It : Section)
+	{
+		const FString RootDir = It.Value.GetValue();
+		FString GuidOrId = It.Key.ToString();
+
+		// We skip entries pointing to a folder that doesn't exist or was using the wrong path.
+		if (RootDir.Contains(FPaths::EngineDir()) || !IFileManager::Get().DirectoryExists(*RootDir))
+		{
+			continue;
+		}
+
+		// released builds only, add entries starting with "UE_"
+		if(GuidOrId.RemoveFromStart(TEXT("UE_"), ESearchCase::CaseSensitive))
+		{
+			if(!OutInstallations.Contains(GuidOrId))
+			{
+				OutInstallations.Add(*GuidOrId, *RootDir);
+			}
+		}
+	}
+
 }
 
 bool FDesktopPlatformLinux::IsSourceDistribution(const FString &RootDir)
