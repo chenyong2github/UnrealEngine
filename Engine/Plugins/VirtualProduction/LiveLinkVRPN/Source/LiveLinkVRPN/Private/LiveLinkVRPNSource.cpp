@@ -302,6 +302,9 @@ uint32 FLiveLinkVRPNSource::Run()
 	{
 		if (VRPNDevice.RawPointer != nullptr)
 		{
+			static FCriticalSection VRPNDeviceCriticalSection;
+			FScopeLock VRPNLock(&VRPNDeviceCriticalSection);
+
 			switch (DeviceType)
 			{
 				case EVRPNDeviceType::Analog:	VRPNDevice.Analog->mainloop();
