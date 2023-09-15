@@ -1353,8 +1353,13 @@ FPathState CreatePathState(int2 PixelIndex, int2 PrimaryRayTextureIndex)
 		float2 ViewportUV = (LaunchIndex + AAJitter) * View.BufferSizeAndInvSize.zw;
 		Output.Ray = CreatePrimaryRay(ViewportUV);
 
+#if 0
 		// only record the depth within a square.
 		Output.DepthResamplingWeight = all(AAJitter >= 0.0) && all(AAJitter <= 1.0) ? 1 : 0;
+#else
+		// record depth for all rays in the filter footprint (TODO: simplify code that uses this weight instead)
+		Output.DepthResamplingWeight = 1.0;
+#endif
 	}
 
 	if (CameraLensRadius.y > 0)
