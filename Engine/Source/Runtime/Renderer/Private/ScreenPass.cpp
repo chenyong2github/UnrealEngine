@@ -299,7 +299,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
-		SHADER_PARAMETER(FVector2f, DestinationTexelSize)
+		SHADER_PARAMETER(FVector2f, DstToSrcPixelScale)
 		SHADER_PARAMETER(FVector2f, SourceMaxUV)
 		SHADER_PARAMETER(FVector2f, DestinationResolution)
 		SHADER_PARAMETER(uint32, DownsampleDepthFilter)
@@ -339,7 +339,7 @@ void AddDownsampleDepthPass(
 	FDownsampleDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsampleDepthPS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->DepthTexture = Input.Texture;
-	PassParameters->DestinationTexelSize = FVector2f(1.0f / OutputViewport.Extent.X, 1.0f / OutputViewport.Extent.X);
+	PassParameters->DstToSrcPixelScale = FVector2f(float(InputViewport.Extent.X) / float(OutputViewport.Extent.X), float(InputViewport.Extent.Y) / float(OutputViewport.Extent.Y));
 	PassParameters->SourceMaxUV = FVector2f((float(View.ViewRect.Max.X) -1.0f - 0.51f) / InputViewport.Extent.X, (float(View.ViewRect.Max.Y) - 1.0f - 0.51f) / InputViewport.Extent.Y);
 	PassParameters->DownsampleDepthFilter = (uint32)DownsampleDepthFilter;
 

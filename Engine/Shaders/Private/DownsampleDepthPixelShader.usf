@@ -16,7 +16,7 @@
 
 Texture2D<uint> NaniteShadingMask;
 Texture2D<float> DepthTexture;
-float2 DestinationTexelSize;
+float2 DstToSrcPixelScale;
 float2 SourceMaxUV;
 float2 DestinationResolution;
 uint DownsampleDepthFilter;
@@ -43,7 +43,7 @@ void Main(
 	// Pixel coordinate for the output 
 	const int2 DstPixelPos = SVPos.xy;
 	// Lower left corner from the input 2x2 quad
-	const int2 PixelPos = DstPixelPos * 2;
+	const int2 PixelPos = float2(DstPixelPos) * DstToSrcPixelScale;
 
 	float DeviceZ0 = DepthTexture.Load(uint3(clamp(PixelPos + int2(0, 0), SrcPixelCoordMinAndMax.xy, SrcPixelCoordMinAndMax.zw), 0));
 	float DeviceZ1 = DepthTexture.Load(uint3(clamp(PixelPos + int2(0, 1), SrcPixelCoordMinAndMax.xy, SrcPixelCoordMinAndMax.zw), 0));
