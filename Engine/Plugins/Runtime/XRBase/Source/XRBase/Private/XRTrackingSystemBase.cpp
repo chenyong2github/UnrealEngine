@@ -63,7 +63,8 @@ TSharedPtr< class IXRCamera, ESPMode::ThreadSafe > FXRTrackingSystemBase::GetXRC
 {
 	check(DeviceId == HMDDeviceId);
 
-	if (!XRCamera.IsValid())
+	// Don't create/load on the render thread
+	if (!XRCamera.IsValid() && IsInGameThread())
 	{
 		XRCamera = FSceneViewExtensions::NewExtension<FDefaultXRCamera>(this, DeviceId);
 	}

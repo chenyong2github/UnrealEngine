@@ -549,7 +549,8 @@ TSharedPtr<class IXRCamera, ESPMode::ThreadSafe> FGoogleARCoreXRTrackingSystem::
 {
 	check(DeviceId == HMDDeviceId);
 
-	if (!XRCamera.IsValid())
+	// Don't create/load on the render thread
+	if (!XRCamera.IsValid() && IsInGameThread())
 	{
 		XRCamera = FSceneViewExtensions::NewExtension<FGoogleARCoreXRCamera>(*this, DeviceId);
 	}

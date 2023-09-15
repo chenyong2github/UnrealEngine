@@ -330,6 +330,12 @@ void UCameraComponent::HandleXRCamera()
 {
 	IXRTrackingSystem* XRSystem = GEngine->XRSystem.Get();
 	auto XRCamera = XRSystem->GetXRCamera();
+
+	if (!XRCamera.IsValid())
+	{
+		return;
+	}
+
 	const FTransform ParentWorld = CalcNewComponentToWorld(FTransform());
 
 	XRCamera->SetupLateUpdate(ParentWorld, this, bLockToHmd == 0);

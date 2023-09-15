@@ -131,7 +131,11 @@ void FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(FRHICommandListIm
 
 void FHeadMountedDisplayBase::CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
-	GetXRCamera()->CalculateStereoCameraOffset(ViewIndex, ViewRotation, ViewLocation);
+	TSharedPtr<class IXRCamera, ESPMode::ThreadSafe> HMDCamera = GetXRCamera();
+	if (HMDCamera.IsValid())
+	{
+		HMDCamera->CalculateStereoCameraOffset(ViewIndex, ViewRotation, ViewLocation);
+	}
 }
 
 void FHeadMountedDisplayBase::InitCanvasFromView(FSceneView* InView, UCanvas* Canvas)
