@@ -303,9 +303,18 @@ bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FA
 	, FTransform& AttributeValue
 	, bool bForceRecache) const
 {
-	if (!Attributes->ContainAttribute(LocalTransformKey))
+	UE::Interchange::FAttributeKey TransformKey = LocalTransformKey;
+	if (!Attributes->ContainAttribute(TransformKey))
 	{
-		return false;
+		//Fallback to LocalTransform:
+		if (Attributes->ContainAttribute(Macro_CustomLocalTransformKey))
+		{
+			TransformKey = Macro_CustomLocalTransformKey;
+		}
+		else
+		{
+			return false;
+		}
 	}
 	if (bForceRecache)
 	{
@@ -314,7 +323,7 @@ bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FA
 	if (!CacheTransform.IsSet())
 	{
 		FTransform LocalTransform;
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = GetAttributeHandle<FTransform>(LocalTransformKey);
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = GetAttributeHandle<FTransform>(TransformKey);
 		if (AttributeHandle.IsValid() && AttributeHandle.Get(LocalTransform) == UE::Interchange::EAttributeStorageResult::Operation_Success)
 		{
 			//Compute the Global
@@ -329,19 +338,11 @@ bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FA
 					}
 					else if (LocalTransformKey == Macro_CustomBindPoseLocalTransformKey)
 					{
-						//Its possible the root skeleton id have a parent that is not a joint, in that case we need to fall back on the normal transform
-						if (!ParentSceneNode->GetCustomBindPoseGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache))
-						{
-							ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
-						}
+						ParentSceneNode->GetCustomBindPoseGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
 					}
 					else if (LocalTransformKey == Macro_CustomTimeZeroLocalTransformKey)
 					{
-						//Its possible the root skeleton id have a parent that is not a joint, in that case we need to fall back on the normal transform
-						if(!ParentSceneNode->GetCustomTimeZeroGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache))
-						{
-							ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
-						}
+						ParentSceneNode->GetCustomTimeZeroGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalParent, bForceRecache);
 					}
 				}
 				CacheTransform = LocalTransform * GlobalParent;

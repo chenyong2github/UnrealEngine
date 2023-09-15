@@ -94,7 +94,17 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 				TMap<FString, float> MorphTargetCurveWeights;
 				SceneNode->GetMorphTargetCurveWeights(MorphTargetCurveWeights);
 
-				if (MorphTargetCurveWeights.Num() > 0)
+				bool CreateAnimSequence = false;
+				for (const TTuple<FString, float>& MorphTargetCurveWeight : MorphTargetCurveWeights)
+				{
+					if (MorphTargetCurveWeight.Value != 0)
+					{
+						CreateAnimSequence = true;
+						break;
+					}
+				}
+
+				if (CreateAnimSequence)
 				{
 					SceneNodesWithMorphTargetCurveWeights.Add(SceneNode);
 				}
@@ -203,7 +213,11 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 				}
 			}
 
-			BaseNodeContainer->AddNode(SkeletalAnimationNode);
+			if (bCustomSkeletonNodeUidSet)
+			{
+				//if no SkeletonNodeUid can be set, then the conversion failed and should not be added to the BaseNodeContainer.
+				BaseNodeContainer->AddNode(SkeletalAnimationNode);
+			}
 		}
 	}
 	else

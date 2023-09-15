@@ -332,15 +332,11 @@ namespace UE
 					}
 					
 					FTransform JointBindPoseGlobalTransform;
-					if (!JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, GlobalOffsetTransform, JointBindPoseGlobalTransform))
+					if (!ensure(JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, GlobalOffsetTransform, JointBindPoseGlobalTransform)))
 					{
-						//If there is no bind pose we will fall back on the CustomGlobalTransform of the link.
-						//We ensure here because any scenenode should have a valid CustomGlobalTransform.
-						if (!ensure(JointNode->GetCustomGlobalTransform(NodeContainer, GlobalOffsetTransform, JointBindPoseGlobalTransform)))
-						{
-							//No value to convert from, skip this joint.
-							continue;
-						}
+						//BindPose will fall back on LocalTransform in case its not present.
+						//If neither is present: No Value to convert from, skip this joint.
+						continue;
 					}
 
 					FTransform JointTimeZeroGlobalTransform;
@@ -1228,7 +1224,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::Imp
 					FTransform SceneNodeTransform;
 					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeTransform))
 					{
-						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeTransform));
+						ensure(MeshReference.SceneNode->GetCustomBindPoseGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeTransform));
 						if (!bBakeMeshes)
 						{
 							SceneNodeTransform *= BakeToRootJointTransfromModifier;

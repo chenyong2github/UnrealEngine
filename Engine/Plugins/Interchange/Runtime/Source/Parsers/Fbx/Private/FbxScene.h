@@ -43,7 +43,8 @@ namespace UE
 					, FbxNode* Node
 					, FbxScene* SDKScene
 					, UInterchangeBaseNodeContainer& NodeContainer
-					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts);
+					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts
+					, TArray<FbxNode*>& ForceJointNodes);
 
 				void AddAnimationRecursively(FbxNode* Node
 					, FbxScene* SDKScene
@@ -51,13 +52,16 @@ namespace UE
 					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts
 					, UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationTrackNode, bool SkeletalAnimationAddedToContainer
 					, const FString& RootSceneNodeUid, const TSet<FString>& SkeletonRootNodeUids
-					, const int32& AnimationIndex);
+					, const int32& AnimationIndex
+					, TArray<FbxNode*>& ForceJointNodes);
 
 			private:
 				void AddRigidAnimation(FbxNode* Node
 					, UInterchangeSceneNode* UnrealNode
 					, UInterchangeBaseNodeContainer& NodeContainer
 					, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts);
+
+				void FindForceJointNode(FbxScene* SDKScene, TArray<FbxNode*>& ForceJointNodes);
 
 				FFbxParser& Parser;
 			};

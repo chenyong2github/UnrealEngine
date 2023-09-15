@@ -9,6 +9,7 @@
 #include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeSceneImportAsset.h"
 #include "InterchangeSceneImportAssetFactoryNode.h"
+#include "InterchangeSkeletalMeshLodDataNode.h"
 #include "InterchangeLightNode.h"
 #include "InterchangeLightFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
@@ -351,6 +352,42 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 		if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
 		{
 			TranslatedAssetNode = BaseNodeContainer->GetNode(AssetInstanceUid);
+		}
+		if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
+		{
+			bool bIsSkinnedMesh = MeshNode->IsSkinnedMesh();
+			if(!bIsSkinnedMesh)
+			{
+				//In case we have a rigid mesh (static mesh having morph target...), we should find a skeletalmesh factory node holding this mesh node
+				BaseNodeContainer->BreakableIterateNodesOfType<UInterchangeSkeletalMeshFactoryNode>([this, &SceneNode, &bIsSkinnedMesh](const FString& NodeUid, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshNode)
+				{
+					int32 LodCount = SkeletalMeshNode->GetLodDataCount();
+					TArray<FString> LodDataUniqueIds;
+					SkeletalMeshNode->GetLodDataUniqueIds(LodDataUniqueIds);
+					for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
+					{
+						FString LodUniqueId = LodDataUniqueIds[LodIndex];
+						const UInterchangeSkeletalMeshLodDataNode* LodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(BaseNodeContainer->GetNode(LodUniqueId));
+						if (LodDataNode)
+						{
+							TArray<FString> MeshUids;
+							LodDataNode->GetMeshUids(MeshUids);
+							if (MeshUids.Contains(SceneNode->GetUniqueID()))
+							{
+								bIsSkinnedMesh = true;
+								return bIsSkinnedMesh;
+							}
+						}
+					}
+					return false;
+				});	
+			}
+			//Skinned mesh are added when the bRootJointNode is true.
+			//In this case we dont want to add an empty staticmesh actor.
+			if (bIsSkinnedMesh)
+			{
+				return;
+			}
 		}
 	}
 

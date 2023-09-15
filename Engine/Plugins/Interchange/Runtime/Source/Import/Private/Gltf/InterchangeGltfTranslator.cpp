@@ -207,6 +207,26 @@ namespace UE::Interchange::Gltf::Private
 			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Interchange.Usage.Import.GLTF"), GLTFAnalytics);
 		}
 	};
+
+	void AcquireJointsWithBindPose(const TArray<GLTF::FNode>& GLTFNodes,int32 CurrentIndex, TSet<int32>& Joints)
+	{
+		if (GLTFNodes.IsValidIndex(CurrentIndex))
+		{
+			const GLTF::FNode& CurrentNode = GLTFNodes[CurrentIndex];
+			if (CurrentNode.Type == GLTF::FNode::EType::Joint)
+			{
+				if (CurrentNode.bHasLocalBindPose)
+				{
+					Joints.Add(CurrentIndex);
+				}
+
+				for (int32 ChildIndex : CurrentNode.Children)
+				{
+					AcquireJointsWithBindPose(GLTFNodes, ChildIndex, Joints);
+				}
+			}
+		}
+	}
 }
 
 void UInterchangeGLTFTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, 
@@ -876,6 +896,8 @@ void UInterchangeGLTFTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 	TMap<FString, UInterchangeSkeletalAnimationTrackNode*> RootJointIndexToTrackNodeMap;
 	TMap<UInterchangeSkeletalAnimationTrackNode*, TMap<FString, TArray<int32>>> TrackNodeToJointUidWithChannelsUsedMap;
 
+	TMap<int32, TSet<int32>> SkeletonRootToAnimatedJointNodeIndicesMap;	// (SkeletonRootUID, [AnimatedNodeIndices])
+
 	for (int32 ChannelIndex = 0; ChannelIndex < GltfAnimation.Channels.Num(); ++ChannelIndex)
 	{
 		const GLTF::FAnimation::FChannel& Channel = GltfAnimation.Channels[ChannelIndex];
@@ -921,7 +943,7 @@ void UInterchangeGLTFTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 			}
 		};
 
-		
+
 		bool bAnimationChannelProcessed = false;
 
 		bool bSkeletalAnimation = AnimatedNode->Type == GLTF::FNode::EType::Joint && GltfAsset.Nodes.IsValidIndex(AnimatedNode->RootJointIndex);
@@ -931,6 +953,16 @@ void UInterchangeGLTFTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 			FString SkeletonNodeUid = *SkeletonUidPtr;
 
 			CreateSkeletalAnimationTrackNode(SkeletonNodeUid, TMap<FString, FString>());
+
+			TSet<int32> AnimatedNodeIndices = SkeletonRootToAnimatedJointNodeIndicesMap.FindOrAdd(AnimatedNode->RootJointIndex);
+			for (int32 NodeIndex = 0; NodeIndex < GltfAsset.Nodes.Num(); NodeIndex++)
+			{
+				if (&GltfAsset.Nodes[NodeIndex] == AnimatedNode)
+				{
+					AnimatedNodeIndices.Add(NodeIndex);
+					break;
+				}
+			}
 
 			bAnimationChannelProcessed = true;
 		}
@@ -971,7 +1003,7 @@ void UInterchangeGLTFTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 				FString SkeletonNodeUid = AnimatedNodeUid;
 				CreateSkeletalAnimationTrackNode(AnimatedNodeUid, AnimationPayloadKeyForMorphTargetNodeUids);
 			}
-			
+
 			bAnimationChannelProcessed = true;
 		}
 
@@ -982,6 +1014,39 @@ void UInterchangeGLTFTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 
 		TArray<int32>& NodeChannels = NodeChannelsMap.FindOrAdd(AnimatedNode);
 		NodeChannels.Add(ChannelIndex);
+	}
+
+	{//Fix Skeletal Animations
+		for (const TTuple<int32, TSet<int32>>& AnimatedJointNodeIndices : SkeletonRootToAnimatedJointNodeIndicesMap)
+		{
+			int32 SkeletonRootIndex = AnimatedJointNodeIndices.Key;
+
+			const FString* SkeletonUid = NodeUidMap.Find(&GltfAsset.Nodes[SkeletonRootIndex]);
+			if (!ensure(SkeletonUid))
+			{
+				continue;
+			}
+
+			if (!RootJointIndexToTrackNodeMap.Contains(*SkeletonUid))
+			{
+				continue;
+			}
+			UInterchangeSkeletalAnimationTrackNode* TrackNode = RootJointIndexToTrackNodeMap[*SkeletonUid];
+
+			TSet<int32> JointsWithBindPose;
+			UE::Interchange::Gltf::Private::AcquireJointsWithBindPose(GltfAsset.Nodes, SkeletonRootIndex, JointsWithBindPose);
+
+			TSet<int32> NodesToAddToAnimation = JointsWithBindPose.Difference(AnimatedJointNodeIndices.Value);
+			for (int32 NodeToAddIndex : NodesToAddToAnimation)
+			{
+				const FString* NodeToAddUidPtr = NodeUidMap.Find(&GltfAsset.Nodes[NodeToAddIndex]);
+				if (!ensure(NodeToAddUidPtr))
+				{
+					continue;
+				}
+				TrackNode->SetAnimationPayloadKeyForSceneNodeUid(*NodeToAddUidPtr, TEXT("BIND_POSE_FIX<->") + LexToString(NodeToAddIndex), EInterchangeAnimationPayLoadType::BAKED);
+			}
+		}
 	}
 
 	//setup rigged animations:

@@ -13,6 +13,8 @@
 
 namespace UE::Interchange::Gltf::Private
 {
+	const FString BIND_POSE_FIX = TEXT("BIND_POSE_FIX<->");
+
 	/*
 	* According to gltf specification Seconds acquired from Samplers.input:
 	* "The values represent time in seconds with time[0] >= 0.0, and strictly increasing values, Index.e., time[n + 1] > time[n]."
@@ -451,19 +453,31 @@ namespace UE::Interchange::Gltf::Private
 
 	bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& PayloadData)
 	{
+		const double BakeInterval = 1.0 / PayloadData.BakeFrequency;
+		const double SequenceLength = FMath::Max<double>(PayloadData.RangeEndTime - PayloadData.RangeStartTime, MINIMUM_ANIMATION_LENGTH);
+		int32 FrameCount = FMath::RoundToInt32(SequenceLength * PayloadData.BakeFrequency);
+		int32 BakeKeyCount = FrameCount + 1;
+
 		TArray<int32> ChannelIndices;
 		int32 AnimationIndex;
 
 		if (!ParsePayLoadKey(GltfAsset, PayLoadKey, AnimationIndex, ChannelIndices))
 		{
+			if (PayLoadKey.Contains(BIND_POSE_FIX))
+			{
+				FString CutPayloadKey = PayLoadKey.Replace(*BIND_POSE_FIX, TEXT(""));
+				int32 NodeToSetIndex = INDEX_NONE;
+				LexFromString(NodeToSetIndex, *CutPayloadKey);
+				if (GltfAsset.Nodes.IsValidIndex(NodeToSetIndex))
+				{
+					PayloadData.Transforms.Init(GltfAsset.Nodes[NodeToSetIndex].Transform, BakeKeyCount);
+					return true;
+				}
+			}
+
 			return false;
 		}
 		const GLTF::FAnimation& GltfAnimation = GltfAsset.Animations[AnimationIndex];
-		
-		const double BakeInterval = 1.0 / PayloadData.BakeFrequency;
-		const double SequenceLength = FMath::Max<double>(PayloadData.RangeEndTime - PayloadData.RangeStartTime, MINIMUM_ANIMATION_LENGTH);
-		int32 FrameCount = FMath::RoundToInt32(SequenceLength * PayloadData.BakeFrequency);
-		int32 BakeKeyCount = FrameCount + 1;
 
 		//buffers to use for final Transform:
 		TArray<FVector3f> TranslationData;
