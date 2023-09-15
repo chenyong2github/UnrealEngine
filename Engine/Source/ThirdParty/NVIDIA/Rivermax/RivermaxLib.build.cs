@@ -23,22 +23,16 @@ public class RivermaxLib : ModuleRules
 			}
 			
 			string RivermaxLibDir = Path.Combine(RivermaxDir, "Lib");
-		
-			string RivermaxDllPath = Path.Combine(RivermaxLibDir, "rivermax.dll");
-
-			if (File.Exists(RivermaxDllPath))
-			{
-				//This is required because Rivermax depends on other drivers / dll to be installed for mellanox. We will manually load the dll and gracefully fail instead of 
-				//failing to load the module entirely.
-				PublicDelayLoadDLLs.Add("rivermax.dll");
-				
-				PublicRuntimeLibraryPaths.Add(RivermaxLibDir);
-				PublicAdditionalLibraries.Add(Path.Combine(RivermaxLibDir, "rivermax.lib"));
-				
-				//Used during manual loading of the library
-                PublicDefinitions.Add("RIVERMAX_LIBRARY_PLATFORM_PATH=" + RivermaxLibDir.Replace(@"\", "/"));
-                PublicDefinitions.Add("RIVERMAX_LIBRARY_NAME=" + "rivermax.dll");
-			}
+			
+			//This is required because Rivermax depends on other drivers / dll to be installed for mellanox. We will manually load the dll and gracefully fail instead of 
+			//failing to load the module entirely.
+			PublicDelayLoadDLLs.Add("rivermax.dll");
+			
+			PublicRuntimeLibraryPaths.Add(RivermaxLibDir);
+			
+			//Used during manual loading of the library
+			PublicDefinitions.Add("RIVERMAX_LIBRARY_PLATFORM_PATH=" + RivermaxLibDir.Replace(@"\", "/"));
+			PublicDefinitions.Add("RIVERMAX_LIBRARY_NAME=" + "rivermax.dll");
 		
 			string SDKThirdPartyPath = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA/Rivermax");
 			PublicSystemIncludePaths.Add(Path.Combine(SDKThirdPartyPath,"include"));
