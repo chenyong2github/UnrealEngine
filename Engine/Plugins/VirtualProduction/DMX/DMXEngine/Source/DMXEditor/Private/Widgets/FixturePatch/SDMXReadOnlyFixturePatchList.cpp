@@ -134,6 +134,17 @@ void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved);
 	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixturePatchChanged);
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixtureTypeChanged);
+	
+	// 5.3 Hotfix for crashes and bugs when reloading DMX Library assets. 
+	// Note, the workaround here is not ideal and should not be transported to future versions. A proper fix already exists in 5.4 with 27111707. 
+	FCoreUObjectDelegates::OnPackageReloaded.AddLambda(
+		[WeakThis = TWeakPtr<SDMXReadOnlyFixturePatchList>(StaticCastSharedRef<SDMXReadOnlyFixturePatchList>(AsShared()))](const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+		{
+			if (WeakThis.IsValid())
+			{
+				WeakThis.Pin()->RefreshList();
+			}
+		});
 
 	InitializeByListDescriptor(InArgs._ListDescriptor);
 }
@@ -406,8 +417,10 @@ void SDMXReadOnlyFixturePatchList::OnSearchTextChanged(const FText& SearchText)
 void SDMXReadOnlyFixturePatchList::OnEntityAddedOrRemoved(UDMXLibrary* InDMXLibrary, TArray<UDMXEntity*> Entities)
 {
 	if (InDMXLibrary == WeakDMXLibrary)
-	{
-		RequestListRefresh();
+	{	
+		// Requires forcing the refresh to hotfix for crases and bugs when deleting patches in use in the list.
+		// Note, the workaround here is not ideal and should not be transported to future versions. A proper fix already exists in 5.4 with 27111707. 
+		RefreshList();
 	}
 }
 
