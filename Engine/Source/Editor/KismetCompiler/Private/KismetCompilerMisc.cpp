@@ -1069,7 +1069,7 @@ TTuple<UEdGraphPin*, UEdGraphPin*> FKismetCompilerUtilities::GenerateFieldNotifi
 		CompilerContext.CopyPinLinksToIntermediate(*SourceNode->FindPinChecked(VariableReference.GetMemberName(), EGPD_Input), *NewValuePin);
 
 		bool bUseReferenceByRef = NewValuePin->LinkedTo.Num() != 0;
-		K2Schema->TrySetDefaultValue(*CallFuncNode->FindPinChecked(FName("NewValueByRef")), bHasLocalRepNotify ? TEXT("True") : TEXT("False"));
+		K2Schema->TrySetDefaultValue(*CallFuncNode->FindPinChecked(FName("NewValueByRef")), bUseReferenceByRef ? TEXT("True") : TEXT("False"));
 	}
 
 	// Set Net args pin
