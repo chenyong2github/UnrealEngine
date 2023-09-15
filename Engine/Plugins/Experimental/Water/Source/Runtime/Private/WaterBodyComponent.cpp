@@ -1850,6 +1850,7 @@ void UWaterBodyComponent::CopySharedCollisionSettingsToComponent(UPrimitiveCompo
 	InComponent->SetCollisionResponseToChannels(BodyInstance.GetResponseToChannels());
 	InComponent->SetCollisionProfileName(GetCollisionProfileName(), /*bUpdateOverlaps=*/ true);
 	InComponent->SetGenerateOverlapEvents(GetGenerateOverlapEvents());
+	InComponent->SetPhysMaterialOverride(PhysicalMaterial);
 }
 
 void UWaterBodyComponent::CopySharedNavigationSettingsToComponent(UPrimitiveComponent* InComponent)
