@@ -1210,11 +1210,15 @@ namespace UnrealBuildTool
 				return OutputFiles;
 			}
 
-			if (BinaryLinkEnvironment.BundleDirectory != null)
+			// modern handle bundles via xcode
+			if (!bUseModernXcode)
 			{
-				foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
+				if (BinaryLinkEnvironment.BundleDirectory != null)
 				{
-					OutputFiles.Add(CopyBundleResource(Resource, Executable, BinaryLinkEnvironment.BundleDirectory, Graph));
+					foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
+					{
+						OutputFiles.Add(CopyBundleResource(Resource, Executable, BinaryLinkEnvironment.BundleDirectory, Graph));
+					}
 				}
 			}
 

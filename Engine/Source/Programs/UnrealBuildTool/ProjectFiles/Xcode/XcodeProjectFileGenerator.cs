@@ -559,6 +559,7 @@ namespace UnrealBuildTool
 							foreach (UEBuildModule Module in Binary.Modules)
 							{
 								Dylibs.AddRange(Module.Rules.RuntimeDependencies.Inner.Where(x => x.Path.StartsWith("$(BinaryOutputDir)") && Path.GetExtension(x.SourcePath) == ".dylib"));
+								Bundles.AddRange(Module.Rules.AdditionalBundleResources.Select(x => new UEBuildBundleResource(x)));
 							}
 						}
 

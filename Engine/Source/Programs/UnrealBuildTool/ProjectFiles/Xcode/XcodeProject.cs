@@ -1486,6 +1486,15 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 			// look up to see if we had cached any Frameworks
 			Tuple<ProjectFile, UnrealTargetPlatform> FrameworkKey = Tuple.Create((ProjectFile)ProjectFile, Platform);
+			IEnumerable<UEBuildBundleResource>? Bundles;
+			if (XcodeProjectFileGenerator.TargetBundles.TryGetValue(FrameworkKey, out Bundles))
+			{
+				foreach (UEBuildBundleResource Bundle in Bundles)
+				{
+					ResourcesBuildPhase.AddFolderResource(new DirectoryReference(Bundle.ResourcePath!), "Resources");
+				}
+			}
+
 			IEnumerable<UEBuildFramework>? Frameworks;
 			if (XcodeProjectFileGenerator.TargetFrameworks.TryGetValue(FrameworkKey, out Frameworks))
 			{
