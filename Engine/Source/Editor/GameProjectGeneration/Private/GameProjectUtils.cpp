@@ -144,14 +144,14 @@ namespace
 			TEXT("/Script/Engine.RendererSettings"),
 			TEXT("r.DefaultFeature.LocalExposure.HighlightContrastScale"),
 			TEXT("0.8"),
-			true /* ShouldReplaceExistingValue */);
+			false /* ShouldReplaceExistingValue */);
 
 		// Enable Local Exposure by default for new projects
 		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
 			TEXT("/Script/Engine.RendererSettings"),
 			TEXT("r.DefaultFeature.LocalExposure.ShadowContrastScale"),
 			TEXT("0.8"),
-			true /* ShouldReplaceExistingValue */);
+			false /* ShouldReplaceExistingValue */);
 	}
 
 	/** Get the configuration values for raytracing if enabled. */
