@@ -692,7 +692,7 @@ class SwitchboardDialog(QtCore.QObject):
         def fill_ddc(current_level_only):
             for device in self.device_manager.devices():
                 if not device.is_disconnected:
-                    DeviceUnreal(device).fill_derived_data_cache(current_level_only)
+                    device.fill_derived_data_cache(current_level_only)
 
         def fill_ddc_current_level_action():
             fill_ddc(True)
