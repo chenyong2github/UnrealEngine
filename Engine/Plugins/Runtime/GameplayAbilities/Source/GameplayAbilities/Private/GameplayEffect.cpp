@@ -3873,7 +3873,7 @@ void FActiveGameplayEffectsContainer::InternalOnActiveGameplayEffectAdded(FActiv
 
 	const bool bActive = EffectDef->OnAddedToActiveContainer(*this, Effect);
 
-	constexpr bool bInvokeCuesIfEnabled = true;
+	constexpr bool bInvokeCuesIfEnabled = false;
 	Effect.bIsInhibited = true; // Effect has to start inhibited, so our call to Inhibit will trigger if we should be active
 	Owner->InhibitActiveGameplayEffect(Effect.Handle, !bActive, bInvokeCuesIfEnabled);
 }
