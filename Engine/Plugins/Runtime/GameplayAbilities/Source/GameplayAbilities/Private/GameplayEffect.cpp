@@ -2310,6 +2310,7 @@ FActiveGameplayEffect::FActiveGameplayEffect(FActiveGameplayEffect&& Other)
 	: Handle(Other.Handle)
 	, Spec(MoveTemp(Other.Spec))
 	, PredictionKey(Other.PredictionKey)
+	, GrantedAbilityHandles(MoveTemp(Other.GrantedAbilityHandles))
 	, StartServerWorldTime(Other.StartServerWorldTime)
 	, CachedStartServerWorldTime(Other.CachedStartServerWorldTime)
 	, StartWorldTime(Other.StartWorldTime)
@@ -2334,6 +2335,7 @@ FActiveGameplayEffect& FActiveGameplayEffect::operator=(FActiveGameplayEffect&& 
 	Handle = Other.Handle;
 	Spec = MoveTemp(Other.Spec);
 	PredictionKey = Other.PredictionKey;
+	GrantedAbilityHandles = MoveTemp(Other.GrantedAbilityHandles);
 	StartServerWorldTime = Other.StartServerWorldTime;
 	CachedStartServerWorldTime = Other.CachedStartServerWorldTime;
 	StartWorldTime = Other.StartWorldTime;
@@ -2357,6 +2359,7 @@ FActiveGameplayEffect& FActiveGameplayEffect::operator=(const FActiveGameplayEff
 	Handle = Other.Handle;
 	Spec = Other.Spec;
 	PredictionKey = Other.PredictionKey;
+	GrantedAbilityHandles = Other.GrantedAbilityHandles;
 	StartServerWorldTime = Other.StartServerWorldTime;
 	CachedStartServerWorldTime = Other.CachedStartServerWorldTime;
 	StartWorldTime = Other.StartWorldTime;
