@@ -92,6 +92,14 @@ public abstract class ApplePlatform : Platform
 
 	public override void PostStagingFileCopy(ProjectParams Params, DeploymentContext SC)
 	{
+		// staging will put binaries into Staged/<game>/Binaries/<platform> and they aren't needed, and when we pull this into a .app, it 
+		// messes with the resulting .app. So, we remove the game binary now (leaving in helper .app's and raw .dylibs, etc)
+		// they come from BuildProducts, and we could maybe remove from that list, but it could cause issues with Horde/buildmachines
+		FileReference BinaryPath = FileReference.Combine(SC.StageDirectory, Params.IsCodeBasedProject ? SC.ShortProjectName : "Engine", "Binaries", SC.PlatformDir, SC.StageExecutables[0]);
+		DirectoryReference AppPath = new DirectoryReference(BinaryPath.FullName + ".app");
+		InternalUtils.SafeDeleteFile(BinaryPath.FullName, true);
+		InternalUtils.SafeDeleteDirectory(AppPath.FullName, true);
+
 		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			// now reset the envvar so the following build will process the staged data
@@ -109,10 +117,6 @@ public abstract class ApplePlatform : Platform
 				string TargetName = Target.TargetName;
 				if (!Params.IsCodeBasedProject)
 				{
-					// instead of staging an UnrealGame.app, stage something with the project name, like say MyProjectClient-IOS-Shipping.app
-					string ProductName = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Target.Platform, Target.Configuration, Target.Architectures, UnrealTargetConfiguration.Development, null);
-					ExtraOptions += $" PRODUCT_NAME={ProductName}";
-
 					if (Params.RawProjectPath != null)
 					{
 						TargetName = MakeContentOnlyTargetName(Target, Params.ShortProjectName);
@@ -205,11 +209,12 @@ public abstract class ApplePlatform : Platform
 					$"UE_OVERRIDE_STAGE_DIR=\"{SC.StageDirectory}\"";
 				if (!Params.IsCodeBasedProject)
 				{
-					// override where the .app will be located and named
-					ExtraOptions += $" SYMROOT=\"{SC.ProjectRoot}/Binaries\"";
-					string ProductName = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Receipt.Platform, Receipt.Configuration, Receipt.Architectures, UnrealTargetConfiguration.Development, null);
-					ExtraOptions += $" PRODUCT_NAME={ProductName}";
-
+					if (!Params.Distribution)
+					{
+						// override where the .app will be located and named
+						ExtraOptions += $" SYMROOT=\"{SC.ProjectRoot}/Binaries\"";
+					}
+					
 					if (Params.RawProjectPath != null)
 					{
 						TargetName = MakeContentOnlyTargetName(Receipt, Params.ShortProjectName);
