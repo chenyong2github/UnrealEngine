@@ -264,6 +264,30 @@ bool FSequencerObjectChangeListener::CanKeyProperty(FCanKeyPropertyParams CanKey
 	return CanKeyProperty_Internal(CanKeyPropertyParams, Delegate, Property, PropertyPath);
 }
 
+const UStruct* FindPropertyOwner(const FPropertyPath& InProperyPath, const UClass* InObjectClass, const FProperty* ForProperty)
+{
+	check(ForProperty);
+
+	bool bFoundProperty = false;
+	for (int32 Index = InProperyPath.GetNumProperties() - 1; Index >= 0; --Index)
+	{
+		FProperty* Property = InProperyPath.GetPropertyInfo(Index).Property.Get();
+		if (!bFoundProperty)
+		{
+			bFoundProperty = Property == ForProperty;
+			if (bFoundProperty)
+			{
+				return Property->GetOwnerStruct();
+			}
+		}
+		else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
+		{
+			return StructProperty->Struct;
+		}
+	}
+	return InObjectClass;
+}
+
 bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyParams CanKeyPropertyParams, FOnAnimatablePropertyChanged& InOutDelegate, FProperty*& InOutProperty, FPropertyPath& InOutPropertyPath) const
 {
 	if (CanKeyPropertyParams.PropertyPath.GetNumProperties() == 0)
@@ -288,14 +312,16 @@ bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyPara
 				continue;
 			}
 
-			const UStruct* PropertyContainer = CanKeyPropertyParams.FindPropertyContainer(Property);
-			if (PropertyContainer)
+			const UStruct* PropertyOwner = FindPropertyOwner(CanKeyPropertyParams.PropertyPath, CanKeyPropertyParams.ObjectClass, Property);
+			if (PropertyOwner)
 			{
-				if (!FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(PropertyContainer, Property->GetFName()))
+				if (!FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(PropertyOwner, Property->GetFName()))
 				{
 					continue;
 				}
 
+				const UStruct* PropertyContainer = CanKeyPropertyParams.FindPropertyContainer(Property);
+				if (PropertyContainer)
 				{
 					FAnimatedPropertyKey PropertyKey = FAnimatedPropertyKey::FromProperty(Property);
 
