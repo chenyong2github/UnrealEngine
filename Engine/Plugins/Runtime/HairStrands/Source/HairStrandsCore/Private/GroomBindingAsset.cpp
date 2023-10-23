@@ -70,7 +70,7 @@ static void InternalSerializeStrands(FArchive& Ar, UObject* Owner, FHairStrandsR
 
 		// Pre-warm DDC cache
 		#if WITH_EDITORONLY_DATA
-		const bool bPreWarmCache = IsLoading() && bHeader && !bData;
+		const bool bPreWarmCache = Ar.IsLoading() && bHeader && !bData;
 		if (bPreWarmCache)
 		{
 			bool bHasDataInCache = true;
@@ -849,10 +849,11 @@ void UGroomBindingAsset::CacheDerivedDatas(uint32 InGroupIndex, const FString Ke
 {
 	const FString DerivedDataKey = GroomBindingDerivedDataCacheUtils::BuildGroomBindingDerivedDataKey(KeySuffix + FString(TEXT("_Group")) + FString::FromInt(InGroupIndex));
 
-	bOutValid = false;
+	bOutValid = true;
 	bOutReloadResource = false;
 	if (DerivedDataKey != CachedDerivedDataKey[InGroupIndex])
 	{
+		bOutValid = false;
 		using namespace UE::DerivedData;
 
 		const FCacheKey HeaderKey = ConvertLegacyCacheKey(DerivedDataKey + FString(TEXT("_Header")));

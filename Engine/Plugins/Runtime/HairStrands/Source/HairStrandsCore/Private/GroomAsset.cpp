@@ -1859,7 +1859,7 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 
 		#if WITH_EDITORONLY_DATA
 		// Pre-warm DDC cache
-		const bool bPreWarmCache = IsLoading() && bHeader && !bData;
+		const bool bPreWarmCache = Ar.IsLoading() && bHeader && !bData;
 		if (bPreWarmCache)
 		{
 			bool bHasDataInCache = true;
