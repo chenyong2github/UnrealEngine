@@ -1403,7 +1403,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				{
 					"-/Info.plist",
 					"-/Manifest_*",
-					$"/*.app", // remove the staged .app from the root dir, it's hard to do by name due to ProjectName in staging, and TargetName, etc here
+					$"-/*.app", // remove the staged .app from the root dir, it's hard to do by name due to ProjectName in staging, and TargetName, etc here
 				};
 
 				// make a string like --exclude=/Info.plist --exclude=/Manifest_* ...

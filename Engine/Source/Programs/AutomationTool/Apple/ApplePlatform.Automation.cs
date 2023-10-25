@@ -142,11 +142,13 @@ public abstract class ApplePlatform : Platform
 		// go through each folder, starting at most recent, looking for an archive for the target
 		foreach (DirectoryReference DateDir in DateDirs)
 		{
-			Logger.LogInformation("Looking in Xcode archive dir {0}...", DateDir);
-
 			// find the most recent archive for this target (based on name of target, this ignores Development vs Shipping, but 
 			// since Distribution is meant only for Shipping it's ok
-			string Wildcard = $"{Target.Receipt.TargetName} *.xcarchive";
+			string Wildcard = AppleExports.MakeBinaryFileName(SC.ShortProjectName, Target.Receipt.Platform, UnrealTargetConfiguration.Development,
+				Target.Receipt.Architectures, UnrealTargetConfiguration.Development, null) + " *.xcarchive";
+
+			Logger.LogInformation("Looking in Xcode archive dir {0} for {1}", DateDir, Wildcard);
+
 			List<DirectoryReference> XcArchives = DirectoryReference.EnumerateDirectories(DateDir, Wildcard).ToList();
 			if (XcArchives.Count > 0)
 			{
@@ -290,7 +292,7 @@ public abstract class ApplePlatform : Platform
 			Logger.LogInformation("Copying {Type} package {ArchiveSource} to archive directory {ArchiveDir}", Params.Distribution ? "Distribution" : "Development", ArchiveSource, SC.ArchiveDirectory);
 			Logger.LogInformation("=====================================================================================");
 
-			SC.ArchiveFiles(ArchiveSource.FullName, NewPath: ArchiveSource.GetDirectoryName());
+			Utils.RunLocalProcessAndReturnStdOut("/usr/bin/env", $"ditto \"{ArchiveSource}\" \"{SC.ArchiveDirectory}/{ArchiveSource.GetDirectoryName()}\"", null);
 		}
 	}
 }
