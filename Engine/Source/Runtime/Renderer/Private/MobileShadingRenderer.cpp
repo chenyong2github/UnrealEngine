@@ -67,6 +67,7 @@
 #include "SceneUniformBuffer.h"
 #include "Engine/SpecularProfile.h"
 #include "LocalHeightFogRendering.h"
+#include "ScreenSpaceRayTracing.h"
 
 uint32 GetShadowQuality();
 
@@ -275,6 +276,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bModulatedShadowsInUse = false;
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
+	bRequriesScreenSpaceReflectionPass = false;
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresShadowProjections = false;
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
@@ -489,6 +491,17 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS();
 
+	bRequriesScreenSpaceReflectionPass = IsMobileScreenSpaceReflectionEnabled(ShaderPlatform)
+		&& Views[0].FinalPostProcessSettings.ScreenSpaceReflectionIntensity > 0
+		&& ViewFamily.EngineShowFlags.ScreenSpaceReflections
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !Views[0].bIsReflectionCapture
+		&& !Views[0].bIsPlanarReflection
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		&& bDeferredShading;
+
 	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
 		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
@@ -523,6 +536,7 @@ void FMobileSceneRenderer::InitViews(
 		bRequiresMultiPass ||
 		bForceDepthResolve ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
+		bRequriesScreenSpaceReflectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
@@ -1089,6 +1103,18 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 
 		RenderPixelProjectedReflection(GraphBuilder, SceneTextures.Color.Resolve, SceneTextures.Depth.Resolve, SceneTextures.PixelProjectedReflection, PlanarReflectionSceneProxy);
+	}
+
+	if (bRequriesScreenSpaceReflectionPass)
+	{
+		ESSRQuality SSRQuality;
+		IScreenSpaceDenoiser::FReflectionsRayTracingConfig DenoiserConfig;
+		ScreenSpaceRayTracing::GetSSRQualityForView(Views[0], &SSRQuality, &DenoiserConfig);
+
+		RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
+		IScreenSpaceDenoiser::FReflectionsInputs SSRDenoiserInputs;
+		ScreenSpaceRayTracing::RenderScreenSpaceReflections(
+			GraphBuilder, SceneTextures, Views[0], SSRQuality, false, &SSRDenoiserInputs);
 	}
 	
 	if (bUseVirtualTexturing)

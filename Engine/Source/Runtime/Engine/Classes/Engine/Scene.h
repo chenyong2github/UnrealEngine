@@ -144,6 +144,7 @@ ENGINE_API int32 GetMobilePlanarReflectionMode();
 ENGINE_API int32 GetMobilePixelProjectedReflectionQuality();
 ENGINE_API bool IsMobilePixelProjectedReflectionEnabled(EShaderPlatform ShaderPlatform);
 ENGINE_API bool IsUsingMobilePixelProjectedReflection(EShaderPlatform ShaderPlatform);
+ENGINE_API bool IsMobileScreenSpaceReflectionEnabled(EShaderPlatform ShaderPlatform);
 
 USTRUCT(BlueprintType)
 struct FColorGradePerRangeSettings

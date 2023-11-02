@@ -1062,7 +1062,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 				RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
 				IScreenSpaceDenoiser::FReflectionsInputs SSRDenoiserInputs;
-				ScreenSpaceRayTracing::RenderScreenSpaceReflections(GraphBuilder, SceneTextureParameters, SceneColorTexture, View, SSRQuality, /*bDenoise*/ false, &SSRDenoiserInputs);
+				ScreenSpaceRayTracing::RenderScreenSpaceReflections(GraphBuilder, SceneTextures, View, SSRQuality, /*bDenoise*/ false, &SSRDenoiserInputs);
 				OutTextures.Textures[3] = SSRDenoiserInputs.Color;
 			}
 			else
@@ -2016,7 +2016,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
 
 				ScreenSpaceRayTracing::RenderScreenSpaceReflections(
-					GraphBuilder, SceneTextureParameters, SceneColorTexture.Resolve, View, SSRQuality, bDenoise, &DenoiserInputs);
+					GraphBuilder, SceneTextures, View, SSRQuality, bDenoise, &DenoiserInputs);
 			}
 			else
 			{

@@ -30,6 +30,14 @@ SamplerState HZBSampler;
 
 uint ShouldReflectOnlyWater;
 
+#if SHADING_PATH_DEFERRED
+	#define VelocityTexture GBufferVelocityTexture
+	#define VelocityTextureSampler SceneTexturesStruct_GBufferVelocityTextureSampler
+#elif MOBILE_DEFERRED_SHADING && PIXELSHADER
+	#define VelocityTexture MobileSceneTextures.SceneVelocityTexture
+	#define VelocityTextureSampler MobileSceneTextures_SceneVelocityTextureSampler
+#endif
+
 float GetRoughness(const in FGBufferData GBuffer)
 {
 	float Roughness = GBuffer.Roughness;
@@ -152,7 +160,11 @@ void ScreenSpaceReflections(
 
 #else // STRATA_ENABLED
 
+#if SHADING_PATH_DEFERRED
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
+#elif MOBILE_DEFERRED_SHADING && PIXELSHADER
+	FGBufferData GBuffer = MobileFetchAndDecodeGBuffer(UV, SvPosition.xy);
+#endif
 
 	float3 N = GBuffer.WorldNormal;
 	const float SceneDepth = GBuffer.Depth;
@@ -317,7 +329,7 @@ void ScreenSpaceReflections(
 
 				float2 SampleUV;
 				float Vignette;
-				ReprojectHit(PrevScreenPositionScaleBias, GBufferVelocityTexture, GBufferVelocityTextureSampler, HitUVz, SampleUV, Vignette);
+				ReprojectHit(PrevScreenPositionScaleBias, VelocityTexture, VelocityTextureSampler, HitUVz, SampleUV, Vignette);
 
 				float4 SampleColor = SampleScreenColor( SceneColor, SceneColorSampler, SampleUV ) * Vignette;
 
@@ -396,7 +408,7 @@ void ScreenSpaceReflections(
 
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(PrevScreenPositionScaleBias, GBufferVelocityTexture, GBufferVelocityTextureSampler, HitUVz, SampleUV, Vignette);
+			ReprojectHit(PrevScreenPositionScaleBias, VelocityTexture, VelocityTextureSampler, HitUVz, SampleUV, Vignette);
 
 			OutColor = SampleScreenColor(SceneColor, SceneColorSampler, SampleUV) * Vignette;
 		}

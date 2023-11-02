@@ -93,8 +93,7 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
-	const FRDGTextureRef CurrentSceneColor,
+	const FSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	ESSRQuality SSRQuality,
 	bool bDenoiser,

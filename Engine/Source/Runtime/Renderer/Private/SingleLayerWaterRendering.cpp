@@ -1120,7 +1120,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			const bool bDenoise = false;
 			const bool bSingleLayerWater = true;
 			ScreenSpaceRayTracing::RenderScreenSpaceReflections(
-				GraphBuilder, SceneTextureParameters, SceneTextures.Color.Resolve, View, SSRQuality, bDenoise, &DenoiserInputs, bSingleLayerWater, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
+				GraphBuilder, SceneTextures, View, SSRQuality, bDenoise, &DenoiserInputs, bSingleLayerWater, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
 
 			ReflectionsColor = DenoiserInputs.Color;
 

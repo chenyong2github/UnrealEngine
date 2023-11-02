@@ -46,6 +46,14 @@ static TAutoConsoleVariable<int32> CVarSSRStencil(
 	TEXT(" 0 is off (default), 1 is on"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMobileScreenSpaceReflection(
+	TEXT("r.Mobile.ScreenSpaceReflection"),
+	0,
+	TEXT("0: Disable Screen Space Reflection on mobile platform. [default]\n")
+	TEXT("1: Enable Screen Space Reflection on mobile platform.\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarSSGILeakFreeReprojection(
 	TEXT("r.SSGI.LeakFreeReprojection"), 1,
 	TEXT("Whether use a more expensive but leak free reprojection of previous frame's scene color.\n"),
@@ -481,7 +489,7 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsUsingGBuffers(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -493,6 +501,7 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRPassCommonParameters, SSRPassCommonParameter)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		RDG_BUFFER_ACCESS(IndirectDrawParameter, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, TileListData)		// FScreenSpaceReflectionsTileVS
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
@@ -936,8 +945,7 @@ FSSRTTileClassificationParameters RenderHorizonTileClassification(
 
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
-	const FRDGTextureRef CurrentSceneColor,
+	const FSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	ESSRQuality SSRQuality,
 	bool bDenoiser,
@@ -945,6 +953,9 @@ void RenderScreenSpaceReflections(
 	bool bSingleLayerWater,
 	FTiledReflection* TiledScreenSpaceReflection)
 {
+	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+	FRDGTextureRef CurrentSceneColor = SceneTextures.Color.Resolve;
+
 	FRDGTextureSRVRef InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc(CurrentSceneColor));
 	if (SSRQuality != ESSRQuality::VisualizeSSR)
 	{
@@ -993,7 +1004,7 @@ void RenderScreenSpaceReflections(
 	FSSRCommonParameters CommonParameters;
 	CommonParameters.SSRParams = ComputeSSRParams(View, SSRQuality, false);
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-	CommonParameters.SceneTextures = SceneTextures;
+	CommonParameters.SceneTextures = SceneTextureParameters;
 	// Pipe down a mid grey texture when not using TAA's history to avoid wrongly reprojecting current scene color as if previous frame's TAA history.
 	if (InputColor->Desc.Texture == CurrentSceneColor || !CommonParameters.SceneTextures.GBufferVelocityTexture)
 	{
@@ -1014,7 +1025,7 @@ void RenderScreenSpaceReflections(
 	{
 		// Also bind the depth buffer
 		RenderTargets.DepthStencil = FDepthStencilBinding(
-			SceneTextures.SceneDepthTexture,
+			SceneTextureParameters.SceneDepthTexture,
 			ERenderTargetLoadAction::ENoAction,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthNop_StencilWrite);
@@ -1068,7 +1079,7 @@ void RenderScreenSpaceReflections(
 		{
 			FIntPoint ViewportOffset = View.ViewRect.Min;
 			FIntPoint ViewportExtent = View.ViewRect.Size();
-			FIntPoint BufferSize = SceneTextures.SceneDepthTexture->Desc.Extent;
+			FIntPoint BufferSize = SceneTextureParameters.SceneDepthTexture->Desc.Extent;
 
 			if (View.PrevViewInfo.CustomSSRInput.IsValid())
 			{
@@ -1115,6 +1126,7 @@ void RenderScreenSpaceReflections(
 	PassParameters->CommonParameters = CommonParameters;
 	SetSSRParameters(&PassParameters->SSRPassCommonParameter);
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->SceneTextures = SceneTextures.GetSceneTextureShaderParameters(View.GetFeatureLevel());
 	PassParameters->RenderTargets = RenderTargets;
 	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::SSR);
 
