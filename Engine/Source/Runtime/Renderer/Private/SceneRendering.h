@@ -1138,6 +1138,9 @@ struct FPreviousViewInfo
 	// Mobile ambient occlusion texture used for next frame.
 	TRefCountPtr<IPooledRenderTarget> MobileAmbientOcclusion = nullptr;
 
+	// Mobile screen space reflection used for next frame.
+	TRefCountPtr<IPooledRenderTarget> MobileScreenSpaceReflection = nullptr;
+
 	// Scene color used for reprojecting next frame to verify the motion vector reprojects correctly.
 	TRefCountPtr<IPooledRenderTarget> VisualizeMotionVectors;
 	FIntRect VisualizeMotionVectorsRect;
@@ -2902,6 +2905,7 @@ private:
 	bool bModulatedShadowsInUse;
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
+	bool bRequiresScreenSpaceReflectionPass;
 	bool bRequiresAmbientOcclusionPass;
 	bool bShouldRenderVelocities;
 	bool bShouldRenderHZB;
