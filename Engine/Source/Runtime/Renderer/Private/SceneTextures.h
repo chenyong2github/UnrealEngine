@@ -96,6 +96,9 @@ struct FSceneTextures : public FMinimalSceneTextures
 	// (Mobile) Texture used by mobile PPR in the next frame.
 	FRDGTextureRef PixelProjectedReflection{};
 
+	// Texture containing the screen space reflection result.
+	FRDGTextureRef ScreenSpaceReflection{};
+
 	// Textures used to composite editor primitives. Also used by the base pass when in wireframe mode.
 #if WITH_EDITOR
 	FRDGTextureRef EditorPrimitiveColor{};

@@ -21,6 +21,7 @@
 #include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
 #include "IHeadMountedDisplayModule.h"
 #include "Strata/Strata.h"
+#include "ScreenSpaceRayTracing.h"
 
 static TAutoConsoleVariable<int32> CVarSceneTargetsResizeMethod(
 	TEXT("r.SceneRenderTargetResizeMethod"),
@@ -538,6 +539,9 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 			SceneTextures.PixelProjectedReflection = CreateMobilePixelProjectedReflectionTexture(GraphBuilder, Config.MobilePixelProjectedReflectionExtent);
 		}
 	}
+
+	// Screen space reflection
+	SceneTextures.ScreenSpaceReflection = GraphBuilder.CreateTexture(ScreenSpaceRayTracing::GetSSRTextureDesc(Config.ShaderPlatform, Config.Extent), TEXT("ScreenSpaceReflections"));
 
 	// Velocity
 	SceneTextures.Velocity = GraphBuilder.CreateTexture(FVelocityRendering::GetRenderTargetDesc(Config.ShaderPlatform, Config.Extent), TEXT("SceneVelocity"));

@@ -394,6 +394,12 @@ half3 GetPlanarReflectionbasedReflectionLighting_Mobile(float3 TranslatedWorldPo
 	return Out;
 }
 
+half3 GetScreenSpaceReflectionLighting_Mobile(float2 BufferUV, half3 InSpecularIBL)
+{
+	half4 SSR = Texture2DSample(MobileBasePass.ScreenSpaceReflectionTexture, MobileBasePass.ScreenSpaceReflectionSampler, BufferUV);
+	return lerp(InSpecularIBL, SSR.rgb, SSR.a);
+}
+
 // Version used for Strata
 float3 GetImageBasedReflectionSpecular(
 	  half3 SpecularDirection, 
@@ -423,10 +429,11 @@ float3 GetImageBasedReflectionSpecular(
 
 // Version used for legacy shading
 void AccumulateReflection(
-	FGBufferData GBuffer, 
+	FGBufferData GBuffer,
+	float2 BufferUV,
 	half3 CameraVector, 
 	float3 TranslatedWorldPosition, 
-	half3 ReflectionVector, 
+	half3 ReflectionVector,
 	half IndirectIrradiance, 
 	uint GridIndex, 
 	inout FLightAccumulator DirectLighting)
@@ -459,6 +466,11 @@ void AccumulateReflection(
 
 	// Planar reflection
 	SpecularIBL = GetPlanarReflectionbasedReflectionLighting_Mobile(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, SpecularIBL);
+
+#if MOBILE_DEFERRED_LIGHTING
+	// Screen space reflection
+	SpecularIBL = GetScreenSpaceReflectionLighting_Mobile(BufferUV, SpecularIBL);
+#endif
 
 	half3 DiffuseColor = GBuffer.DiffuseColor;
 	half3 SpecularColor = GBuffer.SpecularColor;

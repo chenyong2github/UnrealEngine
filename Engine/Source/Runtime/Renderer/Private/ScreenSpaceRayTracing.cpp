@@ -942,6 +942,17 @@ FSSRTTileClassificationParameters RenderHorizonTileClassification(
 	return ClassificationParameters;
 }
 
+FRDGTextureDesc GetSSRTextureDesc(EShaderPlatform ShaderPlatform, FIntPoint Extent)
+{
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+		Extent,
+		PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV | TexCreate_NoFastClear);
+
+	Desc.Flags |= GFastVRamConfig.SSR;
+
+	return Desc;
+}
 
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
@@ -982,17 +993,11 @@ void RenderScreenSpaceReflections(
 	
 	// Alloc inputs for denoising.
 	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-			View.GetSceneTexturesConfig().Extent,
-			PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
-			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV | TexCreate_NoFastClear);
-
-		Desc.Flags |= GFastVRamConfig.SSR;
-
-		DenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceReflections"));
+		DenoiserInputs->Color = SceneTextures.ScreenSpaceReflection;
 
 		if (bDenoiser)
 		{
+			FRDGTextureDesc Desc = GetSSRTextureDesc(View.GetShaderPlatform(), View.GetSceneTexturesConfig().Extent);
 			Desc.Format = PF_R16F;
 			DenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceReflectionsHitDistance"));
 		}
@@ -1204,6 +1209,11 @@ void RenderScreenSpaceReflections(
 
 			RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
 		});
+	}
+
+	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+	{
+		GraphBuilder.QueueTextureExtraction(SceneTextures.ScreenSpaceReflection, &View.ViewState->PrevFrameViewInfo.MobileScreenSpaceReflection);
 	}
 } // RenderScreenSpaceReflections()
 

@@ -91,6 +91,8 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 	const FViewInfo& View);
 
 
+FRDGTextureDesc GetSSRTextureDesc(EShaderPlatform ShaderPlatform, FIntPoint Extent);
+
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,

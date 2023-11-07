@@ -276,7 +276,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bModulatedShadowsInUse = false;
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
-	bRequriesScreenSpaceReflectionPass = false;
+	bRequiresScreenSpaceReflectionPass = false;
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresShadowProjections = false;
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
@@ -491,16 +491,14 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS();
 
-	bRequriesScreenSpaceReflectionPass = IsMobileScreenSpaceReflectionEnabled(ShaderPlatform)
-		&& Views[0].FinalPostProcessSettings.ScreenSpaceReflectionIntensity > 0
-		&& ViewFamily.EngineShowFlags.ScreenSpaceReflections
+	bRequiresScreenSpaceReflectionPass = IsMobileScreenSpaceReflectionEnabled(ShaderPlatform)
+		&& ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(Views[0])
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS()
-		&& bDeferredShading;
+		&& !ViewFamily.UseDebugViewPS();
 
 	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
@@ -536,7 +534,7 @@ void FMobileSceneRenderer::InitViews(
 		bRequiresMultiPass ||
 		bForceDepthResolve ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
-		bRequriesScreenSpaceReflectionPass ||
+		bRequiresScreenSpaceReflectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
@@ -1105,7 +1103,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderPixelProjectedReflection(GraphBuilder, SceneTextures.Color.Resolve, SceneTextures.Depth.Resolve, SceneTextures.PixelProjectedReflection, PlanarReflectionSceneProxy);
 	}
 
-	if (bRequriesScreenSpaceReflectionPass)
+	if (bRequiresScreenSpaceReflectionPass)
 	{
 		ESSRQuality SSRQuality;
 		IScreenSpaceDenoiser::FReflectionsRayTracingConfig DenoiserConfig;
@@ -1964,8 +1962,9 @@ bool FMobileSceneRenderer::ShouldRenderHZB()
 {
 	static const auto MobileAmbientOcclusionTechniqueCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionTechnique"));
 
-	// Mobile SSAO requests HZB
+	// Mobile SSAO/SSR requests HZB
 	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
+	bIsFeatureRequested |= bRequiresScreenSpaceReflectionPass;
 
 	bool bNeedsHZB = bIsFeatureRequested;
 
