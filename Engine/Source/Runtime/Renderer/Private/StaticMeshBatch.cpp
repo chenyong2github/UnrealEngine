@@ -27,7 +27,7 @@ FStaticMeshBatch::~FStaticMeshBatch()
 	Scene->StaticMeshes.RemoveAt(Id);
 }
 
-FStaticMeshBatchRelevance::FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, bool bInUseAnisotropy, bool bInSupportsNaniteRendering, bool bInSupportsGPUScene, ERHIFeatureLevel::Type FeatureLevel)
+FStaticMeshBatchRelevance::FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, bool bInUseAnisotropy, bool bInUsePlanarReflection, bool bInSupportsNaniteRendering, bool bInSupportsGPUScene, ERHIFeatureLevel::Type FeatureLevel)
 	: Id(StaticMesh.Id)
 	, ScreenSize(InScreenSize)
 	, NumElements(StaticMesh.Elements.Num())
@@ -44,6 +44,7 @@ FStaticMeshBatchRelevance::FStaticMeshBatchRelevance(const FStaticMeshBatch& Sta
 	, bUseHairStrands(StaticMesh.UseForHairStrands(FeatureLevel))
 	, bUseAnisotropy(bInUseAnisotropy)
 	, bOverlayMaterial(StaticMesh.bOverlayMaterial)
+	, bUsePlanarReflection(bInUsePlanarReflection)
 	, bRenderToVirtualTexture(StaticMesh.bRenderToVirtualTexture)
 	, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 	, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)

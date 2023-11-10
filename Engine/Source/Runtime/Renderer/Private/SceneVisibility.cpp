@@ -1419,6 +1419,11 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 									{
 										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SecondStageDepthPass);
 									}
+									else if (StaticMeshRelevance.bUsePlanarReflection && View.bIsPlanarReflection)
+									{
+										// When static mesh uses planar reflection material, skip the depth pass in planar reflection capturing.
+										// Do nothing.
+									}
 									else
 									{
 										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
