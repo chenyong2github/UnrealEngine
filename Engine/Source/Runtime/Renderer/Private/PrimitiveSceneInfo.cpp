@@ -119,6 +119,7 @@ public:
 			bool bUseAnisotropy = Material.GetShadingModels().HasAnyShadingModel({MSM_DefaultLit, MSM_ClearCoat}) && Material.MaterialUsesAnisotropy_RenderThread();
 			bool bSupportsNaniteRendering = SupportsNaniteRendering(StaticMesh->VertexFactory, PrimitiveSceneProxy, Mesh.MaterialRenderProxy, FeatureLevel);
 			bool bSupportsGPUScene = StaticMesh->VertexFactory->SupportsGPUScene(FeatureLevel);
+			bool bUsePlanarReflection = Material.IsUsingPlanarForwardReflections();
 
 			FStaticMeshBatchRelevance* StaticMeshRelevance = new(PrimitiveSceneInfo->StaticMeshRelevances) FStaticMeshBatchRelevance(
 				*StaticMesh, 
@@ -127,6 +128,7 @@ public:
 				bUseSkyMaterial,
 				bUseSingleLayerWaterMaterial,
 				bUseAnisotropy,
+				bUsePlanarReflection,
 				bSupportsNaniteRendering,
 				bSupportsGPUScene,
 				FeatureLevel
