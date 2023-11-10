@@ -464,13 +464,13 @@ void AccumulateReflection(
 		, GridIndex
 	);
 
-	// Planar reflection
-	SpecularIBL = GetPlanarReflectionbasedReflectionLighting_Mobile(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, SpecularIBL);
-
 #if MOBILE_DEFERRED_LIGHTING
 	// Screen space reflection
 	SpecularIBL = GetScreenSpaceReflectionLighting_Mobile(BufferUV, SpecularIBL);
 #endif
+
+	// Planar reflection
+	SpecularIBL = GetPlanarReflectionbasedReflectionLighting_Mobile(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, SpecularIBL);
 
 	half3 DiffuseColor = GBuffer.DiffuseColor;
 	half3 SpecularColor = GBuffer.SpecularColor;

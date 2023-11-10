@@ -34,13 +34,6 @@ bool IsUsingMobilePixelProjectedReflection(EShaderPlatform ShaderPlatform)
 	return IsMobilePixelProjectedReflectionEnabled(ShaderPlatform) && GetMobilePixelProjectedReflectionQuality() > EMobilePixelProjectedReflectionQuality::Disabled;
 }
 
-bool IsMobileScreenSpaceReflectionEnabled(EShaderPlatform ShaderPlatform)
-{
-	static const auto MobileScreenSpaceReflectionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ScreenSpaceReflection"));
-
-	return IsMobilePlatform(ShaderPlatform) && IsMobileDeferredShadingEnabled(ShaderPlatform) && (MobileScreenSpaceReflectionCVar->GetValueOnAnyThread() != 0);
-}
-
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
 {
 	OutPostProcessSettings->bOverride_ColorSaturation = true;
