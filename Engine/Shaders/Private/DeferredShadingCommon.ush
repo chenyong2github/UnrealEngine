@@ -17,6 +17,9 @@
 #define GBUFFER_REFACTOR 0
 #endif
 
+Texture2D GBufferVelocityTexture;
+#define GBufferVelocityTextureSampler GlobalPointClampedSampler
+
 #if SHADING_PATH_DEFERRED
 
 #if !SUPPORTS_INDEPENDENT_SAMPLERS
@@ -33,7 +36,6 @@ Texture2D GBufferBTexture;
 Texture2D GBufferCTexture;
 Texture2D GBufferDTexture;
 Texture2D GBufferETexture;
-Texture2D GBufferVelocityTexture;
 Texture2D GBufferFTexture;
 Texture2D<uint> SceneLightingChannels;
 
@@ -44,7 +46,6 @@ Texture2D<uint> SceneLightingChannels;
 #define GBufferDTextureSampler GlobalPointClampedSampler
 #define GBufferETextureSampler GlobalPointClampedSampler
 #define GBufferFTextureSampler GlobalPointClampedSampler
-#define GBufferVelocityTextureSampler GlobalPointClampedSampler
 
 float SampleDeviceZFromSceneTextures(float2 UV)
 {
@@ -744,7 +745,7 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 	return GBuffer;
 }
 
-#if MOBILE_DEFERRED_SHADING && PIXELSHADER
+#if MOBILE_DEFERRED_SHADING
 
 #if METAL_PROFILE
 #include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
@@ -801,7 +802,7 @@ void MobileFetchGBuffer(in float2 UV, out half4 GBufferA, out half4 GBufferB, ou
 FGBufferData MobileFetchAndDecodeGBuffer(in float2 UV, in float2 PixelPos)
 {
 	FGBufferData GBuffer = (FGBufferData)0;
-#if (MOBILE_DEFERRED_SHADING && PIXELSHADER)
+#if MOBILE_DEFERRED_SHADING
 	float SceneDepth = 0; 
 	half4 GBufferA = 0;
 	half4 GBufferB = 0;
@@ -819,6 +820,18 @@ FGBufferData MobileFetchAndDecodeGBuffer(in float2 UV, in float2 PixelPos)
 
 	return GBuffer;
 }
+
+/** Add the function to be compatible with some SM5 shaders */
+FGBufferData GetGBufferDataFromSceneTextures(in float2 UV)
+{
+	return MobileFetchAndDecodeGBuffer(UV, UV);
+}
+
+float SampleDeviceZFromSceneTextures(float2 UV)
+{
+	return MobileSceneTextures.SceneDepthTexture.SampleLevel(MobileSceneTextures_SceneDepthTextureSampler, UV, 0).r;
+}
+
 #endif //SHADING_PATH_MOBILE
 
 /** Populates OutGBufferA, B and C */

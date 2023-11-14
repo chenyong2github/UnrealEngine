@@ -759,27 +759,16 @@ const static uint32 MaxConeDirections = 512;
 
 extern int32 GLumenDiffuseNumTargetCones;
 
-void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
+void FSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
+	int32 RayCountPerPixel,
 	HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters)
 {
 	using namespace HybridIndirectLighting;
 
-	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
-
 	int32 DownscaleFactor = CVarDiffuseIndirectHalfRes.GetValueOnRenderThread() ? 2 : 1;
-
-	int32 RayCountPerPixel = FMath::Clamp(
-		int32(CVarDiffuseIndirectRayPerPixel.GetValueOnRenderThread()),
-		1, HybridIndirectLighting::kMaxRayPerPixel);
-
-	if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
-	{
-		// Standalone SSGI have the number of ray baked in the shader permutation.
-		RayCountPerPixel = ScreenSpaceRayTracing::GetSSGIRayCountPerTracingPixel();
-	}
 
 	FIntPoint RayStoragePerPixelVector;
 	{
@@ -837,6 +826,27 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 
 	OutCommonDiffuseParameters.SceneTextures = SceneTextures;
 	OutCommonDiffuseParameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
+}
+
+void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters)
+{
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+
+	int32 RayCountPerPixel = FMath::Clamp(
+		int32(CVarDiffuseIndirectRayPerPixel.GetValueOnRenderThread()),
+		1, HybridIndirectLighting::kMaxRayPerPixel);
+
+	if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+	{
+		// Standalone SSGI have the number of ray baked in the shader permutation.
+		RayCountPerPixel = ScreenSpaceRayTracing::GetSSGIRayCountPerTracingPixel();
+	}
+
+	FSceneRenderer::SetupCommonDiffuseIndirectParameters(GraphBuilder, SceneTextures, View, RayCountPerPixel, OutCommonDiffuseParameters);
 }
 
 void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(

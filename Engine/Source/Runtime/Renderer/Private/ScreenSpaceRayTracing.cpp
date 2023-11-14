@@ -84,6 +84,13 @@ static TAutoConsoleVariable<float> CVarSSGISkyDistance(
 	TEXT("Distance of the sky in KM."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMobileScreenSpaceGlobalIllumination(
+	TEXT("r.Mobile.ScreenSpaceGlobalIllumination"),
+	0,
+	TEXT("0: Disable Screen Space Global Illumination on mobile platform. [default]\n")
+	TEXT("1: Enable Screen Space Global Illumination on mobile platform.\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 DECLARE_GPU_DRAWCALL_STAT_NAMED(ScreenSpaceReflections, TEXT("ScreenSpace Reflections"));
 DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse Indirect"));
@@ -91,11 +98,7 @@ DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse In
 
 static bool IsScreenSpaceDiffuseIndirectSupported(EShaderPlatform ShaderPlatform)
 {
-	if (IsForwardShadingEnabled(ShaderPlatform))
-	{
-		return false;
-	}
-	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
+	return IsUsingGBuffers(ShaderPlatform);
 }
 
 static bool SupportScreenSpaceDiffuseIndirect(const FViewInfo& View)
@@ -389,7 +392,7 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsUsingGBuffers(Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -418,6 +421,7 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextureShaderParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
@@ -729,6 +733,7 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 
 	FSSRTPrevFrameReductionCS::FParameters DefaultPassParameters;
 	{
+		DefaultPassParameters.SceneTextureShaderParameters = GetSceneTextureShaderParameters(View);
 		DefaultPassParameters.SceneTextures = SceneTextures;
 		DefaultPassParameters.View = View.ViewUniformBuffer;
 

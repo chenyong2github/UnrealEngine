@@ -285,7 +285,7 @@ void MainCS(
 			const bool bIsValid = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;
 		#endif // STRATA_ENABLED
 
-			float DeviceZ = SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, BufferUV, 0).r;
+			float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 
 			float ProbeOcclusionDistance = ProbeOcclusionDistanceTexture.Load(int3(PixelPosition, 0)).x;
 

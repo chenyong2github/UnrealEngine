@@ -51,11 +51,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCommonParameters, )
 	SHADER_PARAMETER(int32, PixelRayIndexOrdinateShift)
 
 	// Scene textures and its sampler.
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextureShaderParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 END_SHADER_PARAMETER_STRUCT()
 
 } // HybridIndirectLighting
+
+
 
 // Sky light parameters.
 BEGIN_SHADER_PARAMETER_STRUCT(FSkyDiffuseLightingParameters, )
