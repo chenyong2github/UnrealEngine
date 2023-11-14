@@ -213,11 +213,14 @@ void SetupMobileBasePassUniformParameters(
 	BasePassParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 
 	FRDGTextureRef AmbientOcclusionTexture = SystemTextures.White;
-	if (BasePass == EMobileBasePass::Opaque && MobileBasePassTextures.ScreenSpaceAO != nullptr)
+	if (View.PrevViewInfo.MobileAmbientOcclusion.IsValid())
+	{
+		AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.MobileAmbientOcclusion);
+	}
+	else if (BasePass == EMobileBasePass::Opaque && MobileBasePassTextures.ScreenSpaceAO != nullptr)
 	{
 		AmbientOcclusionTexture = MobileBasePassTextures.ScreenSpaceAO;
 	}
-
 	BasePassParameters.AmbientOcclusionTexture = AmbientOcclusionTexture;
 	BasePassParameters.AmbientOcclusionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
@@ -227,6 +230,13 @@ void SetupMobileBasePassUniformParameters(
 	if (View.PrevViewInfo.MobileScreenSpaceReflection.IsValid())
 	{
 		BasePassParameters.ScreenSpaceReflectionTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.MobileScreenSpaceReflection, TEXT("MobileScreenSpaceReflection"));
+	}
+
+	BasePassParameters.ScreenSpaceGlobalIlluminationTexture = SystemTextures.Black;
+	BasePassParameters.ScreenSpaceGlobalIlluminationSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	if (View.PrevViewInfo.MobileScreenSpaceGlobalIllumination.IsValid())
+	{
+		BasePassParameters.ScreenSpaceGlobalIlluminationTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.MobileScreenSpaceGlobalIllumination, TEXT("MobileScreenSpaceGlobalIllumination"));
 	}
 
 	const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(View.GetShaderPlatform());

@@ -76,18 +76,13 @@ static TAutoConsoleVariable<float> CVarSSGISkyDistance(
 	TEXT("Distance of the sky in KM."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-
 DECLARE_GPU_DRAWCALL_STAT_NAMED(ScreenSpaceReflections, TEXT("ScreenSpace Reflections"));
 DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse Indirect"));
 
 
 static bool IsScreenSpaceDiffuseIndirectSupported(EShaderPlatform ShaderPlatform)
 {
-	if (IsForwardShadingEnabled(ShaderPlatform))
-	{
-		return false;
-	}
-	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
+	return IsUsingGBuffers(ShaderPlatform);
 }
 
 static bool SupportScreenSpaceDiffuseIndirect(const FViewInfo& View)
@@ -381,7 +376,7 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsUsingGBuffers(Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -410,6 +405,7 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextureShaderParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
@@ -536,7 +532,7 @@ class FScreenSpaceCastStandaloneRayCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceCastStandaloneRayCS, FGlobalShader)
 
 	class FQualityDim : SHADER_PERMUTATION_RANGE_INT("QUALITY", 1, 4);
-	using FPermutationDomain = TShaderPermutationDomain<FQualityDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FQualityDim, FLightingTermDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonScreenSpaceRayParameters, CommonParameters)
@@ -721,6 +717,7 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 
 	FSSRTPrevFrameReductionCS::FParameters DefaultPassParameters;
 	{
+		DefaultPassParameters.SceneTextureShaderParameters = GetSceneTextureShaderParameters(View);
 		DefaultPassParameters.SceneTextures = SceneTextures;
 		DefaultPassParameters.View = View.ViewUniformBuffer;
 
@@ -1247,6 +1244,7 @@ IScreenSpaceDenoiser::FDiffuseIndirectInputs CastStandaloneDiffuseIndirectRays(
 
 	FScreenSpaceCastStandaloneRayCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FScreenSpaceCastStandaloneRayCS::FQualityDim>(Quality);
+	PermutationVector.Set<FLightingTermDim>(ELightingTerm::Diffuse);
 
 	TShaderMapRef<FScreenSpaceCastStandaloneRayCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(

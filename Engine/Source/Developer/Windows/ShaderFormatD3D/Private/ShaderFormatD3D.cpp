@@ -171,6 +171,7 @@ public:
 		else if (Input.ShaderFormat == NAME_PCD3D_ES3_1)
 		{
 			Input.Environment.SetDefine(TEXT("ES3_1_PROFILE"), 1);
+			Input.Environment.SetDefine(TEXT("D3D_ES3_1_PROFILE"), 1);
 			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 0);
 			Input.Environment.SetDefine(TEXT("__SHADER_TARGET_MAJOR"), 5);
 			Input.Environment.SetDefine(TEXT("__SHADER_TARGET_MINOR"), 0);

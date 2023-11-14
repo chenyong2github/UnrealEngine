@@ -277,6 +277,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequiresScreenSpaceReflectionPass = false;
+	bRequiresScreenSpaceGlobalIlluminationPass = false;
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresShadowProjections = false;
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
@@ -502,6 +503,13 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.UseDebugViewPS()
 		&& bDeferredShading;
 
+	bRequiresScreenSpaceGlobalIlluminationPass = (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		&& bDeferredShading;
+
 	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
 		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
@@ -510,7 +518,8 @@ void FMobileSceneRenderer::InitViews(
 		&& !Views[0].bIsPlanarReflection
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS();
+		&& !ViewFamily.UseDebugViewPS()
+		&& !bRequiresScreenSpaceGlobalIlluminationPass; // SSGI has an AO output
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
 
@@ -537,6 +546,7 @@ void FMobileSceneRenderer::InitViews(
 		bForceDepthResolve ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bRequiresScreenSpaceReflectionPass ||
+		bRequiresScreenSpaceGlobalIlluminationPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
@@ -1101,6 +1111,53 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	RenderOpaqueFX(GraphBuilder, GetSceneViews(), GetSceneUniforms(), FXSystem, SceneTextures.MobileUniformBuffer);
 
+	if (bRequiresScreenSpaceGlobalIlluminationPass)
+	{
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.MobileUniformBuffer);
+
+		// Setup the common diffuse parameter for this view.
+		HybridIndirectLighting::FCommonParameters CommonDiffuseParameters;
+		CommonDiffuseParameters.SceneTextureShaderParameters = GetSceneTextureShaderParameters(Views[0]);
+
+		SetupCommonDiffuseIndirectParameters(GraphBuilder, SceneTextureParameters, Views[0], /* out */ CommonDiffuseParameters);
+
+		// Update old ray tracing config for the denoiser.
+		IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
+		{
+			RayTracingConfig.RayCountPerPixel = CommonDiffuseParameters.RayCountPerPixel;
+			RayTracingConfig.ResolutionFraction = 1.0f / float(CommonDiffuseParameters.DownscaleFactor);
+		}
+
+		ScreenSpaceRayTracing::FPrevSceneColorMip PrevSceneColorMip;
+		PrevSceneColorMip = ScreenSpaceRayTracing::ReducePrevSceneColorMip(GraphBuilder, SceneTextureParameters, Views[0]);
+
+		FSSDSignalTextures DenoiserOutputs;
+		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
+
+		RDG_EVENT_SCOPE(GraphBuilder, "SSGI %dx%d", CommonDiffuseParameters.TracingViewportSize.X, CommonDiffuseParameters.TracingViewportSize.Y);
+		DenoiserInputs = ScreenSpaceRayTracing::CastStandaloneDiffuseIndirectRays(
+			GraphBuilder, CommonDiffuseParameters, PrevSceneColorMip, Views[0]);
+
+		const IScreenSpaceDenoiser* DenoiserToUse = IScreenSpaceDenoiser::GetDefaultDenoiser();
+		RDG_EVENT_SCOPE(GraphBuilder, "%s(DiffuseIndirect) %dx%d",
+			DenoiserToUse->GetDebugName(),
+			Views[0].ViewRect.Width(), Views[0].ViewRect.Height());
+
+		DenoiserOutputs = DenoiserToUse->DenoiseScreenSpaceDiffuseIndirect(
+			GraphBuilder,
+			Views[0],
+			&Views[0].PrevViewInfo,
+			SceneTextureParameters,
+			DenoiserInputs,
+			RayTracingConfig);
+
+		if (Views[0].ViewState && !Views[0].bStatePrevViewInfoIsReadOnly)
+		{
+			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[0], &Views[0].ViewState->PrevFrameViewInfo.MobileScreenSpaceGlobalIllumination);
+			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[1], &Views[0].ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
+		}
+	}
+
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
@@ -1641,6 +1698,13 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 		{
 			RenderDeferredSinglePass(GraphBuilder, PassParameters, ViewContext, SceneTextures, SortedLightSet, bUsingPixelLocalStorage);
 		}
+
+		if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly
+		 && IsMobileScreenSpaceGlobalIlluminationEnabled(View.GetShaderPlatform()))
+		{
+			GraphBuilder.QueueTextureExtraction(SceneTextures.Depth.Resolve, &View.ViewState->PrevFrameViewInfo.DepthBuffer);
+			GraphBuilder.QueueTextureExtraction(SceneTextures.Color.Resolve, &View.ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput);
+		}
 	}
 }
 
@@ -1975,9 +2039,10 @@ bool FMobileSceneRenderer::ShouldRenderHZB()
 {
 	static const auto MobileAmbientOcclusionTechniqueCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionTechnique"));
 
-	// Mobile SSAO/SSR requests HZB
+	// Mobile SSAO/SSR/SSGI requests HZB
 	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
 	bIsFeatureRequested |= bRequiresScreenSpaceReflectionPass;
+	bIsFeatureRequested |= bRequiresScreenSpaceGlobalIlluminationPass;
 
 	bool bNeedsHZB = bIsFeatureRequested;
 

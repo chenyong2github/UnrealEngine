@@ -52,6 +52,18 @@ FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, TRD
 	return Parameters;
 }
 
+FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTextureUniformBuffer)
+{
+	FSceneTextureParameters Parameters;
+	Parameters.SceneDepthTexture = (*SceneTextureUniformBuffer)->SceneDepthTexture;
+	Parameters.GBufferATexture = (*SceneTextureUniformBuffer)->GBufferATexture;
+	Parameters.GBufferBTexture = (*SceneTextureUniformBuffer)->GBufferBTexture;
+	Parameters.GBufferCTexture = (*SceneTextureUniformBuffer)->GBufferCTexture;
+	Parameters.GBufferDTexture = (*SceneTextureUniformBuffer)->GBufferDTexture;
+	Parameters.GBufferVelocityTexture = (*SceneTextureUniformBuffer)->SceneVelocityTexture;
+	return Parameters;
+}
+
 FSceneLightingChannelParameters GetSceneLightingChannelParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef LightingChannelsTexture)
 {
 	FSceneLightingChannelParameters Parameters;

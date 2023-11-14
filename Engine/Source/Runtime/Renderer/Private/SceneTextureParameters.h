@@ -27,6 +27,7 @@ FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, con
 
 /** Constructs scene texture parameters from the scene texture uniform buffer. Useful if you prefer to use loose parameters. */
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformBuffer);
+FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTextureUniformBuffer);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneLightingChannelParameters, )
 	// SceneLightingChannels needs to be accessed with SceneLightingChannels.Load(), so a shader accessing

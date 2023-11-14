@@ -1141,6 +1141,9 @@ struct FPreviousViewInfo
 	// Mobile screen space reflection used for next frame.
 	TRefCountPtr<IPooledRenderTarget> MobileScreenSpaceReflection = nullptr;
 
+	// Mobile screen space global illumination used for next frame.
+	TRefCountPtr<IPooledRenderTarget> MobileScreenSpaceGlobalIllumination = nullptr;
+
 	// Scene color used for reprojecting next frame to verify the motion vector reprojects correctly.
 	TRefCountPtr<IPooledRenderTarget> VisualizeMotionVectors;
 	FIntRect VisualizeMotionVectorsRect;
@@ -2694,6 +2697,12 @@ protected:
 		EVelocityPass VelocityPass,
 		bool bForceVelocity);
 
+	void SetupCommonDiffuseIndirectParameters(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextureParameters& SceneTextures,
+		const FViewInfo& View,
+		HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters);
+
 protected:
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
 
@@ -2894,6 +2903,7 @@ protected:
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
 
 	void RenderMobileShadowProjections(FRDGBuilder& GraphBuilder);
+
 private:
 	const bool bGammaSpace;
 	const bool bDeferredShading;
@@ -2906,6 +2916,7 @@ private:
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequiresScreenSpaceReflectionPass;
+	bool bRequiresScreenSpaceGlobalIlluminationPass;
 	bool bRequiresAmbientOcclusionPass;
 	bool bShouldRenderVelocities;
 	bool bShouldRenderHZB;

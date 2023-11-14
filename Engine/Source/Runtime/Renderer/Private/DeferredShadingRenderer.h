@@ -442,13 +442,6 @@ private:
 		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef LightShaftOcclusionTexture);
 
-	// TODO: Address tech debt to that directly in RenderDiffuseIndirectAndAmbientOcclusion()
-	void SetupCommonDiffuseIndirectParameters(
-		FRDGBuilder& GraphBuilder,
-		const FSceneTextureParameters& SceneTextures,
-		const FViewInfo& View,
-		HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters);
-
 	/** Dispatch async Lumen work if possible. */
 	void DispatchAsyncLumenIndirectLightingWork(
 		FRDGBuilder& GraphBuilder,

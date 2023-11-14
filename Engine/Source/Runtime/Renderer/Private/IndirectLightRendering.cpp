@@ -759,7 +759,7 @@ const static uint32 MaxConeDirections = 512;
 
 extern int32 GLumenDiffuseNumTargetCones;
 
-void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
+void FSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
