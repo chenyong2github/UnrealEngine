@@ -289,6 +289,8 @@ RENDERCORE_API bool IsMobileAmbientOcclusionEnabled(const FStaticShaderPlatform 
 
 RENDERCORE_API bool IsMobileScreenSpaceReflectionEnabled(EShaderPlatform ShaderPlatform);
 
+RENDERCORE_API bool IsMobileScreenSpaceGlobalIlluminationEnabled(EShaderPlatform ShaderPlatform);
+
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileMovableSpotlightShadowsEnabled(const FStaticShaderPlatform Platform);

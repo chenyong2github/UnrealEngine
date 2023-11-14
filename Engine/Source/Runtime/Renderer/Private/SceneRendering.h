@@ -46,6 +46,7 @@
 #include "TextureFallbacks.h"
 #include "SceneInterface.h"
 #include "Async/Mutex.h"
+#include "IndirectLightRendering.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -2491,6 +2492,13 @@ protected:
 		EVelocityPass VelocityPass,
 		bool bForceVelocity);
 
+	void SetupCommonDiffuseIndirectParameters(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextureParameters& SceneTextures,
+		const FViewInfo& View,
+		int32 RayCountPerPixel,
+		HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters);
+
 protected:
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
 
@@ -2691,6 +2699,7 @@ protected:
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
 
 	void RenderMobileShadowProjections(FRDGBuilder& GraphBuilder);
+
 private:
 	const bool bGammaSpace;
 	const bool bDeferredShading;
@@ -2703,6 +2712,7 @@ private:
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequiresScreenSpaceReflectionPass;
+	bool bRequiresScreenSpaceGlobalIlluminationPass;
 	bool bRequiresAmbientOcclusionPass;
 	bool bShouldRenderVelocities;
 	bool bShouldRenderHZB;
