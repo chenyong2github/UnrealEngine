@@ -229,6 +229,13 @@ void SetupMobileBasePassUniformParameters(
 		BasePassParameters.ScreenSpaceReflectionTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.MobileScreenSpaceReflection, TEXT("MobileScreenSpaceReflection"));
 	}
 
+	BasePassParameters.ScreenSpaceGlobalIlluminationTexture = SystemTextures.Black;
+	BasePassParameters.ScreenSpaceGlobalIlluminationSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	if (View.PrevViewInfo.MobileScreenSpaceGlobalIllumination.IsValid())
+	{
+		BasePassParameters.ScreenSpaceGlobalIlluminationTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.MobileScreenSpaceGlobalIllumination, TEXT("MobileScreenSpaceGlobalIllumination"));
+	}
+
 	const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(View.GetShaderPlatform());
 	
 	if (bMobileUsesShadowMaskTexture && GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile.IsValid())

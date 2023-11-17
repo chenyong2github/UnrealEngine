@@ -1149,6 +1149,11 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			RayTracingConfig);
 
 		AmbientOcclusionMask = DenoiserOutputs.Textures[1];
+
+		if (Views[0].ViewState && !Views[0].bStatePrevViewInfoIsReadOnly)
+		{
+			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[0], &Views[0].ViewState->PrevFrameViewInfo.MobileScreenSpaceGlobalIllumination);
+		}
 	}
 
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
@@ -2032,7 +2037,7 @@ bool FMobileSceneRenderer::ShouldRenderHZB()
 {
 	static const auto MobileAmbientOcclusionTechniqueCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionTechnique"));
 
-	// Mobile SSAO/SSR requests HZB
+	// Mobile SSAO/SSR/SSGI requests HZB
 	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
 	bIsFeatureRequested |= bRequiresScreenSpaceReflectionPass;
 	bIsFeatureRequested |= bRequiresScreenSpaceGlobalIlluminationPass;

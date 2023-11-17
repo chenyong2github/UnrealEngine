@@ -1140,6 +1140,9 @@ struct FPreviousViewInfo
 	// Mobile screen space reflection used for next frame.
 	TRefCountPtr<IPooledRenderTarget> MobileScreenSpaceReflection = nullptr;
 
+	// Mobile screen space global illumination used for next frame.
+	TRefCountPtr<IPooledRenderTarget> MobileScreenSpaceGlobalIllumination = nullptr;
+
 	// Scene color used for reprojecting next frame to verify the motion vector reprojects correctly.
 	TRefCountPtr<IPooledRenderTarget> VisualizeMotionVectors;
 	FIntRect VisualizeMotionVectorsRect;
