@@ -516,7 +516,8 @@ void FMobileSceneRenderer::InitViews(
 		&& !Views[0].bIsPlanarReflection
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS();
+		&& !ViewFamily.UseDebugViewPS()
+		&& !bRequiresScreenSpaceGlobalIlluminationPass; // SSGI has an AO output
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
 
@@ -1133,8 +1134,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		DenoiserInputs = ScreenSpaceRayTracing::CastStandaloneDiffuseIndirectRays(
 			GraphBuilder, CommonDiffuseParameters, PrevSceneColorMip, Views[0]);
 
-		FRDGTextureRef AmbientOcclusionMask = DenoiserInputs.AmbientOcclusionMask;
-
 		const IScreenSpaceDenoiser* DenoiserToUse = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		RDG_EVENT_SCOPE(GraphBuilder, "%s(DiffuseIndirect) %dx%d",
 			DenoiserToUse->GetDebugName(),
@@ -1148,11 +1147,10 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			DenoiserInputs,
 			RayTracingConfig);
 
-		AmbientOcclusionMask = DenoiserOutputs.Textures[1];
-
 		if (Views[0].ViewState && !Views[0].bStatePrevViewInfoIsReadOnly)
 		{
 			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[0], &Views[0].ViewState->PrevFrameViewInfo.MobileScreenSpaceGlobalIllumination);
+			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[1], &Views[0].ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
 		}
 	}
 

@@ -1203,17 +1203,10 @@ FScreenSpaceData GetScreenSpaceData(float2 UV, bool bGetNormalizedNormal = true)
 // [ Jimenez et al. 2016, "Practical Realtime Strategies for Accurate Indirect Occlusion" ]
 half3 AOMultiBounce(half3 BaseColor, half AO)
 {
-	if (SHADING_PATH_MOBILE && !MOBILE_HIGH_QUALITY_BRDF)
-	{
-		return AO;
-	}
-	else
-	{
-		half3 a = 2.0404 * BaseColor - 0.3324;
-		half3 b = -4.7951 * BaseColor + 0.6417;
-		half3 c = 2.7552 * BaseColor + 0.6903;
-		return max(AO, ((AO * a + b) * AO + c) * AO);
-	}
+	half3 a = 2.0404 * BaseColor - 0.3324;
+	half3 b = -4.7951 * BaseColor + 0.6417;
+	half3 c = 2.7552 * BaseColor + 0.6903;
+	return max(AO, ((AO * a + b) * AO + c) * AO);
 }
 
 #define LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT 3
