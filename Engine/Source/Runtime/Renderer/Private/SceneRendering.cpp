@@ -2733,6 +2733,8 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 
 	bDumpMeshDrawCommandInstancingStats = !!GDumpInstancingStats;
 	GDumpInstancingStats = 0;
+
+	ViewPipelineStates.SetNum(Views.Num());
 }
 
 // static
@@ -5821,4 +5823,53 @@ FRDGTextureRef CreateQuarterResolutionDepthMinAndMax(FRDGBuilder& GraphBuilder, 
 	}
 
 	return SmallTexture;
+}
+
+void FSceneRenderer::CommitFinalPipelineState()
+{
+	// Family pipeline state
+	{
+		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, UseNanite(ShaderPlatform)); // TODO: Should this respect ViewFamily.EngineShowFlags.NaniteMeshes?
+
+		static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
+		FamilyPipelineState.Set(&FFamilyPipelineState::bHZBOcclusion, ICVarHZBOcc->GetInt() != 0);
+	}
+
+	CommitIndirectLightingState();
+
+	// Views pipeline states
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+		TPipelineState<FPerViewPipelineState>& ViewPipelineState = GetViewPipelineStateWritable(View);
+
+		// Commit HZB state
+		{
+			const bool bHasSSGI = ViewPipelineState[&FPerViewPipelineState::DiffuseIndirectMethod] == EDiffuseIndirectMethod::SSGI;
+			const bool bUseLumen = ViewPipelineState[&FPerViewPipelineState::DiffuseIndirectMethod] == EDiffuseIndirectMethod::Lumen
+				|| ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::Lumen;
+
+			// Requires FurthestHZB
+			ViewPipelineState.Set(&FPerViewPipelineState::bFurthestHZB,
+				FamilyPipelineState[&FFamilyPipelineState::bHZBOcclusion] ||
+				FamilyPipelineState[&FFamilyPipelineState::bNanite] ||
+				ViewPipelineState[&FPerViewPipelineState::AmbientOcclusionMethod] == EAmbientOcclusionMethod::SSAO ||
+				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::SSR ||
+				bHasSSGI || bUseLumen);
+
+			ViewPipelineState.Set(&FPerViewPipelineState::bClosestHZB,
+				bHasSSGI || bUseLumen);
+		}
+	}
+
+	// Commit all the pipeline states.
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			const FViewInfo& View = Views[ViewIndex];
+
+			GetViewPipelineStateWritable(View).Commit();
+		}
+		FamilyPipelineState.Commit();
+	}
 }

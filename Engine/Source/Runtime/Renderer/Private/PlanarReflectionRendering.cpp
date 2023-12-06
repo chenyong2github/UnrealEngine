@@ -808,7 +808,7 @@ class FPlanarReflectionPS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FPlanarReflectionPS, "/Engine/Private/PlanarReflectionShaders.usf", "PlanarReflectionPS", SF_Pixel);
 
-bool FDeferredShadingSceneRenderer::HasDeferredPlanarReflections(const FViewInfo& View) const
+bool FSceneRenderer::HasDeferredPlanarReflections(const FViewInfo& View) const
 {
 	if (View.bIsPlanarReflection || View.bIsReflectionCapture)
 	{

@@ -429,7 +429,7 @@ static bool ShouldRenderPluginGlobalIllumination(const FViewInfo& View)
 	return View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Plugin;
 }
 
-void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
+void FSceneRenderer::CommitIndirectLightingState()
 {
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

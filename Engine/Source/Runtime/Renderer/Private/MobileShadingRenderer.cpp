@@ -803,6 +803,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	IVisibilityTaskData* VisibilityTaskData = UpdateScene(GraphBuilder, FGlobalDynamicBuffers(DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer));
 
+	// Compute & commit the final state of the entire dependency topology of the renderer.
+	CommitFinalPipelineState();
+
 	FRDGExternalAccessQueue ExternalAccessQueue;
 
 	{

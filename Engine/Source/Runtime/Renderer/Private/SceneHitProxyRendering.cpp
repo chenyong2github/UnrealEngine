@@ -558,6 +558,8 @@ static void DoRenderHitProxies(
 
 void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
+	CommitFinalPipelineState();
+
 	IVisibilityTaskData* VisibilityTaskData = UpdateScene(GraphBuilder, FGlobalDynamicBuffers(DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer));
 
 	GPU_MESSAGE_SCOPE(GraphBuilder);

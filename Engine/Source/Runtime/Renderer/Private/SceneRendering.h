@@ -46,6 +46,8 @@
 #include "TextureFallbacks.h"
 #include "SceneInterface.h"
 #include "Async/Mutex.h"
+#include "IndirectLightRendering.h"
+#include "ScreenSpaceDenoise.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -1989,6 +1991,119 @@ private:
 	FSceneUniformBuffer SceneUniforms;
 };
 
+enum class ELumenReflectionPass
+{
+	Opaque,
+	SingleLayerWater,
+	FrontLayerTranslucency
+};
+
+enum class EDiffuseIndirectMethod
+{
+	Disabled,
+	SSGI,
+	RTGI,
+	Lumen,
+	Plugin,
+};
+
+enum class EAmbientOcclusionMethod
+{
+	Disabled,
+	SSAO,
+	SSGI, // SSGI can produce AO buffer at same time to correctly comp SSGI within the other indirect light such as skylight and lightmass.
+	RTAO,
+};
+
+enum class EReflectionsMethod
+{
+	Disabled,
+	SSR,
+	RTR,
+	Lumen
+};
+
+/** Encapsulation of the pipeline state of the renderer that have to deal with very large number of dimensions
+ * and make sure there is no cycle dependencies in the dimensions by setting them ordered by memory offset in the structure.
+ */
+template<typename PermutationVectorType>
+class TPipelineState
+{
+public:
+	TPipelineState()
+	{
+		FPlatformMemory::Memset(&Vector, 0, sizeof(Vector));
+	}
+
+	/** Set a member of the pipeline state committed yet. */
+	template<typename DimensionType>
+	void Set(DimensionType PermutationVectorType::* Dimension, const DimensionType& DimensionValue)
+	{
+		SIZE_T ByteOffset = GetByteOffset(Dimension);
+
+		// Make sure not updating a value of the pipeline already initialized, to ensure there is no cycle in the dependency of the different dimensions.
+		checkf(ByteOffset >= InitializedOffset, TEXT("This member of the pipeline state has already been committed."));
+
+		Vector.*Dimension = DimensionValue;
+
+		// Update the initialised offset to make sure this is not set only once.
+		InitializedOffset = ByteOffset + sizeof(DimensionType);
+	}
+
+	/** Commit the pipeline state to its final immutable value. */
+	void Commit()
+	{
+		// Force the pipeline state to be initialized exactly once.
+		checkf(!IsCommitted(), TEXT("Pipeline state has already been committed."));
+		InitializedOffset = ~SIZE_T(0);
+	}
+
+	/** Returns whether the pipeline state has been fully committed to its final immutable value. */
+	bool IsCommitted() const
+	{
+		return InitializedOffset == ~SIZE_T(0);
+	}
+
+	/** Access a member of the pipeline state, even when the pipeline state hasn't been fully committed to it's final value yet. */
+	template<typename DimensionType>
+	const DimensionType& operator [](DimensionType PermutationVectorType::* Dimension) const
+	{
+		SIZE_T ByteOffset = GetByteOffset(Dimension);
+
+		checkf(ByteOffset < InitializedOffset, TEXT("This dimension has not been initialized yet."));
+
+		return Vector.*Dimension;
+	}
+
+	/** Access the fully committed pipeline state structure. */
+	const PermutationVectorType* operator->() const
+	{
+		// Make sure the pipeline state is committed to catch accesses to uninitialized settings.
+		checkf(IsCommitted(), TEXT("The pipeline state needs to be fully commited before being able to reference directly the pipeline state structure."));
+		return &Vector;
+	}
+
+	/** Access the fully committed pipeline state structure. */
+	const PermutationVectorType& operator * () const
+	{
+		// Make sure the pipeline state is committed to catch accesses to uninitialized settings.
+		checkf(IsCommitted(), TEXT("The pipeline state needs to be fully commited before being able to reference directly the pipeline state structure."));
+		return Vector;
+	}
+
+private:
+
+	template<typename DimensionType>
+	static SIZE_T GetByteOffset(DimensionType PermutationVectorType::* Dimension)
+	{
+		return (SIZE_T)(&(((PermutationVectorType*)0)->*Dimension));
+	}
+
+	PermutationVectorType Vector;
+
+	SIZE_T InitializedOffset = 0;
+};
+
 /**
  * Used as the scope for scene rendering functions.
  * It is initialized in the game thread by FSceneViewFamily::BeginRender, and then passed to the rendering thread.
@@ -2059,6 +2174,98 @@ public:
 	bool bAnyRayTracingPassEnabled = false;
 #endif
 
+	/** Structure that contains the final state of deferred shading pipeline for a FViewInfo */
+	struct FPerViewPipelineState
+	{
+		EDiffuseIndirectMethod DiffuseIndirectMethod;
+		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser;
+
+		// Method to use for ambient occlusion.
+		EAmbientOcclusionMethod AmbientOcclusionMethod;
+
+		// Method to use for reflections.
+		EReflectionsMethod ReflectionsMethod;
+
+		// Method to use for reflections on water.
+		EReflectionsMethod ReflectionsMethodWater;
+
+		// Whether there is planar reflection to compose to the reflection.
+		bool bComposePlanarReflections;
+
+		// Whether need to generate HZB from the depth buffer.
+		bool bFurthestHZB;
+		bool bClosestHZB;
+	};
+
+	// Structure that contains the final state of deferred shading pipeline for the FSceneViewFamily
+	struct FFamilyPipelineState
+	{
+		// Whether Nanite is enabled.
+		bool bNanite;
+
+		// Whether the scene occlusion is made using HZB.
+		bool bHZBOcclusion;
+	};
+
+	/** Pipeline states that describe the high level topology of the entire renderer.
+	 *
+	 * Once initialized by CommitFinalPipelineState(), it becomes immutable for the rest of the execution of the renderer.
+	 * The ViewPipelineStates array corresponds to Views in the FSceneRenderer.  Use "GetViewPipelineState" or
+	 * "GetViewPipelineStateWritable" to access the pipeline state for a specific View.
+	 */
+	TArray<TPipelineState<FPerViewPipelineState>, TInlineAllocator<1>> ViewPipelineStates;
+	TPipelineState<FFamilyPipelineState> FamilyPipelineState;
+
+	FORCEINLINE int32 GetViewIndexInScene(const FViewInfo& ViewInfo) const
+	{
+		const FViewInfo* BasePointer = Views.GetData();
+		check(&ViewInfo >= BasePointer && &ViewInfo < BasePointer + Views.Num());
+		int32 ViewIndex = &ViewInfo - BasePointer;
+		return ViewIndex;
+	}
+
+	FORCEINLINE const FPerViewPipelineState& GetViewPipelineState(const FViewInfo& View) const
+	{
+		return *ViewPipelineStates[GetViewIndexInScene(View)];
+	}
+
+	FORCEINLINE TPipelineState<FPerViewPipelineState>& GetViewPipelineStateWritable(const FViewInfo& View)
+	{
+		return ViewPipelineStates[GetViewIndexInScene(View)];
+	}
+
+	virtual bool IsLumenEnabled(const FViewInfo& View) const
+	{
+		return (GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen);
+	}
+
+	virtual bool IsLumenGIEnabled(const FViewInfo& View) const
+	{
+		return GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
+	}
+
+	virtual bool AnyViewHasGIMethodSupportingDFAO() const
+	{
+		bool bAnyViewHasGIMethodSupportingDFAO = false;
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			if (GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen)
+			{
+				bAnyViewHasGIMethodSupportingDFAO = true;
+			}
+		}
+
+		return bAnyViewHasGIMethodSupportingDFAO;
+	}
+
+	/** Determine and commit the final state of the pipeline for the view family and views. */
+	void CommitFinalPipelineState();
+
+	/** Commit all the pipeline state for indirect ligthing. */
+	void CommitIndirectLightingState();
+
+	bool HasDeferredPlanarReflections(const FViewInfo& View) const;
 public:
 
 	FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
@@ -2227,10 +2434,6 @@ public:
 	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 	void DrawGPUSkinCacheVisualizationInfoText();
-
-	virtual bool IsLumenEnabled(const FViewInfo& View) const { return false; }
-	virtual bool IsLumenGIEnabled(const FViewInfo& View) const { return false; }
-	virtual bool AnyViewHasGIMethodSupportingDFAO() const { return false; }
 
 	/** Gets a readable light name for use with a draw event. */
 	static void GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy, FString& LightNameWithLevel);
