@@ -13,7 +13,7 @@ IMPLEMENT_SHADER_TYPE(, FPixelShaderUtils::FRasterizeToRectsVS, TEXT("/Engine/Pr
 
 bool FPixelShaderUtils::FRasterizeToRectsVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {
-	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	return IsUsingGBuffers(Parameters.Platform);
 }
 
 // static

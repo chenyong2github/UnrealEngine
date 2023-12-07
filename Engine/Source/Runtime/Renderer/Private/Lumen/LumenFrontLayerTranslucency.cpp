@@ -518,7 +518,7 @@ FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTrans
 	return Out;
 }
 
-void FDeferredShadingSceneRenderer::RenderLumenFrontLayerTranslucencyReflections(
+void FSceneRenderer::RenderLumenFrontLayerTranslucencyReflections(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View,
 	const FSceneTextures& SceneTextures,

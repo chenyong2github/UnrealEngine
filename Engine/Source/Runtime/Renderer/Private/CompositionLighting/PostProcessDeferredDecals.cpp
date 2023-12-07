@@ -76,10 +76,10 @@ FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 
 	PassTextures.Depth = SceneTextures.Depth;
 	PassTextures.Color = SceneTextures.Color.Target;
-	PassTextures.GBufferA = (*SceneTextures.UniformBuffer)->GBufferATexture;
-	PassTextures.GBufferB = (*SceneTextures.UniformBuffer)->GBufferBTexture;
-	PassTextures.GBufferC = (*SceneTextures.UniformBuffer)->GBufferCTexture;
-	PassTextures.GBufferE = (*SceneTextures.UniformBuffer)->GBufferETexture;
+	PassTextures.GBufferA = GetIfProduced(SceneTextures.GBufferA);
+	PassTextures.GBufferB = GetIfProduced(SceneTextures.GBufferB);
+	PassTextures.GBufferC = GetIfProduced(SceneTextures.GBufferC);
+	PassTextures.GBufferE = GetIfProduced(SceneTextures.GBufferE);
 	PassTextures.DBufferTextures = DBufferTextures;
 
 	return PassTextures;

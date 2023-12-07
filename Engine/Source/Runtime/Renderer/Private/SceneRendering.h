@@ -34,6 +34,9 @@
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
+#include "Lumen/LumenSceneCardCapture.h"
+#include "Lumen/LumenTracingUtils.h"
+#include "RayTracing/RayTracingLighting.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Strata/Strata.h"
 #include "TemporalUpscaler.h"
@@ -48,6 +51,7 @@
 #include "Async/Mutex.h"
 #include "IndirectLightRendering.h"
 #include "ScreenSpaceDenoise.h"
+#include "ScreenSpaceRayTracing.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -90,11 +94,45 @@ struct FNaniteMaterialPassCommand;
 struct FScreenMessageWriter;
 struct FVolumetricFogIntegrationParameterData;
 class FLumenHardwareRayTracingUniformBufferParameters;
+struct FLumenDirectLightingTaskData;
 
 namespace Nanite
 {
 	struct FInstanceDraw;
 }
+
+namespace LumenRadianceCache
+{
+	class FRadianceCacheInputs;
+	class FRadianceCacheInterpolationParameters;
+	class FUpdateInputs;
+}
+
+/**
+ * Data for rendering meshes into Surface Cache
+ */
+class FLumenCardRenderer
+{
+public:
+	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
+
+	int32 NumCardTexelsToCapture;
+	FMeshCommandOneFrameArray MeshDrawCommands;
+	TArray<int32, SceneRenderingAllocator> MeshDrawPrimitiveIds;
+
+	FResampledCardCaptureAtlas ResampledCardCaptureAtlas;
+
+	/** Whether Lumen should propagate a global lighting change this frame. */
+	bool bPropagateGlobalLightingChange = false;
+
+	void Reset()
+	{
+		CardPagesToRender.Reset();
+		MeshDrawCommands.Reset();
+		MeshDrawPrimitiveIds.Reset();
+		NumCardTexelsToCapture = 0;
+	}
+};
 
 extern bool ShouldUseStereoLumenOptimizations();
 
@@ -2110,6 +2148,65 @@ private:
 	SIZE_T InitializedOffset = 0;
 };
 
+enum class ELumenIndirectLightingSteps
+{
+	None = 0,
+	ScreenProbeGather = 1u << 0,
+	Reflections = 1u << 1,
+	StoreDepthHistory = 1u << 2,
+	Composite = 1u << 3,
+	All = ScreenProbeGather | Reflections | StoreDepthHistory | Composite
+};
+ENUM_CLASS_FLAGS(ELumenIndirectLightingSteps)
+
+struct FAsyncLumenIndirectLightingOutputs
+{
+	struct FViewOutputs
+	{
+		FSSDSignalTextures IndirectLightingTextures;
+		FLumenMeshSDFGridParameters MeshSDFGridParameters;
+		LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
+	};
+
+	TArray<FViewOutputs, TInlineAllocator<1>> ViewOutputs;
+	ELumenIndirectLightingSteps StepsLeft = ELumenIndirectLightingSteps::All;
+	bool bHasDrawnBeforeLightingDecals = false;
+
+	void Resize(int32 NewNum)
+	{
+		ViewOutputs.SetNumZeroed(NewNum);
+	}
+
+	void DoneAsync(bool bAsyncReflections)
+	{
+		check(StepsLeft == ELumenIndirectLightingSteps::All);
+
+		EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::ScreenProbeGather);
+		if (bAsyncReflections)
+		{
+			EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::Reflections | ELumenIndirectLightingSteps::StoreDepthHistory);
+		}
+	}
+
+	void DonePreLights()
+	{
+		if (StepsLeft == ELumenIndirectLightingSteps::All)
+		{
+			StepsLeft = ELumenIndirectLightingSteps::None;
+		}
+		else
+		{
+			StepsLeft = ELumenIndirectLightingSteps::Composite;
+		}
+	}
+
+	void DoneComposite()
+	{
+		StepsLeft = ELumenIndirectLightingSteps::None;
+	}
+};
+
 /**
  * Used as the scope for scene rendering functions.
  * It is initialized in the game thread by FSceneViewFamily::BeginRender, and then passed to the rendering thread.
@@ -2703,6 +2800,134 @@ protected:
 		const FViewInfo& View,
 		HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters);
 
+
+	FRDGTextureRef CopyStencilToLightingChannelTexture(
+		FRDGBuilder& GraphBuilder,
+		FRDGTextureSRVRef SceneStencilTexture,
+		const TArrayView<FRDGTextureRef> NaniteResolveTextures);
+
+	// Lumen
+	FLumenCardRenderer LumenCardRenderer;
+
+	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, const FLumenDirectLightingTaskData* DirectLightingTaskData);
+
+	void BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData, IVisibilityTaskData* VisibilityTaskData);
+
+	void RenderDirectLightingForLumenScene(
+		FRDGBuilder& GraphBuilder,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenDirectLightingTaskData* DirectLightingTaskData,
+		const FLumenCardUpdateContext& CardUpdateContext,
+		ERDGPassFlags ComputePassFlags);
+
+	void RenderRadiosityForLumenScene(
+		FRDGBuilder& GraphBuilder,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		FRDGTextureRef RadiosityAtlas,
+		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
+		const FLumenCardUpdateContext& CardUpdateContext,
+		ERDGPassFlags ComputePassFlags);
+
+	void ClearLumenSurfaceCacheAtlas(
+		FRDGBuilder& GraphBuilder,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FGlobalShaderMap* GlobalShaderMap);
+
+	void UpdateLumenSurfaceCacheAtlas(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
+		FRDGBufferSRVRef CardCaptureRectBufferSRV,
+		const struct FCardCaptureAtlas& CardCaptureAtlas,
+		const struct FResampledCardCaptureAtlas& ResampledCardCaptureAtlas);
+
+	LumenRadianceCache::FUpdateInputs GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		ERDGPassFlags ComputePassFlags);
+
+	void ComputeLumenTranslucencyGIVolume(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		ERDGPassFlags ComputePassFlags);
+
+	/** Mark time line for gathering Lumen virtual surface cache feedback. */
+	void BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
+
+	/** Dispatch async Lumen work if possible. */
+	void DispatchAsyncLumenIndirectLightingWork(
+		FRDGBuilder& GraphBuilder,
+		class FCompositionLighting& CompositionLighting,
+		FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
+		FRDGTextureRef LightingChannelsTexture,
+		bool bHasLumenLights,
+		FAsyncLumenIndirectLightingOutputs& Outputs);
+
+	FSSDSignalTextures RenderLumenFinalGather(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		FRDGTextureRef LightingChannelsTexture,
+		FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		bool bHasLumenLights,
+		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		class FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters,
+		ERDGPassFlags ComputePassFlags);
+
+	FSSDSignalTextures RenderLumenScreenProbeGather(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		FRDGTextureRef LightingChannelsTexture,
+		FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		bool bHasLumenLights,
+		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		class FLumenScreenSpaceBentNormalParameters& ScreenBentNormalParameters,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters,
+		ERDGPassFlags ComputePassFlags);
+
+	void StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View);
+
+	FSSDSignalTextures RenderLumenIrradianceFieldGather(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FViewInfo& View,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters,
+		ERDGPassFlags ComputePassFlags);
+
+	FRDGTextureRef RenderLumenReflections(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		ELumenReflectionPass ReflectionPass,
+		const FTiledReflection* TiledReflectionInput,
+		const class FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
+		ERDGPassFlags ComputePassFlags);
+
+	void RenderLumenFrontLayerTranslucencyReflections(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		const FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
+		const FFrontLayerTranslucencyData& FrontLayerTranslucencyData);
+	// Lumen end
+
 protected:
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
 
@@ -2829,6 +3054,8 @@ protected:
 
 		IVisibilityTaskData* VisibilityTaskData;
 		FDynamicShadowsTaskData* DynamicShadows = nullptr;
+		FLumenDirectLightingTaskData* LumenDirectLighting = nullptr;
+		FLumenSceneFrameTemporaries* LumenFrameTemporaries = nullptr;
 	};
 
 	void InitViews(

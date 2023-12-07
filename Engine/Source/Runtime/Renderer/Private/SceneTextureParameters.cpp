@@ -23,13 +23,13 @@ FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, con
 
 	// Registers all the scene texture from the scene context. No fallback is provided to catch mistake at shader parameter validation time
 	// when a pass is trying to access a resource before any other pass actually created it.
-	Parameters.GBufferVelocityTexture = GetIfProduced(SceneTextures.Velocity);
 	Parameters.GBufferATexture = GetIfProduced(SceneTextures.GBufferA);
 	Parameters.GBufferBTexture = GetIfProduced(SceneTextures.GBufferB);
 	Parameters.GBufferCTexture = GetIfProduced(SceneTextures.GBufferC);
 	Parameters.GBufferDTexture = GetIfProduced(SceneTextures.GBufferD);
 	Parameters.GBufferETexture = GetIfProduced(SceneTextures.GBufferE);
 	Parameters.GBufferFTexture = GetIfProduced(SceneTextures.GBufferF, SystemTextures.MidGrey);
+	Parameters.GBufferVelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 
 	return Parameters;
 }

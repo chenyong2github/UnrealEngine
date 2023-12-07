@@ -617,7 +617,7 @@ void ShaderYield()
 
 // ---------------------------------------------------- Compiler attributes
 
-#if SM6_PROFILE || SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES
+#if SM6_PROFILE || SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES || D3D_ES3_1_PROFILE
 
 /** Avoids flow control constructs. */
 #define UNROLL [unroll]

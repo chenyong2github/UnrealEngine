@@ -491,7 +491,7 @@ FIntPoint FLumenSurfaceCacheFeedback::GetFeedbackBufferTileJitter() const
 	return TileJitter;
 }
 
-void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries)
+void FSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
@@ -523,7 +523,7 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 	}
 }
 
-void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries)
+void FSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;

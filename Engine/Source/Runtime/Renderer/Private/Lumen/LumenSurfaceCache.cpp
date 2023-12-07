@@ -182,7 +182,7 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenScene
 // - Compress from capture atlas to surface cache (for platforms supporting GRHISupportsUAVFormatAliasing or when compression is disabled)
 // - Compress from capture atlas into a temporary atlas and copy results into surface cache
 // - Straight copy into uncompressed atlas
-void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
+void FSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
@@ -484,7 +484,7 @@ IMPLEMENT_GLOBAL_SHADER(FClearCompressedAtlasCS, "/Engine/Private/Lumen/SurfaceC
 
 // Clear entire Lumen surface cache to debug default values
 // Surface cache can be compressed
-void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
+void FSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FGlobalShaderMap* GlobalShaderMap)

@@ -653,7 +653,7 @@ void TraceVoxelsTranslucencyVolume(
 		GroupSize);
 }
 
-LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+LumenRadianceCache::FUpdateInputs FSceneRenderer::GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
@@ -695,7 +695,7 @@ LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslu
 	return RadianceCacheUpdateInputs;
 }
 
-void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
+void FSceneRenderer::ComputeLumenTranslucencyGIVolume(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View, 
 	const FLumenSceneFrameTemporaries& FrameTemporaries,

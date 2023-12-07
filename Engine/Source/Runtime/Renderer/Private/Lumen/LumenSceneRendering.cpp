@@ -1351,7 +1351,7 @@ void FLumenSceneData::FillFrameTemporaries(FRDGBuilder& GraphBuilder, FLumenScen
 	FillTexture(FrameTemporaries.FinalLightingAtlas, FinalLightingAtlas);
 }
 
-void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
+void FSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -1795,7 +1795,7 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 	return bPropagateGlobalLightingChange;
 }
 
-void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
+void FSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::UpdateLumenScene);

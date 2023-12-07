@@ -513,7 +513,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWNumHistoryFramesAccumulated)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWResolveVariance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SpecularIndirectHistory)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthHistory)
@@ -907,7 +907,7 @@ void UpdateHistoryReflections(
 			PassParameters->RWNumHistoryFramesAccumulated = GraphBuilder.CreateUAV(NewNumHistoryFramesAccumulated);
 			PassParameters->RWResolveVariance = GraphBuilder.CreateUAV(AccumulatedResolveVariance);
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->SpecularIndirectHistory = OldSpecularIndirectHistory;
 			PassParameters->HistoryNumFramesAccumulated = GraphBuilder.RegisterExternalTexture(*NumFramesAccumulatedState);
@@ -1019,7 +1019,7 @@ void UpdateHistoryReflections(
 
 DECLARE_GPU_STAT(LumenReflections);
 
-FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
+FRDGTextureRef FSceneRenderer::RenderLumenReflections(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,

@@ -353,6 +353,7 @@ FMeshPassProcessor* CreateLumenCardCapturePassProcessor(ERHIFeatureLevel::Type F
 }
 
 REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenCardCapturePass, CreateLumenCardCapturePassProcessor, EShadingPath::Deferred, EMeshPass::LumenCardCapture, EMeshPassFlags::CachedMeshCommands);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(MobileLumenCardCapturePass, CreateLumenCardCapturePassProcessor, EShadingPath::Mobile, EMeshPass::LumenCardCapture, EMeshPassFlags::CachedMeshCommands);
 
 class FLumenCardNaniteMeshProcessor : public FMeshPassProcessor
 {

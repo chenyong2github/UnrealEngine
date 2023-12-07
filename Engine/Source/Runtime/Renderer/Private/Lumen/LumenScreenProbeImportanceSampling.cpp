@@ -323,7 +323,7 @@ void GenerateImportanceSamplingRays(
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 			PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
+			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 			if (bUseProbeRadianceHistory)
 			{

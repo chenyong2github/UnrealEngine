@@ -17,17 +17,6 @@
 #define GBUFFER_REFACTOR 0
 #endif
 
-Texture2D GBufferVelocityTexture;
-#define GBufferVelocityTextureSampler GlobalPointClampedSampler
-
-#if SHADING_PATH_DEFERRED
-
-#if !SUPPORTS_INDEPENDENT_SAMPLERS
-	#error Scene textures may only be used on platforms which support independent samplers.
-#endif
-
-uint bSceneLightingChannelsValid;
-
 // Matches FSceneTextureParameters
 Texture2D SceneDepthTexture;
 Texture2D<uint2> SceneStencilTexture;
@@ -37,7 +26,18 @@ Texture2D GBufferCTexture;
 Texture2D GBufferDTexture;
 Texture2D GBufferETexture;
 Texture2D GBufferFTexture;
+Texture2D GBufferVelocityTexture;
 Texture2D<uint> SceneLightingChannels;
+
+#define GBufferVelocityTextureSampler GlobalPointClampedSampler
+
+#if SHADING_PATH_DEFERRED
+
+#if !SUPPORTS_INDEPENDENT_SAMPLERS
+	#error Scene textures may only be used on platforms which support independent samplers.
+#endif
+
+uint bSceneLightingChannelsValid;
 
 #define SceneDepthTextureSampler GlobalPointClampedSampler
 #define GBufferATextureSampler GlobalPointClampedSampler
@@ -755,6 +755,11 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 #include "/Engine/Public/Platform/GL/GLSubpassSupport.ush"
 #endif
 
+float SampleDeviceZFromSceneTextures(float2 UV)
+{
+	return SceneDepthTexture.SampleLevel(MobileSceneTextures_SceneDepthTextureSampler, UV, 0).r;
+}
+
 void MobileFetchGBuffer(in float2 UV, out half4 GBufferA, out half4 GBufferB, out half4 GBufferC, out half4 GBufferD, out float SceneDepth)
 {
 	GBufferD = 0;
@@ -827,11 +832,25 @@ FGBufferData GetGBufferDataFromSceneTextures(in float2 UV)
 	return MobileFetchAndDecodeGBuffer(UV, UV);
 }
 
-float SampleDeviceZFromSceneTextures(float2 UV)
+FGBufferData GetGBufferDataUint(uint2 PixelPos, bool bGetNormalizedNormal = true)
 {
-	return MobileSceneTextures.SceneDepthTexture.SampleLevel(MobileSceneTextures_SceneDepthTextureSampler, UV, 0).r;
+	return MobileFetchAndDecodeGBuffer(PixelPos, PixelPos);
 }
 
+// @param PixelPos relative to left top of the rendertarget (not viewport)
+FScreenSpaceData GetScreenSpaceDataUint(uint2 PixelPos, bool bGetNormalizedNormal = true)
+{
+	FScreenSpaceData Out;
+
+	return Out;
+}
+
+FScreenSpaceData GetScreenSpaceData(float2 UV, bool bGetNormalizedNormal = true)
+{
+	FScreenSpaceData Out;
+
+	return Out;
+}
 #endif //SHADING_PATH_MOBILE
 
 /** Populates OutGBufferA, B and C */

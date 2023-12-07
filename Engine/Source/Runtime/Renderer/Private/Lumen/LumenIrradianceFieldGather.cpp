@@ -244,7 +244,7 @@ static void IrradianceFieldMarkUsedProbes(
 
 DECLARE_GPU_STAT(LumenIrradianceFieldGather);
 
-FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGather(
+FSSDSignalTextures FSceneRenderer::RenderLumenIrradianceFieldGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,

@@ -839,7 +839,7 @@ void FSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	OutCommonDiffuseParameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
 }
 
-void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
+void FSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 	FRDGBuilder& GraphBuilder,
 	FCompositionLighting& CompositionLighting,
 	FSceneTextures& SceneTextures,

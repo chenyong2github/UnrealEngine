@@ -199,7 +199,7 @@ bool LumenSceneLighting::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
 
 DECLARE_GPU_STAT(LumenSceneLighting);
 
-void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
+void FSceneRenderer::RenderLumenSceneLighting(
 	FRDGBuilder& GraphBuilder,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenDirectLightingTaskData* DirectLightingTaskData)

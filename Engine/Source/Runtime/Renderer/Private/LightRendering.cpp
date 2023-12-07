@@ -2949,7 +2949,7 @@ public:
 			return false;
 		}
 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsUsingGBuffers(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -2962,7 +2962,7 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/DownsampleDepthPixelShader.usf", "CopyStencilToLightingChannelsPS", SF_Pixel);
 
-FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(
+FRDGTextureRef FSceneRenderer::CopyStencilToLightingChannelTexture(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureSRVRef SceneStencilTexture,
 	const TArrayView<FRDGTextureRef> NaniteShadingMasks

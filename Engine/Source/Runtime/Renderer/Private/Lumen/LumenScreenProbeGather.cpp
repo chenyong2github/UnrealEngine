@@ -1610,7 +1610,7 @@ void UpdateHistoryScreenProbeGather(
 	}
 }
 
-void FDeferredShadingSceneRenderer::StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View)
+void FSceneRenderer::StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View)
 {
 	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 	{
@@ -1688,7 +1688,7 @@ static void HairStrandsMarkUsedProbes(
 DECLARE_GPU_STAT(LumenScreenProbeGather);
 
 
-FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
+FSSDSignalTextures FSceneRenderer::RenderLumenFinalGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
@@ -1737,7 +1737,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 	return Outputs;
 }
 
-FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
+FSSDSignalTextures FSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
@@ -1774,7 +1774,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	}
 
 	// Pull from uniform buffer to get fallback textures.
-	const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
+	const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, View);
 
 	FScreenProbeParameters ScreenProbeParameters;
 

@@ -851,7 +851,7 @@ class FClearUAVUIntCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5;
+		return IsUsingGBuffers(Parameters.Platform);
 	}
 };
 

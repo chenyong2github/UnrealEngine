@@ -884,7 +884,7 @@ void ScreenProbeSetupVisualizeTraces(
 	{
 		float2 CursorSceneBufferUV = SvPositionToBufferUV(float4(floor((View.CursorPosition) * View.ViewResolutionFraction) + .5f, 0, 0)).xy;
 		float2 CursorScreenPosition = (CursorSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-		float CursorSceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, CursorSceneBufferUV, 0).r);
+		float CursorSceneDepth = ConvertFromDeviceZ(SampleDeviceZFromSceneTextures(CursorSceneBufferUV));
 		float3 CursorTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(CursorScreenPosition, CursorSceneDepth), CursorSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		float3 CursorWorldPosition = CursorTranslatedWorldPosition - PreViewTranslation;
 	}

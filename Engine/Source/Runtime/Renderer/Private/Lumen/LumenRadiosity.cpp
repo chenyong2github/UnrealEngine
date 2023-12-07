@@ -955,7 +955,7 @@ void LumenRadiosity::AddRadiosityPass(
 	LumenSceneData.RadiosityProbeSHBlueAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityProbeSHBlueAtlas);
 }
 
-void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
+void FSceneRenderer::RenderRadiosityForLumenScene(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FRDGTextureRef RadiosityAtlas,

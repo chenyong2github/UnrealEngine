@@ -1498,7 +1498,7 @@ struct FLumenDirectLightingTaskData
 	bool bHasRectLights = false;
 };
 
-void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData, IVisibilityTaskData* VisibilityTaskData)
+void FSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData, IVisibilityTaskData* VisibilityTaskData)
 {
 	bool bAnyLumenActive = false;
 
@@ -1609,7 +1609,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 	}, VisibilityTaskData->GetLightVisibilityTask());
 }
 
-void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
+void FSceneRenderer::RenderDirectLightingForLumenScene(
 	FRDGBuilder& GraphBuilder,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenDirectLightingTaskData* LightingTaskData,

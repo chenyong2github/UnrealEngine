@@ -61,13 +61,19 @@
 #include "SceneTextureReductions.h"
 #include "GPUMessaging.h"
 #include "Strata/Strata.h"
+#include "Lumen/Lumen.h"
 #include "RenderCore.h"
 #include "RectLightTextureManager.h"
 #include "IESTextureManager.h"
+#include "Lumen/LumenFrontLayerTranslucency.h"
+#include "Lumen/LumenSceneLighting.h"
 #include "SceneUniformBuffer.h"
 #include "Engine/SpecularProfile.h"
 #include "LocalHeightFogRendering.h"
 #include "ScreenSpaceRayTracing.h"
+#include "CompositionLighting/CompositionLighting.h"
+#include "CompositionLighting/PostProcessDeferredDecals.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 
 uint32 GetShadowQuality();
 
@@ -880,6 +886,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FRDGSystemTextures::Create(GraphBuilder);
 
 	TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
+	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 
 	if (bUseVirtualTexturing)
 	{
@@ -1006,7 +1013,28 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 	}
 	ExternalAccessQueue.Submit(GraphBuilder);
-	
+
+	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
+	// NOTE: Must be done after  system texture initialization
+	// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
+	const bool bEnableVirtualShadowMaps = UseVirtualShadowMaps(ShaderPlatform, FeatureLevel) && ViewFamily.EngineShowFlags.DynamicShadows;
+	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), bEnableVirtualShadowMaps, Views[0].bIsSceneCapture);
+
+	InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
+	if (InitViewTaskDatas.LumenFrameTemporaries)
+	{
+		BeginUpdateLumenSceneTasks(GraphBuilder, *InitViewTaskDatas.LumenFrameTemporaries);
+	}
+	BeginGatherLumenLights(InitViewTaskDatas.LumenDirectLighting, InitViewTaskDatas.VisibilityTaskData);
+
+	UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
+
+	{
+		LLM_SCOPE_BYTAG(Lumen);
+		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+		RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
+	}
+
 	PollOcclusionQueriesPass(GraphBuilder);
 	GraphBuilder.AddDispatchHint();
 
@@ -1158,6 +1186,19 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	FCompositionLighting CompositionLighting(Views, SceneTextures, [this](int32 ViewIndex)
+	{
+		return GetViewPipelineState(Views[ViewIndex]).AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
+	});
+	CompositionLighting.ProcessAfterOcclusion(GraphBuilder);
+
+	// Copy lighting channels out of stencil before deferred decals which overwrite those values
+	TArray<FRDGTextureRef, TInlineAllocator<2>> NaniteShadingMask;
+	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil, NaniteShadingMask);
+
+	FAsyncLumenIndirectLightingOutputs AsyncLumenIndirectLightingOutputs;
+	const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
+
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
@@ -1214,6 +1255,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			}
 		}
 	}
+
+	// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
+	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
