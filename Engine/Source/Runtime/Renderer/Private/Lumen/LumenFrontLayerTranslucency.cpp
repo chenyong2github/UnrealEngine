@@ -73,7 +73,7 @@ class FLumenFrontLayerTranslucencyClearGBufferPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -489,7 +489,7 @@ FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTrans
 					FLumenFrontLayerTranslucencyClearGBufferPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenFrontLayerTranslucencyClearGBufferPS::FParameters>();
 					PassParameters->RenderTargets[0] = FRenderTargetBinding(Out.Normal, ERenderTargetLoadAction::ENoAction, 0);
 					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Out.SceneDepth, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+					PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 	
 					TShaderMapRef<FLumenFrontLayerTranslucencyClearGBufferPS> PixelShader(View.ShaderMap);
 					FPixelShaderUtils::AddFullscreenPass<FLumenFrontLayerTranslucencyClearGBufferPS>(

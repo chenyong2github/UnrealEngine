@@ -557,7 +557,7 @@ class FScreenProbeDownsampleDepthUniformCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeWorldSpeed)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeTranslatedWorldPosition)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
@@ -599,7 +599,7 @@ class FScreenProbeAdaptivePlacementCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWScreenTileAdaptiveProbeHeader)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWScreenTileAdaptiveProbeIndices)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
@@ -652,7 +652,7 @@ class FMarkRadianceProbesUsedByScreenProbesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -761,7 +761,7 @@ class FScreenProbeTileClassificationMarkCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIntegrateIndirectArgs)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWTileClassificationModes)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
@@ -848,7 +848,7 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeGatherParameters, GatherParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenSpaceBentNormalParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
@@ -905,7 +905,7 @@ class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWNewHistoryFastUpdateMode)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirectHistory)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BackfaceDiffuseIndirectHistory)
@@ -1129,7 +1129,7 @@ void InterpolateAndIntegrate(
 				PassParameters->RWIntegrateIndirectArgs = RWIntegrateIndirectArgs;
 				PassParameters->RWTileClassificationModes = RWTileClassificationModes;
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+				PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 				PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 				PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
@@ -1239,7 +1239,7 @@ void InterpolateAndIntegrate(
 				PassParameters->GatherParameters = GatherParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+				PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 				PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
 				PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
@@ -1305,7 +1305,7 @@ void InterpolateAndIntegrate(
 
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 			PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
 			PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 			PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
@@ -1439,8 +1439,8 @@ void UpdateHistoryScreenProbeGather(
 						PassParameters->RWNewHistoryFastUpdateMode = RWNewHistoryFastUpdateMode;
 
 						PassParameters->View = View.ViewUniformBuffer;
-						PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
-						PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+						PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
+						PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 						PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 						PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
@@ -1635,7 +1635,7 @@ static void ScreenGatherMarkUsedProbes(
 {
 	FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+	PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 	PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 
@@ -1838,7 +1838,7 @@ FSSDSignalTextures FSceneRenderer::RenderLumenScreenProbeGather(
 		PassParameters->RWScreenProbeWorldSpeed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeWorldSpeed));
 		PassParameters->RWScreenProbeTranslatedWorldPosition = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition));
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->SceneTextures = SceneTextureParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
@@ -1889,7 +1889,7 @@ FSSDSignalTextures FSceneRenderer::RenderLumenScreenProbeGather(
 			PassParameters->RWScreenTileAdaptiveProbeHeader = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeHeader));
 			PassParameters->RWScreenTileAdaptiveProbeIndices = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeIndices));
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 			PassParameters->SceneTextures = SceneTextureParameters;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;

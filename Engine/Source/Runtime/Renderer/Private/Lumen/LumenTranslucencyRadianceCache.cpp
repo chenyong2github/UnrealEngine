@@ -66,7 +66,6 @@ namespace Lumen
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkPassUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 	SHADER_PARAMETER(FVector2f, ViewportUVToHZBBufferUV)
@@ -294,6 +293,7 @@ FMeshPassProcessor* CreateLumenTranslucencyRadianceCacheMarkPassProcessor(ERHIFe
 }
 
 REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenTranslucencyRadianceCacheMarkPass, CreateLumenTranslucencyRadianceCacheMarkPassProcessor, EShadingPath::Deferred, EMeshPass::LumenTranslucencyRadianceCacheMark, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(MobileLumenTranslucencyRadianceCacheMarkPass, CreateLumenTranslucencyRadianceCacheMarkPassProcessor, EShadingPath::Mobile, EMeshPass::LumenTranslucencyRadianceCacheMark, EMeshPassFlags::MainView);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
@@ -360,7 +360,6 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 
 	{
 		FLumenTranslucencyRadianceCacheMarkPassUniformParameters& MarkPassParameters = *GraphBuilder.AllocParameters<FLumenTranslucencyRadianceCacheMarkPassUniformParameters>();
-		SetupSceneTextureUniformParameters(GraphBuilder, &SceneTextures, View.FeatureLevel, ESceneTextureSetupMode::All, MarkPassParameters.SceneTextures);
 		MarkPassParameters.RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 		MarkPassParameters.RadianceCacheMarkParameters.InvClipmapFadeSizeForMark = 1.0f / FMath::Clamp(GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize, .001f, 16.0f);
 

@@ -829,12 +829,14 @@ FGBufferData MobileFetchAndDecodeGBuffer(in float2 UV, in float2 PixelPos)
 /** Add the function to be compatible with some SM5 shaders */
 FGBufferData GetGBufferDataFromSceneTextures(in float2 UV)
 {
-	return MobileFetchAndDecodeGBuffer(UV, UV);
+	const float2 PixelPos = UV * View.BufferSizeAndInvSize.xy;
+	return MobileFetchAndDecodeGBuffer(UV, PixelPos);
 }
 
 FGBufferData GetGBufferDataUint(uint2 PixelPos, bool bGetNormalizedNormal = true)
 {
-	return MobileFetchAndDecodeGBuffer(PixelPos, PixelPos);
+	const float2 UV = (PixelPos + 0.5) * View.BufferSizeAndInvSize.zw;
+	return MobileFetchAndDecodeGBuffer(UV, PixelPos);
 }
 
 // @param PixelPos relative to left top of the rendertarget (not viewport)
@@ -842,12 +844,17 @@ FScreenSpaceData GetScreenSpaceDataUint(uint2 PixelPos, bool bGetNormalizedNorma
 {
 	FScreenSpaceData Out;
 
+	Out.GBuffer = GetGBufferDataUint(PixelPos, bGetNormalizedNormal);
+
 	return Out;
 }
 
 FScreenSpaceData GetScreenSpaceData(float2 UV, bool bGetNormalizedNormal = true)
 {
 	FScreenSpaceData Out;
+
+	const float2 PixelPos = UV * View.BufferSizeAndInvSize.xy;
+	Out.GBuffer = MobileFetchAndDecodeGBuffer(UV, PixelPos);
 
 	return Out;
 }

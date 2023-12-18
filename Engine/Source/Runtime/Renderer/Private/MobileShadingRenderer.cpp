@@ -1199,6 +1199,15 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FAsyncLumenIndirectLightingOutputs AsyncLumenIndirectLightingOutputs;
 	const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
 
+	DispatchAsyncLumenIndirectLightingWork(
+		GraphBuilder,
+		CompositionLighting,
+		SceneTextures,
+		LumenFrameTemporaries,
+		LightingChannelsTexture,
+		bHasLumenLights,
+		AsyncLumenIndirectLightingOutputs);
+
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
@@ -2114,21 +2123,29 @@ void FMobileSceneRenderer::RenderHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef S
 	{
 		FViewInfo& View = Views[ViewIndex];
 
+		FSceneViewState* ViewState = View.ViewState;
+		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
 			
+			FRDGTextureRef ClosestHZBTexture = nullptr;
 			FRDGTextureRef FurthestHZBTexture = nullptr;
 
-			BuildHZBFurthest(
+			BuildHZB(
 				GraphBuilder,
 				SceneDepthTexture,
 				/* VisBufferTexture = */ nullptr,
 				View.ViewRect,
 				View.GetFeatureLevel(),
 				View.GetShaderPlatform(),
-				TEXT("MobileHZBFurthest"),
-				&FurthestHZBTexture);
+				TEXT("HZBClosest"),
+				/* OutClosestHZBTexture = */ ViewPipelineState.bClosestHZB ? &ClosestHZBTexture : nullptr,
+				TEXT("HZBFurthest"),
+				/* OutFurthestHZBTexture = */ &FurthestHZBTexture,
+				BuildHZBDefaultPixelFormat,
+				nullptr);
 
 			View.HZBMipmap0Size = FurthestHZBTexture->Desc.Extent;
 			View.HZB = FurthestHZBTexture;
@@ -2143,6 +2160,12 @@ void FMobileSceneRenderer::RenderHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef S
 				{
 					View.ViewState->PrevFrameViewInfo.HZB = nullptr;
 				}
+			}
+
+			// Extract closest HZB texture.
+			if (ViewPipelineState.bClosestHZB)
+			{
+				View.ClosestHZB = ClosestHZBTexture;
 			}
 		}
 	}

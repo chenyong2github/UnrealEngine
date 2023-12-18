@@ -155,7 +155,7 @@ class FMarkRadianceProbesUsedByGBufferCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -192,7 +192,7 @@ class FIrradianceFieldGatherCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(float, ProbeOcclusionViewBias)
 		SHADER_PARAMETER(float, ProbeOcclusionNormalBias)
@@ -228,7 +228,7 @@ static void IrradianceFieldMarkUsedProbes(
 {
 	FMarkRadianceProbesUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByGBufferCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+	PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 
 	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByGBufferCS>(0);
@@ -327,7 +327,7 @@ FSSDSignalTextures FSceneRenderer::RenderLumenIrradianceFieldGather(
 		PassParameters->RWRoughSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RoughSpecularIndirect));
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 		PassParameters->ProbeOcclusionViewBias = GLumenIrradianceFieldProbeOcclusionViewBias;
