@@ -3673,6 +3673,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			}
 #endif // RHI_RAYTRACING
 
+			DispatchAsyncLumenIndirectLightingWork(
+				GraphBuilder,
+				CompositionLighting,
+				SceneTextures,
+				LumenFrameTemporaries,
+				LightingChannelsTexture,
+				bHasLumenLights,
+				AsyncLumenIndirectLightingOutputs);
+
 			// If we haven't already rendered shadow maps, render them now (due to forward shading or r.shadow.ShadowMapsRenderEarly)
 			if (!bShadowMapsRenderedEarly)
 			{

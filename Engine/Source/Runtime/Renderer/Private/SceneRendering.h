@@ -2928,6 +2928,30 @@ protected:
 		const FFrontLayerTranslucencyData& FrontLayerTranslucencyData);
 	// Lumen end
 
+	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
+	void RenderDiffuseIndirectAndAmbientOcclusion(
+		FRDGBuilder& GraphBuilder,
+		FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
+		FRDGTextureRef LightingChannelsTexture,
+		bool bHasLumenLights,
+		bool bCompositeRegularLumenOnly,
+		bool bIsVisualizePass,
+		FAsyncLumenIndirectLightingOutputs& AsyncLumenIndirectLightingOutputs);
+
+	virtual bool RenderRayTracingGlobalIllumination(
+		FRDGBuilder& GraphBuilder,
+		FSceneTextureParameters& SceneTextures,
+		FViewInfo& View,
+		IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig* RayTracingConfig,
+		IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs) { return false; }
+
+	virtual void RenderRayTracingAmbientOcclusion(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		const FSceneTextureParameters& SceneTextures,
+		FRDGTextureRef* OutAmbientOcclusionTexture) {}
+
 protected:
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
 

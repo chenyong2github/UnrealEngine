@@ -300,17 +300,6 @@ private:
 		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef LightShaftOcclusionTexture);
 
-	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
-	void RenderDiffuseIndirectAndAmbientOcclusion(
-		FRDGBuilder& GraphBuilder,
-		FSceneTextures& SceneTextures,
-		const FLumenSceneFrameTemporaries& FrameTemporaries,
-		FRDGTextureRef LightingChannelsTexture,
-		bool bHasLumenLights,
-		bool bCompositeRegularLumenOnly,
-		bool bIsVisualizePass,
-		FAsyncLumenIndirectLightingOutputs& AsyncLumenIndirectLightingOutputs);
-
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
 	void RenderDeferredReflectionsAndSkyLighting(
 		FRDGBuilder& GraphBuilder,
@@ -606,7 +595,7 @@ private:
 		FSceneTextureParameters& SceneTextures,
 		FViewInfo& View,
 		IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig* RayTracingConfig,
-		IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);
+		IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs) override;
 	
 	void RenderRayTracingGlobalIlluminationBruteForce(
 		FRDGBuilder& GraphBuilder,
@@ -637,7 +626,7 @@ private:
 		FRDGBuilder& GraphBuilder,
 		FViewInfo& View,
 		const FSceneTextureParameters& SceneTextures,
-		FRDGTextureRef* OutAmbientOcclusionTexture);
+		FRDGTextureRef* OutAmbientOcclusionTexture) override;
 	
 	ERendererOutput GetRendererOutput() const;
 
