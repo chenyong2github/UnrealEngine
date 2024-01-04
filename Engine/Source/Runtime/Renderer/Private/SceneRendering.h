@@ -2385,7 +2385,7 @@ public:
 
 	virtual void Render(FRDGBuilder& GraphBuilder) = 0;
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
-	virtual bool ShouldRenderVelocities() const { return false; }
+	virtual bool ShouldRenderVelocities() const;
 	virtual bool ShouldRenderPrePass() const { return false; }
 	virtual bool AllowSimpleLights() const;
 
@@ -3028,8 +3028,6 @@ public:
 
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) override;
 
-	virtual bool ShouldRenderVelocities() const override;
-
 	virtual bool ShouldRenderPrePass() const override;
 
 	virtual bool AllowSimpleLights() const override;
@@ -3144,6 +3142,7 @@ private:
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequiresScreenSpaceReflectionPass;
 	bool bRequiresScreenSpaceGlobalIlluminationPass;
+	bool bRequiresLumenPass;
 	bool bRequiresAmbientOcclusionPass;
 	bool bShouldRenderVelocities;
 	bool bShouldRenderHZB;

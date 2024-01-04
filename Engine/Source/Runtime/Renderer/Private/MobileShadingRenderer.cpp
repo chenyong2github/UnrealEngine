@@ -67,6 +67,9 @@
 #include "IESTextureManager.h"
 #include "Lumen/LumenFrontLayerTranslucency.h"
 #include "Lumen/LumenSceneLighting.h"
+#include "Lumen/LumenTracingUtils.h"
+#include "Lumen/LumenSceneLighting.h"
+#include "Lumen/LumenReflections.h"
 #include "SceneUniformBuffer.h"
 #include "Engine/SpecularProfile.h"
 #include "LocalHeightFogRendering.h"
@@ -74,6 +77,7 @@
 #include "CompositionLighting/CompositionLighting.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
+#include "PixelShaderUtils.h"
 
 uint32 GetShadowQuality();
 
@@ -284,6 +288,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequiresScreenSpaceReflectionPass = false;
 	bRequiresScreenSpaceGlobalIlluminationPass = false;
+	bRequiresLumenPass = false;
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresShadowProjections = false;
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
@@ -516,6 +521,13 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.UseDebugViewPS()
 		&& bDeferredShading;
 
+	bRequiresLumenPass = (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		&& bDeferredShading;
+
 	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
 		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
@@ -525,7 +537,8 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS()
-		&& !bRequiresScreenSpaceGlobalIlluminationPass; // SSGI has an AO output
+		&& !bRequiresScreenSpaceGlobalIlluminationPass // SSGI has its own AO output
+		&& !bRequiresLumenPass; // Lumen doesn't need AO by default
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
 
@@ -819,6 +832,97 @@ void FMobileSceneRenderer::RenderMaskedPrePass(FRHICommandList& RHICmdList, cons
 	}
 }
 
+class FMobileDiffuseIndirectCompositePS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMobileDiffuseIndirectCompositePS)
+	SHADER_USE_PARAMETER_STRUCT(FMobileDiffuseIndirectCompositePS, FGlobalShader)
+
+	class FApplyDiffuseIndirectDim : SHADER_PERMUTATION_INT("DIM_APPLY_DIFFUSE_INDIRECT", 4);
+	class FUpscaleDiffuseIndirectDim : SHADER_PERMUTATION_BOOL("DIM_UPSCALE_DIFFUSE_INDIRECT");
+	class FScreenBentNormal : SHADER_PERMUTATION_BOOL("DIM_SCREEN_BENT_NORMAL");
+	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 4);
+	class FEnableDualSrcBlending : SHADER_PERMUTATION_BOOL("ENABLE_DUAL_SRC_BLENDING");
+
+	using FPermutationDomain = TShaderPermutationDomain<FApplyDiffuseIndirectDim, FUpscaleDiffuseIndirectDim, FScreenBentNormal, FStrataTileType, FEnableDualSrcBlending>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		// Only upscale SSGI
+		if (PermutationVector.Get<FApplyDiffuseIndirectDim>() != 1 && PermutationVector.Get<FUpscaleDiffuseIndirectDim>())
+		{
+			return false;
+		}
+
+		// Only support Bent Normal for ScreenProbeGather
+		if (PermutationVector.Get<FApplyDiffuseIndirectDim>() != 3 && PermutationVector.Get<FScreenBentNormal>())
+		{
+			return false;
+		}
+
+		// Build Strata tile permutation only for Lumen
+		if (PermutationVector.Get<FStrataTileType>() != EStrataTileType::EComplex)
+		{
+			return Strata::IsStrataEnabled() && PermutationVector.Get<FApplyDiffuseIndirectDim>() == 3;
+		}
+
+		return IsUsingGBuffers(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
+		SHADER_PARAMETER(int32, bVisualizeDiffuseIndirect)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenBentNormalParameters)
+		SHADER_PARAMETER(uint32, bLumenSupportBackfaceDiffuse)
+		SHADER_PARAMETER(uint32, bLumenReflectionInputIsSSR)
+		SHADER_PARAMETER(float, LumenFoliageOcclusionStrength)
+		SHADER_PARAMETER(float, LumenMaxAOMultibounceAlbedo)
+		SHADER_PARAMETER(float, LumenReflectionSpecularScale)
+		SHADER_PARAMETER(float, LumenReflectionContrast)
+
+		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, DiffuseIndirect)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DiffuseIndirectSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, AmbientOcclusionSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
+
+		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, StrataTile)
+		SHADER_PARAMETER_STRUCT_INCLUDE(Denoiser::FCommonShaderParameters, DenoiserCommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, PassDebugOutput)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OutOpaqueRoughRefractionSceneColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OutSubSurfaceSceneColor)
+
+		SHADER_PARAMETER(FVector2f, BufferUVToOutputPixelPosition)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptation)
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CompressedMetadata, [2])
+
+		RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+		OutEnvironment.SetDefine(TEXT("USE_HAIR_COMPLEX_TRANSMITTANCE"), IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform) ? 1u : 0u);
+	}
+
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMobileDiffuseIndirectCompositePS, "/Engine/Private/DiffuseIndirectComposite.usf", "MainPS", SF_Pixel);
+
 void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
 	if (!ViewFamily.EngineShowFlags.Rendering)
@@ -1020,21 +1124,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bEnableVirtualShadowMaps = UseVirtualShadowMaps(ShaderPlatform, FeatureLevel) && ViewFamily.EngineShowFlags.DynamicShadows;
 	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), bEnableVirtualShadowMaps, Views[0].bIsSceneCapture);
 
-	InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
-	if (InitViewTaskDatas.LumenFrameTemporaries)
-	{
-		BeginUpdateLumenSceneTasks(GraphBuilder, *InitViewTaskDatas.LumenFrameTemporaries);
-	}
-	BeginGatherLumenLights(InitViewTaskDatas.LumenDirectLighting, InitViewTaskDatas.VisibilityTaskData);
-
-	UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
-
-	{
-		LLM_SCOPE_BYTAG(Lumen);
-		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-		RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
-	}
-
 	PollOcclusionQueriesPass(GraphBuilder);
 	GraphBuilder.AddDispatchHint();
 
@@ -1179,34 +1268,202 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			DenoiserInputs,
 			RayTracingConfig);
 
-		if (Views[0].ViewState && !Views[0].bStatePrevViewInfoIsReadOnly)
+		if (Views[0].ViewState && !Views[0].bStatePrevViewInfoIsReadOnly
+		&& IsMobileScreenSpaceGlobalIlluminationEnabled(Views[0].GetShaderPlatform()))
 		{
 			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[0], &Views[0].ViewState->PrevFrameViewInfo.MobileScreenSpaceGlobalIllumination);
-			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[1], &Views[0].ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
+			//GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[1], &Views[0].ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
 		}
 	}
-
-	FCompositionLighting CompositionLighting(Views, SceneTextures, [this](int32 ViewIndex)
+	
+	if (bRequiresLumenPass)
 	{
-		return GetViewPipelineState(Views[ViewIndex]).AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
-	});
-	CompositionLighting.ProcessAfterOcclusion(GraphBuilder);
+		InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
+		if (InitViewTaskDatas.LumenFrameTemporaries)
+		{
+			BeginUpdateLumenSceneTasks(GraphBuilder, *InitViewTaskDatas.LumenFrameTemporaries);
+		}
+		BeginGatherLumenLights(InitViewTaskDatas.LumenDirectLighting, InitViewTaskDatas.VisibilityTaskData);
 
-	// Copy lighting channels out of stencil before deferred decals which overwrite those values
-	TArray<FRDGTextureRef, TInlineAllocator<2>> NaniteShadingMask;
-	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil, NaniteShadingMask);
+		UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
 
-	FAsyncLumenIndirectLightingOutputs AsyncLumenIndirectLightingOutputs;
-	const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
+		{
+			LLM_SCOPE_BYTAG(Lumen);
+			BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
+		}
 
-	DispatchAsyncLumenIndirectLightingWork(
-		GraphBuilder,
-		CompositionLighting,
-		SceneTextures,
-		LumenFrameTemporaries,
-		LightingChannelsTexture,
-		bHasLumenLights,
-		AsyncLumenIndirectLightingOutputs);
+		FCompositionLighting CompositionLighting(Views, SceneTextures, [this](int32 ViewIndex)
+		{
+			return GetViewPipelineState(Views[ViewIndex]).AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
+		});
+		CompositionLighting.ProcessAfterOcclusion(GraphBuilder);
+
+		// Copy lighting channels out of stencil before deferred decals which overwrite those values
+		TArray<FRDGTextureRef, TInlineAllocator<2>> NaniteShadingMask;
+		FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil, NaniteShadingMask);
+
+		const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
+
+		FViewInfo& View = Views[0];
+		if (GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		{
+			FSSDSignalTextures DenoiserOutputs;
+			FLumenMeshSDFGridParameters MeshSDFGridParameters;
+			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+			FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
+
+			DenoiserOutputs = RenderLumenFinalGather(
+				GraphBuilder,
+				SceneTextures,
+				LumenFrameTemporaries,
+				LightingChannelsTexture,
+				View,
+				&View.PrevViewInfo,
+				bHasLumenLights,
+				MeshSDFGridParameters,
+				RadianceCacheParameters,
+				ScreenBentNormalParameters,
+				ERDGPassFlags::Compute);
+
+			DenoiserOutputs.Textures[3] = GSystemTextures.GetBlackDummy(GraphBuilder);
+
+			// Lumen needs its own depth history because things like Translucency velocities write to depth
+			StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
+
+			if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+			{
+				//GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[0], &View.ViewState->PrevFrameViewInfo.MobileScreenSpaceGlobalIllumination);
+				//GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[1], &Views[0].ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
+			}
+
+			FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.MobileUniformBuffer);
+			FRDGTextureRef SceneColorTexture = SceneTextures.Color.Target;
+
+			// Setup the common diffuse parameter for this view.
+			HybridIndirectLighting::FCommonParameters CommonDiffuseParameters;
+			CommonDiffuseParameters.SceneTextureShaderParameters = GetSceneTextureShaderParameters(Views[0]);
+
+			SetupCommonDiffuseIndirectParameters(GraphBuilder, SceneTextureParameters, Views[0], /* out */ CommonDiffuseParameters);
+
+			FMobileDiffuseIndirectCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileDiffuseIndirectCompositePS::FParameters>();
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+			PassParameters->SceneTexturesStruct = GetSceneTextureShaderParameters(View);
+			PassParameters->AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
+
+			const FIntPoint BufferExtent = SceneTextureParameters.SceneDepthTexture->Desc.Extent;
+
+			{
+				// Placeholder texture for textures pulled in from SSDCommon.ush
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					FIntPoint(1),
+					PF_R32_UINT,
+					FClearValueBinding::Black,
+					TexCreate_ShaderResource);
+				FRDGTextureRef CompressedMetadataPlaceholder = GraphBuilder.CreateTexture(Desc, TEXT("CompressedMetadataPlaceholder"));
+
+				PassParameters->CompressedMetadata[0] = CompressedMetadataPlaceholder;
+				PassParameters->CompressedMetadata[1] = CompressedMetadataPlaceholder;
+			}
+
+			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
+			PassParameters->EyeAdaptation = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
+			LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
+			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
+			PassParameters->bLumenSupportBackfaceDiffuse = false;
+			PassParameters->bLumenReflectionInputIsSSR = false;
+			extern float GLumenShortRangeAOFoliageOcclusionStrength;
+			PassParameters->LumenFoliageOcclusionStrength = GLumenShortRangeAOFoliageOcclusionStrength;
+			extern float GLumenMaxShortRangeAOMultibounceAlbedo;
+			PassParameters->LumenMaxAOMultibounceAlbedo = GLumenMaxShortRangeAOMultibounceAlbedo;
+			PassParameters->LumenReflectionSpecularScale = 1;
+			PassParameters->LumenReflectionContrast = 1;
+
+			PassParameters->bVisualizeDiffuseIndirect = false;
+
+			PassParameters->DiffuseIndirect = DenoiserOutputs;
+			PassParameters->DiffuseIndirectSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
+			PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+			PassParameters->AmbientOcclusionTexture = SystemTextures.White;
+			PassParameters->AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+			Denoiser::SetupCommonShaderParameters(
+				View, SceneTextureParameters,
+				View.ViewRect,
+				1.0f / CommonDiffuseParameters.DownscaleFactor,
+				/* out */ &PassParameters->DenoiserCommonParameters);
+			PassParameters->SceneTextures = SceneTextureParameters;
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(
+				SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+			const TCHAR* DiffuseIndirectSampling = TEXT("Disabled");
+			FMobileDiffuseIndirectCompositePS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FMobileDiffuseIndirectCompositePS::FStrataTileType>(EStrataTileType::EComplex);
+			PermutationVector.Set<FMobileDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(3);
+			PermutationVector.Set<FMobileDiffuseIndirectCompositePS::FScreenBentNormal>(ScreenBentNormalParameters.UseShortRangeAO != 0);
+			PermutationVector.Set<FMobileDiffuseIndirectCompositePS::FUpscaleDiffuseIndirectDim>(false);
+			PermutationVector.Set<FMobileDiffuseIndirectCompositePS::FEnableDualSrcBlending>(true);
+			DiffuseIndirectSampling = TEXT("ScreenProbeGather");
+			bool bApplyAOToSceneColor = false;
+
+			TShaderMapRef<FMobileDiffuseIndirectCompositePS> PixelShader(View.ShaderMap, PermutationVector);
+
+			FRHIBlendState* BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+
+			if (1)
+			{
+				ClearUnusedGraphResources(PixelShader, PassParameters);
+
+				// only use depth bound optimization when diffuse indirect is disable
+				bool bUseDepthBounds = false;
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME(
+						"DiffuseIndirectComposite(DiffuseIndirect=%s%s%s) %dx%d",
+						DiffuseIndirectSampling,
+						TEXT(""),
+						TEXT(""),
+						View.ViewRect.Width(), View.ViewRect.Height()),
+					PassParameters,
+					ERDGPassFlags::Raster,
+					[&View, PassParameters, PixelShader, BlendState, bUseDepthBounds](FRHICommandList& RHICmdList)
+					{
+						check(PixelShader.IsValid());
+						RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);
+
+						FGraphicsPipelineStateInitializer GraphicsPSOInit;
+						FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, PixelShader, /* out */GraphicsPSOInit);
+						GraphicsPSOInit.BlendState = BlendState;
+						GraphicsPSOInit.bDepthBounds = false;
+
+						if (bUseDepthBounds)
+						{
+							GraphicsPSOInit.bDepthBounds = true;
+							const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
+							const FMatrix& ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
+							const FVector4f Far = (FVector4f)ProjectionMatrix.TransformFVector4(FVector4(0, 0, Settings.AmbientOcclusionFadeDistance));
+							float DepthFar = FMath::Clamp(Far.Z / Far.W, 0.0f, 1.0f);
+							RHICmdList.SetDepthBounds(DepthFar, 1.0f);
+						}
+
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+						SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+						FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
+
+						if (bUseDepthBounds)
+						{
+							RHICmdList.SetDepthBounds(0.f, 1.0f);
+						}
+					});
+			}
+		}
+	}
 
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
@@ -2096,6 +2353,7 @@ bool FMobileSceneRenderer::ShouldRenderHZB()
 	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
 	bIsFeatureRequested |= bRequiresScreenSpaceReflectionPass;
 	bIsFeatureRequested |= bRequiresScreenSpaceGlobalIlluminationPass;
+	bIsFeatureRequested |= bRequiresLumenPass;
 
 	bool bNeedsHZB = bIsFeatureRequested;
 

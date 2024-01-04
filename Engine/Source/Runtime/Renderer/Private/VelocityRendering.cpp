@@ -175,7 +175,7 @@ EMeshPass::Type GetMeshPassFromVelocityPass(EVelocityPass VelocityPass)
 
 DECLARE_CYCLE_STAT(TEXT("Velocity"), STAT_CLP_Velocity, STATGROUP_ParallelCommandListMarkers);
 
-bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
+bool FSceneRenderer::ShouldRenderVelocities() const
 {
 	if (!FVelocityRendering::IsVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS())
 	{
@@ -212,26 +212,6 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		bool bLumen = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 		
 		bNeedsVelocity |= bVisualizeMotionblur || bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI || bLumen;
-	}
-
-	return bNeedsVelocity;
-}
-
-bool FMobileSceneRenderer::ShouldRenderVelocities() const
-{
-	if (!FVelocityRendering::IsVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS() || !PlatformSupportsVelocityRendering(ShaderPlatform))
-	{
-		return false;
-	}
-
-	bool bNeedsVelocity = false;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-
-		bool bTemporalAA = IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) && !View.bCameraCut;
-
-		bNeedsVelocity |= bTemporalAA;
 	}
 
 	return bNeedsVelocity;

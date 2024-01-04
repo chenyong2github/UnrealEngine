@@ -23,7 +23,7 @@ class FViewDepthCopyCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsUsingGBuffers(Parameters.Platform);
 	}
 
 	static int32 GetGroupSize()
