@@ -197,16 +197,11 @@ void GetSkyLighting(half3 SkyLightColor, half3 WorldNormal, bool bEvaluateBackfa
 #endif
 }
 
-half3 GetScreenSpaceGlobalIllumination_Mobile(float4 ScreenPosition)
-{
-	float2 BufferUV = ScreenPositionToBufferUV(ScreenPosition);
-	return Texture2DSample(MobileBasePass.ScreenSpaceGlobalIlluminationTexture, MobileBasePass.ScreenSpaceGlobalIlluminationSampler, BufferUV).rgb;
-}
-
 void GetPrecomputedIndirectLightingAndSkyLight(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, bool bEvaluateBackface, half3 DiffuseDir, half3 SkyLightColor, out half3 OutDiffuseIndirectLighting, out half3 OutSubsurfaceIndirectLighting, out half OutIndirectIrradiance, out half3 OutWaterDiffuseIndirectLuminance)
 {
 	//To keep IndirectLightingCache conherence with PC, initialize the OutIndirectIrradiance to zero.
 	OutIndirectIrradiance = 0;
+	OutDiffuseIndirectLighting = 0;
 	OutSubsurfaceIndirectLighting = 0;
 
 	// Indirect Diffuse
@@ -765,10 +760,6 @@ void Main(
 	half NoL = max(0, dot(GBuffer.WorldNormal, MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz));
 
 	const bool bEvaluateBackface = GetShadingModelRequiresBackfaceLighting(GBuffer.ShadingModelID);
-
-	// Screen space global illumination
-	half3 DiffuseIBL = GetScreenSpaceGlobalIllumination_Mobile(MaterialParameters.ScreenPosition);
-	DiffuseIndirectLighting += DiffuseIBL;
 
 	GetPrecomputedIndirectLightingAndSkyLight(LightmapVTPageTableResult, Interpolants, bEvaluateBackface, DiffuseDir, ResolvedView.SkyLightColor.rgb, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance, WaterDiffuseIndirectLuminance);
 

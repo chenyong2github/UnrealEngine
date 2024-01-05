@@ -579,12 +579,6 @@ RENDERCORE_API bool IsMobileScreenSpaceReflectionEnabled(EShaderPlatform ShaderP
 	return IsMobilePlatform(ShaderPlatform) && IsMobileDeferredShadingEnabled(ShaderPlatform) && (CVar->GetValueOnAnyThread() > 0);
 }
 
-RENDERCORE_API bool IsMobileScreenSpaceGlobalIlluminationEnabled(EShaderPlatform ShaderPlatform)
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SSGI.Quality"));
-	return IsMobilePlatform(ShaderPlatform) && IsMobileDeferredShadingEnabled(ShaderPlatform) && (CVar->GetValueOnAnyThread() != 0);
-}
-
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
 {
 	return IsMobilePlatform(Platform) && FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform) && IsUsingDistanceFields(Platform);
@@ -655,7 +649,7 @@ RENDERCORE_API bool MobileUsesFullDepthPrepass(const FStaticShaderPlatform Platf
 	return MobileUsesShadowMaskTexture(Platform)
 		|| IsMobileAmbientOcclusionEnabled(Platform)
 		|| IsMobileScreenSpaceReflectionEnabled(Platform)
-		|| IsMobileScreenSpaceGlobalIlluminationEnabled(Platform)
+		|| IsMobileDeferredShadingEnabled(Platform)
 		|| (CVarMobileEarlyZPass.Get(Platform) == 1);
 }
 

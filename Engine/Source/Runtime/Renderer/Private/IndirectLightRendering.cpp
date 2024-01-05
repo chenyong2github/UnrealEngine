@@ -968,6 +968,7 @@ void FSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 		// Setup the common diffuse parameter for this view.
 		FCommonParameters CommonDiffuseParameters;
+		CommonDiffuseParameters.SceneTextureShaderParameters = GetSceneTextureShaderParameters(Views[0]);
 		SetupCommonDiffuseIndirectParameters(GraphBuilder, SceneTextureParameters, View, /* out */ CommonDiffuseParameters);
 
 		// Update old ray tracing config for the denoiser.

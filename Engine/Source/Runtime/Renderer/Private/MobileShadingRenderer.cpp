@@ -287,8 +287,6 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequiresScreenSpaceReflectionPass = false;
-	bRequiresScreenSpaceGlobalIlluminationPass = false;
-	bRequiresLumenPass = false;
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresShadowProjections = false;
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
@@ -465,6 +463,8 @@ void FMobileSceneRenderer::InitViews(
 	PostVisibilityFrameSetup(ILCTaskData);
 
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(Views[0]);
+	bool bSSGIEnabled = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI;
+	bool bLumenEnabled = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
 	FIntPoint RenderTargetSize = ViewFamily.RenderTarget->GetSizeXY();
 	EPixelFormat RenderTargetPixelFormat = PF_Unknown;
@@ -514,20 +514,6 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.UseDebugViewPS()
 		&& bDeferredShading;
 
-	bRequiresScreenSpaceGlobalIlluminationPass = (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
-		&& ViewFamily.EngineShowFlags.Lighting
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS()
-		&& bDeferredShading;
-
-	bRequiresLumenPass = (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
-		&& ViewFamily.EngineShowFlags.Lighting
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS()
-		&& bDeferredShading;
-
 	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
 		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
@@ -537,8 +523,8 @@ void FMobileSceneRenderer::InitViews(
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS()
-		&& !bRequiresScreenSpaceGlobalIlluminationPass // SSGI has its own AO output
-		&& !bRequiresLumenPass; // Lumen doesn't need AO by default
+		&& !bSSGIEnabled // SSGI has its own AO output
+		&& !bLumenEnabled; // Lumen doesn't need AO by default
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
 
@@ -565,7 +551,8 @@ void FMobileSceneRenderer::InitViews(
 		bForceDepthResolve ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bRequiresScreenSpaceReflectionPass ||
-		bRequiresScreenSpaceGlobalIlluminationPass ||
+		bSSGIEnabled ||
+		bLumenEnabled ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
@@ -941,6 +928,15 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FInitViewTaskDatas InitViewTaskDatas(VisibilityTaskData);
 
+	{
+		InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
+		if (InitViewTaskDatas.LumenFrameTemporaries)
+		{
+			BeginUpdateLumenSceneTasks(GraphBuilder, *InitViewTaskDatas.LumenFrameTemporaries);
+		}
+		BeginGatherLumenLights(InitViewTaskDatas.LumenDirectLighting, InitViewTaskDatas.VisibilityTaskData);
+	}
+
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_InitViews));
 
 	// Find the visible primitives and prepare targets and buffers for rendering
@@ -1026,6 +1022,15 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 	}
 	ExternalAccessQueue.Submit(GraphBuilder);
+
+	{
+		// Lumen updates need access to sky atmosphere LUT.
+		UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
+
+		LLM_SCOPE_BYTAG(Lumen);
+		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+		RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
+	}
 
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization
@@ -1137,71 +1142,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	RenderOpaqueFX(GraphBuilder, GetSceneViews(), GetSceneUniforms(), FXSystem, SceneTextures.MobileUniformBuffer);
 
-	if (bRequiresScreenSpaceGlobalIlluminationPass)
 	{
-		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.MobileUniformBuffer);
-
-		// Setup the common diffuse parameter for this view.
-		HybridIndirectLighting::FCommonParameters CommonDiffuseParameters;
-		CommonDiffuseParameters.SceneTextureShaderParameters = GetSceneTextureShaderParameters(Views[0]);
-
-		SetupCommonDiffuseIndirectParameters(GraphBuilder, SceneTextureParameters, Views[0], /* out */ CommonDiffuseParameters);
-
-		// Update old ray tracing config for the denoiser.
-		IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
-		{
-			RayTracingConfig.RayCountPerPixel = CommonDiffuseParameters.RayCountPerPixel;
-			RayTracingConfig.ResolutionFraction = 1.0f / float(CommonDiffuseParameters.DownscaleFactor);
-		}
-
-		ScreenSpaceRayTracing::FPrevSceneColorMip PrevSceneColorMip;
-		PrevSceneColorMip = ScreenSpaceRayTracing::ReducePrevSceneColorMip(GraphBuilder, SceneTextureParameters, Views[0]);
-
-		FSSDSignalTextures DenoiserOutputs;
-		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
-
-		RDG_EVENT_SCOPE(GraphBuilder, "SSGI %dx%d", CommonDiffuseParameters.TracingViewportSize.X, CommonDiffuseParameters.TracingViewportSize.Y);
-		DenoiserInputs = ScreenSpaceRayTracing::CastStandaloneDiffuseIndirectRays(
-			GraphBuilder, CommonDiffuseParameters, PrevSceneColorMip, Views[0]);
-
-		const IScreenSpaceDenoiser* DenoiserToUse = IScreenSpaceDenoiser::GetDefaultDenoiser();
-		RDG_EVENT_SCOPE(GraphBuilder, "%s(DiffuseIndirect) %dx%d",
-			DenoiserToUse->GetDebugName(),
-			Views[0].ViewRect.Width(), Views[0].ViewRect.Height());
-
-		DenoiserOutputs = DenoiserToUse->DenoiseScreenSpaceDiffuseIndirect(
-			GraphBuilder,
-			Views[0],
-			&Views[0].PrevViewInfo,
-			SceneTextureParameters,
-			DenoiserInputs,
-			RayTracingConfig);
-
-		if (Views[0].ViewState && !Views[0].bStatePrevViewInfoIsReadOnly
-		&& IsMobileScreenSpaceGlobalIlluminationEnabled(Views[0].GetShaderPlatform()))
-		{
-			GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[0], &Views[0].ViewState->PrevFrameViewInfo.MobileScreenSpaceGlobalIllumination);
-			//GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Textures[1], &Views[0].ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
-		}
-	}
-	
-	if (bRequiresLumenPass)
-	{
-		InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
-		if (InitViewTaskDatas.LumenFrameTemporaries)
-		{
-			BeginUpdateLumenSceneTasks(GraphBuilder, *InitViewTaskDatas.LumenFrameTemporaries);
-		}
-		BeginGatherLumenLights(InitViewTaskDatas.LumenDirectLighting, InitViewTaskDatas.VisibilityTaskData);
-
-		UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
-
-		{
-			LLM_SCOPE_BYTAG(Lumen);
-			BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries, InitViewTaskDatas.LumenDirectLighting);
-		}
-
 		// Copy lighting channels out of stencil before deferred decals which overwrite those values
 		TArray<FRDGTextureRef, TInlineAllocator<2>> NaniteShadingMask;
 		FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil, NaniteShadingMask);
@@ -1277,8 +1218,10 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
-	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+	{
+		// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
+		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+	}
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
@@ -1764,8 +1707,8 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 			RenderDeferredSinglePass(GraphBuilder, PassParameters, ViewContext, SceneTextures, SortedLightSet, bUsingPixelLocalStorage);
 		}
 
-		if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly
-		 && IsMobileScreenSpaceGlobalIlluminationEnabled(View.GetShaderPlatform()))
+		if ((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
+			&& !View.bStatePrevViewInfoIsReadOnly)
 		{
 			GraphBuilder.QueueTextureExtraction(SceneTextures.Depth.Resolve, &View.ViewState->PrevFrameViewInfo.DepthBuffer);
 			GraphBuilder.QueueTextureExtraction(SceneTextures.Color.Resolve, &View.ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput);
@@ -2104,11 +2047,15 @@ bool FMobileSceneRenderer::ShouldRenderHZB()
 {
 	static const auto MobileAmbientOcclusionTechniqueCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionTechnique"));
 
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(Views[0]);
+	bool bSSGI = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI;
+	bool bLumen = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+
 	// Mobile SSAO/SSR/SSGI requests HZB
 	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
 	bIsFeatureRequested |= bRequiresScreenSpaceReflectionPass;
-	bIsFeatureRequested |= bRequiresScreenSpaceGlobalIlluminationPass;
-	bIsFeatureRequested |= bRequiresLumenPass;
+	bIsFeatureRequested |= bSSGI;
+	bIsFeatureRequested |= bLumen;
 
 	bool bNeedsHZB = bIsFeatureRequested;
 
