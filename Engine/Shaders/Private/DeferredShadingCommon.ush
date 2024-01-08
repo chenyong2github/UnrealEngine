@@ -29,7 +29,15 @@ Texture2D GBufferFTexture;
 Texture2D GBufferVelocityTexture;
 Texture2D<uint> SceneLightingChannels;
 
-#define GBufferVelocityTextureSampler GlobalPointClampedSampler
+float SampleDeviceZFromSceneTextures(float2 UV)
+{
+#if SHADING_PATH_DEFERRED
+	return Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, UV, 0).r;
+#elif SHADING_PATH_MOBILE
+	return Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, UV, 0).r;
+#endif
+	return SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE;
+}
 
 #if SHADING_PATH_DEFERRED
 
@@ -46,11 +54,7 @@ uint bSceneLightingChannelsValid;
 #define GBufferDTextureSampler GlobalPointClampedSampler
 #define GBufferETextureSampler GlobalPointClampedSampler
 #define GBufferFTextureSampler GlobalPointClampedSampler
-
-float SampleDeviceZFromSceneTextures(float2 UV)
-{
-	return SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, UV, 0).r;
-}
+#define GBufferVelocityTextureSampler GlobalPointClampedSampler
 
 #endif
 
@@ -755,10 +759,7 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 #include "/Engine/Public/Platform/GL/GLSubpassSupport.ush"
 #endif
 
-float SampleDeviceZFromSceneTextures(float2 UV)
-{
-	return SceneDepthTexture.SampleLevel(MobileSceneTextures_SceneDepthTextureSampler, UV, 0).r;
-}
+#define GBufferVelocityTextureSampler MobileSceneTextures.SceneVelocityTextureSampler
 
 void MobileFetchGBuffer(in float2 UV, out half4 GBufferA, out half4 GBufferB, out half4 GBufferC, out half4 GBufferD, out float SceneDepth)
 {

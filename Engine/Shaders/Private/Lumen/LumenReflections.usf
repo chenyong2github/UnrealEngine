@@ -1017,7 +1017,7 @@ void ReflectionTemporalReprojectionCS(
 #if FRONT_LAYER_TRANSLUCENCY
 	const float DeviceZ = FrontLayerTranslucencySceneDepth[Coord.SvPosition].x;
 #else
-	const float DeviceZ = SceneTexturesStruct.SceneDepthTexture[Coord.SvPosition].x;
+	const float DeviceZ = SampleDeviceZFromSceneTextures(ScreenUV);
 #endif
 	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
