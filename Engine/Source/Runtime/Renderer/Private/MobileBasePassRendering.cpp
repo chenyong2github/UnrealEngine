@@ -221,13 +221,6 @@ void SetupMobileBasePassUniformParameters(
 	BasePassParameters.AmbientOcclusionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
 
-	BasePassParameters.ScreenSpaceReflectionTexture = SystemTextures.Black;
-	BasePassParameters.ScreenSpaceReflectionSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	if (View.PrevViewInfo.MobileScreenSpaceReflection.IsValid())
-	{
-		BasePassParameters.ScreenSpaceReflectionTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.MobileScreenSpaceReflection, TEXT("MobileScreenSpaceReflection"));
-	}
-
 	const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(View.GetShaderPlatform());
 	
 	if (bMobileUsesShadowMaskTexture && GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile.IsValid())

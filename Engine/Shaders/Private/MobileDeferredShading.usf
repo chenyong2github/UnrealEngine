@@ -102,7 +102,6 @@ half3 SkyLightDiffuseMobile(FGBufferData GBuffer, half3 DiffuseColor, half3 V, i
 
 void ReflectionEnvironmentSkyLighting(
 	FGBufferData GBuffer,
-	float2 BufferUV,
 	half3 CameraVector,
 	float3 TranslatedWorldPosition,
 	half3 ReflectionVector,
@@ -129,7 +128,6 @@ void ReflectionEnvironmentSkyLighting(
 
 	// IBL
 	AccumulateReflection(GBuffer
-		, BufferUV
 		, CameraVector
 		, TranslatedWorldPosition
 		, ReflectionVector
@@ -187,7 +185,7 @@ void MobileDirectionalLightPS(
 
 #if ENABLE_CLUSTERED_REFLECTION || ENABLE_SKY_LIGHT || ENABLE_PLANAR_REFLECTION
 	// If we have a single directional light, apply relfection and sky contrubution here
-	ReflectionEnvironmentSkyLighting(GBuffer, UVAndScreenPos.xy, CameraVector, TranslatedWorldPosition, ReflectionVector, GridIndex, DirectLighting);
+	ReflectionEnvironmentSkyLighting(GBuffer, CameraVector, TranslatedWorldPosition, ReflectionVector, GridIndex, DirectLighting);
 #endif
 
 	half3 Color = DirectLighting.TotalLight;
@@ -332,7 +330,7 @@ void MobileReflectionEnvironmentSkyLightingPS(
 	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), GBuffer.Depth);
 	
 	FLightAccumulator DirectLighting = (FLightAccumulator)0;
-	ReflectionEnvironmentSkyLighting(GBuffer, UVAndScreenPos.xy, CameraVector, TranslatedWorldPosition, ReflectionVector, GridIndex, DirectLighting);
+	ReflectionEnvironmentSkyLighting(GBuffer, CameraVector, TranslatedWorldPosition, ReflectionVector, GridIndex, DirectLighting);
 	half3 ReflectionAndSky = DirectLighting.TotalLight;
 
 	ReflectionAndSky *= View.PreExposure;

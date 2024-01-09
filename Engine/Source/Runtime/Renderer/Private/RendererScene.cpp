@@ -908,7 +908,6 @@ uint64 FPreviousViewInfo::GetGPUSizeBytes(bool bLogSizes) const
 		GetRenderTargetGPUSizeBytes(MobileBloomSetup_EyeAdaptation, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(MobilePixelProjectedReflection, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(MobileAmbientOcclusion, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(MobileScreenSpaceReflection, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(VisualizeMotionVectors, bLogSizes);
 
 	for (auto ShadowHistoryIt = ShadowHistories.begin(); ShadowHistoryIt; ++ShadowHistoryIt)
