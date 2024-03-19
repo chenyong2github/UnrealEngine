@@ -83,7 +83,6 @@ class FHazardPointerCollection
 		static constexpr uintptr_t FreeHazardEntry = ~uintptr_t(0);
 
 		std::atomic<uintptr_t> Hazard{ FreeHazardEntry };
-		FHazardRecord() = default;
 
 		inline void* GetHazard() const
 		{
@@ -109,6 +108,9 @@ class FHazardPointerCollection
 		{
 			Hazard.store(FreeHazardEntry, std::memory_order_release);
 		}
+
+	public:
+		FHazardRecord() = default;
 	};
 
 	template<typename D>
